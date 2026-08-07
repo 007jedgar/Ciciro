@@ -1,0 +1,193 @@
+// Ciciro data model — local-first, single author.
+// SQLite keeps everything on the author's machine.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  title     String   @default("Untitled Manuscript")
+  author    String   @default("")
+  genre     String   @default("")
+  logline   String   @default("") // one-sentence hook
+  synopsis  String   @default("") // longer premise
+  theme     String   @default("") // the throughline the assistant aligns language to
+  pov       String   @default("") // e.g. "First person, past tense"
+  notes     String   @default("") // freeform worldbuilding / style notes
+
+  chapters         Chapter[]
+  characters       Character[]
+  plotPoints       PlotPoint[]
+  messages         ChatMessage[]
+  openQuestions    OpenQuestion[]
+  chatBlobs        ChatBlob[]
+  draftInsertions  DraftInsertion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Chapter {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title     String @default("Untitled Chapter")
+  order     Int    @default(0)
+  content   String @default("") // TipTap HTML
+  summary   String @default("") // assistant-maintained beat summary
+  status    String @default("draft") // draft | revised | final
+  wordCount Int    @default(0)
+
+  plotPoints      PlotPoint[]
+  manuscriptEdits ManuscriptEdit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, order])
+}
+
+// A correction the editor applied via edit_manuscript - the raw find/replace
+// pair, kept so the manuscript pane can render a diff of what changed.
+model ManuscriptEdit {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  find    String
+  replace String
+
+  createdAt DateTime @default(now())
+
+  @@index([chapterId, createdAt])
+}
+
+model Character {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name        String
+  role        String @default("") // protagonist | antagonist | supporting ...
+  description String @default("")
+  arc         String @default("") // where they start vs. end
+  notes       String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model PlotPoint {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  chapterId String?
+  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String @default("")
+  type        String @default("beat") // setup | payoff | turn | beat | subplot
+  status      String @default("open") // open | resolved
+  order       Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, order])
+}
+
+model OpenQuestion {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  question     String // the fork the editor did not stop to ask
+  provisional  String  @default("") // what it went with so it could keep writing
+  affects      String  @default("") // where in the manuscript/bible it lands
+  chapterId    String? // primary affected chapter, if one
+  status       String  @default("open") // open | resolved | dismissed
+  answer       String  @default("") // the author's answer, once given
+  resolution   String  @default("") // what the editor changed on reconciliation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, status])
+}
+
+model ChatMessage {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  role    String // user | assistant
+  content String
+  // Cached model-facing view (stubs for oversized / aged content). Null means
+  // the model still sees `content` (minus any inserted-draft stubs applied live).
+  modelContent String?
+  kind    String @default("chat") // chat | action | autowrite | compact | reconcile
+  // Groups a user turn with its assistant reply so the client can resume after
+  // a dropped stream without re-sending the author's message.
+  turnId  String?
+  // complete = finished; partial = stream died mid-reply (eligible for resume);
+  // compact = rolled-up prior context, not a real turn; archived = soft-archived
+  // by automatic compaction (still readable via read_past_turn / search_chat).
+  status  String  @default("complete")
+  // Set when automatic compaction rolls this row out of the live window.
+  // Clear-chat hard-deletes regardless; UI/model windows exclude archived rows.
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([projectId, turnId])
+  @@index([projectId, archivedAt])
+}
+
+// Chat-only payloads with no other durable home (tool results, freeform
+// excerpts, rolled transcripts). Inserted drafts point at Chapter instead.
+model ChatBlob {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  kind      String // tool_result | chat_excerpt | transcript
+  content   String
+  charCount Int    @default(0)
+  label     String @default("") // one-line gist shown in stubs
+  messageId String?
+  turnId    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([projectId, turnId])
+}
+
+// Author-approved paste of a chat <draft> into the manuscript. Keyed by
+// (turnId, segmentIndex) so it survives streaming temp ids and page reloads.
+model DraftInsertion {
+  id           String  @id @default(cuid())
+  projectId    String
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  turnId       String
+  segmentIndex Int
+  chapterId    String
+
+  createdAt DateTime @default(now())
+
+  @@unique([turnId, segmentIndex])
+  @@index([projectId])
+  @@index([turnId])
+}
