@@ -82,8 +82,18 @@ function usesExpectedRevision(tool: {
     return Number.isInteger(tool.input.expectedRevision);
   }
   if (tool.name === "move_text") {
+    if (!Number.isInteger(tool.input.expectedSourceRevision)) return false;
+    const passageChapter = String(tool.input.from || "").match(/^ch(\d+)\./i);
+    const sourceChapter =
+      Number(tool.input.fromChapter) || Number(passageChapter?.[1]) || null;
+    const anchor = String(tool.input.after || tool.input.before || "");
+    const anchorChapter = anchor.match(/^ch(\d+)\./i);
+    const destinationChapter =
+      Number(tool.input.toChapter) ||
+      Number(anchorChapter?.[1]) ||
+      sourceChapter;
     return (
-      Number.isInteger(tool.input.expectedSourceRevision) &&
+      sourceChapter === destinationChapter ||
       Number.isInteger(tool.input.expectedDestinationRevision)
     );
   }
