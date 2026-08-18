@@ -81,6 +81,13 @@ function statusForMessage(
   return runs.find((run) => run.turnId === message.turnId);
 }
 
+// Ceiling on automatic continuation slices for one turn. Each slice is a bounded
+// server run (up to MAX_ITERATIONS_PER_SLICE model iterations). A run that keeps
+// returning `continuing` - e.g. a verification gate the model cannot satisfy -
+// would otherwise loop forever, firing an editor request per slice. When the cap
+// is hit we stop auto-continuing; the pending turn stays saved and resumable.
+const MAX_CONTINUATION_SLICES = 40;
+
 type SliceResult = {
   text: string;
   status: EditorRunStatus;
@@ -641,6 +648,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
 
     let result: SliceResult | null = null;
     let fresh = !isResume;
+    let continuationSlices = 0;
 
     try {
       while (true) {
@@ -692,6 +700,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         savePendingTurn(turn);
 
         if (sliceResult.status !== "continuing") break;
+        continuationSlices += 1;
+        if (continuationSlices >= MAX_CONTINUATION_SLICES) {
+          setStreamTools((current) => [
+            ...current.filter((line) => !line.startsWith("Saved slice")),
+            "Paused after many continuation slices - reopen this turn to keep going.",
+          ]);
+          break;
+        }
         setActivePhase("continuing");
         setStreamTools((current) => [
           ...current.filter((line) => !line.startsWith("Saved slice")),

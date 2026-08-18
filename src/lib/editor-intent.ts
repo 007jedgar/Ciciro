@@ -145,21 +145,11 @@ export async function buildEditorIntent(input: {
     marker: marker.marker,
     destinationChapter: marker.destinationChapter,
   }));
-  const inferredMarker =
-    sourceChapter &&
-    destinationChapter &&
-    /\b(?:poorly|wrongly|badly)\s+inserted\b/i.test(input.message)
-      ? {
-          chapter: sourceChapter,
-          marker: `CHAPTER ${destinationChapter}`,
-          destinationChapter,
-        }
-      : null;
-  const inlineMarkersAbsent = detectedMarkerExpectations.length
-    ? detectedMarkerExpectations
-    : inferredMarker
-      ? [inferredMarker]
-      : [];
+  // Only carry markers actually found in the source. Fabricating a marker from
+  // phrasing alone ("poorly inserted") would inject a split_inline_chapter_
+  // boundary operation and a marker postcondition for a boundary that does not
+  // exist; the move_passage operation already covers a plain misplaced passage.
+  const inlineMarkersAbsent = detectedMarkerExpectations;
   const passages: PassageExpectation[] = [];
   const selection = normalizePassageComparison(input.selection || "");
   if (selection && sourceChapter && destinationChapter) {

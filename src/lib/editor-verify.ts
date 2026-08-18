@@ -68,6 +68,7 @@ function isRelevantMutation(name: string): boolean {
     "delete_passages",
     "split_chapter_at",
     "insert_text",
+    "edit_manuscript",
   ].includes(name);
 }
 
@@ -78,7 +79,11 @@ function usesExpectedRevision(tool: {
   if (tool.name === "split_chapter_at") {
     return Number.isInteger(tool.input.expectedSourceRevision);
   }
-  if (tool.name === "delete_passages") {
+  if (
+    tool.name === "delete_passages" ||
+    tool.name === "insert_text" ||
+    tool.name === "edit_manuscript"
+  ) {
     return Number.isInteger(tool.input.expectedRevision);
   }
   if (tool.name === "move_text") {

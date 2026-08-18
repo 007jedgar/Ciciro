@@ -265,6 +265,92 @@ describe("intent-aware completion verification", () => {
     );
   });
 
+  it("counts a revision-safe edit_manuscript as a completing mutation", async () => {
+    // edit_manuscript is a revision-checked structural write. It must count as a
+    // relevant mutation so a correction applied through it can satisfy the
+    // mutation gate instead of looping as `continuing` forever.
+    const correctedSource =
+      "<p>The hospital improvised a hastily assembled press conference featuring the Surgeon</p>";
+    const project = await seed([correctedSource, fixture.chapters[1].content]);
+    const transcript = messages(verifiedContract(true));
+    transcript.push(
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "edit",
+            name: "edit_manuscript",
+            input: {
+              chapterNumber: 1,
+              expectedRevision: 7,
+              replacements: [{ find: "SurgeonCHAPTER 2", replace: "Surgeon" }],
+            },
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          { type: "tool_result", tool_use_id: "edit", content: "corrected" },
+        ],
+      }
+    );
+    const result = await verifyEditorCompletion({
+      projectId: project.id,
+      messages: transcript,
+      mutationCount: 1,
+    });
+    expect(result.passed).toBe(true);
+    expect(result.noOp).toBe(false);
+    expect(
+      result.checks.find((c) => c.name === "mutations_use_expected_revisions")
+        ?.passed
+    ).toBe(true);
+    expect(
+      result.checks.find((c) => c.name === "mutation_or_verified_noop")?.passed
+    ).toBe(true);
+  });
+
+  it("does not fabricate an inline marker from phrasing when the source has none", async () => {
+    // "poorly inserted" phrasing must not invent a CHAPTER boundary that is not
+    // physically in the source: doing so injects an unprovable split operation.
+    const project = await prisma.project.create({
+      data: {
+        title: "No real marker",
+        chapters: {
+          create: [
+            {
+              title: "One",
+              order: 0,
+              revision: 2,
+              content:
+                "<p>A calm opening about the harbor.</p><p>A misplaced paragraph that belongs elsewhere.</p>",
+            },
+            {
+              title: "Two",
+              order: 1,
+              revision: 1,
+              content: "<p>The second chapter proceeds normally.</p>",
+            },
+          ],
+        },
+      },
+      include: { chapters: { orderBy: { order: "asc" } } },
+    });
+    const intent = await buildEditorIntent({
+      projectId: project.id,
+      activeChapterId: project.chapters[0].id,
+      message:
+        "there's poorly inserted text in chapter 1, add it to chapter 2",
+      kind: "action",
+    });
+    expect(intent.postconditions.inlineMarkersAbsent).toEqual([]);
+    expect(intent.desiredOperations).not.toContainEqual(
+      expect.objectContaining({ kind: "split_inline_chapter_boundary" })
+    );
+  });
+
   it("resolves the exact malformed fixture without duplicating chapter 2", async () => {
     const project = await seed();
     const intent = await buildEditorIntent({
