@@ -906,8 +906,18 @@ export async function executeEditorTool(
       if ("error" in split) {
         return { status: "split failed", content: split.error };
       }
+      const destinationAlreadyContainsSplit = Boolean(
+        destination &&
+          split.destinationContent &&
+          countPassageOccurrences(
+            destination.content,
+            split.destinationContent
+          ) > 0
+      );
       const destinationContent =
-        split.destinationContent + (destination?.content || "");
+        destinationAlreadyContainsSplit
+          ? destination?.content || ""
+          : split.destinationContent + (destination?.content || "");
       const sourceWordCount = countWords(htmlToText(split.sourceContent));
       const destinationWordCount = countWords(htmlToText(destinationContent));
       const sourceIndex = formatSceneIndex(split.sourceIndex, { paragraphs: true });
@@ -917,7 +927,11 @@ export async function executeEditorTool(
       );
       const preview =
         `Split boundary "${split.boundary}" from chapter ${sourceNumber} into ` +
-        `chapter ${destinationNumber}.\n\nSOURCE AFTER:\n${sourceIndex}\n\n` +
+        `chapter ${destinationNumber}.` +
+        (destinationAlreadyContainsSplit
+          ? " The split passage already exists at the destination, so it will not be added again."
+          : "") +
+        `\n\nSOURCE AFTER:\n${sourceIndex}\n\n` +
         `DESTINATION AFTER:\n${destinationIndex}`;
       if (dryRun) {
         return {
@@ -930,7 +944,12 @@ export async function executeEditorTool(
       }
 
       type SplitCommit =
-        | { created: false; destinationRevision: number; destinationId: string }
+        | {
+            created: false;
+            destinationChanged: boolean;
+            destinationRevision: number;
+            destinationId: string;
+          }
         | { created: true; chapter: Awaited<ReturnType<typeof prisma.chapter.create>> };
       let committed: SplitCommit;
       try {
@@ -946,6 +965,30 @@ export async function executeEditorTool(
           if (sourceUpdate.count !== 1) throw new Error("SOURCE_REVISION_CONFLICT");
 
           if (destination) {
+            if (destinationAlreadyContainsSplit) {
+              const currentDestination = await tx.chapter.findUnique({
+                where: { id: destination.id },
+                select: { revision: true },
+              });
+              if (
+                currentDestination?.revision !== expectedDestinationRevision
+              ) {
+                throw new Error("DESTINATION_REVISION_CONFLICT");
+              }
+              await tx.manuscriptEdit.create({
+                data: {
+                  chapterId: source.id,
+                  find: split.boundary,
+                  replace: `[removed duplicate already in chapter ${destinationNumber}]`,
+                },
+              });
+              return {
+                created: false as const,
+                destinationChanged: false,
+                destinationRevision: expectedDestinationRevision as number,
+                destinationId: destination.id,
+              };
+            }
             const destinationUpdate = await tx.chapter.updateMany({
               where: {
                 id: destination.id,
@@ -976,6 +1019,7 @@ export async function executeEditorTool(
             });
             return {
               created: false as const,
+              destinationChanged: true,
               destinationRevision: (expectedDestinationRevision as number) + 1,
               destinationId: destination.id,
             };
@@ -1023,7 +1067,7 @@ export async function executeEditorTool(
       }
 
       const sourceRevision = expectedSourceRevision + 1;
-      const destinationEvent: ClientUiEvent = committed.created
+      const destinationEvent: ClientUiEvent | null = committed.created
         ? {
             type: "chapter_created",
             chapter: {
@@ -1039,13 +1083,15 @@ export async function executeEditorTool(
             },
             open: false,
           }
-        : {
+        : committed.destinationChanged
+          ? {
             type: "chapter_updated",
             chapterId: committed.destinationId,
             content: destinationContent,
             wordCount: destinationWordCount,
             revision: committed.destinationRevision,
-          };
+            }
+          : null;
       return {
         status: backstageLine("split_chapter_at"),
         content:
@@ -1053,7 +1099,9 @@ export async function executeEditorTool(
           `${sourceRevision}; destination ${
             committed.created
               ? "created at revision 0"
-              : `revision ${expectedDestinationRevision} -> ${committed.destinationRevision}`
+              : committed.destinationChanged
+                ? `revision ${expectedDestinationRevision} -> ${committed.destinationRevision}`
+                : `unchanged at revision ${committed.destinationRevision} (duplicate avoided)`
           }.`,
         mutationCount: 1,
         ui: [
@@ -1064,7 +1112,7 @@ export async function executeEditorTool(
             wordCount: sourceWordCount,
             revision: sourceRevision,
           },
-          destinationEvent,
+          ...(destinationEvent ? [destinationEvent] : []),
         ],
       };
     }
