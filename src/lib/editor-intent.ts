@@ -140,9 +140,11 @@ export async function buildEditorIntent(input: {
         destinationChapter
       )
     : [];
-  const detectedMarkerExpectations = initialMarkers.map(
-    ({ followingText: _followingText, ...marker }) => marker
-  );
+  const detectedMarkerExpectations = initialMarkers.map((marker) => ({
+    chapter: marker.chapter,
+    marker: marker.marker,
+    destinationChapter: marker.destinationChapter,
+  }));
   const inferredMarker =
     sourceChapter &&
     destinationChapter &&
