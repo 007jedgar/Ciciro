@@ -8,6 +8,7 @@ import {
 } from "@/lib/editor-intent";
 import { verifyEditorCompletion } from "@/lib/editor-verify";
 import { prisma } from "@/lib/db";
+import { executeEditorTool } from "@/lib/tools";
 
 async function seed(contents = fixture.chapters.map((chapter) => chapter.content)) {
   return prisma.project.create({
@@ -163,5 +164,67 @@ describe("intent-aware completion verification", () => {
 
     expect(result.passed).toBe(false);
     expect(result.unmatchedToolUseIds).toEqual(["missing-result"]);
+  });
+
+  it("resolves the exact malformed fixture without duplicating chapter 2", async () => {
+    const project = await seed();
+    const intent = await buildEditorIntent({
+      projectId: project.id,
+      activeChapterId: project.chapters[0].id,
+      message: fixture.prompt,
+      kind: "action",
+    });
+    const toolInput = {
+      sourceChapter: 1,
+      destinationChapter: 2,
+      boundary: fixture.boundary,
+      expectedSourceRevision: fixture.chapters[0].revision,
+      expectedDestinationRevision: fixture.chapters[1].revision,
+    };
+    const toolResult = await executeEditorTool(
+      "split_chapter_at",
+      toolInput,
+      { projectId: project.id }
+    );
+    const transcript = messages(intent);
+    transcript.push(
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "fixture-split",
+            name: "split_chapter_at",
+            input: toolInput,
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "fixture-split",
+            content: toolResult.content,
+          },
+        ],
+      }
+    );
+    const verification = await verifyEditorCompletion({
+      projectId: project.id,
+      messages: transcript,
+      mutationCount: toolResult.mutationCount || 0,
+    });
+    const chapters = await prisma.chapter.findMany({
+      where: { projectId: project.id },
+      orderBy: { order: "asc" },
+    });
+
+    expect(toolResult.mutationCount).toBe(1);
+    expect(verification.passed).toBe(true);
+    expect(verification.noOp).toBe(false);
+    expect(chapters[0].revision).toBe(fixture.chapters[0].revision + 1);
+    expect(chapters[1].revision).toBe(fixture.chapters[1].revision);
+    expect(chapters[1].content).toBe(fixture.chapters[1].content);
   });
 });
