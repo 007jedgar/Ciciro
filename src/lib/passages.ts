@@ -48,6 +48,21 @@ export type ResolveOk = BlockRun & {
   gist: string;
 };
 
+export type PassageDeletion = {
+  content: string;
+  deletedHtml: string;
+  passage: ResolveOk;
+  index: ChapterPassages;
+};
+
+export type ChapterSplit = {
+  sourceContent: string;
+  destinationContent: string;
+  boundary: string;
+  sourceIndex: ChapterPassages;
+  destinationIndex: ChapterPassages;
+};
+
 export type ChapterPassages = {
   chapterNumber: number;
   blocks: HtmlBlock[];
@@ -60,6 +75,16 @@ const ID_RE =
 
 export function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, " ").trim();
+}
+
+/** Normalize prose for duplicate checks without depending on stored HTML bytes. */
+export function normalizePassageComparison(s: string): string {
+  return normalizeWhitespace(htmlToText(s))
+    .normalize("NFKC")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .toLocaleLowerCase();
 }
 
 export function isSceneBreak(text: string): boolean {
@@ -412,6 +437,111 @@ export function resolveSource(
     gist: paras[0]?.gist || covering?.gist || gist(text),
     wordCount: words,
   };
+}
+
+/** Delete one resolved scene/paragraph range from a chapter snapshot. */
+export function deletePassageRange(
+  html: string,
+  chapterNumber: number,
+  passageId: string
+): PassageDeletion | { error: string } {
+  const passage = resolvePassageId(html, chapterNumber, passageId);
+  if ("error" in passage) return passage;
+  const deletedHtml = html.slice(passage.start, passage.end);
+  const content = html.slice(0, passage.start) + html.slice(passage.end);
+  return {
+    content,
+    deletedHtml,
+    passage,
+    index: indexChapter(content, chapterNumber),
+  };
+}
+
+/**
+ * Split a boundary token out of the top-level block that contains it. Both
+ * halves retain the original block wrapper, which makes fused text such as
+ * `<p>SurgeonCHAPTER 2Opening...</p>` safe to divide.
+ */
+export function splitChapterHtmlAt(
+  html: string,
+  boundary: string,
+  sourceChapterNumber: number,
+  destinationChapterNumber: number
+): ChapterSplit | { error: string } {
+  const marker = boundary.trim();
+  if (!marker) return { error: "Boundary text is required." };
+  if (/[<>]/.test(marker)) {
+    return { error: "Boundary must be plain text, not HTML." };
+  }
+
+  const candidates: { block: HtmlBlock; offset: number }[] = [];
+  for (const block of getBlocks(html)) {
+    const raw = html.slice(block.start, block.end);
+    if (/^<hr/i.test(raw)) continue;
+    let from = 0;
+    while (from <= raw.length) {
+      const offset = raw.indexOf(marker, from);
+      if (offset === -1) break;
+      candidates.push({ block, offset });
+      from = offset + marker.length;
+    }
+  }
+  if (candidates.length !== 1) {
+    return {
+      error:
+        candidates.length === 0
+          ? `Boundary "${marker}" was not found in a top-level text block.`
+          : `Boundary "${marker}" matched ${candidates.length} locations; provide a unique boundary.`,
+    };
+  }
+
+  const { block, offset } = candidates[0];
+  const raw = html.slice(block.start, block.end);
+  const opening = raw.match(/^<([a-z][\w-]*)\b[^>]*>/i)?.[0];
+  const closing = raw.match(/<\/([a-z][\w-]*)>\s*$/i)?.[0];
+  if (!opening || !closing) {
+    return { error: "Boundary block could not be split safely." };
+  }
+  const innerStart = opening.length;
+  const innerEnd = raw.length - closing.length;
+  if (offset < innerStart || offset + marker.length > innerEnd) {
+    return { error: "Boundary matched markup rather than chapter prose." };
+  }
+
+  const leftInner = raw.slice(innerStart, offset);
+  const rightInner = raw.slice(offset + marker.length, innerEnd);
+  const keepBlock = (inner: string) => {
+    const wrapped = opening + inner + closing;
+    return normalizeWhitespace(htmlToText(wrapped)) ? wrapped : "";
+  };
+  const sourceContent =
+    html.slice(0, block.start) + keepBlock(leftInner);
+  const destinationContent =
+    keepBlock(rightInner) + html.slice(block.end);
+
+  return {
+    sourceContent,
+    destinationContent,
+    boundary: marker,
+    sourceIndex: indexChapter(sourceContent, sourceChapterNumber),
+    destinationIndex: indexChapter(destinationContent, destinationChapterNumber),
+  };
+}
+
+/** Count normalized, non-overlapping occurrences of a passage in one chapter. */
+export function countPassageOccurrences(chapterHtml: string, passage: string): number {
+  const haystack = normalizePassageComparison(chapterHtml);
+  const needle = normalizePassageComparison(passage);
+  if (!needle) return 0;
+  let count = 0;
+  let from = 0;
+  while (from <= haystack.length) {
+    const at = haystack.indexOf(needle, from);
+    if (at === -1) break;
+    count += 1;
+    from = at + needle.length;
+  }
+  return count;
 }
 
 export function formatSceneIndex(
