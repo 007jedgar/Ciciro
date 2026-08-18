@@ -11,16 +11,26 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { QUICK_ACTIONS, type QuickAction } from "@/lib/prompts";
-import type { ChatMessage, ClientUiEvent, DraftInsertion } from "@/lib/types";
+import type {
+  ChatMessage,
+  ChatSnapshot,
+  ClientUiEvent,
+  DraftInsertion,
+  EditorRun,
+  EditorRunStatus,
+} from "@/lib/types";
 import WritingLoader from "@/components/WritingLoader";
 import {
   clearPendingTurn,
   loadPendingTurn,
   savePendingTurn,
   updatePendingPartial,
+  updatePendingRun,
   type PendingTurn,
 } from "@/lib/pending-turn";
 import {
+  isTerminalRunStatus,
+  normalizeChatSnapshot,
   OfflineError,
   StallError,
   pollForTurnAssistant,
@@ -51,6 +61,34 @@ type Props = {
 };
 
 type ConnState = "online" | "offline" | "reconnecting" | "stalled";
+
+const PHASE_LABELS: Record<EditorRunStatus, string> = {
+  queued: "Queued",
+  running: "Editing",
+  continuing: "Continuing",
+  verifying: "Verifying",
+  completed: "Completed",
+  failed: "Failed",
+  cancelled: "Cancelled",
+};
+
+function statusForMessage(
+  message: ChatMessage,
+  runs: EditorRun[]
+): EditorRun | undefined {
+  if (!message.turnId) return undefined;
+  return runs.find((run) => run.turnId === message.turnId);
+}
+
+type SliceResult = {
+  text: string;
+  status: EditorRunStatus;
+  turnId: string;
+  runId?: string;
+  stopReason?: string | null;
+  iterationCount?: number;
+  mutationCount?: number;
+};
 
 function insertionKey(turnId: string, segmentIndex: number) {
   return `${turnId}:${segmentIndex}`;
@@ -152,6 +190,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   ref
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [runs, setRuns] = useState<EditorRun[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState("");
@@ -161,6 +200,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const [autoMode, setAutoMode] = useState(false);
   const [insertedKeys, setInsertedKeys] = useState<Set<string>>(new Set());
   const [conn, setConn] = useState<ConnState>("online");
+  const [activePhase, setActivePhase] = useState<EditorRunStatus | null>(null);
   const [compacting, setCompacting] = useState(false);
   const [moveDest, setMoveDest] = useState("decide");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -205,10 +245,11 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
 
   const refreshMessages = useCallback(async () => {
     const r = await fetch(`/api/chat?projectId=${projectId}`);
-    const data = await r.json();
-    if (Array.isArray(data)) setMessages(data);
+    const snapshot = normalizeChatSnapshot(await r.json());
+    setMessages(snapshot.messages);
+    setRuns(snapshot.runs);
     await refreshInsertions().catch(() => {});
-    return Array.isArray(data) ? (data as ChatMessage[]) : [];
+    return snapshot;
   }, [projectId, refreshInsertions]);
 
   useEffect(() => {
@@ -280,13 +321,17 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       signal: AbortSignal;
       onTurnId: (id: string) => void;
     }
-  ): Promise<{ text: string; status: string; turnId: string }> {
+  ): Promise<SliceResult> {
     if (!res.body) throw new Error("No response stream");
 
     let acc = "";
     const tools: string[] = [];
     let turnId = opts.turn.turnId;
-    let doneStatus = "complete";
+    let runId = opts.turn.runId;
+    let doneStatus: EditorRunStatus | null = null;
+    let stopReason = opts.turn.stopReason;
+    let iterationCount = opts.turn.iterationCount;
+    let mutationCount = opts.turn.mutationCount;
 
     await readNdjsonStream(res.body, {
       signal: opts.signal,
@@ -297,9 +342,12 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       onEvent: (evt: NdjsonEvent) => {
         if (evt.type === "turn" && typeof evt.id === "string") {
           turnId = evt.id;
+          if (typeof evt.runId === "string") runId = evt.runId;
           streamTurnIdRef.current = turnId;
           opts.onTurnId(turnId);
-          savePendingTurn({ ...opts.turn, turnId });
+          opts.turn.turnId = turnId;
+          opts.turn.runId = runId;
+          savePendingTurn({ ...opts.turn });
         } else if (evt.type === "text" && typeof evt.v === "string") {
           // Server replay/resume seeds replace the bubble; deltas append.
           if (evt.resume) acc = evt.v;
@@ -310,6 +358,26 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         } else if (evt.type === "tool" && typeof evt.v === "string") {
           tools.push(evt.v);
           setStreamTools([...tools]);
+        } else if (evt.type === "phase") {
+          const phase = evt as {
+            status: EditorRunStatus;
+            runId: string;
+            stopReason?: string | null;
+            iterationCount?: number;
+            mutationCount?: number;
+          };
+          setActivePhase(phase.status);
+          runId = phase.runId;
+          stopReason = phase.stopReason;
+          iterationCount = phase.iterationCount;
+          mutationCount = phase.mutationCount;
+          updatePendingRun(opts.projectId, {
+            runId,
+            status: phase.status,
+            stopReason,
+            iterationCount,
+            mutationCount,
+          });
         } else if (
           evt.type === "open_chapter" ||
           evt.type === "chapter_created" ||
@@ -317,12 +385,41 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         ) {
           onUiEventRef.current?.(evt as unknown as ClientUiEvent);
         } else if (evt.type === "done") {
-          doneStatus = typeof evt.status === "string" ? evt.status : "complete";
+          const done = evt as {
+            status: EditorRunStatus;
+            runId: string;
+            stopReason?: string | null;
+            iterationCount?: number;
+            mutationCount?: number;
+          };
+          doneStatus = done.status;
+          runId = done.runId;
+          stopReason = done.stopReason;
+          iterationCount = done.iterationCount;
+          mutationCount = done.mutationCount;
+          setActivePhase(done.status);
+          Object.assign(opts.turn, {
+            runId,
+            status: done.status,
+            stopReason,
+            iterationCount,
+            mutationCount,
+          });
+          savePendingTurn(opts.turn);
         }
       },
     });
 
-    return { text: acc, status: doneStatus, turnId };
+    if (!doneStatus) throw new Error("Editor stream ended before a durable checkpoint.");
+    return {
+      text: acc,
+      status: doneStatus,
+      turnId,
+      runId,
+      stopReason,
+      iterationCount,
+      mutationCount,
+    };
   }
 
   async function postChat(
@@ -359,7 +456,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     assistantId: string,
     signal: AbortSignal,
     localPartial: string
-  ): Promise<{ text: string; status: string; turnId: string }> {
+  ): Promise<SliceResult> {
     setConn("reconnecting");
     setStreamTools((t) =>
       t.includes("Reconnecting…") ? t : [...t, "Reconnecting…"]
@@ -381,11 +478,23 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       timeoutMs: hadPartial ? 6_000 : 40_000,
       signal,
     });
-    if (found?.status === "complete" && found.content.trim()) {
+    const foundStatus =
+      found?.status === "complete"
+        ? "completed"
+        : (found?.run?.status as EditorRunStatus | undefined);
+    if (found && foundStatus && isTerminalRunStatus(foundStatus)) {
       setStreamText(found.content);
-      return { text: found.content, status: "complete", turnId: turn.turnId };
+      return {
+        text: found.content,
+        status: foundStatus,
+        turnId: turn.turnId,
+        runId: found.run?.id,
+        stopReason: found.run?.stopReason,
+        iterationCount: found.run?.iterationCount,
+        mutationCount: found.run?.mutationCount,
+      };
     }
-    if (found?.status === "partial" && found.content.trim() && !hadPartial) {
+    if (found?.content.trim() && !hadPartial) {
       localPartial = found.content;
       setStreamText(found.content);
     }
@@ -440,13 +549,70 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     });
   }
 
+  async function requestTurnSlice(
+    turn: PendingTurn,
+    assistantId: string,
+    signal: AbortSignal,
+    fresh: boolean
+  ): Promise<SliceResult> {
+    let res = await postChat(
+      fresh
+        ? {
+            projectId: turn.projectId,
+            message: turn.message,
+            activeChapterId: turn.activeChapterId,
+            selection: turn.selection,
+            kind: turn.kind,
+            scope: turn.scope,
+            autoMode: turn.autoMode ?? autoModeRef.current,
+            clientTurnId: turn.turnId,
+          }
+        : {
+            projectId: turn.projectId,
+            resumeTurnId: turn.turnId,
+            activeChapterId: turn.activeChapterId,
+            selection: turn.selection,
+            kind: turn.kind,
+            scope: turn.scope,
+            autoMode: turn.autoMode ?? autoModeRef.current,
+          },
+      signal
+    );
+    if (!fresh && res.status === 404) {
+      // The first request may have failed before reaching the server. Reusing
+      // the same client id preserves idempotency if it actually did arrive.
+      res = await postChat(
+        {
+          projectId: turn.projectId,
+          message: turn.message,
+          activeChapterId: turn.activeChapterId,
+          selection: turn.selection,
+          kind: turn.kind,
+          scope: turn.scope,
+          autoMode: turn.autoMode ?? autoModeRef.current,
+          clientTurnId: turn.turnId,
+        },
+        signal
+      );
+    }
+    return consumeChatStream(res, {
+      assistantId,
+      projectId: turn.projectId,
+      turn,
+      signal,
+      onTurnId: (id) => {
+        turn.turnId = id;
+      },
+    });
+  }
+
   async function runTurn(turn: PendingTurn, isResume: boolean) {
     if (streamingRef.current) return;
     streamingRef.current = true;
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    const assistantId = `a-${Date.now()}`;
+    const assistantId = `a-${turn.turnId}`;
 
     if (!isResume) {
       setMessages((m) => [
@@ -466,110 +632,80 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
 
     setStreaming(true);
     setStreamText(turn.partialText || "");
-    setStreamTools(isResume ? ["Resuming interrupted reply…"] : []);
+    setStreamTools(isResume ? ["Resuming saved work…"] : []);
     setStreamMsgId(assistantId);
     streamTurnIdRef.current = turn.turnId;
+    setActivePhase(turn.status || "queued");
     savePendingTurn(turn);
 
-    let result: { text: string; status: string; turnId: string } | null = null;
-    const maxAttempts = 4;
+    let result: SliceResult | null = null;
+    let fresh = !isResume;
 
     try {
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-          if (attempt === 0 && !isResume) {
-            const res = await postChat(
-              {
-                projectId: turn.projectId,
-                message: turn.message,
-                activeChapterId: turn.activeChapterId,
-                selection: turn.selection,
-                kind: turn.kind,
-                scope: turn.scope,
-                autoMode: turn.autoMode ?? autoModeRef.current,
-                clientTurnId: turn.turnId,
-              },
-              ctrl.signal
-            );
-            result = await consumeChatStream(res, {
-              assistantId,
-              projectId: turn.projectId,
-              turn,
-              signal: ctrl.signal,
-              onTurnId: (id) => {
-                turn.turnId = id;
-              },
-            });
-          } else {
-            result = await recoverTurn(
-              turn,
-              assistantId,
-              ctrl.signal,
-              result?.text || turn.partialText
-            );
-          }
-
-          if (result.status === "partial" && attempt < maxAttempts - 1) {
-            setConn("reconnecting");
-            turn.partialText = result.text;
-            continue;
-          }
-          break;
-        } catch (err) {
-          if (ctrl.signal.aborted) throw err;
-          if (err instanceof OfflineError) {
-            setConn("offline");
-            await waitForOnline(ctrl.signal);
-            setConn("reconnecting");
-            continue;
-          }
-          if (err instanceof StallError) {
-            setConn("stalled");
-            continue;
-          }
-          // Network / parse failures: try recover path.
-          if (attempt < maxAttempts - 1) {
-            setConn("reconnecting");
-            continue;
-          }
-          // Last resort: resync whatever the server persisted.
+      while (true) {
+        let sliceError: unknown = null;
+        for (let attempt = 0; attempt < 4; attempt++) {
           try {
-            const data = await refreshMessages();
-            const assistant = [...data]
-              .reverse()
-              .find((m) => m.role === "assistant" && m.turnId === turn.turnId);
-            if (assistant) {
-              result = {
-                text: assistant.content,
-                status: assistant.status || "complete",
-                turnId: turn.turnId,
-              };
-              break;
+            result =
+              attempt === 0
+                ? await requestTurnSlice(
+                    turn,
+                    assistantId,
+                    ctrl.signal,
+                    fresh
+                  )
+                : await recoverTurn(
+                    turn,
+                    assistantId,
+                    ctrl.signal,
+                    turn.partialText
+                  );
+            sliceError = null;
+            break;
+          } catch (err) {
+            sliceError = err;
+            if (ctrl.signal.aborted) throw err;
+            if (err instanceof OfflineError) {
+              setConn("offline");
+              await waitForOnline(ctrl.signal);
+            } else if (err instanceof StallError) {
+              setConn("stalled");
+            } else {
+              setConn("reconnecting");
             }
-          } catch {
-            /* ignore */
           }
-          throw err;
         }
+        if (sliceError) throw sliceError;
+        const sliceResult = result as SliceResult | null;
+        if (!sliceResult) throw new Error("Editor run returned no durable state.");
+
+        Object.assign(turn, {
+          turnId: sliceResult.turnId,
+          runId: sliceResult.runId,
+          partialText: sliceResult.text,
+          status: sliceResult.status,
+          stopReason: sliceResult.stopReason,
+          iterationCount: sliceResult.iterationCount,
+          mutationCount: sliceResult.mutationCount,
+        });
+        savePendingTurn(turn);
+
+        if (sliceResult.status !== "continuing") break;
+        setActivePhase("continuing");
+        setStreamTools((current) => [
+          ...current.filter((line) => !line.startsWith("Saved slice")),
+          `Saved slice ${sliceResult.iterationCount ?? ""}; continuing…`,
+        ]);
+        await refreshMessages().catch(() => {});
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        fresh = false;
       }
 
-      if (result?.text) {
-        setMessages((m) => [
-          ...m.filter((x) => x.id !== assistantId),
-          {
-            id: assistantId,
-            role: "assistant",
-            content: result!.text,
-            kind: turn.kind,
-            turnId: result!.turnId,
-            status: result!.status,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-        // Prefer authoritative ids from the DB once the turn settles.
-        refreshMessages().catch(() => {});
+      await refreshMessages();
+      const finalResult = result as SliceResult | null;
+      if (finalResult && isTerminalRunStatus(finalResult.status)) {
+        clearPendingTurn(projectId);
       }
-      clearPendingTurn(projectId);
       setConn("online");
     } catch {
       try {
@@ -582,6 +718,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       setStreamTools([]);
       setStreamMsgId(null);
       streamTurnIdRef.current = null;
+      setActivePhase(null);
       setStreaming(false);
       streamingRef.current = false;
       abortRef.current = null;
@@ -608,26 +745,74 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     await runTurn(turn, false);
   }
 
-  // On mount / project change: resume any turn left hanging by a refresh or crash.
+  // On mount / project change: reconcile browser state with the authoritative
+  // durable run. A missing session record can be rebuilt from the run + user
+  // message, and an active lease is polled before any continuation is sent.
   useEffect(() => {
-    const pending = loadPendingTurn(projectId);
-    if (!pending || streamingRef.current) return;
-
     let cancelled = false;
     (async () => {
       try {
-        const data = await refreshMessages();
-        if (cancelled) return;
-        const assistant = [...data]
-          .reverse()
-          .find((m) => m.role === "assistant" && m.turnId === pending.turnId);
-        if (assistant?.status === "complete") {
+        const snapshot: ChatSnapshot = await refreshMessages();
+        if (cancelled || streamingRef.current) return;
+        const stored = loadPendingTurn(projectId);
+        const storedRun = stored
+          ? snapshot.runs.find((run) => run.turnId === stored.turnId)
+          : undefined;
+        if (storedRun && isTerminalRunStatus(storedRun.status)) {
           clearPendingTurn(projectId);
           return;
         }
-        const partial =
-          assistant?.content || pending.partialText || "";
-        await runTurn({ ...pending, partialText: partial }, true);
+        const unfinished = stored
+          ? storedRun
+          : [...snapshot.runs]
+              .reverse()
+              .find((run) => !isTerminalRunStatus(run.status));
+        if (!unfinished && !stored) return;
+
+        const assistant = [...snapshot.messages]
+          .reverse()
+          .find(
+            (message) =>
+              message.role === "assistant" &&
+              message.turnId === (unfinished?.turnId || stored?.turnId)
+          );
+        const user = snapshot.messages.find(
+          (message) =>
+            message.role === "user" &&
+            message.turnId === (unfinished?.turnId || stored?.turnId)
+        );
+        const pending: PendingTurn =
+          stored ||
+          ({
+            projectId,
+            turnId: unfinished!.turnId,
+            runId: unfinished!.id,
+            message: user?.content || "",
+            kind: unfinished!.kind || user?.kind || "chat",
+            scope: unfinished!.scope || undefined,
+            activeChapterId: unfinished!.activeChapterId || null,
+            selection: unfinished!.selection || "",
+            autoMode: unfinished!.autoMode,
+            partialText: unfinished!.visibleOutput || assistant?.content || "",
+            status: unfinished!.status,
+            stopReason: unfinished!.stopReason,
+            iterationCount: unfinished!.iterationCount,
+            mutationCount: unfinished!.mutationCount,
+            startedAt: Date.parse(unfinished!.createdAt) || Date.now(),
+          } satisfies PendingTurn);
+        if (!pending.message) return;
+        await runTurn(
+          {
+            ...pending,
+            partialText:
+              unfinished?.visibleOutput ||
+              assistant?.content ||
+              pending.partialText ||
+              "",
+            status: unfinished?.status || pending.status,
+          },
+          true
+        );
       } catch {
         /* ignore */
       }
@@ -658,6 +843,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     clearPendingTurn(projectId);
     await fetch(`/api/chat?projectId=${projectId}`, { method: "DELETE" });
     setMessages([]);
+    setRuns([]);
     setInsertedKeys(new Set());
   }
 
@@ -783,51 +969,71 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             the calls, and hands prose to a faster writer behind the scenes.
           </div>
         )}
-        {messages.map((m) => (
-          <div key={m.id} className={`msg ${m.role}`}>
-            <div className="who">
-              {m.kind === "compact"
-                ? "Earlier context"
-                : m.role === "user"
-                  ? "You"
-                  : "Ciciro"}
-              {m.status === "partial" ? " · interrupted" : ""}
-            </div>
-            <div className="bubble">
-              {m.role === "assistant"
-                ? renderBody(
-                    m.content,
-                    m.id,
-                    m.turnId,
-                    insertedKeys,
-                    onInsertDraft,
-                    markInserted,
-                    (segmentIndex) => {
-                      if (!m.turnId) return;
-                      recordDraftInsertion({
-                        projectId,
-                        turnId: m.turnId,
-                        segmentIndex,
-                        chapterId: activeChapterRef.current,
-                      });
-                    },
-                    false
-                  )
-                : m.kind === "compact"
-                  ? (
-                      <div className="md compact-note">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {m.content}
-                        </ReactMarkdown>
-                      </div>
+        {messages.map((m) => {
+          const run = statusForMessage(m, runs);
+          const showRunStatus =
+            run &&
+            (m.role === "assistant" ||
+              (!run.assistantMessageId && m.role === "user"));
+          return (
+            <div key={m.id} className={`msg ${m.role}`}>
+              <div className="who">
+                {m.kind === "compact"
+                  ? "Earlier context"
+                  : m.role === "user"
+                    ? "You"
+                    : "Ciciro"}
+                {m.status === "partial" ? " · interrupted" : ""}
+                {showRunStatus && (
+                  <span className={`run-phase ${run.status}`}>
+                    {PHASE_LABELS[run.status]}
+                    {run.iterationCount > 0 ? ` · step ${run.iterationCount}` : ""}
+                  </span>
+                )}
+              </div>
+              <div className="bubble">
+                {m.role === "assistant"
+                  ? renderBody(
+                      m.content,
+                      m.id,
+                      m.turnId,
+                      insertedKeys,
+                      onInsertDraft,
+                      markInserted,
+                      (segmentIndex) => {
+                        if (!m.turnId) return;
+                        recordDraftInsertion({
+                          projectId,
+                          turnId: m.turnId,
+                          segmentIndex,
+                          chapterId: activeChapterRef.current,
+                        });
+                      },
+                      false
                     )
-                  : m.content}
+                  : m.kind === "compact"
+                    ? (
+                        <div className="md compact-note">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
+                      )
+                    : m.content}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {streaming && (
           <div className="msg assistant">
-            <div className="who">Ciciro</div>
+            <div className="who">
+              Ciciro
+              {activePhase && (
+                <span className={`run-phase ${activePhase}`}>
+                  {PHASE_LABELS[activePhase]}
+                </span>
+              )}
+            </div>
             {streamTools.length > 0 && (
               <div className="tool-trace">
                 {streamTools.map((t, i) => (
@@ -865,6 +1071,10 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                           ? "Waiting for connection…"
                           : conn === "reconnecting" || conn === "stalled"
                             ? "Reconnecting…"
+                            : activePhase === "verifying"
+                              ? "Verifying the result…"
+                              : activePhase === "continuing"
+                                ? "Starting the next saved slice…"
                             : streamTools.length > 0
                               ? "Working through it…"
                               : "Thinking…"

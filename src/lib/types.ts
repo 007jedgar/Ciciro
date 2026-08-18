@@ -89,6 +89,11 @@ export type EditorRun = {
   turnId: string;
   userMessageId?: string | null;
   assistantMessageId?: string | null;
+  kind?: string;
+  scope?: "selection" | "chapter" | "book" | null;
+  activeChapterId?: string | null;
+  selection?: string;
+  autoMode?: boolean;
   status: EditorRunStatus;
   visibleOutput: string;
   iterationCount: number;

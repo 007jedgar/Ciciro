@@ -214,7 +214,10 @@ export async function pollForTurnAssistant(
       const assistant = [...snapshot.messages]
         .reverse()
         .find((message) => message.role === "assistant" && message.turnId === turnId);
-      if (assistant || run) {
+      if (run && (run.status === "running" || run.status === "verifying" || run.status === "queued")) {
+        // Another request still owns the durable slice. Keep polling instead
+        // of racing it with a duplicate continuation request.
+      } else if (assistant || run) {
         return {
           id: assistant?.id || run?.assistantMessageId || "",
           content: assistant?.content || run?.visibleOutput || "",
