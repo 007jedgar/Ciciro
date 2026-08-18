@@ -209,3 +209,26 @@ requested end state.
 Phase 3 is accepted when continuation survives reload without duplicate generation,
 all lifecycle states are represented honestly, focused regressions pass, and the
 reported prompt succeeds against a cloned fixture rather than an author's manuscript.
+
+## Deterministic regression results
+
+Measured locally on August 18, 2026, without a live model call and without reading or
+writing an author's project:
+
+- Vitest runs against a newly created temporary SQLite database for every invocation.
+  The complete suite passed 23 tests across 6 files in 1.95 seconds of Vitest time
+  (4.57 seconds including Prisma schema synchronization and process startup).
+- The exact reported prompt and the fused
+  `SurgeonCHAPTER 2The cameras...` manuscript class are stored as test fixtures.
+  Intent parsing selected chapter 1 as source and chapter 2 as destination.
+- The fixture scenario performed one atomic source mutation, advanced source revision
+  7 → 8, left destination revision 3 and its HTML bytes unchanged because the passage
+  already existed there, and passed every intent-aware completion check.
+- A six-iteration mocked `max_tokens` slice persisted six steps and the original
+  retrieval tool result, then returned `continuing` with no completion timestamp.
+  Duplicate turn preparation produced one run/user message and a second concurrent
+  claim was rejected.
+- Prisma validation, client generation, and schema push against a temporary database
+  completed in 3.21 seconds. TypeScript checking completed in 2.62 seconds. The
+  production build completed in 20.10 seconds, including a 5.8-second optimized
+  compilation.
