@@ -34,6 +34,10 @@ function needsCompact(
  * summarize everything before the recent tail into a single compact message
  * and soft-archive the rolled-up rows. Safe to call on every turn - no-ops
  * when under budget.
+ *
+ * Manuscript addresses are not in this summary. The next turn rebuilds
+ * editor context from disk, including the open chapter's passage index
+ * (chN.sK / chN.pA) - the analog of re-reading recently touched files.
  */
 export async function maybeCompactChat(
   projectId: string,
@@ -89,7 +93,8 @@ export async function maybeCompactChat(
   const content =
     "[Compacted earlier conversation - retain continuity from this summary. " +
     "Details not listed here may still live in the story bible or archived chat " +
-    "(read_past_turn / search_chat).]\n\n" +
+    "(read_past_turn / search_chat). Passage addresses (chN.sK / chN.pA) live on " +
+    "the manuscript - use the OPEN CHAPTER index in context, or list_passages.]\n\n" +
     summaryText;
 
   const created = await prisma.$transaction(async (tx) => {

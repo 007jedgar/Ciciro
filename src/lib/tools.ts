@@ -9,6 +9,21 @@ import {
 } from "@/lib/bible";
 import { DRAFTER_SYSTEM } from "@/lib/prompts";
 import { htmlToText, countWords } from "@/lib/text";
+import {
+  findBlockRun,
+  formatSceneIndex,
+  indexChapter,
+  isPassageId,
+  parsePassageId,
+  renderAnnotatedChapter,
+  resolvePassageId,
+  resolveSource,
+} from "@/lib/passages";
+import {
+  decideReorg,
+  formatSurvey,
+  loadChapterShapes,
+} from "@/lib/reorg";
 import { backstageLine } from "@/lib/backstage";
 import { runRanker } from "@/lib/fast-lane";
 import type { ClientUiEvent } from "@/lib/types";
@@ -40,13 +55,51 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   {
     name: "read_chapter",
     description:
-      "Read the full plain text of a chapter by its number (1-based). Use to check continuity or callbacks in a chapter other than the open one.",
+      "Read a chapter by its 1-based number. Returns scene-annotated plain text ([chN.sK] markers) so you can address passages without quoting them. Use to check continuity; use list_passages when you only need the index.",
     input_schema: {
       type: "object",
       properties: {
         number: { type: "integer", description: "1-based chapter number" },
       },
       required: ["number"],
+    },
+  },
+  {
+    name: "list_passages",
+    description:
+      "Index of addressable passages in a chapter: scene ids (chN.sK) and paragraph ids (chN.pA). Each line is id, word count, and a one-line gist. For rearrange/move tasks prefer survey_structure, which returns indexes plus a read-vs-loop plan. IDs shift after a move.",
+    input_schema: {
+      type: "object",
+      properties: {
+        chapterNumber: {
+          type: "integer",
+          description:
+            "1-based chapter number. Omit to list scenes for every chapter.",
+        },
+      },
+    },
+  },
+  {
+    name: "survey_structure",
+    description:
+      "Before rearranging: return the current passage index for a source (and optional destination) chapter PLUS a plan - targeted move, index loop, or one full read. Follow the plan: do not read_chapter unless it says full_read. Call again after each move_text (ids shift). Never parallelize moves in the same chapter.",
+    input_schema: {
+      type: "object",
+      properties: {
+        sourceChapter: {
+          type: "integer",
+          description: "1-based source chapter (defaults to the open chapter)",
+        },
+        destChapter: {
+          type: "integer",
+          description: "1-based destination chapter, if moving across chapters",
+        },
+        intent: {
+          type: "string",
+          description:
+            "The author's request, or a short restatement (e.g. 'park selection at end of ch 5'). Used to pick the plan.",
+        },
+      },
     },
   },
   {
@@ -159,38 +212,47 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   {
     name: "move_text",
     description:
-      "Atomically cut a passage from one place and paste it somewhere else - within the same chapter or across chapters. Quote the passage as plain text (paragraphs separated by a blank line), matching what read_chapter returns. Destination: after, before, or position start/end. Prefer this over delete+rewrite when rearranging.",
+      "Atomically cut a passage and paste it elsewhere (same chapter or another). Prefer passage ids from list_passages / the OPEN CHAPTER index: from: \"ch3.s2\", after: \"ch5.s1\". The tool copies the HTML; do not quote the prose. Quote matching (text) is a fallback only. Destination: after, before (id or short unique quote), or position start/end.",
     input_schema: {
       type: "object",
       properties: {
+        from: {
+          type: "string",
+          description:
+            "Passage id to move, e.g. ch3.s2, ch3.s2-s4, ch3.p12, ch3.p12-p18. Preferred over text.",
+        },
         fromChapter: {
           type: "integer",
-          description: "1-based chapter number to cut from",
+          description:
+            "1-based chapter to cut from. Optional when `from` is an id (chapter is parsed from it). Required with `text`.",
         },
         text: {
           type: "string",
           description:
-            "Exact passage to move, plain text. Separate paragraphs with a blank line.",
+            "Quote fallback: exact passage or a unique sentence. Prefer `from` instead.",
         },
         toChapter: {
           type: "integer",
-          description: "1-based chapter number to paste into (same as fromChapter to reorder within a chapter)",
+          description:
+            "1-based chapter to paste into. Optional when after/before is an id (chapter is parsed from it). Defaults to the source chapter.",
         },
         after: {
           type: "string",
-          description: "Plain-text anchor: paste immediately after this passage",
+          description:
+            "Paste immediately after this passage id (ch5.s1) or unique quote",
         },
         before: {
           type: "string",
-          description: "Plain-text anchor: paste immediately before this passage",
+          description:
+            "Paste immediately before this passage id or unique quote",
         },
         position: {
           type: "string",
           enum: ["start", "end"],
-          description: "Paste at chapter start or end (use when no anchor)",
+          description: "Paste at chapter start or end (use when no after/before)",
         },
       },
-      required: ["fromChapter", "text", "toChapter"],
+      required: [],
     },
   },
   {
@@ -207,11 +269,13 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
         },
         after: {
           type: "string",
-          description: "Plain-text anchor: insert immediately after this passage",
+          description:
+            "Insert immediately after this passage id (ch3.s2) or unique quote",
         },
         before: {
           type: "string",
-          description: "Plain-text anchor: insert immediately before this passage",
+          description:
+            "Insert immediately before this passage id or unique quote",
         },
         position: {
           type: "string",
@@ -317,10 +381,6 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-function normalizeWhitespace(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
-}
-
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -332,60 +392,6 @@ function paragraphsToHtml(text: string): string {
     .filter(Boolean)
     .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
     .join("");
-}
-
-type Block = { start: number; end: number; text: string };
-
-// Top-level block elements (paragraphs, headings, list items, blockquotes)
-// with their character offsets in the raw HTML and their plain-text content.
-function getBlocks(html: string): Block[] {
-  const re = /<(p|h[1-6]|li|blockquote)\b[^>]*>[\s\S]*?<\/\1>/gi;
-  const blocks: Block[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    blocks.push({
-      start: m.index,
-      end: m.index + m[0].length,
-      text: normalizeWhitespace(htmlToText(m[0])),
-    });
-  }
-  return blocks;
-}
-
-function findParas(text: string): string[] {
-  return text
-    .split(/\n{2,}/)
-    .map((p) => normalizeWhitespace(p))
-    .filter(Boolean);
-}
-
-// Match a contiguous run of top-level blocks by plain text. Returns the
-// inclusive block index range, or null if not found.
-function findBlockRun(
-  html: string,
-  find: string
-): { startIdx: number; endIdx: number; start: number; end: number } | null {
-  const paras = findParas(find);
-  if (paras.length === 0) return null;
-  const blocks = getBlocks(html);
-  for (let i = 0; i + paras.length <= blocks.length; i++) {
-    let matches = true;
-    for (let j = 0; j < paras.length; j++) {
-      if (blocks[i + j].text !== paras[j]) {
-        matches = false;
-        break;
-      }
-    }
-    if (matches) {
-      return {
-        startIdx: i,
-        endIdx: i + paras.length - 1,
-        start: blocks[i].start,
-        end: blocks[i + paras.length - 1].end,
-      };
-    }
-  }
-  return null;
 }
 
 // Fallback for edit_manuscript when a literal substring match fails. The
@@ -413,10 +419,18 @@ type DestOpts = {
   position?: string;
 };
 
+type DestResolved = {
+  at: number;
+  start?: number;
+  end?: number;
+  error?: string;
+};
+
 function resolveDestination(
   html: string,
+  chapterNumber: number,
   opts: DestOpts
-): { at: number; error?: string } {
+): DestResolved {
   const after = opts.after?.trim() || "";
   const before = opts.before?.trim() || "";
   const position = opts.position === "start" || opts.position === "end" ? opts.position : "";
@@ -437,18 +451,60 @@ function resolveDestination(
   if (position === "start") return { at: 0 };
   if (position === "end") return { at: html.length };
 
-  const run = findBlockRun(html, after || before);
-  if (!run) {
-    const label = after ? "after" : "before";
-    const snippet = (after || before).slice(0, 60);
+  const anchor = after || before;
+  if (isPassageId(anchor)) {
+    const run = resolvePassageId(html, chapterNumber, anchor);
+    if ("error" in run) return { at: -1, error: run.error };
     return {
-      at: -1,
-      error: `Anchor for ${label} not found: "${snippet}${
-        (after || before).length > 60 ? "..." : ""
-      }"`,
+      at: after ? run.end : run.start,
+      start: run.start,
+      end: run.end,
     };
   }
-  return { at: after ? run.end : run.start };
+
+  const run = findBlockRun(html, anchor);
+  if (run) {
+    return {
+      at: after ? run.end : run.start,
+      start: run.start,
+      end: run.end,
+    };
+  }
+
+  const quoted = resolveSource(html, chapterNumber, { text: anchor });
+  if ("error" in quoted) {
+    const label = after ? "after" : "before";
+    return { at: -1, error: `Anchor for ${label}: ${quoted.error}` };
+  }
+  return {
+    at: after ? quoted.end : quoted.start,
+    start: quoted.start,
+    end: quoted.end,
+  };
+}
+
+function chapterFromIdOr(
+  raw: string | undefined,
+  fallback: number | null
+): { n: number } | { error: string } {
+  const s = raw?.trim() || "";
+  if (s && isPassageId(s)) {
+    const parsed = parsePassageId(s);
+    if (!parsed) return { error: `Not a passage id: "${s}".` };
+    if (fallback != null && fallback !== parsed.chapter) {
+      return {
+        error: `${parsed.raw} is in chapter ${parsed.chapter}, but chapter ${fallback} was also given.`,
+      };
+    }
+    return { n: parsed.chapter };
+  }
+  if (fallback != null && Number.isFinite(fallback)) return { n: fallback };
+  return { error: "Could not determine chapter." };
+}
+
+function sceneIndexReport(html: string, chapterNumber: number, title: string): string {
+  const body = formatSceneIndex(indexChapter(html, chapterNumber));
+  return `Chapter ${chapterNumber} (${title}) passages:\n${body}`;
 }
 
 function insertHtmlAt(html: string, insertHtml: string, at: number): string {
@@ -476,7 +532,7 @@ export function toolUiEvents(
 export async function executeEditorTool(
   name: string,
   input: Record<string, unknown>,
-  ctx: { projectId: string }
+  ctx: { projectId: string; activeChapterId?: string | null }
 ): Promise<ToolResult> {
   const { projectId } = ctx;
 
@@ -512,7 +568,84 @@ export async function executeEditorTool(
       if (!ch) return { status: `chapter ${n} not found`, content: `No chapter ${n}.` };
       return {
         status: backstageLine("read_chapter", `ch. ${n}`),
-        content: `# ${ch.title}\n\n${htmlToText(ch.content) || "(empty)"}`,
+        content: renderAnnotatedChapter(ch.content, n, ch.title),
+      };
+    }
+
+    case "list_passages": {
+      const chapters = await prisma.chapter.findMany({
+        where: { projectId },
+        orderBy: { order: "asc" },
+      });
+      const n =
+        input.chapterNumber != null && input.chapterNumber !== ""
+          ? Number(input.chapterNumber)
+          : null;
+      if (n != null) {
+        if (!Number.isFinite(n) || n < 1 || n > chapters.length) {
+          return {
+            status: "list failed",
+            content: `No chapter ${n}.`,
+          };
+        }
+        const ch = chapters[n - 1];
+        const indexed = indexChapter(ch.content, n);
+        const body = formatSceneIndex(indexed, { paragraphs: true });
+        return {
+          status: backstageLine("list_passages", `ch. ${n}`),
+          content: `Chapter ${n} (${ch.title}):\n${body}`,
+        };
+      }
+      if (!chapters.length) {
+        return { status: backstageLine("list_passages"), content: "(no chapters)" };
+      }
+      const parts = chapters.map((ch, i) => {
+        const num = i + 1;
+        return `## ${num}. ${ch.title}\n${formatSceneIndex(indexChapter(ch.content, num))}`;
+      });
+      return {
+        status: backstageLine("list_passages"),
+        content: parts.join("\n\n"),
+      };
+    }
+
+    case "survey_structure": {
+      const shapes = await loadChapterShapes(projectId);
+      const chapterRows = await prisma.chapter.findMany({
+        where: { projectId },
+        orderBy: { order: "asc" },
+        select: { id: true },
+      });
+      const openNumber = ctx.activeChapterId
+        ? chapterRows.findIndex((c) => c.id === ctx.activeChapterId) + 1
+        : 0;
+      const sourceChapter =
+        input.sourceChapter != null && input.sourceChapter !== ""
+          ? Number(input.sourceChapter)
+          : openNumber || null;
+      const destChapter =
+        input.destChapter != null && input.destChapter !== ""
+          ? Number(input.destChapter)
+          : null;
+      const intent = String(input.intent || "").trim();
+      const plan = decideReorg({
+        message:
+          intent ||
+          (destChapter
+            ? `Move unrelated passages from chapter ${sourceChapter} to chapter ${destChapter}`
+            : `Find misplaced passages in chapter ${sourceChapter}`),
+        selection: /\bselection\b/i.test(intent) ? "(selection)" : "",
+        openChapter: openNumber || null,
+        chapters: shapes,
+      });
+      return {
+        status: backstageLine("survey_structure"),
+        content: formatSurvey({
+          plan,
+          shapes,
+          sourceChapter,
+          destChapter,
+        }),
       };
     }
 
@@ -525,15 +658,19 @@ export async function executeEditorTool(
       });
       const hits: string[] = [];
       const needle = q.toLowerCase();
-      for (const ch of chapters) {
-        const text = htmlToText(ch.content);
-        const lower = text.toLowerCase();
-        let idx = lower.indexOf(needle);
-        while (idx !== -1 && hits.length < 8) {
-          const start = Math.max(0, idx - 120);
-          const end = Math.min(text.length, idx + q.length + 120);
-          hits.push(`[${ch.title}] ...${text.slice(start, end).replace(/\s+/g, " ").trim()}...`);
-          idx = lower.indexOf(needle, idx + q.length);
+      for (let i = 0; i < chapters.length && hits.length < 8; i++) {
+        const ch = chapters[i];
+        const n = i + 1;
+        const indexed = indexChapter(ch.content, n);
+        for (const p of indexed.paragraphs) {
+          const block = indexed.blocks[p.startIdx];
+          if (!block.text.toLowerCase().includes(needle)) continue;
+          const scene = indexed.scenes.find(
+            (s) => s.startIdx <= p.startIdx && s.endIdx >= p.endIdx
+          );
+          const addr = scene ? `${p.id} in ${scene.id}` : p.id;
+          hits.push(`[${addr} · ${ch.title}] ...${block.text}...`);
+          if (hits.length >= 8) break;
         }
       }
       return {
@@ -685,13 +822,53 @@ export async function executeEditorTool(
     }
 
     case "move_text": {
-      const fromN = Number(input.fromChapter);
-      const toN = Number(input.toChapter);
+      const fromRaw = String(input.from || "").trim();
       const text = String(input.text || "").trim();
-      if (!text) return { status: "move failed", content: "Empty text to move." };
-      if (!Number.isFinite(fromN) || !Number.isFinite(toN)) {
-        return { status: "move failed", content: "fromChapter and toChapter are required." };
+      const after = typeof input.after === "string" ? input.after : undefined;
+      const before = typeof input.before === "string" ? input.before : undefined;
+      const position = typeof input.position === "string" ? input.position : undefined;
+      const fromChapterGiven =
+        input.fromChapter != null && input.fromChapter !== ""
+          ? Number(input.fromChapter)
+          : null;
+      const toChapterGiven =
+        input.toChapter != null && input.toChapter !== ""
+          ? Number(input.toChapter)
+          : null;
+
+      const fromChRes = chapterFromIdOr(fromRaw, fromChapterGiven);
+      if ("error" in fromChRes) {
+        return {
+          status: "move failed",
+          content:
+            "Provide from (a passage id like ch3.s2) or fromChapter + text. " +
+            fromChRes.error,
+        };
       }
+      const fromN = fromChRes.n;
+
+      const destAnchor = (after || before || "").trim();
+      let toFallback = toChapterGiven;
+      if (toFallback == null) {
+        if (destAnchor && isPassageId(destAnchor)) {
+          toFallback = null;
+        } else if (position || destAnchor) {
+          toFallback = fromN;
+        }
+      }
+      const toChRes = chapterFromIdOr(
+        destAnchor && isPassageId(destAnchor) ? destAnchor : undefined,
+        toFallback
+      );
+      if ("error" in toChRes) {
+        return {
+          status: "move failed",
+          content:
+            "Provide toChapter, or an after/before passage id, or position start/end. " +
+            toChRes.error,
+        };
+      }
+      const toN = toChRes.n;
 
       const chapters = await prisma.chapter.findMany({
         where: { projectId },
@@ -706,47 +883,63 @@ export async function executeEditorTool(
         return { status: `chapter ${toN} not found`, content: `No chapter ${toN}.` };
       }
 
-      const sourceRun = findBlockRun(fromCh.content, text);
-      if (!sourceRun) {
-        return {
-          status: "move failed",
-          content: `Source passage NOT FOUND in chapter ${fromN} (${fromCh.title}). Quote the text exactly as read_chapter shows it (blank line between paragraphs).`,
-        };
+      const source = resolveSource(fromCh.content, fromN, { from: fromRaw, text });
+      if ("error" in source) {
+        return { status: "move failed", content: source.error };
       }
 
-      const extractedHtml = fromCh.content.slice(sourceRun.start, sourceRun.end);
-      const sourceWithout = fromCh.content.slice(0, sourceRun.start) + fromCh.content.slice(sourceRun.end);
+      const destOpts: DestOpts = { after, before, position };
+      const destIsId = Boolean(destAnchor && isPassageId(destAnchor));
+      const sourceLen = source.end - source.start;
 
-      // Same-chapter moves: destination offsets are against the post-cut HTML.
-      const destHtml = fromN === toN ? sourceWithout : toCh.content;
-      const dest = resolveDestination(destHtml, {
-        after: typeof input.after === "string" ? input.after : undefined,
-        before: typeof input.before === "string" ? input.before : undefined,
-        position: typeof input.position === "string" ? input.position : undefined,
-      });
-      if (dest.error) {
-        return { status: "move failed", content: dest.error };
-      }
+      let destHtml = fromN === toN ? fromCh.content : toCh.content;
+      let destAt: number;
 
-      // Guard: don't paste into the hole we just cut when the anchor was inside
-      // the moved passage (same chapter only - cross-chapter anchors are fine).
-      if (fromN === toN) {
-        const anchorText =
-          (typeof input.after === "string" && input.after.trim()) ||
-          (typeof input.before === "string" && input.before.trim()) ||
-          "";
-        if (anchorText && findBlockRun(text, anchorText)) {
+      if (fromN === toN && destIsId) {
+        const dest = resolveDestination(fromCh.content, fromN, destOpts);
+        if (dest.error) return { status: "move failed", content: dest.error };
+        if (
+          dest.start != null &&
+          dest.end != null &&
+          dest.start < source.end &&
+          dest.end > source.start
+        ) {
           return {
             status: "move failed",
             content:
-              "Destination anchor is inside the passage being moved. Choose an anchor outside it, or use position start/end.",
+              "Destination anchor is inside the passage being moved. Choose an id outside it, or use position start/end.",
           };
         }
+        if (dest.at > source.start && dest.at < source.end) {
+          return {
+            status: "move failed",
+            content:
+              "Destination lands inside the passage being moved. Choose an anchor outside it, or use position start/end.",
+          };
+        }
+        destAt = dest.at >= source.end ? dest.at - sourceLen : dest.at;
+        destHtml = fromCh.content.slice(0, source.start) + fromCh.content.slice(source.end);
+      } else if (fromN === toN) {
+        destHtml = fromCh.content.slice(0, source.start) + fromCh.content.slice(source.end);
+        const dest = resolveDestination(destHtml, fromN, destOpts);
+        if (dest.error) return { status: "move failed", content: dest.error };
+        destAt = dest.at;
+      } else {
+        const dest = resolveDestination(toCh.content, toN, destOpts);
+        if (dest.error) return { status: "move failed", content: dest.error };
+        destAt = dest.at;
+        destHtml = toCh.content;
       }
 
-      const destWith = insertHtmlAt(destHtml, extractedHtml, dest.at);
-      const fromWordCount = countWords(htmlToText(sourceWithout));
+      const extractedHtml = fromCh.content.slice(source.start, source.end);
+      const sourceWithout =
+        fromN === toN
+          ? destHtml
+          : fromCh.content.slice(0, source.start) + fromCh.content.slice(source.end);
+      const destWith = insertHtmlAt(destHtml, extractedHtml, destAt);
+      const fromWordCount = countWords(htmlToText(fromN === toN ? destWith : sourceWithout));
       const toWordCount = countWords(htmlToText(destWith));
+      const label = `${source.id} (${source.wordCount}w)`;
 
       if (fromN === toN) {
         await prisma.chapter.update({
@@ -756,13 +949,15 @@ export async function executeEditorTool(
         await prisma.manuscriptEdit.create({
           data: {
             chapterId: fromCh.id,
-            find: text,
+            find: source.id,
             replace: `[moved within chapter ${fromN}]`,
           },
         });
         return {
-          status: `moving text in chapter ${fromN}`,
-          content: `Moved passage within chapter ${fromN} (${fromCh.title}).`,
+          status: backstageLine("move_text"),
+          content:
+            `Moved ${label} within chapter ${fromN} (${fromCh.title}).\n\n` +
+            sceneIndexReport(destWith, fromN, fromCh.title),
           ui: {
             type: "chapter_updated",
             chapterId: fromCh.id,
@@ -784,7 +979,7 @@ export async function executeEditorTool(
         prisma.manuscriptEdit.create({
           data: {
             chapterId: fromCh.id,
-            find: text,
+            find: source.id,
             replace: "",
           },
         }),
@@ -792,14 +987,18 @@ export async function executeEditorTool(
           data: {
             chapterId: toCh.id,
             find: "",
-            replace: text,
+            replace: source.id,
           },
         }),
       ]);
 
       return {
-        status: `moving text to chapter ${toN}`,
-        content: `Moved passage from chapter ${fromN} (${fromCh.title}) to chapter ${toN} (${toCh.title}).`,
+        status: backstageLine("move_text"),
+        content:
+          `Moved ${label} from chapter ${fromN} (${fromCh.title}) to chapter ${toN} (${toCh.title}).\n\n` +
+          sceneIndexReport(sourceWithout, fromN, fromCh.title) +
+          "\n\n" +
+          sceneIndexReport(destWith, toN, toCh.title),
         ui: [
           {
             type: "chapter_updated",
@@ -828,7 +1027,7 @@ export async function executeEditorTool(
       const ch = chapters[n - 1];
       if (!ch) return { status: `chapter ${n} not found`, content: `No chapter ${n}.` };
 
-      const dest = resolveDestination(ch.content, {
+      const dest = resolveDestination(ch.content, n, {
         after: typeof input.after === "string" ? input.after : undefined,
         before: typeof input.before === "string" ? input.before : undefined,
         position: typeof input.position === "string" ? input.position : undefined,
@@ -849,7 +1048,9 @@ export async function executeEditorTool(
       });
       return {
         status: `inserting into chapter ${n}`,
-        content: `Inserted into chapter ${n} (${ch.title}).`,
+        content:
+          `Inserted into chapter ${n} (${ch.title}).\n\n` +
+          sceneIndexReport(content, n, ch.title),
         ui: { type: "chapter_updated", chapterId: ch.id, content, wordCount },
       };
     }

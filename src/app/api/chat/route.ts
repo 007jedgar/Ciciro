@@ -8,6 +8,7 @@ import { EDITOR_TOOLS, executeEditorTool, toolUiEvents } from "@/lib/tools";
 import { ensureBible } from "@/lib/bible";
 import { maybeCompactChat } from "@/lib/compact";
 import { backstageLine } from "@/lib/backstage";
+import { buildReorgPlan, formatReorgPlan } from "@/lib/reorg";
 import {
   archiveAsBlob,
   ensureModelContent,
@@ -196,6 +197,27 @@ export async function POST(req: NextRequest) {
     scope,
     Boolean(autoMode)
   );
+  const userText =
+    (!resumeTurnId && message?.trim()) ||
+    historyForModel.find((m) => m.role === "user" && m.turnId === turnId)
+      ?.content ||
+    message?.trim() ||
+    "";
+  let reorgBlock = "";
+  try {
+    const plan = await buildReorgPlan({
+      projectId,
+      message: userText,
+      selection: selection || "",
+      activeChapterId,
+    });
+    reorgBlock = formatReorgPlan(plan);
+  } catch {
+    /* planner is advisory; never block the turn */
+  }
+  const contextWithPlan = reorgBlock
+    ? `${context}\n\n${reorgBlock}`
+    : context;
   const selectionBlock = await selectionForModel(
     projectId,
     selection || "",
@@ -212,7 +234,7 @@ export async function POST(req: NextRequest) {
     if (isLast && m.role === "user" && !partialSeed) {
       return {
         role: "user" as const,
-        content: `<context>\n${context}\n</context>${selectionBlock}\n\n${m.content}`,
+        content: `<context>\n${contextWithPlan}\n</context>${selectionBlock}\n\n${m.content}`,
       };
     }
     return m;
@@ -223,7 +245,7 @@ export async function POST(req: NextRequest) {
     messages.push({
       role: "user",
       content:
-        `<context>\n${context}\n</context>${selectionBlock}\n\n` +
+        `<context>\n${contextWithPlan}\n</context>${selectionBlock}\n\n` +
         continuePrompt(partialSeed),
     });
   }
@@ -375,7 +397,7 @@ export async function POST(req: NextRequest) {
             const result = await executeEditorTool(
               block.name,
               (block.input as Record<string, unknown>) || {},
-              { projectId }
+              { projectId, activeChapterId }
             );
             emit({ type: "tool", v: result.status });
             for (const ui of toolUiEvents(result.ui)) {

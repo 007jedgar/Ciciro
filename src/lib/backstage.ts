@@ -88,6 +88,8 @@ export function backstageLine(
     a === "read_blob" ||
     a === "read_past_turn" ||
     a === "list_bible" ||
+    a === "list_passages" ||
+    a === "survey_structure" ||
     a.includes("read")
   ) {
     line = pick(READING, detail || a);
@@ -110,7 +112,7 @@ export function backstageLine(
     line = pick(DEFAULT, a);
   }
 
-  if (detail && (a === "read_chapter" || a === "read_bible" || a === "search_manuscript")) {
+  if (detail && (a === "read_chapter" || a === "read_bible" || a === "search_manuscript" || a === "list_passages" || a === "survey_structure")) {
     return `${line} · ${detail}`;
   }
   return line;

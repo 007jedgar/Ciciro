@@ -415,6 +415,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         projectId={project.id}
         activeChapterId={activeId}
         getSelection={getSelection}
+        chapters={project.chapters.map((c) => ({
+          id: c.id,
+          title: c.title,
+          order: c.order,
+        }))}
         onInsertDraft={insertDraft}
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}

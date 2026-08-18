@@ -1,17 +1,22 @@
 import { prisma } from "@/lib/db";
 import { htmlToText } from "@/lib/text";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
+import {
+  compactOpenChapterIndex,
+  renderAnnotatedChapter,
+} from "@/lib/passages";
 
 // The always-on context for the editor. Kept deliberately small and stable so it
 // can be prompt-cached and never bloats:
 //   - Tier 1 (sacred, always loaded): canon.md, plot.md, style.md.
 //   - Tier 2 (index): every other bible file + every chapter, as one-liners.
-//   - A tail snippet of the open chapter, or its full text when the task's
-//     scope says it needs it.
-// Everything else (full chapters, character files, world/timeline, archived
-// chat) the editor pulls on demand with its tools - read_chapter, read_bible,
-// search_manuscript, read_blob, read_past_turn, search_chat. Chat history is
-// stubbed the same way: index cheaply, expand only when the editor asks.
+//   - Open chapter: passage index (chN.sK / chN.pA) + a tail snippet, or the
+//     scene-annotated full text when scope is "chapter".
+// Everything else the editor pulls on demand - read_chapter, list_passages,
+// read_bible, search_manuscript, read_blob, read_past_turn, search_chat.
+// After chat compact, this function runs again on the next turn and re-injects
+// the open chapter's passage index from disk (the analog of Claude Code
+// re-reading recently touched files). The prose is not dumped back in.
 
 const ALWAYS_ON = ["canon.md", "plot.md", "style.md"];
 const TAIL_CHARS = 500;
@@ -43,7 +48,7 @@ export async function buildEditorContext(
       "Finished <draft> blocks insert automatically into the OPEN chapter (at the cursor, or stacked after prior inserts from this turn).",
       "Before drafting for a different chapter, call open_chapter or create_chapter (with open: true).",
       "To place prose at a precise spot (not the cursor), use insert_text with after/before/position instead of a <draft>.",
-      "To rearrange existing passages - including across chapters - use move_text.",
+      "To rearrange existing passages - including across chapters - use move_text with passage ids (chN.sK), not quoted prose.",
       "When the story needs a new chapter break, call create_chapter; do not ask the author to click Add."
     );
   }
@@ -76,8 +81,9 @@ export async function buildEditorContext(
     for (const e of others) parts.push(`- ${e.path}: ${e.summary}`);
   }
 
-  // Chapter index + the open chapter (tail, or full text if scope needs it).
-  parts.push("\n# CHAPTERS (read_chapter <n> for full text)");
+  // Chapter index + the open chapter (passage ids + tail, or annotated full
+  // text if scope needs it). Rebuilt every turn, including after compact.
+  parts.push("\n# CHAPTERS (list_passages <n> for ids; read_chapter <n> for annotated text)");
   if (!project.chapters.length) parts.push("(none yet)");
   for (let i = 0; i < project.chapters.length; i++) {
     const ch = project.chapters[i];
@@ -91,15 +97,19 @@ export async function buildEditorContext(
 
   const active = project.chapters.find((c) => c.id === activeChapterId);
   if (active) {
+    const chapterNumber = project.chapters.indexOf(active) + 1;
     const fullText = htmlToText(active.content) || "(empty)";
-    // Most tasks (a quick question, a selection-scoped edit, a book-wide
-    // sweep) don't need the whole chapter - just enough to see where things
-    // stand. Only send it in full when the task's scope says it operates on
-    // the chapter as a whole; otherwise give the editor the chapter's own
-    // beat summary, what it's still building toward, and a tail for
-    // immediate continuity - it can read_chapter for the rest.
+    const passageIndex = compactOpenChapterIndex(active.content, chapterNumber);
+    // Most tasks don't need the whole chapter. Always send the passage index
+    // so the editor can move by id after compact without re-quoting prose.
+    // Only send annotated full text when the task's scope is the chapter.
     if (scope === "chapter") {
-      parts.push(`\n# OPEN CHAPTER: ${active.title}\n${fullText}`);
+      parts.push(
+        `\n# OPEN CHAPTER: ${active.title} (passages: ch${chapterNumber}.sK / ch${chapterNumber}.pA)`,
+        passageIndex,
+        "",
+        renderAnnotatedChapter(active.content, chapterNumber)
+      );
     } else {
       const openPlotPoints = await prisma.plotPoint.findMany({
         where: { chapterId: active.id, status: "open" },
@@ -108,7 +118,8 @@ export async function buildEditorContext(
       const tail =
         fullText.length > TAIL_CHARS ? fullText.slice(-TAIL_CHARS) : fullText;
       const block = [
-        `\n# OPEN CHAPTER: ${active.title} (summary + last ${tail.length} chars - read_chapter for the full text)`,
+        `\n# OPEN CHAPTER: ${active.title} (passage index + last ${tail.length} chars - list_passages / read_chapter for more)`,
+        passageIndex,
       ];
       if (openPlotPoints.length) {
         block.push(

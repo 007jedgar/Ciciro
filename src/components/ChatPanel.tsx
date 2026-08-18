@@ -40,6 +40,7 @@ export type ChatHandle = {
 type Props = {
   projectId: string;
   activeChapterId: string | null;
+  chapters: { id: string; title: string; order: number }[];
   getSelection: () => string;
   // `key` groups every draft insert from the same message so the editor can
   // keep them in the right order (see EditorHandle.insertDraft).
@@ -142,6 +143,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   {
     projectId,
     activeChapterId,
+    chapters,
     getSelection,
     onInsertDraft,
     onTurnComplete,
@@ -160,6 +162,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const [insertedKeys, setInsertedKeys] = useState<Set<string>>(new Set());
   const [conn, setConn] = useState<ConnState>("online");
   const [compacting, setCompacting] = useState(false);
+  const [moveDest, setMoveDest] = useState("decide");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
@@ -170,6 +173,18 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   autoModeRef.current = autoMode;
   const onUiEventRef = useRef(onUiEvent);
   onUiEventRef.current = onUiEvent;
+
+  useEffect(() => {
+    const others = chapters.filter((c) => c.id !== activeChapterId);
+    if (others.length === 1) setMoveDest(others[0].id);
+    else if (
+      moveDest !== "decide" &&
+      !others.some((c) => c.id === moveDest)
+    ) {
+      setMoveDest("decide");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapters, activeChapterId]);
 
   function markInserted(draftKey: string) {
     setInsertedKeys((prev) => new Set(prev).add(draftKey));
@@ -665,6 +680,37 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     }
   }
 
+  function runMisplaced(placement: "end" | "seam") {
+    const text = getSelection().trim();
+    if (!text) {
+      alert("Highlight the passage that doesn't belong, then try again.");
+      return;
+    }
+    const others = chapters
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .filter((c) => c.id !== activeChapterId);
+    const dest =
+      moveDest !== "decide"
+        ? others.find((c) => c.id === moveDest) ||
+          chapters.find((c) => c.id === moveDest)
+        : null;
+    const destN = dest ? dest.order + 1 : null;
+    let prompt: string;
+    if (dest && destN) {
+      prompt =
+        placement === "end"
+          ? `The selected passage does not belong in the open chapter. Move it to the end of chapter ${destN} ("${dest.title}"). Use the selection as the source - do not read the open chapter in full.`
+          : `The selected passage does not belong in the open chapter. Move it into chapter ${destN} ("${dest.title}") at the right spot. Use the selection as the source - do not read the open chapter in full. Survey chapter ${destN} to place it; only read that chapter if the scene index is not enough.`;
+    } else {
+      prompt =
+        placement === "end"
+          ? "The selected passage does not belong in the open chapter. Figure out which chapter it belongs in from plot.md and the chapter list, then move it to the end of that chapter. If you cannot tell, ask me which chapter - one question. Use the selection as the source - do not read the open chapter in full."
+          : "The selected passage does not belong in the open chapter. Figure out which chapter it belongs in and place it at the right spot there. If you cannot tell the chapter, ask me - one question. Use the selection as the source - do not read the open chapter in full.";
+    }
+    send(prompt, "action", "selection");
+  }
+
   function runAction(a: QuickAction) {
     if (a.scope === "selection" && !getSelection().trim()) {
       alert("Highlight some text in the manuscript first, then run this action.");
@@ -831,8 +877,45 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       </div>
 
       {selection.trim() && (
-        <div className="selection-note">
-          {selection.trim().split(/\s+/).length} words selected - actions can target it
+        <div className="selection-bar">
+          <span className="selection-bar-count">
+            {selection.trim().split(/\s+/).length} words selected
+          </span>
+          <label className="selection-bar-dest">
+            Move to
+            <select
+              value={moveDest}
+              onChange={(e) => setMoveDest(e.target.value)}
+              disabled={streaming}
+            >
+              <option value="decide">Ciciro decides</option>
+              {chapters
+                .slice()
+                .sort((a, b) => a.order - b.order)
+                .filter((c) => c.id !== activeChapterId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.order + 1}. {c.title}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <button
+            className="btn small"
+            disabled={streaming}
+            onClick={() => runMisplaced("end")}
+            title="Park the selection at the end of that chapter - no full-chapter read"
+          >
+            To the end
+          </button>
+          <button
+            className="btn small primary"
+            disabled={streaming}
+            onClick={() => runMisplaced("seam")}
+            title="Find the right spot in that chapter"
+          >
+            Find the spot
+          </button>
         </div>
       )}
 
