@@ -10,6 +10,8 @@ import {
 import { DRAFTER_SYSTEM } from "@/lib/prompts";
 import { htmlToText, countWords } from "@/lib/text";
 import {
+  countPassageOccurrences,
+  deletePassageRange,
   findBlockRun,
   formatSceneIndex,
   indexChapter,
@@ -18,6 +20,7 @@ import {
   renderAnnotatedChapter,
   resolvePassageId,
   resolveSource,
+  splitChapterHtmlAt,
 } from "@/lib/passages";
 import {
   decideReorg,
@@ -77,6 +80,83 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
             "1-based chapter number. Omit to list scenes for every chapter.",
         },
       },
+    },
+  },
+  {
+    name: "delete_passages",
+    description:
+      "Delete one inclusive scene or paragraph range by passage id. Requires the revision returned by read_chapter/list_passages and rejects stale addresses without changing the chapter.",
+    input_schema: {
+      type: "object",
+      properties: {
+        passageId: {
+          type: "string",
+          description: "Range such as ch3.s2-s4 or ch3.p12-p18",
+        },
+        expectedRevision: {
+          type: "integer",
+          description: "Current chapter revision from the latest read/index",
+        },
+      },
+      required: ["passageId", "expectedRevision"],
+    },
+  },
+  {
+    name: "split_chapter_at",
+    description:
+      "Preview or atomically split a fused inline chapter boundary out of a source chapter. The plain-text boundary token is removed; prose before it remains in source and prose after it is prepended to the destination. Existing destinations require their current revision.",
+    input_schema: {
+      type: "object",
+      properties: {
+        sourceChapter: { type: "integer", description: "1-based source chapter" },
+        destinationChapter: {
+          type: "integer",
+          description:
+            "1-based destination. May be the next existing chapter or one past the final chapter to create it.",
+        },
+        boundary: {
+          type: "string",
+          description: "Unique plain-text marker to remove, for example CHAPTER 2",
+        },
+        expectedSourceRevision: {
+          type: "integer",
+          description: "Current source revision",
+        },
+        expectedDestinationRevision: {
+          type: "integer",
+          description: "Current destination revision; required when it already exists",
+        },
+        destinationTitle: {
+          type: "string",
+          description: "Title when creating a new final chapter",
+        },
+        dryRun: {
+          type: "boolean",
+          description: "If true, report the split without writing either chapter",
+        },
+      },
+      required: [
+        "sourceChapter",
+        "destinationChapter",
+        "boundary",
+        "expectedSourceRevision",
+      ],
+    },
+  },
+  {
+    name: "passage_exists",
+    description:
+      "Count chapter-scoped occurrences of prose after normalizing HTML, whitespace, Unicode punctuation, and case. Use before/after moves to detect duplicates, missing passages, or an already-satisfied state.",
+    input_schema: {
+      type: "object",
+      properties: {
+        chapterNumber: { type: "integer", description: "1-based chapter number" },
+        passage: {
+          type: "string",
+          description: "Plain text or passage HTML to compare",
+        },
+      },
+      required: ["chapterNumber", "passage"],
     },
   },
   {
@@ -570,7 +650,9 @@ export async function executeEditorTool(
       if (!ch) return { status: `chapter ${n} not found`, content: `No chapter ${n}.` };
       return {
         status: backstageLine("read_chapter", `ch. ${n}`),
-        content: renderAnnotatedChapter(ch.content, n, ch.title),
+        content:
+          `Chapter revision: ${ch.revision}\n\n` +
+          renderAnnotatedChapter(ch.content, n, ch.title),
       };
     }
 
@@ -595,7 +677,7 @@ export async function executeEditorTool(
         const body = formatSceneIndex(indexed, { paragraphs: true });
         return {
           status: backstageLine("list_passages", `ch. ${n}`),
-          content: `Chapter ${n} (${ch.title}):\n${body}`,
+          content: `Chapter ${n} (${ch.title}), revision ${ch.revision}:\n${body}`,
         };
       }
       if (!chapters.length) {
@@ -603,11 +685,370 @@ export async function executeEditorTool(
       }
       const parts = chapters.map((ch, i) => {
         const num = i + 1;
-        return `## ${num}. ${ch.title}\n${formatSceneIndex(indexChapter(ch.content, num))}`;
+        return `## ${num}. ${ch.title} (revision ${ch.revision})\n${formatSceneIndex(indexChapter(ch.content, num))}`;
       });
       return {
         status: backstageLine("list_passages"),
         content: parts.join("\n\n"),
+      };
+    }
+
+    case "delete_passages": {
+      const passageId = String(input.passageId || "").trim();
+      const parsed = parsePassageId(passageId);
+      const expectedRevision = Number(input.expectedRevision);
+      if (!parsed) {
+        return { status: "delete failed", content: `Invalid passage id: "${passageId}".` };
+      }
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+        return {
+          status: "delete failed",
+          content: "expectedRevision must be a non-negative integer.",
+        };
+      }
+      const chapters = await prisma.chapter.findMany({
+        where: { projectId },
+        orderBy: { order: "asc" },
+      });
+      const chapter = chapters[parsed.chapter - 1];
+      if (!chapter) {
+        return {
+          status: `chapter ${parsed.chapter} not found`,
+          content: `No chapter ${parsed.chapter}.`,
+        };
+      }
+      if (chapter.revision !== expectedRevision) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: chapter ${parsed.chapter} is revision ${chapter.revision}, ` +
+            `not ${expectedRevision}. No passages were deleted; read it again.`,
+        };
+      }
+      const deletion = deletePassageRange(
+        chapter.content,
+        parsed.chapter,
+        passageId
+      );
+      if ("error" in deletion) {
+        return { status: "delete failed", content: deletion.error };
+      }
+      const wordCount = countWords(htmlToText(deletion.content));
+      const committed = await prisma.$transaction(async (tx) => {
+        const updated = await tx.chapter.updateMany({
+          where: { id: chapter.id, revision: expectedRevision },
+          data: {
+            content: deletion.content,
+            wordCount,
+            revision: { increment: 1 },
+          },
+        });
+        if (updated.count !== 1) return false;
+        await tx.manuscriptEdit.create({
+          data: { chapterId: chapter.id, find: deletion.passage.id, replace: "" },
+        });
+        return true;
+      });
+      if (!committed) {
+        const current = await prisma.chapter.findUnique({ where: { id: chapter.id } });
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: chapter ${parsed.chapter} changed to revision ` +
+            `${current?.revision ?? "unknown"} before commit. No passages were deleted.`,
+        };
+      }
+      const revision = expectedRevision + 1;
+      return {
+        status: backstageLine("delete_passages"),
+        content:
+          `Deleted ${deletion.passage.id} (${deletion.passage.wordCount}w) from ` +
+          `chapter ${parsed.chapter}. Revision ${expectedRevision} -> ${revision}.\n\n` +
+          formatSceneIndex(deletion.index, { paragraphs: true }),
+        mutationCount: 1,
+        ui: {
+          type: "chapter_updated",
+          chapterId: chapter.id,
+          content: deletion.content,
+          wordCount,
+          revision,
+        },
+      };
+    }
+
+    case "passage_exists": {
+      const n = Number(input.chapterNumber);
+      const passage = String(input.passage || "").trim();
+      if (!passage) {
+        return { status: "passage check failed", content: "Passage text is required." };
+      }
+      const chapters = await prisma.chapter.findMany({
+        where: { projectId },
+        orderBy: { order: "asc" },
+      });
+      const chapter = chapters[n - 1];
+      if (!chapter) return { status: `chapter ${n} not found`, content: `No chapter ${n}.` };
+      const count = countPassageOccurrences(chapter.content, passage);
+      return {
+        status: backstageLine("passage_exists", `ch. ${n}`),
+        content: JSON.stringify({
+          chapterNumber: n,
+          chapterId: chapter.id,
+          revision: chapter.revision,
+          exists: count > 0,
+          count,
+        }),
+      };
+    }
+
+    case "split_chapter_at": {
+      const sourceNumber = Number(input.sourceChapter);
+      const destinationNumber = Number(input.destinationChapter);
+      const boundary = String(input.boundary || "").trim();
+      const expectedSourceRevision = Number(input.expectedSourceRevision);
+      const expectedDestinationRevision =
+        input.expectedDestinationRevision == null
+          ? null
+          : Number(input.expectedDestinationRevision);
+      const dryRun = input.dryRun === true;
+      if (
+        !Number.isInteger(sourceNumber) ||
+        !Number.isInteger(destinationNumber) ||
+        sourceNumber < 1 ||
+        destinationNumber < 1 ||
+        sourceNumber === destinationNumber
+      ) {
+        return {
+          status: "split failed",
+          content: "Source and destination must be different positive chapter numbers.",
+        };
+      }
+      if (!Number.isInteger(expectedSourceRevision) || expectedSourceRevision < 0) {
+        return {
+          status: "split failed",
+          content: "expectedSourceRevision must be a non-negative integer.",
+        };
+      }
+
+      const chapters = await prisma.chapter.findMany({
+        where: { projectId },
+        orderBy: { order: "asc" },
+      });
+      const source = chapters[sourceNumber - 1];
+      const destination = chapters[destinationNumber - 1] ?? null;
+      if (!source) {
+        return {
+          status: `chapter ${sourceNumber} not found`,
+          content: `No chapter ${sourceNumber}.`,
+        };
+      }
+      if (source.revision !== expectedSourceRevision) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: source chapter ${sourceNumber} is revision ` +
+            `${source.revision}, not ${expectedSourceRevision}. No split was applied.`,
+        };
+      }
+      if (!destination && destinationNumber !== chapters.length + 1) {
+        return {
+          status: "split failed",
+          content:
+            `Chapter ${destinationNumber} does not exist. A split may only create ` +
+            `chapter ${chapters.length + 1} at the end.`,
+        };
+      }
+      if (
+        destination &&
+        (!Number.isInteger(expectedDestinationRevision) ||
+          (expectedDestinationRevision as number) < 0)
+      ) {
+        return {
+          status: "split failed",
+          content: "expectedDestinationRevision is required for an existing destination.",
+        };
+      }
+      if (
+        destination &&
+        destination.revision !== expectedDestinationRevision
+      ) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: destination chapter ${destinationNumber} is revision ` +
+            `${destination.revision}, not ${expectedDestinationRevision}. No split was applied.`,
+        };
+      }
+
+      const split = splitChapterHtmlAt(
+        source.content,
+        boundary,
+        sourceNumber,
+        destinationNumber
+      );
+      if ("error" in split) {
+        return { status: "split failed", content: split.error };
+      }
+      const destinationContent =
+        split.destinationContent + (destination?.content || "");
+      const sourceWordCount = countWords(htmlToText(split.sourceContent));
+      const destinationWordCount = countWords(htmlToText(destinationContent));
+      const sourceIndex = formatSceneIndex(split.sourceIndex, { paragraphs: true });
+      const destinationIndex = formatSceneIndex(
+        indexChapter(destinationContent, destinationNumber),
+        { paragraphs: true }
+      );
+      const preview =
+        `Split boundary "${split.boundary}" from chapter ${sourceNumber} into ` +
+        `chapter ${destinationNumber}.\n\nSOURCE AFTER:\n${sourceIndex}\n\n` +
+        `DESTINATION AFTER:\n${destinationIndex}`;
+      if (dryRun) {
+        return {
+          status: backstageLine("split_chapter_at", "dry run"),
+          content:
+            `DRY RUN - no chapters changed. Source revision ${source.revision}` +
+            `${destination ? `; destination revision ${destination.revision}` : ""}.\n\n` +
+            preview,
+        };
+      }
+
+      type SplitCommit =
+        | { created: false; destinationRevision: number; destinationId: string }
+        | { created: true; chapter: Awaited<ReturnType<typeof prisma.chapter.create>> };
+      let committed: SplitCommit;
+      try {
+        committed = await prisma.$transaction(async (tx) => {
+          const sourceUpdate = await tx.chapter.updateMany({
+            where: { id: source.id, revision: expectedSourceRevision },
+            data: {
+              content: split.sourceContent,
+              wordCount: sourceWordCount,
+              revision: { increment: 1 },
+            },
+          });
+          if (sourceUpdate.count !== 1) throw new Error("SOURCE_REVISION_CONFLICT");
+
+          if (destination) {
+            const destinationUpdate = await tx.chapter.updateMany({
+              where: {
+                id: destination.id,
+                revision: expectedDestinationRevision as number,
+              },
+              data: {
+                content: destinationContent,
+                wordCount: destinationWordCount,
+                revision: { increment: 1 },
+              },
+            });
+            if (destinationUpdate.count !== 1) {
+              throw new Error("DESTINATION_REVISION_CONFLICT");
+            }
+            await tx.manuscriptEdit.createMany({
+              data: [
+                {
+                  chapterId: source.id,
+                  find: split.boundary,
+                  replace: `[split to chapter ${destinationNumber}]`,
+                },
+                {
+                  chapterId: destination.id,
+                  find: "",
+                  replace: `[split from chapter ${sourceNumber}]`,
+                },
+              ],
+            });
+            return {
+              created: false as const,
+              destinationRevision: (expectedDestinationRevision as number) + 1,
+              destinationId: destination.id,
+            };
+          }
+
+          const chapter = await tx.chapter.create({
+            data: {
+              projectId,
+              title:
+                String(input.destinationTitle || "").trim() ||
+                `Chapter ${destinationNumber}`,
+              order: chapters.length,
+              content: destinationContent,
+              wordCount: destinationWordCount,
+            },
+          });
+          await tx.manuscriptEdit.create({
+            data: {
+              chapterId: source.id,
+              find: split.boundary,
+              replace: `[split to chapter ${destinationNumber}]`,
+            },
+          });
+          return { created: true as const, chapter };
+        });
+      } catch (error) {
+        if (
+          (error as Error).message === "SOURCE_REVISION_CONFLICT" ||
+          (error as Error).message === "DESTINATION_REVISION_CONFLICT"
+        ) {
+          const current = await prisma.chapter.findMany({
+            where: { id: { in: [source.id, destination?.id || ""] } },
+            select: { id: true, revision: true },
+          });
+          return {
+            status: "revision conflict",
+            content:
+              "STALE REVISION during split commit. The transaction was rolled back; " +
+              `current revisions: ${current
+                .map((chapter) => `${chapter.id}=${chapter.revision}`)
+                .join(", ")}.`,
+          };
+        }
+        throw error;
+      }
+
+      const sourceRevision = expectedSourceRevision + 1;
+      const destinationEvent: ClientUiEvent = committed.created
+        ? {
+            type: "chapter_created",
+            chapter: {
+              id: committed.chapter.id,
+              projectId: committed.chapter.projectId,
+              title: committed.chapter.title,
+              order: committed.chapter.order,
+              content: committed.chapter.content,
+              summary: committed.chapter.summary,
+              status: committed.chapter.status,
+              wordCount: committed.chapter.wordCount,
+              revision: committed.chapter.revision,
+            },
+            open: false,
+          }
+        : {
+            type: "chapter_updated",
+            chapterId: committed.destinationId,
+            content: destinationContent,
+            wordCount: destinationWordCount,
+            revision: committed.destinationRevision,
+          };
+      return {
+        status: backstageLine("split_chapter_at"),
+        content:
+          `${preview}\n\nCommitted source revision ${expectedSourceRevision} -> ` +
+          `${sourceRevision}; destination ${
+            committed.created
+              ? "created at revision 0"
+              : `revision ${expectedDestinationRevision} -> ${committed.destinationRevision}`
+          }.`,
+        mutationCount: 1,
+        ui: [
+          {
+            type: "chapter_updated",
+            chapterId: source.id,
+            content: split.sourceContent,
+            wordCount: sourceWordCount,
+            revision: sourceRevision,
+          },
+          destinationEvent,
+        ],
       };
     }
 
