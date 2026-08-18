@@ -67,9 +67,34 @@ export type ChatMessage = {
   modelContent?: string | null;
   kind: string;
   turnId?: string | null;
-  status?: string; // complete | partial | compact | archived
+  status?: string; // complete | continuing | partial | compact | archived
   archivedAt?: string | null;
   createdAt: string;
+};
+
+export type EditorRunStatus =
+  | "queued"
+  | "running"
+  | "continuing"
+  | "verifying"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+/** Durable server-side state for one idempotent author turn. */
+export type EditorRun = {
+  id: string;
+  projectId: string;
+  turnId: string;
+  status: EditorRunStatus;
+  visibleOutput: string;
+  iterationCount: number;
+  mutationCount: number;
+  stopReason?: string | null;
+  verificationJson?: string | null;
+  error?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 /** Durable record that a chat <draft> segment was inserted into a chapter. */

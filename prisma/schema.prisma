@@ -11,23 +11,24 @@ datasource db {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  title     String   @default("Untitled Manuscript")
-  author    String   @default("")
-  genre     String   @default("")
-  logline   String   @default("") // one-sentence hook
-  synopsis  String   @default("") // longer premise
-  theme     String   @default("") // the throughline the assistant aligns language to
-  pov       String   @default("") // e.g. "First person, past tense"
-  notes     String   @default("") // freeform worldbuilding / style notes
+  id       String @id @default(cuid())
+  title    String @default("Untitled Manuscript")
+  author   String @default("")
+  genre    String @default("")
+  logline  String @default("") // one-sentence hook
+  synopsis String @default("") // longer premise
+  theme    String @default("") // the throughline the assistant aligns language to
+  pov      String @default("") // e.g. "First person, past tense"
+  notes    String @default("") // freeform worldbuilding / style notes
 
-  chapters         Chapter[]
-  characters       Character[]
-  plotPoints       PlotPoint[]
-  messages         ChatMessage[]
-  openQuestions    OpenQuestion[]
-  chatBlobs        ChatBlob[]
-  draftInsertions  DraftInsertion[]
+  chapters        Chapter[]
+  characters      Character[]
+  plotPoints      PlotPoint[]
+  messages        ChatMessage[]
+  openQuestions   OpenQuestion[]
+  chatBlobs       ChatBlob[]
+  draftInsertions DraftInsertion[]
+  editorRuns      EditorRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,13 +112,13 @@ model OpenQuestion {
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  question     String // the fork the editor did not stop to ask
-  provisional  String  @default("") // what it went with so it could keep writing
-  affects      String  @default("") // where in the manuscript/bible it lands
-  chapterId    String? // primary affected chapter, if one
-  status       String  @default("open") // open | resolved | dismissed
-  answer       String  @default("") // the author's answer, once given
-  resolution   String  @default("") // what the editor changed on reconciliation
+  question    String // the fork the editor did not stop to ask
+  provisional String  @default("") // what it went with so it could keep writing
+  affects     String  @default("") // where in the manuscript/bible it lands
+  chapterId   String? // primary affected chapter, if one
+  status      String  @default("open") // open | resolved | dismissed
+  answer      String  @default("") // the author's answer, once given
+  resolution  String  @default("") // what the editor changed on reconciliation
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,28 +131,90 @@ model ChatMessage {
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  role    String // user | assistant
-  content String
+  role         String // user | assistant
+  content      String
   // Cached model-facing view (stubs for oversized / aged content). Null means
   // the model still sees `content` (minus any inserted-draft stubs applied live).
   modelContent String?
-  kind    String @default("chat") // chat | action | autowrite | compact | reconcile
+  kind         String    @default("chat") // chat | action | autowrite | compact | reconcile
   // Groups a user turn with its assistant reply so the client can resume after
   // a dropped stream without re-sending the author's message.
-  turnId  String?
-  // complete = finished; partial = stream died mid-reply (eligible for resume);
-  // compact = rolled-up prior context, not a real turn; archived = soft-archived
-  // by automatic compaction (still readable via read_past_turn / search_chat).
-  status  String  @default("complete")
+  turnId       String?
+  // complete = verified finished; continuing = durable run has more work;
+  // partial = legacy/interrupted reply; compact = rolled-up prior context;
+  // archived = soft-archived by automatic compaction (still readable via
+  // read_past_turn / search_chat).
+  status       String    @default("complete")
   // Set when automatic compaction rolls this row out of the live window.
   // Clear-chat hard-deletes regardless; UI/model windows exclude archived rows.
-  archivedAt DateTime?
+  archivedAt   DateTime?
 
   createdAt DateTime @default(now())
 
   @@index([projectId, createdAt])
   @@index([projectId, turnId])
   @@index([projectId, archivedAt])
+}
+
+// Durable execution state for one author turn. `turnId` is the external
+// idempotency key; messagesJson is the authoritative in-run model transcript.
+model EditorRun {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  turnId             String  @unique
+  userMessageId      String?
+  assistantMessageId String?
+  kind               String  @default("chat")
+  scope              String?
+  activeChapterId    String?
+  selection          String  @default("")
+  autoMode           Boolean @default(false)
+
+  status           String  @default("queued") // queued | running | continuing | verifying | completed | failed | cancelled
+  messagesJson     String  @default("[]")
+  visibleOutput    String  @default("")
+  iterationCount   Int     @default(0)
+  mutationCount    Int     @default(0)
+  stopReason       String?
+  verificationJson String?
+  error            String?
+
+  lockToken      String?
+  leaseExpiresAt DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  steps EditorStep[]
+
+  @@index([projectId, createdAt])
+  @@index([projectId, status])
+}
+
+// Append-only checkpoint for one model iteration. Model response and tool
+// results are serialized separately for inspection; EditorRun.messagesJson
+// stores the resumable transcript after the iteration.
+model EditorStep {
+  id    String    @id @default(cuid())
+  runId String
+  run   EditorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  iteration         Int
+  status            String
+  stopReason        String?
+  modelResponseJson String
+  toolResultsJson   String?
+  visibleDelta      String   @default("")
+  mutationCount     Int      @default(0)
+  startedAt         DateTime @default(now())
+  finishedAt        DateTime @default(now())
+
+  @@unique([runId, iteration])
+  @@index([runId, startedAt])
 }
 
 // Chat-only payloads with no other durable home (tool results, freeform
@@ -163,8 +226,8 @@ model ChatBlob {
 
   kind      String // tool_result | chat_excerpt | transcript
   content   String
-  charCount Int    @default(0)
-  label     String @default("") // one-line gist shown in stubs
+  charCount Int     @default(0)
+  label     String  @default("") // one-line gist shown in stubs
   messageId String?
   turnId    String?
 
@@ -177,9 +240,9 @@ model ChatBlob {
 // Author-approved paste of a chat <draft> into the manuscript. Keyed by
 // (turnId, segmentIndex) so it survives streaming temp ids and page reloads.
 model DraftInsertion {
-  id           String  @id @default(cuid())
-  projectId    String
-  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   turnId       String
   segmentIndex Int

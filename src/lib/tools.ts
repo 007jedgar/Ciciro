@@ -518,6 +518,8 @@ export type ToolResult = {
   status: string;
   content: string;
   ui?: ClientUiEvent | ClientUiEvent[];
+  /** Durable writes performed by this tool call (zero/omitted for reads and no-ops). */
+  mutationCount?: number;
 };
 
 export function toolUiEvents(
@@ -683,7 +685,11 @@ export async function executeEditorTool(
       const note = String(input.note || "").trim();
       if (!note) return { status: "canon", content: "Empty note." };
       await appendCanon(projectId, note);
-      return { status: "recording to canon", content: `Recorded to canon.md: ${note}` };
+      return {
+        status: "recording to canon",
+        content: `Recorded to canon.md: ${note}`,
+        mutationCount: 1,
+      };
     }
 
     case "update_bible": {
@@ -691,7 +697,11 @@ export async function executeEditorTool(
       const content = String(input.content ?? "");
       try {
         await writeBibleFile(projectId, p, content);
-        return { status: `updating ${p}`, content: `Wrote ${p}.` };
+        return {
+          status: `updating ${p}`,
+          content: `Wrote ${p}.`,
+          mutationCount: 1,
+        };
       } catch (e) {
         return { status: "write failed", content: `Error: ${(e as Error).message}` };
       }
@@ -720,6 +730,7 @@ export async function executeEditorTool(
       return {
         status: "logged an open question",
         content: `Logged open question ${q.id}: "${question}" (went with: ${q.provisional || "n/a"}).`,
+        mutationCount: 1,
       };
     }
 
@@ -752,7 +763,11 @@ export async function executeEditorTool(
             resolution: String(input.resolution || "").trim(),
           },
         });
-        return { status: "resolved a question", content: `Resolved: ${q.question}` };
+        return {
+          status: "resolved a question",
+          content: `Resolved: ${q.question}`,
+          mutationCount: 1,
+        };
       } catch (e) {
         return { status: "resolve failed", content: `Error: ${(e as Error).message}` };
       }
@@ -814,6 +829,7 @@ export async function executeEditorTool(
       return {
         status: `correcting chapter ${n}`,
         content: `Chapter ${n} (${ch.title}):\n${report.join("\n")}`,
+        mutationCount: content !== ch.content ? 1 : 0,
         ui:
           content !== ch.content
             ? { type: "chapter_updated", chapterId: ch.id, content, wordCount }
@@ -958,6 +974,7 @@ export async function executeEditorTool(
           content:
             `Moved ${label} within chapter ${fromN} (${fromCh.title}).\n\n` +
             sceneIndexReport(destWith, fromN, fromCh.title),
+          mutationCount: 1,
           ui: {
             type: "chapter_updated",
             chapterId: fromCh.id,
@@ -999,6 +1016,7 @@ export async function executeEditorTool(
           sceneIndexReport(sourceWithout, fromN, fromCh.title) +
           "\n\n" +
           sceneIndexReport(destWith, toN, toCh.title),
+        mutationCount: 1,
         ui: [
           {
             type: "chapter_updated",
@@ -1051,6 +1069,7 @@ export async function executeEditorTool(
         content:
           `Inserted into chapter ${n} (${ch.title}).\n\n` +
           sceneIndexReport(content, n, ch.title),
+        mutationCount: 1,
         ui: { type: "chapter_updated", chapterId: ch.id, content, wordCount },
       };
     }
@@ -1103,6 +1122,7 @@ export async function executeEditorTool(
         content: `Created chapter ${number}: "${chapter.title}"${
           open ? " (now open in the editor)" : ""
         }.`,
+        mutationCount: 1,
         ui: [
           {
             type: "chapter_created",
