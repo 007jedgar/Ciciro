@@ -1,0 +1,17 @@
+{
+  "prompt": "there's some poorly inserted text in chapter 1, look for text that should not exist, check if it already exists in chapter 2, and if not, add it to chapter 2",
+  "boundary": "CHAPTER 2",
+  "chapters": [
+    {
+      "title": "The Press Conference",
+      "revision": 7,
+      "content": "<p>The hospital improvised a hastily assembled press conference featuring the SurgeonCHAPTER 2The cameras found Dr. Vale before she found the podium.</p><p>She denied the accusation without looking at her notes.</p>"
+    },
+    {
+      "title": "Fallout",
+      "revision": 3,
+      "content": "<p>The cameras found Dr. Vale before she found the podium.</p><p>She denied the accusation without looking at her notes.</p><p>Outside, rain polished the ambulance bay.</p>"
+    }
+  ],
+  "duplicatePassage": "The cameras found Dr. Vale before she found the podium. She denied the accusation without looking at her notes."
+}
