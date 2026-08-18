@@ -732,6 +732,14 @@ export async function executeClaimedEditorRun(
           totalMutationCount: totalMutations,
         });
         persistedIterations = completedIterations;
+        emit({
+          type: "phase",
+          status: "verifying",
+          runId: claim.id,
+          stopReason: "end_turn",
+          iterationCount: completedIterations,
+          mutationCount: totalMutations,
+        });
         const final = await finalizeVerification(
           { ...claim, status: verifying.status },
           messages

@@ -1,8 +1,36 @@
+import type {
+  ChatMessage,
+  ChatSnapshot,
+  EditorRun,
+  EditorRunStatus,
+} from "@/lib/types";
+
 // Robust NDJSON stream reader for chat/autowrite. Detects stalls (no bytes for
 // a while) so the client can reconnect instead of hanging forever on a dead
 // TCP half-open connection.
 
-export type NdjsonEvent = { type: string; v?: string; id?: string; [k: string]: unknown };
+export type NdjsonEvent =
+  | { type: "ping" }
+  | { type: "turn"; id: string; runId: string }
+  | { type: "text"; v: string; resume?: boolean }
+  | { type: "tool"; v: string }
+  | {
+      type: "phase";
+      status: EditorRunStatus;
+      runId: string;
+      stopReason?: string | null;
+      iterationCount?: number;
+      mutationCount?: number;
+    }
+  | {
+      type: "done";
+      status: EditorRunStatus;
+      runId: string;
+      stopReason?: string | null;
+      iterationCount?: number;
+      mutationCount?: number;
+    }
+  | ({ type: string } & Record<string, unknown>);
 
 export type ReadNdjsonOptions = {
   /** Abort the underlying reader. */
@@ -26,6 +54,24 @@ export class OfflineError extends Error {
     super(message);
     this.name = "OfflineError";
   }
+}
+
+export function isTerminalRunStatus(status: string): boolean {
+  return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+export function normalizeChatSnapshot(value: unknown): ChatSnapshot {
+  if (Array.isArray(value)) {
+    return { messages: value as ChatMessage[], runs: [] };
+  }
+  if (!value || typeof value !== "object") return { messages: [], runs: [] };
+  const snapshot = value as { messages?: unknown; runs?: unknown };
+  return {
+    messages: Array.isArray(snapshot.messages)
+      ? (snapshot.messages as ChatMessage[])
+      : [],
+    runs: Array.isArray(snapshot.runs) ? (snapshot.runs as EditorRun[]) : [],
+  };
 }
 
 /**
@@ -149,7 +195,12 @@ export async function pollForTurnAssistant(
   projectId: string,
   turnId: string,
   opts: { timeoutMs?: number; intervalMs?: number; signal?: AbortSignal } = {}
-): Promise<{ id: string; content: string; status: string } | null> {
+): Promise<{
+  id: string;
+  content: string;
+  status: string;
+  run: EditorRun | null;
+} | null> {
   const timeoutMs = opts.timeoutMs ?? 12_000;
   const intervalMs = opts.intervalMs ?? 1_200;
   const start = Date.now();
@@ -158,21 +209,18 @@ export async function pollForTurnAssistant(
     if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
     try {
       const r = await fetch(`/api/chat?projectId=${projectId}`);
-      const data = await r.json();
-      if (Array.isArray(data)) {
-        const assistant = [...data]
-          .reverse()
-          .find(
-            (m: { role: string; turnId?: string | null }) =>
-              m.role === "assistant" && m.turnId === turnId
-          );
-        if (assistant) {
-          return {
-            id: assistant.id,
-            content: assistant.content,
-            status: assistant.status || "complete",
-          };
-        }
+      const snapshot = normalizeChatSnapshot(await r.json());
+      const run = snapshot.runs.find((candidate) => candidate.turnId === turnId) || null;
+      const assistant = [...snapshot.messages]
+        .reverse()
+        .find((message) => message.role === "assistant" && message.turnId === turnId);
+      if (assistant || run) {
+        return {
+          id: assistant?.id || run?.assistantMessageId || "",
+          content: assistant?.content || run?.visibleOutput || "",
+          status: run?.status || assistant?.status || "complete",
+          run,
+        };
       }
     } catch {
       /* keep polling */

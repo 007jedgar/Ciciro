@@ -87,6 +87,8 @@ export type EditorRun = {
   id: string;
   projectId: string;
   turnId: string;
+  userMessageId?: string | null;
+  assistantMessageId?: string | null;
   status: EditorRunStatus;
   visibleOutput: string;
   iterationCount: number;
@@ -96,6 +98,12 @@ export type EditorRun = {
   error?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+/** Chat history plus the durable state needed to resume unfinished turns. */
+export type ChatSnapshot = {
+  messages: ChatMessage[];
+  runs: EditorRun[];
 };
 
 /** Durable record that a chat <draft> segment was inserted into a chapter. */

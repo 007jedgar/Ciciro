@@ -113,6 +113,14 @@ export async function POST(req: NextRequest) {
       const pingTimer = setInterval(() => emit({ type: "ping" }), PING_MS);
 
       emit({ type: "turn", id: claim.turnId, runId: claim.id });
+      emit({
+        type: "phase",
+        status: claim.status,
+        runId: claim.id,
+        stopReason: claim.stopReason,
+        iterationCount: claim.iterationCount,
+        mutationCount: claim.mutationCount,
+      });
       if (compactNotice) emit({ type: "tool", v: compactNotice });
       if (claim.visibleOutput) {
         emit({
@@ -195,17 +203,40 @@ function ndjson(stream: ReadableStream<Uint8Array>) {
   });
 }
 
-// GET /api/chat?projectId=... — load live chat history. Durable run rows
-// remain internal until the resumable client phase.
+// GET /api/chat?projectId=... — load chat plus durable run summaries. The
+// client uses these authoritative states to resume safely after reload.
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
-  const messages = await prisma.chatMessage.findMany({
-    where: { projectId, archivedAt: null },
-    orderBy: { createdAt: "asc" },
-    take: 200,
-  });
-  return json(messages, 200);
+  const [messages, runs] = await Promise.all([
+    prisma.chatMessage.findMany({
+      where: { projectId, archivedAt: null },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+    }),
+    prisma.editorRun.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+      select: {
+        id: true,
+        projectId: true,
+        turnId: true,
+        userMessageId: true,
+        assistantMessageId: true,
+        status: true,
+        visibleOutput: true,
+        iterationCount: true,
+        mutationCount: true,
+        stopReason: true,
+        verificationJson: true,
+        error: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+  return json({ messages, runs }, 200);
 }
 
 // DELETE /api/chat?projectId=... — hard-clear chat and its durable runs.
