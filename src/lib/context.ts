@@ -3,6 +3,8 @@ import { htmlToText } from "@/lib/text";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
 import {
   compactOpenChapterIndex,
+  formatSceneIndex,
+  indexChapter,
   renderAnnotatedChapter,
 } from "@/lib/passages";
 
@@ -25,7 +27,8 @@ export async function buildEditorContext(
   projectId: string,
   activeChapterId?: string | null,
   scope?: "selection" | "chapter" | "book",
-  autoMode?: boolean
+  autoMode?: boolean,
+  namedChapterNumbers: number[] = []
 ): Promise<string> {
   await ensureBible(projectId);
 
@@ -92,6 +95,21 @@ export async function buildEditorContext(
       `- ${i + 1}. ${ch.title} (${ch.wordCount} words, ${ch.status})${
         ch.summary ? ` - ${ch.summary}` : ""
       }${active ? "  <-- OPEN" : ""}`
+    );
+  }
+
+  const namedNumbers = [...new Set(namedChapterNumbers)].filter(
+    (number) => Number.isInteger(number) && number > 0
+  );
+  for (const chapterNumber of namedNumbers) {
+    const chapter = project.chapters[chapterNumber - 1];
+    if (!chapter || chapter.id === activeChapterId) continue;
+    parts.push(
+      `\n# NAMED CHAPTER ${chapterNumber}: ${chapter.title} (passage index)`,
+      formatSceneIndex(indexChapter(chapter.content, chapterNumber), {
+        paragraphs: true,
+        paraCap: 24,
+      })
     );
   }
 

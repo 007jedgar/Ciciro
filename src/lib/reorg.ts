@@ -34,7 +34,7 @@ export type ReorgPlan = {
 };
 
 const MOVE_RE =
-  /\b(move|relocate|rearrange|reorder|misplaced|wrong place|doesn't belong|does not belong|doesnt belong|don't belong|do not belong|unrelated|throughline|put this|take this|park this|belongs in|belong in|insert(?:ed)? in the wrong|landed in the wrong|fix misplaced|wrong chapter|other chapter)\b/i;
+  /\b(move|relocate|rearrange|reorder|misplaced|poorly inserted|wrongly inserted|badly inserted|wrong place|doesn't belong|does not belong|doesnt belong|don't belong|do not belong|unrelated|throughline|put this|take this|park this|add (?:it|this|that|the (?:passage|scene|text)) to|belongs in|belong in|insert(?:ed)? in the wrong|landed in the wrong|fix misplaced|wrong chapter|other chapter)\b/i;
 
 const SEAM_RE =
   /\b(right spot|where it belongs|where it fits|find the (?:spot|place|seam)|into the (?:scene|throughline)|after the|before the)\b/i;
@@ -58,7 +58,33 @@ export function looksLikeReorg(message: string, selection?: string): boolean {
   return false;
 }
 
-function parseChapterMentions(message: string): {
+function chapterReferencePattern(chapters: ChapterShape[]): RegExp {
+  const titles = chapters
+    .filter((chapter) => chapter.title.trim())
+    .sort((a, b) => b.title.length - a.title.length)
+    .map((chapter) => chapter.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const titlePart = titles.length ? `|${titles.join("|")}` : "";
+  return new RegExp(`(?:chapter|ch\\.?)\\s*\\d+${titlePart}`, "gi");
+}
+
+function resolveChapterReference(
+  raw: string,
+  chapters: ChapterShape[]
+): number | null {
+  const numbered = raw.match(/(?:chapter|ch\.?)\s*(\d+)/i);
+  if (numbered) return Number(numbered[1]);
+  const normalized = raw.trim().toLocaleLowerCase();
+  return (
+    chapters.find(
+      (chapter) => chapter.title.trim().toLocaleLowerCase() === normalized
+    )?.number ?? null
+  );
+}
+
+export function parseChapterDirections(
+  message: string,
+  chapters: ChapterShape[] = []
+): {
   source: number | null;
   dest: number | null;
   all: number[];
@@ -73,24 +99,35 @@ function parseChapterMentions(message: string): {
     }
   };
 
-  const toM = message.match(
-    /(?:to|into|in)\s+(?:chapter|ch\.?)\s*(\d+)/i
+  const refSource = chapterReferencePattern(chapters).source;
+  const sourcePattern = new RegExp(
+    `(?:from|read|(?:poorly|wrongly|badly)\\s+inserted\\s+in|misplaced\\s+in|does(?:n'?t| not)\\s+belong\\s+in)\\s+(${refSource})`,
+    "i"
   );
-  const fromM = message.match(
-    /(?:from|read)\s+(?:chapter|ch\.?)\s*(\d+)/i
+  const destPattern = new RegExp(
+    `(?:add|move|put|place|relocate|insert|send)(?:\\s+(?:it|this|that|the\\s+(?:passage|scene|text)))?\\s+(?:to|into)\\s+(${refSource})|belongs?\\s+in\\s+(${refSource})`,
+    "i"
   );
-  if (fromM) add(Number(fromM[1]));
-  if (toM) add(Number(toM[1]));
+  const sourceMatch = message.match(sourcePattern);
+  const destMatch = message.match(destPattern);
+  const source = sourceMatch
+    ? resolveChapterReference(sourceMatch[1], chapters)
+    : null;
+  const destRef = destMatch?.[1] || destMatch?.[2];
+  const dest = destRef ? resolveChapterReference(destRef, chapters) : null;
+  if (source != null) add(source);
+  if (dest != null) add(dest);
 
-  const re = /\b(?:chapter|ch\.?)\s*(\d+)\b/gi;
+  const re = chapterReferencePattern(chapters);
   let m: RegExpExecArray | null;
-  while ((m = re.exec(message))) add(Number(m[1]));
+  while ((m = re.exec(message))) {
+    const number = resolveChapterReference(m[0], chapters);
+    if (number != null) add(number);
+  }
 
   const idRe = /\bch(\d+)\.(?:s|p)\d+/gi;
   while ((m = idRe.exec(message))) add(Number(m[1]));
 
-  const source = fromM ? Number(fromM[1]) : null;
-  const dest = toM ? Number(toM[1]) : null;
   return { source, dest, all };
 }
 
@@ -115,7 +152,7 @@ export function decideReorg(input: {
 }): ReorgPlan {
   const message = input.message.trim();
   const selected = hasSelection(input.selection);
-  const mentions = parseChapterMentions(message);
+  const mentions = parseChapterDirections(message, input.chapters);
   const namedId = namedPassageId(message);
   const open = input.openChapter;
   const byNum = new Map(input.chapters.map((c) => [c.number, c]));

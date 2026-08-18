@@ -207,13 +207,8 @@ export async function prepareEditorRun(input: EditorRunInput) {
       (row) => !(row.role === "assistant" && row.turnId === turnId)
     );
 
-    const context = await buildEditorContext(
-      input.projectId,
-      input.activeChapterId,
-      input.scope,
-      Boolean(input.autoMode)
-    );
     let reorgBlock = "";
+    let namedChapterNumbers: number[] = [];
     try {
       const plan = await buildReorgPlan({
         projectId: input.projectId,
@@ -222,9 +217,19 @@ export async function prepareEditorRun(input: EditorRunInput) {
         activeChapterId: input.activeChapterId,
       });
       reorgBlock = formatReorgPlan(plan);
+      namedChapterNumbers = [plan.sourceChapter, plan.destChapter].filter(
+        (chapter): chapter is number => chapter != null
+      );
     } catch {
       // The planner remains advisory.
     }
+    const context = await buildEditorContext(
+      input.projectId,
+      input.activeChapterId,
+      input.scope,
+      Boolean(input.autoMode),
+      namedChapterNumbers
+    );
     const contextWithPlan = reorgBlock ? `${context}\n\n${reorgBlock}` : context;
     const selectionBlock = await selectionForModel(
       input.projectId,
