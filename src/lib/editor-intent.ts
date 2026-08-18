@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
+import type Anthropic from "@anthropic-ai/sdk";
 import { htmlToText } from "@/lib/text";
-import { normalizeWhitespace } from "@/lib/passages";
+import {
+  countPassageOccurrences,
+  normalizePassageComparison,
+  normalizeWhitespace,
+} from "@/lib/passages";
 import {
   decideReorg,
   loadChapterShapes,
@@ -39,6 +44,7 @@ export type EditorIntentContract = {
   initialEvidence: {
     inlineMarkers: InlineMarkerExpectation[];
     selectionProvided: boolean;
+    desiredStateAlreadyHeld: boolean;
   };
 };
 
@@ -100,7 +106,11 @@ export async function buildEditorIntent(input: {
       phases: ["inspect", "compare", "mutate", "verify"],
       desiredOperations: [],
       postconditions: { inlineMarkersAbsent: [], passages: [] },
-      initialEvidence: { inlineMarkers: [], selectionProvided: false },
+      initialEvidence: {
+        inlineMarkers: [],
+        selectionProvided: false,
+        desiredStateAlreadyHeld: true,
+      },
     };
   }
 
@@ -130,11 +140,26 @@ export async function buildEditorIntent(input: {
         destinationChapter
       )
     : [];
-  const inlineMarkersAbsent = initialMarkers.map(
+  const detectedMarkerExpectations = initialMarkers.map(
     ({ followingText: _followingText, ...marker }) => marker
   );
+  const inferredMarker =
+    sourceChapter &&
+    destinationChapter &&
+    /\b(?:poorly|wrongly|badly)\s+inserted\b/i.test(input.message)
+      ? {
+          chapter: sourceChapter,
+          marker: `CHAPTER ${destinationChapter}`,
+          destinationChapter,
+        }
+      : null;
+  const inlineMarkersAbsent = detectedMarkerExpectations.length
+    ? detectedMarkerExpectations
+    : inferredMarker
+      ? [inferredMarker]
+      : [];
   const passages: PassageExpectation[] = [];
-  const selection = normalizeWhitespace(input.selection || "");
+  const selection = normalizePassageComparison(input.selection || "");
   if (selection && sourceChapter && destinationChapter) {
     passages.push({
       sourceChapter,
@@ -152,6 +177,28 @@ export async function buildEditorIntent(input: {
       origin: "inline_marker",
     });
   }
+  const initialDesiredState =
+    inlineMarkersAbsent.length + passages.length > 0 &&
+    inlineMarkersAbsent.every((marker) => {
+      const text = htmlToText(chapters[marker.chapter - 1]?.content || "");
+      const wanted = normalizeWhitespace(marker.marker).toLocaleLowerCase();
+      return !text.split(/\n/).some((line) => {
+        const normalized = normalizeWhitespace(line).toLocaleLowerCase();
+        return normalized.indexOf(wanted) > 0;
+      });
+    }) &&
+    passages.every((passage) => {
+      return (
+        countPassageOccurrences(
+          chapters[passage.sourceChapter - 1]?.content || "",
+          passage.normalizedText
+        ) === 0 &&
+        countPassageOccurrences(
+          chapters[passage.destinationChapter - 1]?.content || "",
+          passage.normalizedText
+        ) === 1
+      );
+    });
 
   const desiredOperations: EditorIntentContract["desiredOperations"] = [];
   if (sourceChapter && destinationChapter) {
@@ -186,8 +233,9 @@ export async function buildEditorIntent(input: {
     desiredOperations,
     postconditions: { inlineMarkersAbsent, passages },
     initialEvidence: {
-      inlineMarkers: inlineMarkersAbsent,
+      inlineMarkers: detectedMarkerExpectations,
       selectionProvided: Boolean(selection),
+      desiredStateAlreadyHeld: initialDesiredState,
     },
   };
 }
@@ -208,4 +256,23 @@ export function parseEditorIntent(text: string): EditorIntentContract | null {
   } catch {
     return null;
   }
+}
+
+export function intentFromMessages(
+  messages: Anthropic.MessageParam[]
+): EditorIntentContract | null {
+  for (const message of messages) {
+    if (message.role !== "user") continue;
+    if (typeof message.content === "string") {
+      const contract = parseEditorIntent(message.content);
+      if (contract) return contract;
+      continue;
+    }
+    for (const block of message.content) {
+      if (block.type !== "text") continue;
+      const contract = parseEditorIntent(block.text);
+      if (contract) return contract;
+    }
+  }
+  return null;
 }

@@ -19,6 +19,10 @@ import {
   buildEditorIntent,
   formatEditorIntent,
 } from "@/lib/editor-intent";
+import {
+  verificationContinuation,
+  verifyEditorCompletion,
+} from "@/lib/editor-verify";
 
 export type EditorRunStatus =
   | "queued"
@@ -445,41 +449,37 @@ async function checkpointIteration(input: Checkpoint) {
   });
 }
 
-function baselineVerification(messages: Anthropic.MessageParam[]) {
-  const toolUses = new Set<string>();
-  const toolResults = new Set<string>();
-  for (const message of messages) {
-    if (!Array.isArray(message.content)) continue;
-    for (const block of message.content) {
-      if (block.type === "tool_use") toolUses.add(block.id);
-      if (block.type === "tool_result") toolResults.add(block.tool_use_id);
-    }
-  }
-  const unmatchedToolUseIds = [...toolUses].filter((id) => !toolResults.has(id));
-  return {
-    policy: "phase1-baseline",
-    passed: unmatchedToolUseIds.length === 0,
-    checks: {
-      modelEndedTurn: true,
-      allToolUsesHaveResults: unmatchedToolUseIds.length === 0,
-    },
-    unmatchedToolUseIds,
-  };
-}
-
 async function finalizeVerification(
   claim: ClaimedEditorRun,
   messages: Anthropic.MessageParam[]
 ) {
-  const verification = baselineVerification(messages);
+  const current = await prisma.editorRun.findUniqueOrThrow({
+    where: { id: claim.id },
+    select: { mutationCount: true },
+  });
+  const verification = await verifyEditorCompletion({
+    projectId: claim.projectId,
+    messages,
+    mutationCount: current.mutationCount,
+  });
   const finalStatus: EditorRunStatus = verification.passed
     ? "completed"
     : "continuing";
+  const persistedMessages = verification.passed
+    ? messages
+    : [
+        ...messages,
+        {
+          role: "user" as const,
+          content: verificationContinuation(verification),
+        },
+      ];
   const final = await prisma.$transaction(async (tx) => {
     const updated = await tx.editorRun.update({
       where: { id: claim.id, lockToken: claim.claimToken },
       data: {
         status: finalStatus,
+        messagesJson: serialize(persistedMessages),
         verificationJson: serialize(verification),
         lockToken: null,
         leaseExpiresAt: null,
