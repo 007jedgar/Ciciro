@@ -1,4 +1,8 @@
-import type { EditorRunStatus } from "@/lib/types";
+import type {
+  ChatSnapshot,
+  EditorRun,
+  EditorRunStatus,
+} from "@/lib/types";
 
 // Client-side durable state for an in-flight chat turn. Survives tab blips,
 // bounded server slices, and reloads without creating another generation.
@@ -82,4 +86,84 @@ export function updatePendingRun(
   const cur = loadPendingTurn(projectId);
   if (!cur) return;
   savePendingTurn({ ...cur, ...patch });
+}
+
+function newestUnfinishedRun(snapshot: ChatSnapshot): EditorRun | undefined {
+  return [...snapshot.runs]
+    .reverse()
+    .find(
+      (run) =>
+        run.status !== "completed" &&
+        run.status !== "failed" &&
+        run.status !== "cancelled"
+    );
+}
+
+/**
+ * Reconcile reload state with the database. An authoritative unfinished run
+ * wins over a stale session record so reload cannot resurrect a second turn.
+ */
+export function resolvePendingTurn(
+  projectId: string,
+  snapshot: ChatSnapshot,
+  stored: PendingTurn | null
+): PendingTurn | null {
+  const storedRun = stored
+    ? snapshot.runs.find((run) => run.turnId === stored.turnId)
+    : undefined;
+  if (
+    storedRun &&
+    (storedRun.status === "completed" ||
+      storedRun.status === "failed" ||
+      storedRun.status === "cancelled")
+  ) {
+    return null;
+  }
+
+  const unfinished = storedRun || newestUnfinishedRun(snapshot);
+  if (!unfinished) {
+    if (
+      stored &&
+      stored.status !== "completed" &&
+      stored.status !== "failed" &&
+      stored.status !== "cancelled"
+    ) {
+      return stored;
+    }
+    return null;
+  }
+
+  const assistant = [...snapshot.messages]
+    .reverse()
+    .find(
+      (message) =>
+        message.role === "assistant" && message.turnId === unfinished.turnId
+    );
+  const user = snapshot.messages.find(
+    (message) => message.role === "user" && message.turnId === unfinished.turnId
+  );
+  const sameStored = stored?.turnId === unfinished.turnId ? stored : null;
+  const message = sameStored?.message || user?.content || "";
+  if (!message) return null;
+
+  return {
+    projectId,
+    turnId: unfinished.turnId,
+    runId: unfinished.id,
+    message,
+    kind: unfinished.kind || user?.kind || sameStored?.kind || "chat",
+    scope: unfinished.scope || sameStored?.scope || undefined,
+    activeChapterId:
+      unfinished.activeChapterId || sameStored?.activeChapterId || null,
+    selection: unfinished.selection || sameStored?.selection || "",
+    autoMode: unfinished.autoMode ?? sameStored?.autoMode,
+    partialText:
+      unfinished.visibleOutput || assistant?.content || sameStored?.partialText || "",
+    status: unfinished.status,
+    stopReason: unfinished.stopReason,
+    iterationCount: unfinished.iterationCount,
+    mutationCount: unfinished.mutationCount,
+    startedAt:
+      Date.parse(unfinished.createdAt) || sameStored?.startedAt || Date.now(),
+  };
 }

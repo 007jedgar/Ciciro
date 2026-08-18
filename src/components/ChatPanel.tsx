@@ -23,6 +23,7 @@ import WritingLoader from "@/components/WritingLoader";
 import {
   clearPendingTurn,
   loadPendingTurn,
+  resolvePendingTurn,
   savePendingTurn,
   updatePendingPartial,
   updatePendingRun,
@@ -755,52 +756,26 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         const snapshot: ChatSnapshot = await refreshMessages();
         if (cancelled || streamingRef.current) return;
         const stored = loadPendingTurn(projectId);
-        const storedRun = stored
-          ? snapshot.runs.find((run) => run.turnId === stored.turnId)
-          : undefined;
-        if (storedRun && isTerminalRunStatus(storedRun.status)) {
+        const pending = resolvePendingTurn(projectId, snapshot, stored);
+        if (!pending) {
+          if (stored) clearPendingTurn(projectId);
+          return;
+        }
+        const unfinished = snapshot.runs.find(
+          (run) => run.turnId === pending.turnId
+        );
+        if (unfinished && isTerminalRunStatus(unfinished.status)) {
           clearPendingTurn(projectId);
           return;
         }
-        const unfinished = stored
-          ? storedRun
-          : [...snapshot.runs]
-              .reverse()
-              .find((run) => !isTerminalRunStatus(run.status));
-        if (!unfinished && !stored) return;
 
         const assistant = [...snapshot.messages]
           .reverse()
           .find(
             (message) =>
               message.role === "assistant" &&
-              message.turnId === (unfinished?.turnId || stored?.turnId)
+              message.turnId === pending.turnId
           );
-        const user = snapshot.messages.find(
-          (message) =>
-            message.role === "user" &&
-            message.turnId === (unfinished?.turnId || stored?.turnId)
-        );
-        const pending: PendingTurn =
-          stored ||
-          ({
-            projectId,
-            turnId: unfinished!.turnId,
-            runId: unfinished!.id,
-            message: user?.content || "",
-            kind: unfinished!.kind || user?.kind || "chat",
-            scope: unfinished!.scope || undefined,
-            activeChapterId: unfinished!.activeChapterId || null,
-            selection: unfinished!.selection || "",
-            autoMode: unfinished!.autoMode,
-            partialText: unfinished!.visibleOutput || assistant?.content || "",
-            status: unfinished!.status,
-            stopReason: unfinished!.stopReason,
-            iterationCount: unfinished!.iterationCount,
-            mutationCount: unfinished!.mutationCount,
-            startedAt: Date.parse(unfinished!.createdAt) || Date.now(),
-          } satisfies PendingTurn);
-        if (!pending.message) return;
         await runTurn(
           {
             ...pending,
