@@ -193,7 +193,9 @@ export async function verifyEditorCompletion(input: {
     intent.postconditions.inlineMarkersAbsent.length +
       intent.postconditions.passages.length >
     0;
-  const allOperationsVerifiable = intent.desiredOperations.every((operation) =>
+  const operationCovered = (
+    operation: EditorIntentContract["desiredOperations"][number]
+  ): boolean =>
     operation.kind === "move_passage"
       ? intent.postconditions.passages.some(
           (passage) =>
@@ -204,15 +206,26 @@ export async function verifyEditorCompletion(input: {
           (marker) =>
             marker.chapter === operation.sourceChapter &&
             marker.destinationChapter === operation.destinationChapter
-        )
+        );
+  // Every operation whose end state we can pin deterministically is covered by
+  // a postcondition above. A split boundary is always pinnable, so an uncovered
+  // split is a real gap. A move_passage is only pinnable when a selection or a
+  // fused inline marker identified the exact prose; a move we could not pin has
+  // no deterministic postcondition to prove and is instead justified by the
+  // revision-safe mutation gate below - it must not block completion forever.
+  const allOperationsCovered =
+    intent.desiredOperations.every(operationCovered);
+  const unprovableSplit = intent.desiredOperations.some(
+    (operation) => operation.kind !== "move_passage" && !operationCovered(operation)
   );
   checks.push({
     name: "intent_has_verifiable_postconditions",
-    passed: hasPostconditions && allOperationsVerifiable,
-    evidence:
-      hasPostconditions && allOperationsVerifiable
+    passed: !unprovableSplit,
+    evidence: unprovableSplit
+      ? "A chapter-boundary split lacks a deterministic marker postcondition."
+      : allOperationsCovered
         ? "Every desired operation has deterministic manuscript postconditions."
-        : "At least one desired operation lacks a deterministic marker or passage postcondition.",
+        : "Pinnable operations are covered; an unpinnable move relies on the revision-safe mutation gate.",
   });
 
   const relevantCalls = [...evidence.toolUses.values()].filter((tool) =>
@@ -231,7 +244,7 @@ export async function verifyEditorCompletion(input: {
     input.mutationCount === 0 &&
     intent.initialEvidence.desiredStateAlreadyHeld &&
     hasPostconditions &&
-    allOperationsVerifiable;
+    allOperationsCovered;
   const justifiedWork =
     noOp ||
     (input.mutationCount > 0 && relevantCalls.length > 0 && revisionSafe);

@@ -166,6 +166,105 @@ describe("intent-aware completion verification", () => {
     expect(result.unmatchedToolUseIds).toEqual(["missing-result"]);
   });
 
+  it("completes an unpinnable cross-chapter move on revision-safe mutation evidence", async () => {
+    // A reorg with a known source and destination but no selection and no fused
+    // inline chapter marker: the exact passage is only identifiable by the model
+    // at runtime, so intent parsing cannot derive a deterministic passage
+    // postcondition. Completion must still be reachable once a revision-safe
+    // mutation is recorded - otherwise the run loops as `continuing` forever.
+    const project = await prisma.project.create({
+      data: {
+        title: "Unpinnable move",
+        chapters: {
+          create: [
+            {
+              title: "One",
+              order: 0,
+              revision: 2,
+              content:
+                "<p>A calm opening about the harbor.</p><p>A misplaced paragraph about spaceships that belongs elsewhere.</p>",
+            },
+            {
+              title: "Two",
+              order: 1,
+              revision: 1,
+              content: "<p>The second chapter proceeds normally.</p>",
+            },
+          ],
+        },
+      },
+      include: { chapters: { orderBy: { order: "asc" } } },
+    });
+
+    const intent = await buildEditorIntent({
+      projectId: project.id,
+      activeChapterId: project.chapters[0].id,
+      message: "move the misplaced paragraph from chapter 1 to chapter 2",
+      kind: "chat",
+    });
+
+    // Precondition for the bug: a move op exists with no deterministic postcondition.
+    expect(intent.desiredOperations).toContainEqual({
+      kind: "move_passage",
+      sourceChapter: 1,
+      destinationChapter: 2,
+    });
+    expect(intent.postconditions.passages).toEqual([]);
+    expect(intent.postconditions.inlineMarkersAbsent).toEqual([]);
+
+    const transcript: Anthropic.MessageParam[] = [
+      { role: "user", content: `${formatEditorIntent(intent)}\n\n${"move it"}` },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "mv",
+            name: "move_text",
+            input: {
+              from: "ch1.p2",
+              toChapter: 2,
+              position: "end",
+              expectedSourceRevision: 2,
+              expectedDestinationRevision: 1,
+            },
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: "mv", content: "Moved." }],
+      },
+    ];
+
+    const completed = await verifyEditorCompletion({
+      projectId: project.id,
+      messages: transcript,
+      mutationCount: 1,
+    });
+    expect(completed.passed).toBe(true);
+    expect(completed.noOp).toBe(false);
+    expect(
+      completed.checks.find(
+        (check) => check.name === "intent_has_verifiable_postconditions"
+      )?.passed
+    ).toBe(true);
+
+    // Guard against false completion: with no mutation and no deterministic
+    // no-op evidence, the same intent must still fail rather than complete.
+    const noWork = await verifyEditorCompletion({
+      projectId: project.id,
+      messages: [transcript[0]],
+      mutationCount: 0,
+    });
+    expect(noWork.passed).toBe(false);
+    expect(noWork.failedReasons).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("No relevant successful mutation"),
+      ])
+    );
+  });
+
   it("resolves the exact malformed fixture without duplicating chapter 2", async () => {
     const project = await seed();
     const intent = await buildEditorIntent({
