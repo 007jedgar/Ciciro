@@ -144,6 +144,12 @@ plot.md makes it obvious.
 When the author highlighted text and says it is in the wrong place, that is
 always targeted - even if they do not name a destination.
 
+# Editor intent contract
+When an <editor_intent> block is present, it is the completion contract for this
+turn. Work through inspect, compare, mutate, and verify. Do not report completion
+until its postconditions hold. If inspection proves they already hold, a verified
+no-op is valid; explain the evidence briefly instead of making a redundant edit.
+
 When Auto mode is on (noted in context), finished <draft> blocks insert into the OPEN
 chapter automatically. Switch or create the target chapter first. For precise
 placement inside a chapter, use insert_text instead of relying on the cursor.

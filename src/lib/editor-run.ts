@@ -15,6 +15,10 @@ import {
   toModelMessages,
 } from "@/lib/message-view";
 import { continuePrompt, healAssistantContent, stripErrorFooter } from "@/lib/heal";
+import {
+  buildEditorIntent,
+  formatEditorIntent,
+} from "@/lib/editor-intent";
 
 export type EditorRunStatus =
   | "queued"
@@ -230,7 +234,17 @@ export async function prepareEditorRun(input: EditorRunInput) {
       Boolean(input.autoMode),
       namedChapterNumbers
     );
-    const contextWithPlan = reorgBlock ? `${context}\n\n${reorgBlock}` : context;
+    const intent = await buildEditorIntent({
+      projectId: input.projectId,
+      message,
+      selection: input.selection,
+      activeChapterId: input.activeChapterId,
+      kind: input.kind,
+    });
+    const intentBlock = formatEditorIntent(intent);
+    const contextWithPlan = [context, reorgBlock, intentBlock]
+      .filter(Boolean)
+      .join("\n\n");
     const selectionBlock = await selectionForModel(
       input.projectId,
       input.selection || "",
