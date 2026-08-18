@@ -126,6 +126,6 @@ export type ClientUiEvent =
       chapterId: string;
       content: string;
       wordCount: number;
-      revision?: number;
+      revision: number;
       title?: string;
     };

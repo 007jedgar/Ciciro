@@ -15,6 +15,7 @@ export type DestPlacement = "end" | "seam" | "ask";
 export type ChapterShape = {
   number: number;
   title: string;
+  revision: number;
   wordCount: number;
   sceneCount: number;
   paragraphCount: number;
@@ -404,6 +405,7 @@ export async function loadChapterShapes(
     return {
       number: n,
       title: ch.title,
+      revision: ch.revision,
       wordCount: ch.wordCount,
       sceneCount: indexed.scenes.length,
       paragraphCount: indexed.paragraphs.length,
@@ -463,7 +465,7 @@ export function formatSurvey(opts: {
       return;
     }
     parts.push(
-      `## ${label}: ${n}. ${ch.title} (${ch.wordCount}w, ${ch.sceneCount} scene${
+      `## ${label}: ${n}. ${ch.title} (revision ${ch.revision}, ${ch.wordCount}w, ${ch.sceneCount} scene${
         ch.sceneCount === 1 ? "" : "s"
       }, ${ch.paragraphCount} paragraphs)`
     );

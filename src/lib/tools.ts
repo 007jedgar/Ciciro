@@ -274,6 +274,10 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
       type: "object",
       properties: {
         chapterNumber: { type: "integer", description: "1-based chapter number" },
+        expectedRevision: {
+          type: "integer",
+          description: "Current chapter revision from the latest read/index",
+        },
         replacements: {
           type: "array",
           items: {
@@ -286,7 +290,7 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
           },
         },
       },
-      required: ["chapterNumber", "replacements"],
+      required: ["chapterNumber", "expectedRevision", "replacements"],
     },
   },
   {
@@ -316,6 +320,15 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
           description:
             "1-based chapter to paste into. Optional when after/before is an id (chapter is parsed from it). Defaults to the source chapter.",
         },
+        expectedSourceRevision: {
+          type: "integer",
+          description: "Current source chapter revision from the latest read/index",
+        },
+        expectedDestinationRevision: {
+          type: "integer",
+          description:
+            "Current destination revision when moving across chapters; omit for a same-chapter move",
+        },
         after: {
           type: "string",
           description:
@@ -332,7 +345,7 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
           description: "Paste at chapter start or end (use when no after/before)",
         },
       },
-      required: [],
+      required: ["expectedSourceRevision"],
     },
   },
   {
@@ -343,6 +356,10 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
       type: "object",
       properties: {
         chapterNumber: { type: "integer", description: "1-based chapter number" },
+        expectedRevision: {
+          type: "integer",
+          description: "Current chapter revision from the latest read/index",
+        },
         text: {
           type: "string",
           description: "Prose to insert, plain text. Separate paragraphs with a blank line.",
@@ -363,7 +380,7 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
           description: "Insert at chapter start or end (use when no anchor)",
         },
       },
-      required: ["chapterNumber", "text"],
+      required: ["chapterNumber", "expectedRevision", "text"],
     },
   },
   {
@@ -1216,6 +1233,13 @@ export async function executeEditorTool(
 
     case "edit_manuscript": {
       const n = Number(input.chapterNumber);
+      const expectedRevision = Number(input.expectedRevision);
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+        return {
+          status: "edit failed",
+          content: "expectedRevision must be a non-negative integer.",
+        };
+      }
       const replacements = Array.isArray(input.replacements)
         ? (input.replacements as { find: string; replace: string }[])
         : [];
@@ -1225,6 +1249,14 @@ export async function executeEditorTool(
       });
       const ch = chapters[n - 1];
       if (!ch) return { status: `chapter ${n} not found`, content: `No chapter ${n}.` };
+      if (ch.revision !== expectedRevision) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: chapter ${n} is revision ${ch.revision}, not ` +
+            `${expectedRevision}. No replacements were applied.`,
+        };
+      }
 
       let content = ch.content;
       const report: string[] = [];
@@ -1255,25 +1287,46 @@ export async function executeEditorTool(
       }
       const wordCount = countWords(htmlToText(content));
       if (content !== ch.content) {
-        await prisma.chapter.update({
-          where: { id: ch.id },
-          data: { content, wordCount },
+        const committed = await prisma.$transaction(async (tx) => {
+          const updated = await tx.chapter.updateMany({
+            where: { id: ch.id, revision: expectedRevision },
+            data: { content, wordCount, revision: { increment: 1 } },
+          });
+          if (updated.count !== 1) return false;
+          await tx.manuscriptEdit.createMany({
+            data: applied.map((a) => ({
+              chapterId: ch.id,
+              find: a.find,
+              replace: a.replace,
+            })),
+          });
+          return true;
         });
+        if (!committed) {
+          return {
+            status: "revision conflict",
+            content:
+              `STALE REVISION: chapter ${n} changed before commit. ` +
+              "No replacements were applied.",
+          };
+        }
       }
-      // Keep a record of what actually changed so the manuscript pane can
-      // render a diff view - separate from `report`, which goes to the model.
-      if (applied.length) {
-        await prisma.manuscriptEdit.createMany({
-          data: applied.map((a) => ({ chapterId: ch.id, find: a.find, replace: a.replace })),
-        });
-      }
+      const revision =
+        content !== ch.content ? expectedRevision + 1 : expectedRevision;
       return {
         status: `correcting chapter ${n}`,
-        content: `Chapter ${n} (${ch.title}):\n${report.join("\n")}`,
+        content:
+          `Chapter ${n} (${ch.title}), revision ${revision}:\n${report.join("\n")}`,
         mutationCount: content !== ch.content ? 1 : 0,
         ui:
           content !== ch.content
-            ? { type: "chapter_updated", chapterId: ch.id, content, wordCount }
+            ? {
+                type: "chapter_updated",
+                chapterId: ch.id,
+                content,
+                wordCount,
+                revision,
+              }
             : undefined,
       };
     }
@@ -1292,6 +1345,17 @@ export async function executeEditorTool(
         input.toChapter != null && input.toChapter !== ""
           ? Number(input.toChapter)
           : null;
+      const expectedSourceRevision = Number(input.expectedSourceRevision);
+      const expectedDestinationRevision =
+        input.expectedDestinationRevision == null
+          ? null
+          : Number(input.expectedDestinationRevision);
+      if (!Number.isInteger(expectedSourceRevision) || expectedSourceRevision < 0) {
+        return {
+          status: "move failed",
+          content: "expectedSourceRevision must be a non-negative integer.",
+        };
+      }
 
       const fromChRes = chapterFromIdOr(fromRaw, fromChapterGiven);
       if ("error" in fromChRes) {
@@ -1338,6 +1402,36 @@ export async function executeEditorTool(
       }
       if (!toCh) {
         return { status: `chapter ${toN} not found`, content: `No chapter ${toN}.` };
+      }
+      if (fromCh.revision !== expectedSourceRevision) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: source chapter ${fromN} is revision ${fromCh.revision}, ` +
+            `not ${expectedSourceRevision}. No passage was moved.`,
+        };
+      }
+      if (
+        fromN !== toN &&
+        (!Number.isInteger(expectedDestinationRevision) ||
+          (expectedDestinationRevision as number) < 0)
+      ) {
+        return {
+          status: "move failed",
+          content:
+            "expectedDestinationRevision is required for a cross-chapter move.",
+        };
+      }
+      if (
+        fromN !== toN &&
+        toCh.revision !== expectedDestinationRevision
+      ) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: destination chapter ${toN} is revision ${toCh.revision}, ` +
+            `not ${expectedDestinationRevision}. No passage was moved.`,
+        };
       }
 
       const source = resolveSource(fromCh.content, fromN, { from: fromRaw, text });
@@ -1399,21 +1493,39 @@ export async function executeEditorTool(
       const label = `${source.id} (${source.wordCount}w)`;
 
       if (fromN === toN) {
-        await prisma.chapter.update({
-          where: { id: fromCh.id },
-          data: { content: destWith, wordCount: toWordCount },
+        const committed = await prisma.$transaction(async (tx) => {
+          const updated = await tx.chapter.updateMany({
+            where: { id: fromCh.id, revision: expectedSourceRevision },
+            data: {
+              content: destWith,
+              wordCount: toWordCount,
+              revision: { increment: 1 },
+            },
+          });
+          if (updated.count !== 1) return false;
+          await tx.manuscriptEdit.create({
+            data: {
+              chapterId: fromCh.id,
+              find: source.id,
+              replace: `[moved within chapter ${fromN}]`,
+            },
+          });
+          return true;
         });
-        await prisma.manuscriptEdit.create({
-          data: {
-            chapterId: fromCh.id,
-            find: source.id,
-            replace: `[moved within chapter ${fromN}]`,
-          },
-        });
+        if (!committed) {
+          return {
+            status: "revision conflict",
+            content:
+              `STALE REVISION: chapter ${fromN} changed before commit. ` +
+              "No passage was moved.",
+          };
+        }
+        const revision = expectedSourceRevision + 1;
         return {
           status: backstageLine("move_text"),
           content:
-            `Moved ${label} within chapter ${fromN} (${fromCh.title}).\n\n` +
+            `Moved ${label} within chapter ${fromN} (${fromCh.title}); ` +
+            `revision ${expectedSourceRevision} -> ${revision}.\n\n` +
             sceneIndexReport(destWith, fromN, fromCh.title),
           mutationCount: 1,
           ui: {
@@ -1421,39 +1533,66 @@ export async function executeEditorTool(
             chapterId: fromCh.id,
             content: destWith,
             wordCount: toWordCount,
+            revision,
           },
         };
       }
 
-      await prisma.$transaction([
-        prisma.chapter.update({
-          where: { id: fromCh.id },
-          data: { content: sourceWithout, wordCount: fromWordCount },
-        }),
-        prisma.chapter.update({
-          where: { id: toCh.id },
-          data: { content: destWith, wordCount: toWordCount },
-        }),
-        prisma.manuscriptEdit.create({
-          data: {
-            chapterId: fromCh.id,
-            find: source.id,
-            replace: "",
-          },
-        }),
-        prisma.manuscriptEdit.create({
-          data: {
-            chapterId: toCh.id,
-            find: "",
-            replace: source.id,
-          },
-        }),
-      ]);
+      try {
+        await prisma.$transaction(async (tx) => {
+          const sourceUpdate = await tx.chapter.updateMany({
+            where: { id: fromCh.id, revision: expectedSourceRevision },
+            data: {
+              content: sourceWithout,
+              wordCount: fromWordCount,
+              revision: { increment: 1 },
+            },
+          });
+          if (sourceUpdate.count !== 1) throw new Error("SOURCE_REVISION_CONFLICT");
+          const destinationUpdate = await tx.chapter.updateMany({
+            where: {
+              id: toCh.id,
+              revision: expectedDestinationRevision as number,
+            },
+            data: {
+              content: destWith,
+              wordCount: toWordCount,
+              revision: { increment: 1 },
+            },
+          });
+          if (destinationUpdate.count !== 1) {
+            throw new Error("DESTINATION_REVISION_CONFLICT");
+          }
+          await tx.manuscriptEdit.createMany({
+            data: [
+              { chapterId: fromCh.id, find: source.id, replace: "" },
+              { chapterId: toCh.id, find: "", replace: source.id },
+            ],
+          });
+        });
+      } catch (error) {
+        if (
+          (error as Error).message === "SOURCE_REVISION_CONFLICT" ||
+          (error as Error).message === "DESTINATION_REVISION_CONFLICT"
+        ) {
+          return {
+            status: "revision conflict",
+            content:
+              "STALE REVISION during move commit. The transaction was rolled back; " +
+              "no passage was moved.",
+          };
+        }
+        throw error;
+      }
+      const sourceRevision = expectedSourceRevision + 1;
+      const destinationRevision = (expectedDestinationRevision as number) + 1;
 
       return {
         status: backstageLine("move_text"),
         content:
-          `Moved ${label} from chapter ${fromN} (${fromCh.title}) to chapter ${toN} (${toCh.title}).\n\n` +
+          `Moved ${label} from chapter ${fromN} (${fromCh.title}) to chapter ${toN} ` +
+          `(${toCh.title}); revisions ${expectedSourceRevision} -> ${sourceRevision} and ` +
+          `${expectedDestinationRevision} -> ${destinationRevision}.\n\n` +
           sceneIndexReport(sourceWithout, fromN, fromCh.title) +
           "\n\n" +
           sceneIndexReport(destWith, toN, toCh.title),
@@ -1464,12 +1603,14 @@ export async function executeEditorTool(
             chapterId: fromCh.id,
             content: sourceWithout,
             wordCount: fromWordCount,
+            revision: sourceRevision,
           },
           {
             type: "chapter_updated",
             chapterId: toCh.id,
             content: destWith,
             wordCount: toWordCount,
+            revision: destinationRevision,
           },
         ],
       };
@@ -1477,14 +1618,29 @@ export async function executeEditorTool(
 
     case "insert_text": {
       const n = Number(input.chapterNumber);
+      const expectedRevision = Number(input.expectedRevision);
       const text = String(input.text || "").trim();
       if (!text) return { status: "insert failed", content: "Empty text to insert." };
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+        return {
+          status: "insert failed",
+          content: "expectedRevision must be a non-negative integer.",
+        };
+      }
       const chapters = await prisma.chapter.findMany({
         where: { projectId },
         orderBy: { order: "asc" },
       });
       const ch = chapters[n - 1];
       if (!ch) return { status: `chapter ${n} not found`, content: `No chapter ${n}.` };
+      if (ch.revision !== expectedRevision) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: chapter ${n} is revision ${ch.revision}, not ` +
+            `${expectedRevision}. No text was inserted.`,
+        };
+      }
 
       const dest = resolveDestination(ch.content, n, {
         after: typeof input.after === "string" ? input.after : undefined,
@@ -1498,20 +1654,39 @@ export async function executeEditorTool(
       const insertHtml = paragraphsToHtml(text);
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
       const wordCount = countWords(htmlToText(content));
-      await prisma.chapter.update({
-        where: { id: ch.id },
-        data: { content, wordCount },
+      const committed = await prisma.$transaction(async (tx) => {
+        const updated = await tx.chapter.updateMany({
+          where: { id: ch.id, revision: expectedRevision },
+          data: { content, wordCount, revision: { increment: 1 } },
+        });
+        if (updated.count !== 1) return false;
+        await tx.manuscriptEdit.create({
+          data: { chapterId: ch.id, find: "", replace: text },
+        });
+        return true;
       });
-      await prisma.manuscriptEdit.create({
-        data: { chapterId: ch.id, find: "", replace: text },
-      });
+      if (!committed) {
+        return {
+          status: "revision conflict",
+          content:
+            `STALE REVISION: chapter ${n} changed before commit. No text was inserted.`,
+        };
+      }
+      const revision = expectedRevision + 1;
       return {
         status: `inserting into chapter ${n}`,
         content:
-          `Inserted into chapter ${n} (${ch.title}).\n\n` +
+          `Inserted into chapter ${n} (${ch.title}); revision ` +
+          `${expectedRevision} -> ${revision}.\n\n` +
           sceneIndexReport(content, n, ch.title),
         mutationCount: 1,
-        ui: { type: "chapter_updated", chapterId: ch.id, content, wordCount },
+        ui: {
+          type: "chapter_updated",
+          chapterId: ch.id,
+          content,
+          wordCount,
+          revision,
+        },
       };
     }
 
