@@ -1135,6 +1135,7 @@ export async function executeEditorTool(
               summary: chapter.summary,
               status: chapter.status,
               wordCount: chapter.wordCount,
+              revision: chapter.revision,
             },
             open,
           },

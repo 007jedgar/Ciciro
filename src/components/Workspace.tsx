@@ -31,7 +31,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
-  const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "conflict">("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff">("prose");
   const [diffRefreshToken, setDiffRefreshToken] = useState(0);
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
@@ -41,6 +41,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const chatRef = useRef<ChatHandle>(null);
   const saveStateRef = useRef(saveState);
   saveStateRef.current = saveState;
+  const chapterRevisionsRef = useRef(
+    new Map(initialProject.chapters.map((chapter) => [chapter.id, chapter.revision]))
+  );
+  const conflictedChaptersRef = useRef(new Set<string>());
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingSaveCountRef = useRef(0);
   // When the editor opens/creates a chapter, mount TipTap with the caret at
   // the end so Auto-mode drafts continue rather than prepending.
   const [focusEndOnMount, setFocusEndOnMount] = useState(false);
@@ -109,6 +115,54 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }));
   }, []);
 
+  const patchChapter = useCallback(
+    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>) => {
+      if (conflictedChaptersRef.current.has(id)) {
+        setSaveState("conflict");
+        return;
+      }
+      pendingSaveCountRef.current += 1;
+      setSaveState("saving");
+      saveQueueRef.current = saveQueueRef.current
+        .catch(() => {})
+        .then(async () => {
+          if (conflictedChaptersRef.current.has(id)) return;
+          const expectedRevision = chapterRevisionsRef.current.get(id);
+          if (expectedRevision == null) return;
+          const res = await fetch(`/api/chapters/${id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ...fields, expectedRevision }),
+          });
+          if (res.status === 409) {
+            conflictedChaptersRef.current.add(id);
+            setSaveState("conflict");
+            return;
+          }
+          if (!res.ok) throw new Error(`Chapter save failed (${res.status})`);
+          const chapter = (await res.json()) as Chapter;
+          chapterRevisionsRef.current.set(id, chapter.revision);
+          updateChapterLocal(id, {
+            revision: chapter.revision,
+            wordCount: chapter.wordCount,
+          });
+        })
+        .catch(() => {
+          setSaveState("conflict");
+        })
+        .finally(() => {
+          pendingSaveCountRef.current -= 1;
+          if (
+            pendingSaveCountRef.current === 0 &&
+            conflictedChaptersRef.current.size === 0
+          ) {
+            setSaveState("saved");
+          }
+        });
+    },
+    [updateChapterLocal]
+  );
+
   // --- Content autosave (debounced) ---
   const onContentChange = useCallback(
     (html: string) => {
@@ -117,36 +171,24 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         content: html,
         wordCount: countWords(htmlToText(html)),
       });
-      setSaveState("saving");
       if (contentTimer.current) clearTimeout(contentTimer.current);
-      contentTimer.current = setTimeout(async () => {
-        await fetch(`/api/chapters/${activeId}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ content: html }),
-        });
-        setSaveState("saved");
+      contentTimer.current = setTimeout(() => {
+        patchChapter(activeId, { content: html });
       }, 1000);
     },
-    [activeId, updateChapterLocal]
+    [activeId, patchChapter, updateChapterLocal]
   );
 
   const onTitleChange = useCallback(
     (title: string) => {
       if (!activeId) return;
       updateChapterLocal(activeId, { title });
-      setSaveState("saving");
       if (titleTimer.current) clearTimeout(titleTimer.current);
-      titleTimer.current = setTimeout(async () => {
-        await fetch(`/api/chapters/${activeId}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title }),
-        });
-        setSaveState("saved");
+      titleTimer.current = setTimeout(() => {
+        patchChapter(activeId, { title });
       }, 700);
     },
-    [activeId, updateChapterLocal]
+    [activeId, patchChapter, updateChapterLocal]
   );
 
   // --- Chapter operations ---
@@ -209,6 +251,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         return;
       }
       if (evt.type === "chapter_created") {
+        chapterRevisionsRef.current.set(evt.chapter.id, evt.chapter.revision);
         setProject((p) => {
           const chapters = [
             ...p.chapters.map((c) =>
@@ -223,10 +266,19 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       }
       if (evt.type === "chapter_updated") {
         // Don't clobber local keystrokes that haven't finished saving yet.
-        if (evt.chapterId === activeId && saveStateRef.current === "saving") return;
+        if (
+          evt.chapterId === activeId &&
+          (saveStateRef.current === "saving" || saveStateRef.current === "conflict")
+        ) {
+          return;
+        }
+        if (evt.revision != null) {
+          chapterRevisionsRef.current.set(evt.chapterId, evt.revision);
+        }
         updateChapterLocal(evt.chapterId, {
           content: evt.content,
           wordCount: evt.wordCount,
+          ...(evt.revision != null ? { revision: evt.revision } : {}),
           ...(evt.title != null ? { title: evt.title } : {}),
         });
       }
@@ -250,10 +302,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             if (
               local &&
               local.id === activeId &&
-              saveStateRef.current === "saving"
+              (saveStateRef.current === "saving" ||
+                saveStateRef.current === "conflict")
             ) {
               return { ...nc, content: local.content, wordCount: local.wordCount };
             }
+            chapterRevisionsRef.current.set(nc.id, nc.revision);
             return nc;
           });
           return { ...p, chapters: merged };
@@ -289,7 +343,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <span className="title">{project.title}</span>
         <span className="spacer" />
         <span className="save-state">
-          {saveState === "saving" ? "Saving..." : "All changes saved"}
+          {saveState === "saving"
+            ? "Saving..."
+            : saveState === "conflict"
+              ? "Save conflict — reload before editing"
+              : "All changes saved"}
         </span>
         <ThemePicker compact />
         <button className="btn small" onClick={() => setQuestionsOpen(true)}>
@@ -331,11 +389,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   value={activeChapter.status}
                   onChange={(e) => {
                     updateChapterLocal(activeChapter.id, { status: e.target.value });
-                    fetch(`/api/chapters/${activeChapter.id}`, {
-                      method: "PATCH",
-                      headers: { "content-type": "application/json" },
-                      body: JSON.stringify({ status: e.target.value }),
-                    });
+                    patchChapter(activeChapter.id, { status: e.target.value });
                   }}
                   style={{ width: "auto", padding: "2px 6px" }}
                 >

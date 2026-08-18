@@ -45,6 +45,7 @@ model Chapter {
   summary   String @default("") // assistant-maintained beat summary
   status    String @default("draft") // draft | revised | final
   wordCount Int    @default(0)
+  revision  Int    @default(0) // optimistic concurrency token for every chapter write
 
   plotPoints      PlotPoint[]
   manuscriptEdits ManuscriptEdit[]

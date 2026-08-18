@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { countWords, htmlToText } from "@/lib/text";
 import { summarizeChapter } from "@/lib/summarize";
@@ -11,7 +12,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
-  const data: Record<string, string | number> = {};
+  const data: Prisma.ChapterUpdateManyMutationInput = {};
 
   if (typeof body.content === "string") {
     data.content = body.content;
@@ -22,14 +23,46 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (typeof body.status === "string") data.status = body.status;
   if (typeof body.order === "number") data.order = body.order;
 
-  const chapter = await prisma.chapter.update({ where: { id }, data });
+  if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 0) {
+    return NextResponse.json(
+      { error: "expectedRevision is required for chapter updates" },
+      { status: 428 }
+    );
+  }
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "No chapter fields to update" }, { status: 400 });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.chapter.updateMany({
+      where: { id, revision: body.expectedRevision },
+      data: { ...data, revision: { increment: 1 } },
+    });
+    const chapter = await tx.chapter.findUnique({ where: { id } });
+    return { updated: updated.count === 1, chapter };
+  });
+
+  if (!result.chapter) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (!result.updated) {
+    return NextResponse.json(
+      {
+        error: "Chapter revision conflict",
+        expectedRevision: body.expectedRevision,
+        currentRevision: result.chapter.revision,
+        chapter: result.chapter,
+      },
+      { status: 409 }
+    );
+  }
 
   // Refresh the beat summary in the background - don't hold up the autosave.
   if (typeof body.content === "string") {
     after(() => summarizeChapter(id).catch(() => {}));
   }
 
-  return NextResponse.json(chapter);
+  return NextResponse.json(result.chapter);
 }
 
 // DELETE /api/chapters/:id — remove a chapter and re-number the rest.

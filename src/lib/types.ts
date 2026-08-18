@@ -9,6 +9,7 @@ export type Chapter = {
   summary: string;
   status: string;
   wordCount: number;
+  revision: number;
 };
 
 export type Character = {
@@ -125,5 +126,6 @@ export type ClientUiEvent =
       chapterId: string;
       content: string;
       wordCount: number;
+      revision?: number;
       title?: string;
     };
