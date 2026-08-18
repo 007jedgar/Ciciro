@@ -65,7 +65,7 @@ function findInlineMarkers(
   const markers: Array<InlineMarkerExpectation & { followingText: string }> = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
-    const markerRe = /chapter\s*(\d+)\b/gi;
+    const markerRe = /chapter\s*(\d+)(?!\d)/gi;
     let match: RegExpExecArray | null;
     while ((match = markerRe.exec(line))) {
       const prefix = line.slice(0, match.index).trim();
