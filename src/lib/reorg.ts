@@ -102,7 +102,7 @@ export function parseChapterDirections(
 
   const refSource = chapterReferencePattern(chapters).source;
   const sourcePattern = new RegExp(
-    `(?:from|read|(?:poorly|wrongly|badly)\\s+inserted\\s+in|misplaced\\s+in|does(?:n'?t| not)\\s+belong\\s+in)\\s+(${refSource})`,
+    `(?:from|read|(?:poorly|wrongly|badly)\\s+inserted(?:\\s+(?:text|passage|scene))?\\s+in|misplaced\\s+in|does(?:n'?t| not)\\s+belong\\s+in)\\s+(${refSource})`,
     "i"
   );
   const destPattern = new RegExp(
