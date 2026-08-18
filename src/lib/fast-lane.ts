@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, DRAFTER_FAST_MODEL } from "@/lib/anthropic";
+import type { EditorIntentContract } from "@/lib/editor-intent";
 import { COMPACT_SYSTEM } from "@/lib/prompts";
 
 // Fast / cheap lane for non-editorial jobs.
@@ -26,6 +27,17 @@ export type RankResult = {
   ranked: RankCandidate[];
   source: "groq" | "haiku" | "none";
 };
+
+export type EditorRoute = {
+  version: 1;
+  lane: "editorial" | "mechanical" | "retrieval";
+  nextStep: "inspect" | "compare" | "mutate" | "verify" | "judge";
+  reason: string;
+  source: "groq" | "haiku" | "deterministic";
+};
+
+const ROUTE_OPEN = "<editor_route>";
+const ROUTE_CLOSE = "</editor_route>";
 
 function groqKey(): string | undefined {
   const k = process.env.GROQ_API_KEY?.trim();
@@ -79,6 +91,140 @@ async function haikuText(system: string, user: string): Promise<string> {
     .map((b) => b.text)
     .join("")
     .trim();
+}
+
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(raw.replace(/^```json\s*|\s*```$/g, "").trim()) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Classify only work that is already safe to accelerate. The fast model may
+ * choose a mechanical/retrieval profile and the next deterministic phase, but
+ * it never executes tools or bypasses Opus/verification. Ambiguous work is
+ * pinned to the editorial lane before the fast model is consulted.
+ */
+export async function routeEditorWork(input: {
+  message: string;
+  kind?: string;
+  intent: EditorIntentContract;
+}): Promise<EditorRoute> {
+  const fullySpecifiedMechanical =
+    input.intent.actionRequired &&
+    input.intent.desiredOperations.length > 0 &&
+    input.intent.sourceChapters.length > 0 &&
+    input.intent.destinationChapters.length > 0;
+  const retrievalCandidate =
+    !input.intent.actionRequired &&
+    /\b(?:show|list|find|search|locate|survey|check whether|does .+ exist)\b/i.test(
+      input.message
+    ) &&
+    !/\b(?:write|rewrite|revise|edit|critique|evaluate|decide|improve)\b/i.test(
+      input.message
+    );
+
+  if (!fullySpecifiedMechanical && !retrievalCandidate) {
+    return {
+      version: 1,
+      lane: "editorial",
+      nextStep: "judge",
+      reason: "Request requires editorial judgment or has unresolved structure.",
+      source: "deterministic",
+    };
+  }
+
+  const fallbackLane = fullySpecifiedMechanical ? "mechanical" : "retrieval";
+  const fallbackStep = input.intent.initialEvidence.desiredStateAlreadyHeld
+    ? "verify"
+    : "inspect";
+  const system = `Route a novel editor request that has already passed deterministic safety checks.
+Return JSON only: {"lane":"mechanical|retrieval|editorial","nextStep":"inspect|compare|mutate|verify|judge","reason":"short"}.
+Mechanical means a fully specified structural operation. Retrieval means read/search/list only.
+Editorial means prose, critique, ambiguity, interpretation, or deciding what should change.
+Never treat ambiguity as mechanical. This route only adjusts Opus budgets; it does not approve completion.`;
+  const user = JSON.stringify({
+    message: input.message,
+    kind: input.kind || "chat",
+    intent: input.intent,
+    eligibleLane: fallbackLane,
+  });
+
+  let raw = await groqJson(system, user);
+  let source: EditorRoute["source"] = "groq";
+  if (!raw) {
+    try {
+      raw = await haikuText(system, user);
+      source = "haiku";
+    } catch {
+      raw = null;
+    }
+  }
+  const parsed = raw ? parseJsonObject(raw) : null;
+  const proposedLane = parsed?.lane;
+  const lane =
+    proposedLane === "editorial"
+      ? "editorial"
+      : proposedLane === fallbackLane
+        ? fallbackLane
+        : fallbackLane;
+  const allowedSteps: EditorRoute["nextStep"][] = [
+    "inspect",
+    "compare",
+    "mutate",
+    "verify",
+    "judge",
+  ];
+  const proposedStep = parsed?.nextStep;
+  const nextStep = allowedSteps.includes(proposedStep as EditorRoute["nextStep"])
+    ? (proposedStep as EditorRoute["nextStep"])
+    : fallbackStep;
+
+  return {
+    version: 1,
+    lane,
+    nextStep: lane === "editorial" ? "judge" : nextStep,
+    reason:
+      typeof parsed?.reason === "string"
+        ? parsed.reason.slice(0, 240)
+        : `Deterministic ${fallbackLane} route.`,
+    source: raw ? source : "deterministic",
+  };
+}
+
+export function formatEditorRoute(route: EditorRoute): string {
+  return `${ROUTE_OPEN}\n${JSON.stringify(route)}\n${ROUTE_CLOSE}`;
+}
+
+export function editorRouteFromMessages(
+  messages: Anthropic.MessageParam[]
+): EditorRoute | null {
+  for (const message of messages) {
+    if (message.role !== "user") continue;
+    const texts =
+      typeof message.content === "string"
+        ? [message.content]
+        : message.content
+            .filter(
+              (block): block is Anthropic.TextBlockParam => block.type === "text"
+            )
+            .map((block) => block.text);
+    for (const text of texts) {
+      const start = text.indexOf(ROUTE_OPEN);
+      const end = text.indexOf(ROUTE_CLOSE, start + ROUTE_OPEN.length);
+      if (start < 0 || end < 0) continue;
+      const parsed = parseJsonObject(
+        text.slice(start + ROUTE_OPEN.length, end).trim()
+      ) as EditorRoute | null;
+      if (parsed?.version === 1) return parsed;
+    }
+  }
+  return null;
 }
 
 /**

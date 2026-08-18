@@ -23,6 +23,11 @@ import {
   verificationContinuation,
   verifyEditorCompletion,
 } from "@/lib/editor-verify";
+import {
+  editorRouteFromMessages,
+  formatEditorRoute,
+  routeEditorWork,
+} from "@/lib/fast-lane";
 
 export type EditorRunStatus =
   | "queued"
@@ -231,13 +236,6 @@ export async function prepareEditorRun(input: EditorRunInput) {
     } catch {
       // The planner remains advisory.
     }
-    const context = await buildEditorContext(
-      input.projectId,
-      input.activeChapterId,
-      input.scope,
-      Boolean(input.autoMode),
-      namedChapterNumbers
-    );
     const intent = await buildEditorIntent({
       projectId: input.projectId,
       message,
@@ -245,8 +243,21 @@ export async function prepareEditorRun(input: EditorRunInput) {
       activeChapterId: input.activeChapterId,
       kind: input.kind,
     });
+    const route = await routeEditorWork({
+      message,
+      kind: input.kind,
+      intent,
+    });
+    const context = await buildEditorContext(
+      input.projectId,
+      input.activeChapterId,
+      input.scope,
+      Boolean(input.autoMode),
+      namedChapterNumbers
+    );
     const intentBlock = formatEditorIntent(intent);
-    const contextWithPlan = [context, reorgBlock, intentBlock]
+    const routeBlock = formatEditorRoute(route);
+    const contextWithPlan = [context, reorgBlock, intentBlock, routeBlock]
       .filter(Boolean)
       .join("\n\n");
     const selectionBlock = await selectionForModel(
@@ -543,6 +554,13 @@ export async function executeClaimedEditorRun(
 ) {
   const anthropic = getAnthropic();
   const messages = parseMessages(claim.messagesJson);
+  const route = editorRouteFromMessages(messages);
+  const requestProfile =
+    route?.lane === "retrieval"
+      ? { maxTokens: 3000, effort: "low" as const }
+      : route?.lane === "mechanical"
+        ? { maxTokens: 6000, effort: "low" as const }
+        : { maxTokens: 16000, effort: "high" as const };
   let visible = claim.visibleOutput;
   let totalMutations = claim.mutationCount;
   let completedIterations = claim.iterationCount;
@@ -565,9 +583,9 @@ export async function executeClaimedEditorRun(
         try {
           const stream = anthropic.messages.stream({
             model: EDITOR_MODEL,
-            max_tokens: 16000,
+            max_tokens: requestProfile.maxTokens,
             thinking: { type: "adaptive" },
-            output_config: { effort: "high" },
+            output_config: { effort: requestProfile.effort },
             system: [
               {
                 type: "text",

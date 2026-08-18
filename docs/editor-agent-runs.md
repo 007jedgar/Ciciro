@@ -160,16 +160,21 @@ Failed checks return the run to `running`/`continuing` with structured evidence 
 the next iteration. A no-op completes only when its evidence proves every
 postcondition.
 
-## Routing and client behavior (phase 3)
+## Routing and client behavior
 
-The client will render durable phases, retain pending turns while status is
-`continuing`, automatically request the next slice, and resume after reload. Failed
-and cancelled runs remain visible and are never presented as finished work.
+The client renders durable phases, retains pending turns while status is
+`continuing`, automatically requests the next slice, and reconciles browser state
+with the persisted run after reload. Active leases are polled before another resume
+request, and the same turn id is reused for every retry. Failed and cancelled runs
+remain visible and are never presented as finished work.
 
-The existing fast lane may classify intent, rank retrieval, and select deterministic
-mechanical steps. Ambiguous editorial judgment remains on Opus. Retrieval-only and
-tool-only iterations use lower reasoning effort and smaller output budgets; routing
-must not weaken the verification gate.
+The existing Groq/Haiku fast lane classifies only requests already eligible for
+structured mechanical or retrieval routing and suggests the next deterministic
+phase. It cannot execute tools or approve completion. Opus remains the editor for
+every run; ambiguous editorial work uses high effort with a 16,000-token output
+budget, while retrieval and fully specified mechanical routes use low effort with
+3,000- and 6,000-token budgets respectively. Routing never weakens the verification
+gate.
 
 ## Failure and recovery semantics
 
