@@ -46,7 +46,23 @@ context and makes the calls. When you ask for prose, it:
 
 The drafter is invisible; the chat surfaces only a quiet backstage trace
 ("reading `mara.md`", "drafting with Sonnet"). See `src/lib/tools.ts` and the tool
-loop in `src/app/api/chat/route.ts`.
+runner in `src/lib/editor-run.ts`.
+
+### Durable editor runs
+
+Each author turn has a persisted `EditorRun`. The chat endpoint executes a bounded
+slice and checkpoints the exact model transcript (including tool-use/result pairs),
+visible output, counters, and stop reason after every model iteration. If a slice
+ends on tool use, the output token cap, or its iteration budget, its status is
+`continuing`—never complete. A turn reaches `completed` only after an `end_turn` and
+the active verification gate.
+
+The client-provided turn id is an idempotency key, and a database lease prevents two
+requests from executing the same run concurrently. A later request can resume from
+the persisted transcript without discarding chapter reads or structural surveys.
+See [`docs/editor-agent-runs.md`](docs/editor-agent-runs.md) for lifecycle states,
+schemas, stream contracts, failure behavior, and the phased structural/verification
+rollout.
 
 ### Memory: a folder of markdown, three tiers
 The story bible lives on disk as editable markdown (`canon.md`, `plot.md`, `style.md`,
@@ -103,9 +119,11 @@ src/
     prompts.ts     # editor & drafter system prompts, quick actions
     context.ts     # tiered, always-current editor context
     bible.ts       # markdown story-bible files (read/write/seed, path-safe)
+    editor-run.ts  # durable, bounded editor lifecycle + model/tool checkpoints
     tools.ts       # editor tool defs + executor (retrieval, capture, dispatch)
     docx.ts  text.ts  db.ts  types.ts
 prisma/schema.prisma
+docs/editor-agent-runs.md       # durable-run and phased verification contract
 data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 ```
 
