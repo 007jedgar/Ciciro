@@ -1,3 +1,5 @@
+![Ciciro manuscript editor with chapter list, writing surface, and AI editor chat](docs/images/ciciro.png)
+
 # Ciciro
 
 An AI book-writing assistant and manuscript editor. You write in a distraction-free
@@ -7,16 +9,23 @@ loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
 Manuscripts export to standard (Shunn-style) `.docx`.
 
-## Stack
+## Contents
 
-- **Next.js 15 (App Router) + React 19 + TypeScript** - full-stack, single app.
-- **TipTap (ProseMirror)** - the manuscript editing surface.
-- **Prisma + SQLite** - local-first manuscript + chat storage.
-- **Story bible = markdown files on disk** (`data/<projectId>/bible/`) - the shared
-  memory the editor reads and writes.
-- **@anthropic-ai/sdk** - the editor (Opus 5) runs an agentic tool loop; the drafter
-  (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
-- **docx** - manuscript-format Word export.
+- [Getting started](#getting-started)
+- [Using Ciciro](#using-ciciro)
+- [Story bible](#story-bible)
+- [Stack](#stack)
+- [The architecture](#the-architecture)
+  - [One editor, backstage drafters](#one-editor-backstage-drafters)
+  - [Durable editor runs](#durable-editor-runs)
+  - [Memory: a folder of markdown, three tiers](#memory-a-folder-of-markdown-three-tiers)
+  - [Export](#export)
+- [Models](#models)
+- [Project layout](#project-layout)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+- [Roadmap](#roadmap)
 
 ## Getting started
 
@@ -29,6 +38,40 @@ npm run dev               # http://localhost:3000
 
 Get a key at https://console.anthropic.com/. The editor still works if only the DB
 is set up; the assistant needs the key.
+
+## Using Ciciro
+
+You write in the center pane and talk to Ciciro on the right. Fill the story bible
+before asking for long passages; name the chapter, the beat, and what not to do.
+Quick-action chips cover critique, loose ends, misplaced passages, and continuing
+from the open chapter. **Auto** inserts accepted drafts as they finish; **Auto-draft**
+writes an unattended pass of the open chapter.
+
+A fuller walkthrough - workspace, prompting, quick actions, questions, compact, and
+export - is in [Using Ciciro](docs/using-ciciro.md).
+
+## Story bible
+
+The bible is markdown on disk (`canon.md`, `plot.md`, `style.md`, `timeline.md`,
+`world.md`, `characters/*.md`). The editor always sees canon, plot, and style; it
+opens character and world files on demand, and writes rulings back so consistency
+does not depend on chat history.
+
+![Story Bible files the editor reads and writes for canon, characters, plot, style, timeline, and world](docs/images/story-bible.png)
+
+How to add characters, what belongs in each file, and habits that keep the model
+aligned: [Story bible](docs/story-bible.md).
+
+## Stack
+
+- **Next.js 15 (App Router) + React 19 + TypeScript** - full-stack, single app.
+- **TipTap (ProseMirror)** - the manuscript editing surface.
+- **Prisma + SQLite** - local-first manuscript + chat storage.
+- **Story bible = markdown files on disk** (`data/<projectId>/bible/`) - the shared
+  memory the editor reads and writes.
+- **@anthropic-ai/sdk** - the editor (Opus 5) runs an agentic tool loop; the drafter
+  (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
+- **docx** - manuscript-format Word export.
 
 ## The architecture
 
@@ -123,9 +166,29 @@ src/
     tools.ts       # editor tool defs + executor (retrieval, capture, dispatch)
     docx.ts  text.ts  db.ts  types.ts
 prisma/schema.prisma
-docs/editor-agent-runs.md       # durable-run and phased verification contract
+docs/
+  using-ciciro.md           # how to work with the editor
+  story-bible.md            # adding context for consistency
+  editor-agent-runs.md      # durable-run and phased verification contract
+  images/ciciro.png         # workspace screenshot
+  images/story-bible.png    # story bible drawer
 data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 ```
+
+## Documentation
+
+- [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft.
+- [Story bible](docs/story-bible.md) - files on disk and how to keep the model consistent.
+- [Durable editor runs](docs/editor-agent-runs.md) - run lifecycle, streaming, verification.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, scripts, conventions, and pull
+requests.
+
+## License
+
+[MIT](LICENSE)
 
 ## Roadmap
 

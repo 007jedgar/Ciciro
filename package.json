@@ -2,6 +2,7 @@
   "name": "ciciro",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Ciciro — an AI book-writing assistant and manuscript editor",
   "scripts": {
     "dev": "next dev",
