@@ -8,46 +8,69 @@
   "substrate": {
     "expected": "orchestrate CLI (bun cli.ts run --root <workspace>) with plan.json/state.json/handoffs and kill-tree",
     "status": "not-installed-in-this-environment",
-    "note": "No bun binary, no cli.ts, no orchestrate SKILL.md, and a full-filesystem grep for its symbols (recoverRunning, scopedGoal, pathsAllowed, handoffs, selfAgentId, checkpoint restart) returned nothing. The loop could not be run, so the planner executed the plan directly on one feature branch, dispatching isolated subagents (the closest available primitive to worker spawning) for disjoint workstreams and implementing the interdependent hosting/auth/durable-objects work coherently in-branch."
+    "note": "No bun binary, no cli.ts, no orchestrate SKILL.md, and a full-filesystem grep for its symbols (recoverRunning, scopedGoal, pathsAllowed, handoffs, selfAgentId, checkpoint restart) returned nothing. The loop could not be run, so the planner executed the plan directly on one feature branch, dispatching isolated subagents (the closest available primitive to worker spawning) for disjoint workstreams and implementing the interdependent hosting/auth/durable-objects work coherently in-branch.",
+    "executionResult": "All five workstreams completed in-branch on cursor/ciciro-hosted-orchestration-e557; build+lint+tests green (89 tests)."
   },
   "tasks": [
     {
       "id": "tests",
       "scopedGoal": "Create a full test suite for Ciciro UI behavior and core functionality (Vitest).",
-      "pathsAllowed": ["test/**"],
-      "status": "planned",
+      "pathsAllowed": [
+        "test/**"
+      ],
+      "status": "done",
       "dispatch": "in-branch (planner)",
       "parentAgentId": "bc-78808e46-8015-40a1-973e-4268fdb6e557"
     },
     {
       "id": "auth",
       "scopedGoal": "Implement email/password auth with sessions: User/Session Prisma models, password hashing, session cookies, login/signup API + UI, route protection, optional project ownership.",
-      "pathsAllowed": ["prisma/**", "src/lib/auth/**", "src/app/api/auth/**", "src/app/(auth)/**", "src/middleware.ts"],
-      "status": "planned",
+      "pathsAllowed": [
+        "prisma/**",
+        "src/lib/auth/**",
+        "src/app/api/auth/**",
+        "src/app/(auth)/**",
+        "src/middleware.ts"
+      ],
+      "status": "done",
       "dispatch": "in-branch (planner)",
       "parentAgentId": "bc-78808e46-8015-40a1-973e-4268fdb6e557"
     },
     {
       "id": "durable-objects",
       "scopedGoal": "Add a Cloudflare Durable Objects coordinator for durable editor runs (single-writer lease/serialization per run) with a graceful in-process fallback so the Node build keeps working.",
-      "pathsAllowed": ["src/lib/durable/**", "src/worker/**", "wrangler.*", "docs/**"],
-      "status": "planned",
+      "pathsAllowed": [
+        "src/lib/durable/**",
+        "src/worker/**",
+        "wrangler.*",
+        "docs/**"
+      ],
+      "status": "done",
       "dispatch": "in-branch (planner)",
       "parentAgentId": "bc-78808e46-8015-40a1-973e-4268fdb6e557"
     },
     {
       "id": "hosting",
       "scopedGoal": "Add hosted deployment: Cloudflare (@opennextjs/cloudflare + wrangler) config, health check, env/runtime docs, and production-safe DB guidance.",
-      "pathsAllowed": ["wrangler.*", "open-next.config.*", "next.config.mjs", "src/app/api/health/**", "docs/**", "package.json"],
-      "status": "planned",
+      "pathsAllowed": [
+        "wrangler.*",
+        "open-next.config.*",
+        "next.config.mjs",
+        "src/app/api/health/**",
+        "docs/**",
+        "package.json"
+      ],
+      "status": "done",
       "dispatch": "in-branch (planner)",
       "parentAgentId": "bc-78808e46-8015-40a1-973e-4268fdb6e557"
     },
     {
       "id": "mobile-plan",
       "scopedGoal": "Author the Ciciro mobile app plan: application flow diagrams (Mermaid) + technical specs.",
-      "pathsAllowed": ["docs/mobile/**"],
-      "status": "dispatched",
+      "pathsAllowed": [
+        "docs/mobile/**"
+      ],
+      "status": "done",
       "dispatch": "subagent (generalPurpose, background)",
       "childAgentId": "bc-38bb102e-297c-5c0f-9c14-27789eea9d16",
       "parentAgentId": "bc-78808e46-8015-40a1-973e-4268fdb6e557"
