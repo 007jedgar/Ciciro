@@ -184,7 +184,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             }
           };
 
-          let payload = { ...inFlight };
+          const payload = { ...inFlight };
           let outcome = await attemptSave(payload);
           if (outcome === "fail") {
             outcome = await attemptSave(payload);
