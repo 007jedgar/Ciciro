@@ -180,6 +180,7 @@ data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 - [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft.
 - [Story bible](docs/story-bible.md) - files on disk and how to keep the model consistent.
 - [Durable editor runs](docs/editor-agent-runs.md) - run lifecycle, streaming, verification.
+- [Writing goals, reminders, and rewards](docs/gamification.md) - habit goals, reminder cadences, and bonus AI credits for the hosted app.
 
 ## Contributing
 

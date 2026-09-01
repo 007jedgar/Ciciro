@@ -105,6 +105,10 @@ convention: **use hyphens, not em dashes**.
   `src/app/api/**`), local data model & offline strategy, rich-text approach,
   auth & security, streaming/durable-run handling, push notifications, non-
   functional requirements, testing, phased rollout, and open questions.
+- **[Writing goals, reminders, and rewards](../gamification.md)** - hosted
+  product plan (web + mobile): word-count goals, reminder cadences beyond the
+  planned daily writing reminder, recovery-first streaks, and bonus AI
+  credits. Not a second repo.
 
 ## Grounding references
 
@@ -113,6 +117,8 @@ convention: **use hyphens, not em dashes**.
   persistence schema, HTTP/stream contract, failure semantics, phased rollout.
 - [`../using-ciciro.md`](../using-ciciro.md) - workspace, prompting, quick
   actions, auto insert vs auto-draft, questions, compact, diff, export.
+- [`../gamification.md`](../gamification.md) - writing goals, reminders, and
+  rewards for the hosted app (including mobile notifications).
 - [`../story-bible.md`](../story-bible.md) - the markdown story-bible workflow.
 - `prisma/schema.prisma` - `Project`, `Chapter`, `ChatMessage`, `EditorRun`,
   `EditorStep`, `ChatBlob`, `DraftInsertion`, `OpenQuestion`, and more.
