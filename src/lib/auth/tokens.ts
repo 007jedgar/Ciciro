@@ -1,10 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
+import { MIN_PASSWORD_LENGTH, SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth/constants";
 
-// The session cookie name. httpOnly so client JS cannot read it.
-export const SESSION_COOKIE = "ciciro_session";
-
-// How long a freshly issued session is valid.
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export { MIN_PASSWORD_LENGTH, SESSION_COOKIE, SESSION_TTL_MS };
 
 /**
  * Generate an opaque session token. The raw value goes to the client cookie;
@@ -30,8 +27,6 @@ export function normalizeEmail(raw: unknown): string | null {
   if (!EMAIL_RE.test(email)) return null;
   return email;
 }
-
-export const MIN_PASSWORD_LENGTH = 8;
 
 /** Returns an error message if the password is unacceptable, else null. */
 export function validatePassword(raw: unknown): string | null {

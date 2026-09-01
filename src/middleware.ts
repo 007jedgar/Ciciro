@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/auth/tokens";
+import { SESSION_COOKIE } from "@/lib/auth/constants";
 
 // Auth enforcement is opt-in so the local-first single-author experience keeps
 // working out of the box. Hosted deployments set CICIRO_REQUIRE_AUTH=true.
