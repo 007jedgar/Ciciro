@@ -170,6 +170,7 @@ docs/
   using-ciciro.md           # how to work with the editor
   story-bible.md            # adding context for consistency
   editor-agent-runs.md      # durable-run and phased verification contract
+  ci.md                     # GitHub Actions test gate and required check name
   images/ciciro.png         # workspace screenshot
   images/story-bible.png    # story bible drawer
 data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
@@ -180,6 +181,7 @@ data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 - [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft.
 - [Story bible](docs/story-bible.md) - files on disk and how to keep the model consistent.
 - [Durable editor runs](docs/editor-agent-runs.md) - run lifecycle, streaming, verification.
+- [CI](docs/ci.md) - GitHub Actions test workflow and the `test` required check.
 
 ## Contributing
 

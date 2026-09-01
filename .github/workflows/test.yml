@@ -1,0 +1,53 @@
+# Required merge gate for `main`: job name `test`.
+# After this workflow has run once, mark `test` required in
+# Settings → Branches → Branch protection rules for `main`.
+# See docs/ci.md.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Prisma generate reads DATABASE_URL. `npm test` then swaps in a temp SQLite file.
+      DATABASE_URL: "file:./ci.db"
+      # Tests mock the Anthropic client. Do not use a real key in CI.
+      ANTHROPIC_API_KEY: "ci-placeholder-not-a-real-key"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Load example env
+        run: cp .env.example .env
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint

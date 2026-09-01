@@ -76,5 +76,10 @@ on a live model call.
 3. Describe the *why* in the PR body. Link any related issue.
 4. Note how you tested (commands plus a short manual check if the UI changed).
 
+GitHub Actions runs `npm test` and `npm run lint` on pull requests and on
+pushes to `main`. Merging to `main` should require the `test` check - a repo
+admin has to mark that check required in branch protection. Exact name and
+steps: [`docs/ci.md`](docs/ci.md).
+
 Bug reports are welcome as issues: expected vs actual, steps, and whether the
 editor run was still `continuing` when it looked stuck.
