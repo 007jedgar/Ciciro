@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ThemePicker from "@/components/ThemePicker";
+import AccountBar from "@/components/AccountBar";
 
 type ProjectSummary = {
   id: string;
@@ -44,7 +45,10 @@ export default function Home() {
     <div className="home">
       <div className="home-top">
         <h1>Ciciro</h1>
-        <ThemePicker />
+        <div className="account-bar">
+          <AccountBar />
+          <ThemePicker />
+        </div>
       </div>
       <p className="tag">Your AI writing partner - plan it, write it, ship the manuscript.</p>
 
