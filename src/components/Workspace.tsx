@@ -11,7 +11,10 @@ import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ThemePicker from "@/components/ThemePicker";
 import { countWords, htmlToText } from "@/lib/text";
+import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
+
+type SaveState = "saved" | "saving" | "error" | "restored";
 
 const CHAT_MIN = 280;
 const CHAT_MAX = 720;
@@ -31,7 +34,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
-  const [saveState, setSaveState] = useState<"saved" | "saving" | "conflict">("saved");
+  const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff">("prose");
   const [diffRefreshToken, setDiffRefreshToken] = useState(0);
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
@@ -39,14 +42,17 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   const editorRef = useRef<EditorHandle>(null);
   const chatRef = useRef<ChatHandle>(null);
-  const saveStateRef = useRef(saveState);
-  saveStateRef.current = saveState;
-  const chapterRevisionsRef = useRef(
-    new Map(initialProject.chapters.map((chapter) => [chapter.id, chapter.revision]))
-  );
-  const conflictedChaptersRef = useRef(new Set<string>());
+  const optimisticStoreRef = useRef<OptimisticChapterStore | null>(null);
+  if (!optimisticStoreRef.current) {
+    const store = new OptimisticChapterStore();
+    store.init(initialProject.chapters);
+    optimisticStoreRef.current = store;
+  }
+  const projectRef = useRef(project);
+  projectRef.current = project;
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingSaveCountRef = useRef(0);
+  const saveStateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the editor opens/creates a chapter, mount TipTap with the caret at
   // the end so Auto-mode drafts continue rather than prepending.
   const [focusEndOnMount, setFocusEndOnMount] = useState(false);
@@ -115,52 +121,99 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }));
   }, []);
 
+  const showTransientSaveState = useCallback((state: "error" | "restored") => {
+    setSaveState(state);
+    if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
+    saveStateTimer.current = setTimeout(() => {
+      if (pendingSaveCountRef.current === 0) setSaveState("saved");
+    }, 3000);
+  }, []);
+
+  const getLocalFields = useCallback((id: string) => {
+    const ch = projectRef.current.chapters.find((c) => c.id === id);
+    if (!ch) return null;
+    return { content: ch.content, title: ch.title, status: ch.status };
+  }, []);
+
   const patchChapter = useCallback(
     (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>) => {
-      if (conflictedChaptersRef.current.has(id)) {
-        setSaveState("conflict");
-        return;
-      }
+      if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
       pendingSaveCountRef.current += 1;
       setSaveState("saving");
+      const inFlight = { ...fields };
+
       saveQueueRef.current = saveQueueRef.current
         .catch(() => {})
         .then(async () => {
-          if (conflictedChaptersRef.current.has(id)) return;
-          const expectedRevision = chapterRevisionsRef.current.get(id);
-          if (expectedRevision == null) return;
-          const res = await fetch(`/api/chapters/${id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ ...fields, expectedRevision }),
-          });
-          if (res.status === 409) {
-            conflictedChaptersRef.current.add(id);
-            setSaveState("conflict");
-            return;
+          const store = optimisticStoreRef.current!;
+
+          const attemptSave = async (
+            payload: typeof inFlight
+          ): Promise<"ok" | "409-retry" | "409-restored" | "fail"> => {
+            const expectedRevision = store.getExpectedRevision(id);
+            if (expectedRevision == null) return "fail";
+            try {
+              const res = await fetch(`/api/chapters/${id}`, {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ ...payload, expectedRevision }),
+              });
+              if (res.status === 409) {
+                const body = (await res.json()) as { chapter?: Chapter };
+                const serverChapter = body.chapter;
+                const local = getLocalFields(id);
+                if (!serverChapter || !local) return "fail";
+
+                const result = store.apply409(id, serverChapter, local, payload);
+                updateChapterLocal(id, result.localPatch);
+
+                if (result.retry) {
+                  Object.assign(payload, result.retry);
+                  return "409-retry";
+                }
+                showTransientSaveState("restored");
+                return "409-restored";
+              }
+              if (!res.ok) return "fail";
+              const chapter = (await res.json()) as Chapter;
+              const { localPatch } = store.applySuccess(id, chapter);
+              updateChapterLocal(id, localPatch);
+              return "ok";
+            } catch {
+              return "fail";
+            }
+          };
+
+          let payload = { ...inFlight };
+          let outcome = await attemptSave(payload);
+          if (outcome === "fail") {
+            outcome = await attemptSave(payload);
+          } else if (outcome === "409-retry") {
+            outcome = await attemptSave(payload);
+            if (outcome === "409-retry") {
+              outcome = await attemptSave(payload);
+            }
           }
-          if (!res.ok) throw new Error(`Chapter save failed (${res.status})`);
-          const chapter = (await res.json()) as Chapter;
-          chapterRevisionsRef.current.set(id, chapter.revision);
-          updateChapterLocal(id, {
-            revision: chapter.revision,
-            wordCount: chapter.wordCount,
-          });
-        })
-        .catch(() => {
-          setSaveState("conflict");
+          if (outcome === "fail") {
+            const confirmed = store.get(id);
+            const local = getLocalFields(id);
+            if (confirmed && local) {
+              const failure = handleNetworkFailure(confirmed, local, payload);
+              if (failure.localPatch) updateChapterLocal(id, failure.localPatch);
+              showTransientSaveState(failure.uiHint);
+            } else {
+              showTransientSaveState("error");
+            }
+          }
         })
         .finally(() => {
           pendingSaveCountRef.current -= 1;
-          if (
-            pendingSaveCountRef.current === 0 &&
-            conflictedChaptersRef.current.size === 0
-          ) {
-            setSaveState("saved");
+          if (pendingSaveCountRef.current === 0) {
+            setSaveState((s) => (s === "saving" ? "saved" : s));
           }
         });
     },
-    [updateChapterLocal]
+    [updateChapterLocal, getLocalFields, showTransientSaveState]
   );
 
   // --- Content autosave (debounced) ---
@@ -199,6 +252,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       body: JSON.stringify({ projectId: project.id }),
     });
     const chapter: Chapter = await res.json();
+    optimisticStoreRef.current?.seed(chapter);
     setProject((p) => ({ ...p, chapters: [...p.chapters, chapter] }));
     setActiveId(chapter.id);
   }
@@ -251,7 +305,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         return;
       }
       if (evt.type === "chapter_created") {
-        chapterRevisionsRef.current.set(evt.chapter.id, evt.chapter.revision);
+        optimisticStoreRef.current?.seed(evt.chapter);
         setProject((p) => {
           const chapters = [
             ...p.chapters.map((c) =>
@@ -265,15 +319,24 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         return;
       }
       if (evt.type === "chapter_updated") {
-        // Don't clobber local keystrokes that haven't finished saving yet.
+        const store = optimisticStoreRef.current;
+        const local = projectRef.current.chapters.find((c) => c.id === evt.chapterId);
         if (
           evt.chapterId === activeId &&
-          (saveStateRef.current === "saving" || saveStateRef.current === "conflict")
+          local &&
+          store &&
+          (pendingSaveCountRef.current > 0 || store.hasLocalEdits(evt.chapterId, local))
         ) {
           return;
         }
         if (evt.revision != null) {
-          chapterRevisionsRef.current.set(evt.chapterId, evt.revision);
+          store?.setConfirmed(evt.chapterId, {
+            content: evt.content,
+            title: evt.title ?? local?.title ?? "",
+            status: local?.status ?? "draft",
+            revision: evt.revision,
+            wordCount: evt.wordCount,
+          });
         }
         updateChapterLocal(evt.chapterId, {
           content: evt.content,
@@ -297,17 +360,25 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (fresh?.chapters) {
         const remote = fresh.chapters as Chapter[];
         setProject((p) => {
+          const store = optimisticStoreRef.current;
           const merged = remote.map((nc) => {
             const local = p.chapters.find((c) => c.id === nc.id);
             if (
               local &&
               local.id === activeId &&
-              (saveStateRef.current === "saving" ||
-                saveStateRef.current === "conflict")
+              store &&
+              (pendingSaveCountRef.current > 0 ||
+                store.hasLocalEdits(nc.id, local))
             ) {
-              return { ...nc, content: local.content, wordCount: local.wordCount };
+              return { ...nc, content: local.content, wordCount: local.wordCount, title: local.title, status: local.status };
             }
-            chapterRevisionsRef.current.set(nc.id, nc.revision);
+            store?.setConfirmed(nc.id, {
+              content: nc.content,
+              title: nc.title,
+              status: nc.status,
+              revision: nc.revision,
+              wordCount: nc.wordCount,
+            });
             return nc;
           });
           return { ...p, chapters: merged };
@@ -345,9 +416,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <span className="save-state">
           {saveState === "saving"
             ? "Saving..."
-            : saveState === "conflict"
-              ? "Save conflict — reload before editing"
-              : "All changes saved"}
+            : saveState === "restored"
+              ? "Couldn't save — restored"
+              : saveState === "error"
+                ? "Couldn't save — retrying"
+                : "All changes saved"}
         </span>
         <ThemePicker compact />
         <button className="btn small" onClick={() => setQuestionsOpen(true)}>
@@ -497,12 +570,28 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           chapterId={activeChapter.id}
           chapterTitle={activeChapter.title}
           onClose={() => setAutoWriteOpen(false)}
-          onApplied={(content) =>
+          onApplied={(applied) => {
+            const wordCount =
+              applied.wordCount ?? countWords(htmlToText(applied.content));
             updateChapterLocal(activeChapter.id, {
-              content,
-              wordCount: countWords(htmlToText(content)),
-            })
-          }
+              content: applied.content,
+              wordCount,
+              ...(applied.revision != null ? { revision: applied.revision } : {}),
+            });
+            const store = optimisticStoreRef.current;
+            const local = projectRef.current.chapters.find(
+              (c) => c.id === activeChapter.id
+            );
+            if (store && applied.revision != null) {
+              store.setConfirmed(activeChapter.id, {
+                content: applied.content,
+                title: local?.title ?? activeChapter.title,
+                status: local?.status ?? activeChapter.status,
+                revision: applied.revision,
+                wordCount,
+              });
+            }
+          }}
         />
       )}
     </div>
