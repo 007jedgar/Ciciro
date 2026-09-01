@@ -271,9 +271,14 @@ export async function runAutoWrite(opts: {
   // Save the accumulated prose to the chapter.
   emit({ type: "phase", v: "saving" });
   const finalContent = (chapter.content || "") + newHtml;
-  await prisma.chapter.update({
+  const wordCount = countWords(htmlToText(finalContent));
+  const saved = await prisma.chapter.update({
     where: { id: chapterId },
-    data: { content: finalContent, wordCount: countWords(htmlToText(finalContent)) },
+    data: {
+      content: finalContent,
+      wordCount,
+      revision: { increment: 1 },
+    },
   });
 
   emit({
@@ -281,5 +286,7 @@ export async function runAutoWrite(opts: {
     beats: accepted,
     words: countWords(running) - countWords(existingText),
     content: finalContent,
+    revision: saved.revision,
+    wordCount: saved.wordCount,
   });
 }

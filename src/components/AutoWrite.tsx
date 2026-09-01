@@ -14,7 +14,11 @@ type Props = {
   chapterId: string;
   chapterTitle: string;
   onClose: () => void;
-  onApplied: (content: string) => void;
+  onApplied: (applied: {
+    content: string;
+    revision?: number;
+    wordCount?: number;
+  }) => void;
 };
 
 type PlanBeat = { goal: string; wordTarget: number };
@@ -138,7 +142,13 @@ export default function AutoWrite({
         setSummary(
           `Drafted ${e.beats as number} beat(s), +${e.words as number} words. Chapter updated.`
         );
-        if (typeof e.content === "string") onApplied(e.content);
+        if (typeof e.content === "string") {
+          onApplied({
+            content: e.content,
+            revision: typeof e.revision === "number" ? e.revision : undefined,
+            wordCount: typeof e.wordCount === "number" ? e.wordCount : undefined,
+          });
+        }
         break;
     }
   }

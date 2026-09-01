@@ -5,6 +5,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
+import { BlockId } from "@/lib/tiptap-block-id";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -40,6 +41,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     immediatelyRender: false,
     extensions: [
       StarterKit,
+      BlockId,
       CharacterCount,
       Placeholder.configure({
         placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
