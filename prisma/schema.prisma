@@ -10,8 +10,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// A hosted account. Auth is email + password (scrypt hash). Sessions are
+// opaque cookie tokens; only the token hash is stored (see Session).
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+  name         String @default("")
+
+  sessions Session[]
+  projects Project[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// An authenticated session. `tokenHash` is the SHA-256 of the raw cookie token;
+// the raw token never touches the database. Expired rows are swept on lookup.
+model Session {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String   @unique
+  userAgent String   @default("")
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model Project {
   id       String @id @default(cuid())
+  // Owner of the manuscript. Nullable so local-first databases created before
+  // hosting/auth keep working; hosted flows always set it on create.
+  userId   String?
+  owner    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   title    String @default("Untitled Manuscript")
   author   String @default("")
   genre    String @default("")
@@ -32,6 +70,8 @@ model Project {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 model Chapter {

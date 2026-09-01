@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { AuthError, authorizeProject } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
+function authFailure(error: unknown): NextResponse | null {
+  if (error instanceof AuthError) {
+    return NextResponse.json({ error: error.message }, { status: error.status });
+  }
+  return null;
+}
+
 // GET /api/projects/:id — full project with chapters, characters, plot points.
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
+  try {
+    await authorizeProject(id);
+  } catch (error) {
+    const failure = authFailure(error);
+    if (failure) return failure;
+    throw error;
+  }
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
@@ -34,6 +49,13 @@ const EDITABLE = [
 // PATCH /api/projects/:id — update story-bible fields.
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  try {
+    await authorizeProject(id);
+  } catch (error) {
+    const failure = authFailure(error);
+    if (failure) return failure;
+    throw error;
+  }
   const body = await req.json().catch(() => ({}));
   const data: Record<string, string> = {};
   for (const key of EDITABLE) {
@@ -46,6 +68,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 // DELETE /api/projects/:id — remove a project and all its content.
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
+  try {
+    await authorizeProject(id);
+  } catch (error) {
+    const failure = authFailure(error);
+    if (failure) return failure;
+    throw error;
+  }
   await prisma.project.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
