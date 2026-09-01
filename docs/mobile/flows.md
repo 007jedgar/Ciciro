@@ -28,43 +28,55 @@ Phone-first navigation. The web's three-pane Workspace (chapters / manuscript /
 Ciciro chat) collapses into a project-scoped tab bar, with the story bible,
 questions, and export reached from the workspace header or a sheet.
 
+The screen map is two stacked, top-down diagrams so edges do not cross: app-level
+routing first, then the inside of one project. Insert-draft returns the author to
+the Manuscript tab (see [section 6](#6-draft-insertion--accept-draft)); Compact /
+Clear stay on the Ciciro tab.
+
+### 1a. Launch, auth, and the manuscript list
+
 ```mermaid
-flowchart TD
-  Launch([App launch]) --> Session{Valid session\nin secure store?}
-  Session -- no --> Auth[Auth stack:\nWelcome / Sign up / Log in]
-  Session -- yes --> Manuscripts[Manuscripts list\nGET /api/projects]
+flowchart TB
+  Launch([App launch]) --> Session{Valid session?}
 
-  Auth -->|authenticated| Manuscripts
+  Session -->|no| Auth[Auth stack]
+  Session -->|yes| List[Manuscripts list]
+  Auth -->|sign in| List
 
-  Manuscripts -->|tap project| Workspace[Project workspace\nGET /api/projects/:id]
-  Manuscripts -->|+ new| NewProject[Create manuscript\nPOST /api/projects]
-  NewProject --> Workspace
-  Manuscripts -->|account| Account[Account and settings:\ntheme, logout, telemetry]
-
-  subgraph Project [Project workspace tabs]
-    direction LR
-    Chapters[Chapters tab\nlist + word counts]
-    Editor[Manuscript tab\nTipTap HTML editor]
-    Ciciro[Ciciro tab\nchat + quick actions]
-  end
-
-  Workspace --> Chapters
-  Workspace --> Editor
-  Workspace --> Ciciro
-
-  Chapters -->|select chapter| Editor
-  Editor -->|Prose / Diff toggle| Diff[Diff view\nGET /api/chapters/:id/edits]
-  Editor -->|Auto-draft| AutoDraft[Auto-draft sheet\nPOST /api/autowrite]
-  Editor -->|selection action| Ciciro
-
-  Workspace -->|header: Story bible| Bible[Story bible drawer\nGET/POST /api/bible]
-  Workspace -->|header: Questions| Questions[Open questions\nGET/POST/PATCH /api/questions]
-  Workspace -->|header: Export| Export[Export .docx\nGET /api/export/:id]
-
-  Bible -->|add character| BibleChar[New character file\nPOST /api/bible newCharacter]
-  Ciciro -->|Insert into manuscript| Editor
-  Ciciro -->|Compact / Clear| Ciciro
+  List --> Account[Account and settings]
+  List --> Create[Create manuscript]
+  List --> Project[Project workspace]
 ```
+
+`GET /api/projects` feeds the list; `POST /api/projects` creates a manuscript and
+opens the project workspace. Opening a row loads `GET /api/projects/:id`. The
+auth stack is Welcome, Sign up, and Log in. Account covers theme, logout, and
+telemetry.
+
+### 1b. Inside a project
+
+```mermaid
+flowchart TB
+  Project[Project workspace] --> Tabs[Tab bar]
+  Project --> Header[Header menu]
+
+  Tabs --> Chapters[Chapters]
+  Tabs --> Manuscript[Manuscript]
+  Tabs --> Chat[Ciciro]
+
+  Header --> Bible[Story bible]
+  Header --> Questions[Open questions]
+  Header --> Export[Export docx]
+
+  Manuscript --> Diff[Diff view]
+  Manuscript --> AutoDraft[Auto-draft]
+  Bible --> NewChar[New character]
+```
+
+Chapters is the chapter list and word counts. Manuscript is the TipTap HTML
+editor; Diff is `GET /api/chapters/:id/edits`, Auto-draft is `POST /api/autowrite`.
+Ciciro is chat plus quick actions. Story bible is `GET/POST /api/bible`, questions
+are `GET/POST/PATCH /api/questions`, export is `GET /api/export/:id`.
 
 ---
 
