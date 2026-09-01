@@ -7,10 +7,13 @@ model in `prisma/schema.prisma`, the durable-run contract in
 logic in `src/lib/optimistic-chapter.ts`, `src/lib/ndjson-stream.ts`, and
 `src/lib/theme.ts`.
 
-See also: [README](README.md) (goals, non-goals, framework decision) and
-[flows.md](flows.md) (diagrams). This spec assumes the hosted, authenticated,
-multi-user backend (email/password + `User`/`Session`, durable runs backed by a
-Cloudflare Durable Objects coordinator, hosted via `@opennextjs/cloudflare`).
+See also: [README](README.md) (goals, non-goals, framework decision),
+[flows.md](flows.md) (diagrams), and
+[Writing goals, reminders, and rewards](../gamification.md) (habit goals,
+reminder cadences, streaks, and bonus credits). This spec assumes the hosted,
+authenticated, multi-user backend (email/password + `User`/`Session`, durable
+runs backed by a Cloudflare Durable Objects coordinator, hosted via
+`@opennextjs/cloudflare`).
 
 Contents:
 
@@ -114,7 +117,7 @@ because native modules are required). Rationale is in the
 | Markdown | **react-native-markdown-display** | Renders assistant chat prose (the web uses `react-markdown` + `remark-gfm`). |
 | DOCX share | **expo-file-system** + **expo-sharing** | Download the export and hand it to the OS share sheet. |
 | Background sync | **expo-task-manager** + **expo-background-fetch** | Flush the save outbox and advance `continuing` runs when the app is backgrounded. |
-| Push | **expo-notifications** | Long-running / auto-draft run completion (roadmap). |
+| Push | **expo-notifications** | Daily writing reminder (local schedule) plus later remote push for habit nudges and long-running / auto-draft run completion. See [gamification.md](../gamification.md#5-reminders). |
 | Errors/telemetry | **Sentry** (`@sentry/react-native`) | Crash + error reporting, breadcrumb trail for stream lifecycle. |
 
 ---
@@ -415,14 +418,29 @@ completion (next section).
 
 ## 8. Push notifications & export/share
 
-**Push (roadmap).** Long-running turns (heavy structural passes, `continuing`
-chains) and `POST /api/autowrite` can outlive a foreground session. Roadmap:
-register an `expo-notifications` device token with the hosted backend; when a run
-reaches a terminal state while the app is backgrounded, the Durable Objects
-coordinator emits a push ("Ciciro finished your chapter draft"). Tapping it deep-
-links to the project workspace and reconciles via `GET /api/chat`. This is
-optional for the first release - the reconcile-on-foreground path already keeps
-state correct without push.
+**Push (roadmap).** Two families share `expo-notifications`, and should not be
+confused:
+
+1. **Writing reminders** (product; planned daily reminder plus other cadences).
+   Local schedules first (`scheduleNotificationAsync` for daily / weekdays /
+   every-N / weekly review). Remote Expo push later for state-dependent copy
+   ("weekly pages are short"). Quiet hours, timezone, and the full cadence
+   catalog live in
+   [Writing goals, reminders, and rewards](../gamification.md#5-reminders).
+   Tapping a writing reminder deep-links to the Manuscript tab and never
+   starts an `EditorRun`.
+2. **Run completion.** Long-running turns (heavy structural passes,
+   `continuing` chains) and `POST /api/autowrite` can outlive a foreground
+   session. Register an `expo-notifications` device token with the hosted
+   backend; when a run reaches a terminal state while the app is backgrounded,
+   the Durable Objects coordinator emits a push ("Ciciro finished your chapter
+   draft"). Tapping it deep-links to the project workspace and reconciles via
+   `GET /api/chat`. Operational alerts may fire during quiet hours unless the
+   author silences them separately.
+
+Both are optional for the first mobile release - the reconcile-on-foreground
+path already keeps run state correct without push, and a local daily writing
+reminder does not need a device token.
 
 **Export / share.** `GET /api/export/:id` returns Shunn-style `.docx` bytes and a
 `content-disposition` filename. The app writes the file to the cache directory

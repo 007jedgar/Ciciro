@@ -50,8 +50,9 @@ flowchart TB
 
 `GET /api/projects` feeds the list; `POST /api/projects` creates a manuscript and
 opens the project workspace. Opening a row loads `GET /api/projects/:id`. The
-auth stack is Welcome, Sign up, and Log in. Account covers theme, logout, and
-telemetry.
+auth stack is Welcome, Sign up, and Log in. Account covers theme, logout,
+telemetry, and (hosted) writing goals and reminders - see
+[gamification.md](../gamification.md).
 
 ### 1b. Inside a project
 
