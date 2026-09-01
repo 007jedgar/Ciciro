@@ -12,7 +12,12 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "setup": "prisma generate && prisma db push"
+    "setup": "prisma generate && prisma db push",
+    "typecheck": "tsc --noEmit",
+    "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
+    "cf:build": "prisma generate && opennextjs-cloudflare build",
+    "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
+    "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -31,7 +36,9 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260901.1",
     "@eslint/eslintrc": "^3.2.0",
+    "@opennextjs/cloudflare": "^1.20.5",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -40,6 +47,7 @@
     "jsdom": "^30.0.1",
     "prisma": "^6.1.0",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.127.1"
   }
 }

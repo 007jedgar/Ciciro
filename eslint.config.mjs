@@ -10,7 +10,9 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    ignores: ["src/generated/**", ".next/**", "node_modules/**"],
+    // src/worker is a separate Cloudflare build target (tsconfig.worker.json),
+    // bundled by wrangler/esbuild, not by Next.js.
+    ignores: ["src/generated/**", ".next/**", "node_modules/**", ".open-next/**", "src/worker/**"],
   },
 ];
 
