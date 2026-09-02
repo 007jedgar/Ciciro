@@ -1077,3 +1077,67 @@ textarea {
     opacity: 0.7;
   }
 }
+
+/* ---------- Auth (login / signup) ---------- */
+.auth-wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 28px 24px;
+  box-shadow: 0 8px 30px var(--glow);
+}
+.auth-card h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.auth-card input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.auth-card .btn.primary {
+  margin-top: 4px;
+}
+.auth-error {
+  margin: 0;
+  color: var(--del);
+  font-size: 13px;
+}
+.auth-alt {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.auth-alt a {
+  color: var(--accent);
+}
+
+/* Account control on the manuscript list */
+.account-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.account-bar .account-email {
+  font-size: 13px;
+  color: var(--ink-soft);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
