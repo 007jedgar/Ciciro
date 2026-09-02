@@ -48,7 +48,7 @@ describe("recovery-first streaks", () => {
     const miss = evalStreak({
       state: closed.state,
       closed: ["2026-09-08"],
-      today: "2026-09-09",
+      today: "2026-09-10",
     });
     expect(miss.events.map((e) => e.kind)).toEqual(["grace"]);
     expect(miss.state.current).toBe(1);
@@ -72,7 +72,7 @@ describe("recovery-first streaks", () => {
     const miss = evalStreak({
       state,
       closed: ["2026-09-08"],
-      today: "2026-09-09",
+      today: "2026-09-10",
     });
     expect(miss.events.map((e) => e.kind)).toEqual(["freeze"]);
     expect(miss.state.earnedFreezes).toBe(0);
@@ -89,7 +89,7 @@ describe("recovery-first streaks", () => {
     const miss = evalStreak({
       state,
       closed: ["2026-09-08"],
-      today: "2026-09-09",
+      today: "2026-09-10",
     });
     expect(miss.events.map((e) => e.kind)).toEqual(["reset"]);
     expect(miss.state.current).toBe(0);
