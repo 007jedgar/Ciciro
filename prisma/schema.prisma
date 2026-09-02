@@ -17,9 +17,17 @@ model User {
   email        String @unique
   passwordHash String
   name         String @default("")
+  // IANA timezone for local-day rings, reminders, and streaks.
+  timezone      String @default("UTC")
+  // Cached sum of CreditTransaction.amount; ledger rows are the source of truth.
+  creditBalance Int    @default(0)
 
-  sessions Session[]
-  projects Project[]
+  sessions           Session[]
+  projects           Project[]
+  writingPrefs       WritingPrefs?
+  writingDayStats    WritingDayStat[]
+  streakStates       StreakState[]
+  creditTransactions CreditTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -294,4 +302,106 @@ model DraftInsertion {
   @@unique([turnId, segmentIndex])
   @@index([projectId])
   @@index([turnId])
+}
+
+// Per-user habit targets, reminder cadence, quiet hours, and optional deadline.
+model WritingPrefs {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dailyProseTarget     Int @default(500)
+  weeklyProseTarget    Int @default(2500)
+  monthlyProseTarget   Int @default(10000)
+  dailyChairMinutes    Int @default(25)
+  sessionMinutesTarget Int?
+
+  // daily | weekdays | every_n | custom
+  reminderCadence    String @default("daily")
+  reminderEveryNDays Int?
+  // JSON array of JS weekdays (0=Sun .. 6=Sat), used when cadence is custom.
+  reminderWeekdays   String @default("[]")
+  reminderHour       Int    @default(9)
+  reminderMinute     Int    @default(0)
+
+  quietHoursStart String @default("22:00")
+  quietHoursEnd   String @default("08:00")
+
+  deadlineProjectId  String?
+  deadlineLocalDate  String?
+  deadlineWordTarget Int?
+
+  pauseUntil DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One local-day rollup of qualifying activity. Not a shame board: misses are
+// the absence of a Return close, not a stored scold.
+model WritingDayStat {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  localDate String // YYYY-MM-DD in the author's timezone
+  timezone  String @default("UTC")
+
+  humanTyped    Int @default(0)
+  aiInserted    Int @default(0)
+  pasted        Int @default(0)
+  editorMutated Int @default(0)
+  chairSeconds  Int @default(0)
+
+  returnClosedAt   DateTime?
+  proseRingClosed  Boolean @default(false)
+  chairRingClosed  Boolean @default(false)
+  returnRingClosed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, localDate])
+  @@index([userId, localDate])
+}
+
+// Recovery-first streak counters. No "broken on" / shame fields.
+model StreakState {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // return | prose
+  kind String @default("return")
+
+  current              Int     @default(0)
+  best                 Int     @default(0)
+  earnedFreezes        Int     @default(0)
+  closedScheduledDays  Int     @default(0)
+  lastGraceLocalDate   String?
+  lastClosedLocalDate  String?
+  lastEvaluatedLocalDate String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, kind])
+}
+
+// Append-only credit ledger. Earn via server-side goal evaluation / signup
+// grant. Never PATCH a row; refunds are new spends with a positive amount.
+model CreditTransaction {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount         Int
+  reason         String
+  idempotencyKey String  @unique
+  editorRunId    String?
+  projectId      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

@@ -9,6 +9,8 @@ import {
   normalizeEmail,
   validatePassword,
 } from "@/lib/auth/tokens";
+import { SIGNUP_CREDIT_GRANT } from "@/lib/gamification/constants";
+import { grantSignupCredits } from "@/lib/gamification/ledger";
 
 export type PublicUser = {
   id: string;
@@ -48,8 +50,12 @@ export async function registerUser(input: {
 
   const passwordHash = await hashPassword(input.password as string);
   const name = typeof input.name === "string" ? input.name.trim().slice(0, 200) : "";
-  const user = await prisma.user.create({
-    data: { email, passwordHash, name },
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: { email, passwordHash, name, creditBalance: SIGNUP_CREDIT_GRANT },
+    });
+    await grantSignupCredits(tx, created.id);
+    return created;
   });
   return toPublicUser(user);
 }

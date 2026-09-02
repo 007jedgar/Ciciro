@@ -25,6 +25,11 @@ describe("account registration and authentication", () => {
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.passwordHash).not.toContain("long-enough-pw");
     expect(row.passwordHash.startsWith("scrypt$")).toBe(true);
+    expect(row.creditBalance).toBe(200);
+    const grant = await prisma.creditTransaction.findMany({ where: { userId: user.id } });
+    expect(grant).toHaveLength(1);
+    expect(grant[0].reason).toBe("earn_grant");
+    expect(grant[0].amount).toBe(200);
   });
 
   it("rejects invalid email and short password", async () => {
