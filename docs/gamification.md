@@ -1,10 +1,13 @@
 # Writing goals, reminders, and rewards
 
-Product plan for the **hosted Ciciro app** (web + mobile). Documentation only:
-no application code in this change. Ciciro remains a serious writing partner -
-an editor that holds canon and briefs a drafter - not a cartoon game. User-facing
-copy stays hyphenated (no em dashes), matching
+Product plan for the **hosted Ciciro app** (web + mobile). Ciciro remains a
+serious writing partner - an editor that holds canon and briefs a drafter - not
+a cartoon game. User-facing copy stays hyphenated (no em dashes), matching
 [`mobile/README.md`](mobile/README.md#product-copy-rule).
+
+G1/G2 **backend** (prefs, daily rollup, recovery streaks, credit ledger, and
+attribution) lives in `src/lib/gamification/` and `/api/gamification/*`. Web and
+mobile chrome, Expo notifications, and Stripe are still later slices.
 
 This overlays the existing manuscript loop in [`using-ciciro.md`](using-ciciro.md),
 the durable editor runner in [`editor-agent-runs.md`](editor-agent-runs.md),
@@ -28,7 +31,7 @@ Contents:
 8. [Anti-cheat and fairness](#8-anti-cheat-and-fairness)
 9. [Surfaces (web + mobile)](#9-surfaces-web--mobile)
 10. [Phased rollout](#10-phased-rollout)
-11. [Proposed data (sketch only)](#11-proposed-data-sketch-only)
+11. [Data (G1/G2 foundation)](#11-data-g1g2-foundation)
 12. [Open questions](#12-open-questions)
 
 ---
@@ -72,9 +75,9 @@ Cite the pattern, do not clone the brand.
 | **NaNoWriMo / Camp** | A project-deadline word target; daily pace derived from remaining words and remaining days; a bounded seasonal challenge. | All-or-nothing November identity; public failure lists; requiring 50k. Camp's flexible month is the better fit. |
 | **Duolingo-style streaks** | Consecutive scheduled days; freeze / charge so one sick day is not a catastrophe. | Selling freezes as anxiety relief; letting a 200-day hostage streak dominate the UI; counting a 3-second open as a writing day. |
 | **Brilliant** | Two bars: a low bar (show up) *or* a meaningful bar (do the real work). Streak charge instead of a hard zero. | Leaderboards as the main loop. |
-| **Apple Fitness rings** | Three *independent* rings that can close on different days; adjustable goals; **pause** when life happens (illness, travel). | Guilt-forward "close all three or else"; calorie-style obsession with a single number. |
+| **Apple Fitness rings** | Three *independent* rings that can close on different days; adjustable goals; **pause** when life happens (illness, travel). Time-in-chair is a first-class ring (revision days still count). | Guilt-forward "close all three or else"; calorie-style obsession with a single number. |
 | **Readwise cadence** | A short, same-time-each-day ritual; cap the session so the reminder never dumps a 40-item review. | Spaced-repetition flashcards for prose. |
-| **Forest** | Time-in-chair as a first-class goal (revision days still count). | Killing a tree / shame for checking chat; punishing the author for talking to Ciciro. |
+| **Pomodoro / time-boxing** | A sitting has a start and a quiet end; session minutes sit beside the daily prose floor. | Public coworking rooms; punitive "you left the desk" animations; treating a glance at chat as a failed session. |
 | **4thewords** | Session-sized word targets that get the author started. | Monsters, loot, seasonal FOMO. Reviewers note that high-energy RPG layers burn out writers who wanted a desk, not a second job. |
 
 Recovery-first streak writing (grace, catch-up, pause) is the ethical default.
@@ -103,8 +106,8 @@ These drive reminders, rings, streaks, and **credit bonuses**.
 
 Optional, stacked with daily prose: "Sit for 25 minutes" or "Write 400
 qualifying words this sitting." A session starts when the manuscript editor
-gains focus and ends after 10 minutes idle. Forest-like, without a death
-animation. Sessions are for the author, not for public sharing.
+gains focus and ends after 10 minutes idle. Sessions are for the author, not
+for public sharing, and talking to Ciciro is not a failed sitting.
 
 ### 3.3 Project deadline (optional)
 
@@ -376,10 +379,9 @@ Unscheduled days are blank (not misses).
 ## 7. Credit ledger (earn vs spend)
 
 Hosted Ciciro will meter Anthropic usage (Opus editor, Sonnet/Haiku drafter,
-autowrite). There is **no ledger in the schema today** (`User` is email,
-password, name, sessions, projects - see `prisma/schema.prisma` and
-[`hosting.md`](hosting.md)). This section is the product sketch to implement
-later, not a schema migration.
+autowrite). The G1/G2 slice stores an append-only `CreditTransaction` ledger
+and a cached `User.creditBalance`. Spend on editor/drafter calls is still
+later (G3).
 
 **Unit:** integer `credits`. Numbers below are **starting knobs** for
 calibration against real `$ / million tokens`. They are not a promise of
@@ -431,13 +433,13 @@ because a bonus had not posted.
 Habit bonuses never unlock a different model. They only add balance. Ciciro
 stays one editor.
 
-### 7.3 Ledger shape (sketch)
+### 7.3 Ledger shape
 
 ```
-CreditLedgerEntry
+CreditTransaction
   id
   userId          -> User
-  delta           Int     // +earn, -spend
+  amount          Int     // +earn, -spend
   reason          // earn_return | earn_prose_full | earn_prose_mixed
                   // earn_chair | earn_weekly | earn_streak | earn_grant
                   // spend_editor | spend_drafter | spend_autowrite | spend_compact
@@ -448,8 +450,9 @@ CreditLedgerEntry
   createdAt
 ```
 
-Balance = `sum(delta)` (or a cached `User.creditBalance` updated in the same
-transaction). Append-only; never edit a row. Refunds are new rows.
+Balance = `sum(amount)` (cached on `User.creditBalance` in the same
+transaction). Append-only; never edit a row. Refunds are new rows. There is
+no public grant endpoint.
 
 ---
 
@@ -527,8 +530,9 @@ project and copy should not claim the editor is ready for typing.
 - Weekly review local notification.
 - Web: same settings page.
 
-**Backend:** `User.timezone`, reminder prefs, `WritingGoal` rows. Still no
-credits.
+**Backend (this slice):** `User.timezone`, `WritingPrefs`, `GET`/`PATCH`
+`/api/gamification/goals`. Credits exist on `User` but G1 UI does not have to
+show them.
 
 ### G2 - Fair words + recovery streaks
 
@@ -539,12 +543,14 @@ credits.
 - "Behind weekly" can still be **local** if the client knows week stats;
   remote push waits for G3.
 
-**Backend:** `WritingDayStat`, `StreakState`. Needs authenticated `User`.
+**Backend (this slice):** `WritingDayStat`, `StreakState`, chapter-save hook
+plus `POST /api/gamification/heartbeat`, `GET /api/gamification/today`. Catch-up
+quests, badges, and heatmap chrome wait for a later slice.
 
 ### G3 - Economy + remote habit push
 
-- `CreditLedgerEntry`, signup grant, earn table, spend on editor/drafter/
-  autowrite.
+- Spend on editor/drafter/autowrite; weekly and streak-milestone bonuses.
+  (Signup grant and daily earn rows already exist.)
 - Device token registry; behind-weekly / behind-deadline remote push (same
   Expo channel as run-completion).
 - Seasonal Camp opt-in.
@@ -556,44 +562,37 @@ rides that pipe rather than a second vendor.
 ### What explicitly waits
 
 - Leaderboards, social shame, trading credits, gacha, streaks that require
-  opening the app at midnight, paying for freezes, badges for AI volume.
+  opening the app at midnight, paying for freezes, badges for AI volume,
+  virtual inventories, or punitive focus-timer death animations.
 
 ---
 
-## 11. Proposed data (sketch only)
+## 11. Data (G1/G2 foundation)
 
-Not a migration. For implementers:
+Implemented in `prisma/schema.prisma` (SQLite, owned by `User`):
 
 ```
 User
-  timezone          String?    // IANA
-  creditBalance     Int @default(0)   // cache; ledger is source of truth
-  reminder prefs, quiet hours, pauseUntil, streakFreezeCount, ...
+  timezone          String     // IANA, default UTC
+  creditBalance     Int        // cache; CreditTransaction is source of truth
 
-WritingGoal
-  userId, projectId?, kind (daily_prose | daily_chair | weekly_prose | ...),
-  targetInt, schedule, timezone snapshot, active
-
-WritingDayStat
-  userId, localDate (YYYY-MM-DD), timezone
-  humanTyped, aiInserted, pasted, editorMutated, chairMinutes
-  returnClosedAt, rings JSON
-  @@unique([userId, localDate])
-
-StreakState
-  userId, kind (return | prose)
-  current, best, pausedUntil, graceUsedInWindow, earnedFreezes
-
-DeviceToken
-  userId, expoPushToken, platform, lastSeenAt
-
-CreditLedgerEntry
-  (section 7.3)
+WritingPrefs          // 1:1 with User - targets, reminder cadence, quiet hours,
+                      // optional session minutes, optional project deadline, pause
+WritingDayStat        // @@unique([userId, localDate]) - human/AI/paste buckets,
+                      // chair seconds, Return closed at, ring flags
+StreakState           // @@unique([userId, kind]) - current, best, freezes, grace
+CreditTransaction     // append-only earn/spend; unique idempotencyKey
 ```
 
-`GET /api/me` (today: `GET /api/auth/me`) would later include balance, today's
-stats, and whether the daily reminder should be considered already satisfied
-(so clients can cancel today's local fire).
+Signup grants credits in `registerUser` (idempotent `earn_grant`). Daily earns
+post from server-side goal evaluation only - there is no public
+`POST /api/gamification/credits/grant`.
+
+Still later: `DeviceToken` (Expo), seasonal challenge rows, badge grants.
+
+`GET /api/gamification/today` is the hosted snapshot (rings, streak, balance).
+`GET /api/auth/me` can later include a short version so clients can cancel
+today's local reminder fire.
 
 ---
 

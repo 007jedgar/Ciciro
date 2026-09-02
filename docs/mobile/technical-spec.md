@@ -160,6 +160,9 @@ deployment. The endpoints below are the real surface derived from
 | `PATCH`/`DELETE /api/questions/:id` | Answer/resolve / remove | `answer, status, resolution, ...` / - | `OpenQuestion` / `{ ok }` |
 | `GET /api/export/:id` | Download `.docx` | - | `docx` bytes + `content-disposition` filename |
 | `POST /api/auth/*` | Signup / login / refresh / logout (parent agent) | credentials / refresh token | session + refresh tokens |
+| `GET`/`PATCH /api/gamification/goals` | Read / update writing goals and reminder prefs | targets, cadence, quiet hours, timezone, optional deadline | `WritingPrefs` JSON; `401` without a session user |
+| `GET /api/gamification/today` | Today's rings, streak, credit balance | - | rings + streak + `credits.balance` |
+| `POST /api/gamification/heartbeat` | Record chair time / a writing action | `{ chairSeconds?, wrote?, timezone? }` | same snapshot as `/today` |
 
 > Note: `Character` and `PlotPoint` are the legacy DB seed tables; the live story
 > bible is markdown accessed through `/api/bible`. The app's primary bible UI
