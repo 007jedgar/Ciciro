@@ -27,7 +27,7 @@ describe("goal PATCH validation", () => {
   });
 
   it("rejects an unknown reminder cadence", () => {
-    expect(parseGoalsPatch({ reminderCadence: "forest" })).toMatchObject({
+    expect(parseGoalsPatch({ reminderCadence: "hourly" })).toMatchObject({
       error: expect.stringMatching(/daily, weekdays, every_n, or custom/),
     });
   });
