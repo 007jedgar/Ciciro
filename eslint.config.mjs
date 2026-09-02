@@ -12,7 +12,14 @@ const eslintConfig = [
   {
     // src/worker is a separate Cloudflare build target (tsconfig.worker.json),
     // bundled by wrangler/esbuild, not by Next.js.
-    ignores: ["src/generated/**", ".next/**", "node_modules/**", ".open-next/**", "src/worker/**"],
+    ignores: [
+      "src/generated/**",
+      ".next/**",
+      "node_modules/**",
+      ".open-next/**",
+      "src/worker/**",
+      "apps/**",
+    ],
   },
 ];
 

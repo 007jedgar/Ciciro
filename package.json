@@ -15,6 +15,8 @@
     "setup": "prisma generate && prisma db push",
     "typecheck": "tsc --noEmit",
     "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
+    "typecheck:mobile": "npm run typecheck --prefix apps/mobile",
+    "mobile:start": "npm run start --prefix apps/mobile",
     "cf:build": "prisma generate && opennextjs-cloudflare build",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy"
