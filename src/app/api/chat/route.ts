@@ -9,11 +9,15 @@ import {
   type EditorRunInput,
   type EditorRunStatus,
 } from "@/lib/editor-run";
+import { getRunCoordinator } from "@/lib/durable/coordinator";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
 
 const PING_MS = 12_000;
+// Held for one slice; longer than a slice, shorter than the DB lease so a dead
+// worker's Durable Object lock self-clears via its alarm before the DB lease.
+const RUN_LOCK_TTL_MS = 12 * 60_000;
 
 // POST /api/chat — thin NDJSON adapter over the durable editor runner.
 // A done event reports the durable run state; only `completed` means the
@@ -72,8 +76,26 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Durable-Object (or in-process) single-writer gate in front of the DB lease.
+  // On Cloudflare this serializes slices fleet-wide; locally it is a fast
+  // in-process guard. The DB lease remains the cross-process source of truth.
+  const coordinator = getRunCoordinator();
+  const runLease = await coordinator.acquire(run.id, RUN_LOCK_TTL_MS);
+  if (!runLease) {
+    return json(
+      {
+        error: "Editor run is already executing",
+        turnId: run.turnId,
+        runId: run.id,
+        status: run.status,
+      },
+      409
+    );
+  }
+
   const claim = await claimEditorRun(run.id);
   if (!claim) {
+    await coordinator.release(run.id, runLease.token);
     const latest = await prisma.editorRun.findUnique({ where: { id: run.id } });
     if (
       latest &&
@@ -141,6 +163,7 @@ export async function POST(req: NextRequest) {
         final = await executeClaimedEditorRun(claim, emit);
       } finally {
         clearInterval(pingTimer);
+        await coordinator.release(run.id, runLease.token);
         emit({
           type: "done",
           status: final.status,

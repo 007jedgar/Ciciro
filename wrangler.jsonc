@@ -1,0 +1,53 @@
+{
+  // Cloudflare deployment for the hosted Ciciro app (Next.js via OpenNext).
+  //
+  // Build + deploy:
+  //   npm run cf:build     # next build -> .open-next/worker.js
+  //   npm run cf:preview   # local wrangler preview
+  //   npm run cf:deploy    # wrangler deploy
+  //
+  // `main` is a thin custom entry (src/worker/index.ts) that wraps the
+  // OpenNext-generated worker and also exports the EditorRunDO Durable Object.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ciciro",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // One Durable Object per editor run: the fleet-wide single-writer lock that
+  // serializes durable run slices (see src/worker/run-do.ts).
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EDITOR_RUN_DO",
+        "class_name": "EditorRunDO"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["EditorRunDO"]
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  },
+
+  "vars": {
+    "CICIRO_REQUIRE_AUTH": "true"
+  }
+
+  // Secrets (set with `wrangler secret put <NAME>`), not committed:
+  //   ANTHROPIC_API_KEY   - required for the editor/drafter models
+  //   DATABASE_URL        - a hosted, serverless-friendly database URL
+  //                         (e.g. libSQL/Turso or Postgres via a Prisma adapter;
+  //                         SQLite-on-disk is local-only, see docs/hosting.md)
+}
