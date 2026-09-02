@@ -3,10 +3,33 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { countWords, htmlToText } from "@/lib/text";
 import { summarizeChapter } from "@/lib/summarize";
+import type { InputMeta } from "@/lib/gamification/attribution";
+import type { SaveSource } from "@/lib/gamification/constants";
+import { recordChapterSave } from "@/lib/gamification/store";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
+
+function parseInputMeta(raw: unknown): InputMeta | undefined {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  const meta: InputMeta = {};
+  for (const key of ["typedChars", "pastedChars", "compositionMs"] as const) {
+    const value = obj[key];
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      meta[key] = value;
+    }
+  }
+  return Object.keys(meta).length ? meta : undefined;
+}
+
+function parseSourceHint(raw: unknown): SaveSource | undefined {
+  if (raw === "autowrite" || raw === "draft_insert" || raw === "editor_mutate") {
+    return raw;
+  }
+  return undefined;
+}
 
 // PATCH /api/chapters/:id — save content, title, order, status, or summary.
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -34,12 +57,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const result = await prisma.$transaction(async (tx) => {
+    const previous =
+      typeof body.content === "string"
+        ? await tx.chapter.findUnique({
+            where: { id },
+            select: {
+              content: true,
+              project: { select: { userId: true } },
+            },
+          })
+        : null;
     const updated = await tx.chapter.updateMany({
       where: { id, revision: body.expectedRevision },
       data: { ...data, revision: { increment: 1 } },
     });
     const chapter = await tx.chapter.findUnique({ where: { id } });
-    return { updated: updated.count === 1, chapter };
+    return { updated: updated.count === 1, chapter, previous };
   });
 
   if (!result.chapter) {
@@ -60,6 +93,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Refresh the beat summary in the background - don't hold up the autosave.
   if (typeof body.content === "string") {
     after(() => summarizeChapter(id).catch(() => {}));
+    const ownerId = result.previous?.project.userId;
+    if (ownerId && result.previous) {
+      const prevContent = result.previous.content;
+      const nextContent = body.content;
+      const inputMeta = parseInputMeta(body.inputMeta);
+      const sourceHint = parseSourceHint(body.source);
+      after(() =>
+        recordChapterSave({
+          userId: ownerId,
+          chapterId: id,
+          prevContent,
+          nextContent,
+          inputMeta,
+          sourceHint,
+        }).catch(() => {})
+      );
+    }
   }
 
   return NextResponse.json(result.chapter);
