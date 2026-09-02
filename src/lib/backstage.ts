@@ -52,7 +52,9 @@ function pick(lines: string[], salt = ""): string {
   let h = 0;
   for (let i = 0; i < salt.length; i++) h = (h * 31 + salt.charCodeAt(i)) >>> 0;
   h ^= Date.now() & 0xffff;
-  return lines[h % lines.length];
+  // `^=` yields a signed int32, so coerce back to unsigned before the modulo -
+  // otherwise a set high bit produces a negative index and an undefined line.
+  return lines[(h >>> 0) % lines.length];
 }
 
 /** Map a tool or backstage action name to a short status line for the author. */
