@@ -180,6 +180,8 @@ data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 - [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft.
 - [Story bible](docs/story-bible.md) - files on disk and how to keep the model consistent.
 - [Durable editor runs](docs/editor-agent-runs.md) - run lifecycle, streaming, verification.
+- [Hosting](docs/hosting.md) - Cloudflare Workers, Docker, auth gate, and serverless databases.
+- [Accounts and secrets](docs/setup-accounts.md) - operator checklist for Anthropic, databases, Wrangler, and the mobile API URL.
 
 ## Contributing
 

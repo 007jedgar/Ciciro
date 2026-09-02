@@ -10,3 +10,4 @@ prisma/*.db-journal
 .env*.local
 npm-debug.log*
 docs/images
+apps

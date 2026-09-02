@@ -40,3 +40,22 @@ yarn-error.log*
 
 # typescript build cache
 *.tsbuildinfo
+
+# private mobile architecture notes (keep local; not for public PRs)
+/docs/mobile/
+
+# Expo / React Native
+apps/mobile/.expo
+apps/mobile/.expo-shared
+apps/mobile/dist
+apps/mobile/web-build
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/node_modules
+apps/mobile/*.jks
+apps/mobile/*.p8
+apps/mobile/*.p12
+apps/mobile/*.key
+apps/mobile/*.mobileprovision
+apps/mobile/.env
+apps/mobile/.env*.local
