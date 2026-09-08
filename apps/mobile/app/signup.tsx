@@ -10,6 +10,7 @@ import {
 import { Link, useRouter } from "expo-router";
 import { ApiError } from "../lib/api";
 import { useSession } from "../lib/session";
+import { BrandMark } from "../components/BrandMark";
 import { colors, layout } from "../lib/theme";
 
 export default function SignupScreen() {
@@ -38,6 +39,7 @@ export default function SignupScreen() {
       style={layout.padded}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <BrandMark size={56} style={{ marginBottom: 16 }} />
       <Text style={layout.title}>Create your Ciciro account</Text>
       <TextInput
         style={layout.input}

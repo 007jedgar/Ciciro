@@ -939,6 +939,49 @@ textarea {
 .home-top h1 {
   margin: 0;
 }
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-lockup h1 {
+  margin: 0;
+}
+.brand-mark {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 22%;
+  overflow: hidden;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.brand-mark-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.brand-mark-dark {
+  display: none;
+}
+[data-theme="ember"] .brand-mark-light,
+[data-theme="walnut"] .brand-mark-light,
+[data-theme="inkwell"] .brand-mark-light,
+[data-theme="candle"] .brand-mark-light {
+  display: none;
+}
+[data-theme="ember"] .brand-mark-dark,
+[data-theme="walnut"] .brand-mark-dark,
+[data-theme="inkwell"] .brand-mark-dark,
+[data-theme="candle"] .brand-mark-dark {
+  display: block;
+}
+.auth-card .brand-mark {
+  align-self: center;
+  margin: 0 0 8px;
+}
 
 /* ---------- Writing loader (pen sketch) ---------- */
 .writing-loader {

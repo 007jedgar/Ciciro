@@ -4,6 +4,7 @@ import { Redirect, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL, api } from "../lib/api";
 import { useSession } from "../lib/session";
+import { BrandMark } from "../components/BrandMark";
 import { colors, layout } from "../lib/theme";
 
 export default function WelcomeScreen() {
@@ -33,6 +34,7 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={layout.padded}>
       <View style={{ flex: 1, justifyContent: "center" }}>
+        <BrandMark size={64} style={{ marginBottom: 20 }} />
         <Text style={layout.title}>Ciciro</Text>
         <Text style={layout.body}>
           One editor. Sign in to the hosted app, then open a manuscript. The phone talks to
