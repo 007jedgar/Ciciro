@@ -43,11 +43,17 @@
 
   "vars": {
     "CICIRO_REQUIRE_AUTH": "true"
-  }
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ciciro",
+      "database_id": "b8b60772-8cdd-4647-a8f5-bfe8873b1a5d"
+    }
+  ]
 
   // Secrets (set with `wrangler secret put <NAME>`), not committed:
   //   ANTHROPIC_API_KEY   - required for the editor/drafter models
-  //   DATABASE_URL        - a hosted, serverless-friendly database URL
-  //                         (e.g. libSQL/Turso or Postgres via a Prisma adapter;
-  //                         SQLite-on-disk is local-only, see docs/hosting.md)
+  // Hosted auth/session data lives in the D1 binding above, not DATABASE_URL.
 }

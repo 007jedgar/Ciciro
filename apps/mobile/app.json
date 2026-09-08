@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Ciciro",
-    "slug": "ciciro-mobile",
+    "slug": "ciciro",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -38,6 +38,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fec740f0-4e6e-4c53-8ac5-bc6d448fd1d8"
+      }
+    },
+    "owner": "corki"
   }
 }
