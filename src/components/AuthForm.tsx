@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import BrandMark from "@/components/BrandMark";
 
 type Mode = "login" | "signup";
 
@@ -69,6 +70,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit}>
+        <BrandMark size={56} />
         <h1>{copy.title}</h1>
         {mode === "signup" && (
           <input

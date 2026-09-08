@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
+import BrandMark from "@/components/BrandMark";
 
 type ProjectSummary = {
   id: string;
@@ -44,7 +45,10 @@ export default function Home() {
   return (
     <div className="home">
       <div className="home-top">
-        <h1>Ciciro</h1>
+        <div className="brand-lockup">
+          <BrandMark size={44} />
+          <h1>Ciciro</h1>
+        </div>
         <div className="account-bar">
           <AccountBar />
           <ThemePicker />
