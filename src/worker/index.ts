@@ -3,13 +3,15 @@
 // `opennextjs-cloudflare build` compiles the Next.js app into
 // `.open-next/worker.js`. This thin entry wraps that handler so we can also:
 //   1. export the EditorRunDO Durable Object class (wrangler needs the class
-//      exported from the worker module named in its migration), and
+//      exported from the worker module named in its migration),
 //   2. publish the DO namespace binding to the run coordinator on each request,
-//      so durable editor-run slices are serialized fleet-wide.
+//      so durable editor-run slices are serialized fleet-wide, and
+//   3. publish the D1 binding so Prisma uses the driver adapter on Workers.
 //
 // wrangler.jsonc `main` points at this file.
 
 import { EditorRunDO } from "./run-do";
+import { setD1Database } from "../lib/d1-binding";
 import {
   setRunDurableObjectNamespace,
   type RunDurableObjectNamespace,
@@ -21,12 +23,18 @@ import openNextHandler from "../../.open-next/worker.js";
 
 export { EditorRunDO };
 
-type Env = { EDITOR_RUN_DO?: RunDurableObjectNamespace } & Record<string, unknown>;
+type Env = {
+  EDITOR_RUN_DO?: RunDurableObjectNamespace;
+  DB?: D1Database;
+} & Record<string, unknown>;
 
 export default {
   async fetch(request: Request, env: Env, ctx: unknown): Promise<Response> {
     if (env.EDITOR_RUN_DO) {
       setRunDurableObjectNamespace(env.EDITOR_RUN_DO);
+    }
+    if (env.DB) {
+      setD1Database(env.DB);
     }
     return openNextHandler.fetch(request, env, ctx);
   },
