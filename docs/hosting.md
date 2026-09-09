@@ -64,6 +64,10 @@ npm run cf:preview   # local preview with the workerd runtime
 npm run cf:deploy    # wrangler deploy
 ```
 
+Workers Builds should use `npm run cf:build` (or keep `npm run build`, which
+detects `WORKERS_CI=1` and runs the OpenNext adapter). A plain `next build`
+does not create `.open-next/assets`, so `wrangler versions upload` fails.
+
 Key files:
 
 - `wrangler.jsonc` — worker name, `nodejs_compat`, the static-assets binding,
