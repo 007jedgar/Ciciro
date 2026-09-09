@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.ciciro.mobile"
+      "package": "app.ciciro.mobile",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -34,7 +35,10 @@
           "backgroundColor": "#b4552d",
           "image": "./assets/splash-icon.png"
         }
-      ]
+      ],
+      "expo-image",
+      "expo-dev-client",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

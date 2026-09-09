@@ -33,6 +33,7 @@ export default function ProjectTabsLayout() {
           headerShadowVisible: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.inkSoft,
+          tabBarHideOnKeyboard: true,
           tabBarStyle: { backgroundColor: colors.panel, borderTopColor: colors.line },
         }}
       >

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
+import { createProject, listProjects } from "@/lib/projects";
 
 export const runtime = "nodejs";
 
@@ -8,11 +9,7 @@ export const runtime = "nodejs";
 // in, only their manuscripts are returned; local-first (no session) lists all.
 export async function GET() {
   const user = await getSessionUser();
-  const projects = await prisma.project.findMany({
-    where: user ? { userId: user.id } : undefined,
-    orderBy: { updatedAt: "desc" },
-    include: { _count: { select: { chapters: true } } },
-  });
+  const projects = await listProjects(user);
   return NextResponse.json(projects);
 }
 
@@ -21,18 +18,12 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   const body = await req.json().catch(() => ({}));
-  const project = await prisma.project.create({
-    data: {
-      userId: user?.id ?? null,
-      title: body.title?.trim() || "Untitled Manuscript",
-      author: body.author?.trim() || user?.name || "",
-      genre: body.genre?.trim() || "",
-      logline: body.logline?.trim() || "",
-      chapters: {
-        create: [{ title: "Chapter 1", order: 0 }],
-      },
-    },
-    include: { chapters: true },
-  });
-  return NextResponse.json(project, { status: 201 });
+  try {
+    const project = await createProject(user, body);
+    return NextResponse.json(project, { status: 201 });
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }

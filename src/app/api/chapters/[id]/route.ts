@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { countWords, htmlToText } from "@/lib/text";
+import { getSessionUser } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
+import { deleteChapter, updateChapter } from "@/lib/chapters";
 import { summarizeChapter } from "@/lib/summarize";
 
 export const runtime = "nodejs";
@@ -11,78 +11,31 @@ type Params = { params: Promise<{ id: string }> };
 // PATCH /api/chapters/:id — save content, title, order, status, or summary.
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionUser();
   const body = await req.json().catch(() => ({}));
-  const data: Prisma.ChapterUpdateManyMutationInput = {};
-
-  if (typeof body.content === "string") {
-    data.content = body.content;
-    data.wordCount = countWords(htmlToText(body.content));
+  try {
+    const result = await updateChapter(id, user, body);
+    if (result.contentChanged) {
+      after(() => summarizeChapter(id).catch(() => {}));
+    }
+    return NextResponse.json(result.chapter);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
-  if (typeof body.title === "string") data.title = body.title;
-  if (typeof body.summary === "string") data.summary = body.summary;
-  if (typeof body.status === "string") data.status = body.status;
-  if (typeof body.order === "number") data.order = body.order;
-
-  if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 0) {
-    return NextResponse.json(
-      { error: "expectedRevision is required for chapter updates" },
-      { status: 428 }
-    );
-  }
-  if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "No chapter fields to update" }, { status: 400 });
-  }
-
-  const result = await prisma.$transaction(async (tx) => {
-    const updated = await tx.chapter.updateMany({
-      where: { id, revision: body.expectedRevision },
-      data: { ...data, revision: { increment: 1 } },
-    });
-    const chapter = await tx.chapter.findUnique({ where: { id } });
-    return { updated: updated.count === 1, chapter };
-  });
-
-  if (!result.chapter) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-  if (!result.updated) {
-    return NextResponse.json(
-      {
-        error: "Chapter revision conflict",
-        expectedRevision: body.expectedRevision,
-        currentRevision: result.chapter.revision,
-        chapter: result.chapter,
-      },
-      { status: 409 }
-    );
-  }
-
-  // Refresh the beat summary in the background - don't hold up the autosave.
-  if (typeof body.content === "string") {
-    after(() => summarizeChapter(id).catch(() => {}));
-  }
-
-  return NextResponse.json(result.chapter);
 }
 
 // DELETE /api/chapters/:id — remove a chapter and re-number the rest.
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const chapter = await prisma.chapter.findUnique({ where: { id } });
-  if (!chapter) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  await prisma.chapter.delete({ where: { id } });
-
-  // Re-pack order values so they stay 0..n-1.
-  const remaining = await prisma.chapter.findMany({
-    where: { projectId: chapter.projectId },
-    orderBy: { order: "asc" },
-  });
-  await Promise.all(
-    remaining.map((ch, i) =>
-      prisma.chapter.update({ where: { id: ch.id }, data: { order: i } })
-    )
-  );
-
-  return NextResponse.json({ ok: true });
+  const user = await getSessionUser();
+  try {
+    const result = await deleteChapter(id, user);
+    return NextResponse.json(result);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }

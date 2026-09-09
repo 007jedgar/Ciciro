@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
+import { deletePlotPoint, updatePlotPoint } from "@/lib/story";
 
 export const runtime = "nodejs";
 
@@ -7,18 +9,27 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionUser();
   const body = await req.json().catch(() => ({}));
-  const data: Record<string, string | null> = {};
-  for (const key of ["title", "description", "type", "status"] as const) {
-    if (typeof body[key] === "string") data[key] = body[key];
+  try {
+    const point = await updatePlotPoint(id, user, body);
+    return NextResponse.json(point);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
-  if ("chapterId" in body) data.chapterId = body.chapterId || null;
-  const point = await prisma.plotPoint.update({ where: { id }, data });
-  return NextResponse.json(point);
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  await prisma.plotPoint.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  const user = await getSessionUser();
+  try {
+    const result = await deletePlotPoint(id, user);
+    return NextResponse.json(result);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }

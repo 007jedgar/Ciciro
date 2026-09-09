@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
+import { listChapterEdits } from "@/lib/chapters";
 
 export const runtime = "nodejs";
 
@@ -9,10 +11,13 @@ type Params = { params: Promise<{ id: string }> };
 // corrections (find/replace pairs), newest first, for the diff view.
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const edits = await prisma.manuscriptEdit.findMany({
-    where: { chapterId: id },
-    orderBy: { createdAt: "desc" },
-    take: 30,
-  });
-  return NextResponse.json(edits);
+  const user = await getSessionUser();
+  try {
+    const edits = await listChapterEdits(id, user);
+    return NextResponse.json(edits);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }

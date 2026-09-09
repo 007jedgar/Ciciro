@@ -1,25 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
+import { deleteCharacter, updateCharacter } from "@/lib/story";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-const EDITABLE = ["name", "role", "description", "arc", "notes"] as const;
-
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const user = await getSessionUser();
   const body = await req.json().catch(() => ({}));
-  const data: Record<string, string> = {};
-  for (const key of EDITABLE) {
-    if (typeof body[key] === "string") data[key] = body[key];
+  try {
+    const character = await updateCharacter(id, user, body);
+    return NextResponse.json(character);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
-  const character = await prisma.character.update({ where: { id }, data });
-  return NextResponse.json(character);
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  await prisma.character.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  const user = await getSessionUser();
+  try {
+    const result = await deleteCharacter(id, user);
+    return NextResponse.json(result);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }

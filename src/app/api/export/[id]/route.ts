@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { Packer } from "docx";
 import { prisma } from "@/lib/db";
+import { authorizeProject } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
 import { buildManuscriptDocx } from "@/lib/docx";
 
 export const runtime = "nodejs";
@@ -10,6 +12,13 @@ type Params = { params: Promise<{ id: string }> };
 // GET /api/export/:id — download the manuscript as a standard-format .docx.
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
+  try {
+    await authorizeProject(id);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
   const project = await prisma.project.findUnique({
     where: { id },
     include: { chapters: { orderBy: { order: "asc" } } },
