@@ -1,30 +1,17 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { API_URL, api } from "../lib/api";
-import { BrandMark } from "../components/BrandMark";
+import { LivingPage } from "../components/LivingPage";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
-  const { layout, colors } = useAppTheme();
-  const [health, setHealth] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<{ status?: string; authRequired?: boolean }>("/api/health")
-      .then((data) => {
-        const auth = data.authRequired ? "auth on" : "auth off";
-        setHealth(`API ${data.status ?? "ok"} (${auth})`);
-      })
-      .catch(() => setHealth("API unreachable - check EXPO_PUBLIC_API_URL"));
-  }, []);
+  const { colors } = useAppTheme();
 
   if (!ready) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
         <ActivityIndicator color={colors.accent} />
       </View>
     );
@@ -33,24 +20,9 @@ export default function WelcomeScreen() {
   if (user) return <Redirect href="/manuscripts" />;
 
   return (
-    <SafeAreaView style={layout.padded}>
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        <BrandMark size={64} style={{ marginBottom: 20 }} />
-        <Text style={layout.title}>Ciciro</Text>
-        <Text style={layout.body}>
-          One editor. Sign in, then create or open a manuscript. The phone talks to
-          your Ciciro origin - it never holds the Anthropic key.
-        </Text>
-        <Text style={[layout.cardMeta, { marginTop: 16 }]}>API: {API_URL}</Text>
-        {health ? <Text style={layout.cardMeta}>{health}</Text> : null}
-
-        <Pressable style={[layout.primaryBtn, { marginTop: 28 }]} onPress={() => router.push("/login")}>
-          <Text style={layout.primaryBtnText}>Sign in</Text>
-        </Pressable>
-        <Pressable style={layout.ghostBtn} onPress={() => router.push("/signup")}>
-          <Text style={layout.ghostBtnText}>Create an account</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+    <LivingPage
+      onCreate={() => router.push("/signup")}
+      onSignIn={() => router.push("/login")}
+    />
   );
 }
