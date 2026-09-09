@@ -1,25 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  THEMES,
-  applyTheme,
-  getStoredTheme,
-  resolveTheme,
-  setStoredTheme,
-  type ThemeId,
-} from "@/lib/theme";
+import { THEMES, type ThemeId } from "@/lib/theme";
+import { EDITOR_FONT_SIZES } from "@/lib/settings";
+import { useSettings } from "@/components/SettingsProvider";
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
+  const { settings, patch } = useSettings();
   const [open, setOpen] = useState(false);
-  const [theme, setTheme] = useState<ThemeId>("parchment");
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const id = resolveTheme(getStoredTheme());
-    setTheme(id);
-    applyTheme(id);
-  }, []);
+  const theme = settings.theme;
 
   useEffect(() => {
     if (!open) return;
@@ -37,13 +27,12 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
     };
   }, [open]);
 
-  function pick(id: ThemeId) {
-    setTheme(id);
-    setStoredTheme(id);
-    setOpen(false);
+  function pickTheme(id: ThemeId) {
+    patch({ theme: id });
   }
 
   const current = THEMES.find((t) => t.id === theme) ?? THEMES[0];
+  const sizeIndex = EDITOR_FONT_SIZES.indexOf(settings.editorFontSize);
 
   return (
     <div className={`theme-picker ${compact ? "compact" : ""}`} ref={rootRef}>
@@ -52,7 +41,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
         className="btn small theme-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Choose theme"
+        title="Appearance and writing settings"
         onClick={() => setOpen((v) => !v)}
       >
         <span
@@ -64,7 +53,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
         {!compact && <span>{current.label}</span>}
       </button>
       {open && (
-        <div className="theme-menu" role="listbox" aria-label="Themes">
+        <div className="theme-menu" role="dialog" aria-label="App settings">
           <div className="theme-menu-label">Light</div>
           <div className="theme-grid">
             {THEMES.filter((t) => t.mode === "light").map((t) => (
@@ -74,7 +63,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
                 role="option"
                 aria-selected={t.id === theme}
                 className={`theme-option ${t.id === theme ? "active" : ""}`}
-                onClick={() => pick(t.id)}
+                onClick={() => pickTheme(t.id)}
               >
                 <span
                   className="theme-swatch lg"
@@ -95,7 +84,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
                 role="option"
                 aria-selected={t.id === theme}
                 className={`theme-option ${t.id === theme ? "active" : ""}`}
-                onClick={() => pick(t.id)}
+                onClick={() => pickTheme(t.id)}
               >
                 <span
                   className="theme-swatch lg"
@@ -106,6 +95,68 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
                 <span>{t.label}</span>
               </button>
             ))}
+          </div>
+
+          <div className="theme-menu-label">Manuscript</div>
+          <div className="settings-row">
+            <span>Type</span>
+            <div className="settings-seg">
+              <button
+                type="button"
+                className={settings.editorFont === "serif" ? "active" : ""}
+                onClick={() => patch({ editorFont: "serif" })}
+              >
+                Serif
+              </button>
+              <button
+                type="button"
+                className={settings.editorFont === "sans" ? "active" : ""}
+                onClick={() => patch({ editorFont: "sans" })}
+              >
+                Sans
+              </button>
+            </div>
+          </div>
+          <div className="settings-row">
+            <span>Size</span>
+            <div className="settings-seg">
+              <button
+                type="button"
+                aria-label="Smaller type"
+                disabled={sizeIndex <= 0}
+                onClick={() =>
+                  patch({ editorFontSize: EDITOR_FONT_SIZES[Math.max(0, sizeIndex - 1)] })
+                }
+              >
+                A-
+              </button>
+              <span className="settings-size">{settings.editorFontSize}</span>
+              <button
+                type="button"
+                aria-label="Larger type"
+                disabled={sizeIndex >= EDITOR_FONT_SIZES.length - 1}
+                onClick={() =>
+                  patch({
+                    editorFontSize:
+                      EDITOR_FONT_SIZES[Math.min(EDITOR_FONT_SIZES.length - 1, sizeIndex + 1)],
+                  })
+                }
+              >
+                A+
+              </button>
+            </div>
+          </div>
+          <div className="settings-row">
+            <span>Autocorrect</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.autoCorrect}
+              className={`settings-switch ${settings.autoCorrect ? "on" : ""}`}
+              onClick={() => patch({ autoCorrect: !settings.autoCorrect })}
+            >
+              {settings.autoCorrect ? "On" : "Off"}
+            </button>
           </div>
         </div>
       )}

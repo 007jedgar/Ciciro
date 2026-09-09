@@ -2,10 +2,11 @@ import { Redirect, Tabs, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Text, View } from "react-native";
 import { ProjectProvider } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
-import { colors, layout } from "../../../lib/theme";
+import { useAppTheme } from "../../../lib/settings";
 
 export default function ProjectTabsLayout() {
   const { user, ready } = useSession();
+  const { layout, colors } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   if (!ready) {

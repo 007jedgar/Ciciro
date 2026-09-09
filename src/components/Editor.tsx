@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
 import { BlockId } from "@/lib/tiptap-block-id";
+import { useSettings } from "@/components/SettingsProvider";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -31,10 +32,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   { content, onChange, onSelectionChange, focusEndOnMount },
   ref
 ) {
-  // Tracks the next insertion point per group key, so a second insert for
-  // the same key continues where the last one left off rather than jumping
-  // to wherever the live cursor is now. Remapped through every transaction
-  // so it stays valid even if the user edits elsewhere in the meantime.
+  const { settings } = useSettings();
   const insertPositions = useRef<Map<string, number>>(new Map());
 
   const editor = useEditor({
@@ -63,7 +61,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       }
     },
     editorProps: {
-      attributes: { class: "prose-body" },
+      attributes: {
+        class: "prose-body",
+        spellcheck: settings.autoCorrect ? "true" : "false",
+      },
     },
   });
 
@@ -75,6 +76,18 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       editor.commands.setContent(content || "", false);
     }
   }, [content, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setOptions({
+      editorProps: {
+        attributes: {
+          class: "prose-body",
+          spellcheck: settings.autoCorrect ? "true" : "false",
+        },
+      },
+    });
+  }, [editor, settings.autoCorrect]);
 
   useEffect(() => {
     if (!editor || !focusEndOnMount) return;

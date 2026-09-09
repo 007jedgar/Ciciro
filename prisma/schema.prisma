@@ -21,6 +21,11 @@ model User {
   sessions Session[]
   projects Project[]
 
+  // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
+  // chat width). Empty object means defaults. See src/lib/settings.ts.
+  settingsJson      String   @default("{}")
+  settingsUpdatedAt DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

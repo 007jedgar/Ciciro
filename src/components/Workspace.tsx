@@ -10,16 +10,16 @@ import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ThemePicker from "@/components/ThemePicker";
+import { useSettings } from "@/components/SettingsProvider";
 import { countWords, htmlToText } from "@/lib/text";
+import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
 
-const CHAT_MIN = 280;
-const CHAT_MAX = 720;
-const CHAT_WIDTH_KEY = "ciciro-chat-width";
-const DEFAULT_CHAT_WIDTH = 380;
+const CHAT_MIN = CHAT_WIDTH_MIN;
+const CHAT_MAX = CHAT_WIDTH_MAX;
 
 function clampChatWidth(n: number) {
   return Math.min(CHAT_MAX, Math.max(CHAT_MIN, Math.round(n)));
@@ -37,7 +37,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff">("prose");
   const [diffRefreshToken, setDiffRefreshToken] = useState(0);
-  const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
+  const { settings, patch } = useSettings();
+  const [dragChatWidth, setDragChatWidth] = useState<number | null>(null);
+  const chatWidth = dragChatWidth ?? settings.chatWidth;
   const [resizing, setResizing] = useState(false);
 
   const editorRef = useRef<EditorHandle>(null);
@@ -61,23 +63,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const chatWidthRef = useRef(chatWidth);
   chatWidthRef.current = chatWidth;
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CHAT_WIDTH_KEY);
-      const n = raw ? Number(raw) : NaN;
-      if (Number.isFinite(n)) setChatWidth(clampChatWidth(n));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   const persistChatWidth = useCallback((w: number) => {
-    try {
-      localStorage.setItem(CHAT_WIDTH_KEY, String(w));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    patch({ chatWidth: clampChatWidth(w) });
+  }, [patch]);
 
   const onResizePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -91,7 +79,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       function onMove(ev: PointerEvent) {
         latest = clampChatWidth(startW - (ev.clientX - startX));
-        setChatWidth(latest);
+        setDragChatWidth(latest);
       }
       function onUp(ev: PointerEvent) {
         handle.releasePointerCapture(ev.pointerId);
@@ -100,6 +88,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         handle.removeEventListener("pointercancel", onUp);
         setResizing(false);
         persistChatWidth(latest);
+        setDragChatWidth(null);
       }
 
       handle.addEventListener("pointermove", onMove);
@@ -454,6 +443,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 value={activeChapter.title}
                 onChange={(e) => onTitleChange(e.target.value)}
                 placeholder="Chapter title"
+                spellCheck={settings.autoCorrect}
               />
               <div className="editor-meta">
                 <span>{activeChapter.wordCount.toLocaleString()} words</span>
@@ -528,11 +518,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
             e.preventDefault();
             const delta = e.key === "ArrowLeft" ? step : -step;
-            setChatWidth((w) => {
-              const next = clampChatWidth(w + delta);
-              persistChatWidth(next);
-              return next;
-            });
+            persistChatWidth(chatWidth + delta);
           }
         }}
       />

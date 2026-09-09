@@ -118,6 +118,15 @@
   --sans: var(--font-sans), "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   --serif: var(--font-serif), Literata, Georgia, "Times New Roman", serif;
   --mono: var(--font-mono), "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --editor-font-family: var(--serif);
+  --editor-size: 19px;
+}
+
+html[data-editor-font="sans"] {
+  --editor-font-family: var(--sans);
+}
+html[data-editor-font="serif"] {
+  --editor-font-family: var(--serif);
 }
 
 * {
@@ -397,8 +406,8 @@ textarea {
   padding: 48px 40px 200px;
 }
 .editor-title {
-  font-family: var(--serif);
-  font-size: 30px;
+  font-family: var(--editor-font-family, var(--serif));
+  font-size: calc(var(--editor-size, 19px) * 1.58);
   font-weight: 600;
   border: none;
   background: transparent;
@@ -418,8 +427,8 @@ textarea {
   align-items: center;
 }
 .ProseMirror {
-  font-family: var(--serif);
-  font-size: 19px;
+  font-family: var(--editor-font-family, var(--serif));
+  font-size: var(--editor-size, 19px);
   line-height: 1.75;
   color: var(--ink);
   min-height: 60vh;
@@ -886,7 +895,7 @@ textarea {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  width: 220px;
+  width: 260px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -925,6 +934,54 @@ textarea {
   background: var(--panel-2);
 }
 .theme-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 2px;
+  font-size: 12.5px;
+}
+.settings-seg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.settings-seg button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.settings-seg button.active,
+.settings-seg button:disabled {
+  border-color: var(--accent);
+}
+.settings-seg button.active {
+  background: var(--accent-soft);
+}
+.settings-size {
+  min-width: 1.6em;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.settings-switch {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  min-width: 44px;
+}
+.settings-switch.on {
   border-color: var(--accent);
   background: var(--accent-soft);
 }

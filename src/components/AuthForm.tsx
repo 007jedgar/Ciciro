@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
+import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 
 type Mode = "login" | "signup";
 
@@ -59,6 +60,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       const next = params.get("next");
+      window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
       router.push(next && next.startsWith("/") ? next : "/");
       router.refresh();
     } catch {

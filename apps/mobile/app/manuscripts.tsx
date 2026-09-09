@@ -10,13 +10,14 @@ import {
 import { Redirect, Stack, useRouter } from "expo-router";
 import { ApiError } from "../lib/api";
 import { listManuscripts } from "../lib/manuscripts";
+import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
-import { colors, layout } from "../lib/theme";
 import type { ProjectListItem } from "../lib/types";
 
 export default function ManuscriptsScreen() {
   const router = useRouter();
   const { user, ready, logout } = useSession();
+  const { layout, colors } = useAppTheme();
   const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,14 +51,24 @@ export default function ManuscriptsScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <Pressable
-              onPress={() => router.push("/new-manuscript")}
-              accessibilityRole="button"
-              accessibilityLabel="New manuscript"
-              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-            >
-              <Text style={layout.ghostBtnText}>New</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Pressable
+                onPress={() => router.push("/settings")}
+                accessibilityRole="button"
+                accessibilityLabel="Settings"
+                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+              >
+                <Text style={layout.ghostBtnText}>Settings</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push("/new-manuscript")}
+                accessibilityRole="button"
+                accessibilityLabel="New manuscript"
+                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+              >
+                <Text style={layout.ghostBtnText}>New</Text>
+              </Pressable>
+            </View>
           ),
         }}
       />

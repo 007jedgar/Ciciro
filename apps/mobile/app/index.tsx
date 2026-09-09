@@ -3,13 +3,14 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL, api } from "../lib/api";
-import { useSession } from "../lib/session";
 import { BrandMark } from "../components/BrandMark";
-import { colors, layout } from "../lib/theme";
+import { useAppTheme } from "../lib/settings";
+import { useSession } from "../lib/session";
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
+  const { layout, colors } = useAppTheme();
   const [health, setHealth] = useState<string | null>(null);
 
   useEffect(() => {
