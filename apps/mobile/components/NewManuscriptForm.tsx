@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { ApiError } from "../lib/api";
 import { createManuscript } from "../lib/manuscripts";
-import { colors, layout } from "../lib/theme";
+import { useOptionalAppTheme } from "../lib/settings";
+import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { ProjectDetail } from "../lib/types";
 
 type Props = {
@@ -11,6 +12,10 @@ type Props = {
 };
 
 export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
+  const themed = useOptionalAppTheme();
+  const layout = themed?.layout ?? parchmentLayout;
+  const colors = themed?.colors ?? parchmentColors;
+  const autoCorrect = themed?.settings.autoCorrect ?? true;
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState(defaultAuthor);
   const [genre, setGenre] = useState("");
@@ -43,6 +48,8 @@ export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
         placeholderTextColor={colors.inkSoft}
         value={title}
         onChangeText={setTitle}
+        autoCorrect={autoCorrect}
+        spellCheck={autoCorrect}
       />
       <TextInput
         style={layout.input}
@@ -52,6 +59,8 @@ export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
         value={author}
         onChangeText={setAuthor}
         autoComplete="name"
+        autoCorrect={autoCorrect}
+        spellCheck={autoCorrect}
       />
       <TextInput
         style={layout.input}
@@ -60,6 +69,8 @@ export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
         placeholderTextColor={colors.inkSoft}
         value={genre}
         onChangeText={setGenre}
+        autoCorrect={autoCorrect}
+        spellCheck={autoCorrect}
       />
       {error ? (
         <Text style={layout.error} role="alert">

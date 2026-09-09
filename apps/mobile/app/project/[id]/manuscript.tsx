@@ -1,10 +1,12 @@
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { htmlToPlainText } from "../../../lib/html";
 import { useProject } from "../../../lib/project";
-import { colors, fonts, layout } from "../../../lib/theme";
+import { useAppTheme } from "../../../lib/settings";
+import { fonts } from "../../../lib/theme";
 
 export default function ManuscriptScreen() {
   const { project, loading, error, selectedChapterId } = useProject();
+  const { layout, colors, settings } = useAppTheme();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
 
   if (loading && !project) {
@@ -40,9 +42,9 @@ export default function ManuscriptScreen() {
       {body ? (
         <Text
           style={{
-            fontFamily: fonts.serif,
-            fontSize: 18,
-            lineHeight: 28,
+            fontFamily: settings.editorFont === "sans" ? fonts.sans : fonts.serif,
+            fontSize: settings.editorFontSize,
+            lineHeight: Math.round(settings.editorFontSize * 1.55),
             color: colors.ink,
           }}
         >

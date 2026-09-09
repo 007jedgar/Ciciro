@@ -5,12 +5,13 @@ import {
 } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { NewManuscriptForm } from "../components/NewManuscriptForm";
+import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
-import { layout } from "../lib/theme";
 
 export default function NewManuscriptScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
+  const { layout } = useAppTheme();
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;

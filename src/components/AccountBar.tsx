@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 
 type Me = { id: string; email: string; name: string } | null;
 
@@ -30,6 +31,7 @@ export default function AccountBar() {
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
     setMe(null);
+    window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
     router.refresh();
     router.push("/login");
   }

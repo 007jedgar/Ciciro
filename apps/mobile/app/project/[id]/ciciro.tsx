@@ -1,9 +1,10 @@
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useProject } from "../../../lib/project";
-import { colors, layout } from "../../../lib/theme";
+import { useAppTheme } from "../../../lib/settings";
 
 export default function CiciroScreen() {
   const { project, loading, error } = useProject();
+  const { layout, colors } = useAppTheme();
 
   if (loading && !project) {
     return (

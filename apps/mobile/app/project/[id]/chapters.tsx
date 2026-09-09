@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ApiError } from "../../../lib/api";
 import { useProject } from "../../../lib/project";
-import { colors, layout } from "../../../lib/theme";
+import { useAppTheme } from "../../../lib/settings";
 
 export default function ChaptersScreen() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function ChaptersScreen() {
     setSelectedChapterId,
     addChapter,
   } = useProject();
+  const { layout, colors } = useAppTheme();
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 

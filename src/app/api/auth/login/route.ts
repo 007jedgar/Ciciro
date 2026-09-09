@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, authenticate, createSession } from "@/lib/auth/session";
+import { getUserSettings } from "@/lib/user-settings";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,8 @@ export async function POST(req: NextRequest) {
   try {
     const user = await authenticate({ email: body.email, password: body.password });
     await createSession(user.id, req.headers.get("user-agent") || "");
-    return NextResponse.json({ user });
+    const settings = await getUserSettings(user.id);
+    return NextResponse.json({ user, settings });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

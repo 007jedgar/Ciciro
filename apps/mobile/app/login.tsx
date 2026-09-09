@@ -9,13 +9,14 @@ import {
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { ApiError } from "../lib/api";
-import { useSession } from "../lib/session";
 import { BrandMark } from "../components/BrandMark";
-import { colors, layout } from "../lib/theme";
+import { useAppTheme } from "../lib/settings";
+import { useSession } from "../lib/session";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useSession();
+  const { layout, colors, settings } = useAppTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,8 @@ export default function LoginScreen() {
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
+        autoCorrect={settings.autoCorrect}
+        spellCheck={settings.autoCorrect}
         value={email}
         onChangeText={setEmail}
       />
