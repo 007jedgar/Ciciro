@@ -1,12 +1,23 @@
+import { useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { ApiError } from "../../../lib/api";
 import { useProject } from "../../../lib/project";
 import { colors, layout } from "../../../lib/theme";
 
 export default function ChaptersScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { project, loading, error, selectedChapterId, setSelectedChapterId } = useProject();
+  const {
+    project,
+    loading,
+    error,
+    selectedChapterId,
+    setSelectedChapterId,
+    addChapter,
+  } = useProject();
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   if (loading && !project) {
     return (
@@ -26,9 +37,35 @@ export default function ChaptersScreen() {
 
   const chapters = project?.chapters ?? [];
 
+  async function onAddChapter() {
+    setAddError(null);
+    setAdding(true);
+    try {
+      await addChapter();
+    } catch (err) {
+      setAddError(err instanceof ApiError ? err.message : "Could not add chapter.");
+    } finally {
+      setAdding(false);
+    }
+  }
+
   return (
     <View style={layout.padded}>
       <Text style={layout.title}>{project?.title || "Untitled Manuscript"}</Text>
+      <Pressable
+        style={[layout.primaryBtn, { marginBottom: 16 }]}
+        onPress={() => void onAddChapter()}
+        disabled={adding}
+        accessibilityRole="button"
+        accessibilityLabel="Add chapter"
+      >
+        <Text style={layout.primaryBtnText}>{adding ? "Adding..." : "Add chapter"}</Text>
+      </Pressable>
+      {addError ? (
+        <Text style={layout.error} role="alert">
+          {addError}
+        </Text>
+      ) : null}
       <FlatList
         data={chapters}
         keyExtractor={(item) => item.id}

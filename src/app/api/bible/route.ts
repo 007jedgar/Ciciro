@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { authorizeProject } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
 import {
   ensureBible,
   listBible,
@@ -15,6 +17,13 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   const p = req.nextUrl.searchParams.get("path");
   if (!projectId) return json({ error: "projectId required" }, 400);
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
   await ensureBible(projectId);
 
   if (p) {
@@ -35,6 +44,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { projectId } = body;
   if (!projectId) return json({ error: "projectId required" }, 400);
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
   await ensureBible(projectId);
 
   if (body.newCharacter?.trim()) {

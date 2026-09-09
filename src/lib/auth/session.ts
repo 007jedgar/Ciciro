@@ -18,9 +18,11 @@ export type PublicUser = {
 
 export class AuthError extends Error {
   status: number;
-  constructor(message: string, status = 400) {
+  body?: unknown;
+  constructor(message: string, status = 400, body?: unknown) {
     super(message);
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -130,14 +132,15 @@ export async function requireSessionUser(): Promise<PublicUser> {
 }
 
 /**
- * Authorize access to a project. When auth is not enforced and there is no
- * session, access is allowed (local-first). When a user is signed in, they may
- * only touch their own projects (or legacy projects with no owner). Returns the
- * project's owner id (or null) so callers can branch; throws AuthError (403/404)
- * on denial.
+ * Authorize access to a project for a resolved user. When `user` is null
+ * (local-first / no session), access is allowed. When a user is signed in,
+ * they may only touch their own projects (or legacy projects with no owner).
+ * Throws AuthError (403/404) on denial.
  */
-export async function authorizeProject(projectId: string): Promise<void> {
-  const user = await getSessionUser();
+export async function authorizeProjectId(
+  projectId: string,
+  user: PublicUser | null
+): Promise<void> {
   if (!user) return; // local-first / middleware handles hosted anonymous access
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -147,6 +150,13 @@ export async function authorizeProject(projectId: string): Promise<void> {
   if (project.userId && project.userId !== user.id) {
     throw new AuthError("You do not have access to this manuscript.", 403);
   }
+}
+
+/**
+ * Authorize access to a project using the current session cookie.
+ */
+export async function authorizeProject(projectId: string): Promise<void> {
+  await authorizeProjectId(projectId, await getSessionUser());
 }
 
 /** Destroy the current session (DB row + cookie). Idempotent. */

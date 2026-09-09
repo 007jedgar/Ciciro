@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { getAnthropic } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
+import { authorizeProject } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
 import { maybeCompactChat } from "@/lib/compact";
 import {
   claimEditorRun,
@@ -28,6 +30,14 @@ export async function POST(req: NextRequest) {
 
   if (!input.projectId) {
     return json({ error: "projectId required" }, 400);
+  }
+
+  try {
+    await authorizeProject(input.projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
 
   if (input.compactOnly) {
@@ -231,6 +241,13 @@ function ndjson(stream: ReadableStream<Uint8Array>) {
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
   const [messages, runs] = await Promise.all([
     prisma.chatMessage.findMany({
       where: { projectId, archivedAt: null },
@@ -271,6 +288,13 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
   await prisma.$transaction([
     prisma.editorRun.deleteMany({ where: { projectId } }),
     prisma.chatBlob.deleteMany({ where: { projectId } }),

@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { runAutoWrite } from "@/lib/autowrite";
 import { getAnthropic } from "@/lib/anthropic";
+import { authorizeProject } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
 import { ensureBible } from "@/lib/bible";
 
 export const runtime = "nodejs";
@@ -17,6 +19,13 @@ export async function POST(req: NextRequest) {
 
   if (!projectId || !chapterId) {
     return json({ error: "projectId and chapterId required" }, 400);
+  }
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
   try {
     getAnthropic();

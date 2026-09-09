@@ -7,8 +7,9 @@ import {
   Text,
   View,
 } from "react-native";
-import { Redirect, useRouter } from "expo-router";
-import { api, ApiError } from "../lib/api";
+import { Redirect, Stack, useRouter } from "expo-router";
+import { ApiError } from "../lib/api";
+import { listManuscripts } from "../lib/manuscripts";
 import { useSession } from "../lib/session";
 import { colors, layout } from "../lib/theme";
 import type { ProjectListItem } from "../lib/types";
@@ -23,7 +24,7 @@ export default function ManuscriptsScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const data = await api<ProjectListItem[]>("/api/projects");
+      const data = await listManuscripts();
       setProjects(data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load manuscripts.");
@@ -46,6 +47,20 @@ export default function ManuscriptsScreen() {
 
   return (
     <View style={layout.padded}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push("/new-manuscript")}
+              accessibilityRole="button"
+              accessibilityLabel="New manuscript"
+              style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+            >
+              <Text style={layout.ghostBtnText}>New</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <Text style={layout.body}>
         Signed in as {user.email}. One editor - Ciciro - lives on the hosted app.
       </Text>
@@ -74,9 +89,19 @@ export default function ManuscriptsScreen() {
               tintColor={colors.accent}
             />
           }
+          ListHeaderComponent={
+            <Pressable
+              style={[layout.primaryBtn, { marginTop: 8, marginBottom: 16 }]}
+              onPress={() => router.push("/new-manuscript")}
+              accessibilityRole="button"
+              accessibilityLabel="Start a new manuscript"
+            >
+              <Text style={layout.primaryBtnText}>Start a new manuscript</Text>
+            </Pressable>
+          }
           ListEmptyComponent={
-            <Text style={[layout.body, { marginTop: 24 }]}>
-              No manuscripts yet. Create one on the hosted web app, then pull to refresh.
+            <Text style={[layout.body, { marginTop: 8 }]}>
+              No manuscripts yet. Create one here - you do not need the web app for that.
             </Text>
           }
           renderItem={({ item }) => (

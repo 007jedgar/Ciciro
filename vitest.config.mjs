@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    exclude: ["**/node_modules/**", "**/apps/**", "**/dist/**"],
     clearMocks: true,
     restoreMocks: true,
     fileParallelism: false,

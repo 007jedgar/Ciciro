@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "./api";
-import type { ProjectDetail } from "./types";
+import { addChapter as postChapter } from "./manuscripts";
+import type { Chapter, ProjectDetail } from "./types";
 
 type ProjectState = {
   project: ProjectDetail | null;
@@ -9,6 +10,7 @@ type ProjectState = {
   selectedChapterId: string | null;
   setSelectedChapterId: (id: string) => void;
   reload: () => void;
+  addChapter: (title?: string) => Promise<Chapter>;
 };
 
 const ProjectContext = createContext<ProjectState | null>(null);
@@ -51,6 +53,18 @@ export function ProjectProvider({
     };
   }, [projectId, tick]);
 
+  const addChapter = useCallback(
+    async (title?: string) => {
+      const chapter = await postChapter(projectId, title);
+      setProject((current) =>
+        current ? { ...current, chapters: [...current.chapters, chapter] } : current
+      );
+      setSelectedChapterId(chapter.id);
+      return chapter;
+    },
+    [projectId]
+  );
+
   const value = useMemo(
     () => ({
       project,
@@ -59,8 +73,9 @@ export function ProjectProvider({
       selectedChapterId,
       setSelectedChapterId,
       reload: () => setTick((n) => n + 1),
+      addChapter,
     }),
-    [project, loading, error, selectedChapterId]
+    [project, loading, error, selectedChapterId, addChapter]
   );
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

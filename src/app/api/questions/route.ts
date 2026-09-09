@@ -1,5 +1,7 @@
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
+import { createQuestion, listQuestions } from "@/lib/story";
 
 export const runtime = "nodejs";
 
@@ -7,35 +9,30 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   const status = req.nextUrl.searchParams.get("status");
-  if (!projectId) return json({ error: "projectId required" }, 400);
-  const questions = await prisma.openQuestion.findMany({
-    where: { projectId, ...(status ? { status } : {}) },
-    orderBy: { createdAt: "desc" },
-  });
-  return json(questions, 200);
+  if (!projectId) {
+    return NextResponse.json({ error: "projectId required" }, { status: 400 });
+  }
+  const user = await getSessionUser();
+  try {
+    const questions = await listQuestions(projectId, user, status);
+    return NextResponse.json(questions);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }
 
 // POST /api/questions — create one manually.
 export async function POST(req: NextRequest) {
+  const user = await getSessionUser();
   const body = await req.json().catch(() => ({}));
-  if (!body.projectId || !body.question?.trim()) {
-    return json({ error: "projectId and question required" }, 400);
+  try {
+    const q = await createQuestion(user, body);
+    return NextResponse.json(q, { status: 201 });
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
-  const q = await prisma.openQuestion.create({
-    data: {
-      projectId: body.projectId,
-      question: body.question.trim(),
-      provisional: body.provisional?.trim() || "",
-      affects: body.affects?.trim() || "",
-      chapterId: body.chapterId || null,
-    },
-  });
-  return json(q, 201);
-}
-
-function json(obj: unknown, status: number) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
 }

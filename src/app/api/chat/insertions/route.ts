@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { authorizeProject } from "@/lib/auth/session";
+import { responseFromAuthError } from "@/lib/auth/http";
 
 export const runtime = "nodejs";
 
@@ -25,6 +27,14 @@ export async function POST(req: NextRequest) {
       { error: "projectId, turnId, segmentIndex, and chapterId required" },
       400
     );
+  }
+
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
 
   const chapter = await prisma.chapter.findFirst({
@@ -56,6 +66,13 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
+  try {
+    await authorizeProject(projectId);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 
   const insertions = await prisma.draftInsertion.findMany({
     where: { projectId },

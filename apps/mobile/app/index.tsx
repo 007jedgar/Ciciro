@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
         <BrandMark size={64} style={{ marginBottom: 20 }} />
         <Text style={layout.title}>Ciciro</Text>
         <Text style={layout.body}>
-          One editor. Sign in to the hosted app, then open a manuscript. The phone talks to
+          One editor. Sign in, then create or open a manuscript. The phone talks to
           your Ciciro origin - it never holds the Anthropic key.
         </Text>
         <Text style={[layout.cardMeta, { marginTop: 16 }]}>API: {API_URL}</Text>
