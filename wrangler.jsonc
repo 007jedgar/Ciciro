@@ -6,6 +6,10 @@
   //   npm run cf:preview   # local wrangler preview
   //   npm run cf:deploy    # wrangler deploy
   //
+  // Workers Builds still calls `npm run build` then `wrangler versions upload`.
+  // That script runs the OpenNext adapter when WORKERS_CI=1 so `.open-next/assets`
+  // exists for the upload. Do not point CI at a plain `next build`.
+  //
   // `main` is a thin custom entry (src/worker/index.ts) that wraps the
   // OpenNext-generated worker and also exports the EditorRunDO Durable Object.
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -13,6 +17,7 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-08-01",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
 
   "assets": {
     "directory": ".open-next/assets",
@@ -51,6 +56,13 @@
       "database_name": "ciciro",
       "database_id": "b8b60772-8cdd-4647-a8f5-bfe8873b1a5d"
     }
+  ],
+
+  // Public product hostnames. Cloudflare creates DNS + certificates for these
+  // when the zone lives on the same account as this Worker.
+  "routes": [
+    { "pattern": "ciciro.app", "custom_domain": true },
+    { "pattern": "www.ciciro.app", "custom_domain": true }
   ]
 
   // Secrets (set with `wrangler secret put <NAME>`), not committed:
