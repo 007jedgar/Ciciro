@@ -6,7 +6,7 @@
   "description": "Ciciro — an AI book-writing assistant and manuscript editor",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "node scripts/build.mjs",
     "test": "node run-vitest.mjs",
     "start": "next start",
     "lint": "next lint",
