@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isNativeClient } from "@/lib/auth/constants";
+import { jsonWithSession } from "@/lib/auth/http";
 import { AuthError, authenticate, createSession } from "@/lib/auth/session";
 import { getUserSettings } from "@/lib/user-settings";
 
@@ -9,9 +11,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   try {
     const user = await authenticate({ email: body.email, password: body.password });
-    await createSession(user.id, req.headers.get("user-agent") || "");
+    const token = await createSession(user.id, req.headers.get("user-agent") || "");
     const settings = await getUserSettings(user.id);
-    return NextResponse.json({ user, settings });
+    return jsonWithSession({ user, settings }, token, isNativeClient(req));
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

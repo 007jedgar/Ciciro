@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { ApiError, ciciro, queryClient } from "./api";
-import { hydrateSessionToken, setSessionToken } from "./session-store";
+import {
+  getCachedUser,
+  hydrateSessionToken,
+  setCachedUser,
+  setSessionToken,
+} from "./session-store";
 import type { PublicUser } from "./types";
 
 type SessionState = {
@@ -22,6 +27,10 @@ type SessionState = {
 
 const SessionContext = createContext<SessionState | null>(null);
 
+function rememberUser(user: PublicUser | null): void {
+  setCachedUser(user);
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -29,17 +38,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const data = await ciciro.auth.me();
-      setUser(data.user);
-    } catch {
+      if (data.user) {
+        setUser(data.user);
+        rememberUser(data.user);
+        return;
+      }
+      setSessionToken(null);
+      rememberUser(null);
       setUser(null);
+    } catch {
+      // Keep the cached session across Metro reloads and API process restarts.
     }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      await hydrateSessionToken();
+      const token = await hydrateSessionToken();
       if (cancelled) return;
+      if (token) {
+        const cached = getCachedUser();
+        if (cached) {
+          setUser(cached);
+          setReady(true);
+        }
+      } else {
+        setReady(true);
+      }
       await refresh();
       if (!cancelled) setReady(true);
     })();
@@ -50,12 +75,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await ciciro.auth.login({ email, password });
+    if (data.token) setSessionToken(data.token);
+    rememberUser(data.user);
     setUser(data.user);
   }, []);
 
   const signup = useCallback(
     async (input: { email: string; password: string; name?: string }) => {
       const data = await ciciro.auth.signup(input);
+      if (data.token) setSessionToken(data.token);
+      rememberUser(data.user);
       setUser(data.user);
     },
     []
@@ -68,6 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!(error instanceof ApiError)) throw error;
     }
     setSessionToken(null);
+    rememberUser(null);
     setUser(null);
     queryClient.clear();
   }, []);

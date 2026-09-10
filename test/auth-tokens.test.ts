@@ -7,8 +7,12 @@ import {
 } from "@/lib/auth/tokens";
 import {
   MIN_PASSWORD_LENGTH,
+  NATIVE_CLIENT_HEADER,
+  NATIVE_CLIENT_VALUE,
   SESSION_COOKIE,
   SESSION_TTL_MS,
+  isNativeClient,
+  sessionResponseBody,
 } from "@/lib/auth/constants";
 
 describe("session tokens", () => {
@@ -32,6 +36,20 @@ describe("session tokens", () => {
   it("uses a stable cookie name and a positive TTL", () => {
     expect(SESSION_COOKIE).toBe("ciciro_session");
     expect(SESSION_TTL_MS).toBeGreaterThan(0);
+  });
+});
+
+describe("native session delivery", () => {
+  it("only attaches a token for native clients", () => {
+    const native = new Headers({ [NATIVE_CLIENT_HEADER]: NATIVE_CLIENT_VALUE });
+    const browser = new Headers();
+    expect(isNativeClient({ headers: native })).toBe(true);
+    expect(isNativeClient({ headers: browser })).toBe(false);
+
+    const body = { user: { id: "u1" } };
+    expect(sessionResponseBody(body, "tok", false)).toEqual(body);
+    expect(sessionResponseBody(body, "tok", true)).toEqual({ ...body, token: "tok" });
+    expect(sessionResponseBody(body, "", true)).toEqual(body);
   });
 });
 
