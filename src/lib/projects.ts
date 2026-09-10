@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
+import { resolveFolderId } from "@/lib/folders";
 
 function readTrimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -10,6 +11,7 @@ export type ProjectCreateInput = {
   author?: unknown;
   genre?: unknown;
   logline?: unknown;
+  folderId?: unknown;
 };
 
 const PROJECT_LIST_INCLUDE = {
@@ -47,9 +49,11 @@ export async function createProject(
   user: PublicUser | null,
   input: ProjectCreateInput = {}
 ) {
+  const folderId = await resolveFolderId(user, input.folderId);
   return prisma.project.create({
     data: {
       userId: user?.id ?? null,
+      folderId: folderId ?? null,
       title: readTrimmed(input.title) || "Untitled Manuscript",
       author: readTrimmed(input.author) || user?.name || "",
       genre: readTrimmed(input.genre),
@@ -83,9 +87,13 @@ export async function updateProject(
     select: { id: true },
   });
   if (!existing) throw new AuthError("Not found.", 404);
-  const data: Record<string, string> = {};
+  const data: { [key: string]: string | null } = {};
   for (const key of PROJECT_EDITABLE) {
     if (typeof body[key] === "string") data[key] = body[key];
+  }
+  if ("folderId" in body) {
+    const folderId = await resolveFolderId(user, body.folderId);
+    if (folderId !== undefined) data.folderId = folderId;
   }
   return prisma.project.update({ where: { id }, data });
 }

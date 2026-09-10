@@ -37,7 +37,6 @@ export default function ManuscriptScreen() {
 
   return (
     <ScrollView style={layout.screen} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-      <Text style={[layout.cardMeta, { marginBottom: 4 }]}>{project?.title}</Text>
       <Text style={layout.title}>{chapter.title}</Text>
       {body ? (
         <Text

@@ -43,9 +43,27 @@ export type Project = {
   theme: string;
   pov: string;
   notes: string;
+  folderId?: string | null;
   chapters: Chapter[];
   characters: Character[];
   plotPoints: PlotPoint[];
+};
+
+export type Folder = {
+  id: string;
+  name: string;
+  notes: string;
+  userId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  projects: Array<
+    Pick<Project, "id" | "title" | "author" | "genre" | "logline"> & {
+      updatedAt?: string;
+      folderId?: string | null;
+      _count?: { chapters: number };
+    }
+  >;
+  _count?: { projects: number };
 };
 
 export type OpenQuestion = {

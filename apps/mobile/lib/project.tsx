@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api } from "./api";
-import { addChapter as postChapter } from "./manuscripts";
+import { ApiError, useCreateChapterMutation, useProjectQuery } from "./api";
 import type { Chapter, ProjectDetail } from "./types";
 
 type ProjectState = {
@@ -22,60 +21,51 @@ export function ProjectProvider({
   projectId: string;
   children: ReactNode;
 }) {
-  const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const query = useProjectQuery(projectId);
+  const createChapter = useCreateChapterMutation();
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+  const project = query.data ?? null;
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    api<ProjectDetail>(`/api/projects/${projectId}`)
-      .then((data) => {
-        if (cancelled) return;
-        setProject(data);
-        setSelectedChapterId((current) => {
-          if (current && data.chapters.some((c) => c.id === current)) return current;
-          return data.chapters[0]?.id ?? null;
-        });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Could not load manuscript.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, tick]);
+    if (!project) return;
+    setSelectedChapterId((current) => {
+      if (current && project.chapters.some((c) => c.id === current)) return current;
+      return project.chapters[0]?.id ?? null;
+    });
+  }, [project]);
 
   const addChapter = useCallback(
     async (title?: string) => {
-      const chapter = await postChapter(projectId, title);
-      setProject((current) =>
-        current ? { ...current, chapters: [...current.chapters, chapter] } : current
-      );
+      const chapter = await createChapter.mutateAsync({
+        projectId,
+        ...(title?.trim() ? { title: title.trim() } : {}),
+      });
       setSelectedChapterId(chapter.id);
       return chapter;
     },
-    [projectId]
+    [createChapter, projectId]
   );
+
+  const error =
+    query.error instanceof ApiError
+      ? query.error.message
+      : query.error
+        ? "Could not load manuscript."
+        : null;
 
   const value = useMemo(
     () => ({
       project,
-      loading,
+      loading: query.isPending,
       error,
       selectedChapterId,
       setSelectedChapterId,
-      reload: () => setTick((n) => n + 1),
+      reload: () => {
+        void query.refetch();
+      },
       addChapter,
     }),
-    [project, loading, error, selectedChapterId, addChapter]
+    [project, query, error, selectedChapterId, addChapter]
   );
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

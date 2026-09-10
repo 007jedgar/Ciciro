@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { Appearance } from "react-native";
-import { api } from "./api";
+import { ciciro } from "./api";
 import {
   applyPatch,
   defaultSettings,
@@ -87,21 +87,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (sync === "none" || !user) return;
       if (pushTimer.current) clearTimeout(pushTimer.current);
       pushTimer.current = setTimeout(() => {
-        const method = sync === "put" ? "PUT" : "PATCH";
-        const payload =
-          method === "PUT"
-            ? next
-            : {
+        const syncRequest =
+          sync === "put"
+            ? ciciro.settings.put(next)
+            : ciciro.settings.patch({
                 theme: next.theme,
                 editorFont: next.editorFont,
                 editorFontSize: next.editorFontSize,
                 autoCorrect: next.autoCorrect,
                 chatWidth: next.chatWidth,
-              };
-        void api("/api/settings", {
-          method,
-          body: JSON.stringify(payload),
-        }).catch(() => {});
+              });
+        void syncRequest.catch(() => {});
       }, 350);
     },
     [user]
@@ -114,7 +110,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
-        const data = await api<{ settings: AppSettings }>("/api/settings");
+        const data = await ciciro.settings.get();
         if (cancelled) return;
         const remote = normalizeSettings(data.settings);
         const localMs = Date.parse(local.updatedAt) || 0;

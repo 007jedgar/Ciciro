@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import { AppHeader } from "../components/AppHeader";
 import { EDITOR_FONT_SIZES } from "../lib/app-settings";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
@@ -15,11 +16,15 @@ export default function SettingsScreen() {
   if (!user) return <Redirect href="/login" />;
 
   return (
-    <ScrollView style={layout.screen} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-      <Text style={layout.title}>Settings</Text>
-      <Text style={[layout.body, { marginBottom: 16 }]}>
-        These follow you between the phone and the web app.
-      </Text>
+    <View style={layout.screen}>
+      <AppHeader
+        title="Settings"
+        onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
+      />
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+        <Text style={[layout.body, { marginBottom: 16 }]}>
+          These follow you between the phone and the web app.
+        </Text>
 
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>THEME</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
@@ -155,6 +160,7 @@ export default function SettingsScreen() {
           <Text style={[layout.ghostBtnText, { color: colors.danger }]}>Sign out</Text>
         </Pressable>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }

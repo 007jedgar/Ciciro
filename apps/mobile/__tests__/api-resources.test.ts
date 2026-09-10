@@ -1,0 +1,326 @@
+import { ciciro } from "../lib/api";
+import { jsonResponse, lastFetchCall, mockFetch, ndjsonResponse, parsedBody } from "./http";
+
+type ResourceCase = {
+  name: string;
+  run: () => Promise<unknown>;
+  path: RegExp;
+  method?: string;
+  body?: unknown;
+};
+
+const RESOURCES: ResourceCase[] = [
+  { name: "health.get", run: () => ciciro.health.get(), path: /\/api\/health$/ },
+  { name: "auth.me", run: () => ciciro.auth.me(), path: /\/api\/auth\/me$/ },
+  {
+    name: "auth.login",
+    run: () => ciciro.auth.login({ email: "ada@example.com", password: "secret-pw" }),
+    method: "POST",
+    path: /\/api\/auth\/login$/,
+    body: { email: "ada@example.com", password: "secret-pw" },
+  },
+  {
+    name: "auth.signup",
+    run: () => ciciro.auth.signup({ email: "ada@example.com", password: "secret-pw", name: "Ada" }),
+    method: "POST",
+    path: /\/api\/auth\/signup$/,
+    body: { email: "ada@example.com", password: "secret-pw", name: "Ada" },
+  },
+  { name: "auth.logout", run: () => ciciro.auth.logout(), method: "POST", path: /\/api\/auth\/logout$/ },
+  { name: "settings.get", run: () => ciciro.settings.get(), path: /\/api\/settings$/ },
+  {
+    name: "settings.patch",
+    run: () => ciciro.settings.patch({ theme: "ember" }),
+    method: "PATCH",
+    path: /\/api\/settings$/,
+    body: { theme: "ember" },
+  },
+  {
+    name: "settings.put",
+    run: () =>
+      ciciro.settings.put({
+        theme: "parchment",
+        editorFont: "serif",
+        editorFontSize: 19,
+        autoCorrect: true,
+        chatWidth: 380,
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    method: "PUT",
+    path: /\/api\/settings$/,
+    body: {
+      theme: "parchment",
+      editorFont: "serif",
+      editorFontSize: 19,
+      autoCorrect: true,
+      chatWidth: 380,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  },
+  { name: "projects.list", run: () => ciciro.projects.list(), path: /\/api\/projects$/ },
+  {
+    name: "projects.create",
+    run: () => ciciro.projects.create({ title: "Night Watch", author: "Ada", folderId: "f1" }),
+    method: "POST",
+    path: /\/api\/projects$/,
+    body: { title: "Night Watch", author: "Ada", folderId: "f1" },
+  },
+  { name: "projects.get", run: () => ciciro.projects.get("p1"), path: /\/api\/projects\/p1$/ },
+  {
+    name: "projects.patch",
+    run: () => ciciro.projects.patch("p1", { logline: "A hook." }),
+    method: "PATCH",
+    path: /\/api\/projects\/p1$/,
+    body: { logline: "A hook." },
+  },
+  { name: "projects.delete", run: () => ciciro.projects.delete("p1"), method: "DELETE", path: /\/api\/projects\/p1$/ },
+  { name: "folders.list", run: () => ciciro.folders.list(), path: /\/api\/folders$/ },
+  {
+    name: "folders.create",
+    run: () => ciciro.folders.create({ name: "Cycle", projectIds: ["p1"] }),
+    method: "POST",
+    path: /\/api\/folders$/,
+    body: { name: "Cycle", projectIds: ["p1"] },
+  },
+  { name: "folders.get", run: () => ciciro.folders.get("f1"), path: /\/api\/folders\/f1$/ },
+  {
+    name: "folders.patch",
+    run: () => ciciro.folders.patch("f1", { name: "Archive" }),
+    method: "PATCH",
+    path: /\/api\/folders\/f1$/,
+    body: { name: "Archive" },
+  },
+  { name: "folders.delete", run: () => ciciro.folders.delete("f1"), method: "DELETE", path: /\/api\/folders\/f1$/ },
+  {
+    name: "folders.addProjects",
+    run: () => ciciro.folders.addProjects("f1", { projectIds: ["p1", "p2"] }),
+    method: "POST",
+    path: /\/api\/folders\/f1\/projects$/,
+    body: { projectIds: ["p1", "p2"] },
+  },
+  {
+    name: "folders.removeProjects",
+    run: () => ciciro.folders.removeProjects("f1", { projectIds: ["p1"] }),
+    method: "DELETE",
+    path: /\/api\/folders\/f1\/projects$/,
+    body: { projectIds: ["p1"] },
+  },
+  { name: "chapters.list", run: () => ciciro.chapters.list("p1"), path: /\/api\/chapters\?projectId=p1$/ },
+  {
+    name: "chapters.create",
+    run: () => ciciro.chapters.create({ projectId: "p1", title: "Chapter 2" }),
+    method: "POST",
+    path: /\/api\/chapters$/,
+    body: { projectId: "p1", title: "Chapter 2" },
+  },
+  {
+    name: "chapters.patch",
+    run: () => ciciro.chapters.patch("c1", { expectedRevision: 1, title: "Chapter 1" }),
+    method: "PATCH",
+    path: /\/api\/chapters\/c1$/,
+    body: { expectedRevision: 1, title: "Chapter 1" },
+  },
+  { name: "chapters.delete", run: () => ciciro.chapters.delete("c1"), method: "DELETE", path: /\/api\/chapters\/c1$/ },
+  { name: "chapters.edits", run: () => ciciro.chapters.edits("c1"), path: /\/api\/chapters\/c1\/edits$/ },
+  { name: "characters.list", run: () => ciciro.characters.list("p1"), path: /\/api\/characters\?projectId=p1$/ },
+  {
+    name: "characters.create",
+    run: () => ciciro.characters.create({ projectId: "p1", name: "Ada" }),
+    method: "POST",
+    path: /\/api\/characters$/,
+    body: { projectId: "p1", name: "Ada" },
+  },
+  {
+    name: "characters.patch",
+    run: () => ciciro.characters.patch("ch1", { role: "protagonist" }),
+    method: "PATCH",
+    path: /\/api\/characters\/ch1$/,
+    body: { role: "protagonist" },
+  },
+  {
+    name: "characters.delete",
+    run: () => ciciro.characters.delete("ch1"),
+    method: "DELETE",
+    path: /\/api\/characters\/ch1$/,
+  },
+  { name: "plotPoints.list", run: () => ciciro.plotPoints.list("p1"), path: /\/api\/plotpoints\?projectId=p1$/ },
+  {
+    name: "plotPoints.create",
+    run: () => ciciro.plotPoints.create({ projectId: "p1", title: "The turn" }),
+    method: "POST",
+    path: /\/api\/plotpoints$/,
+    body: { projectId: "p1", title: "The turn" },
+  },
+  {
+    name: "plotPoints.patch",
+    run: () => ciciro.plotPoints.patch("pp1", { status: "resolved", chapterId: null }),
+    method: "PATCH",
+    path: /\/api\/plotpoints\/pp1$/,
+    body: { status: "resolved", chapterId: null },
+  },
+  {
+    name: "plotPoints.delete",
+    run: () => ciciro.plotPoints.delete("pp1"),
+    method: "DELETE",
+    path: /\/api\/plotpoints\/pp1$/,
+  },
+  {
+    name: "questions.list",
+    run: () => ciciro.questions.list("p1", "open"),
+    path: /\/api\/questions\?projectId=p1&status=open$/,
+  },
+  {
+    name: "questions.create",
+    run: () => ciciro.questions.create({ projectId: "p1", question: "Who is the killer?" }),
+    method: "POST",
+    path: /\/api\/questions$/,
+    body: { projectId: "p1", question: "Who is the killer?" },
+  },
+  {
+    name: "questions.patch",
+    run: () => ciciro.questions.patch("q1", { status: "resolved" }),
+    method: "PATCH",
+    path: /\/api\/questions\/q1$/,
+    body: { status: "resolved" },
+  },
+  { name: "questions.delete", run: () => ciciro.questions.delete("q1"), method: "DELETE", path: /\/api\/questions\/q1$/ },
+  { name: "bible.list", run: () => ciciro.bible.list("p1"), path: /\/api\/bible\?projectId=p1$/ },
+  {
+    name: "bible.read",
+    run: () => ciciro.bible.read("p1", "characters/ada.md"),
+    path: /\/api\/bible\?projectId=p1&path=characters%2Fada\.md$/,
+  },
+  {
+    name: "bible.write",
+    run: () => ciciro.bible.write({ projectId: "p1", path: "canon.md", content: "# Canon" }),
+    method: "POST",
+    path: /\/api\/bible$/,
+    body: { projectId: "p1", path: "canon.md", content: "# Canon" },
+  },
+  {
+    name: "bible.createCharacter",
+    run: () => ciciro.bible.createCharacter({ projectId: "p1", newCharacter: "Ada" }),
+    method: "POST",
+    path: /\/api\/bible$/,
+    body: { projectId: "p1", newCharacter: "Ada" },
+  },
+  { name: "chat.get", run: () => ciciro.chat.get("p1"), path: /\/api\/chat\?projectId=p1$/ },
+  {
+    name: "chat.clear",
+    run: () => ciciro.chat.clear("p1"),
+    method: "DELETE",
+    path: /\/api\/chat\?projectId=p1$/,
+  },
+  {
+    name: "chat.compact",
+    run: () => ciciro.chat.compact("p1"),
+    method: "POST",
+    path: /\/api\/chat$/,
+    body: { projectId: "p1", compactOnly: true },
+  },
+  {
+    name: "chat.insertions.list",
+    run: () => ciciro.chat.insertions.list("p1"),
+    path: /\/api\/chat\/insertions\?projectId=p1$/,
+  },
+  {
+    name: "chat.insertions.record",
+    run: () =>
+      ciciro.chat.insertions.record({
+        projectId: "p1",
+        turnId: "t1",
+        segmentIndex: 0,
+        chapterId: "c1",
+      }),
+    method: "POST",
+    path: /\/api\/chat\/insertions$/,
+    body: { projectId: "p1", turnId: "t1", segmentIndex: 0, chapterId: "c1" },
+  },
+];
+
+describe("ciciro resource catalog", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it.each(RESOURCES)("$name hits $path", async ({ run, path, method, body }) => {
+    mockFetch(async () => jsonResponse({ ok: true }));
+    await run();
+    const call = lastFetchCall();
+    expect(call.url).toMatch(path);
+    if (method) expect(call.init.method).toBe(method);
+    if (body !== undefined) expect(parsedBody(call.init)).toEqual(body);
+  });
+
+  it("encodes ids in path segments", async () => {
+    mockFetch(async () => jsonResponse({}));
+    await ciciro.projects.get("p/1");
+    expect(lastFetchCall().url).toMatch(/\/api\/projects\/p%2F1$/);
+  });
+
+  it("omits empty optional query params", async () => {
+    mockFetch(async () => jsonResponse([]));
+    await ciciro.questions.list("p1");
+    expect(lastFetchCall().url).toMatch(/\/api\/questions\?projectId=p1$/);
+    expect(lastFetchCall().url).not.toContain("status=");
+  });
+
+  it("streams chat NDJSON and skips pings", async () => {
+    mockFetch(async () =>
+      ndjsonResponse([
+        '{"type":"ping"}',
+        '{"type":"turn","id":"t1","runId":"r1"}',
+        '{"type":"text","v":"Hello"}',
+        '{"type":"done","status":"completed","runId":"r1"}',
+      ])
+    );
+    const events: unknown[] = [];
+    await ciciro.chat.start({ projectId: "p1", message: "Hi" }, (event) => events.push(event));
+    expect(parsedBody(lastFetchCall().init)).toEqual({ projectId: "p1", message: "Hi" });
+    expect(lastFetchCall().url).toMatch(/\/api\/chat$/);
+    expect(events).toEqual([
+      { type: "turn", id: "t1", runId: "r1" },
+      { type: "text", v: "Hello" },
+      { type: "done", status: "completed", runId: "r1" },
+    ]);
+  });
+
+  it("streams autowrite NDJSON", async () => {
+    mockFetch(async () =>
+      ndjsonResponse(['{"type":"phase","v":"planning"}', '{"type":"done","beats":1,"words":12}'])
+    );
+    const events: unknown[] = [];
+    await ciciro.autowrite.start(
+      { projectId: "p1", chapterId: "c1", targetWords: 600 },
+      (event) => events.push(event)
+    );
+    expect(lastFetchCall().url).toMatch(/\/api\/autowrite$/);
+    expect(parsedBody(lastFetchCall().init)).toEqual({
+      projectId: "p1",
+      chapterId: "c1",
+      targetWords: 600,
+    });
+    expect(events).toEqual([
+      { type: "phase", v: "planning" },
+      { type: "done", beats: 1, words: 12 },
+    ]);
+  });
+
+  it("downloads a manuscript export", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    mockFetch(async () =>
+      new Response(bytes, {
+        headers: {
+          "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "content-disposition": 'attachment; filename="book.docx"',
+        },
+      })
+    );
+    const file = await ciciro.export.download("p1");
+    expect(lastFetchCall().url).toMatch(/\/api\/export\/p1$/);
+    expect(file.filename).toBe("book.docx");
+    expect(new Uint8Array(file.bytes)).toEqual(bytes);
+  });
+});

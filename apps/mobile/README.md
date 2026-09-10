@@ -23,4 +23,7 @@ Installed against Expo SDK 57 for native feel, transitions, and a local replica:
 - **Motion / drawing:** Reanimated + Worklets, Gesture Handler, Skia, Keyboard Controller
 - **Lists / sheets / chrome:** FlashList, bottom sheets, Masked View, SVG, Blur, Glass, Haptics, Image, Linear Gradient, Symbols
 - **Editor:** `react-native-enriched-html` (native text, not a WebView)
-- **Local data:** op-sqlite (FTS5 replica in `lib/db.ts`), MMKV prefs in `lib/prefs.ts`, SecureStore for session tokens, Legend-State for chrome, NetInfo for connectivity
+- **Local data:** op-sqlite with FTS5 + performance mode (`lib/db.ts`)
+- **HTTP:** TanStack Query + a typed client in `lib/api/` for the hosted JSON/NDJSON API
+- MMKV for prefs (`lib/prefs.ts`); session tokens stay in SecureStore
+- Legend-State for chrome; NetInfo for connectivity

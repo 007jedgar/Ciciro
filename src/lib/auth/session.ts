@@ -153,6 +153,24 @@ export async function authorizeProjectId(
 }
 
 /**
+ * Authorize access to a folder. Same local-first / owner rules as projects.
+ */
+export async function authorizeFolderId(
+  folderId: string,
+  user: PublicUser | null
+): Promise<void> {
+  if (!user) return;
+  const folder = await prisma.folder.findUnique({
+    where: { id: folderId },
+    select: { userId: true },
+  });
+  if (!folder) throw new AuthError("Not found.", 404);
+  if (folder.userId && folder.userId !== user.id) {
+    throw new AuthError("You do not have access to this folder.", 403);
+  }
+}
+
+/**
  * Authorize access to a project using the current session cookie.
  */
 export async function authorizeProject(projectId: string): Promise<void> {

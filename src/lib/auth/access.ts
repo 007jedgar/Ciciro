@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import {
   AuthError,
+  authorizeFolderId,
   authorizeProjectId,
   getSessionUser,
   type PublicUser,
@@ -67,4 +68,17 @@ export async function authorizeOwnedQuestion(
   if (!question) throw new AuthError("Not found.", 404);
   await authorizeProjectId(question.projectId, await resolvedUser(user));
   return question;
+}
+
+export async function authorizeOwnedFolder(
+  folderId: string,
+  user?: PublicUser | null
+): Promise<{ id: string }> {
+  const folder = await prisma.folder.findUnique({
+    where: { id: folderId },
+    select: { id: true },
+  });
+  if (!folder) throw new AuthError("Not found.", 404);
+  await authorizeFolderId(folderId, await resolvedUser(user));
+  return folder;
 }
