@@ -32,6 +32,7 @@ import {
   otherMode,
   resolveNameRowHeight,
 } from "../lib/auth-form";
+import { useAuthFormStore } from "../lib/auth-form-store";
 import { useAppTheme } from "../lib/settings";
 import { restoreHref } from "../lib/last-place";
 import { useSession } from "../lib/session";
@@ -77,9 +78,8 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
 
   // --- auth form state -------------------------------------------------------
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { name, email, password, errors, setName, setEmail, setPassword, validate } =
+    useAuthFormStore();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nameH, setNameH] = useState(NAME_ROW_FALLBACK);
@@ -88,6 +88,10 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
 
   async function submit() {
     setError(null);
+    if (!validate(mode)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
     setBusy(true);
     try {
       if (isSignup) {
@@ -161,6 +165,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
   const toggleMode = () => {
     const next = otherMode(mode);
     setError(null);
+    useAuthFormStore.setState({ errors: {} });
     setMode(next);
     Haptics.selectionAsync().catch(() => {});
     const target = modeProgress(next);
@@ -221,6 +226,20 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
     height: modeV.value * nameH,
     opacity: modeV.value,
   }));
+
+  // --- submit button squish ---------------------------------------------------
+  const submitScale = useSharedValue(1);
+  const submitScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: submitScale.value }, { scaleY: 2 - submitScale.value }],
+  }));
+  const pressSubmitIn = () => {
+    if (reduceMotion) return;
+    submitScale.value = withTiming(0.93, { duration: 90, easing: Easing.out(Easing.quad) });
+  };
+  const pressSubmitOut = () => {
+    if (reduceMotion) return;
+    submitScale.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.back(2)) });
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -320,6 +339,11 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 value={email}
                 onChangeText={setEmail}
               />
+              {errors.email ? (
+                <Text style={[layout.error, styles.fieldError]} role="alert">
+                  {errors.email}
+                </Text>
+              ) : null}
               <TextInput
                 style={layout.input}
                 aria-label="Password"
@@ -330,22 +354,35 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 value={password}
                 onChangeText={setPassword}
               />
+              {errors.password ? (
+                <Text style={[layout.error, styles.fieldError]} role="alert">
+                  {errors.password}
+                </Text>
+              ) : null}
               {error ? (
                 <Text style={layout.error} role="alert">
                   {error}
                 </Text>
               ) : null}
 
-              <Pressable style={layout.primaryBtn} onPress={submit} disabled={busy}>
-                <View style={styles.btnLabel}>
-                  <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinTextStyle]}>
-                    {busy ? "Working..." : "Sign in"}
-                  </Animated.Text>
-                  <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupTextStyle]}>
-                    {busy ? "Working..." : "Create account"}
-                  </Animated.Text>
-                </View>
-              </Pressable>
+              <Animated.View style={submitScaleStyle}>
+                <Pressable
+                  style={layout.primaryBtn}
+                  onPress={submit}
+                  onPressIn={pressSubmitIn}
+                  onPressOut={pressSubmitOut}
+                  disabled={busy}
+                >
+                  <View style={styles.btnLabel}>
+                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinTextStyle]}>
+                      {busy ? "Inking…" : "Sign in"}
+                    </Animated.Text>
+                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupTextStyle]}>
+                      {busy ? "Inking…" : "Create account"}
+                    </Animated.Text>
+                  </View>
+                </Pressable>
+              </Animated.View>
 
               <Pressable
                 onPress={toggleMode}
@@ -425,6 +462,7 @@ const styles = StyleSheet.create({
   },
   content: { padding: 24 },
   nameField: { overflow: "hidden" },
+  fieldError: { marginTop: 4, marginBottom: 4, fontSize: 13 },
   nameMeasure: { position: "absolute", left: 0, right: 0, top: 0 },
   btnLabel: { height: 20, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   footer: { marginTop: 16, alignSelf: "stretch" },

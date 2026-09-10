@@ -1,5 +1,5 @@
 import { api, apiBlob, apiStream, ApiError, isApiError } from "../lib/api";
-import { getSessionToken, setSessionToken } from "../lib/session-store";
+import { getSessionToken, resetSessionMemory, setSessionToken } from "../lib/session-store";
 import { jsonResponse, lastFetchCall, mockFetch, textResponse } from "./http";
 
 describe("api client", () => {
@@ -33,6 +33,18 @@ describe("api client", () => {
     const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(headers.get("content-type")).toBe("application/json");
     expect(headers.get("cookie")).toBe("ciciro_session=tok-123");
+    expect(headers.get("x-ciciro-client")).toBe("native");
+  });
+
+  it("re-attaches a persisted cookie after in-memory auth is wiped", async () => {
+    const fetchMock = mockFetch(async () => jsonResponse({ ok: true }));
+    setSessionToken("tok-123");
+    resetSessionMemory();
+
+    await api("/api/auth/me");
+
+    const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
+    expect(headers.get("cookie")).toBe("ciciro_session=tok-123");
   });
 
   it("captures a session token from Set-Cookie", async () => {
@@ -49,6 +61,38 @@ describe("api client", () => {
     });
 
     expect(getSessionToken()).toBe("fresh-token");
+  });
+
+  it("captures a session token from the native session header", async () => {
+    mockFetch(async () =>
+      jsonResponse(
+        { user: { id: "u1", email: "ada@example.com", name: "Ada" } },
+        { sessionHeader: "header-token" }
+      )
+    );
+
+    await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "ada@example.com", password: "secret-pw" }),
+    });
+
+    expect(getSessionToken()).toBe("header-token");
+  });
+
+  it("captures a session token from the login JSON body", async () => {
+    mockFetch(async () =>
+      jsonResponse({
+        user: { id: "u1", email: "ada@example.com", name: "Ada" },
+        token: "json-token",
+      })
+    );
+
+    await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "ada@example.com", password: "secret-pw" }),
+    });
+
+    expect(getSessionToken()).toBe("json-token");
   });
 
   it("throws ApiError with the server message and body", async () => {

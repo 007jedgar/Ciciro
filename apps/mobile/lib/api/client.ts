@@ -1,4 +1,11 @@
-import { getSessionToken, setSessionToken } from "../session-store";
+import {
+  ensureSessionToken,
+  NATIVE_CLIENT_HEADER,
+  NATIVE_CLIENT_VALUE,
+  SESSION_COOKIE_NAME,
+  SESSION_HEADER,
+  setSessionToken,
+} from "../session-store";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(
   /\/$/,
@@ -26,8 +33,16 @@ function readSetCookie(res: Response): string {
 }
 
 function captureSession(res: Response): void {
-  const match = readSetCookie(res).match(/ciciro_session=([^;,\s]+)/);
+  const headerToken = res.headers.get(SESSION_HEADER);
+  if (headerToken) setSessionToken(headerToken);
+  const match = readSetCookie(res).match(new RegExp(`${SESSION_COOKIE_NAME}=([^;,\\s]+)`));
   if (match?.[1]) setSessionToken(match[1]);
+}
+
+function captureTokenFromBody(data: unknown): void {
+  if (!data || typeof data !== "object" || !("token" in data)) return;
+  const token = (data as { token?: unknown }).token;
+  if (typeof token === "string" && token) setSessionToken(token);
 }
 
 function errorMessage(data: unknown, status: number): string {
@@ -52,18 +67,22 @@ async function readJson(res: Response): Promise<unknown> {
  * Fetch helper for the hosted Ciciro API.
  *
  * Hosted auth is an httpOnly `ciciro_session` cookie. Browsers send that with
- * `credentials: "include"`. React Native often will not, so we also persist
- * the token from Set-Cookie and send a Cookie header. Cookie jars on some
- * devices still need a follow-up; this is the contract for this slice.
+ * `credentials: "include"`. React Native fetch typically hides Set-Cookie and
+ * drops in-memory cookie jars on Metro reload, so native clients identify
+ * themselves, persist the token from a readable header/JSON field, and send it
+ * back as a Cookie header.
  */
 export async function request(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("content-type") && typeof init.body === "string") {
     headers.set("content-type", "application/json");
   }
-  const token = getSessionToken();
+  if (!headers.has(NATIVE_CLIENT_HEADER)) {
+    headers.set(NATIVE_CLIENT_HEADER, NATIVE_CLIENT_VALUE);
+  }
+  const token = await ensureSessionToken();
   if (token && !headers.has("cookie")) {
-    headers.set("cookie", `ciciro_session=${token}`);
+    headers.set("cookie", `${SESSION_COOKIE_NAME}=${token}`);
   }
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -81,6 +100,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!res.ok) {
     throw new ApiError(errorMessage(data, res.status), res.status, data);
   }
+  captureTokenFromBody(data);
   return data as T;
 }
 

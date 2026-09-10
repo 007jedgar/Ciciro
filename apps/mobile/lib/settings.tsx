@@ -95,6 +95,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 editorFont: next.editorFont,
                 editorFontSize: next.editorFontSize,
                 autoCorrect: next.autoCorrect,
+                reduceMotion: next.reduceMotion,
                 chatWidth: next.chatWidth,
               });
         void syncRequest.catch(() => {});

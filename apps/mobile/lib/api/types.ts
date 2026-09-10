@@ -180,11 +180,13 @@ export type HealthStatus = {
 export type AuthMeResponse = {
   user: PublicUser | null;
   settings: AppSettings | null;
+  token?: string;
 };
 
 export type AuthSessionResponse = {
   user: PublicUser;
   settings: AppSettings;
+  token?: string;
 };
 
 export type LoginRequest = {

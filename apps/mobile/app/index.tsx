@@ -1,9 +1,35 @@
-import { ActivityIndicator, View } from "react-native";
+import { useEffect } from "react";
+import { View } from "react-native";
 import { Redirect, useRouter, type Href } from "expo-router";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { LivingPage } from "../components/LivingPage";
 import { restoreHref } from "../lib/last-place";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
+
+function BlinkingCursor({ color }: { color: string }) {
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(0, { duration: 530 }), -1, true);
+  }, [opacity]);
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[
+        { width: 3, height: 28, borderRadius: 1.5, backgroundColor: color },
+        style,
+      ]}
+    />
+  );
+}
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -13,7 +39,7 @@ export default function WelcomeScreen() {
   if (!ready) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
-        <ActivityIndicator color={colors.accent} />
+        <BlinkingCursor color={colors.accent} />
       </View>
     );
   }

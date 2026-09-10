@@ -18,12 +18,14 @@ describe("app settings", () => {
       editorFont: "sans",
       editorFontSize: 20.4,
       autoCorrect: false,
+      reduceMotion: true,
       chatWidth: 9999,
     });
     expect(s.theme).toBe("ember");
     expect(s.editorFont).toBe("sans");
     expect(s.editorFontSize).toBe(21);
     expect(s.autoCorrect).toBe(false);
+    expect(s.reduceMotion).toBe(true);
     expect(s.chatWidth).toBe(720);
     expect(nearestFontSize(14)).toBe(15);
     expect(clampChatWidth(100)).toBe(280);
@@ -46,6 +48,9 @@ describe("app settings", () => {
     expect(parseSettingsPatch({ theme: "neon" })).toEqual({ error: "Unknown theme." });
     expect(parseSettingsPatch({ autoCorrect: "yes" })).toEqual({
       error: "autoCorrect must be a boolean.",
+    });
+    expect(parseSettingsPatch({ reduceMotion: "yes" })).toEqual({
+      error: "reduceMotion must be a boolean.",
     });
     expect(parseSettingsPatch({ theme: "sage" })).toEqual({ theme: "sage" });
   });
