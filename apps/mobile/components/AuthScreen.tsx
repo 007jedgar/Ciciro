@@ -251,17 +251,6 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
         </Animated.View>
       </View>
 
-      {/* persistent brand mark, resting under the header */}
-      <Animated.View
-        style={[
-          styles.brandUnderHeader,
-          { top: insets.top + HEADER_H + 6, left: insets.left + 16 },
-          brandStyle,
-        ]}
-      >
-        <BrandDots size={40} color={colors.accent} />
-      </Animated.View>
-
       <KeyboardAwareScrollView
         style={styles.kav}
         contentContainerStyle={styles.kavContent}
@@ -375,6 +364,17 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
           </Animated.View>
         </View>
       </KeyboardAwareScrollView>
+
+      {/* persistent brand mark, above the scroll so taps reach it */}
+      <Animated.View
+        style={[
+          styles.brandUnderHeader,
+          { top: insets.top + HEADER_H + 6, left: insets.left + 16 },
+          brandStyle,
+        ]}
+      >
+        <BrandDots size={40} color={colors.accent} />
+      </Animated.View>
 
       {/* crisp brand mark at the corner, only during the first beat */}
       <Animated.View

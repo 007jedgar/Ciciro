@@ -100,18 +100,19 @@ export function BrandDots({
   const unit = size / VB;
   const r = R * unit;
   const diameter = r * 2;
-  const jump = Math.max(10, size * 0.42);
+  const jump = Math.max(12, size * 0.7);
   const ys = [y0, y1, y2];
   const scales = [s0, s1, s2];
 
   const play = () => {
+    console.log("brand-dots-hop");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (reduceMotion) return;
     ys.forEach((y, i) => hop(y, scales[i]!, i * STAGGER_MS, jump));
   };
 
   const mark = (
-    <View style={{ width: size, height: size }} pointerEvents="none">
+    <View style={{ width: size, height: size, overflow: "visible" }} pointerEvents="none">
       {CX.map((cx, i) => (
         <Dot
           key={cx}
@@ -128,7 +129,7 @@ export function BrandDots({
 
   if (!interactive) return mark;
 
-  const hit = Math.max(44, size);
+  const hit = Math.max(48, size);
   return (
     <Pressable
       onPress={play}
