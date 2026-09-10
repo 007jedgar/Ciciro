@@ -26,11 +26,14 @@ import Animated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
+import { LanguagePicker } from "./LanguagePicker";
+import { asStringList, asStringMatrix } from "../lib/i18n";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
-import { LEDES, PASSAGES } from "../lib/living-page/scenes";
 
 const FONT_SIZE = 24;
 const LINE_H = 44;
@@ -269,16 +272,18 @@ function TypedLede({
   caretColor,
   active,
   reduceMotion,
+  ledes,
 }: {
   color: string;
   caretColor: string;
   active: boolean;
   reduceMotion: boolean;
+  ledes: string[];
 }) {
   const [index, setIndex] = useState(0);
   const clock = useSharedValue(0);
 
-  const text = LEDES[index];
+  const text = ledes[index] ?? "";
   const win = useMemo(
     () => ({ start: LEDE_LEAD, end: LEDE_LEAD + text.length * LEDE_MS_PER_CHAR }),
     [text]
@@ -286,7 +291,7 @@ function TypedLede({
   const total = win.end + LEDE_HOLD + LEDE_FADE;
 
   useEffect(() => {
-    if (!active) {
+    if (!active || ledes.length === 0) {
       clock.value = 0;
       return;
     }
@@ -300,12 +305,12 @@ function TypedLede({
       { duration: total, easing: Easing.linear },
       (finished) => {
         if (finished) {
-          runOnJS(setIndex)((index + 1) % LEDES.length);
+          runOnJS(setIndex)((index + 1) % ledes.length);
         }
       }
     );
     return () => cancelAnimation(clock);
-  }, [index, active, reduceMotion]);
+  }, [index, active, reduceMotion, ledes.length]);
 
   const fadeStyle = useAnimatedStyle(() => ({
     opacity: 1 - seg(clock.value, win.end + LEDE_HOLD, total),
@@ -345,8 +350,12 @@ export function LivingPage({
   onSignIn: () => void;
 }) {
   const { height: H } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { colors, dark } = useAppTheme();
   const reduceMotion = useReducedMotion();
+  const { t, i18n } = useTranslation();
+  const passages = asStringMatrix(t("livingPage.passages", { returnObjects: true }));
+  const ledes = asStringList(t("livingPage.ledes", { returnObjects: true }));
 
   // --- the writing: while one passage fades, the next is already arriving ----
   const [blocks, setBlocks] = useState<BlockInstance[]>([
@@ -354,6 +363,8 @@ export function LivingPage({
   ]);
   const nextKey = useRef(1);
   const nextPassage = useRef(1);
+  const passageCount = useRef(Math.max(passages.length, 1));
+  passageCount.current = Math.max(passages.length, 1);
   const slotTops = [H * 0.24, H * 0.5];
 
   const handleTyped = useCallback((key: number) => {
@@ -362,7 +373,7 @@ export function LivingPage({
       if (!done || done.fading) return current;
       const spawned: BlockInstance = {
         key: nextKey.current++,
-        passageIndex: nextPassage.current++ % PASSAGES.length,
+        passageIndex: nextPassage.current++ % passageCount.current,
         slot: done.slot === 0 ? 1 : 0,
         fading: false,
       };
@@ -456,12 +467,12 @@ export function LivingPage({
           accessibilityElementsHidden
         >
           <View style={[styles.brandRow, { top: H * 0.1 }]}>
-            <Text style={[styles.wordmark, { color: colors.ink }]}>Ciciro</Text>
+            <Text style={[styles.wordmark, { color: colors.ink }]}>{t("common.ciciro")}</Text>
           </View>
           {blocks.map((block) => (
             <PassageBlock
-              key={block.key}
-              lines={PASSAGES[block.passageIndex]}
+              key={`${block.key}-${i18n.language}`}
+              lines={passages[block.passageIndex] ?? []}
               top={slotTops[block.slot]}
               fading={block.fading}
               onTyped={() => handleTyped(block.key)}
@@ -475,13 +486,13 @@ export function LivingPage({
 
         {/* the invitation to begin */}
         <Animated.View
-          style={[styles.hint, { bottom: H * 0.08 }, hintStyle]}
+          style={[styles.hint, { bottom: Math.max(H * 0.08, insets.bottom + 52) }, hintStyle]}
           pointerEvents={peeled ? "none" : "auto"}
         >
           <Pressable
             onPress={beginByTap}
             accessibilityRole="button"
-            accessibilityLabel="Begin - create your account or sign in"
+            accessibilityLabel={t("livingPage.beginA11y")}
             hitSlop={20}
             style={styles.hintPress}
           >
@@ -496,7 +507,7 @@ export function LivingPage({
               />
             </Svg>
             <Text style={[styles.hintText, { color: colors.inkSoft }]}>
-              Swipe up to begin
+              {t("livingPage.swipeUp")}
             </Text>
           </Pressable>
         </Animated.View>
@@ -511,12 +522,14 @@ export function LivingPage({
           accessibilityElementsHidden={!peeled}
           importantForAccessibility={peeled ? "auto" : "no-hide-descendants"}
         >
-          <Text style={[styles.authMark, { color: colors.ink }]}>Ciciro</Text>
+          <Text style={[styles.authMark, { color: colors.ink }]}>{t("common.ciciro")}</Text>
           <TypedLede
+            key={i18n.language}
             color={colors.inkSoft}
             caretColor={colors.accent}
             active={peeled}
             reduceMotion={reduceMotion}
+            ledes={ledes}
           />
           <Animated.View
             style={[styles.primaryGlow, { shadowColor: colors.accent }, glowStyle]}
@@ -530,16 +543,23 @@ export function LivingPage({
               ]}
             >
               <Text style={[styles.primaryText, { color: colors.panel }]}>
-                Create your account
+                {t("livingPage.createAccount")}
               </Text>
             </Pressable>
           </Animated.View>
           <Pressable onPress={onSignIn} accessibilityRole="button" style={styles.ghost}>
             <Text style={[styles.ghostText, { color: colors.accent }]}>
-              I already have an account
+              {t("livingPage.alreadyHaveAccount")}
             </Text>
           </Pressable>
         </Animated.View>
+
+        <View
+          style={[styles.langs, { bottom: insets.bottom + 10 }]}
+          pointerEvents="box-none"
+        >
+          <LanguagePicker variant="inline" />
+        </View>
       </View>
     </GestureDetector>
   );
@@ -575,6 +595,7 @@ const styles = StyleSheet.create({
   hint: { position: "absolute", left: 0, right: 0, alignItems: "center" },
   hintPress: { alignItems: "center", paddingVertical: 8 },
   hintText: { fontSize: 13, marginTop: 6, letterSpacing: 0.4 },
+  langs: { position: "absolute", left: 16, right: 16, zIndex: 20 },
   auth: {
     position: "absolute",
     top: 0,

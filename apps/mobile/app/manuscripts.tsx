@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader } from "../components/AppHeader";
 import { useAppTheme } from "../lib/settings";
@@ -20,6 +21,7 @@ function queryErrorMessage(error: unknown, fallback: string): string | null {
 
 export default function ManuscriptsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -29,8 +31,8 @@ export default function ManuscriptsScreen() {
   const projects = projectsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
   const error =
-    queryErrorMessage(projectsQuery.error, "Could not load manuscripts.") ??
-    queryErrorMessage(foldersQuery.error, "Could not load folders.");
+    queryErrorMessage(projectsQuery.error, t("manuscripts.loadError")) ??
+    queryErrorMessage(foldersQuery.error, t("manuscripts.foldersLoadError"));
 
   const rows = useMemo<Row[]>(() => {
     const items: Row[] = folders.map((folder) => ({
@@ -41,13 +43,13 @@ export default function ManuscriptsScreen() {
     const unfiled = projects.filter((project) => !project.folderId);
     const listed = folders.length > 0 ? unfiled : projects;
     if (folders.length > 0 && listed.length > 0) {
-      items.push({ key: "heading-unfiled", kind: "heading", title: "Unfiled" });
+      items.push({ key: "heading-unfiled", kind: "heading", title: t("manuscripts.unfiled") });
     }
     for (const project of listed) {
       items.push({ key: `project-${project.id}`, kind: "project", project });
     }
     return items;
-  }, [folders, projects]);
+  }, [folders, projects, t]);
 
   if (!ready) {
     return (
@@ -66,7 +68,7 @@ export default function ManuscriptsScreen() {
   return (
     <View style={[layout.screen, { paddingBottom: 0 }]}>
       <AppHeader
-        title="Manuscripts"
+        title={t("manuscripts.title")}
         onSettings={() => router.push("/settings")}
         onNew={() => router.push("/new-manuscript")}
       />
@@ -103,23 +105,23 @@ export default function ManuscriptsScreen() {
                 style={[layout.primaryBtn, { marginBottom: 8 }]}
                 onPress={() => router.push("/new-manuscript")}
                 accessibilityRole="button"
-                accessibilityLabel="Start a new manuscript"
+                accessibilityLabel={t("manuscripts.startNew")}
               >
-                <Text style={layout.primaryBtnText}>Start a new manuscript</Text>
+                <Text style={layout.primaryBtnText}>{t("manuscripts.startNew")}</Text>
               </Pressable>
               <Pressable
                 style={[layout.ghostBtn, { marginBottom: 12 }]}
                 onPress={() => router.push("/new-folder")}
                 accessibilityRole="button"
-                accessibilityLabel="New folder"
+                accessibilityLabel={t("manuscripts.newFolder")}
               >
-                <Text style={layout.ghostBtnText}>New folder</Text>
+                <Text style={layout.ghostBtnText}>{t("manuscripts.newFolder")}</Text>
               </Pressable>
             </View>
           }
           ListEmptyComponent={
             <Text style={[layout.body, { marginTop: 8 }]}>
-              No manuscripts yet. Create one here - you do not need the web app for that.
+              {t("manuscripts.empty")}
             </Text>
           }
           renderItem={({ item }) => {
@@ -135,11 +137,11 @@ export default function ManuscriptsScreen() {
                   style={layout.card}
                   onPress={() => router.push(`/folder/${item.folder.id}`)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${item.folder.name} folder`}
+                  accessibilityLabel={t("manuscripts.folderA11y", { name: item.folder.name })}
                 >
                   <Text style={layout.cardTitle}>{item.folder.name}</Text>
                   <Text style={layout.cardMeta}>
-                    {count} manuscript{count === 1 ? "" : "s"}
+                    {t("manuscripts.count", { count })}
                   </Text>
                   {item.folder.notes ? (
                     <Text style={layout.cardMeta} numberOfLines={2}>
@@ -154,14 +156,16 @@ export default function ManuscriptsScreen() {
                 style={layout.card}
                 onPress={() => router.push(`/project/${item.project.id}/chapters`)}
               >
-                <Text style={layout.cardTitle}>{item.project.title || "Untitled Manuscript"}</Text>
+                <Text style={layout.cardTitle}>{item.project.title || t("manuscripts.untitled")}</Text>
                 <Text style={layout.cardMeta}>
                   {[
                     item.project.genre,
-                    item.project._count ? `${item.project._count.chapters} chapters` : null,
+                    item.project._count
+                      ? t("manuscripts.chapterCount", { count: item.project._count.chapters })
+                      : null,
                   ]
                     .filter(Boolean)
-                    .join(" · ") || "Manuscript"}
+                    .join(" · ") || t("manuscripts.fallbackKind")}
                 </Text>
                 {item.project.logline ? (
                   <Text style={layout.cardMeta}>{item.project.logline}</Text>

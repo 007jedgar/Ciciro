@@ -32,9 +32,15 @@ export function resolveNameRowHeight(measured: number, fallback: number): number
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const MIN_PASSWORD_LENGTH = 8;
 
+export type AuthFieldErrorKey =
+  | "emailRequired"
+  | "emailInvalid"
+  | "passwordRequired"
+  | "passwordShort";
+
 export type AuthFieldErrors = {
-  email?: string;
-  password?: string;
+  email?: AuthFieldErrorKey;
+  password?: AuthFieldErrorKey;
 };
 
 /** Validate the email/password pair for the given mode. Name is always optional. */
@@ -45,15 +51,15 @@ export function validateAuthFields(
   const errors: AuthFieldErrors = {};
   const email = fields.email.trim();
   if (!email) {
-    errors.email = "Enter your email.";
+    errors.email = "emailRequired";
   } else if (!EMAIL_RE.test(email)) {
-    errors.email = "Enter a valid email.";
+    errors.email = "emailInvalid";
   }
 
   if (!fields.password) {
-    errors.password = "Enter your password.";
+    errors.password = "passwordRequired";
   } else if (mode === "signup" && fields.password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+    errors.password = "passwordShort";
   }
 
   return errors;

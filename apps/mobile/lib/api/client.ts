@@ -6,6 +6,7 @@ import {
   SESSION_HEADER,
   setSessionToken,
 } from "../session-store";
+import i18n from "../i18n";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(
   /\/$/,
@@ -50,7 +51,7 @@ function errorMessage(data: unknown, status: number): string {
     const value = (data as { error?: unknown }).error;
     if (typeof value === "string" && value.trim()) return value;
   }
-  return `Request failed (${status})`;
+  return i18n.t("errors.requestFailed", { status });
 }
 
 async function readJson(res: Response): Promise<unknown> {
@@ -114,7 +115,7 @@ export async function apiStream(
     throw new ApiError(errorMessage(data, res.status), res.status, data);
   }
   if (!res.body) {
-    throw new ApiError("Empty stream", res.status);
+    throw new ApiError(i18n.t("errors.emptyStream"), res.status);
   }
   return res.body;
 }
