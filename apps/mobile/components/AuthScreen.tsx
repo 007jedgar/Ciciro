@@ -24,10 +24,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
 import { useRouter, type Href } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 import { BrandDots } from "./BrandDots";
 import { ApiError } from "../lib/api";
 import {
+  type AuthFieldErrorKey,
   type AuthMode,
+  MIN_PASSWORD_LENGTH,
   modeProgress,
   otherMode,
   resolveNameRowHeight,
@@ -41,6 +44,15 @@ import { fonts } from "../lib/theme";
 const ICON = { x: 20, y: 6, size: 46 };
 const HEADER_H = 52;
 const NAME_ROW_FALLBACK = 58;
+
+function authFieldMessage(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  key?: AuthFieldErrorKey
+): string {
+  if (!key) return "";
+  if (key === "passwordShort") return t("auth.passwordShort", { count: MIN_PASSWORD_LENGTH });
+  return t(`auth.${key}`);
+}
 
 export type { AuthMode };
 
@@ -74,6 +86,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
   const insets = useSafeAreaInsets();
   const { colors, dark, layout, settings } = useAppTheme();
   const { login, signup } = useSession();
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
 
   // --- auth form state -------------------------------------------------------
@@ -102,7 +115,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
         router.replace(restoreHref(user.id) as Href);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Network error. Try again.");
+      setError(err instanceof ApiError ? err.message : t("errors.network"));
       setBusy(false);
     }
   }
@@ -249,7 +262,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
           <Pressable
             onPress={goBack}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={t("common.back")}
             hitSlop={16}
             style={styles.backBtn}
           >
@@ -261,13 +274,13 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
             style={[styles.headerTitle, { color: colors.ink }, styles.stackAbs, signinTextStyle]}
             numberOfLines={1}
           >
-            Sign in
+            {t("auth.signIn")}
           </Animated.Text>
           <Animated.Text
             style={[styles.headerTitle, { color: colors.ink }, styles.stackAbs, signupTextStyle]}
             numberOfLines={1}
           >
-            Create account
+            {t("auth.createAccount")}
           </Animated.Text>
         </Animated.View>
       </View>
@@ -313,8 +326,8 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 >
                   <TextInput
                     style={layout.input}
-                    aria-label="Name"
-                    placeholder="Name (optional)"
+                    aria-label={t("auth.name")}
+                    placeholder={t("auth.namePlaceholder")}
                     placeholderTextColor={colors.inkSoft}
                     autoComplete="name"
                     autoCorrect={settings.autoCorrect}
@@ -328,8 +341,8 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
 
               <TextInput
                 style={layout.input}
-                aria-label="Email"
-                placeholder="Email"
+                aria-label={t("auth.email")}
+                placeholder={t("auth.email")}
                 placeholderTextColor={colors.inkSoft}
                 autoCapitalize="none"
                 autoComplete="email"
@@ -341,13 +354,13 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
               />
               {errors.email ? (
                 <Text style={[layout.error, styles.fieldError]} role="alert">
-                  {errors.email}
+                  {authFieldMessage(t, errors.email)}
                 </Text>
               ) : null}
               <TextInput
                 style={layout.input}
-                aria-label="Password"
-                placeholder={isSignup ? "Password (at least 8 characters)" : "Password"}
+                aria-label={t("auth.password")}
+                placeholder={isSignup ? t("auth.passwordSignupPlaceholder") : t("auth.password")}
                 placeholderTextColor={colors.inkSoft}
                 secureTextEntry
                 autoComplete={isSignup ? "new-password" : "password"}
@@ -356,7 +369,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
               />
               {errors.password ? (
                 <Text style={[layout.error, styles.fieldError]} role="alert">
-                  {errors.password}
+                  {authFieldMessage(t, errors.password)}
                 </Text>
               ) : null}
               {error ? (
@@ -375,10 +388,10 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 >
                   <View style={styles.btnLabel}>
                     <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinTextStyle]}>
-                      {busy ? "Inking…" : "Sign in"}
+                      {busy ? t("auth.working") : t("auth.signIn")}
                     </Animated.Text>
                     <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupTextStyle]}>
-                      {busy ? "Inking…" : "Create account"}
+                      {busy ? t("auth.working") : t("auth.createAccount")}
                     </Animated.Text>
                   </View>
                 </Pressable>
@@ -387,15 +400,17 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
               <Pressable
                 onPress={toggleMode}
                 accessibilityRole="button"
-                accessibilityLabel={isSignup ? "Sign in instead" : "Create an account instead"}
+                accessibilityLabel={isSignup ? t("auth.signInInstead") : t("auth.createInstead")}
                 style={({ pressed }) => [styles.footer, { opacity: pressed ? 0.5 : 1 }]}
               >
                 <View style={styles.footerLabel}>
                   <Animated.Text style={[layout.body, styles.stackAbsCentered, signinTextStyle]}>
-                    New here? <Text style={{ color: colors.accent }}>Create an account</Text>
+                    {t("auth.newHere")}{" "}
+                    <Text style={{ color: colors.accent }}>{t("auth.createAnAccount")}</Text>
                   </Animated.Text>
                   <Animated.Text style={[layout.body, styles.stackAbsCentered, signupTextStyle]}>
-                    Already have an account? <Text style={{ color: colors.accent }}>Sign in</Text>
+                    {t("auth.alreadyHaveAccount")}{" "}
+                    <Text style={{ color: colors.accent }}>{t("auth.signIn")}</Text>
                   </Animated.Text>
                 </View>
               </Pressable>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { createFolder } from "../lib/folders";
 import { useOptionalAppTheme } from "../lib/settings";
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function NewFolderForm({ onCreated }: Props) {
+  const { t } = useTranslation();
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
   const colors = themed?.colors ?? parchmentColors;
@@ -23,7 +25,7 @@ export function NewFolderForm({ onCreated }: Props) {
   async function submit() {
     if (busy) return;
     if (!name.trim()) {
-      setError("Name is required.");
+      setError(t("newFolder.nameRequired"));
       return;
     }
     setError(null);
@@ -32,21 +34,18 @@ export function NewFolderForm({ onCreated }: Props) {
       const folder = await createFolder({ name, notes });
       onCreated(folder);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not create folder.");
+      setError(err instanceof ApiError ? err.message : t("newFolder.createError"));
       setBusy(false);
     }
   }
 
   return (
     <View>
-      <Text style={[layout.body, { marginBottom: 16 }]}>
-        Group manuscripts that belong together. Deleting a folder later leaves the books in your
-        library.
-      </Text>
+      <Text style={[layout.body, { marginBottom: 16 }]}>{t("newFolder.blurb")}</Text>
       <TextInput
         style={layout.input}
-        aria-label="Folder name"
-        placeholder="Folder name"
+        aria-label={t("newFolder.nameLabel")}
+        placeholder={t("newFolder.nameLabel")}
         placeholderTextColor={colors.inkSoft}
         value={name}
         onChangeText={setName}
@@ -55,8 +54,8 @@ export function NewFolderForm({ onCreated }: Props) {
       />
       <TextInput
         style={[layout.input, { minHeight: 88, textAlignVertical: "top" }]}
-        aria-label="Notes"
-        placeholder="Notes (optional)"
+        aria-label={t("newFolder.notesLabel")}
+        placeholder={t("newFolder.notesPlaceholder")}
         placeholderTextColor={colors.inkSoft}
         value={notes}
         onChangeText={setNotes}
@@ -74,9 +73,11 @@ export function NewFolderForm({ onCreated }: Props) {
         onPress={() => void submit()}
         disabled={busy}
         accessibilityRole="button"
-        accessibilityLabel="Create folder"
+        accessibilityLabel={t("newFolder.submit")}
       >
-        <Text style={layout.primaryBtnText}>{busy ? "Creating..." : "Create folder"}</Text>
+        <Text style={layout.primaryBtnText}>
+          {busy ? t("newFolder.creating") : t("newFolder.submit")}
+        </Text>
       </Pressable>
     </View>
   );

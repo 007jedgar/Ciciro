@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { ApiError } from "../../../lib/api";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
@@ -16,6 +17,7 @@ export default function ChaptersScreen() {
     setSelectedChapterId,
     addChapter,
   } = useProject();
+  const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function ChaptersScreen() {
     try {
       await addChapter();
     } catch (err) {
-      setAddError(err instanceof ApiError ? err.message : "Could not add chapter.");
+      setAddError(err instanceof ApiError ? err.message : t("chapters.addError"));
     } finally {
       setAdding(false);
     }
@@ -57,9 +59,9 @@ export default function ChaptersScreen() {
         onPress={() => void onAddChapter()}
         disabled={adding}
         accessibilityRole="button"
-        accessibilityLabel="Add chapter"
+        accessibilityLabel={t("chapters.add")}
       >
-        <Text style={layout.primaryBtnText}>{adding ? "Adding..." : "Add chapter"}</Text>
+        <Text style={layout.primaryBtnText}>{adding ? t("chapters.adding") : t("chapters.add")}</Text>
       </Pressable>
       {addError ? (
         <Text style={layout.error} role="alert">
@@ -69,7 +71,7 @@ export default function ChaptersScreen() {
       <FlatList
         data={chapters}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={layout.body}>No chapters yet.</Text>}
+        ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
         renderItem={({ item }) => {
           const selected = item.id === selectedChapterId;
           return (
@@ -87,7 +89,7 @@ export default function ChaptersScreen() {
             >
               <Text style={layout.cardTitle}>{item.title}</Text>
               <Text style={layout.cardMeta}>
-                {item.wordCount} words
+                {t("chapters.wordCount", { count: item.wordCount })}
                 {item.status ? ` · ${item.status}` : ""}
               </Text>
               {item.summary ? <Text style={layout.cardMeta}>{item.summary}</Text> : null}

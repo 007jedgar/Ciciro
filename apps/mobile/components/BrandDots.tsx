@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 /**
  * The Ciciro mark: three dots (an ellipsis) in the app's accent. Vector, so it
@@ -89,6 +90,7 @@ export function BrandDots({
   /** When false, renders the static mark (e.g. a decorative overlay). */
   interactive?: boolean;
 }) {
+  const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   const y0 = useSharedValue(0);
   const y1 = useSharedValue(0);
@@ -133,7 +135,7 @@ export function BrandDots({
     <Pressable
       onPress={play}
       accessibilityRole="image"
-      accessibilityLabel="Ciciro"
+      accessibilityLabel={t("common.ciciro")}
       hitSlop={8}
       style={[styles.hit, { width: hit, height: hit }]}
     >

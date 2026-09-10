@@ -1,6 +1,8 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
+import { LanguagePicker } from "../components/LanguagePicker";
 import { EDITOR_FONT_SIZES } from "../lib/app-settings";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
@@ -8,6 +10,7 @@ import { THEME_META, THEME_PALETTES } from "../lib/theme";
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const sizeIndex = EDITOR_FONT_SIZES.indexOf(settings.editorFontSize);
@@ -18,23 +21,26 @@ export default function SettingsScreen() {
   return (
     <View style={layout.screen}>
       <AppHeader
-        title="Settings"
+        title={t("settings.title")}
         onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-        <Text style={[layout.body, { marginBottom: 16 }]}>
-          These follow you between the phone and the web app.
-        </Text>
+        <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
 
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>THEME</Text>
+      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.language")}</Text>
+      <View style={{ marginBottom: 20 }}>
+        <LanguagePicker />
+      </View>
+
+      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.theme")}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-        {THEME_META.map((t) => {
-          const swatch = THEME_PALETTES[t.id];
-          const active = settings.theme === t.id;
+        {THEME_META.map((theme) => {
+          const swatch = THEME_PALETTES[theme.id];
+          const active = settings.theme === theme.id;
           return (
             <Pressable
-              key={t.id}
-              onPress={() => patch({ theme: t.id })}
+              key={theme.id}
+              onPress={() => patch({ theme: theme.id })}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               style={[
@@ -57,16 +63,16 @@ export default function SettingsScreen() {
                   borderColor: swatch.line,
                 }}
               />
-              <Text style={layout.cardTitle}>{t.label}</Text>
-              <Text style={layout.cardMeta}>{t.mode}</Text>
+              <Text style={layout.cardTitle}>{t(`themes.${theme.id}`)}</Text>
+              <Text style={layout.cardMeta}>{t(`themes.${theme.mode}`)}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>MANUSCRIPT</Text>
+      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.manuscript")}</Text>
       <View style={layout.card}>
-        <Text style={layout.cardTitle}>Type</Text>
+        <Text style={layout.cardTitle}>{t("settings.type")}</Text>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
           {(["serif", "sans"] as const).map((font) => (
             <Pressable
@@ -88,15 +94,15 @@ export default function SettingsScreen() {
                   { color: settings.editorFont === font ? colors.panel : colors.ink },
                 ]}
               >
-                {font === "serif" ? "Serif" : "Sans"}
+                {font === "serif" ? t("settings.serif") : t("settings.sans")}
               </Text>
             </Pressable>
           ))}
         </View>
-        <Text style={[layout.cardTitle, { marginTop: 16 }]}>Size</Text>
+        <Text style={[layout.cardTitle, { marginTop: 16 }]}>{t("settings.size")}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 }}>
           <Pressable
-            accessibilityLabel="Smaller type"
+            accessibilityLabel={t("settings.smallerType")}
             disabled={sizeIndex <= 0}
             onPress={() =>
               patch({ editorFontSize: EDITOR_FONT_SIZES[Math.max(0, sizeIndex - 1)] })
@@ -105,9 +111,9 @@ export default function SettingsScreen() {
           >
             <Text style={[layout.primaryBtnText, { color: colors.ink }]}>A-</Text>
           </Pressable>
-          <Text style={layout.body}>{settings.editorFontSize} px</Text>
+          <Text style={layout.body}>{t("settings.sizeValue", { size: settings.editorFontSize })}</Text>
           <Pressable
-            accessibilityLabel="Larger type"
+            accessibilityLabel={t("settings.largerType")}
             disabled={sizeIndex >= EDITOR_FONT_SIZES.length - 1}
             onPress={() =>
               patch({
@@ -123,8 +129,8 @@ export default function SettingsScreen() {
       </View>
 
       <View style={layout.card}>
-        <Text style={layout.cardTitle}>Autocorrect</Text>
-        <Text style={layout.cardMeta}>Spelling suggestions while you type.</Text>
+        <Text style={layout.cardTitle}>{t("settings.autocorrect")}</Text>
+        <Text style={layout.cardMeta}>{t("settings.autocorrectHint")}</Text>
         <Pressable
           accessibilityRole="switch"
           accessibilityState={{ checked: settings.autoCorrect }}
@@ -143,14 +149,14 @@ export default function SettingsScreen() {
               { color: settings.autoCorrect ? colors.panel : colors.ink },
             ]}
           >
-            {settings.autoCorrect ? "On" : "Off"}
+            {settings.autoCorrect ? t("common.on") : t("common.off")}
           </Text>
         </Pressable>
       </View>
 
       <View style={layout.card}>
-        <Text style={layout.cardTitle}>Reduce motion</Text>
-        <Text style={layout.cardMeta}>Turn off animations across the app.</Text>
+        <Text style={layout.cardTitle}>{t("settings.reduceMotion")}</Text>
+        <Text style={layout.cardMeta}>{t("settings.reduceMotionHint")}</Text>
         <Pressable
           accessibilityRole="switch"
           accessibilityState={{ checked: settings.reduceMotion }}
@@ -169,21 +175,21 @@ export default function SettingsScreen() {
               { color: settings.reduceMotion ? colors.panel : colors.ink },
             ]}
           >
-            {settings.reduceMotion ? "On" : "Off"}
+            {settings.reduceMotion ? t("common.on") : t("common.off")}
           </Text>
         </Pressable>
       </View>
 
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>ACCOUNT</Text>
+      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.account")}</Text>
       <View style={layout.card}>
         <Text style={layout.cardTitle}>{user.email}</Text>
-        <Text style={layout.cardMeta}>Signed in to Ciciro</Text>
+        <Text style={layout.cardMeta}>{t("settings.signedIn")}</Text>
         <Pressable
           onPress={() => void logout().then(() => router.replace("/"))}
           accessibilityRole="button"
           style={({ pressed }) => [layout.ghostBtn, { marginTop: 8, opacity: pressed ? 0.6 : 1 }]}
         >
-          <Text style={[layout.ghostBtnText, { color: colors.danger }]}>Sign out</Text>
+          <Text style={[layout.ghostBtnText, { color: colors.danger }]}>{t("settings.signOut")}</Text>
         </Pressable>
       </View>
       </ScrollView>

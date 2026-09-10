@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../components/AppHeader";
 import { ApiError } from "../../lib/api";
 import {
@@ -25,6 +26,7 @@ import type { Folder, ProjectListItem } from "../../lib/types";
 
 export default function FolderScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, ready } = useSession();
   const { layout, colors, settings } = useAppTheme();
@@ -45,9 +47,9 @@ export default function FolderScreen() {
       setNotes(nextFolder.notes);
       setUnfiled(projects.filter((project) => !project.folderId));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not load folder.");
+      setError(err instanceof ApiError ? err.message : t("folder.loadError"));
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (user && id) void load();
@@ -74,7 +76,7 @@ export default function FolderScreen() {
       setName(next.name);
       setNotes(next.notes);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save folder.");
+      setError(err instanceof ApiError ? err.message : t("folder.saveError"));
     } finally {
       setSaving(false);
     }
@@ -83,12 +85,12 @@ export default function FolderScreen() {
   function confirmDelete() {
     if (!folder) return;
     Alert.alert(
-      "Delete folder?",
-      "Manuscripts stay in your library, unfiled.",
+      t("folder.deleteTitle"),
+      t("folder.deleteMessage"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("common.delete"),
           style: "destructive",
           onPress: () => {
             void (async () => {
@@ -96,7 +98,7 @@ export default function FolderScreen() {
                 await deleteFolder(folder.id);
                 router.replace("/manuscripts");
               } catch (err) {
-                setError(err instanceof ApiError ? err.message : "Could not delete folder.");
+                setError(err instanceof ApiError ? err.message : t("folder.deleteError"));
               }
             })();
           },
@@ -108,9 +110,9 @@ export default function FolderScreen() {
   return (
     <View style={layout.screen}>
       <AppHeader
-        title={folder?.name || "Folder"}
+        title={folder?.name || t("folder.fallbackTitle")}
         onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
-        backAccessibilityLabel="Back to manuscripts"
+        backAccessibilityLabel={t("folder.backToManuscripts")}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
       {error ? (
@@ -124,19 +126,19 @@ export default function FolderScreen() {
         <>
           <TextInput
             style={layout.input}
-            aria-label="Folder name"
+            aria-label={t("newFolder.nameLabel")}
             value={name}
             onChangeText={setName}
-            placeholder="Folder name"
+            placeholder={t("newFolder.nameLabel")}
             placeholderTextColor={colors.inkSoft}
             autoCorrect={settings.autoCorrect}
           />
           <TextInput
             style={[layout.input, { minHeight: 88, textAlignVertical: "top" }]}
-            aria-label="Notes"
+            aria-label={t("newFolder.notesLabel")}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Notes (optional)"
+            placeholder={t("newFolder.notesPlaceholder")}
             placeholderTextColor={colors.inkSoft}
             multiline
             autoCorrect={settings.autoCorrect}
@@ -146,9 +148,9 @@ export default function FolderScreen() {
               style={[layout.primaryBtn, { marginBottom: 16 }]}
               onPress={() => void save()}
               accessibilityRole="button"
-              accessibilityLabel="Save folder"
+              accessibilityLabel={t("folder.saveA11y")}
             >
-              <Text style={layout.primaryBtnText}>{saving ? "Saving..." : "Save"}</Text>
+              <Text style={layout.primaryBtnText}>{saving ? t("common.saving") : t("common.save")}</Text>
             </Pressable>
           ) : null}
 
@@ -158,24 +160,29 @@ export default function FolderScreen() {
               router.push({ pathname: "/new-manuscript", params: { folderId: folder.id } })
             }
             accessibilityRole="button"
-            accessibilityLabel="Start a new manuscript in this folder"
+            accessibilityLabel={t("folder.startNewA11y")}
           >
-            <Text style={layout.primaryBtnText}>Start a new manuscript</Text>
+            <Text style={layout.primaryBtnText}>{t("folder.startNew")}</Text>
           </Pressable>
 
           {folder.projects.length === 0 ? (
             <Text style={[layout.body, { marginBottom: 16 }]}>
-              No manuscripts in this folder yet.
+              {t("folder.empty")}
             </Text>
           ) : (
             folder.projects.map((item) => (
               <View key={item.id} style={layout.card}>
                 <Pressable onPress={() => router.push(`/project/${item.id}/chapters`)}>
-                  <Text style={layout.cardTitle}>{item.title || "Untitled Manuscript"}</Text>
+                  <Text style={layout.cardTitle}>{item.title || t("manuscripts.untitled")}</Text>
                   <Text style={layout.cardMeta}>
-                    {[item.genre, item._count ? `${item._count.chapters} chapters` : null]
+                    {[
+                      item.genre,
+                      item._count
+                        ? t("manuscripts.chapterCount", { count: item._count.chapters })
+                        : null,
+                    ]
                       .filter(Boolean)
-                      .join(" · ") || "Manuscript"}
+                      .join(" · ") || t("manuscripts.fallbackKind")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -183,10 +190,10 @@ export default function FolderScreen() {
                     void removeManuscriptsFromFolder(folder.id, [item.id]).then(load);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${item.title} from folder`}
+                  accessibilityLabel={t("folder.removeA11y", { title: item.title })}
                   style={{ marginTop: 8 }}
                 >
-                  <Text style={layout.ghostBtnText}>Remove from folder</Text>
+                  <Text style={layout.ghostBtnText}>{t("folder.remove")}</Text>
                 </Pressable>
               </View>
             ))
@@ -195,7 +202,7 @@ export default function FolderScreen() {
           {unfiled.length > 0 ? (
             <>
               <Text style={[layout.cardMeta, { marginTop: 8, marginBottom: 8 }]}>
-                ADD FROM LIBRARY
+                {t("folder.addFromLibrary")}
               </Text>
               {unfiled.map((item) => (
                 <Pressable
@@ -205,10 +212,10 @@ export default function FolderScreen() {
                     void addManuscriptsToFolder(folder.id, [item.id]).then(load);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Add ${item.title} to folder`}
+                  accessibilityLabel={t("folder.addA11y", { title: item.title })}
                 >
-                  <Text style={layout.cardTitle}>{item.title || "Untitled Manuscript"}</Text>
-                  <Text style={layout.cardMeta}>Add to this folder</Text>
+                  <Text style={layout.cardTitle}>{item.title || t("manuscripts.untitled")}</Text>
+                  <Text style={layout.cardMeta}>{t("folder.addToFolder")}</Text>
                 </Pressable>
               ))}
             </>
@@ -218,9 +225,9 @@ export default function FolderScreen() {
             style={layout.ghostBtn}
             onPress={confirmDelete}
             accessibilityRole="button"
-            accessibilityLabel="Delete folder"
+            accessibilityLabel={t("folder.deleteA11y")}
           >
-            <Text style={[layout.ghostBtnText, { color: colors.danger }]}>Delete folder</Text>
+            <Text style={[layout.ghostBtnText, { color: colors.danger }]}>{t("folder.delete")}</Text>
           </Pressable>
         </>
       ) : null}

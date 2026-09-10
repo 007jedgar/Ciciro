@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ApiError, useCreateChapterMutation, useProjectQuery } from "./api";
 import type { Chapter, ProjectDetail } from "./types";
 
@@ -21,6 +22,7 @@ export function ProjectProvider({
   projectId: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const query = useProjectQuery(projectId);
   const createChapter = useCreateChapterMutation();
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function ProjectProvider({
     query.error instanceof ApiError
       ? query.error.message
       : query.error
-        ? "Could not load manuscript."
+        ? t("project.loadError")
         : null;
 
   const value = useMemo(

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeInLeft, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
@@ -9,7 +10,7 @@ import { ChevronLeftIcon, PlusIcon, SlidersIcon } from "./icons";
 export function AppHeader({
   title,
   onBack,
-  backAccessibilityLabel = "Back",
+  backAccessibilityLabel,
   onSettings,
   onNew,
 }: {
@@ -19,6 +20,7 @@ export function AppHeader({
   onSettings?: () => void;
   onNew?: () => void;
 }) {
+  const { t } = useTranslation();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
@@ -37,7 +39,7 @@ export function AppHeader({
               <Pressable
                 onPress={handleBack}
                 accessibilityRole="button"
-                accessibilityLabel={backAccessibilityLabel}
+                accessibilityLabel={backAccessibilityLabel ?? t("common.back")}
                 hitSlop={10}
                 style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.5 : 1 }]}
               >
@@ -61,7 +63,7 @@ export function AppHeader({
               <Pressable
                 onPress={onSettings}
                 accessibilityRole="button"
-                accessibilityLabel="Settings"
+                accessibilityLabel={t("common.settings")}
                 hitSlop={10}
                 style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.5 : 1 }]}
               >
@@ -72,7 +74,7 @@ export function AppHeader({
               <Pressable
                 onPress={onNew}
                 accessibilityRole="button"
-                accessibilityLabel="New manuscript"
+                accessibilityLabel={t("manuscripts.newA11y")}
                 hitSlop={10}
                 style={({ pressed }) => [
                   styles.newBtn,

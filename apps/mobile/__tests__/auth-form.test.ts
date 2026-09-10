@@ -54,13 +54,13 @@ describe("resolveNameRowHeight", () => {
 describe("validateAuthFields", () => {
   it("requires an email and a password", () => {
     const errors = validateAuthFields("signin", { email: "", password: "" });
-    expect(errors.email).toBe("Enter your email.");
-    expect(errors.password).toBe("Enter your password.");
+    expect(errors.email).toBe("emailRequired");
+    expect(errors.password).toBe("passwordRequired");
   });
 
   it("rejects a malformed email", () => {
     const errors = validateAuthFields("signin", { email: "not-an-email", password: "secret" });
-    expect(errors.email).toBe("Enter a valid email.");
+    expect(errors.email).toBe("emailInvalid");
   });
 
   it("does not enforce a minimum password length when signing in", () => {
@@ -70,7 +70,7 @@ describe("validateAuthFields", () => {
 
   it("enforces an 8-character minimum password when creating an account", () => {
     const errors = validateAuthFields("signup", { email: "a@b.com", password: "short" });
-    expect(errors.password).toBe("Password must be at least 8 characters.");
+    expect(errors.password).toBe("passwordShort");
   });
 
   it("passes with a valid email and a long-enough password", () => {

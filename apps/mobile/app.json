@@ -38,7 +38,8 @@
       ],
       "expo-image",
       "expo-dev-client",
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

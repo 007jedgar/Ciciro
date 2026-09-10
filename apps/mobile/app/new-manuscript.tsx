@@ -4,6 +4,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
 import { NewManuscriptForm } from "../components/NewManuscriptForm";
 import { useAppTheme } from "../lib/settings";
@@ -11,6 +12,7 @@ import { useSession } from "../lib/session";
 
 export default function NewManuscriptScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { folderId } = useLocalSearchParams<{ folderId?: string }>();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
@@ -24,7 +26,7 @@ export default function NewManuscriptScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <AppHeader
-        title="New manuscript"
+        title={t("newManuscript.title")}
         onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}>

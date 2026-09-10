@@ -1,4 +1,5 @@
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { htmlToPlainText } from "../../../lib/html";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
@@ -6,6 +7,7 @@ import { fonts } from "../../../lib/theme";
 
 export default function ManuscriptScreen() {
   const { project, loading, error, selectedChapterId } = useProject();
+  const { t } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
 
@@ -28,7 +30,7 @@ export default function ManuscriptScreen() {
   if (!chapter) {
     return (
       <View style={layout.padded}>
-        <Text style={layout.body}>This manuscript has no chapters yet.</Text>
+        <Text style={layout.body}>{t("manuscript.noChapters")}</Text>
       </View>
     );
   }
@@ -50,7 +52,7 @@ export default function ManuscriptScreen() {
           {body}
         </Text>
       ) : (
-        <Text style={layout.body}>This chapter is empty. Write it on the hosted web editor.</Text>
+        <Text style={layout.body}>{t("manuscript.emptyChapter")}</Text>
       )}
     </ScrollView>
   );
