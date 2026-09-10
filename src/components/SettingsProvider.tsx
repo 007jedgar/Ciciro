@@ -92,6 +92,7 @@ export function applyClientSettings(settings: AppSettings) {
   if (typeof document === "undefined") return;
   document.documentElement.setAttribute("data-editor-font", settings.editorFont);
   document.documentElement.setAttribute("spellcheck", settings.autoCorrect ? "true" : "false");
+  document.documentElement.setAttribute("data-reduce-motion", settings.reduceMotion ? "true" : "false");
   document.documentElement.style.setProperty("--editor-size", `${settings.editorFontSize}px`);
 }
 
@@ -119,6 +120,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               editorFont: body.editorFont,
               editorFontSize: body.editorFontSize,
               autoCorrect: body.autoCorrect,
+              reduceMotion: body.reduceMotion,
               chatWidth: body.chatWidth,
             };
       void fetch("/api/settings", {

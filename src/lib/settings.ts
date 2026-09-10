@@ -18,6 +18,7 @@ export type AppSettings = {
   editorFont: EditorFont;
   editorFontSize: EditorFontSize;
   autoCorrect: boolean;
+  reduceMotion: boolean;
   chatWidth: number;
   updatedAt: string;
 };
@@ -32,6 +33,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     editorFont: "serif",
     editorFontSize: DEFAULT_EDITOR_FONT_SIZE,
     autoCorrect: true,
+    reduceMotion: false,
     chatWidth: DEFAULT_CHAT_WIDTH,
     updatedAt: now.toISOString(),
   };
@@ -80,6 +82,7 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
       ? nearestFontSize(src.editorFontSize)
       : defaults.editorFontSize;
   const autoCorrect = typeof src.autoCorrect === "boolean" ? src.autoCorrect : defaults.autoCorrect;
+  const reduceMotion = typeof src.reduceMotion === "boolean" ? src.reduceMotion : defaults.reduceMotion;
   const chatWidth =
     typeof src.chatWidth === "number" && Number.isFinite(src.chatWidth)
       ? clampChatWidth(src.chatWidth)
@@ -89,6 +92,7 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
     editorFont,
     editorFontSize,
     autoCorrect,
+    reduceMotion,
     chatWidth,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
@@ -140,6 +144,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.autoCorrect = src.autoCorrect;
   }
+  if ("reduceMotion" in src) {
+    if (typeof src.reduceMotion !== "boolean") {
+      return { error: "reduceMotion must be a boolean." };
+    }
+    patch.reduceMotion = src.reduceMotion;
+  }
   if ("chatWidth" in src) {
     if (typeof src.chatWidth !== "number" || !Number.isFinite(src.chatWidth)) {
       return { error: "chatWidth must be a number." };
@@ -169,6 +179,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.editorFont === b.editorFont &&
     a.editorFontSize === b.editorFontSize &&
     a.autoCorrect === b.autoCorrect &&
+    a.reduceMotion === b.reduceMotion &&
     a.chatWidth === b.chatWidth
   );
 }
