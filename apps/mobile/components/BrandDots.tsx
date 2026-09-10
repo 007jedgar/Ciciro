@@ -105,7 +105,6 @@ export function BrandDots({
   const scales = [s0, s1, s2];
 
   const play = () => {
-    console.log("brand-dots-hop");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (reduceMotion) return;
     ys.forEach((y, i) => hop(y, scales[i]!, i * STAGGER_MS, jump));
