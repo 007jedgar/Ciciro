@@ -1,36 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ApiError } from "../lib/api";
-import { listManuscripts } from "../lib/manuscripts";
-import { ManuscriptsHeader } from "../components/ManuscriptsHeader";
+import { ApiError, useProjectsQuery } from "../lib/api";
+import { AppHeader } from "../components/AppHeader";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
-import type { ProjectListItem } from "../lib/types";
 
 export default function ManuscriptsScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await listManuscripts();
-      setProjects(data);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not load manuscripts.");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+  const projectsQuery = useProjectsQuery({ enabled: Boolean(user) });
+  const projects = projectsQuery.data ?? [];
+  const error =
+    projectsQuery.error instanceof ApiError
+      ? projectsQuery.error.message
+      : projectsQuery.error
+        ? "Could not load manuscripts."
+        : null;
 
   if (!ready) {
     return (
@@ -44,9 +32,8 @@ export default function ManuscriptsScreen() {
 
   return (
     <View style={[layout.screen, { paddingBottom: 0 }]}>
-      <ManuscriptsHeader
-        colors={colors}
-        topInset={insets.top}
+      <AppHeader
+        title="Manuscripts"
         onSettings={() => router.push("/settings")}
         onNew={() => router.push("/new-manuscript")}
       />
@@ -63,21 +50,19 @@ export default function ManuscriptsScreen() {
       >
         <Text style={layout.primaryBtnText}>Start a new manuscript</Text>
       </Pressable>
-      {projects === null && !error ? (
+      {projectsQuery.isPending && !projectsQuery.data ? (
         <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
       ) : (
         <FlatList
           scrollEnabled={true}
-          data={projects ?? []}
+          data={projects}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
-              onRefresh={async () => {
-                setRefreshing(true);
-                await load();
-                setRefreshing(false);
+              refreshing={projectsQuery.isRefetching && !projectsQuery.isPending}
+              onRefresh={() => {
+                void projectsQuery.refetch();
               }}
               tintColor={colors.accent}
             />

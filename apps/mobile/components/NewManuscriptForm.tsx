@@ -8,10 +8,11 @@ import type { ProjectDetail } from "../lib/types";
 
 type Props = {
   defaultAuthor?: string;
+  folderId?: string;
   onCreated: (project: ProjectDetail) => void;
 };
 
-export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
+export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: Props) {
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
   const colors = themed?.colors ?? parchmentColors;
@@ -27,7 +28,12 @@ export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
     setError(null);
     setBusy(true);
     try {
-      const project = await createManuscript({ title, author, genre });
+      const project = await createManuscript({
+        title,
+        author,
+        genre,
+        ...(folderId ? { folderId } : {}),
+      });
       onCreated(project);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not create manuscript.");
@@ -37,7 +43,6 @@ export function NewManuscriptForm({ defaultAuthor = "", onCreated }: Props) {
 
   return (
     <View>
-      <Text style={layout.title}>Start a new manuscript</Text>
       <Text style={[layout.body, { marginBottom: 16 }]}>
         Same as the web app: a title, an author, and an optional genre. Ciciro opens Chapter 1.
       </Text>

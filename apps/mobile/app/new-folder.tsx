@@ -3,15 +3,14 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { AppHeader } from "../components/AppHeader";
-import { NewManuscriptForm } from "../components/NewManuscriptForm";
+import { NewFolderForm } from "../components/NewFolderForm";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 
-export default function NewManuscriptScreen() {
+export default function NewFolderScreen() {
   const router = useRouter();
-  const { folderId } = useLocalSearchParams<{ folderId?: string }>();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
 
@@ -24,15 +23,11 @@ export default function NewManuscriptScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <AppHeader
-        title="New manuscript"
+        title="New folder"
         onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}>
-        <NewManuscriptForm
-          defaultAuthor={user.name}
-          folderId={typeof folderId === "string" ? folderId : undefined}
-          onCreated={(project) => router.replace(`/project/${project.id}/chapters`)}
-        />
+        <NewFolderForm onCreated={(folder) => router.replace(`/folder/${folder.id}`)} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

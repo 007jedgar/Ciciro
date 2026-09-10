@@ -29,6 +29,7 @@ describe("manuscript and story APIs", () => {
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
     await prisma.project.deleteMany();
+    await prisma.folder.deleteMany();
   });
 
   afterAll(async () => {

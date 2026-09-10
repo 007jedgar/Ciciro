@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ApiQueryProvider } from "../lib/api";
 import { SessionProvider } from "../lib/session";
 import { SettingsProvider, useAppTheme } from "../lib/settings";
 
@@ -30,8 +31,10 @@ function ThemedStack() {
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
         <Stack.Screen name="manuscripts" options={{ title: "Manuscripts", headerShown: false }} />
-        <Stack.Screen name="new-manuscript" options={{ title: "New manuscript" }} />
-        <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="new-manuscript" options={{ title: "New manuscript", headerShown: false }} />
+        <Stack.Screen name="new-folder" options={{ title: "New folder", headerShown: false }} />
+        <Stack.Screen name="folder/[id]" options={{ title: "Folder", headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: "Settings", headerShown: false }} />
         <Stack.Screen name="project/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
@@ -43,11 +46,13 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <BottomSheetModalProvider>
-          <SessionProvider>
-            <SettingsProvider>
-              <ThemedStack />
-            </SettingsProvider>
-          </SessionProvider>
+          <ApiQueryProvider>
+            <SessionProvider>
+              <SettingsProvider>
+                <ThemedStack />
+              </SettingsProvider>
+            </SessionProvider>
+          </ApiQueryProvider>
         </BottomSheetModalProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api, ApiError } from "./api";
+import { ApiError, ciciro, queryClient } from "./api";
 import { hydrateSessionToken, setSessionToken } from "./session-store";
 import type { PublicUser } from "./types";
 
@@ -28,7 +28,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await api<{ user: PublicUser | null }>("/api/auth/me");
+      const data = await ciciro.auth.me();
       setUser(data.user);
     } catch {
       setUser(null);
@@ -49,19 +49,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api<{ user: PublicUser }>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    const data = await ciciro.auth.login({ email, password });
     setUser(data.user);
   }, []);
 
   const signup = useCallback(
     async (input: { email: string; password: string; name?: string }) => {
-      const data = await api<{ user: PublicUser }>("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
+      const data = await ciciro.auth.signup(input);
       setUser(data.user);
     },
     []
@@ -69,12 +63,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api("/api/auth/logout", { method: "POST" });
+      await ciciro.auth.logout();
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
     }
     setSessionToken(null);
     setUser(null);
+    queryClient.clear();
   }, []);
 
   const value = useMemo(

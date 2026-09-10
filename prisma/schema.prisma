@@ -20,6 +20,7 @@ model User {
 
   sessions Session[]
   projects Project[]
+  folders  Folder[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -64,6 +65,9 @@ model Project {
   pov      String @default("") // e.g. "First person, past tense"
   notes    String @default("") // freeform worldbuilding / style notes
 
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   chapters        Chapter[]
   characters      Character[]
   plotPoints      PlotPoint[]
@@ -72,6 +76,25 @@ model Project {
   chatBlobs       ChatBlob[]
   draftInsertions DraftInsertion[]
   editorRuns      EditorRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([folderId])
+}
+
+// A named grouping for an author's manuscripts. Deleting a folder unfiles
+// the manuscripts; it does not delete them.
+model Folder {
+  id     String @id @default(cuid())
+  userId String?
+  owner  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  notes String @default("")
+
+  projects Project[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

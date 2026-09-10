@@ -52,7 +52,6 @@ export default function ChaptersScreen() {
 
   return (
     <View style={layout.padded}>
-      <Text style={layout.title}>{project?.title || "Untitled Manuscript"}</Text>
       <Pressable
         style={[layout.primaryBtn, { marginBottom: 16 }]}
         onPress={() => void onAddChapter()}
