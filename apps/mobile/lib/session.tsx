@@ -15,8 +15,8 @@ type SessionState = {
   user: PublicUser | null;
   ready: boolean;
   refresh: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (input: { email: string; password: string; name?: string }) => Promise<void>;
+  login: (email: string, password: string) => Promise<PublicUser>;
+  signup: (input: { email: string; password: string; name?: string }) => Promise<PublicUser>;
   logout: () => Promise<void>;
 };
 
@@ -51,12 +51,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const data = await ciciro.auth.login({ email, password });
     setUser(data.user);
+    return data.user;
   }, []);
 
   const signup = useCallback(
     async (input: { email: string; password: string; name?: string }) => {
       const data = await ciciro.auth.signup(input);
       setUser(data.user);
+      return data.user;
     },
     []
   );

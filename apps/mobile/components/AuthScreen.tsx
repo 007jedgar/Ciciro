@@ -22,7 +22,7 @@ import Animated, {
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BrandDots } from "./BrandDots";
 import { ApiError } from "../lib/api";
@@ -33,6 +33,7 @@ import {
   resolveNameRowHeight,
 } from "../lib/auth-form";
 import { useAppTheme } from "../lib/settings";
+import { restoreHref } from "../lib/last-place";
 import { useSession } from "../lib/session";
 import { fonts } from "../lib/theme";
 
@@ -90,11 +91,12 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
     setBusy(true);
     try {
       if (isSignup) {
-        await signup({ email: email.trim(), password, name: name.trim() || undefined });
+        const user = await signup({ email: email.trim(), password, name: name.trim() || undefined });
+        router.replace(restoreHref(user.id) as Href);
       } else {
-        await login(email.trim(), password);
+        const user = await login(email.trim(), password);
+        router.replace(restoreHref(user.id) as Href);
       }
-      router.replace("/manuscripts");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Network error. Try again.");
       setBusy(false);

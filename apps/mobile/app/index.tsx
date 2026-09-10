@@ -1,6 +1,7 @@
 import { ActivityIndicator, View } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useRouter, type Href } from "expo-router";
 import { LivingPage } from "../components/LivingPage";
+import { restoreHref } from "../lib/last-place";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 
@@ -17,7 +18,7 @@ export default function WelcomeScreen() {
     );
   }
 
-  if (user) return <Redirect href="/manuscripts" />;
+  if (user) return <Redirect href={restoreHref(user.id) as Href} />;
 
   return (
     <LivingPage
