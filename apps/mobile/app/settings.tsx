@@ -1,12 +1,13 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { Redirect } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { EDITOR_FONT_SIZES } from "../lib/app-settings";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { THEME_META, THEME_PALETTES } from "../lib/theme";
 
 export default function SettingsScreen() {
-  const { user, ready } = useSession();
+  const router = useRouter();
+  const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const sizeIndex = EDITOR_FONT_SIZES.indexOf(settings.editorFontSize);
 
@@ -139,6 +140,19 @@ export default function SettingsScreen() {
           >
             {settings.autoCorrect ? "On" : "Off"}
           </Text>
+        </Pressable>
+      </View>
+
+      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>ACCOUNT</Text>
+      <View style={layout.card}>
+        <Text style={layout.cardTitle}>{user.email}</Text>
+        <Text style={layout.cardMeta}>Signed in to Ciciro</Text>
+        <Pressable
+          onPress={() => void logout().then(() => router.replace("/"))}
+          accessibilityRole="button"
+          style={({ pressed }) => [layout.ghostBtn, { marginTop: 8, opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Text style={[layout.ghostBtnText, { color: colors.danger }]}>Sign out</Text>
         </Pressable>
       </View>
     </ScrollView>

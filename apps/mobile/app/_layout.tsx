@@ -29,7 +29,7 @@ function ThemedStack() {
           name="signup"
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
-        <Stack.Screen name="manuscripts" options={{ title: "Manuscripts" }} />
+        <Stack.Screen name="manuscripts" options={{ title: "Manuscripts", headerShown: false }} />
         <Stack.Screen name="new-manuscript" options={{ title: "New manuscript" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
         <Stack.Screen name="project/[id]" options={{ headerShown: false }} />
