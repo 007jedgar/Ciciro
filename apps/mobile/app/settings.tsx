@@ -148,6 +148,32 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      <View style={layout.card}>
+        <Text style={layout.cardTitle}>Reduce motion</Text>
+        <Text style={layout.cardMeta}>Turn off animations across the app.</Text>
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: settings.reduceMotion }}
+          onPress={() => patch({ reduceMotion: !settings.reduceMotion })}
+          style={[
+            layout.primaryBtn,
+            {
+              marginTop: 12,
+              backgroundColor: settings.reduceMotion ? colors.accent : colors.panel2,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              layout.primaryBtnText,
+              { color: settings.reduceMotion ? colors.panel : colors.ink },
+            ]}
+          >
+            {settings.reduceMotion ? "On" : "Off"}
+          </Text>
+        </Pressable>
+      </View>
+
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>ACCOUNT</Text>
       <View style={layout.card}>
         <Text style={layout.cardTitle}>{user.email}</Text>

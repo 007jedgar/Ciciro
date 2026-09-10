@@ -11,6 +11,7 @@ export type AppSettings = {
   editorFont: EditorFont;
   editorFontSize: EditorFontSize;
   autoCorrect: boolean;
+  reduceMotion: boolean;
   chatWidth: number;
   updatedAt: string;
 };
@@ -23,6 +24,7 @@ export function defaultSettings(): AppSettings {
     editorFont: "serif",
     editorFontSize: 19,
     autoCorrect: true,
+    reduceMotion: false,
     chatWidth: 380,
     updatedAt: SETTINGS_EPOCH,
   };
@@ -55,6 +57,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
         ? nearestFontSize(src.editorFontSize)
         : defaults.editorFontSize,
     autoCorrect: typeof src.autoCorrect === "boolean" ? src.autoCorrect : defaults.autoCorrect,
+    reduceMotion: typeof src.reduceMotion === "boolean" ? src.reduceMotion : defaults.reduceMotion,
     chatWidth:
       typeof src.chatWidth === "number" && Number.isFinite(src.chatWidth)
         ? Math.min(720, Math.max(280, Math.round(src.chatWidth)))
@@ -76,6 +79,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.editorFont === b.editorFont &&
     a.editorFontSize === b.editorFontSize &&
     a.autoCorrect === b.autoCorrect &&
+    a.reduceMotion === b.reduceMotion &&
     a.chatWidth === b.chatWidth
   );
 }

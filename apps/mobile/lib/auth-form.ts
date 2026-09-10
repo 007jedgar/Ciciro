@@ -28,3 +28,33 @@ export function modeProgress(mode: AuthMode): 0 | 1 {
 export function resolveNameRowHeight(measured: number, fallback: number): number {
   return Number.isFinite(measured) && measured > 0 ? measured : fallback;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const MIN_PASSWORD_LENGTH = 8;
+
+export type AuthFieldErrors = {
+  email?: string;
+  password?: string;
+};
+
+/** Validate the email/password pair for the given mode. Name is always optional. */
+export function validateAuthFields(
+  mode: AuthMode,
+  fields: { email: string; password: string }
+): AuthFieldErrors {
+  const errors: AuthFieldErrors = {};
+  const email = fields.email.trim();
+  if (!email) {
+    errors.email = "Enter your email.";
+  } else if (!EMAIL_RE.test(email)) {
+    errors.email = "Enter a valid email.";
+  }
+
+  if (!fields.password) {
+    errors.password = "Enter your password.";
+  } else if (mode === "signup" && fields.password.length < MIN_PASSWORD_LENGTH) {
+    errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+
+  return errors;
+}

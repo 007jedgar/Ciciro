@@ -158,6 +158,18 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               {settings.autoCorrect ? "On" : "Off"}
             </button>
           </div>
+          <div className="settings-row">
+            <span>Reduce motion</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.reduceMotion}
+              className={`settings-switch ${settings.reduceMotion ? "on" : ""}`}
+              onClick={() => patch({ reduceMotion: !settings.reduceMotion })}
+            >
+              {settings.reduceMotion ? "On" : "Off"}
+            </button>
+          </div>
         </div>
       )}
     </div>
