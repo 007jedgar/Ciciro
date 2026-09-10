@@ -1,9 +1,10 @@
 export function jsonResponse(
   body: unknown,
-  init: { status?: number; setCookie?: string } = {}
+  init: { status?: number; setCookie?: string; sessionHeader?: string } = {}
 ): Response {
   const headers = new Headers({ "content-type": "application/json" });
   if (init.setCookie) headers.set("set-cookie", init.setCookie);
+  if (init.sessionHeader) headers.set("x-ciciro-session", init.sessionHeader);
   return new Response(JSON.stringify(body), {
     status: init.status ?? 200,
     headers,
