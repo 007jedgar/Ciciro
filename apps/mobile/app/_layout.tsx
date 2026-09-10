@@ -21,8 +21,14 @@ function ThemedStack() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ title: "Sign in" }} />
-        <Stack.Screen name="signup" options={{ title: "Create account" }} />
+        <Stack.Screen
+          name="login"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
+        <Stack.Screen
+          name="signup"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
         <Stack.Screen name="manuscripts" options={{ title: "Manuscripts" }} />
         <Stack.Screen name="new-manuscript" options={{ title: "New manuscript" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
