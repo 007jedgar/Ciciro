@@ -276,6 +276,16 @@ textarea {
   color: var(--ink-soft);
   font-size: 12px;
 }
+.project-card-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
 .new-form {
   border: 1px dashed var(--line);
   border-radius: 12px;
@@ -283,6 +293,77 @@ textarea {
   margin-top: 24px;
   display: grid;
   gap: 10px;
+}
+
+.shelf-heading {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 620;
+  margin: 8px 0 12px;
+}
+
+.folder-block {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  border-radius: 14px;
+  padding: 14px 14px 10px;
+  margin-bottom: 18px;
+}
+
+.folder-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.folder-head h2 {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 620;
+  margin: 0;
+}
+
+.folder-notes {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
+.folder-count,
+.folder-empty {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin: 4px 0 8px;
+}
+
+.folder-block .project-card {
+  margin-bottom: 8px;
+}
+
+.folder-add {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.folder-add select {
+  flex: 1;
+}
+
+.project-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.project-card-actions select {
+  font-size: 12px;
+  padding: 4px 8px;
+  max-width: 160px;
 }
 
 /* ---------- Workspace layout ---------- */
