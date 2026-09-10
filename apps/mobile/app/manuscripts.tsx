@@ -1,23 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from "react-native";
-import { Redirect, Stack, useRouter } from "expo-router";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { Redirect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "../lib/api";
 import { listManuscripts } from "../lib/manuscripts";
+import { ManuscriptsHeader } from "../components/ManuscriptsHeader";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 import type { ProjectListItem } from "../lib/types";
 
 export default function ManuscriptsScreen() {
   const router = useRouter();
-  const { user, ready, logout } = useSession();
+  const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const [projects, setProjects] = useState<ProjectListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,48 +43,34 @@ export default function ManuscriptsScreen() {
   if (!user) return <Redirect href="/login" />;
 
   return (
-    <View style={layout.padded}>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Pressable
-                onPress={() => router.push("/settings")}
-                accessibilityRole="button"
-                accessibilityLabel="Settings"
-                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-              >
-                <Text style={layout.ghostBtnText}>Settings</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => router.push("/new-manuscript")}
-                accessibilityRole="button"
-                accessibilityLabel="New manuscript"
-                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-              >
-                <Text style={layout.ghostBtnText}>New</Text>
-              </Pressable>
-            </View>
-          ),
-        }}
+    <View style={[layout.screen, { paddingBottom: 0 }]}>
+      <ManuscriptsHeader
+        colors={colors}
+        topInset={insets.top}
+        onSettings={() => router.push("/settings")}
+        onNew={() => router.push("/new-manuscript")}
       />
-      <Text style={layout.body}>
-        Signed in as {user.email}. One editor - Ciciro - lives on the hosted app.
-      </Text>
-      <Pressable style={layout.ghostBtn} onPress={() => void logout().then(() => router.replace("/"))}>
-        <Text style={layout.ghostBtnText}>Sign out</Text>
-      </Pressable>
       {error ? (
-        <Text style={layout.error} role="alert">
+        <Text style={[layout.error, { marginHorizontal: 20, marginTop: 12 }]} role="alert">
           {error}
         </Text>
       ) : null}
+      <Pressable
+        style={[layout.primaryBtn, { marginHorizontal: 20, marginBottom: 12 }]}
+        onPress={() => router.push("/new-manuscript")}
+        accessibilityRole="button"
+        accessibilityLabel="Start a new manuscript"
+      >
+        <Text style={layout.primaryBtnText}>Start a new manuscript</Text>
+      </Pressable>
       {projects === null && !error ? (
         <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
       ) : (
         <FlatList
+          scrollEnabled={true}
           data={projects ?? []}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -99,16 +81,6 @@ export default function ManuscriptsScreen() {
               }}
               tintColor={colors.accent}
             />
-          }
-          ListHeaderComponent={
-            <Pressable
-              style={[layout.primaryBtn, { marginTop: 8, marginBottom: 16 }]}
-              onPress={() => router.push("/new-manuscript")}
-              accessibilityRole="button"
-              accessibilityLabel="Start a new manuscript"
-            >
-              <Text style={layout.primaryBtnText}>Start a new manuscript</Text>
-            </Pressable>
           }
           ListEmptyComponent={
             <Text style={[layout.body, { marginTop: 8 }]}>
