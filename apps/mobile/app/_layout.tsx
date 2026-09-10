@@ -7,6 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ApiQueryProvider } from "../lib/api";
 import { SessionProvider } from "../lib/session";
 import { SettingsProvider, useAppTheme } from "../lib/settings";
+import { LastPlaceTracker } from "../components/LastPlaceTracker";
 
 function ThemedStack() {
   const { colors, dark } = useAppTheme();
@@ -49,6 +50,7 @@ export default function RootLayout() {
           <ApiQueryProvider>
             <SessionProvider>
               <SettingsProvider>
+                <LastPlaceTracker />
                 <ThemedStack />
               </SettingsProvider>
             </SessionProvider>

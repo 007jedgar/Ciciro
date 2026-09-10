@@ -20,8 +20,8 @@ type SessionState = {
   user: PublicUser | null;
   ready: boolean;
   refresh: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (input: { email: string; password: string; name?: string }) => Promise<void>;
+  login: (email: string, password: string) => Promise<PublicUser>;
+  signup: (input: { email: string; password: string; name?: string }) => Promise<PublicUser>;
   logout: () => Promise<void>;
 };
 
@@ -78,6 +78,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (data.token) setSessionToken(data.token);
     rememberUser(data.user);
     setUser(data.user);
+    return data.user;
   }, []);
 
   const signup = useCallback(
@@ -86,6 +87,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (data.token) setSessionToken(data.token);
       rememberUser(data.user);
       setUser(data.user);
+      return data.user;
     },
     []
   );
