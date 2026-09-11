@@ -1,13 +1,15 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { PrismaClient } from "@prisma/client";
 import { PrismaD1 } from "@prisma/adapter-d1";
-import { getD1Database } from "@/lib/d1-binding";
+import { getD1Database, runWithD1Database } from "@/lib/d1-binding";
 
-// Reuse a single Prisma client across hot reloads in Node. On Cloudflare the
-// D1 binding is published per-request by the worker entry; we construct the
-// adapter client lazily so module evaluation does not race that publish.
+// Node: one client across hot reloads. Workers: one client per request, stored
+// in ALS so concurrent /api/projects + /api/folders + /api/chat do not share
+// Prisma promises across Cloudflare request contexts.
+const requestPrisma = new AsyncLocalStorage<PrismaClient>();
+
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
-  d1Prisma?: PrismaClient;
 };
 
 function createNodePrisma(): PrismaClient {
@@ -16,20 +18,32 @@ function createNodePrisma(): PrismaClient {
   });
 }
 
+function createD1Prisma(d1: unknown): PrismaClient {
+  return new PrismaClient({
+    adapter: new PrismaD1(d1 as ConstructorParameters<typeof PrismaD1>[0]),
+  });
+}
+
 function getPrisma(): PrismaClient {
+  const scoped = requestPrisma.getStore();
+  if (scoped) return scoped;
+
   const d1 = getD1Database();
   if (d1) {
-    if (!globalForPrisma.d1Prisma) {
-      globalForPrisma.d1Prisma = new PrismaClient({
-        adapter: new PrismaD1(d1 as ConstructorParameters<typeof PrismaD1>[0]),
-      });
-    }
-    return globalForPrisma.d1Prisma;
+    // Fallback if a caller forgot runWithRequestPrisma; still avoid the
+    // process-wide singleton that leaked across Worker requests.
+    return createD1Prisma(d1);
   }
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createNodePrisma();
   }
   return globalForPrisma.prisma;
+}
+
+/** Bind a request-scoped Prisma client to this Worker request's D1. */
+export function runWithRequestPrisma<T>(d1: unknown, fn: () => T): T {
+  const client = createD1Prisma(d1);
+  return runWithD1Database(d1, () => requestPrisma.run(client, fn));
 }
 
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {

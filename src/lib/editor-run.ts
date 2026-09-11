@@ -141,45 +141,44 @@ export async function prepareEditorRun(input: EditorRunInput) {
   );
   let created;
   try {
-    created = await prisma.$transaction(async (tx) => {
-      const user =
-        legacyUser ||
-        (await tx.chatMessage.create({
-          data: {
-            projectId: input.projectId,
-            role: "user",
-            content: message,
-            kind: input.kind || "chat",
-            turnId,
-            status: "complete",
-          },
-        }));
-      return tx.editorRun.create({
+    // Sequential writes: D1 does not support interactive Prisma transactions.
+    const user =
+      legacyUser ||
+      (await prisma.chatMessage.create({
         data: {
           projectId: input.projectId,
+          role: "user",
+          content: message,
+          kind: input.kind || "chat",
           turnId,
-          userMessageId: user.id,
-          assistantMessageId: legacyAssistant?.id,
-          kind: input.kind || legacyUser?.kind || "chat",
-          scope: input.scope,
-          activeChapterId: input.activeChapterId,
-          selection: input.selection || "",
-          autoMode: Boolean(input.autoMode),
-          visibleOutput: stripErrorFooter(
-            input.continueFrom || legacyAssistant?.content || ""
-          ),
-          status: legacyCompleted ? "completed" : "queued",
-          stopReason: legacyCompleted ? "legacy_replay" : null,
-          verificationJson: legacyCompleted
-            ? serialize({ policy: "legacy-replay", passed: true })
-            : null,
-          completedAt: legacyCompleted ? new Date() : null,
-          lockToken: legacyCompleted ? null : setupToken,
-          leaseExpiresAt: legacyCompleted
-            ? null
-            : new Date(Date.now() + LEASE_MS),
+          status: "complete",
         },
-      });
+      }));
+    created = await prisma.editorRun.create({
+      data: {
+        projectId: input.projectId,
+        turnId,
+        userMessageId: user.id,
+        assistantMessageId: legacyAssistant?.id,
+        kind: input.kind || legacyUser?.kind || "chat",
+        scope: input.scope,
+        activeChapterId: input.activeChapterId,
+        selection: input.selection || "",
+        autoMode: Boolean(input.autoMode),
+        visibleOutput: stripErrorFooter(
+          input.continueFrom || legacyAssistant?.content || ""
+        ),
+        status: legacyCompleted ? "completed" : "queued",
+        stopReason: legacyCompleted ? "legacy_replay" : null,
+        verificationJson: legacyCompleted
+          ? serialize({ policy: "legacy-replay", passed: true })
+          : null,
+        completedAt: legacyCompleted ? new Date() : null,
+        lockToken: legacyCompleted ? null : setupToken,
+        leaseExpiresAt: legacyCompleted
+          ? null
+          : new Date(Date.now() + LEASE_MS),
+      },
     });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;

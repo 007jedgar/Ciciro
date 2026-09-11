@@ -1,14 +1,20 @@
-// The worker entry publishes its D1 binding here so Prisma can reach it
-// without importing Cloudflare-only modules at Next/test build time.
+import { AsyncLocalStorage } from "node:async_hooks";
 
-const globalForD1 = globalThis as unknown as { __ciciroD1__?: unknown };
+// Per-request D1 only. A module global is shared across concurrent Worker
+// isolates' request contexts; Prisma then resolves queries on a finished
+// request and Cloudflare cancels them (hung /api/chat, 500s on the shelf).
 
-/** Register the D1 database (called from the worker entry). */
-export function setD1Database(db: unknown): void {
-  globalForD1.__ciciroD1__ = db;
+const store = new AsyncLocalStorage<unknown>();
+
+/** Run `fn` with this request's D1 binding visible to Prisma. */
+export function runWithD1Database<T>(db: unknown, fn: () => T): T {
+  return store.run(db, fn);
 }
 
-/** The D1 binding, or undefined on Node / tests. */
+/** @deprecated Use runWithD1Database. Kept so older callers typecheck. */
+export function setD1Database(_db: unknown): void {}
+
+/** The D1 binding for the current request, or undefined on Node / tests. */
 export function getD1Database(): unknown {
-  return globalForD1.__ciciroD1__;
+  return store.getStore();
 }
