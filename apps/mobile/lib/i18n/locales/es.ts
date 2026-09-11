@@ -60,8 +60,9 @@ const es: Translations = {
   },
   manuscripts: {
     title: "Manuscritos",
-    startNew: "Empezar un manuscrito",
+    newManuscript: "Nuevo manuscrito",
     newFolder: "Nueva carpeta",
+    closeMenu: "Cerrar menú",
     unfiled: "Sin carpeta",
     loadError: "No se pudieron cargar los manuscritos.",
     foldersLoadError: "No se pudieron cargar las carpetas.",
@@ -175,6 +176,24 @@ const es: Translations = {
     placeholder:
       "Hablas con un solo compañero: Ciciro, el editor. El chat, los borradores y las herramientas siguen en la app web (POST /api/chat). Esta pestaña es un marcador para que el teléfono coincida con Capítulos, Manuscrito y Ciciro, sin un segundo asistente.",
     logline: "Premisa: {{logline}}",
+    requested: "Solicitado",
+    intent: {
+      continue: "Continuar el borrador",
+      rewrite: "Reescribir el pasaje",
+      describe: "Añadir descripción",
+    },
+  },
+  manuscriptTabBar: {
+    open: "Herramientas de escritura",
+    close: "Cerrar",
+    ask: "Preguntar a Ciciro",
+    continue: "Continuar",
+    rewrite: "Reescribir",
+    describe: "Describir",
+    newChapter: "Nuevo capítulo",
+    chapters: "Capítulos",
+    typography: "Tipografía",
+    settings: "Ajustes",
   },
 };
 

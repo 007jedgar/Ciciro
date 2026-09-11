@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader } from "../components/AppHeader";
+import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
+import { FolderPlusIcon, NewChapterIcon } from "../components/icons";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 import type { Folder, ProjectListItem } from "../lib/types";
@@ -25,6 +27,7 @@ export default function ManuscriptsScreen() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const [menuOpen, setMenuOpen] = useState(false);
   const enabled = Boolean(user);
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
@@ -65,13 +68,31 @@ export default function ManuscriptsScreen() {
     (projectsQuery.isPending && !projectsQuery.data) ||
     (foldersQuery.isPending && !foldersQuery.data);
 
+  const newItems: NewMenuItem[] = [
+    {
+      key: "manuscript",
+      label: t("manuscripts.newManuscript"),
+      Icon: NewChapterIcon,
+      onPress: () => router.push("/new-manuscript"),
+    },
+    {
+      key: "folder",
+      label: t("manuscripts.newFolder"),
+      Icon: FolderPlusIcon,
+      onPress: () => router.push("/new-folder"),
+    },
+  ];
+
   return (
     <View style={[layout.screen, { paddingBottom: 0 }]}>
-      <AppHeader
-        title={t("manuscripts.title")}
-        onSettings={() => router.push("/settings")}
-        onNew={() => router.push("/new-manuscript")}
-      />
+      <View style={{ zIndex: 20 }}>
+        <AppHeader
+          title={t("manuscripts.title")}
+          onSettings={() => router.push("/settings")}
+          onNew={() => setMenuOpen((o) => !o)}
+          newExpanded={menuOpen}
+        />
+      </View>
       {error ? (
         <Text style={[layout.error, { marginHorizontal: 20, marginTop: 12 }]} role="alert">
           {error}
@@ -98,26 +119,6 @@ export default function ManuscriptsScreen() {
               }}
               tintColor={colors.accent}
             />
-          }
-          ListHeaderComponent={
-            <View>
-              <Pressable
-                style={[layout.primaryBtn, { marginBottom: 8 }]}
-                onPress={() => router.push("/new-manuscript")}
-                accessibilityRole="button"
-                accessibilityLabel={t("manuscripts.startNew")}
-              >
-                <Text style={layout.primaryBtnText}>{t("manuscripts.startNew")}</Text>
-              </Pressable>
-              <Pressable
-                style={[layout.ghostBtn, { marginBottom: 12 }]}
-                onPress={() => router.push("/new-folder")}
-                accessibilityRole="button"
-                accessibilityLabel={t("manuscripts.newFolder")}
-              >
-                <Text style={layout.ghostBtnText}>{t("manuscripts.newFolder")}</Text>
-              </Pressable>
-            </View>
           }
           ListEmptyComponent={
             <Text style={[layout.body, { marginTop: 8 }]}>
@@ -175,6 +176,12 @@ export default function ManuscriptsScreen() {
           }}
         />
       )}
+      <HeaderNewMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        items={newItems}
+        closeLabel={t("manuscripts.closeMenu")}
+      />
     </View>
   );
 }

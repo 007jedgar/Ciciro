@@ -1,5 +1,15 @@
+import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import Animated, { FadeIn, FadeInLeft, useReducedMotion } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeInLeft,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
@@ -13,17 +23,31 @@ export function AppHeader({
   backAccessibilityLabel,
   onSettings,
   onNew,
+  newExpanded = false,
 }: {
   title: string;
   onBack?: () => void;
   backAccessibilityLabel?: string;
   onSettings?: () => void;
   onNew?: () => void;
+  /** When true, the "+" rotates into an "×" - used when it toggles a menu. */
+  newExpanded?: boolean;
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const newProgress = useSharedValue(0);
+
+  useEffect(() => {
+    newProgress.value = reduceMotion
+      ? withTiming(newExpanded ? 1 : 0, { duration: 120 })
+      : withSpring(newExpanded ? 1 : 0, { damping: 15, stiffness: 190, mass: 0.7 });
+  }, [newExpanded, reduceMotion, newProgress]);
+
+  const newIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(newProgress.value, [0, 1], [0, 45])}deg` }],
+  }));
 
   function handleBack() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -74,6 +98,7 @@ export function AppHeader({
               <Pressable
                 onPress={onNew}
                 accessibilityRole="button"
+                accessibilityState={{ expanded: newExpanded }}
                 accessibilityLabel={t("manuscripts.newA11y")}
                 hitSlop={10}
                 style={({ pressed }) => [
@@ -81,7 +106,9 @@ export function AppHeader({
                   { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <PlusIcon color={colors.panel} />
+                <Animated.View style={newIconStyle}>
+                  <PlusIcon color={colors.panel} />
+                </Animated.View>
               </Pressable>
             ) : null}
           </View>

@@ -60,8 +60,9 @@ const hi: Translations = {
   },
   manuscripts: {
     title: "पांडुलिपियाँ",
-    startNew: "नई पांडुलिपि शुरू करें",
+    newManuscript: "नई पांडुलिपि",
     newFolder: "नया फ़ोल्डर",
+    closeMenu: "मेनू बंद करें",
     unfiled: "बिना फ़ोल्डर",
     loadError: "पांडुलिपियाँ लोड नहीं हो सकीं।",
     foldersLoadError: "फ़ोल्डर लोड नहीं हो सके।",
@@ -174,6 +175,24 @@ const hi: Translations = {
     placeholder:
       "आप एक साथी से बात करते हैं: Ciciro, संपादक। चैट, ड्राफ्ट और टूल कॉल अभी होस्टेड ऐप पर चलते हैं (POST /api/chat)। यह टैब एक स्थानधारक है ताकि फ़ोन का कार्यक्षेत्र अध्याय, पांडुलिपि और Ciciro से मेल खाए, बिना दूसरा सहायक जोड़े।",
     logline: "लॉगलाइन: {{logline}}",
+    requested: "अनुरोध किया गया",
+    intent: {
+      continue: "ड्राफ्ट जारी रखें",
+      rewrite: "अंश फिर से लिखें",
+      describe: "विवरण जोड़ें",
+    },
+  },
+  manuscriptTabBar: {
+    open: "लेखन उपकरण",
+    close: "बंद करें",
+    ask: "Ciciro से पूछें",
+    continue: "जारी रखें",
+    rewrite: "फिर से लिखें",
+    describe: "वर्णन करें",
+    newChapter: "नया अध्याय",
+    chapters: "अध्याय",
+    typography: "टाइपोग्राफ़ी",
+    settings: "सेटिंग्स",
   },
 };
 
