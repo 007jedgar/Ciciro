@@ -139,6 +139,92 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/chapters\?projectId=p1&archived=true$/,
   },
   { name: "chapters.edits", run: () => ciciro.chapters.edits("c1"), path: /\/api\/chapters\/c1\/edits$/ },
+  {
+    name: "chapters.ops.list",
+    run: () => ciciro.chapters.ops.list("c1", 3),
+    path: /\/api\/chapters\/c1\/ops\?after=3$/,
+  },
+  {
+    name: "chapters.ops.push",
+    run: () =>
+      ciciro.chapters.ops.push("c1", {
+        ops: [
+          {
+            opId: "op-1",
+            baseRevision: 1,
+            actor: "user",
+            type: "delete_block",
+            blockId: "b1",
+          },
+        ],
+      }),
+    method: "POST",
+    path: /\/api\/chapters\/c1\/ops$/,
+    body: {
+      ops: [
+        {
+          opId: "op-1",
+          baseRevision: 1,
+          actor: "user",
+          type: "delete_block",
+          blockId: "b1",
+        },
+      ],
+    },
+  },
+  {
+    name: "projects.position.get",
+    run: () => ciciro.projects.position.get("p1"),
+    path: /\/api\/projects\/p1\/position$/,
+  },
+  {
+    name: "projects.position.put",
+    run: () => ciciro.projects.position.put("p1", { chapterId: "c1", blockId: "b1", offset: 4 }),
+    method: "PUT",
+    path: /\/api\/projects\/p1\/position$/,
+    body: { chapterId: "c1", blockId: "b1", offset: 4 },
+  },
+  {
+    name: "sync.pull",
+    run: () => ciciro.sync.pull("p1", { chapters: { c1: 2 }, bible: { "canon.md": 1 } }),
+    path: /\/api\/sync\?projectId=p1&after=/,
+  },
+  {
+    name: "sync.push",
+    run: () =>
+      ciciro.sync.push({
+        projectId: "p1",
+        after: { chapters: { c1: 0 } },
+        ops: [
+          {
+            opId: "op-1",
+            chapterId: "c1",
+            baseRevision: 0,
+            actor: "user",
+            type: "delete_block",
+            blockId: "b1",
+          },
+        ],
+        position: { chapterId: "c1", blockId: "b1", offset: 0 },
+      }),
+    method: "POST",
+    path: /\/api\/sync$/,
+    body: {
+      projectId: "p1",
+      after: { chapters: { c1: 0 } },
+      ops: [
+        {
+          opId: "op-1",
+          chapterId: "c1",
+          baseRevision: 0,
+          actor: "user",
+          type: "delete_block",
+          blockId: "b1",
+        },
+      ],
+      position: { chapterId: "c1", blockId: "b1", offset: 0 },
+    },
+  },
   { name: "characters.list", run: () => ciciro.characters.list("p1"), path: /\/api\/characters\?projectId=p1$/ },
   {
     name: "characters.create",

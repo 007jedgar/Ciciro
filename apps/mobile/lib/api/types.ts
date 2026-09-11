@@ -332,6 +332,102 @@ export type BibleWriteRequest = {
   projectId: string;
   path: string;
   content: string;
+  expectedRevision?: number;
+};
+
+export type ManuscriptActor = "user" | "ai" | "correction";
+
+export type ManuscriptOp =
+  | {
+      opId: string;
+      baseRevision: number;
+      actor: ManuscriptActor;
+      type: "replace_block";
+      blockId: string;
+      html: string;
+    }
+  | {
+      opId: string;
+      baseRevision: number;
+      actor: ManuscriptActor;
+      type: "insert_block";
+      afterBlockId: string | null;
+      html: string;
+      blockId: string;
+    }
+  | {
+      opId: string;
+      baseRevision: number;
+      actor: ManuscriptActor;
+      type: "delete_block";
+      blockId: string;
+    };
+
+export type ChapterOpRecord = ManuscriptOp & {
+  chapterId: string;
+  projectId: string;
+  seq: number;
+  createdAt: string;
+};
+
+export type ChapterOpsPushRequest = {
+  ops: ManuscriptOp[];
+};
+
+export type ChapterOpsPushResponse = {
+  accepted: Array<{ op: ManuscriptOp; seq: number }>;
+  rejected: Array<{ op: ManuscriptOp; reason: "stale" | "missing_block"; chapter: Chapter }>;
+  chapter: Chapter;
+  ops: ChapterOpRecord[];
+};
+
+export type ChapterOpsListResponse = {
+  chapter: Chapter;
+  ops: ChapterOpRecord[];
+};
+
+export type ReadingPosition = {
+  projectId: string;
+  chapterId: string;
+  blockId: string;
+  offset: number;
+  updatedAt: string;
+};
+
+export type ReadingPositionPutRequest = {
+  chapterId: string;
+  blockId: string;
+  offset: number;
+};
+
+export type ReadingPositionResponse = {
+  position: ReadingPosition | null;
+};
+
+export type SyncAfter = {
+  chapters?: Record<string, number>;
+  bible?: Record<string, number>;
+};
+
+export type SyncOp = ManuscriptOp & { chapterId: string };
+
+export type SyncPushRequest = {
+  projectId: string;
+  after?: SyncAfter;
+  ops?: SyncOp[];
+  bible?: { path: string; revision: number; content: string }[];
+  position?: ReadingPositionPutRequest;
+};
+
+export type SyncResult = {
+  accepted: Array<{ op: ManuscriptOp; seq: number }>;
+  rejected: Array<{ op: ManuscriptOp; reason: "stale" | "missing_block"; chapter: Chapter }>;
+  bibleRejected: Array<{ path: string; expectedRevision: number; currentRevision: number }>;
+  chapters: Array<{ id: string; revision: number; wordCount: number }>;
+  bible: Array<{ path: string; revision: number }>;
+  position: ReadingPosition | null;
+  ops: ChapterOpRecord[];
+  bibleFiles: Array<{ path: string; content: string; revision: number }>;
 };
 
 export type BibleNewCharacterRequest = {
