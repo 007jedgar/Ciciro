@@ -12,6 +12,29 @@ export const NATIVE_CLIENT_HEADER = "x-ciciro-client";
 export const NATIVE_CLIENT_VALUE = "native";
 export const SESSION_HEADER = "x-ciciro-session";
 
+/** Hosted deployments set this so anonymous traffic cannot list every manuscript. */
+export function authRequired(): boolean {
+  return process.env["CICIRO_REQUIRE_AUTH"] === "true";
+}
+
+/** Pull the session token out of a raw Cookie header (React Native / OpenNext). */
+export function tokenFromCookieHeader(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const prefix = `${SESSION_COOKIE}=`;
+  for (const part of raw.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(prefix)) continue;
+    const value = trimmed.slice(prefix.length).trim();
+    if (!value) return null;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+  return null;
+}
+
 export function isNativeClient(req: { headers: Headers }): boolean {
   return req.headers.get(NATIVE_CLIENT_HEADER)?.toLowerCase() === NATIVE_CLIENT_VALUE;
 }

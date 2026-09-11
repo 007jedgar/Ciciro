@@ -13,6 +13,7 @@ import {
   SESSION_TTL_MS,
   isNativeClient,
   sessionResponseBody,
+  tokenFromCookieHeader,
 } from "@/lib/auth/constants";
 
 describe("session tokens", () => {
@@ -50,6 +51,13 @@ describe("native session delivery", () => {
     expect(sessionResponseBody(body, "tok", false)).toEqual(body);
     expect(sessionResponseBody(body, "tok", true)).toEqual({ ...body, token: "tok" });
     expect(sessionResponseBody(body, "", true)).toEqual(body);
+  });
+
+  it("reads the session token from a Cookie header", () => {
+    expect(tokenFromCookieHeader("ciciro_session=abc123; Path=/")).toBe("abc123");
+    expect(tokenFromCookieHeader("other=1; ciciro_session=tok%2F2")).toBe("tok/2");
+    expect(tokenFromCookieHeader("nope=1")).toBeNull();
+    expect(tokenFromCookieHeader(null)).toBeNull();
   });
 });
 

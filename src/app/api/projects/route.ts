@@ -8,9 +8,15 @@ export const runtime = "nodejs";
 // GET /api/projects — list projects (most recent first). When a user is signed
 // in, only their manuscripts are returned; local-first (no session) lists all.
 export async function GET() {
-  const user = await getSessionUser();
-  const projects = await listProjects(user);
-  return NextResponse.json(projects);
+  try {
+    const user = await getSessionUser();
+    const projects = await listProjects(user);
+    return NextResponse.json(projects);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
+  }
 }
 
 // POST /api/projects — create a project with an opening chapter, owned by the

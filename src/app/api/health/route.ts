@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { authRequired } from "@/lib/auth/constants";
+import { hasAnthropicKey } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -19,7 +21,8 @@ export async function GET() {
     {
       status: ok ? "ok" : "degraded",
       db,
-      authRequired: process.env.CICIRO_REQUIRE_AUTH === "true",
+      anthropic: hasAnthropicKey(),
+      authRequired: authRequired(),
       latencyMs: Date.now() - startedAt,
       time: new Date().toISOString(),
     },

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
+import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } from "@/lib/auth/session";
 import { resolveFolderId } from "@/lib/folders";
 
 function readTrimmed(value: unknown): string {
@@ -37,6 +37,7 @@ export const PROJECT_EDITABLE = [
 
 /** List manuscripts. Signed-in users only see their own; local-first lists all. */
 export async function listProjects(user: PublicUser | null) {
+  requireUserIfHosted(user);
   return prisma.project.findMany({
     where: user ? { userId: user.id } : undefined,
     orderBy: { updatedAt: "desc" },
@@ -49,6 +50,7 @@ export async function createProject(
   user: PublicUser | null,
   input: ProjectCreateInput = {}
 ) {
+  requireUserIfHosted(user);
   const folderId = await resolveFolderId(user, input.folderId);
   return prisma.project.create({
     data: {
