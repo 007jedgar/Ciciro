@@ -114,6 +114,9 @@ model Chapter {
   status    String @default("draft") // draft | revised | final
   wordCount Int    @default(0)
   revision  Int    @default(0) // optimistic concurrency token for every chapter write
+  // Set when the author archives (hides) this chapter. Archived rows stay in
+  // the manuscript and can be restored; only empty chapters may be deleted.
+  archivedAt DateTime?
 
   plotPoints      PlotPoint[]
   manuscriptEdits ManuscriptEdit[]
@@ -122,6 +125,7 @@ model Chapter {
   updatedAt DateTime @updatedAt
 
   @@index([projectId, order])
+  @@index([projectId, archivedAt])
 }
 
 // A correction the editor applied via edit_manuscript - the raw find/replace

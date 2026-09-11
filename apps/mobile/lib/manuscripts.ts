@@ -1,5 +1,5 @@
 import { ciciro, queryClient, queryKeys } from "./api";
-import type { Chapter, ProjectCreated, ProjectDetail, ProjectListItem } from "./api/types";
+import type { Chapter, OkResponse, ProjectCreated, ProjectDetail, ProjectListItem } from "./api/types";
 
 export type NewManuscriptInput = {
   title: string;
@@ -37,4 +37,36 @@ export async function addChapter(projectId: string, title?: string): Promise<Cha
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.list(projectId) });
   return chapter;
+}
+
+function invalidateChapterCaches(projectId: string): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.list(projectId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.archived(projectId) });
+}
+
+/** Hard-delete an empty chapter. Non-empty chapters return 409. */
+export async function deleteChapter(id: string, projectId: string): Promise<OkResponse> {
+  const result = await ciciro.chapters.delete(id);
+  invalidateChapterCaches(projectId);
+  return result;
+}
+
+/** Hide a chapter. Any chapter can be archived. */
+export async function archiveChapter(id: string, projectId: string): Promise<Chapter> {
+  const chapter = await ciciro.chapters.archive(id);
+  invalidateChapterCaches(projectId);
+  return chapter;
+}
+
+/** Restore a hidden chapter to the live list. */
+export async function unarchiveChapter(id: string, projectId: string): Promise<Chapter> {
+  const chapter = await ciciro.chapters.unarchive(id);
+  invalidateChapterCaches(projectId);
+  return chapter;
+}
+
+export async function listArchivedChapters(projectId: string): Promise<Chapter[]> {
+  return ciciro.chapters.listArchived(projectId);
 }

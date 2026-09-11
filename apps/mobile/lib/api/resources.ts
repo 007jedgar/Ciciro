@@ -139,12 +139,24 @@ export const ciciro = {
   chapters: {
     list: (projectId: string, opts?: RequestOpts) =>
       api<Chapter[]>(`/api/chapters${queryString({ projectId })}`, opts),
+    listArchived: (projectId: string, opts?: RequestOpts) =>
+      api<Chapter[]>(`/api/chapters${queryString({ projectId, archived: "true" })}`, opts),
     create: (body: ChapterCreateRequest, opts?: RequestOpts) =>
       api<Chapter>("/api/chapters", jsonInit("POST", body, opts)),
     patch: (id: string, body: ChapterPatchRequest, opts?: RequestOpts) =>
       api<Chapter>(`/api/chapters/${encodeURIComponent(id)}`, jsonInit("PATCH", body, opts)),
     delete: (id: string, opts?: RequestOpts) =>
       api<OkResponse>(`/api/chapters/${encodeURIComponent(id)}`, jsonInit("DELETE", undefined, opts)),
+    archive: (id: string, opts?: RequestOpts) =>
+      api<Chapter>(
+        `/api/chapters/${encodeURIComponent(id)}/archive`,
+        jsonInit("POST", undefined, opts)
+      ),
+    unarchive: (id: string, opts?: RequestOpts) =>
+      api<Chapter>(
+        `/api/chapters/${encodeURIComponent(id)}/archive`,
+        jsonInit("DELETE", undefined, opts)
+      ),
     edits: (id: string, opts?: RequestOpts) =>
       api<ManuscriptEdit[]>(`/api/chapters/${encodeURIComponent(id)}/edits`, opts),
   },

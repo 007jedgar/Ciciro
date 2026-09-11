@@ -5,15 +5,21 @@ import { createChapter, listChapters } from "@/lib/chapters";
 
 export const runtime = "nodejs";
 
-// GET /api/chapters?projectId=... — list chapters in order.
+function readArchivedFlag(value: string | null): boolean {
+  return value === "1" || value === "true";
+}
+
+// GET /api/chapters?projectId=... — list live chapters in order.
+// Pass archived=true to list hidden (archived) chapters instead.
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
+  const archived = readArchivedFlag(req.nextUrl.searchParams.get("archived"));
   const user = await getSessionUser();
   try {
-    const chapters = await listChapters(projectId, user);
+    const chapters = await listChapters(projectId, user, { archived });
     return NextResponse.json(chapters);
   } catch (error) {
     const failure = responseFromAuthError(error);

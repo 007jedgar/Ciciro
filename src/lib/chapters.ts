@@ -2,7 +2,15 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
-import { countWords, htmlToText } from "@/lib/text";
+import { countWords, htmlToText, isChapterEmpty } from "@/lib/text";
+
+/** Live chapters the author still sees. Archived rows are hidden, not deleted. */
+export const visibleChapterWhere = { archivedAt: null } as const;
+
+export const visibleChaptersInclude = {
+  where: visibleChapterWhere,
+  orderBy: { order: "asc" as const },
+};
 
 async function requireProject(projectId: string, user: PublicUser | null): Promise<void> {
   await authorizeProjectId(projectId, user);
@@ -13,11 +21,27 @@ async function requireProject(projectId: string, user: PublicUser | null): Promi
   if (!project) throw new AuthError("Not found.", 404);
 }
 
-export async function listChapters(projectId: string, user: PublicUser | null) {
-  await requireProject(projectId, user);
-  return prisma.chapter.findMany({
+async function nextChapterOrder(projectId: string): Promise<number> {
+  const agg = await prisma.chapter.aggregate({
     where: { projectId },
-    orderBy: { order: "asc" },
+    _max: { order: true },
+  });
+  return (agg._max.order ?? -1) + 1;
+}
+
+export async function listChapters(
+  projectId: string,
+  user: PublicUser | null,
+  opts?: { archived?: boolean }
+) {
+  await requireProject(projectId, user);
+  const archivedOnly = opts?.archived === true;
+  return prisma.chapter.findMany({
+    where: {
+      projectId,
+      archivedAt: archivedOnly ? { not: null } : null,
+    },
+    orderBy: archivedOnly ? { archivedAt: "desc" } : { order: "asc" },
   });
 }
 
@@ -28,13 +52,15 @@ export async function createChapter(
   const projectId = typeof input.projectId === "string" ? input.projectId : "";
   if (!projectId) throw new AuthError("projectId required", 400);
   await requireProject(projectId, user);
-  const count = await prisma.chapter.count({ where: { projectId } });
+  const visibleCount = await prisma.chapter.count({
+    where: { projectId, ...visibleChapterWhere },
+  });
   const title =
     typeof input.title === "string" && input.title.trim()
       ? input.title.trim()
-      : `Chapter ${count + 1}`;
+      : `Chapter ${visibleCount + 1}`;
   return prisma.chapter.create({
-    data: { projectId, title, order: count },
+    data: { projectId, title, order: await nextChapterOrder(projectId) },
   });
 }
 
@@ -99,6 +125,14 @@ export async function updateChapter(
 
 export async function deleteChapter(id: string, user: PublicUser | null) {
   const chapter = await authorizeOwnedChapter(id, user);
+  const row = await prisma.chapter.findUnique({ where: { id } });
+  if (!row) throw new AuthError("Not found.", 404);
+  if (!isChapterEmpty(row.content)) {
+    throw new AuthError("Chapter must be empty to delete.", 409, {
+      error: "Chapter must be empty to delete.",
+      chapterId: id,
+    });
+  }
   await prisma.chapter.delete({ where: { id } });
 
   const remaining = await prisma.chapter.findMany({
@@ -111,6 +145,28 @@ export async function deleteChapter(id: string, user: PublicUser | null) {
     )
   );
   return { ok: true as const };
+}
+
+export async function archiveChapter(id: string, user: PublicUser | null) {
+  await authorizeOwnedChapter(id, user);
+  const chapter = await prisma.chapter.findUnique({ where: { id } });
+  if (!chapter) throw new AuthError("Not found.", 404);
+  if (chapter.archivedAt) return chapter;
+  return prisma.chapter.update({
+    where: { id },
+    data: { archivedAt: new Date() },
+  });
+}
+
+export async function unarchiveChapter(id: string, user: PublicUser | null) {
+  await authorizeOwnedChapter(id, user);
+  const chapter = await prisma.chapter.findUnique({ where: { id } });
+  if (!chapter) throw new AuthError("Not found.", 404);
+  if (!chapter.archivedAt) return chapter;
+  return prisma.chapter.update({
+    where: { id },
+    data: { archivedAt: null },
+  });
 }
 
 export async function listChapterEdits(id: string, user: PublicUser | null) {

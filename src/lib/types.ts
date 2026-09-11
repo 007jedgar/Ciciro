@@ -10,6 +10,7 @@ export type Chapter = {
   status: string;
   wordCount: number;
   revision: number;
+  archivedAt?: string | Date | null;
 };
 
 export type Character = {

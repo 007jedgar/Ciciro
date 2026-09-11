@@ -660,7 +660,7 @@ export async function executeEditorTool(
     case "read_chapter": {
       const n = Number(input.number);
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const ch = chapters[n - 1];
@@ -675,7 +675,7 @@ export async function executeEditorTool(
 
     case "list_passages": {
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const n =
@@ -724,7 +724,7 @@ export async function executeEditorTool(
         };
       }
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const chapter = chapters[parsed.chapter - 1];
@@ -800,7 +800,7 @@ export async function executeEditorTool(
         return { status: "passage check failed", content: "Passage text is required." };
       }
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const chapter = chapters[n - 1];
@@ -848,7 +848,7 @@ export async function executeEditorTool(
       }
 
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const source = chapters[sourceNumber - 1];
@@ -1080,6 +1080,7 @@ export async function executeEditorTool(
               status: committed.chapter.status,
               wordCount: committed.chapter.wordCount,
               revision: committed.chapter.revision,
+              archivedAt: committed.chapter.archivedAt,
             },
             open: false,
           }
@@ -1120,7 +1121,7 @@ export async function executeEditorTool(
     case "survey_structure": {
       const shapes = await loadChapterShapes(projectId);
       const chapterRows = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
         select: { id: true },
       });
@@ -1161,7 +1162,7 @@ export async function executeEditorTool(
       const q = String(input.query || "").trim();
       if (!q) return { status: "search", content: "Empty query." };
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const hits: string[] = [];
@@ -1219,7 +1220,7 @@ export async function executeEditorTool(
       let chapterId: string | null = null;
       if (input.chapterNumber != null) {
         const chapters = await prisma.chapter.findMany({
-          where: { projectId },
+          where: { projectId, archivedAt: null },
           orderBy: { order: "asc" },
         });
         chapterId = chapters[Number(input.chapterNumber) - 1]?.id ?? null;
@@ -1292,7 +1293,7 @@ export async function executeEditorTool(
         ? (input.replacements as { find: string; replace: string }[])
         : [];
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const ch = chapters[n - 1];
@@ -1440,7 +1441,7 @@ export async function executeEditorTool(
       const toN = toChRes.n;
 
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const fromCh = chapters[fromN - 1];
@@ -1676,7 +1677,7 @@ export async function executeEditorTool(
         };
       }
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const ch = chapters[n - 1];
@@ -1740,11 +1741,15 @@ export async function executeEditorTool(
 
     case "create_chapter": {
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const open = input.open !== false;
-      let order = chapters.length;
+      const maxOrder = await prisma.chapter.aggregate({
+        where: { projectId },
+        _max: { order: true },
+      });
+      let order = (maxOrder._max.order ?? -1) + 1;
       const afterN =
         input.afterChapter != null && input.afterChapter !== ""
           ? Number(input.afterChapter)
@@ -1756,9 +1761,12 @@ export async function executeEditorTool(
             content: `afterChapter must be between 1 and ${chapters.length}.`,
           };
         }
-        order = afterN; // insert after chapter N → new order index = N (0-based: afterN)
-        // Shift later chapters up so the new one slots in.
-        const toShift = chapters.filter((c) => c.order >= order);
+        order = chapters[afterN - 1].order + 1;
+        // Shift later chapters (including archived) so the new one slots in.
+        const toShift = await prisma.chapter.findMany({
+          where: { projectId, order: { gte: order } },
+          orderBy: { order: "desc" },
+        });
         if (toShift.length) {
           await prisma.$transaction(
             toShift.map((c) =>
@@ -1772,7 +1780,8 @@ export async function executeEditorTool(
       }
 
       const title =
-        String(input.title || "").trim() || `Chapter ${order + 1}`;
+        String(input.title || "").trim() ||
+        `Chapter ${afterN != null ? afterN + 1 : chapters.length + 1}`;
       const chapter = await prisma.chapter.create({
         data: {
           projectId,
@@ -1780,7 +1789,7 @@ export async function executeEditorTool(
           order,
         },
       });
-      const number = order + 1;
+      const number = afterN != null ? afterN + 1 : chapters.length + 1;
       return {
         status: `creating chapter ${number}`,
         content: `Created chapter ${number}: "${chapter.title}"${
@@ -1800,6 +1809,7 @@ export async function executeEditorTool(
               status: chapter.status,
               wordCount: chapter.wordCount,
               revision: chapter.revision,
+              archivedAt: chapter.archivedAt,
             },
             open,
           },
@@ -1820,7 +1830,7 @@ export async function executeEditorTool(
     case "open_chapter": {
       const n = Number(input.chapterNumber);
       const chapters = await prisma.chapter.findMany({
-        where: { projectId },
+        where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
       });
       const ch = chapters[n - 1];

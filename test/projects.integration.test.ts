@@ -11,6 +11,8 @@ import {
 import {
   createChapter,
   deleteChapter,
+  archiveChapter,
+  unarchiveChapter,
   listChapters,
   updateChapter,
 } from "@/lib/chapters";
@@ -195,6 +197,51 @@ describe("manuscript and story APIs", () => {
     const remaining = await listChapters(project.id, ada);
     expect(remaining.map((c) => c.title)).toEqual(["Prologue", "Epilogue"]);
     expect(remaining.map((c) => c.order)).toEqual([0, 1]);
+  });
+
+  it("deletes only empty chapters and hides archived ones from the live list", async () => {
+    const ada = await registerUser({
+      email: "ada@example.com",
+      password: "long-enough-pw",
+    });
+    const bob = await registerUser({
+      email: "bob@example.com",
+      password: "long-enough-pw",
+    });
+    const project = await createProject(ada, { title: "Archive" });
+    const opening = project.chapters[0];
+
+    const filled = await updateChapter(opening.id, ada, {
+      content: "<p>Keep this prose.</p>",
+      expectedRevision: opening.revision,
+    });
+    await expect(deleteChapter(opening.id, ada)).rejects.toMatchObject({ status: 409 });
+
+    const spare = await createChapter(ada, { projectId: project.id, title: "Spare" });
+    await deleteChapter(spare.id, ada);
+
+    await expect(archiveChapter(opening.id, bob)).rejects.toMatchObject({ status: 403 });
+    const hidden = await archiveChapter(opening.id, ada);
+    expect(hidden.archivedAt).toBeTruthy();
+
+    const live = await listChapters(project.id, ada);
+    expect(live).toHaveLength(0);
+
+    const archived = await listChapters(project.id, ada, { archived: true });
+    expect(archived.map((c) => c.title)).toEqual(["Chapter 1"]);
+
+    const shown = await getProject(project.id, ada);
+    expect(shown.chapters).toHaveLength(0);
+
+    const listed = await listProjects(ada);
+    expect(listed.find((p) => p.id === project.id)?._count.chapters).toBe(0);
+
+    const restored = await unarchiveChapter(opening.id, ada);
+    expect(restored.archivedAt).toBeNull();
+    const after = await listChapters(project.id, ada);
+    expect(after.map((c) => c.title)).toEqual(["Chapter 1"]);
+    expect(after[0].content).toContain("Keep this prose");
+    expect(filled.contentChanged).toBe(true);
   });
 
   it("scopes characters, plot points, and questions to the manuscript owner", async () => {

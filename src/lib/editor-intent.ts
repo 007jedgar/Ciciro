@@ -117,7 +117,7 @@ export async function buildEditorIntent(input: {
   const [shapes, chapters] = await Promise.all([
     loadChapterShapes(input.projectId),
     prisma.chapter.findMany({
-      where: { projectId: input.projectId },
+      where: { projectId: input.projectId, archivedAt: null },
       orderBy: { order: "asc" },
       select: { id: true, content: true },
     }),
