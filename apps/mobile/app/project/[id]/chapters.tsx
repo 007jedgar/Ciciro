@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
 import { ApiError } from "../../../lib/api";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
@@ -19,6 +20,7 @@ export default function ChaptersScreen() {
   } = useProject();
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
+  const clearance = useTabBarClearance();
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -71,6 +73,7 @@ export default function ChaptersScreen() {
       <FlatList
         data={chapters}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: clearance }}
         ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
         renderItem={({ item }) => {
           const selected = item.id === selectedChapterId;

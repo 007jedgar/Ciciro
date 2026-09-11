@@ -1,5 +1,6 @@
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
 import { htmlToPlainText } from "../../../lib/html";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
@@ -9,6 +10,7 @@ export default function ManuscriptScreen() {
   const { project, loading, error, selectedChapterId } = useProject();
   const { t } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
+  const clearance = useTabBarClearance();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
 
   if (loading && !project) {
@@ -38,7 +40,7 @@ export default function ManuscriptScreen() {
   const body = htmlToPlainText(chapter.content);
 
   return (
-    <ScrollView style={layout.screen} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+    <ScrollView style={layout.screen} contentContainerStyle={{ padding: 20, paddingBottom: clearance }}>
       <Text style={layout.title}>{chapter.title}</Text>
       {body ? (
         <Text

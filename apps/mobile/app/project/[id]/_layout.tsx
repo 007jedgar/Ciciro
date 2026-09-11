@@ -2,7 +2,7 @@ import { Redirect, Tabs, useLocalSearchParams, useRouter } from "expo-router";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
-import { ChaptersIcon, CiciroTabIcon, ManuscriptIcon } from "../../../components/icons";
+import { ManuscriptTabBar } from "../../../components/ManuscriptTabBar";
 import { ProjectProvider, useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
@@ -58,44 +58,15 @@ export default function ProjectTabsLayout() {
         <View style={{ flex: 1 }}>
           <Tabs
             backBehavior="none"
-            screenOptions={{
-              headerShown: false,
-              tabBarActiveTintColor: colors.accent,
-              tabBarInactiveTintColor: colors.inkSoft,
-              tabBarHideOnKeyboard: true,
-              tabBarLabelStyle: { fontSize: 11, fontWeight: "500" },
-              tabBarStyle: { backgroundColor: colors.panel, borderTopColor: colors.line },
-            }}
+            tabBar={() => null}
+            screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
           >
-            <Tabs.Screen
-              name="chapters"
-              options={{
-                title: t("project.chapters"),
-                tabBarIcon: ({ color, size, focused }) => (
-                  <ChaptersIcon color={color} size={size} focused={focused} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="manuscript"
-              options={{
-                title: t("project.manuscript"),
-                tabBarIcon: ({ color, size, focused }) => (
-                  <ManuscriptIcon color={color} size={size} focused={focused} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="ciciro"
-              options={{
-                title: t("project.ciciro"),
-                tabBarIcon: ({ color, size, focused }) => (
-                  <CiciroTabIcon color={color} size={size} focused={focused} />
-                ),
-              }}
-            />
+            <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
+            <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
+            <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
             <Tabs.Screen name="index" options={{ href: null }} />
           </Tabs>
+          <ManuscriptTabBar projectId={id} />
         </View>
       </View>
     </ProjectProvider>

@@ -60,8 +60,9 @@ const zh: Translations = {
   },
   manuscripts: {
     title: "手稿",
-    startNew: "开始新手稿",
+    newManuscript: "新建手稿",
     newFolder: "新建文件夹",
+    closeMenu: "关闭菜单",
     unfiled: "未归档",
     loadError: "无法加载手稿。",
     foldersLoadError: "无法加载文件夹。",
@@ -174,6 +175,24 @@ const zh: Translations = {
     placeholder:
       "你只与一位伙伴对话：编辑 Ciciro。聊天、起草和工具调用仍在托管应用中运行（POST /api/chat）。此标签页是占位，让手机工作区与章节、手稿和 Ciciro 对齐，而不再嵌入第二个助手。",
     logline: "故事梗概：{{logline}}",
+    requested: "已请求",
+    intent: {
+      continue: "续写草稿",
+      rewrite: "重写这一段",
+      describe: "添加描写",
+    },
+  },
+  manuscriptTabBar: {
+    open: "写作工具",
+    close: "关闭",
+    ask: "询问 Ciciro",
+    continue: "续写",
+    rewrite: "重写",
+    describe: "描写",
+    newChapter: "新章节",
+    chapters: "章节",
+    typography: "字体排印",
+    settings: "设置",
   },
 };
 

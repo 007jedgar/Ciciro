@@ -7,6 +7,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "setup:ios": "cd ios && pod install --repo-update && cd ..",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "jest"

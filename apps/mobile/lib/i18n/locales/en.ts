@@ -58,8 +58,9 @@ const en = {
   },
   manuscripts: {
     title: "Manuscripts",
-    startNew: "Start a new manuscript",
+    newManuscript: "New manuscript",
     newFolder: "New folder",
+    closeMenu: "Close menu",
     unfiled: "Unfiled",
     loadError: "Could not load manuscripts.",
     foldersLoadError: "Could not load folders.",
@@ -173,6 +174,24 @@ const en = {
     placeholder:
       "You talk to one partner: Ciciro, the editor. Chat, drafting, and tool calls still run on the hosted app (POST /api/chat). This tab is a placeholder so the phone workspace matches Chapters, Manuscript, and Ciciro without embedding a second assistant.",
     logline: "Logline: {{logline}}",
+    requested: "Requested",
+    intent: {
+      continue: "Continue the draft",
+      rewrite: "Rewrite the passage",
+      describe: "Add description",
+    },
+  },
+  manuscriptTabBar: {
+    open: "Writing tools",
+    close: "Close",
+    ask: "Ask Ciciro",
+    continue: "Continue",
+    rewrite: "Rewrite",
+    describe: "Describe",
+    newChapter: "New chapter",
+    chapters: "Chapters",
+    typography: "Typography",
+    settings: "Settings",
   },
 };
 

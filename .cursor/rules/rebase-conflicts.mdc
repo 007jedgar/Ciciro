@@ -1,0 +1,23 @@
+---
+description: Resolve branch conflicts by rebasing onto the base branch, never by merging
+alwaysApply: true
+---
+
+# Rebase merge conflicts
+
+When a PR or feature branch conflicts with its base (`main` / `master`):
+
+- **Rebase.** Do not `git merge` the base branch to "fix conflicts."
+- Use a non-interactive rebase only (`git rebase origin/<base>`). Never `git rebase -i`.
+- After resolving files: `git add` them, then `git rebase --continue`. Repeat until the rebase finishes.
+- If the branch was already pushed, update the remote with `git push --force-with-lease` (never force-push `main` / `master`).
+- If a rebase is in progress, finish or `git rebase --abort` it. Do not start a merge on top.
+
+```bash
+git fetch origin
+git rebase origin/main
+# resolve conflicted files, then:
+git add <files>
+git rebase --continue
+git push --force-with-lease
+```
