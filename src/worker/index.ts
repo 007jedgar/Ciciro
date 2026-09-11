@@ -6,7 +6,7 @@
 //      exported from the worker module named in its migration),
 //   2. publish the DO namespace binding to the run coordinator on each request,
 //      so durable editor-run slices are serialized fleet-wide, and
-//   3. publish the D1 binding so Prisma uses the driver adapter on Workers, and
+//   3. bind D1 + a request-scoped Prisma client (never a process singleton),
 //   4. copy string vars/secrets onto process.env so Next.js route handlers can
 //      read ANTHROPIC_API_KEY (OpenNext + a custom entry does not always do this),
 //   5. publish the request session token (cookie or x-ciciro-session) so
@@ -15,7 +15,7 @@
 // wrangler.jsonc `main` points at this file.
 
 import { EditorRunDO } from "./run-do";
-import { setD1Database } from "../lib/d1-binding";
+import { runWithRequestPrisma } from "../lib/db";
 import {
   setRunDurableObjectNamespace,
   type RunDurableObjectNamespace,
@@ -53,11 +53,10 @@ export default {
     if (env.EDITOR_RUN_DO) {
       setRunDurableObjectNamespace(env.EDITOR_RUN_DO);
     }
-    if (env.DB) {
-      setD1Database(env.DB);
-    }
-    return runWithRequestSession(sessionTokenFromRequest(request), () =>
-      openNextHandler.fetch(request, env, ctx)
-    );
+    const handle = () =>
+      runWithRequestSession(sessionTokenFromRequest(request), () =>
+        openNextHandler.fetch(request, env, ctx)
+      );
+    return env.DB ? runWithRequestPrisma(env.DB, handle) : handle();
   },
 };

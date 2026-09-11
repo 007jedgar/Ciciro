@@ -170,6 +170,7 @@ export default function Home() {
   const [folderName, setFolderName] = useState("");
   const [folderNotes, setFolderNotes] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [shelf, setShelf] = useState<"loading" | "ready" | "error">("loading");
 
   const load = useCallback(async () => {
     const [nextProjects, nextFolders] = await Promise.all([
@@ -178,6 +179,9 @@ export default function Home() {
     ]);
     if (Array.isArray(nextProjects)) setProjects(nextProjects);
     if (Array.isArray(nextFolders)) setFolders(nextFolders);
+    setShelf(
+      Array.isArray(nextProjects) && Array.isArray(nextFolders) ? "ready" : "error"
+    );
   }, []);
 
   useEffect(() => {
@@ -281,6 +285,13 @@ export default function Home() {
         </div>
       </div>
       <p className="tag">Your AI writing partner - plan it, write it, ship the manuscript.</p>
+
+      {shelf === "loading" ? <p className="tag">Loading manuscripts…</p> : null}
+      {shelf === "error" ? (
+        <p className="tag" role="alert">
+          Couldn&apos;t load manuscripts. Refresh to try again.
+        </p>
+      ) : null}
 
       {folders.map((folder) => (
         <FolderBlock
