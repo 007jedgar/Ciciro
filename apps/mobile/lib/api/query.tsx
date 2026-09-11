@@ -1,8 +1,10 @@
 import { useEffect, type ReactNode } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { focusManager, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, onlineManager, QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ApiError } from "./client";
+import { CACHE_BUSTER, CACHE_MAX_AGE, queryPersister } from "./persister";
 
 export function shouldRetryQuery(failureCount: number, error: Error): boolean {
   if (error instanceof ApiError && error.status < 500) return false;
@@ -54,5 +56,19 @@ export function ApiQueryProvider({ children }: { children: ReactNode }) {
     installQueryNetworkListeners();
   }, []);
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: queryPersister,
+        maxAge: CACHE_MAX_AGE,
+        buster: CACHE_BUSTER,
+        // Persist cached reads only. Mutations (incl. optimistic ones) are not
+        // resumed from disk; a relaunch revalidates against the server instead.
+        dehydrateOptions: { shouldDehydrateMutation: () => false },
+      }}
+    >
+      {children}
+    </PersistQueryClientProvider>
+  );
 }

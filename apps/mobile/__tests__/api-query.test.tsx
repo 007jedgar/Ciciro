@@ -6,6 +6,7 @@ import {
   queryClient,
   queryKeys,
   shouldRetryQuery,
+  useAddProjectsToFolderMutation,
   useArchiveChapterMutation,
   useCreateChapterMutation,
   useCreateProjectMutation,
@@ -167,6 +168,62 @@ describe("query hooks", () => {
     expect(queryClient.getQueryData(queryKeys.projects.detail("p1"))).toMatchObject({
       chapters: [{ id: "c1", title: "Chapter 1" }],
     });
+    unmount();
+  });
+
+  it("moves a manuscript into a folder before the server responds", async () => {
+    const folder = { id: "f1", name: "Cycle", notes: "", projects: [], _count: { projects: 0 } };
+    mockFetch(async () =>
+      jsonResponse({
+        ...folder,
+        projects: [{ id: "p1", title: "One", folderId: "f1" }],
+        _count: { projects: 1 },
+      })
+    );
+    queryClient.setQueryData(queryKeys.folders.list(), [folder]);
+    queryClient.setQueryData(queryKeys.folders.detail("f1"), folder);
+    queryClient.setQueryData(queryKeys.projects.list(), [{ id: "p1", title: "One", folderId: null }]);
+
+    const { result, unmount } = renderHook(() => useAddProjectsToFolderMutation(), { wrapper });
+
+    // The optimistic update lands synchronously inside onMutate.
+    let mutation: Promise<unknown> | null = null;
+    act(() => {
+      mutation = result.current.mutateAsync({ id: "f1", projectIds: ["p1"] });
+    });
+    await waitFor(() => {
+      const detail = queryClient.getQueryData(queryKeys.folders.detail("f1")) as { projects: unknown[] };
+      expect(detail.projects).toHaveLength(1);
+    });
+    expect(queryClient.getQueryData(queryKeys.projects.list())).toEqual([
+      { id: "p1", title: "One", folderId: "f1" },
+    ]);
+    await act(async () => {
+      await mutation;
+    });
+    unmount();
+  });
+
+  it("rolls the folder caches back when a move fails", async () => {
+    mockFetch(async () => jsonResponse({ error: "nope" }, { status: 500 }));
+    queryClient.setQueryData(queryKeys.folders.detail("f1"), {
+      id: "f1",
+      name: "Cycle",
+      notes: "",
+      projects: [],
+      _count: { projects: 0 },
+    });
+    queryClient.setQueryData(queryKeys.projects.list(), [{ id: "p1", title: "One", folderId: null }]);
+
+    const { result, unmount } = renderHook(() => useAddProjectsToFolderMutation(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ id: "f1", projectIds: ["p1"] }).catch(() => {});
+    });
+
+    expect(queryClient.getQueryData(queryKeys.projects.list())).toEqual([
+      { id: "p1", title: "One", folderId: null },
+    ]);
+    expect(queryClient.getQueryData(queryKeys.folders.detail("f1"))).toMatchObject({ projects: [] });
     unmount();
   });
 
