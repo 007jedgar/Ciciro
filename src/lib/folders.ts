@@ -7,22 +7,25 @@ import {
   requireUserIfHosted,
   type PublicUser,
 } from "@/lib/auth/session";
-import { visibleChapterWhere } from "@/lib/chapters";
+import { visibleChapterIdInclude, withVisibleChapterCount } from "@/lib/chapters";
 
 const NAME_MAX = 200;
 const NOTES_MAX = 8000;
 
 const FOLDER_PROJECT_INCLUDE = {
   orderBy: { updatedAt: "desc" as const },
-  include: { _count: { select: { chapters: { where: visibleChapterWhere } } } },
+  include: { chapters: visibleChapterIdInclude },
 };
 
 const FOLDER_INCLUDE = {
   projects: FOLDER_PROJECT_INCLUDE,
 } as const;
 
-function withProjectCount<T extends { projects: unknown[] }>(folder: T) {
-  return { ...folder, _count: { projects: folder.projects.length } };
+function withProjectCount<
+  T extends { projects: Array<{ chapters: { id: string }[] }> },
+>(folder: T) {
+  const projects = folder.projects.map(withVisibleChapterCount);
+  return { ...folder, projects, _count: { projects: projects.length } };
 }
 
 function readTrimmed(value: unknown): string {
