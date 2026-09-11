@@ -18,9 +18,10 @@ model User {
   passwordHash String
   name         String @default("")
 
-  sessions Session[]
-  projects Project[]
-  folders  Folder[]
+  sessions          Session[]
+  projects          Project[]
+  folders           Folder[]
+  readingPositions  ReadingPosition[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -68,14 +69,17 @@ model Project {
   folderId String?
   folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
-  chapters        Chapter[]
-  characters      Character[]
-  plotPoints      PlotPoint[]
-  messages        ChatMessage[]
-  openQuestions   OpenQuestion[]
-  chatBlobs       ChatBlob[]
-  draftInsertions DraftInsertion[]
-  editorRuns      EditorRun[]
+  chapters          Chapter[]
+  characters        Character[]
+  plotPoints        PlotPoint[]
+  messages          ChatMessage[]
+  openQuestions     OpenQuestion[]
+  chatBlobs         ChatBlob[]
+  draftInsertions   DraftInsertion[]
+  editorRuns        EditorRun[]
+  chapterOps        ChapterOp[]
+  bibleFiles        BibleFile[]
+  readingPositions  ReadingPosition[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,14 +122,76 @@ model Chapter {
   // the manuscript and can be restored; only empty chapters may be deleted.
   archivedAt DateTime?
 
-  plotPoints      PlotPoint[]
-  manuscriptEdits ManuscriptEdit[]
+  plotPoints        PlotPoint[]
+  manuscriptEdits   ManuscriptEdit[]
+  ops               ChapterOp[]
+  readingPositions  ReadingPosition[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([projectId, order])
   @@index([projectId, archivedAt])
+}
+
+// Append-only block op log. Chapter.content + revision is the materialized
+// snapshot; seq equals Chapter.revision after a successful apply.
+model ChapterOp {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  opId         String // client uuid, unique per chapter
+  seq          Int    // monotonic per chapter
+  baseRevision Int
+  actor        String // user | ai | correction
+  type         String // replace_block | insert_block | delete_block
+  payload      String // JSON of the op fields (blockId, html, afterBlockId, …)
+
+  createdAt DateTime @default(now())
+
+  @@unique([chapterId, opId])
+  @@index([chapterId, seq])
+  @@index([projectId, createdAt])
+}
+
+// Story bible markdown, one row per path. Hosted Workers have no filesystem,
+// so this is the durable store on D1 (and on local sqlite).
+model BibleFile {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  path     String
+  content  String
+  revision Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, path])
+  @@index([projectId])
+}
+
+// Durable reading position (chapter + block + offset). LastPlaceTracker on
+// mobile stays screen-only; this is the sentence-level cursor.
+model ReadingPosition {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  blockId String
+  offset  Int
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, projectId])
+  @@index([projectId])
 }
 
 // A correction the editor applied via edit_manuscript - the raw find/replace
