@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   applyOp,
+  diffHtmlToOps,
   docToHtml,
   htmlToDoc,
   type ManuscriptDoc,
@@ -192,5 +193,53 @@ describe("manuscript block model", () => {
       first.doc.blocks.map((b) => b.kind)
     );
     expect(second.html).toBe(serialized);
+  });
+
+  it("diffs html into ops that applyOp can replay", () => {
+    const oldHtml =
+      '<p data-block-id="b1">Alpha.</p><p data-block-id="b2">Beta.</p><p data-block-id="b3">Gamma.</p>';
+    const newHtml =
+      '<p data-block-id="b1">Alpha revised.</p><p data-block-id="b4">Inserted.</p><p data-block-id="b3">Gamma.</p>';
+    const ops = diffHtmlToOps(oldHtml, newHtml, 2, {
+      actor: "user",
+      createOpId: createId,
+    });
+
+    expect(ops.map((op) => op.type)).toEqual([
+      "delete_block",
+      "replace_block",
+      "insert_block",
+    ]);
+
+    let { doc } = htmlToDoc(oldHtml, 2);
+    for (const op of ops) {
+      const next = applyOp(doc, op);
+      expect(next.ok).toBe(true);
+      if (!next.ok) return;
+      doc = next.doc;
+    }
+    expect(doc.revision).toBe(2 + ops.length);
+    expect(doc.blocks.map((b) => b.id)).toEqual(["b1", "b4", "b3"]);
+    expect(doc.blocks.map((b) => b.text)).toEqual([
+      "Alpha revised.",
+      "Inserted.",
+      "Gamma.",
+    ]);
+    expect(docToHtml(doc)).toBe(
+      '<p data-block-id="b1">Alpha revised.</p><p data-block-id="b4">Inserted.</p><p data-block-id="b3">Gamma.</p>'
+    );
+  });
+
+  it("inherits positional ids when the new html has no data-block-id", () => {
+    const ops = diffHtmlToOps(
+      '<p data-block-id="keep">Hello.</p>',
+      "<p>Hello world.</p>",
+      0
+    );
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({
+      type: "replace_block",
+      blockId: "keep",
+    });
   });
 });
