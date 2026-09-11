@@ -247,7 +247,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }
 
   async function deleteChapter(id: string) {
-    await fetch(`/api/chapters/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/chapters/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as { error?: string } | null;
+      window.alert(err?.error || "Chapter must be empty to delete.");
+      return;
+    }
     setProject((p) => {
       const chapters = p.chapters
         .filter((c) => c.id !== id)

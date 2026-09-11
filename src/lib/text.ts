@@ -23,6 +23,11 @@ export function countWords(text: string): number {
   return t.split(/\s+/).length;
 }
 
+/** True when TipTap HTML has no prose (empty `<p></p>` counts as empty). */
+export function isChapterEmpty(content: string): boolean {
+  return countWords(htmlToText(content)) === 0;
+}
+
 // Pull prose out of the assistant's <draft>...</draft> block, if present.
 export function extractDraft(reply: string): string | null {
   const match = reply.match(/<draft>([\s\S]*?)<\/draft>/i);

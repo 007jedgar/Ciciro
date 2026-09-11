@@ -6,10 +6,13 @@ import {
   queryClient,
   queryKeys,
   shouldRetryQuery,
+  useArchiveChapterMutation,
   useCreateChapterMutation,
   useCreateProjectMutation,
+  useDeleteChapterMutation,
   useProjectQuery,
   useProjectsQuery,
+  useUnarchiveChapterMutation,
 } from "../lib/api";
 import { jsonResponse, mockFetch } from "./http";
 
@@ -24,6 +27,7 @@ describe("query keys", () => {
     expect(queryKeys.folders.detail("f1")[0]).toBe("folders");
     expect(queryKeys.questions("p1")).toEqual(["questions", "p1", "all"]);
     expect(queryKeys.questions("p1", "open")).toEqual(["questions", "p1", "open"]);
+    expect(queryKeys.chapters.archived("p1")).toEqual(["chapters", "p1", "archived"]);
     expect(queryKeys.bible.file("p1", "canon.md")).toEqual(["bible", "p1", "canon.md"]);
   });
 });
@@ -92,6 +96,76 @@ describe("query hooks", () => {
 
     expect(queryClient.getQueryData(queryKeys.projects.detail("p1"))).toMatchObject({
       chapters: [{ id: "c1", title: "Chapter 1" }, { id: "c2", title: "Chapter 2", projectId: "p1" }],
+    });
+    unmount();
+  });
+
+  it("hides an archived chapter from the project cache", async () => {
+    mockFetch(async () =>
+      jsonResponse({ id: "c2", projectId: "p1", title: "Hidden", order: 1, archivedAt: "2026-09-11T00:00:00.000Z" })
+    );
+    queryClient.setQueryData(queryKeys.projects.detail("p1"), {
+      id: "p1",
+      title: "Book",
+      chapters: [
+        { id: "c1", title: "Chapter 1" },
+        { id: "c2", title: "Hidden" },
+      ],
+    });
+
+    const { result, unmount } = renderHook(() => useArchiveChapterMutation(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ id: "c2", projectId: "p1" });
+    });
+
+    expect(queryClient.getQueryData(queryKeys.projects.detail("p1"))).toMatchObject({
+      chapters: [{ id: "c1", title: "Chapter 1" }],
+    });
+    unmount();
+  });
+
+  it("restores an unarchived chapter into the project cache", async () => {
+    mockFetch(async () =>
+      jsonResponse({ id: "c2", projectId: "p1", title: "Hidden", order: 1, archivedAt: null })
+    );
+    queryClient.setQueryData(queryKeys.projects.detail("p1"), {
+      id: "p1",
+      title: "Book",
+      chapters: [{ id: "c1", title: "Chapter 1", order: 0 }],
+    });
+
+    const { result, unmount } = renderHook(() => useUnarchiveChapterMutation(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ id: "c2", projectId: "p1" });
+    });
+
+    expect(queryClient.getQueryData(queryKeys.projects.detail("p1"))).toMatchObject({
+      chapters: [
+        { id: "c1", title: "Chapter 1", order: 0 },
+        { id: "c2", title: "Hidden", order: 1, archivedAt: null },
+      ],
+    });
+    unmount();
+  });
+
+  it("removes a deleted chapter from the project cache", async () => {
+    mockFetch(async () => jsonResponse({ ok: true }));
+    queryClient.setQueryData(queryKeys.projects.detail("p1"), {
+      id: "p1",
+      title: "Book",
+      chapters: [
+        { id: "c1", title: "Chapter 1" },
+        { id: "c2", title: "Spare" },
+      ],
+    });
+
+    const { result, unmount } = renderHook(() => useDeleteChapterMutation(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ id: "c2", projectId: "p1" });
+    });
+
+    expect(queryClient.getQueryData(queryKeys.projects.detail("p1"))).toMatchObject({
+      chapters: [{ id: "c1", title: "Chapter 1" }],
     });
     unmount();
   });

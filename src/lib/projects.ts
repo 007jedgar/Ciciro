@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } from "@/lib/auth/session";
+import { visibleChapterWhere, visibleChaptersInclude } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
 
 function readTrimmed(value: unknown): string {
@@ -15,11 +16,11 @@ export type ProjectCreateInput = {
 };
 
 const PROJECT_LIST_INCLUDE = {
-  _count: { select: { chapters: true } },
+  _count: { select: { chapters: { where: visibleChapterWhere } } },
 } as const;
 
 const PROJECT_DETAIL_INCLUDE = {
-  chapters: { orderBy: { order: "asc" as const } },
+  chapters: visibleChaptersInclude,
   characters: { orderBy: { name: "asc" as const } },
   plotPoints: { orderBy: { order: "asc" as const } },
 };

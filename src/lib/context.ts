@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { htmlToText } from "@/lib/text";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
+import { visibleChaptersInclude } from "@/lib/chapters";
 import {
   compactOpenChapterIndex,
   formatSceneIndex,
@@ -35,7 +36,7 @@ export async function buildEditorContext(
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
-      chapters: { orderBy: { order: "asc" } },
+      chapters: visibleChaptersInclude,
       openQuestions: { where: { status: "open" }, orderBy: { createdAt: "desc" } },
     },
   });

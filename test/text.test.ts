@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countWords, extractDraft, htmlToText } from "@/lib/text";
+import { countWords, extractDraft, htmlToText, isChapterEmpty } from "@/lib/text";
 
 describe("htmlToText", () => {
   it("returns empty string for empty input", () => {
@@ -36,6 +36,18 @@ describe("countWords", () => {
     expect(countWords("one")).toBe(1);
     expect(countWords("one two three")).toBe(3);
     expect(countWords("  spaced \n out\twords  ")).toBe(3);
+  });
+});
+
+describe("isChapterEmpty", () => {
+  it("treats blank and empty TipTap markup as empty", () => {
+    expect(isChapterEmpty("")).toBe(true);
+    expect(isChapterEmpty("<p></p>")).toBe(true);
+    expect(isChapterEmpty("<p>&nbsp;</p>")).toBe(true);
+  });
+
+  it("treats chapters with prose as not empty", () => {
+    expect(isChapterEmpty("<p>Hello</p>")).toBe(false);
   });
 });
 

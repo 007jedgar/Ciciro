@@ -121,6 +121,23 @@ const RESOURCES: ResourceCase[] = [
     body: { expectedRevision: 1, title: "Chapter 1" },
   },
   { name: "chapters.delete", run: () => ciciro.chapters.delete("c1"), method: "DELETE", path: /\/api\/chapters\/c1$/ },
+  {
+    name: "chapters.archive",
+    run: () => ciciro.chapters.archive("c1"),
+    method: "POST",
+    path: /\/api\/chapters\/c1\/archive$/,
+  },
+  {
+    name: "chapters.unarchive",
+    run: () => ciciro.chapters.unarchive("c1"),
+    method: "DELETE",
+    path: /\/api\/chapters\/c1\/archive$/,
+  },
+  {
+    name: "chapters.listArchived",
+    run: () => ciciro.chapters.listArchived("p1"),
+    path: /\/api\/chapters\?projectId=p1&archived=true$/,
+  },
   { name: "chapters.edits", run: () => ciciro.chapters.edits("c1"), path: /\/api\/chapters\/c1\/edits$/ },
   { name: "characters.list", run: () => ciciro.characters.list("p1"), path: /\/api\/characters\?projectId=p1$/ },
   {

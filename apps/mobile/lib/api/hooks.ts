@@ -32,6 +32,25 @@ function invalidateProject(projectId: string): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 }
 
+function invalidateChapterLists(projectId: string): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.list(projectId) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.archived(projectId) });
+}
+
+function withoutChapter(current: ProjectDetail | undefined, chapterId: string) {
+  if (!current) return current;
+  return { ...current, chapters: current.chapters.filter((c) => c.id !== chapterId) };
+}
+
+function withLiveChapter(current: ProjectDetail | undefined, chapter: Chapter) {
+  if (!current) return current;
+  const chapters = current.chapters.filter((c) => c.id !== chapter.id);
+  chapters.push(chapter);
+  chapters.sort((a, b) => a.order - b.order);
+  return { ...current, chapters };
+}
+
 function invalidateFolders(): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.folders.all });
 }
@@ -99,6 +118,14 @@ export function useChaptersQuery(projectId: string, options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.chapters.list(projectId),
     queryFn: () => ciciro.chapters.list(projectId),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useArchivedChaptersQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.chapters.archived(projectId),
+    queryFn: () => ciciro.chapters.listArchived(projectId),
     enabled: (options?.enabled ?? true) && Boolean(projectId),
   });
 }
@@ -335,7 +362,41 @@ export function useDeleteChapterMutation() {
   return useMutation({
     mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
       ciciro.chapters.delete(id).then((result) => ({ ...result, projectId })),
-    onSuccess: (_data, vars) => invalidateProject(vars.projectId),
+    onSuccess: (_data, vars) => {
+      queryClient.setQueryData(
+        queryKeys.projects.detail(vars.projectId),
+        (current: ProjectDetail | undefined) => withoutChapter(current, vars.id)
+      );
+      invalidateChapterLists(vars.projectId);
+    },
+  });
+}
+
+export function useArchiveChapterMutation() {
+  return useMutation({
+    mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
+      ciciro.chapters.archive(id).then((chapter) => ({ chapter, projectId })),
+    onSuccess: ({ chapter }, vars) => {
+      queryClient.setQueryData(
+        queryKeys.projects.detail(vars.projectId),
+        (current: ProjectDetail | undefined) => withoutChapter(current, chapter.id)
+      );
+      invalidateChapterLists(vars.projectId);
+    },
+  });
+}
+
+export function useUnarchiveChapterMutation() {
+  return useMutation({
+    mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
+      ciciro.chapters.unarchive(id).then((chapter) => ({ chapter, projectId })),
+    onSuccess: ({ chapter }, vars) => {
+      queryClient.setQueryData(
+        queryKeys.projects.detail(vars.projectId),
+        (current: ProjectDetail | undefined) => withLiveChapter(current, chapter)
+      );
+      invalidateChapterLists(vars.projectId);
+    },
   });
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { indexChapter, formatSceneIndex, parsePassageId } from "@/lib/passages";
+import { visibleChapterWhere } from "@/lib/chapters";
 
 // Decide how to rearrange manuscript text: a cheap index loop, one targeted
 // move, or a full-chapter read. First-time users should not have to write
@@ -396,7 +397,7 @@ export async function loadChapterShapes(
   projectId: string
 ): Promise<ChapterShape[]> {
   const chapters = await prisma.chapter.findMany({
-    where: { projectId },
+    where: { projectId, ...visibleChapterWhere },
     orderBy: { order: "asc" },
   });
   return chapters.map((ch, i) => {
@@ -435,7 +436,7 @@ export async function buildReorgPlan(opts: {
   }
   const chapters = await loadChapterShapes(opts.projectId);
   const rows = await prisma.chapter.findMany({
-    where: { projectId: opts.projectId },
+    where: { projectId: opts.projectId, ...visibleChapterWhere },
     orderBy: { order: "asc" },
     select: { id: true },
   });

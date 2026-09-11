@@ -40,6 +40,7 @@ export type Chapter = {
   status: string;
   wordCount: number;
   revision: number;
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -258,6 +259,11 @@ export type ChapterConflictBody = {
   expectedRevision: number;
   currentRevision: number;
   chapter: Chapter;
+};
+
+export type ChapterNotEmptyBody = {
+  error: string;
+  chapterId: string;
 };
 
 export type CharacterCreateRequest = {

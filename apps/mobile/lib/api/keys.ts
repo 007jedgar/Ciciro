@@ -14,6 +14,7 @@ export const queryKeys = {
   },
   chapters: {
     list: (projectId: string) => ["chapters", projectId] as const,
+    archived: (projectId: string) => ["chapters", projectId, "archived"] as const,
     edits: (id: string) => ["chapter-edits", id] as const,
   },
   characters: (projectId: string) => ["characters", projectId] as const,

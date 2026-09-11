@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }
   const project = await prisma.project.findUnique({
     where: { id },
-    include: { chapters: { orderBy: { order: "asc" } } },
+    include: { chapters: { where: { archivedAt: null }, orderBy: { order: "asc" } } },
   });
   if (!project) {
     return new Response(JSON.stringify({ error: "Not found" }), {

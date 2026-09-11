@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 }
 
-// DELETE /api/chapters/:id — remove a chapter and re-number the rest.
+// DELETE /api/chapters/:id — remove an empty chapter and re-number the rest.
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const user = await getSessionUser();

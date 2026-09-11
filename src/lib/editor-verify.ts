@@ -148,7 +148,7 @@ export async function verifyEditorCompletion(input: {
     ...new Set([...intent.sourceChapters, ...intent.destinationChapters]),
   ];
   const chapters = await prisma.chapter.findMany({
-    where: { projectId: input.projectId },
+    where: { projectId: input.projectId, archivedAt: null },
     orderBy: { order: "asc" },
     select: { content: true, revision: true },
   });

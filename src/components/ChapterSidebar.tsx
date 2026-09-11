@@ -1,6 +1,7 @@
 "use client";
 
 import type { Chapter } from "@/lib/types";
+import { isChapterEmpty } from "@/lib/text";
 
 type Props = {
   chapters: Chapter[];
@@ -39,7 +40,7 @@ export default function ChapterSidebar({
           </span>
           <span className="cm">
             {ch.wordCount.toLocaleString()} words - {ch.status}
-            {chapters.length > 1 && (
+            {chapters.length > 1 && isChapterEmpty(ch.content) && (
               <>
                 {" "}
                 -{" "}

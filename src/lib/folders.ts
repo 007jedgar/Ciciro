@@ -7,13 +7,14 @@ import {
   requireUserIfHosted,
   type PublicUser,
 } from "@/lib/auth/session";
+import { visibleChapterWhere } from "@/lib/chapters";
 
 const NAME_MAX = 200;
 const NOTES_MAX = 8000;
 
 const FOLDER_PROJECT_INCLUDE = {
   orderBy: { updatedAt: "desc" as const },
-  include: { _count: { select: { chapters: true } } },
+  include: { _count: { select: { chapters: { where: visibleChapterWhere } } } },
 };
 
 const FOLDER_INCLUDE = {
