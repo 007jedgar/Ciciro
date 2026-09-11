@@ -7,6 +7,7 @@ import {
   SESSION_HEADER,
   tokenFromCookieHeader,
 } from "@/lib/auth/constants";
+import { peekRequestSession } from "@/lib/auth/session-binding";
 import {
   SESSION_TTL_MS,
   generateSessionToken,
@@ -26,6 +27,7 @@ export class AuthError extends Error {
   body?: unknown;
   constructor(message: string, status = 400, body?: unknown) {
     super(message);
+    this.name = "AuthError";
     this.status = status;
     this.body = body;
   }
@@ -112,38 +114,46 @@ export async function createSession(
   return token;
 }
 
-async function readSessionToken(): Promise<string | null> {
+function pushToken(tokens: string[], value: string | null | undefined): void {
+  const token = value?.trim();
+  if (token && !tokens.includes(token)) tokens.push(token);
+}
+
+async function sessionTokens(): Promise<string[]> {
+  const tokens: string[] = [];
+  pushToken(tokens, peekRequestSession());
   try {
     const jar = await cookies();
-    const fromJar = jar.get(SESSION_COOKIE)?.value?.trim();
-    if (fromJar) return fromJar;
+    pushToken(tokens, jar.get(SESSION_COOKIE)?.value);
   } catch {
     // No Next.js cookie store (tests / background work).
   }
   try {
     const h = await headers();
-    const fromHeader = h.get(SESSION_HEADER)?.trim();
-    if (fromHeader) return fromHeader;
-    return tokenFromCookieHeader(h.get("cookie"));
+    pushToken(tokens, h.get(SESSION_HEADER));
+    pushToken(tokens, tokenFromCookieHeader(h.get("cookie")));
   } catch {
-    return null;
+    // No request headers.
   }
+  return tokens;
 }
 
 /** Resolve the current user from the session cookie, or null. Sweeps expiry. */
 export async function getSessionUser(): Promise<PublicUser | null> {
-  const token = await readSessionToken();
-  if (!token) return null;
-  const session = await prisma.session.findUnique({
-    where: { tokenHash: hashSessionToken(token) },
-    include: { user: true },
-  });
-  if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
-    await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
-    return null;
+  const now = Date.now();
+  for (const token of await sessionTokens()) {
+    const session = await prisma.session.findUnique({
+      where: { tokenHash: hashSessionToken(token) },
+      include: { user: true },
+    });
+    if (!session) continue;
+    if (session.expiresAt.getTime() < now) {
+      await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+      continue;
+    }
+    return toPublicUser(session.user);
   }
-  return toPublicUser(session.user);
+  return null;
 }
 
 /** Like getSessionUser but throws a 401 AuthError when unauthenticated. */

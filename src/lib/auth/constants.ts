@@ -35,6 +35,16 @@ export function tokenFromCookieHeader(raw: string | null | undefined): string | 
   return null;
 }
 
+/** True when the request carries a session cookie or the native session header. */
+export function hasRequestSession(
+  headerStore: { get(name: string): string | null },
+  cookieValue?: string | null
+): boolean {
+  if (cookieValue?.trim()) return true;
+  if (headerStore.get(SESSION_HEADER)?.trim()) return true;
+  return Boolean(tokenFromCookieHeader(headerStore.get("cookie")));
+}
+
 export function isNativeClient(req: { headers: Headers }): boolean {
   return req.headers.get(NATIVE_CLIENT_HEADER)?.toLowerCase() === NATIVE_CLIENT_VALUE;
 }

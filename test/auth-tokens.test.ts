@@ -14,6 +14,7 @@ import {
   isNativeClient,
   sessionResponseBody,
   tokenFromCookieHeader,
+  hasRequestSession,
 } from "@/lib/auth/constants";
 
 describe("session tokens", () => {
@@ -58,6 +59,14 @@ describe("native session delivery", () => {
     expect(tokenFromCookieHeader("other=1; ciciro_session=tok%2F2")).toBe("tok/2");
     expect(tokenFromCookieHeader("nope=1")).toBeNull();
     expect(tokenFromCookieHeader(null)).toBeNull();
+  });
+
+  it("treats the native session header as a signed-in request", () => {
+    const headers = new Headers({ "x-ciciro-session": "tok-123" });
+    expect(hasRequestSession(headers)).toBe(true);
+    expect(hasRequestSession(new Headers(), "tok-123")).toBe(true);
+    expect(hasRequestSession(new Headers({ cookie: "ciciro_session=tok" }))).toBe(true);
+    expect(hasRequestSession(new Headers())).toBe(false);
   });
 });
 

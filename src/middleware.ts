@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/auth/constants";
+import {
+  authRequired,
+  hasRequestSession,
+  SESSION_COOKIE,
+} from "@/lib/auth/constants";
 
 // Auth enforcement is opt-in so the local-first single-author experience keeps
 // working out of the box. Hosted deployments set CICIRO_REQUIRE_AUTH=true.
-const REQUIRE_AUTH = process.env.CICIRO_REQUIRE_AUTH === "true";
 
 // Paths that never require a session.
 const PUBLIC_PATHS = ["/login", "/signup"];
@@ -14,16 +17,19 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-// Cheap gate: this only checks for cookie presence to redirect obvious
-// anonymous traffic. Session validity is verified in route handlers and server
-// components via getSessionUser (middleware runs on the edge without DB access).
+// Cheap gate: cookie *or* native x-ciciro-session header. React Native often
+// cannot set the Cookie header, so cookie-only checks 401 a signed-in phone.
+// Session validity is still verified in route handlers via getSessionUser.
 export function middleware(req: NextRequest) {
-  if (!REQUIRE_AUTH) return NextResponse.next();
+  if (!authRequired()) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
   if (isPublic(pathname)) return NextResponse.next();
 
-  const hasSession = Boolean(req.cookies.get(SESSION_COOKIE)?.value);
+  const hasSession = hasRequestSession(
+    req.headers,
+    req.cookies.get(SESSION_COOKIE)?.value
+  );
   if (hasSession) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {

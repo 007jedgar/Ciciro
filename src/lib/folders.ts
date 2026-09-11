@@ -18,8 +18,11 @@ const FOLDER_PROJECT_INCLUDE = {
 
 const FOLDER_INCLUDE = {
   projects: FOLDER_PROJECT_INCLUDE,
-  _count: { select: { projects: true } },
 } as const;
+
+function withProjectCount<T extends { projects: unknown[] }>(folder: T) {
+  return { ...folder, _count: { projects: folder.projects.length } };
+}
 
 function readTrimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -89,17 +92,18 @@ async function loadFolder(id: string) {
     include: FOLDER_INCLUDE,
   });
   if (!folder) throw new AuthError("Not found.", 404);
-  return folder;
+  return withProjectCount(folder);
 }
 
 /** List folders. Signed-in users only see their own; local-first lists all. */
 export async function listFolders(user: PublicUser | null) {
   requireUserIfHosted(user);
-  return prisma.folder.findMany({
+  const folders = await prisma.folder.findMany({
     where: user ? { userId: user.id } : undefined,
     orderBy: { updatedAt: "desc" },
     include: FOLDER_INCLUDE,
   });
+  return folders.map(withProjectCount);
 }
 
 export async function getFolder(id: string, user: PublicUser | null) {
@@ -135,10 +139,12 @@ export async function createFolder(user: PublicUser | null, input: FolderCreateI
         data: { folderId: folder.id },
       });
     }
-    return tx.folder.findUniqueOrThrow({
-      where: { id: folder.id },
-      include: FOLDER_INCLUDE,
-    });
+    return withProjectCount(
+      await tx.folder.findUniqueOrThrow({
+        where: { id: folder.id },
+        include: FOLDER_INCLUDE,
+      })
+    );
   });
 }
 

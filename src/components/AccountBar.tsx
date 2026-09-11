@@ -14,7 +14,7 @@ export default function AccountBar() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
+    fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (active) setMe(d.user ?? null);
@@ -29,7 +29,11 @@ export default function AccountBar() {
   }, []);
 
   async function signOut() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    }).catch(() => {});
     setMe(null);
     window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
     router.refresh();
