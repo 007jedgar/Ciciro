@@ -2,6 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
+import { appendOps } from "@/lib/chapter-ops";
+import { diffHtmlToOps, type ManuscriptActor } from "@/lib/manuscript";
 import { countWords, htmlToText, isChapterEmpty } from "@/lib/text";
 
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
@@ -71,7 +73,43 @@ export type ChapterPatchInput = {
   status?: unknown;
   order?: unknown;
   expectedRevision?: unknown;
+  actor?: unknown;
 };
+
+function patchActor(value: unknown): ManuscriptActor {
+  return value === "ai" || value === "correction" ? value : "user";
+}
+
+function metadataFromPatch(body: ChapterPatchInput): Prisma.ChapterUpdateManyMutationInput {
+  const data: Prisma.ChapterUpdateManyMutationInput = {};
+  if (typeof body.title === "string") data.title = body.title;
+  if (typeof body.summary === "string") data.summary = body.summary;
+  if (typeof body.status === "string") data.status = body.status;
+  if (typeof body.order === "number") data.order = body.order;
+  return data;
+}
+
+async function casUpdateChapter(
+  id: string,
+  expectedRevision: number,
+  data: Prisma.ChapterUpdateManyMutationInput
+) {
+  const updated = await prisma.chapter.updateMany({
+    where: { id, revision: expectedRevision },
+    data: { ...data, revision: { increment: 1 } },
+  });
+  const chapter = await prisma.chapter.findUnique({ where: { id } });
+  if (!chapter) throw new AuthError("Not found.", 404);
+  if (updated.count !== 1) {
+    throw new AuthError("Chapter revision conflict", 409, {
+      error: "Chapter revision conflict",
+      expectedRevision,
+      currentRevision: chapter.revision,
+      chapter,
+    });
+  }
+  return chapter;
+}
 
 export async function updateChapter(
   id: string,
@@ -79,48 +117,63 @@ export async function updateChapter(
   body: ChapterPatchInput
 ) {
   await authorizeOwnedChapter(id, user);
-  const data: Prisma.ChapterUpdateManyMutationInput = {};
-
-  if (typeof body.content === "string") {
-    data.content = body.content;
-    data.wordCount = countWords(htmlToText(body.content));
-  }
-  if (typeof body.title === "string") data.title = body.title;
-  if (typeof body.summary === "string") data.summary = body.summary;
-  if (typeof body.status === "string") data.status = body.status;
-  if (typeof body.order === "number") data.order = body.order;
-
   if (!Number.isInteger(body.expectedRevision) || (body.expectedRevision as number) < 0) {
     throw new AuthError("expectedRevision is required for chapter updates", 428);
   }
-  if (Object.keys(data).length === 0) {
+  const expectedRevision = body.expectedRevision as number;
+  const metadata = metadataFromPatch(body);
+  const contentChanged = typeof body.content === "string";
+
+  if (!contentChanged && Object.keys(metadata).length === 0) {
     throw new AuthError("No chapter fields to update", 400);
   }
 
-  const expectedRevision = body.expectedRevision as number;
-  const result = await prisma.$transaction(async (tx) => {
-    const updated = await tx.chapter.updateMany({
-      where: { id, revision: expectedRevision },
-      data: { ...data, revision: { increment: 1 } },
-    });
-    const chapter = await tx.chapter.findUnique({ where: { id } });
-    return { updated: updated.count === 1, chapter };
-  });
+  if (contentChanged) {
+    const current = await prisma.chapter.findUnique({ where: { id } });
+    if (!current) throw new AuthError("Not found.", 404);
+    if (current.revision !== expectedRevision) {
+      throw new AuthError("Chapter revision conflict", 409, {
+        error: "Chapter revision conflict",
+        expectedRevision,
+        currentRevision: current.revision,
+        chapter: current,
+      });
+    }
 
-  if (!result.chapter) throw new AuthError("Not found.", 404);
-  if (!result.updated) {
-    throw new AuthError("Chapter revision conflict", 409, {
-      error: "Chapter revision conflict",
-      expectedRevision,
-      currentRevision: result.chapter.revision,
-      chapter: result.chapter,
+    const ops = diffHtmlToOps(current.content, body.content as string, current.revision, {
+      actor: patchActor(body.actor),
     });
+    if (ops.length > 0) {
+      const result = await appendOps(id, user, ops);
+      if (result.rejected.length > 0) {
+        throw new AuthError("Chapter revision conflict", 409, {
+          error: "Chapter revision conflict",
+          expectedRevision,
+          currentRevision: result.chapter.revision,
+          chapter: result.chapter,
+          rejected: result.rejected,
+        });
+      }
+      if (Object.keys(metadata).length > 0) {
+        const chapter = await prisma.chapter.update({
+          where: { id },
+          data: metadata,
+        });
+        return { chapter, contentChanged: true };
+      }
+      return { chapter: result.chapter, contentChanged: true };
+    }
+
+    const chapter = await casUpdateChapter(id, expectedRevision, {
+      ...metadata,
+      content: body.content as string,
+      wordCount: countWords(htmlToText(body.content as string)),
+    });
+    return { chapter, contentChanged: true };
   }
 
-  return {
-    chapter: result.chapter,
-    contentChanged: typeof body.content === "string",
-  };
+  const chapter = await casUpdateChapter(id, expectedRevision, metadata);
+  return { chapter, contentChanged: false };
 }
 
 export async function deleteChapter(id: string, user: PublicUser | null) {

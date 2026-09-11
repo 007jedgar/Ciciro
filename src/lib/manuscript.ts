@@ -157,6 +157,126 @@ export function docToHtml(doc: ManuscriptDoc): string {
   return doc.blocks.map((b) => b.html).join("");
 }
 
+function parseRawBlocks(html: string): { id: string | null; html: string }[] {
+  const blocks: { id: string | null; html: string }[] = [];
+  BLOCK_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = BLOCK_RE.exec(html))) {
+    const raw = m[0];
+    blocks.push({ id: readBlockId(raw), html: raw });
+  }
+  return blocks;
+}
+
+export type DiffHtmlOptions = HtmlToDocOptions & {
+  actor?: ManuscriptActor;
+  createOpId?: () => string;
+};
+
+/** Turn an HTML edit into a sequential replace/insert/delete op list. */
+export function diffHtmlToOps(
+  oldHtml: string,
+  newHtml: string,
+  baseRevision: number,
+  opts?: DiffHtmlOptions
+): ManuscriptOp[] {
+  const createId = opts?.createId ?? defaultCreateId;
+  const createOpId = opts?.createOpId ?? defaultCreateId;
+  const actor = opts?.actor ?? "user";
+  const oldParsed = htmlToDoc(oldHtml, baseRevision, { createId });
+  const claimed = new Set<string>();
+  for (const raw of parseRawBlocks(newHtml)) {
+    if (raw.id) claimed.add(raw.id);
+  }
+  const newBlocks: ManuscriptBlock[] = parseRawBlocks(newHtml).map((raw, i) => {
+    let id = raw.id;
+    if (!id) {
+      const inherit = oldParsed.doc.blocks[i];
+      if (inherit && !claimed.has(inherit.id)) {
+        id = inherit.id;
+        claimed.add(id);
+      } else {
+        id = createId();
+        claimed.add(id);
+      }
+    }
+    return blockFromHtml(raw.html, id);
+  });
+
+  let doc = oldParsed.doc;
+  const ops: ManuscriptOp[] = [];
+
+  const emit = (op: ManuscriptOp) => {
+    const result = applyOp(doc, op);
+    if (!result.ok) {
+      throw new Error(`diff produced an unapplicable ${op.type} (${result.reason})`);
+    }
+    doc = result.doc;
+    ops.push(op);
+  };
+
+  const targetIds = new Set(newBlocks.map((b) => b.id));
+  for (const block of doc.blocks.slice()) {
+    if (targetIds.has(block.id)) continue;
+    emit({
+      opId: createOpId(),
+      baseRevision: doc.revision,
+      actor,
+      type: "delete_block",
+      blockId: block.id,
+    });
+  }
+
+  for (let i = 0; i < newBlocks.length; i++) {
+    const want = newBlocks[i];
+    const have = doc.blocks[i];
+    if (have?.id === want.id) {
+      if (have.html !== want.html) {
+        emit({
+          opId: createOpId(),
+          baseRevision: doc.revision,
+          actor,
+          type: "replace_block",
+          blockId: want.id,
+          html: want.html,
+        });
+      }
+      continue;
+    }
+    const existingIdx = doc.blocks.findIndex((b) => b.id === want.id);
+    if (existingIdx === -1) {
+      emit({
+        opId: createOpId(),
+        baseRevision: doc.revision,
+        actor,
+        type: "insert_block",
+        afterBlockId: i === 0 ? null : doc.blocks[i - 1]?.id ?? null,
+        blockId: want.id,
+        html: want.html,
+      });
+      continue;
+    }
+    emit({
+      opId: createOpId(),
+      baseRevision: doc.revision,
+      actor,
+      type: "delete_block",
+      blockId: want.id,
+    });
+    emit({
+      opId: createOpId(),
+      baseRevision: doc.revision,
+      actor,
+      type: "insert_block",
+      afterBlockId: i === 0 ? null : doc.blocks[i - 1]?.id ?? null,
+      blockId: want.id,
+      html: want.html,
+    });
+  }
+
+  return ops;
+}
+
 export function applyOp(doc: ManuscriptDoc, op: ManuscriptOp): ApplyOpResult {
   if (op.baseRevision !== doc.revision) {
     return { ok: false, reason: "stale" };
