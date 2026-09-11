@@ -33,6 +33,7 @@ describe("api client", () => {
     const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(headers.get("content-type")).toBe("application/json");
     expect(headers.get("cookie")).toBe("ciciro_session=tok-123");
+    expect(headers.get("x-ciciro-session")).toBe("tok-123");
     expect(headers.get("x-ciciro-client")).toBe("native");
   });
 
@@ -45,6 +46,7 @@ describe("api client", () => {
 
     const headers = new Headers(fetchMock.mock.calls[0][1]?.headers);
     expect(headers.get("cookie")).toBe("ciciro_session=tok-123");
+    expect(headers.get("x-ciciro-session")).toBe("tok-123");
   });
 
   it("captures a session token from Set-Cookie", async () => {

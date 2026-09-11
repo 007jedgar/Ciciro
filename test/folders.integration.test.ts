@@ -75,6 +75,29 @@ describe("manuscript folders", () => {
     expect(all.map((f) => f.id).sort()).toEqual([adas.id, bobs.id, local.id].sort());
   });
 
+  it("does not leak other authors' folders when hosted auth is on", async () => {
+    const prev = process.env.CICIRO_REQUIRE_AUTH;
+    process.env.CICIRO_REQUIRE_AUTH = "true";
+    try {
+      const ada = await registerUser({
+        email: "ada-hosted-folders@example.com",
+        password: "long-enough-pw",
+      });
+      const bob = await registerUser({
+        email: "bob-hosted-folders@example.com",
+        password: "long-enough-pw",
+      });
+      await createFolder(ada, { name: "Ada hosted" });
+      await createFolder(bob, { name: "Bob hosted" });
+
+      await expect(listFolders(null)).rejects.toMatchObject({ status: 401 });
+      expect((await listFolders(ada)).map((f) => f.name)).toEqual(["Ada hosted"]);
+    } finally {
+      if (prev === undefined) delete process.env.CICIRO_REQUIRE_AUTH;
+      else process.env.CICIRO_REQUIRE_AUTH = prev;
+    }
+  });
+
   it("adds and removes manuscripts, moving them if they already have a folder", async () => {
     const ada = await registerUser({
       email: "ada@example.com",

@@ -6,7 +6,9 @@
 //      exported from the worker module named in its migration),
 //   2. publish the DO namespace binding to the run coordinator on each request,
 //      so durable editor-run slices are serialized fleet-wide, and
-//   3. publish the D1 binding so Prisma uses the driver adapter on Workers.
+//   3. publish the D1 binding so Prisma uses the driver adapter on Workers, and
+//   4. copy string vars/secrets onto process.env so Next.js route handlers can
+//      read ANTHROPIC_API_KEY (OpenNext + a custom entry does not always do this).
 //
 // wrangler.jsonc `main` points at this file.
 
@@ -28,8 +30,16 @@ type Env = {
   DB?: D1Database;
 } & Record<string, unknown>;
 
+function publishStringEnv(env: Env): void {
+  const processEnv = process.env as Record<string, string | undefined>;
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === "string") processEnv[key] = value;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: unknown): Promise<Response> {
+    publishStringEnv(env);
     if (env.EDITOR_RUN_DO) {
       setRunDurableObjectNamespace(env.EDITOR_RUN_DO);
     }

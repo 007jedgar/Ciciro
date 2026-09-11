@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/db";
 import { authorizeOwnedFolder } from "@/lib/auth/access";
-import { AuthError, authorizeFolderId, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
+import {
+  AuthError,
+  authorizeFolderId,
+  authorizeProjectId,
+  requireUserIfHosted,
+  type PublicUser,
+} from "@/lib/auth/session";
 
 const NAME_MAX = 200;
 const NOTES_MAX = 8000;
@@ -88,6 +94,7 @@ async function loadFolder(id: string) {
 
 /** List folders. Signed-in users only see their own; local-first lists all. */
 export async function listFolders(user: PublicUser | null) {
+  requireUserIfHosted(user);
   return prisma.folder.findMany({
     where: user ? { userId: user.id } : undefined,
     orderBy: { updatedAt: "desc" },
@@ -107,6 +114,7 @@ export type FolderCreateInput = {
 };
 
 export async function createFolder(user: PublicUser | null, input: FolderCreateInput = {}) {
+  requireUserIfHosted(user);
   const name = clip(readTrimmed(input.name), NAME_MAX);
   if (!name) throw new AuthError("Name is required.", 400);
   const notes = clip(readTrimmed(input.notes), NOTES_MAX);

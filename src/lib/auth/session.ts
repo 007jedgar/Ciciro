@@ -1,8 +1,13 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
+  authRequired,
   SESSION_COOKIE,
+  SESSION_HEADER,
+  tokenFromCookieHeader,
+} from "@/lib/auth/constants";
+import {
   SESSION_TTL_MS,
   generateSessionToken,
   hashSessionToken,
@@ -107,10 +112,27 @@ export async function createSession(
   return token;
 }
 
+async function readSessionToken(): Promise<string | null> {
+  try {
+    const jar = await cookies();
+    const fromJar = jar.get(SESSION_COOKIE)?.value?.trim();
+    if (fromJar) return fromJar;
+  } catch {
+    // No Next.js cookie store (tests / background work).
+  }
+  try {
+    const h = await headers();
+    const fromHeader = h.get(SESSION_HEADER)?.trim();
+    if (fromHeader) return fromHeader;
+    return tokenFromCookieHeader(h.get("cookie"));
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve the current user from the session cookie, or null. Sweeps expiry. */
 export async function getSessionUser(): Promise<PublicUser | null> {
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
+  const token = await readSessionToken();
   if (!token) return null;
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashSessionToken(token) },
@@ -131,25 +153,45 @@ export async function requireSessionUser(): Promise<PublicUser> {
   return user;
 }
 
+/** Hosted mode must never fall through to "list everyone / no owner". */
+export function requireUserIfHosted(user: PublicUser | null): void {
+  if (authRequired() && !user) {
+    throw new AuthError("Authentication required.", 401);
+  }
+}
+
+function denyIfNotOwner(
+  ownerId: string | null,
+  user: PublicUser | null,
+  message: string
+): void {
+  if (!user) {
+    if (authRequired()) throw new AuthError("Authentication required.", 401);
+    return;
+  }
+  if (ownerId === user.id) return;
+  // Local-first still allows unowned rows. Hosted never shares another author's work.
+  if (ownerId || authRequired()) throw new AuthError(message, 403);
+}
+
 /**
  * Authorize access to a project for a resolved user. When `user` is null
- * (local-first / no session), access is allowed. When a user is signed in,
- * they may only touch their own projects (or legacy projects with no owner).
- * Throws AuthError (403/404) on denial.
+ * (local-first / no session), access is allowed. Hosted mode requires a
+ * session and never treats a missing owner as public.
+ * Throws AuthError (401/403/404) on denial.
  */
 export async function authorizeProjectId(
   projectId: string,
   user: PublicUser | null
 ): Promise<void> {
-  if (!user) return; // local-first / middleware handles hosted anonymous access
+  requireUserIfHosted(user);
+  if (!user) return;
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { userId: true },
   });
   if (!project) throw new AuthError("Not found.", 404);
-  if (project.userId && project.userId !== user.id) {
-    throw new AuthError("You do not have access to this manuscript.", 403);
-  }
+  denyIfNotOwner(project.userId, user, "You do not have access to this manuscript.");
 }
 
 /**
@@ -159,15 +201,14 @@ export async function authorizeFolderId(
   folderId: string,
   user: PublicUser | null
 ): Promise<void> {
+  requireUserIfHosted(user);
   if (!user) return;
   const folder = await prisma.folder.findUnique({
     where: { id: folderId },
     select: { userId: true },
   });
   if (!folder) throw new AuthError("Not found.", 404);
-  if (folder.userId && folder.userId !== user.id) {
-    throw new AuthError("You do not have access to this folder.", 403);
-  }
+  denyIfNotOwner(folder.userId, user, "You do not have access to this folder.");
 }
 
 /**

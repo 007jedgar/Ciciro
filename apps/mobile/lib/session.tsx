@@ -31,6 +31,13 @@ function rememberUser(user: PublicUser | null): void {
   setCachedUser(user);
 }
 
+function beginAccount(user: PublicUser, token?: string): PublicUser {
+  if (token) setSessionToken(token);
+  queryClient.clear();
+  rememberUser(user);
+  return user;
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -46,6 +53,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSessionToken(null);
       rememberUser(null);
       setUser(null);
+      queryClient.clear();
     } catch {
       // Keep the cached session across Metro reloads and API process restarts.
     }
@@ -75,19 +83,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await ciciro.auth.login({ email, password });
-    if (data.token) setSessionToken(data.token);
-    rememberUser(data.user);
-    setUser(data.user);
-    return data.user;
+    const next = beginAccount(data.user, data.token);
+    setUser(next);
+    return next;
   }, []);
 
   const signup = useCallback(
     async (input: { email: string; password: string; name?: string }) => {
       const data = await ciciro.auth.signup(input);
-      if (data.token) setSessionToken(data.token);
-      rememberUser(data.user);
-      setUser(data.user);
-      return data.user;
+      const next = beginAccount(data.user, data.token);
+      setUser(next);
+      return next;
     },
     []
   );

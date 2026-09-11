@@ -82,8 +82,13 @@ export async function request(path: string, init: RequestInit = {}): Promise<Res
     headers.set(NATIVE_CLIENT_HEADER, NATIVE_CLIENT_VALUE);
   }
   const token = await ensureSessionToken();
-  if (token && !headers.has("cookie")) {
-    headers.set("cookie", `${SESSION_COOKIE_NAME}=${token}`);
+  if (token) {
+    if (!headers.has("cookie")) {
+      headers.set("cookie", `${SESSION_COOKIE_NAME}=${token}`);
+    }
+    if (!headers.has(SESSION_HEADER)) {
+      headers.set(SESSION_HEADER, token);
+    }
   }
 
   const res = await fetch(`${API_URL}${path}`, {

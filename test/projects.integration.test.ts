@@ -90,6 +90,37 @@ describe("manuscript and story APIs", () => {
     expect(all.map((p) => p.id).sort()).toEqual([adas.id, bobs.id, local.id].sort());
   });
 
+  it("does not leak other authors' manuscripts when hosted auth is on", async () => {
+    const prev = process.env.CICIRO_REQUIRE_AUTH;
+    process.env.CICIRO_REQUIRE_AUTH = "true";
+    try {
+      const ada = await registerUser({
+        email: "ada-hosted@example.com",
+        password: "long-enough-pw",
+      });
+      const bob = await registerUser({
+        email: "bob-hosted@example.com",
+        password: "long-enough-pw",
+      });
+      const adas = await createProject(ada, { title: "Ada hosted" });
+      await createProject(bob, { title: "Bob hosted" });
+      const orphan = await prisma.project.create({
+        data: { title: "Orphan", userId: null },
+      });
+
+      await expect(listProjects(null)).rejects.toMatchObject({ status: 401 });
+      await expect(createProject(null, { title: "Nope" })).rejects.toMatchObject({
+        status: 401,
+      });
+      expect((await listProjects(ada)).map((p) => p.title)).toEqual(["Ada hosted"]);
+      await expect(getProject(adas.id, bob)).rejects.toMatchObject({ status: 403 });
+      await expect(getProject(orphan.id, ada)).rejects.toMatchObject({ status: 403 });
+    } finally {
+      if (prev === undefined) delete process.env.CICIRO_REQUIRE_AUTH;
+      else process.env.CICIRO_REQUIRE_AUTH = prev;
+    }
+  });
+
   it("forbids another author from reading, editing, or deleting a manuscript", async () => {
     const ada = await registerUser({
       email: "ada@example.com",

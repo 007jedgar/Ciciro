@@ -16,7 +16,7 @@
   "name": "ciciro",
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-08-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "workers_dev": true,
 
   "assets": {
