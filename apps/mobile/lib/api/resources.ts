@@ -42,8 +42,16 @@ import type {
   ProjectRecord,
   QuestionCreateRequest,
   QuestionPatchRequest,
+  ReadingPositionPutRequest,
+  ReadingPositionResponse,
   SettingsResponse,
   SignupRequest,
+  SyncAfter,
+  SyncPushRequest,
+  SyncResult,
+  ChapterOpsListResponse,
+  ChapterOpsPushRequest,
+  ChapterOpsPushResponse,
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
 
@@ -112,6 +120,18 @@ export const ciciro = {
       api<ProjectRecord>(`/api/projects/${encodeURIComponent(id)}`, jsonInit("PATCH", body, opts)),
     delete: (id: string, opts?: RequestOpts) =>
       api<OkResponse>(`/api/projects/${encodeURIComponent(id)}`, jsonInit("DELETE", undefined, opts)),
+    position: {
+      get: (id: string, opts?: RequestOpts) =>
+        api<ReadingPositionResponse>(
+          `/api/projects/${encodeURIComponent(id)}/position`,
+          opts
+        ),
+      put: (id: string, body: ReadingPositionPutRequest, opts?: RequestOpts) =>
+        api<ReadingPositionResponse>(
+          `/api/projects/${encodeURIComponent(id)}/position`,
+          jsonInit("PUT", body, opts)
+        ),
+    },
   },
 
   folders: {
@@ -159,6 +179,20 @@ export const ciciro = {
       ),
     edits: (id: string, opts?: RequestOpts) =>
       api<ManuscriptEdit[]>(`/api/chapters/${encodeURIComponent(id)}/edits`, opts),
+    ops: {
+      list: (id: string, after?: number, opts?: RequestOpts) =>
+        api<ChapterOpsListResponse>(
+          `/api/chapters/${encodeURIComponent(id)}/ops${queryString({
+            after: after == null ? undefined : String(after),
+          })}`,
+          opts
+        ),
+      push: (id: string, body: ChapterOpsPushRequest, opts?: RequestOpts) =>
+        api<ChapterOpsPushResponse>(
+          `/api/chapters/${encodeURIComponent(id)}/ops`,
+          jsonInit("POST", body, opts)
+        ),
+    },
   },
 
   characters: {
@@ -239,5 +273,18 @@ export const ciciro = {
   export: {
     download: (id: string, opts?: RequestOpts) =>
       apiBlob(`/api/export/${encodeURIComponent(id)}`, opts) as Promise<ExportFile>,
+  },
+
+  sync: {
+    pull: (projectId: string, after?: SyncAfter, opts?: RequestOpts) =>
+      api<SyncResult>(
+        `/api/sync${queryString({
+          projectId,
+          after: after ? JSON.stringify(after) : undefined,
+        })}`,
+        opts
+      ),
+    push: (body: SyncPushRequest, opts?: RequestOpts) =>
+      api<SyncResult>("/api/sync", jsonInit("POST", body, opts)),
   },
 };

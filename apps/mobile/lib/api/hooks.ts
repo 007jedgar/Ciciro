@@ -22,6 +22,10 @@ import type {
   QuestionCreateRequest,
   SettingsResponse,
   SignupRequest,
+  ChapterOpsPushRequest,
+  ReadingPositionPutRequest,
+  SyncAfter,
+  SyncPushRequest,
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
 import i18n from "../i18n";
@@ -755,6 +759,64 @@ export function useRecordDraftInsertionMutation() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.chat.insertions(vars.projectId),
       });
+    },
+  });
+}
+
+export function useChapterOpsQuery(id: string, after = 0, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.chapters.ops(id, after),
+    queryFn: () => ciciro.chapters.ops.list(id, after),
+    enabled: (options?.enabled ?? true) && Boolean(id),
+  });
+}
+
+export function usePushChapterOpsMutation() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ChapterOpsPushRequest }) =>
+      ciciro.chapters.ops.push(id, body),
+    onSuccess: (result) => {
+      invalidateProject(result.chapter.projectId);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.chapters.ops(result.chapter.id),
+      });
+    },
+  });
+}
+
+export function useProjectPositionQuery(id: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.projects.position(id),
+    queryFn: () => ciciro.projects.position.get(id),
+    enabled: (options?.enabled ?? true) && Boolean(id),
+  });
+}
+
+export function usePutReadingPositionMutation() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ReadingPositionPutRequest }) =>
+      ciciro.projects.position.put(id, body),
+    onSuccess: (data, vars) => {
+      queryClient.setQueryData(queryKeys.projects.position(vars.id), data);
+    },
+  });
+}
+
+export function useSyncPullQuery(projectId: string, after?: SyncAfter, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.sync.pull(projectId, after),
+    queryFn: () => ciciro.sync.pull(projectId, after),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useSyncPushMutation() {
+  return useMutation({
+    mutationFn: (body: SyncPushRequest) => ciciro.sync.push(body),
+    onSuccess: (_data, vars) => {
+      invalidateProject(vars.projectId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.sync.pull(vars.projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects.position(vars.projectId) });
     },
   });
 }
