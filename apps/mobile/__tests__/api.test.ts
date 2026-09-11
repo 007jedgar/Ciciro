@@ -132,7 +132,7 @@ describe("api client", () => {
   it("uses a fallback message for empty or non-JSON error bodies", async () => {
     mockFetch(async () => new Response("", { status: 500 }));
     await expect(api("/api/health")).rejects.toMatchObject({
-      message: "Request failed (500)",
+      message: "An error has occurred.",
       status: 500,
     });
 

@@ -30,8 +30,8 @@ function getPrisma(): PrismaClient {
 
   const d1 = getD1Database();
   if (d1) {
-    // Fallback if a caller forgot runWithRequestPrisma; still avoid the
-    // process-wide singleton that leaked across Worker requests.
+    // OpenNext often leaves ALS. Never reuse one D1 PrismaClient across
+    // requests — that is what hung chat and the manuscript shelf.
     return createD1Prisma(d1);
   }
   if (!globalForPrisma.prisma) {

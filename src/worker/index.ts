@@ -15,6 +15,7 @@
 // wrangler.jsonc `main` points at this file.
 
 import { EditorRunDO } from "./run-do";
+import { setD1Database } from "../lib/d1-binding";
 import { runWithRequestPrisma } from "../lib/db";
 import {
   setRunDurableObjectNamespace,
@@ -53,6 +54,7 @@ export default {
     if (env.EDITOR_RUN_DO) {
       setRunDurableObjectNamespace(env.EDITOR_RUN_DO);
     }
+    if (env.DB) setD1Database(env.DB);
     const handle = () =>
       runWithRequestSession(sessionTokenFromRequest(request), () =>
         openNextHandler.fetch(request, env, ctx)

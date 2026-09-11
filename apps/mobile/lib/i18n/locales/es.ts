@@ -14,7 +14,7 @@ const es: Translations = {
   },
   errors: {
     network: "Error de red. Inténtalo de nuevo.",
-    requestFailed: "Error en la solicitud ({{status}})",
+    requestFailed: "Ha ocurrido un error.",
     emptyStream: "Transmisión vacía",
   },
   livingPage: {
