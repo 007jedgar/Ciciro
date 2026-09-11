@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
@@ -31,7 +31,6 @@ const COPY: Record<
 };
 
 export default function AuthForm({ mode }: { mode: Mode }) {
-  const router = useRouter();
   const params = useSearchParams();
   const copy = COPY[mode];
 
@@ -49,6 +48,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       const res = await fetch(copy.endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
         body: JSON.stringify(
           mode === "signup" ? { email, password, name } : { email, password }
         ),
@@ -61,8 +62,8 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       }
       const next = params.get("next");
       window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
-      router.push(next && next.startsWith("/") ? next : "/");
-      router.refresh();
+      const dest = next && next.startsWith("/") ? next : "/";
+      window.location.assign(dest);
     } catch {
       setError("Network error. Try again.");
       setBusy(false);

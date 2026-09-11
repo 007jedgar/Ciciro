@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
 import BrandMark from "@/components/BrandMark";
@@ -26,6 +26,12 @@ type FolderSummary = {
 
 function chapterLabel(count: number) {
   return `${count} chapter${count === 1 ? "" : "s"}`;
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  const res = await fetch(url, { credentials: "include", cache: "no-store" });
+  if (!res.ok) return null;
+  return res.json().catch(() => null);
 }
 
 function ProjectCard({
@@ -153,6 +159,7 @@ function FolderBlock({
 
 export default function Home() {
   const router = useRouter();
+  const pathname = usePathname();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [folders, setFolders] = useState<FolderSummary[]>([]);
   const [title, setTitle] = useState("");
@@ -165,22 +172,23 @@ export default function Home() {
   const [creatingFolder, setCreatingFolder] = useState(false);
 
   const load = useCallback(async () => {
-    const [projectRes, folderRes] = await Promise.all([
-      fetch("/api/projects"),
-      fetch("/api/folders"),
+    const [nextProjects, nextFolders] = await Promise.all([
+      fetchJson("/api/projects"),
+      fetchJson("/api/folders"),
     ]);
-    const nextProjects = projectRes.ok ? await projectRes.json() : [];
-    const nextFolders = folderRes.ok ? await folderRes.json() : [];
-    setProjects(Array.isArray(nextProjects) ? nextProjects : []);
-    setFolders(Array.isArray(nextFolders) ? nextFolders : []);
+    if (Array.isArray(nextProjects)) setProjects(nextProjects);
+    if (Array.isArray(nextFolders)) setFolders(nextFolders);
   }, []);
 
   useEffect(() => {
-    load().catch(() => {
-      setProjects([]);
-      setFolders([]);
-    });
-  }, [load]);
+    if (pathname !== "/") return;
+    void load().catch(() => {});
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void load().catch(() => {});
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [load, pathname]);
 
   const unfiled = projects.filter((project) => !project.folderId);
 
@@ -190,6 +198,8 @@ export default function Home() {
     const res = await fetch("/api/projects", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
       body: JSON.stringify({
         title,
         author,
@@ -208,6 +218,8 @@ export default function Home() {
     const res = await fetch("/api/folders", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
       body: JSON.stringify({ name: folderName, notes: folderNotes }),
     });
     setCreatingFolder(false);
@@ -221,6 +233,8 @@ export default function Home() {
     await fetch(`/api/projects/${projectId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
       body: JSON.stringify({ folderId: nextFolderId }),
     });
     await load();
@@ -230,6 +244,8 @@ export default function Home() {
     await fetch(`/api/folders/${nextFolderId}/projects`, {
       method: "POST",
       headers: { "content-type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
       body: JSON.stringify({ projectIds: [projectId] }),
     });
     await load();
@@ -240,7 +256,11 @@ export default function Home() {
       `Delete “${folder.name}”? Manuscripts stay in your library, unfiled.`
     );
     if (!ok) return;
-    await fetch(`/api/folders/${folder.id}`, { method: "DELETE" });
+    await fetch(`/api/folders/${folder.id}`, {
+      method: "DELETE",
+      credentials: "include",
+      cache: "no-store",
+    });
     await load();
   }
 
