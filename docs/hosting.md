@@ -105,6 +105,11 @@ Whichever you choose, the durable-run design is unchanged: the database lease
 (`EditorRun.lockToken` / `leaseExpiresAt`) remains the cross-process source of
 truth, and the Durable Object is the fast, fleet-wide gate in front of it.
 
+Story bible files (`canon.md`, `plot.md`, character notes, …) live as `BibleFile`
+rows in that same database. On the hosted Worker they are D1 records, not files
+under `data/<projectId>/bible/` — Workers have no durable filesystem. The
+`/api/bible` surface is unchanged.
+
 ## Authentication
 
 - `POST /api/auth/signup` — create an account and start a session.

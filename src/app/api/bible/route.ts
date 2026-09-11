@@ -3,8 +3,8 @@ import { authorizeProject } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import {
   ensureBible,
+  getBibleFile,
   listBible,
-  readBibleFile,
   writeBibleFile,
   slugify,
 } from "@/lib/bible";
@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
 
   if (p) {
     try {
-      const content = await readBibleFile(projectId, p);
-      return json({ path: p, content }, 200);
+      const row = await getBibleFile(projectId, p);
+      return json({ path: p, content: row?.content ?? "", revision: row?.revision ?? 0 }, 200);
     } catch (e) {
       return json({ error: (e as Error).message }, 400);
     }
@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
   return json(entries, 200);
 }
 
-// POST /api/bible  { projectId, path, content }         -> write a file
-// POST /api/bible  { projectId, newCharacter: "Name" }  -> create a character file
+// POST /api/bible  { projectId, path, content, expectedRevision? } -> write a file
+// POST /api/bible  { projectId, newCharacter: "Name" }             -> create a character file
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { projectId } = body;
@@ -58,18 +58,26 @@ export async function POST(req: NextRequest) {
     const path = `characters/${slugify(name)}.md`;
     const content = `# ${name}\n> Character\n\n**Role:** \n\n## Description\n\n## Arc\n\n## Voice\n> How they speak: diction, rhythm, tics.\n`;
     try {
-      await writeBibleFile(projectId, path, content);
-      return json({ path, content }, 201);
+      const file = await writeBibleFile(projectId, path, content);
+      return json({ path, content: file.content, revision: file.revision }, 201);
     } catch (e) {
+      const failure = responseFromAuthError(e);
+      if (failure) return failure;
       return json({ error: (e as Error).message }, 400);
     }
   }
 
   if (typeof body.path === "string" && typeof body.content === "string") {
+    const expectedRevision =
+      typeof body.expectedRevision === "number" && Number.isInteger(body.expectedRevision)
+        ? body.expectedRevision
+        : undefined;
     try {
-      await writeBibleFile(projectId, body.path, body.content);
-      return json({ ok: true }, 200);
+      const file = await writeBibleFile(projectId, body.path, body.content, expectedRevision);
+      return json({ ok: true, path: file.path, revision: file.revision }, 200);
     } catch (e) {
+      const failure = responseFromAuthError(e);
+      if (failure) return failure;
       return json({ error: (e as Error).message }, 400);
     }
   }
