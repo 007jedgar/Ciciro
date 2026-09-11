@@ -12,7 +12,7 @@ const en = {
   },
   errors: {
     network: "Network error. Try again.",
-    requestFailed: "Request failed ({{status}})",
+    requestFailed: "An error has occurred.",
     emptyStream: "Empty stream",
   },
   livingPage: {

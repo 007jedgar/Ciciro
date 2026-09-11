@@ -14,7 +14,7 @@ const zh: Translations = {
   },
   errors: {
     network: "网络出错，请重试。",
-    requestFailed: "请求失败（{{status}}）",
+    requestFailed: "发生了错误。",
     emptyStream: "空数据流",
   },
   livingPage: {

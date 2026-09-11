@@ -14,7 +14,7 @@ const hi: Translations = {
   },
   errors: {
     network: "नेटवर्क त्रुटि। फिर कोशिश करें।",
-    requestFailed: "अनुरोध विफल ({{status}})",
+    requestFailed: "एक त्रुटि हुई है।",
     emptyStream: "खाली स्ट्रीम",
   },
   livingPage: {

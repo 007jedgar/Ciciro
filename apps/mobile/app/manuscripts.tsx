@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } fr
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
+import { useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { FolderPlusIcon, NewChapterIcon } from "../components/icons";
@@ -18,7 +18,7 @@ type Row =
 
 function queryErrorMessage(error: unknown, fallback: string): string | null {
   if (!error) return null;
-  return error instanceof ApiError ? error.message : fallback;
+  return fallback;
 }
 
 export default function ManuscriptsScreen() {
@@ -33,9 +33,10 @@ export default function ManuscriptsScreen() {
   const foldersQuery = useFoldersQuery({ enabled });
   const projects = projectsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
-  const error =
-    queryErrorMessage(projectsQuery.error, t("manuscripts.loadError")) ??
-    queryErrorMessage(foldersQuery.error, t("manuscripts.foldersLoadError"));
+  const error = queryErrorMessage(
+    projectsQuery.error ?? foldersQuery.error,
+    t("errors.requestFailed")
+  );
 
   const rows = useMemo<Row[]>(() => {
     const items: Row[] = folders.map((folder) => ({

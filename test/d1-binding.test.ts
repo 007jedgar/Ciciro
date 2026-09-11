@@ -16,10 +16,21 @@ describe("runWithD1Database", () => {
     expect(b).toEqual({ id: "b" });
   });
 
-  it("does not leak the binding outside a request", () => {
+  it("does not leak an ALS binding outside a request", () => {
     runWithD1Database({ id: "inside" }, () => {
       expect(getD1Database()).toEqual({ id: "inside" });
     });
     expect(getD1Database()).toBeUndefined();
+  });
+
+  it("falls back to the Worker binding when ALS is empty", async () => {
+    const { setD1Database } = await import("@/lib/d1-binding");
+    setD1Database({ id: "worker" });
+    expect(getD1Database()).toEqual({ id: "worker" });
+    expect(
+      runWithD1Database({ id: "request" }, () => getD1Database())
+    ).toEqual({ id: "request" });
+    expect(getD1Database()).toEqual({ id: "worker" });
+    setD1Database(undefined);
   });
 });
