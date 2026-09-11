@@ -2,6 +2,7 @@ export { API_URL, ApiError, api, apiBlob, apiStream, isApiError, request } from 
 export { ciciro } from "./resources";
 export { queryKeys } from "./keys";
 export { ApiQueryProvider, createQueryClient, queryClient, shouldRetryQuery } from "./query";
+export { clearPersistedQueryCache } from "./persister";
 export { readNdjson, StallError } from "./ndjson";
 export * from "./types";
 export * from "./hooks";

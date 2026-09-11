@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ApiError, ciciro, queryClient } from "./api";
+import { ApiError, ciciro, clearPersistedQueryCache, queryClient } from "./api";
 import {
   getCachedUser,
   hydrateSessionToken,
@@ -34,6 +34,7 @@ function rememberUser(user: PublicUser | null): void {
 function beginAccount(user: PublicUser, token?: string): PublicUser {
   if (token) setSessionToken(token);
   queryClient.clear();
+  clearPersistedQueryCache();
   rememberUser(user);
   return user;
 }
@@ -54,6 +55,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       rememberUser(null);
       setUser(null);
       queryClient.clear();
+      clearPersistedQueryCache();
     } catch {
       // Keep the cached session across Metro reloads and API process restarts.
     }
@@ -108,6 +110,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     rememberUser(null);
     setUser(null);
     queryClient.clear();
+    clearPersistedQueryCache();
   }, []);
 
   const value = useMemo(

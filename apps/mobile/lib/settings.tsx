@@ -1,15 +1,6 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Appearance } from "react-native";
-import { ciciro } from "./api";
+import { ciciro } from "./api/resources";
 import {
   applyPatch,
   defaultSettings,
@@ -19,13 +10,12 @@ import {
   type AppSettings,
   type SettingsPatch,
 } from "./app-settings";
+import { AppThemeContext, type AppThemeState } from "./app-theme-context";
 import { useSession } from "./session";
-import {
-  isDarkTheme,
-  makeLayout,
-  THEME_PALETTES,
-  type ColorTokens,
-} from "./theme";
+import { isDarkTheme, makeLayout, THEME_PALETTES } from "./theme";
+
+export { useAppTheme, useOptionalAppTheme } from "./app-theme-context";
+export type { AppThemeState };
 
 const CACHE_KEY = "settings";
 const CACHE_USER_KEY = "settings-user-id";
@@ -60,16 +50,6 @@ function writeCache(settings: AppSettings, userId?: string | null) {
     /* ignore */
   }
 }
-
-type AppThemeState = {
-  settings: AppSettings;
-  colors: ColorTokens;
-  layout: ReturnType<typeof makeLayout>;
-  dark: boolean;
-  patch: (partial: SettingsPatch) => void;
-};
-
-const AppThemeContext = createContext<AppThemeState | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const { user } = useSession();
@@ -169,14 +149,4 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 
   return <AppThemeContext.Provider value={value}>{children}</AppThemeContext.Provider>;
-}
-
-export function useAppTheme(): AppThemeState {
-  const ctx = useContext(AppThemeContext);
-  if (!ctx) throw new Error("useAppTheme must be used within SettingsProvider");
-  return ctx;
-}
-
-export function useOptionalAppTheme(): AppThemeState | null {
-  return useContext(AppThemeContext);
 }

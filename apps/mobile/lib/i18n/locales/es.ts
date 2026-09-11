@@ -163,6 +163,7 @@ const es: Translations = {
     add: "Añadir capítulo",
     adding: "Añadiendo...",
     addError: "No se pudo añadir el capítulo.",
+    newTitle: "Nuevo capítulo",
     empty: "Aún no hay capítulos.",
     wordCount_one: "{{count}} palabra",
     wordCount_other: "{{count}} palabras",

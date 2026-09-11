@@ -8,11 +8,15 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ApiQueryProvider } from "../lib/api";
 import "../lib/i18n";
 import { SessionProvider } from "../lib/session";
-import { SettingsProvider, useAppTheme } from "../lib/settings";
+import { useOptionalAppTheme } from "../lib/app-theme-context";
+import { SettingsProvider } from "../lib/settings";
+import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
 
 function ThemedStack() {
-  const { colors, dark } = useAppTheme();
+  const theme = useOptionalAppTheme();
+  const colors = theme?.colors ?? THEME_PALETTES.parchment;
+  const dark = theme?.dark ?? false;
   const { t } = useTranslation();
   return (
     <>

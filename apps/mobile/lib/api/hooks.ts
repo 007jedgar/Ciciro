@@ -24,8 +24,89 @@ import type {
   SignupRequest,
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
+import i18n from "../i18n";
 
 type Enabled = { enabled?: boolean };
+
+type QueryKeyArr = readonly unknown[];
+type CacheEntry = [QueryKeyArr, unknown];
+
+/** Cancel in-flight fetches for these keys and snapshot their data for rollback. */
+async function snapshotQueries(keys: readonly QueryKeyArr[]): Promise<CacheEntry[]> {
+  await Promise.all(keys.map((key) => queryClient.cancelQueries({ queryKey: key })));
+  return keys.map((key) => [key, queryClient.getQueryData(key)]);
+}
+
+function restoreQueries(entries: CacheEntry[] | undefined): void {
+  if (!entries) return;
+  for (const [key, data] of entries) queryClient.setQueryData(key, data);
+}
+
+function tempId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function nextChapterOrder(chapters: Chapter[]): number {
+  return (
+    chapters.reduce((max, c) => (typeof c.order === "number" && c.order > max ? c.order : max), -1) + 1
+  );
+}
+
+/** A stand-in chapter shown instantly, replaced by the server row on success. */
+function optimisticChapter(projectId: string, order: number, title?: string): Chapter {
+  const now = new Date().toISOString();
+  return {
+    id: tempId("chapter"),
+    projectId,
+    title: title?.trim() || i18n.t("chapters.newTitle"),
+    order,
+    content: "",
+    summary: "",
+    status: "",
+    wordCount: 0,
+    revision: 0,
+    archivedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+// Folder <-> project membership helpers for optimistic moves.
+function setProjectsFolder(
+  list: ProjectListItem[] | undefined,
+  projectIds: string[],
+  folderId: string | null
+): ProjectListItem[] | undefined {
+  if (!list) return list;
+  const ids = new Set(projectIds);
+  return list.map((p) => (ids.has(p.id) ? { ...p, folderId } : p));
+}
+
+function withFolderProjects(folder: Folder, projects: ProjectListItem[]): Folder {
+  return { ...folder, projects, _count: { ...folder._count, projects: projects.length } };
+}
+
+function addToFolder(folder: Folder, items: ProjectListItem[]): Folder {
+  const existing = new Set(folder.projects.map((p) => p.id));
+  const additions = items
+    .filter((p) => !existing.has(p.id))
+    .map((p) => ({ ...p, folderId: folder.id }));
+  return withFolderProjects(folder, [...folder.projects, ...additions]);
+}
+
+function removeFromFolder(folder: Folder, projectIds: string[]): Folder {
+  const ids = new Set(projectIds);
+  return withFolderProjects(
+    folder,
+    folder.projects.filter((p) => !ids.has(p.id))
+  );
+}
+
+function updateFolderInList(id: string, apply: (folder: Folder) => Folder): void {
+  queryClient.setQueryData<Folder[]>(queryKeys.folders.list(), (list) =>
+    list?.map((f) => (f.id === id ? apply(f) : f))
+  );
+}
 
 function invalidateProject(projectId: string): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
@@ -111,6 +192,12 @@ export function useFolderQuery(id: string, options?: Enabled) {
     queryKey: queryKeys.folders.detail(id),
     queryFn: () => ciciro.folders.get(id),
     enabled: (options?.enabled ?? true) && Boolean(id),
+    // Paint instantly from the list cache, then revalidate. Tying the timestamp
+    // to the list fetch keeps staleTime honest so a stale seed still refetches.
+    initialData: () =>
+      queryClient.getQueryData<Folder[]>(queryKeys.folders.list())?.find((f) => f.id === id),
+    initialDataUpdatedAt: () =>
+      queryClient.getQueryState(queryKeys.folders.list())?.dataUpdatedAt,
   });
 }
 
@@ -284,17 +371,50 @@ export function usePatchFolderMutation() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Parameters<typeof ciciro.folders.patch>[1] }) =>
       ciciro.folders.patch(id, body),
+    onMutate: async ({ id, body }) => {
+      const snapshot = await snapshotQueries([
+        queryKeys.folders.detail(id),
+        queryKeys.folders.list(),
+      ]);
+      const patch = (f: Folder): Folder => ({
+        ...f,
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      });
+      queryClient.setQueryData<Folder>(queryKeys.folders.detail(id), (f) => (f ? patch(f) : f));
+      updateFolderInList(id, patch);
+      return { snapshot };
+    },
+    onError: (_e, _vars, ctx) => restoreQueries(ctx?.snapshot),
     onSuccess: (folder: Folder) => {
       queryClient.setQueryData(queryKeys.folders.detail(folder.id), folder);
-      invalidateFolders();
     },
+    onSettled: () => invalidateFolders(),
   });
 }
 
 export function useDeleteFolderMutation() {
   return useMutation({
     mutationFn: (id: string) => ciciro.folders.delete(id),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      const snapshot = await snapshotQueries([
+        queryKeys.folders.list(),
+        queryKeys.projects.list(),
+      ]);
+      queryClient.setQueryData<Folder[]>(queryKeys.folders.list(), (list) =>
+        list?.filter((f) => f.id !== id)
+      );
+      // Manuscripts in the deleted folder fall back to unfiled.
+      queryClient.setQueryData<ProjectListItem[]>(queryKeys.projects.list(), (list) =>
+        list?.map((p) => (p.folderId === id ? { ...p, folderId: null } : p))
+      );
+      return { snapshot };
+    },
+    onError: (_e, _id, ctx) => restoreQueries(ctx?.snapshot),
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: queryKeys.folders.detail(id) });
+    },
+    onSettled: () => {
       invalidateFolders();
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
@@ -310,7 +430,29 @@ export function useAddProjectsToFolderMutation() {
       id: string;
       projectIds: string[];
     }) => ciciro.folders.addProjects(id, { projectIds }),
-    onSuccess: () => {
+    onMutate: async ({ id, projectIds }) => {
+      const snapshot = await snapshotQueries([
+        queryKeys.folders.detail(id),
+        queryKeys.folders.list(),
+        queryKeys.projects.list(),
+      ]);
+      const moved = (
+        queryClient.getQueryData<ProjectListItem[]>(queryKeys.projects.list()) ?? []
+      ).filter((p) => projectIds.includes(p.id));
+      queryClient.setQueryData<Folder>(queryKeys.folders.detail(id), (f) =>
+        f ? addToFolder(f, moved) : f
+      );
+      updateFolderInList(id, (f) => addToFolder(f, moved));
+      queryClient.setQueryData<ProjectListItem[]>(queryKeys.projects.list(), (list) =>
+        setProjectsFolder(list, projectIds, id)
+      );
+      return { snapshot };
+    },
+    onError: (_e, _vars, ctx) => restoreQueries(ctx?.snapshot),
+    onSuccess: (folder: Folder) => {
+      queryClient.setQueryData(queryKeys.folders.detail(folder.id), folder);
+    },
+    onSettled: () => {
       invalidateFolders();
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
@@ -326,7 +468,26 @@ export function useRemoveProjectsFromFolderMutation() {
       id: string;
       projectIds: string[];
     }) => ciciro.folders.removeProjects(id, { projectIds }),
-    onSuccess: () => {
+    onMutate: async ({ id, projectIds }) => {
+      const snapshot = await snapshotQueries([
+        queryKeys.folders.detail(id),
+        queryKeys.folders.list(),
+        queryKeys.projects.list(),
+      ]);
+      queryClient.setQueryData<Folder>(queryKeys.folders.detail(id), (f) =>
+        f ? removeFromFolder(f, projectIds) : f
+      );
+      updateFolderInList(id, (f) => removeFromFolder(f, projectIds));
+      queryClient.setQueryData<ProjectListItem[]>(queryKeys.projects.list(), (list) =>
+        setProjectsFolder(list, projectIds, null)
+      );
+      return { snapshot };
+    },
+    onError: (_e, _vars, ctx) => restoreQueries(ctx?.snapshot),
+    onSuccess: (folder: Folder) => {
+      queryClient.setQueryData(queryKeys.folders.detail(folder.id), folder);
+    },
+    onSettled: () => {
       invalidateFolders();
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
@@ -336,13 +497,40 @@ export function useRemoveProjectsFromFolderMutation() {
 export function useCreateChapterMutation() {
   return useMutation({
     mutationFn: (body: ChapterCreateRequest) => ciciro.chapters.create(body),
-    onSuccess: (chapter, vars) => {
+    onMutate: async ({ projectId, title }) => {
+      const key = queryKeys.projects.detail(projectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ProjectDetail>(key);
+      let tempChapterId: string | null = null;
+      if (previous) {
+        const optimistic = optimisticChapter(projectId, nextChapterOrder(previous.chapters), title);
+        tempChapterId = optimistic.id;
+        queryClient.setQueryData<ProjectDetail>(key, {
+          ...previous,
+          chapters: [...previous.chapters, optimistic],
+        });
+      }
+      return { previous, tempChapterId };
+    },
+    onError: (_e, vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(queryKeys.projects.detail(vars.projectId), ctx.previous);
+    },
+    onSuccess: (chapter, vars, ctx) => {
       queryClient.setQueryData(
         queryKeys.projects.detail(vars.projectId),
-        (current: ProjectDetail | undefined) =>
-          current ? { ...current, chapters: [...current.chapters, chapter] } : current
+        (current: ProjectDetail | undefined) => {
+          if (!current) return current;
+          const chapters = current.chapters.filter(
+            (c) => c.id !== ctx?.tempChapterId && c.id !== chapter.id
+          );
+          chapters.push(chapter);
+          return { ...current, chapters };
+        }
       );
+    },
+    onSettled: (_data, _err, vars) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.list(vars.projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
   });
 }
@@ -360,29 +548,35 @@ export function usePatchChapterMutation() {
 
 export function useDeleteChapterMutation() {
   return useMutation({
-    mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
-      ciciro.chapters.delete(id).then((result) => ({ ...result, projectId })),
-    onSuccess: (_data, vars) => {
-      queryClient.setQueryData(
-        queryKeys.projects.detail(vars.projectId),
-        (current: ProjectDetail | undefined) => withoutChapter(current, vars.id)
-      );
-      invalidateChapterLists(vars.projectId);
+    mutationFn: ({ id }: { id: string; projectId: string }) => ciciro.chapters.delete(id),
+    onMutate: async ({ id, projectId }) => {
+      const key = queryKeys.projects.detail(projectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ProjectDetail>(key);
+      queryClient.setQueryData<ProjectDetail>(key, (current) => withoutChapter(current, id));
+      return { previous };
     },
+    onError: (_e, vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(queryKeys.projects.detail(vars.projectId), ctx.previous);
+    },
+    onSettled: (_data, _err, vars) => invalidateChapterLists(vars.projectId),
   });
 }
 
 export function useArchiveChapterMutation() {
   return useMutation({
-    mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
-      ciciro.chapters.archive(id).then((chapter) => ({ chapter, projectId })),
-    onSuccess: ({ chapter }, vars) => {
-      queryClient.setQueryData(
-        queryKeys.projects.detail(vars.projectId),
-        (current: ProjectDetail | undefined) => withoutChapter(current, chapter.id)
-      );
-      invalidateChapterLists(vars.projectId);
+    mutationFn: ({ id }: { id: string; projectId: string }) => ciciro.chapters.archive(id),
+    onMutate: async ({ id, projectId }) => {
+      const key = queryKeys.projects.detail(projectId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ProjectDetail>(key);
+      queryClient.setQueryData<ProjectDetail>(key, (current) => withoutChapter(current, id));
+      return { previous };
     },
+    onError: (_e, vars, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(queryKeys.projects.detail(vars.projectId), ctx.previous);
+    },
+    onSettled: (_data, _err, vars) => invalidateChapterLists(vars.projectId),
   });
 }
 
