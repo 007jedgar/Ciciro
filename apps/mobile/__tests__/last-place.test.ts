@@ -14,14 +14,10 @@ import {
 const empty = { screen: DEFAULT_HREF, manuscriptId: null };
 
 describe("applyPathname", () => {
-  it("records manuscripts, settings, folders, and project tabs", () => {
+  it("records manuscripts, folders, and project tabs", () => {
     expect(applyPathname(empty, "/manuscripts")).toEqual({
       screen: "/manuscripts",
       manuscriptId: null,
-    });
-    expect(applyPathname({ screen: "/manuscripts", manuscriptId: "p1" }, "/settings")).toEqual({
-      screen: "/settings",
-      manuscriptId: "p1",
     });
     expect(applyPathname(empty, "/folder/fld_1")).toEqual({
       screen: "/folder/fld_1",
@@ -45,10 +41,11 @@ describe("applyPathname", () => {
     });
   });
 
-  it("ignores welcome, auth, and create screens", () => {
+  it("ignores welcome, auth, settings, and create screens", () => {
     expect(applyPathname(empty, "/")).toBeNull();
     expect(applyPathname(empty, "/login")).toBeNull();
     expect(applyPathname(empty, "/signup")).toBeNull();
+    expect(applyPathname(empty, "/settings")).toBeNull();
     expect(applyPathname(empty, "/new-manuscript")).toBeNull();
     expect(applyPathname(empty, "/new-folder")).toBeNull();
     expect(applyPathname(empty, "/project/not valid")).toBeNull();
@@ -65,6 +62,9 @@ describe("hrefForLastPlace", () => {
 
   it("falls back to the last manuscript, then the list", () => {
     expect(hrefForLastPlace({ screen: "/login", manuscriptId: "p1" })).toBe("/project/p1/chapters");
+    expect(hrefForLastPlace({ screen: "/settings", manuscriptId: "p1" })).toBe(
+      "/project/p1/chapters"
+    );
     expect(hrefForLastPlace({ screen: "/login", manuscriptId: null })).toBe(DEFAULT_HREF);
     expect(hrefForLastPlace(null)).toBe(DEFAULT_HREF);
   });
@@ -93,6 +93,13 @@ describe("rememberPathname", () => {
     rememberPathname("/", "user-1");
     expect(getLastScreen()).toBe("/project/p1/chapters");
     expect(getLastManuscript()).toBe("p1");
+  });
+
+  it("does not restore settings after a visit or logout from that screen", () => {
+    rememberPathname("/project/p1/chapters", "user-1");
+    rememberPathname("/settings", "user-1");
+    expect(getLastScreen()).toBe("/project/p1/chapters");
+    expect(restoreHref("user-1")).toBe("/project/p1/chapters");
   });
 
   it("restores last place from disk after memory is wiped", () => {
