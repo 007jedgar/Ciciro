@@ -12,6 +12,19 @@ export const visibleChaptersInclude = {
   orderBy: { order: "asc" as const },
 };
 
+/** Ids only — D1 cannot run Prisma `_count` with a relation `where`. */
+export const visibleChapterIdInclude = {
+  where: visibleChapterWhere,
+  select: { id: true },
+} as const;
+
+export function withVisibleChapterCount<T extends { chapters: { id: string }[] }>(
+  row: T
+): Omit<T, "chapters"> & { _count: { chapters: number } } {
+  const { chapters, ...rest } = row;
+  return { ...rest, _count: { chapters: chapters.length } };
+}
+
 async function requireProject(projectId: string, user: PublicUser | null): Promise<void> {
   await authorizeProjectId(projectId, user);
   const project = await prisma.project.findUnique({

@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } from "@/lib/auth/session";
-import { visibleChapterWhere, visibleChaptersInclude } from "@/lib/chapters";
+import {
+  visibleChapterIdInclude,
+  visibleChaptersInclude,
+  withVisibleChapterCount,
+} from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
 
 function readTrimmed(value: unknown): string {
@@ -16,7 +20,7 @@ export type ProjectCreateInput = {
 };
 
 const PROJECT_LIST_INCLUDE = {
-  _count: { select: { chapters: { where: visibleChapterWhere } } },
+  chapters: visibleChapterIdInclude,
 } as const;
 
 const PROJECT_DETAIL_INCLUDE = {
@@ -39,11 +43,12 @@ export const PROJECT_EDITABLE = [
 /** List manuscripts. Signed-in users only see their own; local-first lists all. */
 export async function listProjects(user: PublicUser | null) {
   requireUserIfHosted(user);
-  return prisma.project.findMany({
+  const projects = await prisma.project.findMany({
     where: user ? { userId: user.id } : undefined,
     orderBy: { updatedAt: "desc" },
     include: PROJECT_LIST_INCLUDE,
   });
+  return projects.map(withVisibleChapterCount);
 }
 
 /** Create a manuscript with an opening chapter. Owned when a user is present. */
