@@ -146,15 +146,12 @@ function persist(): void {
 
 /**
  * Update last-place from a route. Returns null when the path is transient
- * (welcome, auth, create flows) so those screens are not restored later.
+ * (welcome, auth, settings, create flows) so those screens are not restored later.
  */
 export function applyPathname(place: LastPlace, pathname: string): LastPlace | null {
   const path = normalizePath(pathname);
   if (path === "/manuscripts") {
     return { screen: "/manuscripts", manuscriptId: place.manuscriptId };
-  }
-  if (path === "/settings") {
-    return { screen: "/settings", manuscriptId: place.manuscriptId };
   }
   const folder = path.match(/^\/folder\/([^/]+)$/);
   if (folder?.[1] && isId(folder[1])) {
