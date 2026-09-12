@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, useCreateChapterMutation, useProjectQuery } from "./api";
+import type { ReplicaReadingPosition } from "./db";
 import type { Chapter, ProjectDetail } from "./types";
+import { useProjectSync } from "./use-project-sync";
 
 type ProjectState = {
   project: ProjectDetail | null;
@@ -11,6 +13,13 @@ type ProjectState = {
   setSelectedChapterId: (id: string) => void;
   reload: () => void;
   addChapter: (title?: string) => Promise<Chapter>;
+  readingPosition: ReplicaReadingPosition | null;
+  recordReadingPosition: (next: {
+    chapterId: string;
+    blockId: string;
+    offset: number;
+  }) => Promise<void>;
+  recordChapterOp: ReturnType<typeof useProjectSync>["recordOp"];
 };
 
 const ProjectContext = createContext<ProjectState | null>(null);
@@ -25,8 +34,10 @@ export function ProjectProvider({
   const { t } = useTranslation();
   const query = useProjectQuery(projectId);
   const createChapter = useCreateChapterMutation();
+  const sync = useProjectSync(projectId);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const project = query.data ?? null;
+  const restoredPosition = useRef<string | null>(null);
 
   useEffect(() => {
     if (!project) return;
@@ -35,6 +46,15 @@ export function ProjectProvider({
       return project.chapters[0]?.id ?? null;
     });
   }, [project]);
+
+  useEffect(() => {
+    const pos = sync.position;
+    if (!pos) return;
+    const key = `${pos.chapterId}:${pos.blockId}:${pos.offset}:${pos.updatedAt}`;
+    if (restoredPosition.current === key) return;
+    restoredPosition.current = key;
+    setSelectedChapterId(pos.chapterId);
+  }, [sync.position]);
 
   const addChapter = useCallback(
     async (title?: string) => {
@@ -64,10 +84,14 @@ export function ProjectProvider({
       setSelectedChapterId,
       reload: () => {
         void query.refetch();
+        void sync.syncNow();
       },
       addChapter,
+      readingPosition: sync.position,
+      recordReadingPosition: sync.recordPosition,
+      recordChapterOp: sync.recordOp,
     }),
-    [project, query, error, selectedChapterId, addChapter]
+    [project, query, error, selectedChapterId, addChapter, sync]
   );
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
