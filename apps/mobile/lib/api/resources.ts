@@ -54,6 +54,8 @@ import type {
   ChapterOpsListResponse,
   ChapterOpsPushRequest,
   ChapterOpsPushResponse,
+  CorrectRequest,
+  CorrectResponse,
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
 
@@ -284,6 +286,11 @@ export const ciciro = {
   export: {
     download: (id: string, opts?: RequestOpts) =>
       apiBlob(`/api/export/${encodeURIComponent(id)}`, opts) as Promise<ExportFile>,
+  },
+
+  correct: {
+    post: (body: CorrectRequest, opts?: RequestOpts) =>
+      api<CorrectResponse>("/api/correct", jsonInit("POST", body, opts)),
   },
 
   sync: {
