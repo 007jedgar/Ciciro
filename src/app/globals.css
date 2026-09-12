@@ -1067,6 +1067,30 @@ textarea {
   background: var(--accent-soft);
 }
 
+.settings-hint {
+  margin: 0 2px 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.writing-meter {
+  display: inline-flex;
+  width: 72px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  flex-shrink: 0;
+  align-self: center;
+}
+.writing-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+
 .home-top {
   display: flex;
   align-items: flex-start;

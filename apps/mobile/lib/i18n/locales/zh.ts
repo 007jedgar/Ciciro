@@ -135,6 +135,9 @@ const zh: Translations = {
     autocorrectHint: "输入时提供拼写建议。",
     reduceMotion: "减少动态效果",
     reduceMotionHint: "关闭应用中的动画。",
+    dailyGoal: "每日字数",
+    dailyGoalHint: "五分钟就是一次写作。没有连续天数要维持。",
+    meterA11y: "今日 {{words}} / {{goal}} 词",
     account: "账户",
     signedIn: "已登录 Ciciro",
     signOut: "退出登录",
@@ -170,6 +173,9 @@ const zh: Translations = {
   manuscript: {
     noChapters: "这部手稿还没有章节。",
     emptyChapter: "这一章是空的。请在网页编辑器中撰写。",
+    grammarAccept: "接受",
+    grammarIgnore: "忽略",
+    grammarA11y: "语法建议：将 {{original}} 改为 {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",

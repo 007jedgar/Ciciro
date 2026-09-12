@@ -135,6 +135,9 @@ const hi: Translations = {
     autocorrectHint: "लिखते समय वर्तनी सुझाव।",
     reduceMotion: "गति कम करें",
     reduceMotionHint: "पूरे ऐप में एनिमेशन बंद करें।",
+    dailyGoal: "दैनिक शब्द",
+    dailyGoalHint: "पाँच मिनट एक सत्र है। कोई स्ट्रीक नहीं बचानी।",
+    meterA11y: "आज {{goal}} में से {{words}} शब्द",
     account: "खाता",
     signedIn: "Ciciro में साइन इन हैं",
     signOut: "साइन आउट",
@@ -170,6 +173,9 @@ const hi: Translations = {
   manuscript: {
     noChapters: "इस पांडुलिपि में अभी अध्याय नहीं हैं।",
     emptyChapter: "यह अध्याय खाली है। इसे वेब संपादक पर लिखें।",
+    grammarAccept: "स्वीकार करें",
+    grammarIgnore: "अनदेखा करें",
+    grammarA11y: "व्याकरण सुझाव: {{original}} से {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",

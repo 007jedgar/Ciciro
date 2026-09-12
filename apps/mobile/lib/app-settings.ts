@@ -1,4 +1,5 @@
 import { isThemeId, type ThemeId } from "./theme";
+import { clampDailyWordGoal, DEFAULT_DAILY_WORD_GOAL } from "./writing-day";
 
 export const EDITOR_FONT_SIZES = [15, 17, 19, 21, 23] as const;
 export type EditorFontSize = (typeof EDITOR_FONT_SIZES)[number];
@@ -13,6 +14,8 @@ export type AppSettings = {
   autoCorrect: boolean;
   reduceMotion: boolean;
   chatWidth: number;
+  dailyWordGoal: number;
+  showDailyGoal: boolean;
   updatedAt: string;
 };
 
@@ -26,6 +29,8 @@ export function defaultSettings(): AppSettings {
     autoCorrect: true,
     reduceMotion: false,
     chatWidth: 380,
+    dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
+    showDailyGoal: true,
     updatedAt: SETTINGS_EPOCH,
   };
 }
@@ -62,6 +67,11 @@ export function normalizeSettings(raw: unknown): AppSettings {
       typeof src.chatWidth === "number" && Number.isFinite(src.chatWidth)
         ? Math.min(720, Math.max(280, Math.round(src.chatWidth)))
         : defaults.chatWidth,
+    dailyWordGoal:
+      typeof src.dailyWordGoal === "number" && Number.isFinite(src.dailyWordGoal)
+        ? clampDailyWordGoal(src.dailyWordGoal)
+        : defaults.dailyWordGoal,
+    showDailyGoal: typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal,
     updatedAt:
       typeof src.updatedAt === "string" && Number.isFinite(Date.parse(src.updatedAt))
         ? new Date(src.updatedAt).toISOString()
@@ -80,6 +90,8 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.editorFontSize === b.editorFontSize &&
     a.autoCorrect === b.autoCorrect &&
     a.reduceMotion === b.reduceMotion &&
-    a.chatWidth === b.chatWidth
+    a.chatWidth === b.chatWidth &&
+    a.dailyWordGoal === b.dailyWordGoal &&
+    a.showDailyGoal === b.showDailyGoal
   );
 }

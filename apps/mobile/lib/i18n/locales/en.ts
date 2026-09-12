@@ -134,6 +134,9 @@ const en = {
     autocorrectHint: "Spelling suggestions while you type.",
     reduceMotion: "Reduce motion",
     reduceMotionHint: "Turn off animations across the app.",
+    dailyGoal: "Daily words",
+    dailyGoalHint: "Five minutes is a session. There is no streak to protect.",
+    meterA11y: "{{words}} of {{goal}} words today",
     account: "ACCOUNT",
     signedIn: "Signed in to Ciciro",
     signOut: "Sign out",
@@ -169,6 +172,9 @@ const en = {
   manuscript: {
     noChapters: "This manuscript has no chapters yet.",
     emptyChapter: "This chapter is empty. Write it on the hosted web editor.",
+    grammarAccept: "Accept",
+    grammarIgnore: "Ignore",
+    grammarA11y: "Grammar suggestion: {{original}} to {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",
