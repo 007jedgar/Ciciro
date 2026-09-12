@@ -9,7 +9,7 @@ import {
 // working out of the box. Hosted deployments set CICIRO_REQUIRE_AUTH=true.
 
 // Paths that never require a session.
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/login", "/signup", "/launch"];
 const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health"];
 
 function isPublic(pathname: string): boolean {
