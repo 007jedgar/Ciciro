@@ -60,6 +60,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [focusEndOnMount, setFocusEndOnMount] = useState(false);
   const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [resumePosition, setResumePosition] = useState<{
+    chapterId: string;
+    blockId: string;
+    offset: number;
+  } | null>(null);
   const chatWidthRef = useRef(chatWidth);
   chatWidthRef.current = chatWidth;
 
@@ -231,6 +237,40 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       }, 700);
     },
     [activeId, patchChapter, updateChapterLocal]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/projects/${project.id}/position`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { position?: { chapterId: string; blockId: string; offset: number } | null } | null) => {
+        if (cancelled || !data?.position) return;
+        setResumePosition(data.position);
+        setActiveId(data.position.chapterId);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id]);
+
+  const onCaretChange = useCallback(
+    (caret: { blockId: string; offset: number }) => {
+      if (!activeId) return;
+      if (positionTimer.current) clearTimeout(positionTimer.current);
+      positionTimer.current = setTimeout(() => {
+        void fetch(`/api/projects/${project.id}/position`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            chapterId: activeId,
+            blockId: caret.blockId,
+            offset: caret.offset,
+          }),
+        });
+      }, 600);
+    },
+    [activeId, project.id]
   );
 
   // --- Chapter operations ---
@@ -496,6 +536,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   ref={editorRef}
                   content={activeChapter.content}
                   onChange={onContentChange}
+                  onCaretChange={onCaretChange}
+                  restorePosition={
+                    !focusEndOnMount && resumePosition?.chapterId === activeChapter.id
+                      ? { blockId: resumePosition.blockId, offset: resumePosition.offset }
+                      : null
+                  }
                   focusEndOnMount={focusEndOnMount}
                 />
               ) : (

@@ -18,22 +18,48 @@ export type EditorHandle = {
   focus: () => void;
   /** Put the caret at the end of the document (for Auto-mode chapter switches). */
   focusEnd: () => void;
+  setReadingPosition: (blockId: string, offset: number) => void;
 };
+
+type ReadingCaret = { blockId: string; offset: number };
 
 type Props = {
   content: string;
   onChange: (html: string) => void;
   onSelectionChange?: (text: string) => void;
+  onCaretChange?: (caret: ReadingCaret) => void;
+  restorePosition?: ReadingCaret | null;
   /** When true on mount, place the caret at the end (AI opened this chapter). */
   focusEndOnMount?: boolean;
 };
 
+function caretFromEditor(editor: {
+  state: { selection: { $from: { depth: number; node: (depth: number) => { attrs: Record<string, unknown> }; start: (depth: number) => number; pos: number } } };
+}): ReadingCaret | null {
+  const { $from } = editor.state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth);
+    const blockId = node.attrs.blockId;
+    if (typeof blockId === "string" && blockId) {
+      return { blockId, offset: Math.max(0, $from.pos - $from.start(depth)) };
+    }
+  }
+  return null;
+}
+
 const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { content, onChange, onSelectionChange, focusEndOnMount },
+  { content, onChange, onSelectionChange, onCaretChange, restorePosition, focusEndOnMount },
   ref
 ) {
   const { settings } = useSettings();
   const insertPositions = useRef<Map<string, number>>(new Map());
+  const restoredKey = useRef<string | null>(null);
+  const onChangeRef = useRef(onChange);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const onCaretChangeRef = useRef(onCaretChange);
+  onChangeRef.current = onChange;
+  onSelectionChangeRef.current = onSelectionChange;
+  onCaretChangeRef.current = onCaretChange;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -46,12 +72,19 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       }),
     ],
     content: content || "",
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
     onSelectionUpdate: ({ editor }) => {
-      if (!onSelectionChange) return;
-      const { from, to } = editor.state.selection;
-      const text = editor.state.doc.textBetween(from, to, "\n");
-      onSelectionChange(text);
+      const onSel = onSelectionChangeRef.current;
+      if (onSel) {
+        const { from, to } = editor.state.selection;
+        const text = editor.state.doc.textBetween(from, to, "\n");
+        onSel(text);
+      }
+      const onCaret = onCaretChangeRef.current;
+      if (onCaret) {
+        const caret = caretFromEditor(editor);
+        if (caret) onCaret(caret);
+      }
     },
     onTransaction: ({ transaction }) => {
       if (!transaction.docChanged) return;
@@ -94,6 +127,25 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     editor.commands.focus("end");
   }, [editor, focusEndOnMount]);
 
+  useEffect(() => {
+    if (!editor || focusEndOnMount) return;
+    if (!restorePosition) return;
+    const key = `${restorePosition.blockId}:${restorePosition.offset}`;
+    if (restoredKey.current === key) return;
+    restoredKey.current = key;
+    let target: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (target != null) return false;
+      if (node.attrs.blockId !== restorePosition.blockId) return;
+      const start = pos + 1;
+      const max = node.content.size;
+      target = start + Math.min(Math.max(0, restorePosition.offset), max);
+      return false;
+    });
+    if (target == null) return;
+    editor.chain().focus().setTextSelection(target).run();
+  }, [editor, restorePosition, focusEndOnMount]);
+
   useImperativeHandle(ref, () => ({
     insertDraft(text: string, key = "default") {
       if (!editor) return;
@@ -128,6 +180,20 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     },
     focusEnd() {
       editor?.commands.focus("end");
+    },
+    setReadingPosition(blockId: string, offset: number) {
+      if (!editor) return;
+      let target: number | null = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (target != null) return false;
+        if (node.attrs.blockId !== blockId) return;
+        const start = pos + 1;
+        const max = node.content.size;
+        target = start + Math.min(Math.max(0, offset), max);
+        return false;
+      });
+      if (target == null) return;
+      editor.chain().focus().setTextSelection(target).run();
     },
   }));
 
