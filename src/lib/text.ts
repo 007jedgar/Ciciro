@@ -4,6 +4,7 @@
 export function htmlToText(html: string): string {
   if (!html) return "";
   return html
+    .replace(/<(del|span)\b[^>]*\bdata-suggestion=(["']?)delete\2[^>]*>[\s\S]*?<\/\1>/gi, "")
     .replace(/<\s*br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, "\n\n")
     .replace(/<[^>]+>/g, "")

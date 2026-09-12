@@ -12,4 +12,12 @@ describe("htmlToPlainText", () => {
       "Tom & Ada <3\n\nDone."
     );
   });
+
+  it("hides pending deletions so a phone reader sees the proposed line", () => {
+    expect(
+      htmlToPlainText(
+        '<p>The <del data-suggestion="delete" data-suggestion-id="s">cat</del><ins data-suggestion="insert" data-suggestion-id="s">dog</ins> sat.</p>'
+      )
+    ).toBe("The dog sat.");
+  });
 });

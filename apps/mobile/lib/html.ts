@@ -1,6 +1,7 @@
 /** Strip TipTap HTML to readable plain text. Not an editor. */
 export function htmlToPlainText(html: string): string {
   return html
+    .replace(/<(del|span)\b[^>]*\bdata-suggestion=(["']?)delete\2[^>]*>[\s\S]*?<\/\1>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<\/div>/gi, "\n")

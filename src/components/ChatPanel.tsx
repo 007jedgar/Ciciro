@@ -164,6 +164,7 @@ function renderBody(
             <button
               className={`btn small ${inserted ? "ghost" : "primary"}`}
               disabled={inserted}
+              title="Insert as tracked changes you can accept or reject in the editor"
               onClick={() => {
                 onInsert(draft, insertGroupKey);
                 markInserted(draftKey);
@@ -930,7 +931,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         </button>
         <button
           className={`btn small ${autoMode ? "primary" : "ghost"}`}
-          title="When on, finished drafts insert into the open chapter automatically. Ciciro can also create and switch chapters."
+          title="When on, finished drafts insert into the open chapter as tracked changes you can accept or reject. Ciciro can also create and switch chapters."
           onClick={() => setAutoMode((v) => !v)}
         >
           Auto {autoMode ? "on" : "off"}

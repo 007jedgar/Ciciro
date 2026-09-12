@@ -1,11 +1,22 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
 import { BlockId } from "@/lib/tiptap-block-id";
+import {
+  Suggestion,
+  countSuggestionGroups,
+  suggestionIdAt,
+} from "@/lib/tiptap-suggestion";
+import {
+  newSuggestionId,
+  splitDraftParagraphs,
+  trackedDiffHtml,
+  trackedInsertInlineHtml,
+} from "@/lib/tracked-changes";
 import { useSettings } from "@/components/SettingsProvider";
 
 export type EditorHandle = {
@@ -53,6 +64,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
 ) {
   const { settings } = useSettings();
   const insertPositions = useRef<Map<string, number>>(new Map());
+  const lastRange = useRef<{ from: number; to: number } | null>(null);
   const restoredKey = useRef<string | null>(null);
   const onChangeRef = useRef(onChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
@@ -60,31 +72,45 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   onChangeRef.current = onChange;
   onSelectionChangeRef.current = onSelectionChange;
   onCaretChangeRef.current = onCaretChange;
+  const [pendingCount, setPendingCount] = useState(0);
+  const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit,
       BlockId,
+      Suggestion,
       CharacterCount,
       Placeholder.configure({
         placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
       }),
     ],
     content: content || "",
-    onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
-    onSelectionUpdate: ({ editor }) => {
+    onCreate: ({ editor: instance }) => {
+      setPendingCount(countSuggestionGroups(instance.state.doc));
+      setActiveSuggestionId(suggestionIdAt(instance.state));
+    },
+    onUpdate: ({ editor: instance }) => {
+      onChangeRef.current(instance.getHTML());
+      setPendingCount(countSuggestionGroups(instance.state.doc));
+      setActiveSuggestionId(suggestionIdAt(instance.state));
+    },
+    onSelectionUpdate: ({ editor: instance }) => {
+      const { from, to } = instance.state.selection;
+      if (from !== to) lastRange.current = { from, to };
+      else if (instance.isFocused) lastRange.current = null;
       const onSel = onSelectionChangeRef.current;
       if (onSel) {
-        const { from, to } = editor.state.selection;
-        const text = editor.state.doc.textBetween(from, to, "\n");
+        const text = instance.state.doc.textBetween(from, to, "\n");
         onSel(text);
       }
       const onCaret = onCaretChangeRef.current;
       if (onCaret) {
-        const caret = caretFromEditor(editor);
+        const caret = caretFromEditor(instance);
         if (caret) onCaret(caret);
       }
+      setActiveSuggestionId(suggestionIdAt(instance.state));
     },
     onTransaction: ({ transaction }) => {
       if (!transaction.docChanged) return;
@@ -92,6 +118,11 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       for (const [key, pos] of map) {
         map.set(key, transaction.mapping.map(pos));
       }
+      const range = lastRange.current;
+      if (!range) return;
+      const from = transaction.mapping.map(range.from, 1);
+      const to = transaction.mapping.map(range.to, -1);
+      lastRange.current = from < to ? { from, to } : null;
     },
     editorProps: {
       attributes: {
@@ -107,6 +138,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     const current = editor.getHTML();
     if (content !== current) {
       editor.commands.setContent(content || "", false);
+      setPendingCount(countSuggestionGroups(editor.state.doc));
+      setActiveSuggestionId(suggestionIdAt(editor.state));
     }
   }, [content, editor]);
 
@@ -149,25 +182,54 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   useImperativeHandle(ref, () => ({
     insertDraft(text: string, key = "default") {
       if (!editor) return;
-      const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+      const paragraphs = splitDraftParagraphs(text);
       if (paragraphs.length === 0) return;
 
-      // Resume at this key's tracked position if it has one; otherwise fall
-      // back to the current cursor, same as a plain one-off insert.
       const map = insertPositions.current;
       const docSize = editor.state.doc.content.size;
+      const stacked = map.has(key);
+      const { from: selFrom, to: selTo } = editor.state.selection;
+      const liveSelection = selFrom < selTo ? { from: selFrom, to: selTo } : null;
+      const remembered = lastRange.current;
+      const revisionRange =
+        !stacked &&
+        (liveSelection ||
+          (remembered && remembered.from < remembered.to && remembered.to <= docSize
+            ? remembered
+            : null));
+
+      const id = newSuggestionId();
+
+      if (revisionRange) {
+        const oldText = editor.state.doc.textBetween(
+          revisionRange.from,
+          revisionRange.to,
+          "\n\n",
+          "\n"
+        );
+        const html = trackedDiffHtml(oldText, text.trim(), id);
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: revisionRange.from, to: revisionRange.to })
+          .deleteSelection()
+          .insertContent(html)
+          .run();
+        lastRange.current = null;
+        map.set(key, editor.state.selection.to);
+        return;
+      }
+
       const fallback = editor.state.selection.to;
-      const pos = Math.max(0, Math.min(map.get(key) ?? fallback, docSize));
+      const pos = Math.max(0, Math.min(map.get(key) ?? fallback, editor.state.doc.content.size));
 
       const chain = editor.chain().focus().setTextSelection(pos);
       paragraphs.forEach((p, i) => {
         if (i > 0) chain.insertContent("<p></p>");
-        chain.insertContent(p.replace(/\n/g, "<br>"));
+        chain.insertContent(trackedInsertInlineHtml(p, id));
       });
       chain.run();
 
-      // Remember where this group left off so the next insert for the same
-      // key (e.g. another option from the same message) continues here.
       map.set(key, editor.state.selection.to);
     },
     getSelection() {
@@ -197,7 +259,60 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     },
   }));
 
-  return <EditorContent editor={editor} />;
+  const focusedHunk = Boolean(activeSuggestionId && pendingCount > 1);
+  const acceptLabel = focusedHunk || pendingCount === 1 ? "Accept" : "Accept all";
+  const rejectLabel = focusedHunk || pendingCount === 1 ? "Reject" : "Reject all";
+  const acceptThis = () => {
+    if (!editor) return;
+    if (focusedHunk) editor.commands.acceptSuggestion(activeSuggestionId!);
+    else editor.commands.acceptAllSuggestions();
+  };
+  const rejectThis = () => {
+    if (!editor) return;
+    if (focusedHunk) editor.commands.rejectSuggestion(activeSuggestionId!);
+    else editor.commands.rejectAllSuggestions();
+  };
+
+  return (
+    <div className="editor-surface">
+      {pendingCount > 0 && (
+        <div className="suggestion-bar" role="toolbar" aria-label="Tracked changes">
+          <span>
+            {pendingCount} pending {pendingCount === 1 ? "edit" : "edits"}
+          </span>
+          <button
+            type="button"
+            className="btn small primary"
+            onClick={acceptThis}
+          >
+            {acceptLabel}
+          </button>
+          <button type="button" className="btn small" onClick={rejectThis}>
+            {rejectLabel}
+          </button>
+          {focusedHunk && (
+            <>
+              <button
+                type="button"
+                className="btn ghost small"
+                onClick={() => editor?.commands.acceptAllSuggestions()}
+              >
+                Accept all
+              </button>
+              <button
+                type="button"
+                className="btn ghost small"
+                onClick={() => editor?.commands.rejectAllSuggestions()}
+              >
+                Reject all
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      <EditorContent editor={editor} />
+    </div>
+  );
 });
 
 export default Editor;

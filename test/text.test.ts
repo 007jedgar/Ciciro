@@ -24,6 +24,14 @@ describe("htmlToText", () => {
   it("collapses runs of blank lines", () => {
     expect(htmlToText("<p>a</p><p></p><p></p><p>b</p>")).toBe("a\n\nb");
   });
+
+  it("omits pending deletion spans", () => {
+    expect(
+      htmlToText(
+        '<p>Keep <del data-suggestion="delete" data-suggestion-id="s">drop</del>me</p>'
+      )
+    ).toBe("Keep me");
+  });
 });
 
 describe("countWords", () => {
@@ -48,6 +56,19 @@ describe("isChapterEmpty", () => {
 
   it("treats chapters with prose as not empty", () => {
     expect(isChapterEmpty("<p>Hello</p>")).toBe(false);
+  });
+
+  it("ignores pending deletions when deciding emptiness", () => {
+    expect(
+      isChapterEmpty(
+        '<p><del data-suggestion="delete" data-suggestion-id="s">gone</del></p>'
+      )
+    ).toBe(true);
+    expect(
+      isChapterEmpty(
+        '<p><ins data-suggestion="insert" data-suggestion-id="s">kept</ins></p>'
+      )
+    ).toBe(false);
   });
 });
 
