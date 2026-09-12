@@ -20,6 +20,7 @@ type ProjectState = {
     offset: number;
   }) => Promise<void>;
   recordChapterOp: ReturnType<typeof useProjectSync>["recordOp"];
+  setEditingBlockId: (id: string | null) => void;
 };
 
 const ProjectContext = createContext<ProjectState | null>(null);
@@ -34,10 +35,15 @@ export function ProjectProvider({
   const { t } = useTranslation();
   const query = useProjectQuery(projectId);
   const createChapter = useCreateChapterMutation();
-  const sync = useProjectSync(projectId);
+  const editingBlockIdRef = useRef<string | null>(null);
+  const sync = useProjectSync(projectId, { skipBlockIdRef: editingBlockIdRef });
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const project = query.data ?? null;
   const restoredPosition = useRef<string | null>(null);
+
+  const setEditingBlockId = useCallback((id: string | null) => {
+    editingBlockIdRef.current = id;
+  }, []);
 
   useEffect(() => {
     if (!project) return;
@@ -90,8 +96,9 @@ export function ProjectProvider({
       readingPosition: sync.position,
       recordReadingPosition: sync.recordPosition,
       recordChapterOp: sync.recordOp,
+      setEditingBlockId,
     }),
-    [project, query, error, selectedChapterId, addChapter, sync]
+    [project, query, error, selectedChapterId, addChapter, sync, setEditingBlockId]
   );
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

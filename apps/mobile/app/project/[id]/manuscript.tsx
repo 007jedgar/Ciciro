@@ -1,20 +1,212 @@
-import { useMemo, useRef } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Text,
+  TextInput,
+  View,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
+  type TextInputSelectionChangeEventData,
+} from "react-native";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
-import { htmlToPlainText } from "../../../lib/html";
-import { htmlToDoc, resumePlainTextIndex } from "../../../lib/manuscript";
+import type { SyncOp } from "../../../lib/api/types";
+import {
+  applyOpsToDoc,
+  CARET_FLUSH_MS,
+  insertFirstBlockOps,
+  mergeBlockOps,
+  REPLACE_FLUSH_MS,
+  replaceBlockOps,
+  splitBlockOps,
+} from "../../../lib/block-editor";
+import {
+  docToHtml,
+  htmlToDoc,
+  resumePlainTextIndex,
+  type ManuscriptBlock,
+  type ManuscriptOp,
+} from "../../../lib/manuscript";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
 import { fonts } from "../../../lib/theme";
+import type { Chapter } from "../../../lib/types";
+
+type EditorStyle = {
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  color: string;
+};
+
+type BlockInputProps = {
+  block: ManuscriptBlock;
+  editorStyle: EditorStyle;
+  autoCorrect: boolean;
+  focused: boolean;
+  resumeOffset: number | null;
+  pendingFocus: { id: string; offset: number } | null;
+  onFocused: (id: string) => void;
+  onBlurred: (id: string, text: string) => void;
+  onDraft: (id: string, text: string) => void;
+  onSplit: (id: string, left: string, right: string) => void;
+  onMerge: (id: string, text: string) => void;
+  onCaret: (id: string, offset: number) => void;
+  registerInput: (id: string, ref: TextInput | null) => void;
+};
+
+const BlockInput = memo(function BlockInput({
+  block,
+  editorStyle,
+  autoCorrect,
+  focused,
+  resumeOffset,
+  pendingFocus,
+  onFocused,
+  onBlurred,
+  onDraft,
+  onSplit,
+  onMerge,
+  onCaret,
+  registerInput,
+}: BlockInputProps) {
+  const [text, setText] = useState(block.text);
+  const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(
+    resumeOffset != null ? { start: resumeOffset, end: resumeOffset } : undefined
+  );
+  const selectionRef = useRef({ start: resumeOffset ?? 0, end: resumeOffset ?? 0 });
+  const restored = useRef(resumeOffset == null);
+
+  useEffect(() => {
+    setText(block.text);
+  }, [block.id]);
+
+  useEffect(() => {
+    if (!focused) setText(block.text);
+  }, [block.text, focused]);
+
+  useEffect(() => {
+    if (pendingFocus?.id !== block.id) return;
+    setText(block.text);
+    const offset = pendingFocus.offset;
+    selectionRef.current = { start: offset, end: offset };
+    setSelection({ start: offset, end: offset });
+    requestAnimationFrame(() => setSelection(undefined));
+  }, [pendingFocus, block.id, block.text]);
+
+  const style = useMemo(() => {
+    if (block.kind === "heading") {
+      return { ...editorStyle, fontSize: editorStyle.fontSize + 6, fontWeight: "600" as const };
+    }
+    if (block.kind === "quote") {
+      return { ...editorStyle, fontStyle: "italic" as const, paddingLeft: 12 };
+    }
+    if (block.kind === "scene_break") {
+      return { ...editorStyle, textAlign: "center" as const };
+    }
+    return editorStyle;
+  }, [block.kind, editorStyle]);
+
+  return (
+    <TextInput
+      ref={(node) => registerInput(block.id, node)}
+      nativeID={block.id}
+      testID={resumeOffset != null ? "reading-caret-block" : `block-${block.id}`}
+      multiline
+      scrollEnabled={false}
+      blurOnSubmit={false}
+      textAlignVertical="top"
+      autoCorrect={autoCorrect}
+      spellCheck={autoCorrect}
+      value={text}
+      selection={selection}
+      onChangeText={(next) => {
+        const nl = next.indexOf("\n");
+        if (nl !== -1) {
+          onSplit(block.id, next.slice(0, nl), next.slice(nl + 1).replace(/\n/g, ""));
+          setText(next.slice(0, nl));
+          return;
+        }
+        setText(next);
+        onDraft(block.id, next);
+      }}
+      onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+        selectionRef.current = e.nativeEvent.selection;
+        onCaret(block.id, e.nativeEvent.selection.start);
+      }}
+      onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+        if (e.nativeEvent.key !== "Backspace") return;
+        const { start, end } = selectionRef.current;
+        if (start === 0 && end === 0) onMerge(block.id, text);
+      }}
+      onFocus={() => {
+        onFocused(block.id);
+        if (!restored.current && resumeOffset != null) {
+          restored.current = true;
+          const offset = Math.min(resumeOffset, text.length);
+          selectionRef.current = { start: offset, end: offset };
+          setSelection({ start: offset, end: offset });
+          requestAnimationFrame(() => setSelection(undefined));
+        }
+      }}
+      onBlur={() => onBlurred(block.id, text)}
+      style={[style, { marginBottom: 12, padding: 0 }]}
+    />
+  );
+});
+
+function blockStyleFor(
+  settings: { editorFont: "serif" | "sans"; editorFontSize: number },
+  ink: string
+): EditorStyle {
+  return {
+    fontFamily: settings.editorFont === "sans" ? fonts.sans : fonts.serif,
+    fontSize: settings.editorFontSize,
+    lineHeight: Math.round(settings.editorFontSize * 1.55),
+    color: ink,
+  };
+}
 
 export default function ManuscriptScreen() {
-  const { project, loading, error, selectedChapterId, readingPosition } = useProject();
+  const {
+    project,
+    loading,
+    error,
+    selectedChapterId,
+    readingPosition,
+    recordChapterOp,
+    recordReadingPosition,
+    setEditingBlockId,
+  } = useProject();
   const { t } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
   const clearance = useTabBarClearance();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
-  const scrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlashListRef<ManuscriptBlock>>(null);
+  const chapterRef = useRef<Chapter | null>(null);
+  const emptyIdRef = useRef<string | null>(null);
+  const replaceTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const caretTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitChain = useRef(Promise.resolve());
+  const inputs = useRef(new Map<string, TextInput>());
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [pendingFocus, setPendingFocus] = useState<{ id: string; offset: number } | null>(null);
+  const [localDoc, setLocalDoc] = useState<{ chapterId: string; content: string; revision: number } | null>(
+    null
+  );
+  const didScrollResume = useRef<string | null>(null);
+
+  if (!chapter) {
+    chapterRef.current = null;
+  } else if (
+    !chapterRef.current ||
+    chapterRef.current.id !== chapter.id ||
+    chapter.revision >= chapterRef.current.revision
+  ) {
+    chapterRef.current = chapter;
+  }
 
   const resume = useMemo(() => {
     if (!chapter || !readingPosition || readingPosition.chapterId !== chapter.id) {
@@ -32,10 +224,240 @@ export default function ManuscriptScreen() {
     };
   }, [chapter, readingPosition]);
 
+  const content =
+    chapter && localDoc?.chapterId === chapter.id && localDoc.revision > chapter.revision
+      ? localDoc.content
+      : (chapter?.content ?? "");
+  const revision =
+    chapter && localDoc?.chapterId === chapter.id && localDoc.revision > chapter.revision
+      ? localDoc.revision
+      : (chapter?.revision ?? 0);
+
   const blocks = useMemo(() => {
-    if (!chapter?.content) return [];
-    return htmlToDoc(chapter.content, chapter.revision).doc.blocks;
-  }, [chapter]);
+    if (!chapter) return [];
+    const parsed = htmlToDoc(content, revision).doc.blocks;
+    if (parsed.length > 0) {
+      emptyIdRef.current = null;
+      return parsed;
+    }
+    emptyIdRef.current ??= globalThis.crypto?.randomUUID?.() ?? "draft-block";
+    const id = emptyIdRef.current;
+    return [
+      {
+        id,
+        kind: "paragraph" as const,
+        html: `<p data-block-id="${id}"></p>`,
+        text: "",
+      },
+    ];
+  }, [chapter, content, revision]);
+
+  const editorStyle = useMemo(() => blockStyleFor(settings, colors.ink), [settings, colors.ink]);
+
+  const firstBlockIds = useCallback(
+    () => ({
+      createBlockId: () => emptyIdRef.current ?? (globalThis.crypto?.randomUUID?.() ?? "draft-block"),
+    }),
+    []
+  );
+
+  const commitOps = useCallback(
+    (ops: ManuscriptOp[]) => {
+      const current = chapterRef.current;
+      if (!current || ops.length === 0) return;
+      const next = applyOpsToDoc(htmlToDoc(current.content, current.revision).doc, ops);
+      const nextContent = docToHtml(next);
+      chapterRef.current = { ...current, content: nextContent, revision: next.revision };
+      setLocalDoc({ chapterId: current.id, content: nextContent, revision: next.revision });
+      const payload: SyncOp[] = ops.map((op) => ({ ...op, chapterId: current.id }));
+      commitChain.current = commitChain.current.then(() => recordChapterOp(payload));
+    },
+    [recordChapterOp]
+  );
+
+  const flushReplace = useCallback(
+    (blockId: string, text: string) => {
+      const timer = replaceTimers.current.get(blockId);
+      if (timer) {
+        clearTimeout(timer);
+        replaceTimers.current.delete(blockId);
+      }
+      const current = chapterRef.current;
+      if (!current) return;
+      const doc = htmlToDoc(current.content, current.revision).doc;
+      if (doc.blocks.length === 0) {
+        commitOps(insertFirstBlockOps(doc, text, firstBlockIds()).ops);
+        return;
+      }
+      commitOps(replaceBlockOps(doc, blockId, text));
+    },
+    [commitOps, firstBlockIds]
+  );
+
+  const scheduleReplace = useCallback(
+    (blockId: string, text: string) => {
+      const existing = replaceTimers.current.get(blockId);
+      if (existing) clearTimeout(existing);
+      replaceTimers.current.set(
+        blockId,
+        setTimeout(() => flushReplace(blockId, text), REPLACE_FLUSH_MS)
+      );
+    },
+    [flushReplace]
+  );
+
+  const onSplit = useCallback(
+    (blockId: string, left: string, right: string) => {
+      const pending = replaceTimers.current.get(blockId);
+      if (pending) {
+        clearTimeout(pending);
+        replaceTimers.current.delete(blockId);
+      }
+      const current = chapterRef.current;
+      if (!current) return;
+      const doc = htmlToDoc(current.content, current.revision).doc;
+      const result =
+        doc.blocks.length === 0
+          ? (() => {
+              const first = insertFirstBlockOps(doc, left, firstBlockIds());
+              const after = applyOpsToDoc(doc, first.ops);
+              const split = splitBlockOps(after, first.focusBlockId, left, right);
+              return {
+                ops: [...first.ops, ...split.ops],
+                focusBlockId: split.focusBlockId,
+                focusOffset: split.focusOffset,
+              };
+            })()
+          : splitBlockOps(doc, blockId, left, right);
+      setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
+      setEditingBlockId(result.focusBlockId);
+      setFocusedId(result.focusBlockId);
+      commitOps(result.ops);
+    },
+    [commitOps, firstBlockIds, setEditingBlockId]
+  );
+
+  const onMerge = useCallback(
+    (blockId: string, text: string) => {
+      const pending = replaceTimers.current.get(blockId);
+      if (pending) {
+        clearTimeout(pending);
+        replaceTimers.current.delete(blockId);
+      }
+      const current = chapterRef.current;
+      if (!current) return;
+      const result = mergeBlockOps(htmlToDoc(current.content, current.revision).doc, blockId, text);
+      if (result.ops.length === 0) return;
+      setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
+      setEditingBlockId(result.focusBlockId);
+      setFocusedId(result.focusBlockId);
+      commitOps(result.ops);
+    },
+    [commitOps, setEditingBlockId]
+  );
+
+  const onCaret = useCallback(
+    (blockId: string, offset: number) => {
+      const current = chapterRef.current;
+      if (!current) return;
+      if (caretTimer.current) clearTimeout(caretTimer.current);
+      caretTimer.current = setTimeout(() => {
+        void recordReadingPosition({ chapterId: current.id, blockId, offset });
+      }, CARET_FLUSH_MS);
+    },
+    [recordReadingPosition]
+  );
+
+  const onFocused = useCallback(
+    (id: string) => {
+      setFocusedId(id);
+      setEditingBlockId(id);
+    },
+    [setEditingBlockId]
+  );
+
+  const onBlurred = useCallback(
+    (id: string, text: string) => {
+      flushReplace(id, text);
+      setFocusedId((current) => {
+        if (current !== id) return current;
+        setEditingBlockId(null);
+        return null;
+      });
+    },
+    [flushReplace, setEditingBlockId]
+  );
+
+  useEffect(() => {
+    return () => {
+      for (const timer of replaceTimers.current.values()) clearTimeout(timer);
+      if (caretTimer.current) clearTimeout(caretTimer.current);
+      setEditingBlockId(null);
+    };
+  }, [setEditingBlockId]);
+
+  useEffect(() => {
+    if (!chapter || !resume) return;
+    const key = `${chapter.id}:${resume.blockId}:${resume.offset}`;
+    if (didScrollResume.current === key) return;
+    const index = blocks.findIndex((block) => block.id === resume.blockId);
+    if (index < 0) return;
+    didScrollResume.current = key;
+    const handle = requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0.2 });
+    });
+    const retry = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0.2 });
+    }, 120);
+    return () => {
+      cancelAnimationFrame(handle);
+      clearTimeout(retry);
+    };
+  }, [blocks, chapter, resume]);
+
+  const registerInput = useCallback((id: string, ref: TextInput | null) => {
+    if (ref) inputs.current.set(id, ref);
+    else inputs.current.delete(id);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingFocus) return;
+    inputs.current.get(pendingFocus.id)?.focus();
+  }, [pendingFocus, blocks]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ManuscriptBlock }) => (
+      <BlockInput
+        block={item}
+        editorStyle={editorStyle}
+        autoCorrect={settings.autoCorrect}
+        focused={focusedId === item.id}
+        resumeOffset={resume?.blockId === item.id ? resume.offset : null}
+        pendingFocus={pendingFocus}
+        onFocused={onFocused}
+        onBlurred={onBlurred}
+        onDraft={scheduleReplace}
+        onSplit={onSplit}
+        onMerge={onMerge}
+        onCaret={onCaret}
+        registerInput={registerInput}
+      />
+    ),
+    [
+      editorStyle,
+      focusedId,
+      onBlurred,
+      onCaret,
+      onFocused,
+      onMerge,
+      onSplit,
+      pendingFocus,
+      registerInput,
+      resume,
+      scheduleReplace,
+      settings.autoCorrect,
+    ]
+  );
 
   if (loading && !project) {
     return (
@@ -61,46 +483,32 @@ export default function ManuscriptScreen() {
     );
   }
 
-  const body = htmlToPlainText(chapter.content);
-  const editorStyle = {
-    fontFamily: settings.editorFont === "sans" ? fonts.sans : fonts.serif,
-    fontSize: settings.editorFontSize,
-    lineHeight: Math.round(settings.editorFontSize * 1.55),
-    color: colors.ink,
-  } as const;
-
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={layout.screen}
-      contentContainerStyle={{ padding: 20, paddingBottom: clearance }}
-    >
-      <Text style={layout.title}>{chapter.title}</Text>
-      {resume ? (
-        <Text
-          testID="reading-caret"
-          accessibilityLabel={`${resume.blockId}:${resume.offset}`}
-          style={[layout.body, { marginBottom: 12 }]}
-        >
-          {`${resume.blockId}:${resume.offset}`}
-        </Text>
-      ) : null}
-      {blocks.length > 0 ? (
-        blocks.map((block) => (
-          <Text
-            key={block.id}
-            nativeID={block.id}
-            testID={resume?.blockId === block.id ? "reading-caret-block" : undefined}
-            style={[editorStyle, { marginBottom: 12 }]}
-          >
-            {block.text || htmlToPlainText(block.html)}
-          </Text>
-        ))
-      ) : body ? (
-        <Text style={editorStyle}>{body}</Text>
-      ) : (
-        <Text style={layout.body}>{t("manuscript.emptyChapter")}</Text>
-      )}
-    </ScrollView>
+    <KeyboardAvoidingView style={layout.screen} behavior="padding">
+      <FlashList
+        ref={listRef}
+        data={blocks}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
+        extraData={{ focusedId, pendingFocus, editorStyle, autoCorrect: settings.autoCorrect }}
+        contentContainerStyle={{ padding: 20, paddingBottom: clearance }}
+        ListHeaderComponent={
+          <View>
+            <Text style={layout.title}>{chapter.title}</Text>
+            {resume ? (
+              <Text
+                testID="reading-caret"
+                accessibilityLabel={`${resume.blockId}:${resume.offset}`}
+                style={[layout.body, { marginBottom: 12 }]}
+              >
+                {`${resume.blockId}:${resume.offset}`}
+              </Text>
+            ) : null}
+          </View>
+        }
+      />
+    </KeyboardAvoidingView>
   );
 }
