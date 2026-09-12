@@ -544,3 +544,20 @@ export type ExportFile = {
   filename: string;
   contentType: string;
 };
+
+export type CorrectionSpan = {
+  start: number;
+  end: number;
+  replacement: string;
+};
+
+export type CorrectRequest = {
+  chapterId: string;
+  blockId: string;
+  text: string;
+  revision: number;
+};
+
+export type CorrectResponse = CorrectRequest & {
+  spans: CorrectionSpan[];
+};

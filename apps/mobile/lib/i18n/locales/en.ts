@@ -169,6 +169,9 @@ const en = {
   manuscript: {
     noChapters: "This manuscript has no chapters yet.",
     emptyChapter: "This chapter is empty. Write it on the hosted web editor.",
+    grammarAccept: "Accept",
+    grammarIgnore: "Ignore",
+    grammarA11y: "Grammar suggestion: {{original}} to {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",

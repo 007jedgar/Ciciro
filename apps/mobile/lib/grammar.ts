@@ -1,0 +1,239 @@
+export const GRAMMAR_IDLE_MS = 800;
+
+export type CorrectionSpan = {
+  start: number;
+  end: number;
+  replacement: string;
+};
+
+export type GrammarSuggestion = {
+  chapterId: string;
+  blockId: string;
+  text: string;
+  spans: CorrectionSpan[];
+};
+
+export type GrammarRequest = (input: {
+  chapterId: string;
+  blockId: string;
+  text: string;
+  revision: number;
+  signal: AbortSignal;
+}) => Promise<{ spans: CorrectionSpan[] }>;
+
+export function endedOnSentence(text: string): boolean {
+  return /[.!?。！？]["'”’)\]]?\s*$/.test(text);
+}
+
+export function shouldRequestCorrect(opts: {
+  autoCorrect: boolean;
+  composing: boolean;
+  text: string;
+}): boolean {
+  return Boolean(opts.autoCorrect && !opts.composing && opts.text.trim());
+}
+
+/** Spans whose original slice is still present at the same offsets. */
+export function matchingSpans(
+  text: string,
+  originalText: string,
+  spans: CorrectionSpan[]
+): CorrectionSpan[] {
+  return spans.filter((span) => {
+    if (span.start < 0 || span.end > text.length || span.start >= span.end) return false;
+    const expected = originalText.slice(span.start, span.end);
+    return expected.length > 0 && text.slice(span.start, span.end) === expected;
+  });
+}
+
+export function applySpans(text: string, spans: CorrectionSpan[]): string {
+  let next = text;
+  for (const span of [...spans].sort((a, b) => b.start - a.start)) {
+    next = `${next.slice(0, span.start)}${span.replacement}${next.slice(span.end)}`;
+  }
+  return next;
+}
+
+export function caretAfterSpans(offset: number, spans: CorrectionSpan[]): number {
+  let next = offset;
+  for (const span of [...spans].sort((a, b) => a.start - b.start)) {
+    const delta = span.replacement.length - (span.end - span.start);
+    if (next >= span.end) next += delta;
+    else if (next > span.start) next = span.start + span.replacement.length;
+  }
+  return Math.max(0, next);
+}
+
+export function selectPopupSpan(
+  text: string,
+  originalText: string,
+  spans: CorrectionSpan[]
+): (CorrectionSpan & { original: string }) | null {
+  const match = matchingSpans(text, originalText, spans)[0];
+  if (!match) return null;
+  return { ...match, original: originalText.slice(match.start, match.end) };
+}
+
+/**
+ * Idle/terminator grammar loop. Never blocks typing: a keystroke aborts that
+ * block's in-flight request, and a stale focused-block span is dropped.
+ */
+export class GrammarLoop {
+  private timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private inflight = new Map<string, AbortController>();
+  private drafts = new Map<string, string>();
+  private composing = new Set<string>();
+  suggestion: GrammarSuggestion | null = null;
+
+  constructor(
+    private request: GrammarRequest,
+    private notify: (suggestion: GrammarSuggestion | null) => void,
+    private idleMs = GRAMMAR_IDLE_MS
+  ) {}
+
+  setSuggestion(suggestion: GrammarSuggestion | null): void {
+    if (this.suggestion === suggestion) return;
+    this.suggestion = suggestion;
+    this.notify(suggestion);
+  }
+
+  noteDraft(blockId: string, text: string): void {
+    this.drafts.set(blockId, text);
+  }
+
+  draftOf(blockId: string): string | undefined {
+    return this.drafts.get(blockId);
+  }
+
+  setComposing(blockId: string, composing: boolean): void {
+    if (composing) {
+      this.composing.add(blockId);
+      const controller = this.inflight.get(blockId);
+      if (controller) {
+        controller.abort();
+        this.inflight.delete(blockId);
+      }
+      return;
+    }
+    this.composing.delete(blockId);
+  }
+
+  cancelBlock(blockId: string): void {
+    const timer = this.timers.get(blockId);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(blockId);
+    }
+    const controller = this.inflight.get(blockId);
+    if (controller) {
+      controller.abort();
+      this.inflight.delete(blockId);
+    }
+  }
+
+  cancelAll(): void {
+    for (const blockId of [...this.timers.keys(), ...this.inflight.keys()]) {
+      this.cancelBlock(blockId);
+    }
+  }
+
+  forgetBlock(blockId: string): void {
+    this.cancelBlock(blockId);
+    this.drafts.delete(blockId);
+    this.composing.delete(blockId);
+    if (this.suggestion?.blockId === blockId) this.setSuggestion(null);
+  }
+
+  dropIfStale(blockId: string, text: string): void {
+    const suggestion = this.suggestion;
+    if (!suggestion || suggestion.blockId !== blockId) return;
+    if (matchingSpans(text, suggestion.text, suggestion.spans).length === 0) {
+      this.setSuggestion(null);
+    }
+  }
+
+  acceptableSpans(blockId: string, currentText: string): CorrectionSpan[] {
+    const suggestion = this.suggestion;
+    if (!suggestion || suggestion.blockId !== blockId) return [];
+    return matchingSpans(currentText, suggestion.text, suggestion.spans);
+  }
+
+  onKeystroke(opts: {
+    chapterId: string;
+    blockId: string;
+    text: string;
+    revision: number;
+    autoCorrect: boolean;
+  }): void {
+    const { blockId, text } = opts;
+    this.noteDraft(blockId, text);
+    this.cancelBlock(blockId);
+    this.dropIfStale(blockId, text);
+    if (!opts.autoCorrect) {
+      this.setSuggestion(null);
+      return;
+    }
+    if (
+      !shouldRequestCorrect({
+        autoCorrect: true,
+        composing: this.composing.has(blockId),
+        text,
+      })
+    ) {
+      return;
+    }
+    if (endedOnSentence(text)) {
+      void this.run(opts);
+      return;
+    }
+    this.timers.set(
+      blockId,
+      setTimeout(() => {
+        this.timers.delete(blockId);
+        const latest = this.drafts.get(blockId) ?? text;
+        if (
+          !shouldRequestCorrect({
+            autoCorrect: true,
+            composing: this.composing.has(blockId),
+            text: latest,
+          })
+        ) {
+          return;
+        }
+        void this.run({ ...opts, text: latest });
+      }, this.idleMs)
+    );
+  }
+
+  dispose(): void {
+    this.cancelAll();
+    this.setSuggestion(null);
+  }
+
+  private async run(opts: {
+    chapterId: string;
+    blockId: string;
+    text: string;
+    revision: number;
+  }): Promise<void> {
+    const controller = new AbortController();
+    this.inflight.get(opts.blockId)?.abort();
+    this.inflight.set(opts.blockId, controller);
+    try {
+      const result = await this.request({ ...opts, signal: controller.signal });
+      if (controller.signal.aborted) return;
+      this.inflight.delete(opts.blockId);
+      const live = this.drafts.get(opts.blockId) ?? opts.text;
+      const spans = matchingSpans(live, opts.text, result.spans ?? []);
+      if (spans.length === 0) return;
+      this.setSuggestion({
+        chapterId: opts.chapterId,
+        blockId: opts.blockId,
+        text: opts.text,
+        spans,
+      });
+    } catch {
+      if (!controller.signal.aborted) this.inflight.delete(opts.blockId);
+    }
+  }
+}

@@ -198,6 +198,21 @@ Rules:
 - Write ONLY the summary. No preamble, no headings.
 - Never use em dashes; use a hyphen "-".`;
 
+// Cheap spelling/grammar pass for the phone editor. Mechanical only — no style,
+// no EditorRun, no manuscript mutation. The client applies accepted spans.
+export const CORRECT_SYSTEM = `You correct spelling and grammar in one manuscript block. Do not change voice,
+word choice, or meaning. Do not rewrite for style.
+
+Return JSON only:
+{"spans":[{"start":0,"end":5,"replacement":"They're"}]}
+
+Rules:
+- start/end are UTF-16 offsets into the given text (JavaScript string indices).
+- Each span replaces text.slice(start, end) with replacement.
+- Only emit a span when the current slice is actually wrong.
+- If the block is already correct, return {"spans":[]}.
+- Never overlap spans. Never comment. Never use markdown fences.`;
+
 // Rolls older chat turns into a durable continuity note so the editor's window
 // stays under budget without silently dropping early decisions.
 export const COMPACT_SYSTEM = `You compress an author/editor chat transcript into a continuity brief for a novel editor AI.

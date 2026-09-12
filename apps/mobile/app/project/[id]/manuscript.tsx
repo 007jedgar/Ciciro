@@ -11,7 +11,9 @@ import {
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
+import { GrammarPopup } from "../../../components/GrammarPopup";
 import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
+import { ciciro } from "../../../lib/api";
 import type { SyncOp } from "../../../lib/api/types";
 import {
   applyOpsToDoc,
@@ -22,6 +24,13 @@ import {
   replaceBlockOps,
   splitBlockOps,
 } from "../../../lib/block-editor";
+import {
+  applySpans,
+  caretAfterSpans,
+  GrammarLoop,
+  selectPopupSpan,
+  type GrammarSuggestion,
+} from "../../../lib/grammar";
 import {
   docToHtml,
   htmlToDoc,
@@ -54,6 +63,7 @@ type BlockInputProps = {
   onSplit: (id: string, left: string, right: string) => void;
   onMerge: (id: string, text: string) => void;
   onCaret: (id: string, offset: number) => void;
+  onComposing: (id: string, composing: boolean) => void;
   registerInput: (id: string, ref: TextInput | null) => void;
 };
 
@@ -70,6 +80,7 @@ const BlockInput = memo(function BlockInput({
   onSplit,
   onMerge,
   onCaret,
+  onComposing,
   registerInput,
 }: BlockInputProps) {
   const [text, setText] = useState(block.text);
@@ -122,9 +133,15 @@ const BlockInput = memo(function BlockInput({
       spellCheck={autoCorrect}
       value={text}
       selection={selection}
+      {...({
+        onTextInput: (e: { nativeEvent?: { isComposing?: boolean } }) => {
+          onComposing(block.id, Boolean(e.nativeEvent?.isComposing));
+        },
+      } as Record<string, unknown>)}
       onChangeText={(next) => {
         const nl = next.indexOf("\n");
         if (nl !== -1) {
+          onComposing(block.id, false);
           onSplit(block.id, next.slice(0, nl), next.slice(nl + 1).replace(/\n/g, ""));
           setText(next.slice(0, nl));
           return;
@@ -197,6 +214,9 @@ export default function ManuscriptScreen() {
     null
   );
   const didScrollResume = useRef<string | null>(null);
+  const grammarRef = useRef<GrammarLoop | null>(null);
+  const caretRef = useRef({ blockId: "", offset: 0 });
+  const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
 
   if (!chapter) {
     chapterRef.current = null;
@@ -306,6 +326,66 @@ export default function ManuscriptScreen() {
     [flushReplace]
   );
 
+  useEffect(() => {
+    const loop = new GrammarLoop(
+      async ({ chapterId, blockId, text, revision, signal }) =>
+        ciciro.correct.post({ chapterId, blockId, text, revision }, { signal }),
+      setGrammarSuggestion
+    );
+    grammarRef.current = loop;
+    return () => {
+      loop.dispose();
+      grammarRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (settings.autoCorrect) return;
+    grammarRef.current?.cancelAll();
+    grammarRef.current?.setSuggestion(null);
+  }, [settings.autoCorrect]);
+
+  useEffect(() => {
+    grammarRef.current?.cancelAll();
+    grammarRef.current?.setSuggestion(null);
+  }, [chapter?.id]);
+
+  const onDraft = useCallback(
+    (blockId: string, text: string) => {
+      scheduleReplace(blockId, text);
+      const current = chapterRef.current;
+      if (!current) return;
+      grammarRef.current?.onKeystroke({
+        chapterId: current.id,
+        blockId,
+        text,
+        revision: current.revision,
+        autoCorrect: settings.autoCorrect,
+      });
+    },
+    [scheduleReplace, settings.autoCorrect]
+  );
+
+  const onComposing = useCallback(
+    (blockId: string, composing: boolean) => {
+      const loop = grammarRef.current;
+      if (!loop) return;
+      loop.setComposing(blockId, composing);
+      if (composing) return;
+      const current = chapterRef.current;
+      const text = loop.draftOf(blockId);
+      if (!current || text == null) return;
+      loop.onKeystroke({
+        chapterId: current.id,
+        blockId,
+        text,
+        revision: current.revision,
+        autoCorrect: settings.autoCorrect,
+      });
+    },
+    [settings.autoCorrect]
+  );
+
   const onSplit = useCallback(
     (blockId: string, left: string, right: string) => {
       const pending = replaceTimers.current.get(blockId);
@@ -329,6 +409,9 @@ export default function ManuscriptScreen() {
               };
             })()
           : splitBlockOps(doc, blockId, left, right);
+      grammarRef.current?.forgetBlock(blockId);
+      grammarRef.current?.noteDraft(blockId, left);
+      grammarRef.current?.noteDraft(result.focusBlockId, right);
       setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
       setEditingBlockId(result.focusBlockId);
       setFocusedId(result.focusBlockId);
@@ -348,6 +431,7 @@ export default function ManuscriptScreen() {
       if (!current) return;
       const result = mergeBlockOps(htmlToDoc(current.content, current.revision).doc, blockId, text);
       if (result.ops.length === 0) return;
+      grammarRef.current?.forgetBlock(blockId);
       setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
       setEditingBlockId(result.focusBlockId);
       setFocusedId(result.focusBlockId);
@@ -358,6 +442,7 @@ export default function ManuscriptScreen() {
 
   const onCaret = useCallback(
     (blockId: string, offset: number) => {
+      caretRef.current = { blockId, offset };
       const current = chapterRef.current;
       if (!current) return;
       if (caretTimer.current) clearTimeout(caretTimer.current);
@@ -378,6 +463,8 @@ export default function ManuscriptScreen() {
 
   const onBlurred = useCallback(
     (id: string, text: string) => {
+      grammarRef.current?.setComposing(id, false);
+      grammarRef.current?.noteDraft(id, text);
       flushReplace(id, text);
       setFocusedId((current) => {
         if (current !== id) return current;
@@ -387,6 +474,42 @@ export default function ManuscriptScreen() {
     },
     [flushReplace, setEditingBlockId]
   );
+
+  const acceptGrammar = useCallback(() => {
+    const suggestion = grammarRef.current?.suggestion ?? grammarSuggestion;
+    const current = chapterRef.current;
+    const loop = grammarRef.current;
+    if (!suggestion || !current || !loop) return;
+    const doc = htmlToDoc(current.content, current.revision).doc;
+    const live =
+      loop.draftOf(suggestion.blockId) ??
+      doc.blocks.find((block) => block.id === suggestion.blockId)?.text ??
+      suggestion.text;
+    const spans = loop.acceptableSpans(suggestion.blockId, live);
+    if (spans.length === 0) {
+      loop.setSuggestion(null);
+      return;
+    }
+    const span = spans[0];
+    const nextText = applySpans(live, [span]);
+    const timer = replaceTimers.current.get(suggestion.blockId);
+    if (timer) {
+      clearTimeout(timer);
+      replaceTimers.current.delete(suggestion.blockId);
+    }
+    loop.noteDraft(suggestion.blockId, nextText);
+    commitOps(replaceBlockOps(doc, suggestion.blockId, nextText, { actor: "correction" }));
+    if (focusedId === suggestion.blockId) {
+      const caret =
+        caretRef.current.blockId === suggestion.blockId ? caretRef.current.offset : nextText.length;
+      setPendingFocus({ id: suggestion.blockId, offset: caretAfterSpans(caret, [span]) });
+    }
+    loop.setSuggestion(null);
+  }, [commitOps, focusedId, grammarSuggestion]);
+
+  const ignoreGrammar = useCallback(() => {
+    grammarRef.current?.setSuggestion(null);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -436,10 +559,11 @@ export default function ManuscriptScreen() {
         pendingFocus={pendingFocus}
         onFocused={onFocused}
         onBlurred={onBlurred}
-        onDraft={scheduleReplace}
+        onDraft={onDraft}
         onSplit={onSplit}
         onMerge={onMerge}
         onCaret={onCaret}
+        onComposing={onComposing}
         registerInput={registerInput}
       />
     ),
@@ -448,16 +572,25 @@ export default function ManuscriptScreen() {
       focusedId,
       onBlurred,
       onCaret,
+      onComposing,
+      onDraft,
       onFocused,
       onMerge,
       onSplit,
       pendingFocus,
       registerInput,
       resume,
-      scheduleReplace,
       settings.autoCorrect,
     ]
   );
+
+  const popupSpan = grammarSuggestion
+    ? selectPopupSpan(
+        grammarRef.current?.draftOf(grammarSuggestion.blockId) ?? grammarSuggestion.text,
+        grammarSuggestion.text,
+        grammarSuggestion.spans
+      )
+    : null;
 
   if (loading && !project) {
     return (
@@ -509,6 +642,19 @@ export default function ManuscriptScreen() {
           </View>
         }
       />
+      {settings.autoCorrect && popupSpan ? (
+        <View
+          pointerEvents="box-none"
+          style={{ position: "absolute", left: 16, right: 16, bottom: clearance }}
+        >
+          <GrammarPopup
+            original={popupSpan.original}
+            replacement={popupSpan.replacement}
+            onAccept={acceptGrammar}
+            onIgnore={ignoreGrammar}
+          />
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

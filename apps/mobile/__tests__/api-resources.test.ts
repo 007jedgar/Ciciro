@@ -339,6 +339,14 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/chat\/insertions$/,
     body: { projectId: "p1", turnId: "t1", segmentIndex: 0, chapterId: "c1" },
   },
+  {
+    name: "correct.post",
+    run: () =>
+      ciciro.correct.post({ chapterId: "c1", blockId: "b1", text: "Their going.", revision: 3 }),
+    method: "POST",
+    path: /\/api\/correct$/,
+    body: { chapterId: "c1", blockId: "b1", text: "Their going.", revision: 3 },
+  },
 ];
 
 describe("ciciro resource catalog", () => {

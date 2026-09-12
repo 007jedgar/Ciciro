@@ -171,6 +171,9 @@ const es: Translations = {
   manuscript: {
     noChapters: "Este manuscrito aún no tiene capítulos.",
     emptyChapter: "Este capítulo está vacío. Escríbelo en el editor web.",
+    grammarAccept: "Aceptar",
+    grammarIgnore: "Ignorar",
+    grammarA11y: "Sugerencia gramatical: {{original}} por {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",

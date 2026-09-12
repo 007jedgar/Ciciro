@@ -170,6 +170,9 @@ const hi: Translations = {
   manuscript: {
     noChapters: "इस पांडुलिपि में अभी अध्याय नहीं हैं।",
     emptyChapter: "यह अध्याय खाली है। इसे वेब संपादक पर लिखें।",
+    grammarAccept: "स्वीकार करें",
+    grammarIgnore: "अनदेखा करें",
+    grammarA11y: "व्याकरण सुझाव: {{original}} से {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",
