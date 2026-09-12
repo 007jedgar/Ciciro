@@ -77,6 +77,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 autoCorrect: next.autoCorrect,
                 reduceMotion: next.reduceMotion,
                 chatWidth: next.chatWidth,
+                dailyWordGoal: next.dailyWordGoal,
+                showDailyGoal: next.showDailyGoal,
               });
         void syncRequest.catch(() => {});
       }, 350);

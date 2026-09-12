@@ -12,6 +12,7 @@ import { useOptionalAppTheme } from "../lib/app-theme-context";
 import { SettingsProvider } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
+import { WritingDayProvider } from "../lib/writing-day-session";
 
 function ThemedStack() {
   const theme = useOptionalAppTheme();
@@ -57,8 +58,10 @@ export default function RootLayout() {
           <ApiQueryProvider>
             <SessionProvider>
               <SettingsProvider>
-                <LastPlaceTracker />
-                <ThemedStack />
+                <WritingDayProvider>
+                  <LastPlaceTracker />
+                  <ThemedStack />
+                </WritingDayProvider>
               </SettingsProvider>
             </SessionProvider>
           </ApiQueryProvider>

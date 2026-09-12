@@ -21,6 +21,8 @@ import {
   type SyncApi,
   type SyncCycleResult,
 } from "./sync-engine";
+import { noteWritingStroke, noteWritingWords } from "./writing-day-session";
+import { positiveWordDelta } from "./writing-day";
 
 const webReplica = createMemoryReplica();
 
@@ -128,7 +130,10 @@ export function useProjectSync(
           const chapter = project?.chapters.find((c) => c.id === item.chapterId);
           if (chapter) await store.upsertChapter(toChapterSnapshot(chapter));
         }
+        const before = await store.getChapter(item.chapterId);
         await enqueueOp(store, projectId, item);
+        const after = await store.getChapter(item.chapterId);
+        noteWritingWords(positiveWordDelta(before?.wordCount ?? 0, after?.wordCount ?? 0));
       }
       const snapshot = await store.getChapter(ops[0].chapterId);
       if (snapshot) {
@@ -166,6 +171,7 @@ export function useProjectSync(
     async (next: { chapterId: string; blockId: string; offset: number }) => {
       if (!user) return;
       const row = await enqueuePosition(store, { projectId, userId: user.id }, next);
+      noteWritingStroke();
       setPosition(row);
       void run("push");
     },

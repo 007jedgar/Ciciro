@@ -43,7 +43,10 @@ const RESOURCES: ResourceCase[] = [
         editorFont: "serif",
         editorFontSize: 19,
         autoCorrect: true,
+        reduceMotion: true,
         chatWidth: 380,
+        dailyWordGoal: 250,
+        showDailyGoal: true,
         updatedAt: "2026-01-01T00:00:00.000Z",
       }),
     method: "PUT",
@@ -53,9 +56,24 @@ const RESOURCES: ResourceCase[] = [
       editorFont: "serif",
       editorFontSize: 19,
       autoCorrect: true,
+      reduceMotion: true,
       chatWidth: 380,
+      dailyWordGoal: 250,
+      showDailyGoal: true,
       updatedAt: "2026-01-01T00:00:00.000Z",
     },
+  },
+  {
+    name: "writing.day.get",
+    run: () => ciciro.writing.day.get("2026-09-12"),
+    path: /\/api\/writing\/day\?date=2026-09-12$/,
+  },
+  {
+    name: "writing.day.put",
+    run: () => ciciro.writing.day.put({ date: "2026-09-12", words: 12, activeMs: 4000 }),
+    method: "PUT",
+    path: /\/api\/writing\/day$/,
+    body: { date: "2026-09-12", words: 12, activeMs: 4000 },
   },
   { name: "projects.list", run: () => ciciro.projects.list(), path: /\/api\/projects$/ },
   {
@@ -338,6 +356,14 @@ const RESOURCES: ResourceCase[] = [
     method: "POST",
     path: /\/api\/chat\/insertions$/,
     body: { projectId: "p1", turnId: "t1", segmentIndex: 0, chapterId: "c1" },
+  },
+  {
+    name: "correct.post",
+    run: () =>
+      ciciro.correct.post({ chapterId: "c1", blockId: "b1", text: "Their going.", revision: 3 }),
+    method: "POST",
+    path: /\/api\/correct$/,
+    body: { chapterId: "c1", blockId: "b1", text: "Their going.", revision: 3 },
   },
 ];
 

@@ -46,6 +46,8 @@ import type {
   ReadingPositionResponse,
   SettingsResponse,
   SignupRequest,
+  WritingDayPutRequest,
+  WritingDayResponse,
   SyncAfter,
   SyncPushRequest,
   SyncResult,
@@ -108,6 +110,15 @@ export const ciciro = {
       api<SettingsResponse>("/api/settings", jsonInit("PATCH", body, opts)),
     put: (body: AppSettings, opts?: RequestOpts) =>
       api<SettingsResponse>("/api/settings", jsonInit("PUT", body, opts)),
+  },
+
+  writing: {
+    day: {
+      get: (date: string, opts?: RequestOpts) =>
+        api<WritingDayResponse>(`/api/writing/day${queryString({ date })}`, opts),
+      put: (body: WritingDayPutRequest, opts?: RequestOpts) =>
+        api<WritingDayResponse>("/api/writing/day", jsonInit("PUT", body, opts)),
+    },
   },
 
   projects: {

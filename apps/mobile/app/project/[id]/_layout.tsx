@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
 import { ManuscriptTabBar } from "../../../components/ManuscriptTabBar";
+import { WritingMeter } from "../../../components/WritingMeter";
 import { ProjectProvider, useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
@@ -55,6 +56,7 @@ export default function ProjectTabsLayout() {
     <ProjectProvider projectId={id}>
       <View style={layout.screen}>
         <ProjectHeader />
+        <WritingMeter />
         <View style={{ flex: 1 }}>
           <Tabs
             backBehavior="none"

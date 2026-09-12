@@ -23,6 +23,8 @@ describe("app settings", () => {
     expect(s.autoCorrect).toBe(false);
     expect(s.reduceMotion).toBe(true);
     expect(s.chatWidth).toBe(720);
+    expect(s.dailyWordGoal).toBe(250);
+    expect(s.showDailyGoal).toBe(true);
     expect(nearestFontSize(14)).toBe(15);
   });
 
@@ -34,6 +36,8 @@ describe("app settings", () => {
       editorFontSize: 19,
       autoCorrect: true,
       reduceMotion: false,
+      dailyWordGoal: 250,
+      showDailyGoal: true,
       updatedAt: SETTINGS_EPOCH,
     });
   });

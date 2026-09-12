@@ -10,10 +10,13 @@ import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ThemePicker from "@/components/ThemePicker";
+import WritingMeter from "@/components/WritingMeter";
 import { useSettings } from "@/components/SettingsProvider";
 import { countWords, htmlToText } from "@/lib/text";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
+import { positiveWordDelta } from "@/lib/writing-day";
+import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -215,9 +218,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const onContentChange = useCallback(
     (html: string) => {
       if (!activeId) return;
+      const prevWords =
+        projectRef.current.chapters.find((c) => c.id === activeId)?.wordCount ?? 0;
+      const nextWords = countWords(htmlToText(html));
+      noteWritingWords(positiveWordDelta(prevWords, nextWords));
       updateChapterLocal(activeId, {
         content: html,
-        wordCount: countWords(htmlToText(html)),
+        wordCount: nextWords,
       });
       if (contentTimer.current) clearTimeout(contentTimer.current);
       contentTimer.current = setTimeout(() => {
@@ -257,6 +264,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const onCaretChange = useCallback(
     (caret: { blockId: string; offset: number }) => {
       if (!activeId) return;
+      noteWritingStroke();
       if (positionTimer.current) clearTimeout(positionTimer.current);
       positionTimer.current = setTimeout(() => {
         void fetch(`/api/projects/${project.id}/position`, {
@@ -446,6 +454,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           &larr; Manuscripts
         </Link>
         <span className="title">{project.title}</span>
+        <WritingMeter />
         <span className="spacer" />
         <span className="save-state">
           {saveState === "saving"
