@@ -1,4 +1,5 @@
 export const GRAMMAR_IDLE_MS = 800;
+export const GRAMMAR_AUTO_ACCEPT_MS = 3000;
 
 export type CorrectionSpan = {
   start: number;
@@ -11,6 +12,7 @@ export type GrammarSuggestion = {
   blockId: string;
   text: string;
   spans: CorrectionSpan[];
+  shownAt: number;
 };
 
 export type GrammarRequest = (input: {
@@ -20,6 +22,21 @@ export type GrammarRequest = (input: {
   revision: number;
   signal: AbortSignal;
 }) => Promise<{ spans: CorrectionSpan[] }>;
+
+export type TextLineMetrics = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+};
+
+export type SpanAnchor = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export function endedOnSentence(text: string): boolean {
   return /[.!?。！？]["'”’)\]]?\s*$/.test(text);
@@ -74,27 +91,121 @@ export function selectPopupSpan(
   return { ...match, original: originalText.slice(match.start, match.end) };
 }
 
+export function suggestionKey(suggestion: Pick<GrammarSuggestion, "chapterId" | "blockId" | "text" | "spans">): string {
+  const span = suggestion.spans[0];
+  return `${suggestion.chapterId}:${suggestion.blockId}:${suggestion.text}:${span?.start ?? ""}:${span?.end ?? ""}:${span?.replacement ?? ""}`;
+}
+
+export function autoAcceptProgress(shownAt: number, durationMs: number, now: number): number {
+  if (durationMs <= 0) return 1;
+  return Math.min(1, Math.max(0, (now - shownAt) / durationMs));
+}
+
+/** Pin a callout to the line that still holds `start` (from Text onTextLayout). */
+export function spanAnchorFromLines(
+  lines: TextLineMetrics[],
+  start: number,
+  end: number
+): SpanAnchor | null {
+  if (lines.length === 0 || start < 0 || end <= start) return null;
+  let offset = 0;
+  for (const line of lines) {
+    const len = line.text.length;
+    const lineEnd = offset + len;
+    if (start < lineEnd) {
+      const local = Math.max(0, Math.min(len, start - offset));
+      const frac = len === 0 ? 0 : local / len;
+      const spanEnd = Math.min(end, lineEnd);
+      const spanChars = Math.max(0, spanEnd - Math.max(start, offset));
+      const widthFrac = len === 0 ? 0 : spanChars / len;
+      return {
+        x: line.x + frac * line.width,
+        y: line.y,
+        width: Math.max(8, widthFrac * line.width),
+        height: line.height || 22,
+      };
+    }
+    offset = lineEnd;
+  }
+  const last = lines[lines.length - 1];
+  return {
+    x: last.x + last.width,
+    y: last.y,
+    width: 8,
+    height: last.height || 22,
+  };
+}
+
+export function estimateSpanAnchor(opts: {
+  text: string;
+  start: number;
+  end: number;
+  width: number;
+  fontSize: number;
+  lineHeight: number;
+}): SpanAnchor {
+  const avg = Math.max(1, opts.fontSize * 0.52);
+  const cols = Math.max(1, Math.floor(opts.width / avg) || 1);
+  const line = Math.floor(opts.start / cols);
+  const col = opts.start % cols;
+  const spanEnd = Math.min(opts.end, (line + 1) * cols);
+  return {
+    x: col * avg,
+    y: line * opts.lineHeight,
+    width: Math.max(8, (spanEnd - opts.start) * avg),
+    height: opts.lineHeight,
+  };
+}
+
+export function placeCallout(opts: {
+  anchor: SpanAnchor;
+  popup: { width: number; height: number };
+  blockWidth: number;
+  gap?: number;
+}): { top: number; left: number } {
+  const gap = opts.gap ?? 6;
+  const above = opts.anchor.y >= opts.popup.height + gap;
+  const top = above
+    ? opts.anchor.y - opts.popup.height - gap
+    : opts.anchor.y + opts.anchor.height + gap;
+  const maxLeft = Math.max(0, opts.blockWidth - opts.popup.width);
+  return { top, left: Math.min(maxLeft, Math.max(0, opts.anchor.x)) };
+}
+
 /**
  * Idle/terminator grammar loop. Never blocks typing: a keystroke aborts that
  * block's in-flight request, and a stale focused-block span is dropped.
+ * Auto-accept is armed here (not on popup mount) so FlashList recycle cannot cancel it.
  */
 export class GrammarLoop {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private inflight = new Map<string, AbortController>();
   private drafts = new Map<string, string>();
   private composing = new Set<string>();
+  private autoTimer: ReturnType<typeof setTimeout> | undefined;
   suggestion: GrammarSuggestion | null = null;
 
   constructor(
     private request: GrammarRequest,
     private notify: (suggestion: GrammarSuggestion | null) => void,
-    private idleMs = GRAMMAR_IDLE_MS
+    private idleMs = GRAMMAR_IDLE_MS,
+    private onAutoAccept?: () => void,
+    private now: () => number = Date.now
   ) {}
 
-  setSuggestion(suggestion: GrammarSuggestion | null): void {
+  setSuggestion(suggestion: (Omit<GrammarSuggestion, "shownAt"> & { shownAt?: number }) | null): void {
     if (this.suggestion === suggestion) return;
-    this.suggestion = suggestion;
-    this.notify(suggestion);
+    let next: GrammarSuggestion | null = null;
+    if (suggestion) {
+      const shownAt =
+        this.suggestion && suggestionKey(this.suggestion) === suggestionKey(suggestion)
+          ? this.suggestion.shownAt
+          : (suggestion.shownAt ?? this.now());
+      next = { ...suggestion, shownAt };
+    }
+    this.suggestion = next;
+    this.notify(next);
+    this.armAutoAccept();
   }
 
   noteDraft(blockId: string, text: string): void {
@@ -208,6 +319,19 @@ export class GrammarLoop {
   dispose(): void {
     this.cancelAll();
     this.setSuggestion(null);
+  }
+
+  private armAutoAccept(): void {
+    if (this.autoTimer) {
+      clearTimeout(this.autoTimer);
+      this.autoTimer = undefined;
+    }
+    if (!this.suggestion || !this.onAutoAccept) return;
+    const wait = Math.max(0, GRAMMAR_AUTO_ACCEPT_MS - (this.now() - this.suggestion.shownAt));
+    this.autoTimer = setTimeout(() => {
+      this.autoTimer = undefined;
+      this.onAutoAccept?.();
+    }, wait);
   }
 
   private async run(opts: {

@@ -176,6 +176,7 @@ const zh: Translations = {
     grammarAccept: "接受",
     grammarIgnore: "忽略",
     grammarA11y: "语法建议：将 {{original}} 改为 {{replacement}}",
+    grammarAutoAcceptA11y: "{{seconds}} 秒后自动接受",
   },
   ciciroTab: {
     title: "Ciciro",

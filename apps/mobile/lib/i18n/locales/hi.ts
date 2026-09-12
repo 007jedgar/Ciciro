@@ -176,6 +176,7 @@ const hi: Translations = {
     grammarAccept: "स्वीकार करें",
     grammarIgnore: "अनदेखा करें",
     grammarA11y: "व्याकरण सुझाव: {{original}} से {{replacement}}",
+    grammarAutoAcceptA11y: "{{seconds}} सेकंड में अपने आप स्वीकार होगा",
   },
   ciciroTab: {
     title: "Ciciro",

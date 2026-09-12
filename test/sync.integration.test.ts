@@ -71,6 +71,34 @@ describe("sync envelope", () => {
     expect(pulled.position?.offset).toBe(4);
     expect(pulled.bibleFiles.map((f) => f.path)).toContain("canon.md");
 
+    const mixed = await pushSync(project.id, ada, {
+      after: { chapters: { [chapter.id]: 1 } },
+      ops: [
+        {
+          opId: "author-op",
+          chapterId: chapter.id,
+          baseRevision: 1,
+          actor: "user",
+          type: "replace_block",
+          blockId: "b1",
+          html: "<p>Their going home.</p>",
+        },
+        {
+          opId: "correction-op",
+          chapterId: chapter.id,
+          baseRevision: 2,
+          actor: "correction",
+          type: "replace_block",
+          blockId: "b1",
+          html: "<p>They're going home.</p>",
+        },
+      ],
+    });
+    expect(mixed.accepted.map((row) => row.op.opId)).toEqual(["author-op", "correction-op"]);
+    expect(mixed.accepted.map((row) => row.op.actor)).toEqual(["user", "correction"]);
+    expect(mixed.rejected).toHaveLength(0);
+    expect(mixed.chapters.find((c) => c.id === chapter.id)?.revision).toBe(3);
+
     await expect(pullSync(project.id, bob)).rejects.toMatchObject({ status: 403 });
     await expect(
       pushSync(project.id, bob, {

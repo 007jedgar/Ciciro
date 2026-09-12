@@ -177,6 +177,7 @@ const es: Translations = {
     grammarAccept: "Aceptar",
     grammarIgnore: "Ignorar",
     grammarA11y: "Sugerencia gramatical: {{original}} por {{replacement}}",
+    grammarAutoAcceptA11y: "Se aceptará automáticamente en {{seconds}} segundos",
   },
   ciciroTab: {
     title: "Ciciro",
