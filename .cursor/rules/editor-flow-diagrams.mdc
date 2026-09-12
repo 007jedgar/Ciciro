@@ -1,0 +1,37 @@
+---
+description: Draw mermaid data-flow and state-flow diagrams before changing the mobile editor, sync, replica merge, grammar corrections, or WritingDay heartbeats.
+globs:
+  - apps/mobile/lib/block-editor.ts
+  - apps/mobile/lib/sync-engine.ts
+  - apps/mobile/lib/sync-merge.ts
+  - apps/mobile/lib/use-project-sync.ts
+  - apps/mobile/lib/project.tsx
+  - apps/mobile/lib/grammar.ts
+  - apps/mobile/lib/writing-day.ts
+  - apps/mobile/lib/writing-day-session.tsx
+  - apps/mobile/app/project/**/manuscript.tsx
+  - apps/mobile/components/GrammarPopup.tsx
+  - src/lib/sync.ts
+  - src/lib/chapter-ops.ts
+  - src/lib/correct.ts
+  - src/lib/writing-day.ts
+  - src/lib/writing-day-store.ts
+  - src/lib/writing-day-client.ts
+  - src/app/api/sync/**
+  - src/app/api/correct/**
+  - src/app/api/writing/**
+  - src/components/Workspace.tsx
+  - docs/mobile-editor-flows.md
+alwaysApply: false
+---
+
+# Map editor races before changing them
+
+Before editing the mobile editor, `/api/sync`, replica merge, grammar `correction` ops, or WritingDay heartbeats:
+
+1. Read [docs/mobile-editor-flows.md](docs/mobile-editor-flows.md).
+2. Draw mermaid **data-flow** and **state-flow** diagrams of the path you will touch (update the doc if the real code diverged).
+3. Name the failure modes you might hit: CAS stale, IME/split, correction span mismatch, double-count words, clobber focused `TextInput`.
+4. Do not land a change that skips focused-block HTML, rebases a rejected op, or increments daily words until those diagrams show where the race is closed.
+
+Canonical timings: replace flush 1000ms, caret 600ms, grammar idle 800ms, WritingDay pause 30s, heartbeat 2s.
