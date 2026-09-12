@@ -1,11 +1,16 @@
 import {
   applySpans,
+  autoAcceptProgress,
   caretAfterSpans,
   endedOnSentence,
+  estimateSpanAnchor,
   GrammarLoop,
+  GRAMMAR_AUTO_ACCEPT_MS,
   matchingSpans,
+  placeCallout,
   selectPopupSpan,
   shouldRequestCorrect,
+  spanAnchorFromLines,
 } from "../lib/grammar";
 
 function deferred<T>() {
@@ -46,6 +51,39 @@ describe("grammar helpers", () => {
     expect(applySpans(original, [span])).toBe("They're going home.");
     expect(caretAfterSpans(5, [span])).toBe(7);
     expect(selectPopupSpan("There going home.", original, [span])).toBeNull();
+  });
+
+  it("pins a callout to the line that still holds the span", () => {
+    const lines = [
+      { x: 0, y: 0, width: 200, height: 22, text: "Hello " },
+      { x: 0, y: 24, width: 180, height: 22, text: "Their going." },
+    ];
+    const anchor = spanAnchorFromLines(lines, 6, 11);
+    expect(anchor).toMatchObject({ y: 24, height: 22 });
+    expect(anchor && anchor.x).toBe(0);
+    const placed = placeCallout({
+      anchor: anchor!,
+      popup: { width: 160, height: 80 },
+      blockWidth: 200,
+    });
+    expect(placed.top).toBe(24 + 22 + 6);
+    expect(placed.left).toBe(0);
+    expect(
+      placeCallout({
+        anchor: { x: 10, y: 120, width: 40, height: 22 },
+        popup: { width: 160, height: 80 },
+        blockWidth: 200,
+      })
+    ).toEqual({ top: 120 - 80 - 6, left: 10 });
+    expect(estimateSpanAnchor({
+      text: "Their going.",
+      start: 0,
+      end: 5,
+      width: 200,
+      fontSize: 16,
+      lineHeight: 24,
+    }).y).toBe(0);
+    expect(autoAcceptProgress(0, GRAMMAR_AUTO_ACCEPT_MS, 1500)).toBe(0.5);
   });
 });
 
@@ -136,6 +174,7 @@ describe("GrammarLoop", () => {
       blockId: "b1",
       text: "Their going.",
       spans: [{ start: 0, end: 5, replacement: "They're" }],
+      shownAt: Date.now(),
     });
     loop.onKeystroke({
       chapterId: "c1",
@@ -147,5 +186,80 @@ describe("GrammarLoop", () => {
     expect(loop.suggestion?.blockId).toBe("b1");
     expect(loop.acceptableSpans("b1", "Their going.")).toHaveLength(1);
     loop.dispose();
+  });
+
+  it("auto-accepts after 3s unless ignored or the span went stale", async () => {
+    const onAutoAccept = jest.fn();
+    const loop = new GrammarLoop(
+      async () => ({ spans: [{ start: 0, end: 5, replacement: "They're" }] }),
+      jest.fn(),
+      800,
+      onAutoAccept
+    );
+    loop.onKeystroke({
+      chapterId: "c1",
+      blockId: "b1",
+      text: "Their going.",
+      revision: 2,
+      autoCorrect: true,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(loop.suggestion?.spans).toHaveLength(1);
+
+    jest.advanceTimersByTime(GRAMMAR_AUTO_ACCEPT_MS - 1);
+    expect(onAutoAccept).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(onAutoAccept).toHaveBeenCalledTimes(1);
+    loop.dispose();
+
+    const cancelled = jest.fn();
+    const stale = new GrammarLoop(
+      async () => ({ spans: [{ start: 0, end: 5, replacement: "They're" }] }),
+      jest.fn(),
+      800,
+      cancelled
+    );
+    stale.onKeystroke({
+      chapterId: "c1",
+      blockId: "b1",
+      text: "Their going.",
+      revision: 2,
+      autoCorrect: true,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    stale.onKeystroke({
+      chapterId: "c1",
+      blockId: "b1",
+      text: "There going.",
+      revision: 2,
+      autoCorrect: true,
+    });
+    expect(stale.suggestion).toBeNull();
+    jest.advanceTimersByTime(GRAMMAR_AUTO_ACCEPT_MS);
+    expect(cancelled).not.toHaveBeenCalled();
+    stale.dispose();
+
+    const ignored = jest.fn();
+    const ignoreLoop = new GrammarLoop(
+      async () => ({ spans: [{ start: 0, end: 5, replacement: "They're" }] }),
+      jest.fn(),
+      800,
+      ignored
+    );
+    ignoreLoop.onKeystroke({
+      chapterId: "c1",
+      blockId: "b1",
+      text: "Their going.",
+      revision: 2,
+      autoCorrect: true,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    ignoreLoop.setSuggestion(null);
+    jest.advanceTimersByTime(GRAMMAR_AUTO_ACCEPT_MS);
+    expect(ignored).not.toHaveBeenCalled();
+    ignoreLoop.dispose();
   });
 });

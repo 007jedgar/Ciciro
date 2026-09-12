@@ -27,9 +27,14 @@ import {
 import {
   applySpans,
   caretAfterSpans,
+  estimateSpanAnchor,
   GrammarLoop,
+  GRAMMAR_IDLE_MS,
+  placeCallout,
   selectPopupSpan,
+  spanAnchorFromLines,
   type GrammarSuggestion,
+  type TextLineMetrics,
 } from "../../../lib/grammar";
 import {
   docToHtml,
@@ -42,12 +47,24 @@ import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
 import { fonts } from "../../../lib/theme";
 import type { Chapter } from "../../../lib/types";
+import { useReduceMotion } from "../../../lib/use-reduce-motion";
 
 type EditorStyle = {
   fontFamily: string;
   fontSize: number;
   lineHeight: number;
   color: string;
+};
+
+type GrammarCallout = {
+  start: number;
+  end: number;
+  original: string;
+  replacement: string;
+  shownAt: number;
+  reduceMotion: boolean;
+  onAccept: () => void;
+  onIgnore: () => void;
 };
 
 type BlockInputProps = {
@@ -57,6 +74,7 @@ type BlockInputProps = {
   focused: boolean;
   resumeOffset: number | null;
   pendingFocus: { id: string; offset: number } | null;
+  popup: GrammarCallout | null;
   onFocused: (id: string) => void;
   onBlurred: (id: string, text: string) => void;
   onDraft: (id: string, text: string) => void;
@@ -74,6 +92,7 @@ const BlockInput = memo(function BlockInput({
   focused,
   resumeOffset,
   pendingFocus,
+  popup,
   onFocused,
   onBlurred,
   onDraft,
@@ -89,6 +108,9 @@ const BlockInput = memo(function BlockInput({
   );
   const selectionRef = useRef({ start: resumeOffset ?? 0, end: resumeOffset ?? 0 });
   const restored = useRef(resumeOffset == null);
+  const [blockWidth, setBlockWidth] = useState(0);
+  const [lines, setLines] = useState<TextLineMetrics[]>([]);
+  const [popupSize, setPopupSize] = useState({ width: 240, height: 88 });
 
   useEffect(() => {
     setText(block.text);
@@ -120,57 +142,117 @@ const BlockInput = memo(function BlockInput({
     return editorStyle;
   }, [block.kind, editorStyle]);
 
+  const anchor = popup
+    ? spanAnchorFromLines(lines, popup.start, popup.end) ??
+      estimateSpanAnchor({
+        text,
+        start: popup.start,
+        end: popup.end,
+        width: blockWidth || 320,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+      })
+    : null;
+  const placed =
+    popup && anchor
+      ? placeCallout({
+          anchor,
+          popup: popupSize,
+          blockWidth: blockWidth || 320,
+        })
+      : null;
+
   return (
-    <TextInput
-      ref={(node) => registerInput(block.id, node)}
-      nativeID={block.id}
-      testID={resumeOffset != null ? "reading-caret-block" : `block-${block.id}`}
-      multiline
-      scrollEnabled={false}
-      blurOnSubmit={false}
-      textAlignVertical="top"
-      autoCorrect={autoCorrect}
-      spellCheck={autoCorrect}
-      value={text}
-      selection={selection}
-      {...({
-        onTextInput: (e: { nativeEvent?: { isComposing?: boolean } }) => {
-          onComposing(block.id, Boolean(e.nativeEvent?.isComposing));
-        },
-      } as Record<string, unknown>)}
-      onChangeText={(next) => {
-        const nl = next.indexOf("\n");
-        if (nl !== -1) {
-          onComposing(block.id, false);
-          onSplit(block.id, next.slice(0, nl), next.slice(nl + 1).replace(/\n/g, ""));
-          setText(next.slice(0, nl));
-          return;
-        }
-        setText(next);
-        onDraft(block.id, next);
-      }}
-      onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
-        selectionRef.current = e.nativeEvent.selection;
-        onCaret(block.id, e.nativeEvent.selection.start);
-      }}
-      onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-        if (e.nativeEvent.key !== "Backspace") return;
-        const { start, end } = selectionRef.current;
-        if (start === 0 && end === 0) onMerge(block.id, text);
-      }}
-      onFocus={() => {
-        onFocused(block.id);
-        if (!restored.current && resumeOffset != null) {
-          restored.current = true;
-          const offset = Math.min(resumeOffset, text.length);
-          selectionRef.current = { start: offset, end: offset };
-          setSelection({ start: offset, end: offset });
-          requestAnimationFrame(() => setSelection(undefined));
-        }
-      }}
-      onBlur={() => onBlurred(block.id, text)}
-      style={[style, { marginBottom: 12, padding: 0 }]}
-    />
+    <View
+      testID={popup ? `grammar-anchor-${block.id}` : undefined}
+      onLayout={(e) => setBlockWidth(e.nativeEvent.layout.width)}
+      style={{ marginBottom: 12, overflow: "visible", zIndex: popup ? 4 : 0 }}
+    >
+      <TextInput
+        ref={(node) => registerInput(block.id, node)}
+        nativeID={block.id}
+        testID={resumeOffset != null ? "reading-caret-block" : `block-${block.id}`}
+        multiline
+        scrollEnabled={false}
+        blurOnSubmit={false}
+        textAlignVertical="top"
+        autoCorrect={autoCorrect}
+        spellCheck={autoCorrect}
+        value={text}
+        selection={selection}
+        {...({
+          onTextInput: (e: { nativeEvent?: { isComposing?: boolean } }) => {
+            onComposing(block.id, Boolean(e.nativeEvent?.isComposing));
+          },
+        } as Record<string, unknown>)}
+        onChangeText={(next) => {
+          const nl = next.indexOf("\n");
+          if (nl !== -1) {
+            onComposing(block.id, false);
+            onSplit(block.id, next.slice(0, nl), next.slice(nl + 1).replace(/\n/g, ""));
+            setText(next.slice(0, nl));
+            return;
+          }
+          setText(next);
+          onDraft(block.id, next);
+        }}
+        onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+          selectionRef.current = e.nativeEvent.selection;
+          onCaret(block.id, e.nativeEvent.selection.start);
+        }}
+        onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+          if (e.nativeEvent.key !== "Backspace") return;
+          const { start, end } = selectionRef.current;
+          if (start === 0 && end === 0) onMerge(block.id, text);
+        }}
+        onFocus={() => {
+          onFocused(block.id);
+          if (!restored.current && resumeOffset != null) {
+            restored.current = true;
+            const offset = Math.min(resumeOffset, text.length);
+            selectionRef.current = { start: offset, end: offset };
+            setSelection({ start: offset, end: offset });
+            requestAnimationFrame(() => setSelection(undefined));
+          }
+        }}
+        onBlur={() => onBlurred(block.id, text)}
+        style={[style, { padding: 0 }]}
+      />
+      {popup ? (
+        <Text
+          pointerEvents="none"
+          style={[style, { position: "absolute", opacity: 0, left: 0, width: blockWidth || "100%" }]}
+          onTextLayout={(e) => setLines(e.nativeEvent.lines)}
+        >
+          {text}
+        </Text>
+      ) : null}
+      {popup && placed ? (
+        <View
+          pointerEvents="box-none"
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            if (width && height) setPopupSize({ width, height });
+          }}
+          style={{
+            position: "absolute",
+            top: placed.top,
+            left: placed.left,
+            zIndex: 5,
+            maxWidth: Math.max(160, blockWidth || 240),
+          }}
+        >
+          <GrammarPopup
+            original={popup.original}
+            replacement={popup.replacement}
+            shownAt={popup.shownAt}
+            reduceMotion={popup.reduceMotion}
+            onAccept={popup.onAccept}
+            onIgnore={popup.onIgnore}
+          />
+        </View>
+      ) : null}
+    </View>
   );
 });
 
@@ -199,6 +281,7 @@ export default function ManuscriptScreen() {
   } = useProject();
   const { t } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
+  const reduceMotion = useReduceMotion();
   const clearance = useTabBarClearance();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const listRef = useRef<FlashListRef<ManuscriptBlock>>(null);
@@ -215,6 +298,7 @@ export default function ManuscriptScreen() {
   );
   const didScrollResume = useRef<string | null>(null);
   const grammarRef = useRef<GrammarLoop | null>(null);
+  const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0 });
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
 
@@ -330,7 +414,9 @@ export default function ManuscriptScreen() {
     const loop = new GrammarLoop(
       async ({ chapterId, blockId, text, revision, signal }) =>
         ciciro.correct.post({ chapterId, blockId, text, revision }, { signal }),
-      setGrammarSuggestion
+      setGrammarSuggestion,
+      GRAMMAR_IDLE_MS,
+      () => acceptGrammarRef.current()
     );
     grammarRef.current = loop;
     return () => {
@@ -506,6 +592,7 @@ export default function ManuscriptScreen() {
     }
     loop.setSuggestion(null);
   }, [commitOps, focusedId, grammarSuggestion]);
+  acceptGrammarRef.current = acceptGrammar;
 
   const ignoreGrammar = useCallback(() => {
     grammarRef.current?.setSuggestion(null);
@@ -548,6 +635,28 @@ export default function ManuscriptScreen() {
     inputs.current.get(pendingFocus.id)?.focus();
   }, [pendingFocus, blocks]);
 
+  const popupSpan = grammarSuggestion
+    ? selectPopupSpan(
+        grammarRef.current?.draftOf(grammarSuggestion.blockId) ?? grammarSuggestion.text,
+        grammarSuggestion.text,
+        grammarSuggestion.spans
+      )
+    : null;
+
+  const grammarCallout: GrammarCallout | null =
+    settings.autoCorrect && grammarSuggestion && popupSpan
+      ? {
+          start: popupSpan.start,
+          end: popupSpan.end,
+          original: popupSpan.original,
+          replacement: popupSpan.replacement,
+          shownAt: grammarSuggestion.shownAt,
+          reduceMotion,
+          onAccept: acceptGrammar,
+          onIgnore: ignoreGrammar,
+        }
+      : null;
+
   const renderItem = useCallback(
     ({ item }: { item: ManuscriptBlock }) => (
       <BlockInput
@@ -557,6 +666,7 @@ export default function ManuscriptScreen() {
         focused={focusedId === item.id}
         resumeOffset={resume?.blockId === item.id ? resume.offset : null}
         pendingFocus={pendingFocus}
+        popup={grammarCallout && grammarSuggestion?.blockId === item.id ? grammarCallout : null}
         onFocused={onFocused}
         onBlurred={onBlurred}
         onDraft={onDraft}
@@ -570,6 +680,8 @@ export default function ManuscriptScreen() {
     [
       editorStyle,
       focusedId,
+      grammarCallout,
+      grammarSuggestion?.blockId,
       onBlurred,
       onCaret,
       onComposing,
@@ -583,14 +695,6 @@ export default function ManuscriptScreen() {
       settings.autoCorrect,
     ]
   );
-
-  const popupSpan = grammarSuggestion
-    ? selectPopupSpan(
-        grammarRef.current?.draftOf(grammarSuggestion.blockId) ?? grammarSuggestion.text,
-        grammarSuggestion.text,
-        grammarSuggestion.spans
-      )
-    : null;
 
   if (loading && !project) {
     return (
@@ -625,7 +729,14 @@ export default function ManuscriptScreen() {
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="always"
         keyboardDismissMode="none"
-        extraData={{ focusedId, pendingFocus, editorStyle, autoCorrect: settings.autoCorrect }}
+        extraData={{
+          focusedId,
+          pendingFocus,
+          editorStyle,
+          autoCorrect: settings.autoCorrect,
+          grammarBlockId: grammarSuggestion?.blockId ?? null,
+          grammarShownAt: grammarSuggestion?.shownAt ?? 0,
+        }}
         contentContainerStyle={{ padding: 20, paddingBottom: clearance }}
         ListHeaderComponent={
           <View>
@@ -642,19 +753,6 @@ export default function ManuscriptScreen() {
           </View>
         }
       />
-      {settings.autoCorrect && popupSpan ? (
-        <View
-          pointerEvents="box-none"
-          style={{ position: "absolute", left: 16, right: 16, bottom: clearance }}
-        >
-          <GrammarPopup
-            original={popupSpan.original}
-            replacement={popupSpan.replacement}
-            onAccept={acceptGrammar}
-            onIgnore={ignoreGrammar}
-          />
-        </View>
-      ) : null}
     </KeyboardAvoidingView>
   );
 }

@@ -175,6 +175,7 @@ const en = {
     grammarAccept: "Accept",
     grammarIgnore: "Ignore",
     grammarA11y: "Grammar suggestion: {{original}} to {{replacement}}",
+    grammarAutoAcceptA11y: "Auto-accepting in {{seconds}} seconds",
   },
   ciciroTab: {
     title: "Ciciro",

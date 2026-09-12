@@ -16,7 +16,7 @@ Draw these diagrams (or an updated slice) before changing the mobile editor, `/a
 | Grammar (in-flight) | `apps/mobile/lib/grammar.ts`, `GrammarPopup.tsx`, `src/lib/correct.ts`, `POST /api/correct` |
 | WritingDay | `apps/mobile/lib/writing-day.ts`, `writing-day-session.tsx`; web `src/lib/writing-day-client.ts`; `PUT /api/writing/day`; Prisma `WritingDay` |
 
-Timings from code: `REPLACE_FLUSH_MS = 1000`, `CARET_FLUSH_MS = 600`, `GRAMMAR_IDLE_MS = 800`, `PAUSE_MS = 30_000`, `HEARTBEAT_MS = 2_000`.
+Timings from code: `REPLACE_FLUSH_MS = 1000`, `CARET_FLUSH_MS = 600`, `GRAMMAR_IDLE_MS = 800`, `GRAMMAR_AUTO_ACCEPT_MS = 3000`, `PAUSE_MS = 30_000`, `HEARTBEAT_MS = 2_000`.
 
 ---
 
@@ -99,7 +99,7 @@ Focused-skip means: `applyRemoteOps` increments revision for ops that touch `edi
 
 ## 3. Concurrent correction — author typing vs `actor: correction`
 
-In-flight on `feat/grammar-popups`. `/api/correct` is fail-soft (empty spans if settings off, no key, or Haiku error). It never writes `ChapterOp`. Accept is a normal `replace_block` with `actor: "correction"`.
+In-flight on `feat/grammar-popups`. `/api/correct` is fail-soft (empty spans if settings off, no key, or Haiku error). It never writes `ChapterOp`. Accept is a normal `replace_block` with `actor: "correction"`. The callout is pinned to the span (measured `onTextLayout`, placed with `placeCallout`) so it scrolls with the paragraph instead of floating on the keyboard. `GrammarLoop` arms a 3s auto-accept; Ignore or typing through the span cancels it. The meter is determinate; `reduceMotion` only coarsens the tick.
 
 ```mermaid
 sequenceDiagram
@@ -124,22 +124,23 @@ sequenceDiagram
   alt no span still at those offsets
     Loop-->>Author: drop popup
   else span intact
-    Loop-->>Author: GrammarPopup
+    Loop-->>Author: GrammarPopup pinned to span, scrolls with text
+    Loop->>Loop: arm 3s auto-accept + progress meter
   end
 
   alt keep typing through the span
     Author->>Input: type
-    Loop->>Loop: matchingSpans empty → drop
-  else Accept
+    Loop->>Loop: matchingSpans empty → drop + cancel auto-accept
+  else Ignore
+    Loop-->>Author: clear suggestion + cancel auto-accept
+  else Accept or 3s elapses
     Input->>Doc: replaceBlockOps live text + actor correction
     Doc->>Sync: PendingOp
     Sync-->>Doc: CAS accept or stale rebase
-  else Ignore
-    Loop-->>Author: clear suggestion only
   end
 ```
 
-Accept uses `loop.draftOf` (unflushed TextInput) then `replaceBlockOps` on `chapterRef` (last committed HTML). The replace timer for that block is cleared so a stale user flush cannot race the correction op.
+Accept uses `loop.draftOf` (unflushed TextInput) then `replaceBlockOps` on `chapterRef` (last committed HTML). The replace timer for that block is cleared so a stale user flush cannot race the correction op. Auto-accept lives on `GrammarLoop`, not popup mount, so FlashList recycle cannot cancel the 3s clock. Accept of a stale span is still a no-op.
 
 ---
 
@@ -191,7 +192,7 @@ Split/merge emit two ops with sequential `baseRevision`s. If the first is accept
 
 ### Correction span mismatch
 
-Spans are offsets into the **requested** string. `matchingSpans` requires that exact slice to still sit at the same offsets in the live draft. Typing through the range drops the popup. Accept of a stale popup is a no-op.
+Spans are offsets into the **requested** string. `matchingSpans` requires that exact slice to still sit at the same offsets in the live draft. Typing through the range drops the popup and cancels the 3s auto-accept. Accept of a stale popup is a no-op. Ignore clears the suggestion the same way.
 
 If accept runs against `chapterRef` that is behind the draft, `replace_block` still uploads the **full live text** (draft + span), which is correct — unless a concurrent skip-pull advanced `chapterRef.revision` via `chapter.revision >= chapterRef.current.revision` and replaced content with a replica that omitted unflushed typing. Blur-then-flush is the recovery; accepting grammar in that window can write an older committed block plus the span and **lose later keystrokes**.
 
