@@ -136,6 +136,9 @@ const es: Translations = {
     autocorrectHint: "Sugerencias de ortografía mientras escribes.",
     reduceMotion: "Reducir movimiento",
     reduceMotionHint: "Desactiva las animaciones en toda la app.",
+    dailyGoal: "Palabras del día",
+    dailyGoalHint: "Cinco minutos son una sesión. No hay una racha que proteger.",
+    meterA11y: "{{words}} de {{goal}} palabras hoy",
     account: "CUENTA",
     signedIn: "Sesión iniciada en Ciciro",
     signOut: "Cerrar sesión",
@@ -171,6 +174,9 @@ const es: Translations = {
   manuscript: {
     noChapters: "Este manuscrito aún no tiene capítulos.",
     emptyChapter: "Este capítulo está vacío. Escríbelo en el editor web.",
+    grammarAccept: "Aceptar",
+    grammarIgnore: "Ignorar",
+    grammarA11y: "Sugerencia gramatical: {{original}} por {{replacement}}",
   },
   ciciroTab: {
     title: "Ciciro",

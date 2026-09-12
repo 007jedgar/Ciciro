@@ -1,4 +1,5 @@
 import { isThemeId, type ThemeId } from "@/lib/theme";
+import { clampDailyWordGoal, DEFAULT_DAILY_WORD_GOAL } from "@/lib/writing-day";
 
 export const SETTINGS_STORAGE_KEY = "ciciro-settings";
 export const SETTINGS_USER_KEY = "ciciro-settings-user";
@@ -20,6 +21,8 @@ export type AppSettings = {
   autoCorrect: boolean;
   reduceMotion: boolean;
   chatWidth: number;
+  dailyWordGoal: number;
+  showDailyGoal: boolean;
   updatedAt: string;
 };
 
@@ -35,6 +38,8 @@ export function defaultSettings(now = new Date()): AppSettings {
     autoCorrect: true,
     reduceMotion: false,
     chatWidth: DEFAULT_CHAT_WIDTH,
+    dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
+    showDailyGoal: true,
     updatedAt: now.toISOString(),
   };
 }
@@ -87,6 +92,11 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
     typeof src.chatWidth === "number" && Number.isFinite(src.chatWidth)
       ? clampChatWidth(src.chatWidth)
       : defaults.chatWidth;
+  const dailyWordGoal =
+    typeof src.dailyWordGoal === "number" && Number.isFinite(src.dailyWordGoal)
+      ? clampDailyWordGoal(src.dailyWordGoal)
+      : defaults.dailyWordGoal;
+  const showDailyGoal = typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal;
   return {
     theme,
     editorFont,
@@ -94,6 +104,8 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
     autoCorrect,
     reduceMotion,
     chatWidth,
+    dailyWordGoal,
+    showDailyGoal,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
 }
@@ -156,6 +168,18 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.chatWidth = clampChatWidth(src.chatWidth);
   }
+  if ("dailyWordGoal" in src) {
+    if (typeof src.dailyWordGoal !== "number" || !Number.isFinite(src.dailyWordGoal)) {
+      return { error: "dailyWordGoal must be a number." };
+    }
+    patch.dailyWordGoal = clampDailyWordGoal(src.dailyWordGoal);
+  }
+  if ("showDailyGoal" in src) {
+    if (typeof src.showDailyGoal !== "boolean") {
+      return { error: "showDailyGoal must be a boolean." };
+    }
+    patch.showDailyGoal = src.showDailyGoal;
+  }
 
   return patch;
 }
@@ -180,7 +204,9 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.editorFontSize === b.editorFontSize &&
     a.autoCorrect === b.autoCorrect &&
     a.reduceMotion === b.reduceMotion &&
-    a.chatWidth === b.chatWidth
+    a.chatWidth === b.chatWidth &&
+    a.dailyWordGoal === b.dailyWordGoal &&
+    a.showDailyGoal === b.showDailyGoal
   );
 }
 

@@ -170,6 +170,38 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               {settings.reduceMotion ? "On" : "Off"}
             </button>
           </div>
+
+          <div className="theme-menu-label">Daily words</div>
+          <p className="settings-hint">Five minutes is a session. There is no streak to protect.</p>
+          <div className="settings-row">
+            <span>Show meter</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.showDailyGoal}
+              className={`settings-switch ${settings.showDailyGoal ? "on" : ""}`}
+              onClick={() => patch({ showDailyGoal: !settings.showDailyGoal })}
+            >
+              {settings.showDailyGoal ? "On" : "Off"}
+            </button>
+          </div>
+          {settings.showDailyGoal ? (
+            <div className="settings-row">
+              <span>Goal</span>
+              <div className="settings-seg">
+                {([100, 250, 500] as const).map((goal) => (
+                  <button
+                    key={goal}
+                    type="button"
+                    className={settings.dailyWordGoal === goal ? "active" : ""}
+                    onClick={() => patch({ dailyWordGoal: goal })}
+                  >
+                    {goal}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

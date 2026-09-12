@@ -89,6 +89,17 @@ export type PendingReadingPosition = {
   updatedAt: string;
 };
 
+export type ReplicaWritingDay = {
+  userId: string;
+  date: string;
+  words: number;
+  activeMs: number;
+  pendingWords: number;
+  pendingActiveMs: number;
+  lastKeystrokeAt: number | null;
+  updatedAt: string;
+};
+
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS Chapter (
     id TEXT PRIMARY KEY NOT NULL,
@@ -165,6 +176,17 @@ const SCHEMA = [
     offset INTEGER NOT NULL,
     updatedAt TEXT NOT NULL,
     PRIMARY KEY (userId, projectId)
+  )`,
+  `CREATE TABLE IF NOT EXISTS WritingDay (
+    userId TEXT NOT NULL,
+    date TEXT NOT NULL,
+    words INTEGER NOT NULL DEFAULT 0,
+    activeMs INTEGER NOT NULL DEFAULT 0,
+    pendingWords INTEGER NOT NULL DEFAULT 0,
+    pendingActiveMs INTEGER NOT NULL DEFAULT 0,
+    lastKeystrokeAt INTEGER,
+    updatedAt TEXT NOT NULL,
+    PRIMARY KEY (userId, date)
   )`,
 ];
 
@@ -445,4 +467,58 @@ export async function deletePendingPosition(userId: string, projectId: string): 
     userId,
     projectId,
   ]);
+}
+
+function writingDayFromRow(row: ReplicaWritingDay): ReplicaWritingDay {
+  return {
+    userId: row.userId,
+    date: row.date,
+    words: Number(row.words) || 0,
+    activeMs: Number(row.activeMs) || 0,
+    pendingWords: Number(row.pendingWords) || 0,
+    pendingActiveMs: Number(row.pendingActiveMs) || 0,
+    lastKeystrokeAt:
+      row.lastKeystrokeAt == null ? null : Number.isFinite(Number(row.lastKeystrokeAt)) ? Number(row.lastKeystrokeAt) : null,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export async function getWritingDay(
+  userId: string,
+  date: string
+): Promise<ReplicaWritingDay | null> {
+  const db = await ensureReplica();
+  const rows = await query<ReplicaWritingDay>(
+    db,
+    `SELECT userId, date, words, activeMs, pendingWords, pendingActiveMs, lastKeystrokeAt, updatedAt
+     FROM WritingDay WHERE userId = ? AND date = ?`,
+    [userId, date]
+  );
+  return rows[0] ? writingDayFromRow(rows[0]) : null;
+}
+
+export async function upsertWritingDay(row: ReplicaWritingDay): Promise<void> {
+  const db = await ensureReplica();
+  await db.execute(
+    `INSERT INTO WritingDay (
+      userId, date, words, activeMs, pendingWords, pendingActiveMs, lastKeystrokeAt, updatedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(userId, date) DO UPDATE SET
+      words = excluded.words,
+      activeMs = excluded.activeMs,
+      pendingWords = excluded.pendingWords,
+      pendingActiveMs = excluded.pendingActiveMs,
+      lastKeystrokeAt = excluded.lastKeystrokeAt,
+      updatedAt = excluded.updatedAt`,
+    [
+      row.userId,
+      row.date,
+      row.words,
+      row.activeMs,
+      row.pendingWords,
+      row.pendingActiveMs,
+      row.lastKeystrokeAt,
+      row.updatedAt,
+    ]
+  );
 }

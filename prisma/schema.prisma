@@ -22,6 +22,7 @@ model User {
   projects          Project[]
   folders           Folder[]
   readingPositions  ReadingPosition[]
+  writingDays       WritingDay[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -192,6 +193,24 @@ model ReadingPosition {
 
   @@unique([userId, projectId])
   @@index([projectId])
+}
+
+// Per-author daily writing: words added and active typing time. Desk and phone
+// heartbeats on the same YYYY-MM-DD merge. There is no streak.
+model WritingDay {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     String // device-timezone YYYY-MM-DD
+  words    Int    @default(0)
+  activeMs Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
 }
 
 // A correction the editor applied via edit_manuscript - the raw find/replace

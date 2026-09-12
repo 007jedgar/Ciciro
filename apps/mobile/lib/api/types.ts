@@ -404,6 +404,23 @@ export type ReadingPositionResponse = {
   position: ReadingPosition | null;
 };
 
+export type WritingDay = {
+  date: string;
+  words: number;
+  activeMs: number;
+  updatedAt?: string;
+};
+
+export type WritingDayPutRequest = {
+  date: string;
+  words: number;
+  activeMs: number;
+};
+
+export type WritingDayResponse = {
+  day: WritingDay;
+};
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

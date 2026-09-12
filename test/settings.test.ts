@@ -27,6 +27,8 @@ describe("app settings", () => {
     expect(s.autoCorrect).toBe(false);
     expect(s.reduceMotion).toBe(true);
     expect(s.chatWidth).toBe(720);
+    expect(s.dailyWordGoal).toBe(250);
+    expect(s.showDailyGoal).toBe(true);
     expect(nearestFontSize(14)).toBe(15);
     expect(clampChatWidth(100)).toBe(280);
   });
@@ -51,6 +53,13 @@ describe("app settings", () => {
     });
     expect(parseSettingsPatch({ reduceMotion: "yes" })).toEqual({
       error: "reduceMotion must be a boolean.",
+    });
+    expect(parseSettingsPatch({ showDailyGoal: "yes" })).toEqual({
+      error: "showDailyGoal must be a boolean.",
+    });
+    expect(parseSettingsPatch({ dailyWordGoal: 250, showDailyGoal: false })).toEqual({
+      dailyWordGoal: 250,
+      showDailyGoal: false,
     });
     expect(parseSettingsPatch({ theme: "sage" })).toEqual({ theme: "sage" });
   });

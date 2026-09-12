@@ -180,6 +180,61 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      <View style={layout.card}>
+        <Text style={layout.cardTitle}>{t("settings.dailyGoal")}</Text>
+        <Text style={layout.cardMeta}>{t("settings.dailyGoalHint")}</Text>
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: settings.showDailyGoal }}
+          onPress={() => patch({ showDailyGoal: !settings.showDailyGoal })}
+          style={[
+            layout.primaryBtn,
+            {
+              marginTop: 12,
+              backgroundColor: settings.showDailyGoal ? colors.accent : colors.panel2,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              layout.primaryBtnText,
+              { color: settings.showDailyGoal ? colors.panel : colors.ink },
+            ]}
+          >
+            {settings.showDailyGoal ? t("common.on") : t("common.off")}
+          </Text>
+        </Pressable>
+        {settings.showDailyGoal ? (
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+            {([100, 250, 500] as const).map((goal) => (
+              <Pressable
+                key={goal}
+                onPress={() => patch({ dailyWordGoal: goal })}
+                accessibilityState={{ selected: settings.dailyWordGoal === goal }}
+                style={[
+                  layout.primaryBtn,
+                  {
+                    flex: 1,
+                    marginTop: 0,
+                    backgroundColor:
+                      settings.dailyWordGoal === goal ? colors.accent : colors.panel2,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    layout.primaryBtnText,
+                    { color: settings.dailyWordGoal === goal ? colors.panel : colors.ink },
+                  ]}
+                >
+                  {goal}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+      </View>
+
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.account")}</Text>
       <View style={layout.card}>
         <Text style={layout.cardTitle}>{user.email}</Text>
