@@ -224,7 +224,12 @@ export const AUTONOMOUS_DIRECTIVE = `You are running autonomously to draft a cha
 time and cannot answer questions mid-run. For reversible choices that follow from the
 brief, decide and proceed - do not ask. Do not stop early or hedge about whether to
 continue. Do the work, then report faithfully: state plainly what you drafted. Return
-exactly what each step asks for and nothing else - no preamble, no meta-commentary.`;
+exactly what each step asks for and nothing else - no preamble, no meta-commentary.
+
+The two-dispatch cap in the standing instructions does not apply here. Keep cycling
+dispatch_draft → critique/revise → insert_text until the chapter hits the requested
+length. Persist every accepted beat with insert_text (or edit_manuscript for a surgical
+fix). Do not stop after a single beat. Do not leave prose only in a <draft> block.`;
 
 export type QuickAction = {
   id: string;

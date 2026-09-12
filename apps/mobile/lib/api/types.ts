@@ -471,9 +471,12 @@ export type DraftInsertionCreateRequest = {
 
 export type AutowriteRequest = {
   projectId: string;
-  chapterId: string;
+  chapterId?: string;
   targetWords?: number;
   guidance?: string;
+  resumeTurnId?: string;
+  clientTurnId?: string;
+  continueFrom?: string;
 };
 
 export type ClientUiEvent =
@@ -512,30 +515,7 @@ export type ChatStreamEvent =
   | { type: "ui"; event: ClientUiEvent }
   | ({ type: string } & Record<string, unknown>);
 
-export type AutowriteStreamEvent =
-  | { type: "ping" }
-  | { type: "phase"; v: string }
-  | {
-      type: "beat";
-      i: number;
-      n: number;
-      status: "drafting" | "editing" | "accepted" | string;
-      goal: string;
-      words?: number;
-    }
-  | { type: "prose"; v: string }
-  | { type: "note"; v: string }
-  | { type: "error"; v: string }
-  | { type: "stopped" }
-  | {
-      type: "done";
-      beats: number;
-      words: number;
-      content: string;
-      revision: number;
-      wordCount: number;
-    }
-  | ({ type: string } & Record<string, unknown>);
+export type AutowriteStreamEvent = ChatStreamEvent;
 
 export type NdjsonEvent = ChatStreamEvent | AutowriteStreamEvent;
 

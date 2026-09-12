@@ -7,7 +7,9 @@ import {
   StallError,
   readNdjsonStream,
   waitForOnline,
+  type NdjsonEvent,
 } from "@/lib/ndjson-stream";
+import type { EditorRunStatus } from "@/lib/types";
 
 type Props = {
   projectId: string;
@@ -21,8 +23,17 @@ type Props = {
   }) => void;
 };
 
-type PlanBeat = { goal: string; wordTarget: number };
-type BeatState = { goal: string; status: string; words?: number };
+const MAX_CONTINUATION_SLICES = 40;
+
+type SliceResult = {
+  status: EditorRunStatus;
+  turnId: string;
+  runId?: string;
+  text: string;
+  stopReason?: string | null;
+  iterationCount?: number;
+  mutationCount?: number;
+};
 
 export default function AutoWrite({
   projectId,
@@ -34,48 +45,92 @@ export default function AutoWrite({
   const [targetWords, setTargetWords] = useState(600);
   const [guidance, setGuidance] = useState("");
   const [phase, setPhase] = useState<
-    "idle" | "planning" | "drafting" | "saving" | "done" | "stopped" | "error"
+    "idle" | "running" | "done" | "stopped" | "error"
   >("idle");
-  const [beats, setBeats] = useState<BeatState[]>([]);
-  const [prose, setProse] = useState<string[]>([]);
+  const [runStatus, setRunStatus] = useState<EditorRunStatus | null>(null);
+  const [tools, setTools] = useState<string[]>([]);
+  const [preview, setPreview] = useState("");
   const [summary, setSummary] = useState("");
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const running = phase === "planning" || phase === "drafting" || phase === "saving";
+  const running = phase === "running";
 
   async function start() {
-    setPhase("planning");
-    setBeats([]);
-    setProse([]);
+    setPhase("running");
+    setRunStatus("queued");
+    setTools([]);
+    setPreview("");
+    setSummary("");
     setError("");
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-
-    let res: Response;
-    try {
-      res = await fetch("/api/autowrite", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ projectId, chapterId, targetWords, guidance }),
-        signal: ctrl.signal,
-      });
-    } catch {
-      setPhase("error");
-      setError("Request failed to start.");
-      return;
-    }
-    if (!res.body) {
-      setPhase("error");
-      setError("No response stream.");
-      return;
-    }
+    const turnId = crypto.randomUUID();
+    const messageHint = guidance.trim();
 
     try {
-      await readNdjsonStream(res.body, {
-        signal: ctrl.signal,
-        stallMs: 90_000,
-        onEvent: (e) => handleEvent(e),
-      });
+      let fresh = true;
+      let resumeTurnId = turnId;
+      let continueFrom = "";
+      let continuationSlices = 0;
+      let last: SliceResult | null = null;
+
+      while (true) {
+        const slice = await requestSlice({
+          projectId,
+          chapterId,
+          targetWords,
+          guidance: messageHint,
+          clientTurnId: turnId,
+          resumeTurnId: fresh ? undefined : resumeTurnId,
+          continueFrom: fresh ? undefined : continueFrom,
+          signal: ctrl.signal,
+          onEvent: (event) => handleEvent(event),
+        });
+        last = slice;
+        resumeTurnId = slice.turnId || resumeTurnId;
+        continueFrom = slice.text;
+        setRunStatus(slice.status);
+        if (slice.status !== "continuing") break;
+        continuationSlices += 1;
+        if (continuationSlices >= MAX_CONTINUATION_SLICES) {
+          setTools((current) => [
+            ...current,
+            "Paused after many continuation slices - start again to keep going.",
+          ]);
+          break;
+        }
+        setTools((current) => [
+          ...current.filter((line) => !line.startsWith("Saved slice")),
+          `Saved slice ${slice.iterationCount ?? ""}; continuing…`.trim(),
+        ]);
+        fresh = false;
+      }
+
+      if (ctrl.signal.aborted) {
+        setPhase("stopped");
+        return;
+      }
+      if (!last) throw new Error("Editor run returned no durable state.");
+      if (last.status === "failed") {
+        setPhase("error");
+        setError("The unattended draft failed. Check the backstage trace.");
+        return;
+      }
+      if (last.status === "cancelled") {
+        setPhase("stopped");
+        return;
+      }
+      if (last.status === "completed") {
+        setPhase("done");
+        setSummary(
+          last.mutationCount
+            ? `Chapter updated after ${last.mutationCount} write(s).`
+            : "Unattended draft finished."
+        );
+        return;
+      }
+      setPhase("done");
+      setSummary("Paused with more work remaining. Start again to resume.");
     } catch (err) {
       if (ctrl.signal.aborted) {
         setPhase("stopped");
@@ -83,7 +138,9 @@ export default function AutoWrite({
       }
       if (err instanceof OfflineError) {
         setPhase("error");
-        setError("Went offline mid-run. Reconnect, then start again - accepted beats may already be saved.");
+        setError(
+          "Went offline mid-run. Reconnect, then start again - accepted beats may already be saved."
+        );
         try {
           await waitForOnline();
         } catch {
@@ -97,58 +154,55 @@ export default function AutoWrite({
         return;
       }
       setPhase("error");
-      setError("Connection dropped mid-run. Try again if the chapter wasn't updated.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Connection dropped mid-run. Try again if the chapter wasn't updated."
+      );
+    } finally {
+      abortRef.current = null;
     }
   }
 
-  function handleEvent(e: Record<string, unknown>) {
+  function handleEvent(e: NdjsonEvent) {
     switch (e.type) {
       case "phase":
-        if (e.v === "saving") setPhase("saving");
-        else if (e.v === "planning") setPhase("planning");
+        if (typeof e.status === "string") {
+          setRunStatus(e.status as EditorRunStatus);
+        }
         break;
-      case "plan": {
-        const planBeats = (e.beats as PlanBeat[]) || [];
-        setBeats(planBeats.map((b) => ({ goal: b.goal, status: "pending" })));
-        setPhase("drafting");
+      case "tool":
+        if (typeof e.v === "string") {
+          const line = e.v;
+          setTools((current) => [...current, line]);
+        }
         break;
-      }
-      case "beat": {
-        const idx = (e.i as number) - 1;
-        setBeats((prev) =>
-          prev.map((b, i) =>
-            i === idx
-              ? { ...b, status: e.status as string, words: (e.words as number) ?? b.words }
-              : b
-          )
-        );
+      case "text":
+        if (typeof e.v === "string") {
+          const chunk = e.v;
+          const resume = Boolean(e.resume);
+          setPreview((current) => (resume ? chunk : current + chunk));
+        }
         break;
-      }
-      case "prose":
-        setProse((p) => [...p, e.v as string]);
-        break;
-      case "note":
-        setSummary((s) => (s ? s + "\n" : "") + (e.v as string));
-        break;
-      case "stopped":
-        setPhase("stopped");
-        break;
-      case "error":
-        setPhase("error");
-        setError(e.v as string);
-        break;
-      case "done":
-        setPhase("done");
-        setSummary(
-          `Drafted ${e.beats as number} beat(s), +${e.words as number} words. Chapter updated.`
-        );
-        if (typeof e.content === "string") {
+      case "chapter_updated": {
+        const updated = e as {
+          content?: string;
+          revision?: number;
+          wordCount?: number;
+        };
+        if (typeof updated.content === "string") {
           onApplied({
-            content: e.content,
-            revision: typeof e.revision === "number" ? e.revision : undefined,
-            wordCount: typeof e.wordCount === "number" ? e.wordCount : undefined,
+            content: updated.content,
+            revision:
+              typeof updated.revision === "number" ? updated.revision : undefined,
+            wordCount:
+              typeof updated.wordCount === "number" ? updated.wordCount : undefined,
           });
         }
+        break;
+      }
+      case "error":
+        if (typeof e.v === "string") setError(e.v);
         break;
     }
   }
@@ -158,14 +212,22 @@ export default function AutoWrite({
     setPhase("stopped");
   }
 
-  const phaseLabel: Record<string, string> = {
-    planning: "Planning the chapter...",
-    drafting: "Drafting beats...",
-    saving: "Saving to the chapter...",
-    done: "Done",
-    stopped: "Stopped",
-    error: "Error",
-  };
+  const statusLabel =
+    runStatus === "verifying"
+      ? "Checking the chapter..."
+      : runStatus === "continuing"
+        ? "Continuing the next slice..."
+        : runStatus === "running"
+          ? "Drafting the chapter..."
+          : runStatus === "queued"
+            ? "Starting the unattended draft..."
+            : phase === "done"
+              ? "Done"
+              : phase === "stopped"
+                ? "Stopped"
+                : phase === "error"
+                  ? "Error"
+                  : "Drafting...";
 
   return (
     <>
@@ -178,8 +240,10 @@ export default function AutoWrite({
           </button>
         </div>
         <p style={{ color: "var(--ink-soft)", fontSize: 12, marginTop: 0 }}>
-          Ciciro plans <strong>{chapterTitle}</strong> into beats, drafts each with the
-          writer, edits it to final against canon, and appends it. You can stop anytime.
+          Ciciro plans <strong>{chapterTitle}</strong> into beats, dispatches each
+          to the writer, edits it to final against canon, and inserts it. Work is
+          checkpointed if a slice drops; you can stop requesting more slices
+          anytime.
         </p>
 
         {phase === "idle" ? (
@@ -220,9 +284,9 @@ export default function AutoWrite({
               }}
             >
               {running ? (
-                <WritingLoader size="sm" label={phaseLabel[phase] || phase} />
+                <WritingLoader size="sm" label={statusLabel} />
               ) : (
-                <strong style={{ fontSize: 13 }}>{phaseLabel[phase] || phase}</strong>
+                <strong style={{ fontSize: 13 }}>{statusLabel}</strong>
               )}
               {running ? (
                 <button className="btn small" onClick={stop}>
@@ -235,31 +299,24 @@ export default function AutoWrite({
               )}
             </div>
 
-            {beats.length > 0 && (
+            {tools.length > 0 && (
               <div style={{ marginBottom: 12 }}>
-                {beats.map((b, i) => (
-                  <div className="bible-item" key={i} style={{ padding: "8px 10px" }}>
-                    <div className="row">
-                      <span className={`pill ${b.status === "accepted" ? "resolved" : "open"}`}>
-                        {b.status === "accepted"
-                          ? `done${b.words ? ` (${b.words}w)` : ""}`
-                          : b.status}
-                      </span>
-                      <span style={{ flex: 1, fontSize: 12.5 }}>{b.goal}</span>
-                    </div>
+                {tools.map((line, i) => (
+                  <div className="bible-item" key={`${i}-${line}`} style={{ padding: "8px 10px" }}>
+                    <span className="pill open">{line}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {prose.length > 0 && (
+            {preview.length > 0 && (
               <div className="field">
-                <label>Preview</label>
+                <label>Backstage</label>
                 <div
                   className="draft-block"
                   style={{ maxHeight: 260, overflowY: "auto" }}
                 >
-                  {prose.join("\n\n")}
+                  {preview}
                 </div>
               </div>
             )}
@@ -273,4 +330,115 @@ export default function AutoWrite({
       </div>
     </>
   );
+}
+
+async function requestSlice(opts: {
+  projectId: string;
+  chapterId: string;
+  targetWords: number;
+  guidance: string;
+  clientTurnId: string;
+  resumeTurnId?: string;
+  continueFrom?: string;
+  signal: AbortSignal;
+  onEvent: (event: NdjsonEvent) => void;
+}): Promise<SliceResult> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    throw new OfflineError();
+  }
+
+  const body: Record<string, unknown> = {
+    projectId: opts.projectId,
+    chapterId: opts.chapterId,
+    targetWords: opts.targetWords,
+    guidance: opts.guidance,
+  };
+  if (opts.resumeTurnId) {
+    body.resumeTurnId = opts.resumeTurnId;
+    if (opts.continueFrom) body.continueFrom = opts.continueFrom;
+  } else {
+    body.clientTurnId = opts.clientTurnId;
+  }
+
+  let res = await fetch("/api/autowrite", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: opts.signal,
+  });
+
+  if (res.status === 409) {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    res = await fetch("/api/autowrite", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        projectId: opts.projectId,
+        chapterId: opts.chapterId,
+        resumeTurnId: opts.resumeTurnId || opts.clientTurnId,
+        continueFrom: opts.continueFrom,
+      }),
+      signal: opts.signal,
+    });
+  }
+
+  if (!res.ok) {
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    throw new Error(`HTTP ${res.status}`);
+  }
+  if (!res.body) throw new Error("No response stream.");
+
+  let turnId = opts.resumeTurnId || opts.clientTurnId;
+  let runId: string | undefined;
+  let text = opts.continueFrom || "";
+  let status: EditorRunStatus | undefined;
+  let stopReason: string | null | undefined;
+  let iterationCount: number | undefined;
+  let mutationCount: number | undefined;
+
+  await readNdjsonStream(res.body, {
+    signal: opts.signal,
+    stallMs: 90_000,
+    onEvent: (event) => {
+      if (event.type === "turn" && typeof event.id === "string") {
+        turnId = event.id;
+        if (typeof event.runId === "string") runId = event.runId;
+      } else if (event.type === "text" && typeof event.v === "string") {
+        text = event.resume ? event.v : text + event.v;
+      } else if (event.type === "phase" || event.type === "done") {
+        const done = event as {
+          status?: EditorRunStatus;
+          runId?: string;
+          stopReason?: string | null;
+          iterationCount?: number;
+          mutationCount?: number;
+        };
+        if (done.status) status = done.status;
+        if (typeof done.runId === "string") runId = done.runId;
+        if (done.stopReason !== undefined) stopReason = done.stopReason;
+        if (typeof done.iterationCount === "number") {
+          iterationCount = done.iterationCount;
+        }
+        if (typeof done.mutationCount === "number") {
+          mutationCount = done.mutationCount;
+        }
+      }
+      opts.onEvent(event);
+    },
+  });
+
+  if (!status) throw new Error("Editor stream ended before a durable checkpoint.");
+  return {
+    status,
+    turnId,
+    runId,
+    text,
+    stopReason,
+    iterationCount,
+    mutationCount,
+  };
 }

@@ -412,4 +412,83 @@ describe("intent-aware completion verification", () => {
     expect(chapters[1].revision).toBe(fixture.chapters[1].revision);
     expect(chapters[1].content).toBe(fixture.chapters[1].content);
   });
+
+  it("blocks autowrite completion until a dispatch and chapter write exist", async () => {
+    const project = await seed();
+    const unfinished = await verifyEditorCompletion({
+      projectId: project.id,
+      kind: "autowrite",
+      mutationCount: 0,
+      messages: [{ role: "user", content: "Draft the open chapter unattended." }],
+    });
+    expect(unfinished.passed).toBe(false);
+    expect(unfinished.failedReasons.join(" ")).toMatch(/dispatch_draft/);
+    expect(unfinished.failedReasons.join(" ")).toMatch(/insert or edit/);
+
+    const finished = await verifyEditorCompletion({
+      projectId: project.id,
+      kind: "autowrite",
+      mutationCount: 1,
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "draft-1",
+              name: "dispatch_draft",
+              input: { brief: "Write the opening beat." },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "draft-1",
+              content: "Rain stitched the alley shut.",
+            },
+          ],
+        },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "insert-1",
+              name: "insert_text",
+              input: {
+                chapterNumber: 1,
+                expectedRevision: 0,
+                text: "Rain stitched the alley shut.",
+                position: "end",
+              },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "insert-1",
+              content: "Inserted into chapter 1.",
+            },
+          ],
+        },
+      ],
+    });
+    expect(finished.passed).toBe(true);
+    expect(
+      finished.checks.some(
+        (check) => check.name === "autowrite_dispatched_drafter" && check.passed
+      )
+    ).toBe(true);
+    expect(
+      finished.checks.some(
+        (check) => check.name === "autowrite_persisted_prose" && check.passed
+      )
+    ).toBe(true);
+  });
 });

@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getAnthropic, EDITOR_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { EDITOR_SYSTEM } from "@/lib/prompts";
+import { AUTONOMOUS_DIRECTIVE, EDITOR_SYSTEM } from "@/lib/prompts";
 import { EDITOR_TOOLS, executeEditorTool, toolUiEvents } from "@/lib/tools";
 import { ensureBible } from "@/lib/bible";
 import { maybeCompactChat } from "@/lib/compact";
@@ -64,6 +64,13 @@ type Emit = (event: EditorRunEvent) => void;
 const MAX_ITERATIONS_PER_SLICE = 6;
 const MAX_STREAM_RETRIES = 2;
 const LEASE_MS = 11 * 60_000;
+const AUTOWRITE_KIND = "autowrite";
+
+function systemPromptFor(kind: string): string {
+  return kind === AUTOWRITE_KIND
+    ? `${EDITOR_SYSTEM}\n\n${AUTONOMOUS_DIRECTIVE}`
+    : EDITOR_SYSTEM;
+}
 
 const CONTINUE_EXACTLY =
   "Continue exactly where you left off - mid-word if that is where it cut off. " +
@@ -471,6 +478,7 @@ async function finalizeVerification(
     projectId: claim.projectId,
     messages,
     mutationCount: current.mutationCount,
+    kind: claim.kind,
   });
   const finalStatus: EditorRunStatus = verification.passed
     ? "completed"
@@ -588,7 +596,7 @@ export async function executeClaimedEditorRun(
             system: [
               {
                 type: "text",
-                text: EDITOR_SYSTEM,
+                text: systemPromptFor(claim.kind),
                 cache_control: { type: "ephemeral" },
               },
             ],

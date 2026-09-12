@@ -109,6 +109,7 @@ export async function verifyEditorCompletion(input: {
   projectId: string;
   messages: Anthropic.MessageParam[];
   mutationCount: number;
+  kind?: string;
 }): Promise<EditorVerificationResult> {
   const intent = intentFromMessages(input.messages);
   const evidence = toolEvidence(input.messages);
@@ -127,6 +128,31 @@ export async function verifyEditorCompletion(input: {
     },
   ];
   const chapterRevisions: Record<number, number> = {};
+
+  if (input.kind === "autowrite") {
+    const tools = [...evidence.toolUses.values()];
+    const dispatched = tools.some((tool) => tool.name === "dispatch_draft");
+    const persisted = tools.some(
+      (tool) => tool.name === "insert_text" || tool.name === "edit_manuscript"
+    );
+    checks.push(
+      {
+        name: "autowrite_dispatched_drafter",
+        passed: dispatched,
+        evidence: dispatched
+          ? "The unattended run dispatched at least one draft."
+          : "Unattended drafting must dispatch_draft before completing.",
+      },
+      {
+        name: "autowrite_persisted_prose",
+        passed: input.mutationCount > 0 && persisted,
+        evidence:
+          input.mutationCount > 0 && persisted
+            ? "Edited prose was written into the chapter."
+            : "Unattended drafting must insert or edit chapter prose before completing.",
+      }
+    );
+  }
 
   if (!intent || !intent.actionRequired) {
     const failedReasons = checks

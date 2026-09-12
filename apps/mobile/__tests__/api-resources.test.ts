@@ -392,7 +392,12 @@ describe("ciciro resource catalog", () => {
 
   it("streams autowrite NDJSON", async () => {
     mockFetch(async () =>
-      ndjsonResponse(['{"type":"phase","v":"planning"}', '{"type":"done","beats":1,"words":12}'])
+      ndjsonResponse([
+        '{"type":"turn","id":"t1","runId":"r1"}',
+        '{"type":"phase","status":"running","runId":"r1"}',
+        '{"type":"tool","v":"ink on the page"}',
+        '{"type":"done","status":"completed","runId":"r1"}',
+      ])
     );
     const events: unknown[] = [];
     await ciciro.autowrite.start(
@@ -406,8 +411,10 @@ describe("ciciro resource catalog", () => {
       targetWords: 600,
     });
     expect(events).toEqual([
-      { type: "phase", v: "planning" },
-      { type: "done", beats: 1, words: 12 },
+      { type: "turn", id: "t1", runId: "r1" },
+      { type: "phase", status: "running", runId: "r1" },
+      { type: "tool", v: "ink on the page" },
+      { type: "done", status: "completed", runId: "r1" },
     ]);
   });
 
