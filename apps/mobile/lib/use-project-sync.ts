@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { AppState, Platform } from "react-native";
 import { queryKeys } from "./api/keys";
 import { queryClient } from "./api/query";
@@ -17,6 +17,7 @@ import {
   recordChapterOp as enqueueOp,
   recordReadingPosition as enqueuePosition,
   syncProject,
+  toChapterSnapshot,
   type SyncApi,
   type SyncCycleResult,
 } from "./sync-engine";
@@ -63,7 +64,11 @@ function writeChaptersToCache(projectId: string, result: SyncCycleResult): void 
 
 export function useProjectSync(
   projectId: string,
-  opts?: { store?: ReplicaStore; api?: SyncApi }
+  opts?: {
+    store?: ReplicaStore;
+    api?: SyncApi;
+    skipBlockIdRef?: MutableRefObject<string | null>;
+  }
 ) {
   const { user } = useSession();
   const store = opts?.store ?? defaultReplica();
@@ -72,19 +77,25 @@ export function useProjectSync(
   const [syncing, setSyncing] = useState(false);
   const running = useRef<Promise<SyncCycleResult | null> | null>(null);
 
+  const skipOpts = useCallback(() => {
+    const id = opts?.skipBlockIdRef?.current;
+    return id ? { skipBlockIds: [id] } : undefined;
+  }, [opts?.skipBlockIdRef]);
+
   const run = useCallback(
     async (mode: "auto" | "pull" | "push" = "auto"): Promise<SyncCycleResult | null> => {
       if (!user || !projectId) return null;
       if (running.current) return running.current;
       setSyncing(true);
       const scope = { projectId, userId: user.id };
+      const skip = skipOpts();
       const work = (async () => {
         const result =
           mode === "pull"
-            ? await pullProject(store, scope, api)
+            ? await pullProject(store, scope, api, skip)
             : mode === "push"
-              ? await pushProject(store, scope, api)
-              : await syncProject(store, scope, api);
+              ? await pushProject(store, scope, api, skip)
+              : await syncProject(store, scope, api, skip);
         setPosition(result.position);
         writeChaptersToCache(projectId, result);
         return result;
@@ -97,7 +108,7 @@ export function useProjectSync(
       running.current = work;
       return work;
     },
-    [api, projectId, store, user]
+    [api, projectId, skipOpts, store, user]
   );
 
   useEffect(() => {
@@ -108,8 +119,36 @@ export function useProjectSync(
   }, [run]);
 
   const recordOp = useCallback(
-    async (op: SyncOp) => {
-      await enqueueOp(store, projectId, op);
+    async (op: SyncOp | SyncOp[]) => {
+      const ops = Array.isArray(op) ? op : [op];
+      if (ops.length === 0) return;
+      const project = queryClient.getQueryData<ProjectDetail>(queryKeys.projects.detail(projectId));
+      for (const item of ops) {
+        if (!(await store.getChapter(item.chapterId))) {
+          const chapter = project?.chapters.find((c) => c.id === item.chapterId);
+          if (chapter) await store.upsertChapter(toChapterSnapshot(chapter));
+        }
+        await enqueueOp(store, projectId, item);
+      }
+      const snapshot = await store.getChapter(ops[0].chapterId);
+      if (snapshot) {
+        queryClient.setQueryData<ProjectDetail>(queryKeys.projects.detail(projectId), (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            chapters: current.chapters.map((chapter) =>
+              chapter.id === snapshot.id
+                ? {
+                    ...chapter,
+                    content: snapshot.content,
+                    revision: snapshot.revision,
+                    wordCount: snapshot.wordCount,
+                  }
+                : chapter
+            ),
+          };
+        });
+      }
       await run("push");
     },
     [projectId, run, store]
