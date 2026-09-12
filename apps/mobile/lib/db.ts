@@ -64,6 +64,31 @@ export type ReplicaReadingPosition = {
   updatedAt: string;
 };
 
+export type PendingChapterOp = {
+  opId: string;
+  chapterId: string;
+  projectId: string;
+  payload: string;
+  createdAt: string;
+};
+
+export type PendingBibleWrite = {
+  projectId: string;
+  path: string;
+  content: string;
+  revision: number;
+  createdAt: string;
+};
+
+export type PendingReadingPosition = {
+  userId: string;
+  projectId: string;
+  chapterId: string;
+  blockId: string;
+  offset: number;
+  updatedAt: string;
+};
+
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS Chapter (
     id TEXT PRIMARY KEY NOT NULL,
@@ -116,6 +141,31 @@ const SCHEMA = [
     UNIQUE (userId, projectId)
   )`,
   `CREATE INDEX IF NOT EXISTS ReadingPosition_projectId ON ReadingPosition (projectId)`,
+  `CREATE TABLE IF NOT EXISTS PendingOp (
+    opId TEXT PRIMARY KEY NOT NULL,
+    chapterId TEXT NOT NULL,
+    projectId TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS PendingOp_projectId ON PendingOp (projectId, createdAt)`,
+  `CREATE TABLE IF NOT EXISTS PendingBible (
+    projectId TEXT NOT NULL,
+    path TEXT NOT NULL,
+    content TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    createdAt TEXT NOT NULL,
+    PRIMARY KEY (projectId, path)
+  )`,
+  `CREATE TABLE IF NOT EXISTS PendingPosition (
+    userId TEXT NOT NULL,
+    projectId TEXT NOT NULL,
+    chapterId TEXT NOT NULL,
+    blockId TEXT NOT NULL,
+    offset INTEGER NOT NULL,
+    updatedAt TEXT NOT NULL,
+    PRIMARY KEY (userId, projectId)
+  )`,
 ];
 
 export async function ensureReplica(): Promise<DB> {
@@ -277,4 +327,122 @@ export async function getReadingPosition(
     [userId, projectId]
   );
   return rows[0] ?? null;
+}
+
+export async function listChapterSnapshots(projectId: string): Promise<ChapterSnapshot[]> {
+  const db = await ensureReplica();
+  return query<ChapterSnapshot>(
+    db,
+    `SELECT id, projectId, title, "order" AS "order", content, summary, status,
+            wordCount, revision, archivedAt, createdAt, updatedAt
+     FROM Chapter WHERE projectId = ? ORDER BY "order" ASC`,
+    [projectId]
+  );
+}
+
+export async function listBibleFiles(projectId: string): Promise<ReplicaBibleFile[]> {
+  const db = await ensureReplica();
+  return query<ReplicaBibleFile>(
+    db,
+    `SELECT id, projectId, path, content, revision, updatedAt, createdAt
+     FROM BibleFile WHERE projectId = ? ORDER BY path ASC`,
+    [projectId]
+  );
+}
+
+export async function enqueuePendingOp(op: PendingChapterOp): Promise<void> {
+  const db = await ensureReplica();
+  await db.execute(
+    `INSERT OR REPLACE INTO PendingOp (opId, chapterId, projectId, payload, createdAt)
+     VALUES (?, ?, ?, ?, ?)`,
+    [op.opId, op.chapterId, op.projectId, op.payload, op.createdAt]
+  );
+}
+
+export async function listPendingOps(projectId: string): Promise<PendingChapterOp[]> {
+  const db = await ensureReplica();
+  return query<PendingChapterOp>(
+    db,
+    `SELECT opId, chapterId, projectId, payload, createdAt
+     FROM PendingOp WHERE projectId = ? ORDER BY createdAt ASC`,
+    [projectId]
+  );
+}
+
+export async function deletePendingOps(opIds: string[]): Promise<void> {
+  if (opIds.length === 0) return;
+  const db = await ensureReplica();
+  const placeholders = opIds.map(() => "?").join(", ");
+  await db.execute(`DELETE FROM PendingOp WHERE opId IN (${placeholders})`, opIds);
+}
+
+export async function upsertPendingBible(write: PendingBibleWrite): Promise<void> {
+  const db = await ensureReplica();
+  await db.execute(
+    `INSERT INTO PendingBible (projectId, path, content, revision, createdAt)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(projectId, path) DO UPDATE SET
+       content = excluded.content,
+       revision = excluded.revision,
+       createdAt = excluded.createdAt`,
+    [write.projectId, write.path, write.content, write.revision, write.createdAt]
+  );
+}
+
+export async function listPendingBible(projectId: string): Promise<PendingBibleWrite[]> {
+  const db = await ensureReplica();
+  return query<PendingBibleWrite>(
+    db,
+    `SELECT projectId, path, content, revision, createdAt
+     FROM PendingBible WHERE projectId = ? ORDER BY createdAt ASC`,
+    [projectId]
+  );
+}
+
+export async function deletePendingBible(projectId: string, path: string): Promise<void> {
+  const db = await ensureReplica();
+  await db.execute(`DELETE FROM PendingBible WHERE projectId = ? AND path = ?`, [projectId, path]);
+}
+
+export async function upsertPendingPosition(position: PendingReadingPosition): Promise<void> {
+  const db = await ensureReplica();
+  await db.execute(
+    `INSERT INTO PendingPosition (userId, projectId, chapterId, blockId, offset, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(userId, projectId) DO UPDATE SET
+       chapterId = excluded.chapterId,
+       blockId = excluded.blockId,
+       offset = excluded.offset,
+       updatedAt = excluded.updatedAt`,
+    [
+      position.userId,
+      position.projectId,
+      position.chapterId,
+      position.blockId,
+      position.offset,
+      position.updatedAt,
+    ]
+  );
+}
+
+export async function getPendingPosition(
+  userId: string,
+  projectId: string
+): Promise<PendingReadingPosition | null> {
+  const db = await ensureReplica();
+  const rows = await query<PendingReadingPosition>(
+    db,
+    `SELECT userId, projectId, chapterId, blockId, offset, updatedAt
+     FROM PendingPosition WHERE userId = ? AND projectId = ?`,
+    [userId, projectId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function deletePendingPosition(userId: string, projectId: string): Promise<void> {
+  const db = await ensureReplica();
+  await db.execute(`DELETE FROM PendingPosition WHERE userId = ? AND projectId = ?`, [
+    userId,
+    projectId,
+  ]);
 }

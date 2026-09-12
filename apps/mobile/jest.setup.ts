@@ -1,3 +1,9 @@
+jest.mock("@op-engineering/op-sqlite", () => ({
+  open: jest.fn(() => ({
+    execute: jest.fn(async () => ({ rows: [] })),
+  })),
+}));
+
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => {}),
