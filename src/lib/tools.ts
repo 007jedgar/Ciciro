@@ -29,6 +29,7 @@ import {
 } from "@/lib/reorg";
 import { backstageLine } from "@/lib/backstage";
 import { runRanker } from "@/lib/fast-lane";
+import { scheduleChapterSummary } from "@/lib/summarize";
 import type { ClientUiEvent } from "@/lib/types";
 
 export type { ClientUiEvent };
@@ -629,6 +630,22 @@ export function toolUiEvents(
 // Execute a tool call server-side. `status` is a short backstage label surfaced
 // to the author; `content` is fed back to the editor model.
 export async function executeEditorTool(
+  name: string,
+  input: Record<string, unknown>,
+  ctx: { projectId: string; activeChapterId?: string | null }
+): Promise<ToolResult> {
+  const result = await runEditorTool(name, input, ctx);
+  for (const event of toolUiEvents(result.ui)) {
+    if (event.type === "chapter_updated") {
+      void scheduleChapterSummary(event.chapterId);
+    } else if (event.type === "chapter_created") {
+      void scheduleChapterSummary(event.chapter.id);
+    }
+  }
+  return result;
+}
+
+async function runEditorTool(
   name: string,
   input: Record<string, unknown>,
   ctx: { projectId: string; activeChapterId?: string | null }

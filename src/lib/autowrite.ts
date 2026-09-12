@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { EDITOR_SYSTEM, DRAFTER_SYSTEM, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
 import { countWords, htmlToText } from "@/lib/text";
+import { scheduleChapterSummary } from "@/lib/summarize";
 
 // The autonomous drafting loop. The editor (Opus) plans a chapter into beats;
 // for each beat the drafter (Sonnet) writes prose from a brief, the editor edits
@@ -280,6 +281,7 @@ export async function runAutoWrite(opts: {
       revision: { increment: 1 },
     },
   });
+  void scheduleChapterSummary(chapterId);
 
   emit({
     type: "done",

@@ -9,6 +9,7 @@ import {
   type ChapterOpRecord,
   type RejectedOp,
 } from "@/lib/chapter-ops";
+import { scheduleChapterSummary } from "@/lib/summarize";
 import type { ManuscriptOp } from "@/lib/manuscript";
 import {
   getReadingPosition,
@@ -166,6 +167,7 @@ export async function pushSync(
   const accepted: AcceptedOp[] = [];
   const rejected: RejectedOp[] = [];
   const bibleRejected: RejectedBible[] = [];
+  const dirtyChapters = new Set<string>();
 
   for (const op of input.ops ?? []) {
     const chapter = await prisma.chapter.findUnique({
@@ -178,6 +180,7 @@ export async function pushSync(
     const result = await appendOps(chapter.id, user, [op]);
     accepted.push(...result.accepted);
     rejected.push(...result.rejected);
+    if (result.ops.length > 0) dirtyChapters.add(chapter.id);
   }
 
   for (const file of input.bible ?? []) {
@@ -203,6 +206,10 @@ export async function pushSync(
 
   if (input.position) {
     await putReadingPosition(projectId, user, input.position);
+  }
+
+  for (const chapterId of dirtyChapters) {
+    void scheduleChapterSummary(chapterId);
   }
 
   const pulled = await pullSync(projectId, user, input.after ?? {});

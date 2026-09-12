@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { AuthError, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { appendOps, listChapterOps, parseManuscriptOp } from "@/lib/chapter-ops";
+import { summarizeChapter } from "@/lib/summarize";
 
 export const runtime = "nodejs";
 
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
   try {
     const result = await appendOps(id, user, ops, { actor: "user" });
+    if (result.ops.length > 0) {
+      after(() => summarizeChapter(id).catch(() => {}));
+    }
     if (result.rejected.length > 0 && result.ops.length === 0) {
       throw new AuthError("Chapter revision conflict", 409, {
         error: "Chapter revision conflict",
