@@ -257,6 +257,27 @@ describe("mobile sync engine", () => {
     expect(pushed).toBe(1);
   });
 
+  it("applies a chapter op to the replica before it is queued", async () => {
+    const store = createMemoryReplica();
+    await store.upsertChapter({
+      ...chapter,
+      content: '<p data-block-id="b-desk">The lantern was still burning.</p>',
+      revision: 1,
+    });
+    await recordChapterOp(store, "p1", {
+      opId: "phone-2",
+      chapterId: "c1",
+      baseRevision: 1,
+      actor: "user",
+      type: "replace_block",
+      blockId: "b-desk",
+      html: '<p data-block-id="b-desk">The lantern flickered.</p>',
+    });
+    expect((await store.getChapter("c1"))?.content).toContain("flickered");
+    expect((await store.getChapter("c1"))?.revision).toBe(2);
+    expect(await store.listPendingOps("p1")).toHaveLength(1);
+  });
+
   it("notifies on AppState active", () => {
     const calls: string[] = [];
     let handler: ((status: string) => void) | null = null;

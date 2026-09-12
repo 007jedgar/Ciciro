@@ -15,7 +15,7 @@ import type {
   ReplicaReadingPosition,
 } from "./db";
 import type { ManuscriptOp } from "./manuscript";
-import { applyRemoteOps, rebaseRejectedOp } from "./sync-merge";
+import { applyPendingOps, applyRemoteOps, preserveFocusedBlocks, rebaseRejectedOp } from "./sync-merge";
 import { opFromPayload, payloadOf, type ReplicaStore } from "./replica-store";
 
 export type SyncApi = {
@@ -42,6 +42,10 @@ export type SyncCycleResult = {
 export type SyncScope = {
   projectId: string;
   userId: string;
+};
+
+export type SyncSkipOptions = {
+  skipBlockIds?: Iterable<string>;
 };
 
 function nowIso(): string {
@@ -130,7 +134,8 @@ async function applyPulledOps(
   store: ReplicaStore,
   api: SyncApi,
   projectId: string,
-  ops: ChapterOpRecord[]
+  ops: ChapterOpRecord[],
+  skipBlockIds?: Iterable<string>
 ): Promise<number> {
   const byChapter = new Map<string, ChapterOpRecord[]>();
   for (const op of ops) {
@@ -140,6 +145,7 @@ async function applyPulledOps(
     await store.insertOp(replicaOpFromRemote(op));
   }
 
+  const skip = { skipBlockIds };
   let applied = 0;
   for (const [chapterId, chapterOps] of byChapter) {
     let snapshot = await store.getChapter(chapterId);
@@ -148,20 +154,20 @@ async function applyPulledOps(
     }
     if (!snapshot) continue;
 
-    const result = applyRemoteOps(snapshot, chapterOps);
+    const result = applyRemoteOps(snapshot, chapterOps, skip);
     if (result.ok) {
-      await store.upsertChapter(result.chapter);
+      await store.upsertChapter(preserveFocusedBlocks(snapshot, result.chapter, skipBlockIds));
       applied += result.applied;
       continue;
     }
     const fresh = await refetchChapter(store, api, projectId, chapterId);
     if (fresh) {
-      const retry = applyRemoteOps(fresh, chapterOps);
+      const retry = applyRemoteOps(fresh, chapterOps, skip);
       if (retry.ok) {
-        await store.upsertChapter(retry.chapter);
+        await store.upsertChapter(preserveFocusedBlocks(snapshot, retry.chapter, skipBlockIds));
         applied += retry.applied;
       } else {
-        await store.upsertChapter(fresh);
+        await store.upsertChapter(preserveFocusedBlocks(snapshot, fresh, skipBlockIds));
       }
     }
   }
@@ -226,9 +232,10 @@ async function applySyncResult(
   store: ReplicaStore,
   api: SyncApi,
   scope: SyncScope,
-  result: SyncResult
+  result: SyncResult,
+  skipBlockIds?: Iterable<string>
 ): Promise<{ pulledOps: number; position: ReplicaReadingPosition | null }> {
-  const pulledOps = await applyPulledOps(store, api, scope.projectId, result.ops);
+  const pulledOps = await applyPulledOps(store, api, scope.projectId, result.ops, skipBlockIds);
   await applyBiblePull(store, scope.projectId, result.bibleFiles);
   const position = await applyPositionPull(store, scope, result.position);
   return { pulledOps, position };
@@ -251,6 +258,13 @@ export async function recordChapterOp(
   projectId: string,
   op: SyncOp
 ): Promise<void> {
+  const snapshot = await store.getChapter(op.chapterId);
+  if (snapshot) {
+    const applied = applyPendingOps(snapshot, [op]);
+    if (applied.content !== snapshot.content || applied.revision !== snapshot.revision) {
+      await store.upsertChapter(applied);
+    }
+  }
   await store.enqueueOp({
     opId: op.opId,
     chapterId: op.chapterId,
@@ -412,7 +426,8 @@ async function finishCycle(
 export async function pullProject(
   store: ReplicaStore,
   scope: SyncScope,
-  api: SyncApi = defaultSyncApi
+  api: SyncApi = defaultSyncApi,
+  opts?: SyncSkipOptions
 ): Promise<SyncCycleResult> {
   const localChapters = await store.listChapters(scope.projectId);
   if (localChapters.length === 0) {
@@ -423,33 +438,35 @@ export async function pullProject(
   }
   const after = await localAfter(store, scope.projectId);
   const result = await api.pull(scope.projectId, after);
-  const applied = await applySyncResult(store, api, scope, result);
+  const applied = await applySyncResult(store, api, scope, result, opts?.skipBlockIds);
   return finishCycle(store, scope, applied.pulledOps, 0, 0, 0, applied.position);
 }
 
 async function pushOnce(
   store: ReplicaStore,
   scope: SyncScope,
-  api: SyncApi
+  api: SyncApi,
+  skipBlockIds?: Iterable<string>
 ): Promise<{ result: SyncResult; body: SyncPushRequest; rebased: number; dropped: number }> {
   const body = await collectPushBody(store, scope);
   const result = await api.push(body);
   const handled = await handleRejected(store, scope, result, body);
-  await applySyncResult(store, api, scope, result);
+  await applySyncResult(store, api, scope, result, skipBlockIds);
   return { result, body, ...handled };
 }
 
 export async function pushProject(
   store: ReplicaStore,
   scope: SyncScope,
-  api: SyncApi = defaultSyncApi
+  api: SyncApi = defaultSyncApi,
+  opts?: SyncSkipOptions
 ): Promise<SyncCycleResult> {
-  const first = await pushOnce(store, scope, api);
+  const first = await pushOnce(store, scope, api, opts?.skipBlockIds);
   let rebased = first.rebased;
   let dropped = first.dropped;
   let last = first;
   if (first.rebased > 0) {
-    last = await pushOnce(store, scope, api);
+    last = await pushOnce(store, scope, api, opts?.skipBlockIds);
     rebased += last.rebased;
     dropped += last.dropped;
   }
@@ -468,15 +485,16 @@ export async function pushProject(
 export async function syncProject(
   store: ReplicaStore,
   scope: SyncScope,
-  api: SyncApi = defaultSyncApi
+  api: SyncApi = defaultSyncApi,
+  opts?: SyncSkipOptions
 ): Promise<SyncCycleResult> {
   const existing = inflight.get(scope.projectId);
   if (existing) return existing;
   const run = (async () => {
     if (await hasPending(store, scope)) {
-      return pushProject(store, scope, api);
+      return pushProject(store, scope, api, opts);
     }
-    return pullProject(store, scope, api);
+    return pullProject(store, scope, api, opts);
   })().finally(() => {
     inflight.delete(scope.projectId);
   });
