@@ -55,6 +55,22 @@ export function mergeWritingDay(
   };
 }
 
+/** Same reference when totals are unchanged — required by useSyncExternalStore getSnapshot. */
+export function holdWritingDaySnapshot(
+  cached: WritingDayTotals | null,
+  next: WritingDayTotals
+): WritingDayTotals {
+  if (
+    cached &&
+    cached.date === next.date &&
+    cached.words === next.words &&
+    cached.activeMs === next.activeMs
+  ) {
+    return cached;
+  }
+  return next;
+}
+
 export function parseWritingDayDate(value: unknown): string | { error: string } {
   if (typeof value !== "string" || !WRITING_DAY_RE.test(value)) {
     return { error: "date must be YYYY-MM-DD." };

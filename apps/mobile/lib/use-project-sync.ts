@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { AppState, Platform } from "react-native";
 import { queryKeys } from "./api/keys";
 import { queryClient } from "./api/query";
@@ -178,13 +178,16 @@ export function useProjectSync(
     [projectId, run, store, user]
   );
 
-  return {
-    position,
-    syncing,
-    syncNow: () => run("auto"),
-    pullNow: () => run("pull"),
-    recordOp,
-    recordBible,
-    recordPosition,
-  };
+  return useMemo(
+    () => ({
+      position,
+      syncing,
+      syncNow: () => run("auto"),
+      pullNow: () => run("pull"),
+      recordOp,
+      recordBible,
+      recordPosition,
+    }),
+    [position, recordBible, recordOp, recordPosition, run, syncing]
+  );
 }

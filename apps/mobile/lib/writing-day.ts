@@ -50,6 +50,22 @@ export function mergeWritingDay(
   };
 }
 
+/** Same reference when totals are unchanged — required by useSyncExternalStore getSnapshot. */
+export function holdWritingDaySnapshot(
+  cached: WritingDayTotals | null,
+  next: WritingDayTotals
+): WritingDayTotals {
+  if (
+    cached &&
+    cached.date === next.date &&
+    cached.words === next.words &&
+    cached.activeMs === next.activeMs
+  ) {
+    return cached;
+  }
+  return next;
+}
+
 export class WritingDayAccumulator {
   date: string;
   syncedWords = 0;

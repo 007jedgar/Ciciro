@@ -165,7 +165,10 @@ const BlockInput = memo(function BlockInput({
   return (
     <View
       testID={popup ? `grammar-anchor-${block.id}` : undefined}
-      onLayout={(e) => setBlockWidth(e.nativeEvent.layout.width)}
+      onLayout={(e) => {
+        const width = e.nativeEvent.layout.width;
+        setBlockWidth((current) => (current === width ? current : width));
+      }}
       style={{ marginBottom: 12, overflow: "visible", zIndex: popup ? 4 : 0 }}
     >
       <TextInput
@@ -232,7 +235,10 @@ const BlockInput = memo(function BlockInput({
           pointerEvents="box-none"
           onLayout={(e) => {
             const { width, height } = e.nativeEvent.layout;
-            if (width && height) setPopupSize({ width, height });
+            if (!width || !height) return;
+            setPopupSize((current) =>
+              current.width === width && current.height === height ? current : { width, height }
+            );
           }}
           style={{
             position: "absolute",

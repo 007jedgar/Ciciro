@@ -5,6 +5,7 @@ import { getWritingDay, upsertWritingDay } from "./db";
 import { useSession } from "./session";
 import {
   HEARTBEAT_MS,
+  holdWritingDaySnapshot,
   WritingDayAccumulator,
   writingDayKey,
   type WritingDayTotals,
@@ -12,6 +13,7 @@ import {
 
 const acc = new WritingDayAccumulator();
 const listeners = new Set<() => void>();
+let cachedSnapshot: WritingDayTotals | null = null;
 let userId: string | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let inFlight: WritingDayTotals | null = null;
@@ -145,7 +147,12 @@ export function stopWritingDay(): void {
 
 export function getWritingDaySnapshot(): WritingDayTotals {
   const snap = acc.snapshot();
-  return { date: snap.date, words: snap.words, activeMs: snap.activeMs };
+  cachedSnapshot = holdWritingDaySnapshot(cachedSnapshot, {
+    date: snap.date,
+    words: snap.words,
+    activeMs: snap.activeMs,
+  });
+  return cachedSnapshot;
 }
 
 export function subscribeWritingDay(listener: () => void): () => void {
