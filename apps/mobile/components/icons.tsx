@@ -22,6 +22,30 @@ export function ChevronLeftIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+export function ChevronRightIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Polyline
+        points="9,5 16,12 9,19"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+export function CloseIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Line x1="6" y1="6" x2="18" y2="18" stroke={color} strokeWidth={2.1} strokeLinecap="round" />
+      <Line x1="18" y1="6" x2="6" y2="18" stroke={color} strokeWidth={2.1} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export function SlidersIcon({ color, size = 20 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
