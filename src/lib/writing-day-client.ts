@@ -10,7 +10,7 @@ import {
 type ServerDay = WritingDayTotals & { updatedAt?: string };
 
 let acc = new WritingDayAccumulator();
-let listeners = new Set<() => void>();
+const listeners = new Set<() => void>();
 let cachedSnapshot: WritingDayTotals | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let inFlight: WritingDayTotals | null = null;
