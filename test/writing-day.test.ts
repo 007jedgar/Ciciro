@@ -4,6 +4,7 @@ import { registerUser } from "@/lib/auth/session";
 import {
   WritingDayAccumulator,
   activeMsForStroke,
+  holdWritingDaySnapshot,
   mergeWritingDay,
   parseWritingDayPut,
   PAUSE_MS,
@@ -24,6 +25,16 @@ describe("writing day", () => {
     expect(acc.snapshot().activeMs).toBe(8_000);
     expect(activeMsForStroke(0, PAUSE_MS + 1)).toBe(0);
     expect(activeMsForStroke(0, PAUSE_MS)).toBe(PAUSE_MS);
+  });
+
+  it("reuses the snapshot object when daily totals have not changed", () => {
+    const held = { date: "2026-09-12", words: 10, activeMs: 4_000 };
+    expect(holdWritingDaySnapshot(held, { date: "2026-09-12", words: 10, activeMs: 4_000 })).toBe(held);
+    expect(holdWritingDaySnapshot(held, { date: "2026-09-12", words: 11, activeMs: 4_000 })).toEqual({
+      date: "2026-09-12",
+      words: 11,
+      activeMs: 4_000,
+    });
   });
 
   it("rejects a malformed heartbeat", () => {

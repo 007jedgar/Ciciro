@@ -98,7 +98,19 @@ export function ProjectProvider({
       recordChapterOp: sync.recordOp,
       setEditingBlockId,
     }),
-    [project, query, error, selectedChapterId, addChapter, sync, setEditingBlockId]
+    [
+      addChapter,
+      error,
+      project,
+      query.isPending,
+      query.refetch,
+      selectedChapterId,
+      setEditingBlockId,
+      sync.position,
+      sync.recordOp,
+      sync.recordPosition,
+      sync.syncNow,
+    ]
   );
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

@@ -1,9 +1,11 @@
 import {
   WritingDayAccumulator,
   activeMsForStroke,
+  holdWritingDaySnapshot,
   mergeWritingDay,
   PAUSE_MS,
 } from "../lib/writing-day";
+import { getWritingDaySnapshot, stopWritingDay } from "../lib/writing-day-session";
 
 describe("writing day", () => {
   it("merges two heartbeats on the same date", () => {
@@ -24,5 +26,17 @@ describe("writing day", () => {
     expect(acc.snapshot().activeMs).toBe(8_000);
     expect(activeMsForStroke(0, PAUSE_MS + 1)).toBe(0);
     expect(activeMsForStroke(0, PAUSE_MS)).toBe(PAUSE_MS);
+  });
+
+  it("reuses the snapshot object when daily totals have not changed", () => {
+    const held = { date: "2026-09-12", words: 10, activeMs: 4_000 };
+    expect(holdWritingDaySnapshot(held, { date: "2026-09-12", words: 10, activeMs: 4_000 })).toBe(held);
+    expect(holdWritingDaySnapshot(held, { date: "2026-09-12", words: 11, activeMs: 4_000 })).toEqual({
+      date: "2026-09-12",
+      words: 11,
+      activeMs: 4_000,
+    });
+    stopWritingDay();
+    expect(getWritingDaySnapshot()).toBe(getWritingDaySnapshot());
   });
 });

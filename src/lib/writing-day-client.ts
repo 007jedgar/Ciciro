@@ -2,6 +2,7 @@
 
 import {
   HEARTBEAT_MS,
+  holdWritingDaySnapshot,
   WritingDayAccumulator,
   type WritingDayTotals,
 } from "@/lib/writing-day";
@@ -10,6 +11,7 @@ type ServerDay = WritingDayTotals & { updatedAt?: string };
 
 let acc = new WritingDayAccumulator();
 let listeners = new Set<() => void>();
+let cachedSnapshot: WritingDayTotals | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let inFlight: WritingDayTotals | null = null;
 let hydrating: Promise<void> | null = null;
@@ -87,7 +89,12 @@ async function flushLeftover(leftover: WritingDayTotals | null): Promise<void> {
 
 export function getWritingDaySnapshot(): WritingDayTotals {
   const snap = acc.snapshot();
-  return { date: snap.date, words: snap.words, activeMs: snap.activeMs };
+  cachedSnapshot = holdWritingDaySnapshot(cachedSnapshot, {
+    date: snap.date,
+    words: snap.words,
+    activeMs: snap.activeMs,
+  });
+  return cachedSnapshot;
 }
 
 export function subscribeWritingDay(listener: () => void): () => void {
@@ -145,4 +152,5 @@ export function resetWritingDayClient(now = Date.now()): void {
 /** Test seam: swap the accumulator without exposing it to the UI. */
 export function _setWritingDayAccumulatorForTests(next: WritingDayAccumulator): void {
   acc = next;
+  cachedSnapshot = null;
 }
