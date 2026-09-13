@@ -183,7 +183,7 @@ The client sends `credentials: 'include'` and, because React Native does not tre
 
 ## GitHub CI
 
-Current `main` does not yet include `.github/workflows` or `docs/ci.md`. When that workflow lands, a repo admin should require the check named **`test`** on `main` (Settings → Branches or Rulesets). Until then, run `npm test` locally before you merge.
+The **`test`** workflow in `.github/workflows/ci.yml` runs lint, typecheck, Vitest, and mobile Jest on every pull request. `main` requires that check before merge. See [CI](ci.md).
 
 ## First time hosted (ordered)
 
@@ -196,4 +196,4 @@ Current `main` does not yet include `.github/workflows` or `docs/ci.md`. When th
 7. Docker alternative to steps 4-5: `docker build -t ciciro .` and `docker run` with the same two env vars (auth is on in the image).
 8. Optional: Groq key as `GROQ_API_KEY`.
 9. Mobile: `cd apps/mobile && npm install`. Set `EXPO_PUBLIC_API_URL` to the origin from step 5 or 7. Then `npx expo start`. Sign in against that host. The app never gets `ANTHROPIC_API_KEY`.
-10. When CI exists, mark GitHub check `test` required on `main`.
+10. Confirm the GitHub **`test`** check is required on `main` (Settings → Rulesets).
