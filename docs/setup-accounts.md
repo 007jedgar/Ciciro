@@ -183,7 +183,7 @@ The client sends `credentials: 'include'` and, because React Native does not tre
 
 ## GitHub CI
 
-The **`test`** workflow in `.github/workflows/ci.yml` runs lint, typecheck, Vitest, and mobile Jest on every pull request. `main` requires that check before merge. See [CI](ci.md).
+The **`test`** workflow in `.github/workflows/ci.yml` runs lint, Vitest, and mobile Jest on every pull request. `main` requires that check before merge. See [CI](ci.md).
 
 ## First time hosted (ordered)
 
