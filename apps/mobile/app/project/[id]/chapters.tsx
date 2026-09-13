@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
+import { SkeletonList } from "../../../components/Skeleton";
 import { ApiError } from "../../../lib/api";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
@@ -26,8 +27,8 @@ export default function ChaptersScreen() {
 
   if (loading && !project) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[layout.padded, { paddingTop: 8 }]}>
+        <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }

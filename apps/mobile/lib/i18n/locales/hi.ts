@@ -11,6 +11,7 @@ const hi: Translations = {
     off: "बंद",
     settings: "सेटिंग्स",
     ciciro: "Ciciro",
+    loading: "लोड हो रहा है",
   },
   errors: {
     network: "नेटवर्क त्रुटि। फिर कोशिश करें।",

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../components/AppHeader";
+import { SkeletonList } from "../../components/Skeleton";
 import {
   ApiError,
   useAddProjectsToFolderMutation,
@@ -65,8 +65,8 @@ export default function FolderScreen() {
 
   if (!ready) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
+        <SkeletonList count={5} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }
@@ -140,7 +140,7 @@ export default function FolderScreen() {
           </Text>
         ) : null}
         {!folder && !loadError ? (
-          <ActivityIndicator color={colors.accent} />
+          <SkeletonList count={5} accessibilityLabel={t("common.loading")} />
         ) : folder ? (
           <>
             <TextInput

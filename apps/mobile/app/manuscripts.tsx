@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { FolderPlusIcon, NewChapterIcon } from "../components/icons";
+import { SkeletonList } from "../components/Skeleton";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 import type { Folder, ProjectListItem } from "../lib/types";
@@ -57,8 +58,8 @@ export default function ManuscriptsScreen() {
 
   if (!ready) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
+        <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }
@@ -100,7 +101,9 @@ export default function ManuscriptsScreen() {
         </Text>
       ) : null}
       {loading && !error ? (
-        <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
+        </View>
       ) : (
         <FlatList
           scrollEnabled={true}

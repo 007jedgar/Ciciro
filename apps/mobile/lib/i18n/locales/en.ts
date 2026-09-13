@@ -9,6 +9,7 @@ const en = {
     off: "Off",
     settings: "Settings",
     ciciro: "Ciciro",
+    loading: "Loading",
   },
   errors: {
     network: "Network error. Try again.",

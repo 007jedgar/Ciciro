@@ -11,6 +11,7 @@ const es: Translations = {
     off: "Desactivado",
     settings: "Ajustes",
     ciciro: "Ciciro",
+    loading: "Cargando",
   },
   errors: {
     network: "Error de red. Inténtalo de nuevo.",

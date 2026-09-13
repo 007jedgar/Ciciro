@@ -1,8 +1,9 @@
 import { Redirect, Tabs, useLocalSearchParams, useRouter } from "expo-router";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
 import { ManuscriptTabBar } from "../../../components/ManuscriptTabBar";
+import { SkeletonList } from "../../../components/Skeleton";
 import { WritingMeter } from "../../../components/WritingMeter";
 import { ProjectProvider, useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
@@ -31,8 +32,8 @@ export default function ProjectTabsLayout() {
 
   if (!ready) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
+        <SkeletonList count={5} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }
