@@ -12,22 +12,28 @@ import { useOptionalAppTheme } from "../lib/app-theme-context";
 import { SettingsProvider } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
+import { StackPopTransition } from "../components/StackPopTransition";
 import { WritingDayProvider } from "../lib/writing-day-session";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 
 function ThemedStack() {
   const theme = useOptionalAppTheme();
   const colors = theme?.colors ?? THEME_PALETTES.parchment;
   const dark = theme?.dark ?? false;
+  const reduceMotion = useReduceMotion();
   const { t } = useTranslation();
   return (
     <>
       <StatusBar style={dark ? "light" : "dark"} />
       <Stack
+        screenLayout={({ children }) => <StackPopTransition>{children}</StackPopTransition>}
         screenOptions={{
           headerTintColor: colors.accent,
           headerStyle: { backgroundColor: colors.panel },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.bg },
+          animation: reduceMotion ? "fade" : "none",
+          animationDuration: reduceMotion ? 140 : 320,
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
