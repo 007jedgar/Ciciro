@@ -137,6 +137,8 @@ const hi: Translations = {
     reduceMotionHint: "पूरे ऐप में एनिमेशन बंद करें।",
     dailyGoal: "दैनिक शब्द",
     dailyGoalHint: "पाँच मिनट एक सत्र है। कोई स्ट्रीक नहीं बचानी।",
+    wordGoal: "शब्द लक्ष्य",
+    dailyGoalValue: "{{count}} शब्द",
     meterA11y: "आज {{goal}} में से {{words}} शब्द",
     account: "खाता",
     signedIn: "Ciciro में साइन इन हैं",
