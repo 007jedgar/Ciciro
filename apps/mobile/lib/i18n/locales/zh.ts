@@ -137,6 +137,8 @@ const zh: Translations = {
     reduceMotionHint: "关闭应用中的动画。",
     dailyGoal: "每日字数",
     dailyGoalHint: "五分钟就是一次写作。没有连续天数要维持。",
+    wordGoal: "字数目标",
+    dailyGoalValue: "{{count}} 词",
     meterA11y: "今日 {{words}} / {{goal}} 词",
     account: "账户",
     signedIn: "已登录 Ciciro",

@@ -1,22 +1,209 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
-import { LanguagePicker } from "../components/LanguagePicker";
-import { EDITOR_FONT_SIZES } from "../lib/app-settings";
+import { GlassSheet } from "../components/GlassSheet";
+import { CheckIcon, ChevronRightIcon } from "../components/icons";
+import { EDITOR_FONT_SIZES, type EditorFont, type EditorFontSize } from "../lib/app-settings";
+import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
-import { THEME_META, THEME_PALETTES } from "../lib/theme";
+import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
+
+type SheetId = "language" | "theme" | "font" | "size" | "goal";
+
+const WORD_GOALS = [100, 250, 500] as const;
+
+function Group({ children, colors }: { children: ReactNode; colors: ColorTokens }) {
+  return (
+    <View
+      style={{
+        backgroundColor: colors.panel,
+        borderColor: colors.line,
+        borderWidth: 1,
+        borderRadius: 16,
+        overflow: "hidden",
+        marginBottom: 16,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function Hairline({ colors }: { colors: ColorTokens }) {
+  return <View style={{ height: 1, backgroundColor: colors.line, marginLeft: 16 }} />;
+}
+
+function SheetRow({
+  label,
+  value,
+  onPress,
+  colors,
+  last,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+  colors: ColorTokens;
+  last?: boolean;
+}) {
+  return (
+    <>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${value}`}
+        style={({ pressed }) => ({
+          minHeight: 52,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          backgroundColor: pressed ? colors.panel2 : "transparent",
+        })}
+      >
+        <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{label}</Text>
+        <Text style={{ fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
+          {value}
+        </Text>
+        <ChevronRightIcon color={colors.inkSoft} size={16} />
+      </Pressable>
+      {last ? null : <Hairline colors={colors} />}
+    </>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  value,
+  onValueChange,
+  colors,
+  last,
+}: {
+  label: string;
+  hint: string;
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+  colors: ColorTokens;
+  last?: boolean;
+}) {
+  return (
+    <>
+      <View
+        style={{
+          minHeight: 52,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <Text style={{ fontSize: 17, color: colors.ink }}>{label}</Text>
+          <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{hint}</Text>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          trackColor={{ false: colors.line, true: colors.accent }}
+          thumbColor={colors.panel}
+          accessibilityLabel={label}
+        />
+      </View>
+      {last ? null : <Hairline colors={colors} />}
+    </>
+  );
+}
+
+function OptionRow({
+  label,
+  selected,
+  onPress,
+  colors,
+  swatch,
+  preview,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  colors: ColorTokens;
+  swatch?: string;
+  preview?: "serif" | "sans";
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      style={({ pressed }) => ({
+        minHeight: 48,
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        backgroundColor: selected ? colors.accentSoft : pressed ? colors.panel2 : "transparent",
+        borderWidth: 1,
+        borderColor: selected ? colors.accent : "transparent",
+        marginBottom: 8,
+      })}
+    >
+      {swatch ? (
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            backgroundColor: swatch,
+            borderWidth: 1,
+            borderColor: colors.line,
+          }}
+        />
+      ) : null}
+      <Text
+        style={{
+          flex: 1,
+          fontSize: 17,
+          color: colors.ink,
+          fontFamily: preview === "serif" ? fonts.serif : preview === "sans" ? fonts.sans : undefined,
+        }}
+      >
+        {label}
+      </Text>
+      {selected ? <CheckIcon color={colors.accent} size={16} /> : null}
+    </Pressable>
+  );
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
-  const sizeIndex = EDITOR_FONT_SIZES.indexOf(settings.editorFontSize);
+  const [sheet, setSheet] = useState<SheetId | null>(null);
+  const locale = currentLocale();
+  const localeName = LOCALE_OPTIONS.find((opt) => opt.id === locale)?.nativeName ?? locale;
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
+
+  const sheetTitle =
+    sheet === "language"
+      ? t("settings.language")
+      : sheet === "theme"
+        ? t("settings.theme")
+        : sheet === "font"
+          ? t("settings.type")
+          : sheet === "size"
+            ? t("settings.size")
+            : sheet === "goal"
+              ? t("settings.wordGoal")
+              : undefined;
 
   return (
     <View style={layout.screen}>
@@ -27,227 +214,168 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
 
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.language")}</Text>
-      <View style={{ marginBottom: 20 }}>
-        <LanguagePicker />
-      </View>
+        <Group colors={colors}>
+          <SheetRow
+            label={t("settings.language")}
+            value={localeName}
+            onPress={() => setSheet("language")}
+            colors={colors}
+          />
+          <SheetRow
+            label={t("settings.theme")}
+            value={t(`themes.${settings.theme}`)}
+            onPress={() => setSheet("theme")}
+            colors={colors}
+          />
+          <SheetRow
+            label={t("settings.type")}
+            value={settings.editorFont === "serif" ? t("settings.serif") : t("settings.sans")}
+            onPress={() => setSheet("font")}
+            colors={colors}
+          />
+          <SheetRow
+            label={t("settings.size")}
+            value={t("settings.sizeValue", { size: settings.editorFontSize })}
+            onPress={() => setSheet("size")}
+            colors={colors}
+            last
+          />
+        </Group>
 
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.theme")}</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-        {THEME_META.map((theme) => {
-          const swatch = THEME_PALETTES[theme.id];
-          const active = settings.theme === theme.id;
-          return (
-            <Pressable
-              key={theme.id}
-              onPress={() => patch({ theme: theme.id })}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              style={[
-                layout.card,
-                {
-                  width: "47%",
-                  marginBottom: 0,
-                  borderColor: active ? colors.accent : colors.line,
-                  backgroundColor: active ? colors.accentSoft : colors.panel,
-                },
-              ]}
-            >
-              <View
-                style={{
-                  height: 18,
-                  borderRadius: 4,
-                  marginBottom: 8,
-                  backgroundColor: swatch.bg,
-                  borderWidth: 1,
-                  borderColor: swatch.line,
+        <Group colors={colors}>
+          <ToggleRow
+            label={t("settings.autocorrect")}
+            hint={t("settings.autocorrectHint")}
+            value={settings.autoCorrect}
+            onValueChange={(autoCorrect) => patch({ autoCorrect })}
+            colors={colors}
+          />
+          <ToggleRow
+            label={t("settings.reduceMotion")}
+            hint={t("settings.reduceMotionHint")}
+            value={settings.reduceMotion}
+            onValueChange={(reduceMotion) => patch({ reduceMotion })}
+            colors={colors}
+          />
+          <ToggleRow
+            label={t("settings.dailyGoal")}
+            hint={t("settings.dailyGoalHint")}
+            value={settings.showDailyGoal}
+            onValueChange={(showDailyGoal) => patch({ showDailyGoal })}
+            colors={colors}
+            last={!settings.showDailyGoal}
+          />
+          {settings.showDailyGoal ? (
+            <SheetRow
+              label={t("settings.wordGoal")}
+              value={t("settings.dailyGoalValue", { count: settings.dailyWordGoal })}
+              onPress={() => setSheet("goal")}
+              colors={colors}
+              last
+            />
+          ) : null}
+        </Group>
+
+        <Group colors={colors}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
+            <Text style={{ fontSize: 17, color: colors.ink }}>{user.email}</Text>
+            <Text style={{ marginTop: 3, fontSize: 13, color: colors.inkSoft }}>{t("settings.signedIn")}</Text>
+          </View>
+          <Hairline colors={colors} />
+          <Pressable
+            onPress={() => void logout().then(() => router.replace("/"))}
+            accessibilityRole="button"
+            style={({ pressed }) => ({
+              minHeight: 52,
+              paddingHorizontal: 16,
+              justifyContent: "center",
+              backgroundColor: pressed ? colors.panel2 : "transparent",
+            })}
+          >
+            <Text style={{ fontSize: 17, color: colors.danger }}>{t("settings.signOut")}</Text>
+          </Pressable>
+        </Group>
+      </ScrollView>
+
+      <GlassSheet
+        visible={sheet !== null}
+        onClose={() => setSheet(null)}
+        title={sheetTitle}
+        accent={colors.accent}
+      >
+        {sheet === "language"
+          ? LOCALE_OPTIONS.map((opt) => (
+              <OptionRow
+                key={opt.id}
+                label={opt.nativeName}
+                selected={locale === opt.id}
+                colors={colors}
+                onPress={() => {
+                  void setAppLocale(opt.id as AppLocale);
+                  setSheet(null);
                 }}
               />
-              <Text style={layout.cardTitle}>{t(`themes.${theme.id}`)}</Text>
-              <Text style={layout.cardMeta}>{t(`themes.${theme.mode}`)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.manuscript")}</Text>
-      <View style={layout.card}>
-        <Text style={layout.cardTitle}>{t("settings.type")}</Text>
-        <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-          {(["serif", "sans"] as const).map((font) => (
-            <Pressable
-              key={font}
-              onPress={() => patch({ editorFont: font })}
-              style={[
-                layout.primaryBtn,
-                {
-                  flex: 1,
-                  marginTop: 0,
-                  backgroundColor:
-                    settings.editorFont === font ? colors.accent : colors.panel2,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  layout.primaryBtnText,
-                  { color: settings.editorFont === font ? colors.panel : colors.ink },
-                ]}
-              >
-                {font === "serif" ? t("settings.serif") : t("settings.sans")}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={[layout.cardTitle, { marginTop: 16 }]}>{t("settings.size")}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 }}>
-          <Pressable
-            accessibilityLabel={t("settings.smallerType")}
-            disabled={sizeIndex <= 0}
-            onPress={() =>
-              patch({ editorFontSize: EDITOR_FONT_SIZES[Math.max(0, sizeIndex - 1)] })
-            }
-            style={[layout.primaryBtn, { flex: 1, marginTop: 0, backgroundColor: colors.panel2 }]}
-          >
-            <Text style={[layout.primaryBtnText, { color: colors.ink }]}>A-</Text>
-          </Pressable>
-          <Text style={layout.body}>{t("settings.sizeValue", { size: settings.editorFontSize })}</Text>
-          <Pressable
-            accessibilityLabel={t("settings.largerType")}
-            disabled={sizeIndex >= EDITOR_FONT_SIZES.length - 1}
-            onPress={() =>
-              patch({
-                editorFontSize:
-                  EDITOR_FONT_SIZES[Math.min(EDITOR_FONT_SIZES.length - 1, sizeIndex + 1)],
-              })
-            }
-            style={[layout.primaryBtn, { flex: 1, marginTop: 0, backgroundColor: colors.panel2 }]}
-          >
-            <Text style={[layout.primaryBtnText, { color: colors.ink }]}>A+</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={layout.card}>
-        <Text style={layout.cardTitle}>{t("settings.autocorrect")}</Text>
-        <Text style={layout.cardMeta}>{t("settings.autocorrectHint")}</Text>
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{ checked: settings.autoCorrect }}
-          onPress={() => patch({ autoCorrect: !settings.autoCorrect })}
-          style={[
-            layout.primaryBtn,
-            {
-              marginTop: 12,
-              backgroundColor: settings.autoCorrect ? colors.accent : colors.panel2,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              layout.primaryBtnText,
-              { color: settings.autoCorrect ? colors.panel : colors.ink },
-            ]}
-          >
-            {settings.autoCorrect ? t("common.on") : t("common.off")}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View style={layout.card}>
-        <Text style={layout.cardTitle}>{t("settings.reduceMotion")}</Text>
-        <Text style={layout.cardMeta}>{t("settings.reduceMotionHint")}</Text>
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{ checked: settings.reduceMotion }}
-          onPress={() => patch({ reduceMotion: !settings.reduceMotion })}
-          style={[
-            layout.primaryBtn,
-            {
-              marginTop: 12,
-              backgroundColor: settings.reduceMotion ? colors.accent : colors.panel2,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              layout.primaryBtnText,
-              { color: settings.reduceMotion ? colors.panel : colors.ink },
-            ]}
-          >
-            {settings.reduceMotion ? t("common.on") : t("common.off")}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View style={layout.card}>
-        <Text style={layout.cardTitle}>{t("settings.dailyGoal")}</Text>
-        <Text style={layout.cardMeta}>{t("settings.dailyGoalHint")}</Text>
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{ checked: settings.showDailyGoal }}
-          onPress={() => patch({ showDailyGoal: !settings.showDailyGoal })}
-          style={[
-            layout.primaryBtn,
-            {
-              marginTop: 12,
-              backgroundColor: settings.showDailyGoal ? colors.accent : colors.panel2,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              layout.primaryBtnText,
-              { color: settings.showDailyGoal ? colors.panel : colors.ink },
-            ]}
-          >
-            {settings.showDailyGoal ? t("common.on") : t("common.off")}
-          </Text>
-        </Pressable>
-        {settings.showDailyGoal ? (
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-            {([100, 250, 500] as const).map((goal) => (
-              <Pressable
+            ))
+          : null}
+        {sheet === "theme"
+          ? THEME_META.map((theme) => (
+              <OptionRow
+                key={theme.id}
+                label={`${t(`themes.${theme.id}`)} · ${t(`themes.${theme.mode}`)}`}
+                selected={settings.theme === theme.id}
+                colors={colors}
+                swatch={THEME_PALETTES[theme.id].bg}
+                onPress={() => {
+                  patch({ theme: theme.id as ThemeId });
+                  setSheet(null);
+                }}
+              />
+            ))
+          : null}
+        {sheet === "font"
+          ? (["serif", "sans"] as const).map((font) => (
+              <OptionRow
+                key={font}
+                label={font === "serif" ? t("settings.serif") : t("settings.sans")}
+                selected={settings.editorFont === font}
+                colors={colors}
+                preview={font}
+                onPress={() => {
+                  patch({ editorFont: font as EditorFont });
+                  setSheet(null);
+                }}
+              />
+            ))
+          : null}
+        {sheet === "size"
+          ? EDITOR_FONT_SIZES.map((size) => (
+              <OptionRow
+                key={size}
+                label={t("settings.sizeValue", { size })}
+                selected={settings.editorFontSize === size}
+                colors={colors}
+                onPress={() => {
+                  patch({ editorFontSize: size as EditorFontSize });
+                  setSheet(null);
+                }}
+              />
+            ))
+          : null}
+        {sheet === "goal"
+          ? WORD_GOALS.map((goal) => (
+              <OptionRow
                 key={goal}
-                onPress={() => patch({ dailyWordGoal: goal })}
-                accessibilityState={{ selected: settings.dailyWordGoal === goal }}
-                style={[
-                  layout.primaryBtn,
-                  {
-                    flex: 1,
-                    marginTop: 0,
-                    backgroundColor:
-                      settings.dailyWordGoal === goal ? colors.accent : colors.panel2,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    layout.primaryBtnText,
-                    { color: settings.dailyWordGoal === goal ? colors.panel : colors.ink },
-                  ]}
-                >
-                  {goal}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </View>
-
-      <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("settings.account")}</Text>
-      <View style={layout.card}>
-        <Text style={layout.cardTitle}>{user.email}</Text>
-        <Text style={layout.cardMeta}>{t("settings.signedIn")}</Text>
-        <Pressable
-          onPress={() => void logout().then(() => router.replace("/"))}
-          accessibilityRole="button"
-          style={({ pressed }) => [layout.ghostBtn, { marginTop: 8, opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Text style={[layout.ghostBtnText, { color: colors.danger }]}>{t("settings.signOut")}</Text>
-        </Pressable>
-      </View>
-      </ScrollView>
+                label={t("settings.dailyGoalValue", { count: goal })}
+                selected={settings.dailyWordGoal === goal}
+                colors={colors}
+                onPress={() => {
+                  patch({ dailyWordGoal: goal });
+                  setSheet(null);
+                }}
+              />
+            ))
+          : null}
+      </GlassSheet>
     </View>
   );
 }
