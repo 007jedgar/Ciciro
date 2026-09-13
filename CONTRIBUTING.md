@@ -28,12 +28,13 @@ content.
 | `npm run setup` | Generate the Prisma client and push the schema to SQLite |
 | `npm run dev` | Next.js dev server |
 | `npm test` | Vitest suite (fresh temp SQLite per run) |
+| `npm run test:mobile` | Mobile Jest suite |
 | `npm run lint` | ESLint |
 | `npm run build` | Prisma generate + production Next.js build |
 | `npm run db:push` | Apply schema changes to the local db |
 | `npm run db:studio` | Inspect the local db |
 
-Run `npm test` and `npm run lint` before opening a pull request. If you change
+Run `npm test`, `npm run test:mobile`, and `npm run lint` before opening a pull request. GitHub Actions repeats those on the PR; `main` will not merge until the **`test`** check is green. If you change
 `prisma/schema.prisma`, also run `npm run db:push` and include the schema in the
 same PR.
 
@@ -75,6 +76,7 @@ on a live model call.
    easier to review as separate PRs.
 3. Describe the *why* in the PR body. Link any related issue.
 4. Note how you tested (commands plus a short manual check if the UI changed).
+   The **`test`** check must stay green; `main` cannot merge without it.
 
 Bug reports are welcome as issues: expected vs actual, steps, and whether the
 editor run was still `continuing` when it looked stuck.
