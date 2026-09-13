@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Text,
   TextInput,
   View,
@@ -13,6 +12,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { GrammarPopup } from "../../../components/GrammarPopup";
 import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
+import { SkeletonList } from "../../../components/Skeleton";
 import { ciciro } from "../../../lib/api";
 import type { SyncOp } from "../../../lib/api/types";
 import {
@@ -704,8 +704,8 @@ export default function ManuscriptScreen() {
 
   if (loading && !project) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[layout.padded, { paddingTop: 8 }]}>
+        <SkeletonList count={7} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }

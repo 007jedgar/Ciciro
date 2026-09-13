@@ -11,6 +11,7 @@ const zh: Translations = {
     off: "关",
     settings: "设置",
     ciciro: "Ciciro",
+    loading: "加载中",
   },
   errors: {
     network: "网络出错，请重试。",

@@ -1,7 +1,8 @@
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
+import { SkeletonList } from "../../../components/Skeleton";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
 
@@ -23,8 +24,8 @@ export default function CiciroScreen() {
 
   if (loading && !project) {
     return (
-      <View style={[layout.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[layout.padded, { paddingTop: 8 }]}>
+        <SkeletonList count={4} accessibilityLabel={t("common.loading")} />
       </View>
     );
   }
