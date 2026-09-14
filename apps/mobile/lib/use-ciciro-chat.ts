@@ -7,6 +7,9 @@ import type { ChatMessage, ChatStreamEvent, EditorRunInput } from "./api/types";
 import {
   applyChatStreamEvent,
   emptyChatStreamState,
+  hydrateChatMessages,
+  mergeChatTranscript,
+  upsertStreamAssistant,
   MAX_CONTINUATION_SLICES,
   type ChatStreamState,
 } from "./ciciro-stream";
@@ -61,7 +64,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     setLoading(true);
     try {
       const snapshot = await ciciro.chat.get(projectId);
-      setMessages(snapshot.messages.filter((m) => !m.archivedAt));
+      setMessages(hydrateChatMessages(snapshot));
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : i18n.t("ciciroTab.sendError"));
@@ -103,11 +106,12 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       const clientTurnId = input.clientTurnId ?? newClientTurnId();
       let resumeTurnId = input.resumeTurnId;
       let slices = 0;
+      let next = emptyChatStreamState();
 
       try {
         while (slices < MAX_CONTINUATION_SLICES) {
           slices += 1;
-          let next = emptyChatStreamState();
+          next = emptyChatStreamState();
           if (resumeTurnId) next = { ...next, turnId: resumeTurnId };
           const body: EditorRunInput = resumeTurnId
             ? { projectId, resumeTurnId }
@@ -123,11 +127,19 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
             },
             { signal: abort.signal }
           );
-          if (!next.status) throw new Error(i18n.t("ciciroTab.sendError"));
           if (next.status !== "continuing" || !next.turnId) break;
           resumeTurnId = next.turnId;
         }
-        await reload();
+        if (next.text.trim()) {
+          setMessages((current) => upsertStreamAssistant(current, next));
+        }
+        try {
+          const snapshot = await ciciro.chat.get(projectId);
+          setMessages((current) => mergeChatTranscript(hydrateChatMessages(snapshot), current));
+          setError(null);
+        } catch (reloadError) {
+          if (!next.text.trim()) throw reloadError;
+        }
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
         setError(err instanceof ApiError ? err.message : i18n.t("ciciroTab.sendError"));

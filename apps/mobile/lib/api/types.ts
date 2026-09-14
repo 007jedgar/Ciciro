@@ -161,6 +161,18 @@ export type ChatSnapshot = {
   runs: EditorRun[];
 };
 
+export function normalizeChatSnapshot(value: unknown): ChatSnapshot {
+  if (Array.isArray(value)) {
+    return { messages: value as ChatMessage[], runs: [] };
+  }
+  if (!value || typeof value !== "object") return { messages: [], runs: [] };
+  const snapshot = value as { messages?: unknown; runs?: unknown };
+  return {
+    messages: Array.isArray(snapshot.messages) ? (snapshot.messages as ChatMessage[]) : [],
+    runs: Array.isArray(snapshot.runs) ? (snapshot.runs as EditorRun[]) : [],
+  };
+}
+
 export type DraftInsertion = {
   id: string;
   projectId: string;

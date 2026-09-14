@@ -7,6 +7,9 @@ import {
   setSessionToken,
 } from "../session-store";
 import i18n from "../i18n";
+import { readNdjson, streamFromText } from "./ndjson";
+import type { NdjsonEvent } from "./types";
+import { readNdjsonViaXhr, shouldUseXhrNdjson } from "./xhr-ndjson";
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(
   /\/$/,
@@ -64,16 +67,7 @@ async function readJson(res: Response): Promise<unknown> {
   }
 }
 
-/**
- * Fetch helper for the hosted Ciciro API.
- *
- * Hosted auth is an httpOnly `ciciro_session` cookie. Browsers send that with
- * `credentials: "include"`. React Native fetch typically hides Set-Cookie and
- * drops in-memory cookie jars on Metro reload, so native clients identify
- * themselves, persist the token from a readable header/JSON field, and send it
- * back as a Cookie header.
- */
-export async function request(path: string, init: RequestInit = {}): Promise<Response> {
+async function nativeHeaders(init: RequestInit = {}): Promise<Headers> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("content-type") && typeof init.body === "string") {
     headers.set("content-type", "application/json");
@@ -90,7 +84,20 @@ export async function request(path: string, init: RequestInit = {}): Promise<Res
       headers.set(SESSION_HEADER, token);
     }
   }
+  return headers;
+}
 
+/**
+ * Fetch helper for the hosted Ciciro API.
+ *
+ * Hosted auth is an httpOnly `ciciro_session` cookie. Browsers send that with
+ * `credentials: "include"`. React Native fetch typically hides Set-Cookie and
+ * drops in-memory cookie jars on Metro reload, so native clients identify
+ * themselves, persist the token from a readable header/JSON field, and send it
+ * back as a Cookie header.
+ */
+export async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = await nativeHeaders(init);
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers,
@@ -119,10 +126,49 @@ export async function apiStream(
     const data = await readJson(res);
     throw new ApiError(errorMessage(data, res.status), res.status, data);
   }
-  if (!res.body) {
+  if (res.body && typeof res.body.getReader === "function") {
+    return res.body;
+  }
+  const text = await res.text();
+  if (!text) {
     throw new ApiError(i18n.t("errors.emptyStream"), res.status);
   }
-  return res.body;
+  return streamFromText(text);
+}
+
+export async function readNdjsonPost(
+  path: string,
+  init: RequestInit,
+  onEvent: (event: NdjsonEvent) => void
+): Promise<void> {
+  if (shouldUseXhrNdjson()) {
+    const headers = await nativeHeaders(init);
+    const result = await readNdjsonViaXhr(`${API_URL}${path}`, {
+      method: init.method ?? "POST",
+      headers,
+      body: typeof init.body === "string" ? init.body : init.body == null ? null : String(init.body),
+      signal: init.signal,
+      onEvent,
+    });
+    const headerToken = result.header(SESSION_HEADER);
+    if (headerToken) setSessionToken(headerToken);
+    if (!result.status || result.status >= 400) {
+      let data: unknown = {};
+      try {
+        data = result.body ? JSON.parse(result.body) : {};
+      } catch {
+        data = { error: result.body };
+      }
+      throw new ApiError(errorMessage(data, result.status), result.status, data);
+    }
+    if (!result.body) {
+      throw new ApiError(i18n.t("errors.emptyStream"), result.status);
+    }
+    return;
+  }
+
+  const stream = await apiStream(path, init);
+  await readNdjson(stream, { signal: init.signal ?? undefined, onEvent });
 }
 
 function filenameFromDisposition(header: string | null): string | null {

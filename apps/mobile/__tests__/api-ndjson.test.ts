@@ -54,4 +54,20 @@ describe("readNdjson", () => {
       readNdjson(streamFrom(['{"type":"text","v":"Hi"}\n']), { signal: controller.signal })
     ).rejects.toMatchObject({ name: "AbortError" });
   });
+
+  it("flushes a trailing event that has no newline", async () => {
+    const events: unknown[] = [];
+    await readNdjson(streamFrom(['{"type":"text","v":"Hi"}']), {
+      onEvent: (event) => events.push(event),
+    });
+    expect(events).toEqual([{ type: "text", v: "Hi" }]);
+  });
+
+  it("parses SSE-style data: lines", async () => {
+    const events: unknown[] = [];
+    await readNdjson(streamFrom(['data: {"type":"text","v":"Hi"}\n']), {
+      onEvent: (event) => events.push(event),
+    });
+    expect(events).toEqual([{ type: "text", v: "Hi" }]);
+  });
 });

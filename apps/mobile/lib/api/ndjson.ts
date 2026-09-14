@@ -13,9 +13,52 @@ export type ReadNdjsonOptions = {
   onEvent?: (evt: NdjsonEvent) => void;
 };
 
+/** Wrap a fully buffered body so callers can still use the stream reader. */
+export function streamFromText(text: string): ReadableStream<Uint8Array> {
+  const bytes = new TextEncoder().encode(text);
+  return new ReadableStream({
+    start(controller) {
+      if (bytes.byteLength) controller.enqueue(bytes);
+      controller.close();
+    },
+  });
+}
+
+export function emitNdjsonText(
+  text: string,
+  onEvent?: (evt: NdjsonEvent) => void
+): void {
+  emitNdjsonChunk(text + "\n", onEvent);
+}
+
+export function emitNdjsonChunk(
+  chunk: string,
+  onEvent?: (evt: NdjsonEvent) => void
+): string {
+  const lines = chunk.split("\n");
+  const rest = lines.pop() || "";
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const payload = line.startsWith("data:") ? line.slice(5).trim() : line;
+    if (!payload) continue;
+    let evt: NdjsonEvent;
+    try {
+      evt = JSON.parse(payload) as NdjsonEvent;
+    } catch {
+      continue;
+    }
+    if (evt.type === "ping") continue;
+    onEvent?.(evt);
+  }
+  return rest;
+}
+
 /**
  * Consume an NDJSON ReadableStream, invoking onEvent for each full line.
  * Pings reset the stall timer and are not forwarded.
+ * React Native often delivers the whole POST /api/chat body at once (or with
+ * no `response.body` stream); a trailing line without a newline still counts.
  */
 export async function readNdjson(
   body: ReadableStream<Uint8Array>,
@@ -60,27 +103,14 @@ export async function readNdjson(
 
         lastActivity = Date.now();
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          let evt: NdjsonEvent;
-          try {
-            evt = JSON.parse(line) as NdjsonEvent;
-          } catch {
-            continue;
-          }
-          if (evt.type === "ping") {
-            lastActivity = Date.now();
-            continue;
-          }
-          opts.onEvent?.(evt);
-        }
+        buffer = emitNdjsonChunk(buffer, opts.onEvent);
       } catch (error) {
         await reader.cancel().catch(() => {});
         throw error;
       }
     }
+    buffer += decoder.decode();
+    emitNdjsonText(buffer, opts.onEvent);
   } finally {
     opts.signal?.removeEventListener("abort", onAbort);
     await reader.cancel().catch(() => {});

@@ -1,5 +1,5 @@
 import { ciciro } from "../lib/api";
-import { jsonResponse, lastFetchCall, mockFetch, ndjsonResponse, parsedBody } from "./http";
+import { jsonResponse, lastFetchCall, mockFetch, ndjsonResponse, bufferedNdjsonResponse, parsedBody } from "./http";
 
 type ResourceCase = {
   name: string;
@@ -414,6 +414,29 @@ describe("ciciro resource catalog", () => {
       { type: "text", v: "Hello" },
       { type: "done", status: "completed", runId: "r1" },
     ]);
+  });
+
+  it("parses chat NDJSON when fetch buffers the body and leaves Response.body null", async () => {
+    mockFetch(async () =>
+      bufferedNdjsonResponse(
+        '{"type":"turn","id":"t1"}\n{"type":"text","v":"Hello"}\n{"type":"done","status":"completed"}'
+      )
+    );
+    const events: unknown[] = [];
+    await ciciro.chat.start({ projectId: "p1", message: "Hi" }, (event) => events.push(event));
+    expect(events).toEqual([
+      { type: "turn", id: "t1" },
+      { type: "text", v: "Hello" },
+      { type: "done", status: "completed" },
+    ]);
+  });
+
+  it("normalizes a chat snapshot that is a bare message array", async () => {
+    mockFetch(async () => jsonResponse([{ id: "m1", role: "assistant", content: "Hi" }]));
+    await expect(ciciro.chat.get("p1")).resolves.toEqual({
+      messages: [{ id: "m1", role: "assistant", content: "Hi" }],
+      runs: [],
+    });
   });
 
   it("streams autowrite NDJSON", async () => {
