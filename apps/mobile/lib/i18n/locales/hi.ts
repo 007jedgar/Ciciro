@@ -12,6 +12,10 @@ const hi: Translations = {
     settings: "सेटिंग्स",
     ciciro: "Ciciro",
     loading: "लोड हो रहा है",
+    close: "बंद करें",
+  },
+  info: {
+    aboutA11y: "{{topic}} के बारे में",
   },
   errors: {
     network: "नेटवर्क त्रुटि। फिर कोशिश करें।",
@@ -141,6 +145,12 @@ const hi: Translations = {
     wordGoal: "शब्द लक्ष्य",
     dailyGoalValue: "{{count}} शब्द",
     meterA11y: "आज {{goal}} में से {{words}} शब्द",
+    meterTitle: "दैनिक लेखन लक्ष्य",
+    meterHint:
+      "यह बार आज लिखते समय भरता है, 0 से आपके शब्द लक्ष्य तक। यह आधी रात को रीसेट होता है।",
+    meterRemaining_one: "{{count}} शब्द बाकी",
+    meterRemaining_other: "{{count}} शब्द बाकी",
+    meterDone: "आज का लक्ष्य पूरा हो गया।",
     account: "खाता",
     signedIn: "Ciciro में साइन इन हैं",
     signOut: "साइन आउट",

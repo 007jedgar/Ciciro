@@ -12,6 +12,10 @@ const es: Translations = {
     settings: "Ajustes",
     ciciro: "Ciciro",
     loading: "Cargando",
+    close: "Cerrar",
+  },
+  info: {
+    aboutA11y: "Acerca de {{topic}}",
   },
   errors: {
     network: "Error de red. Inténtalo de nuevo.",
@@ -142,6 +146,12 @@ const es: Translations = {
     wordGoal: "Meta diaria",
     dailyGoalValue: "{{count}} palabras",
     meterA11y: "{{words}} de {{goal}} palabras hoy",
+    meterTitle: "Meta diaria de escritura",
+    meterHint:
+      "Esta barra se llena a medida que escribes hoy, de 0 hasta tu meta de palabras. Se reinicia a medianoche.",
+    meterRemaining_one: "Falta {{count}} palabra",
+    meterRemaining_other: "Faltan {{count}} palabras",
+    meterDone: "Ya alcanzaste la meta de hoy.",
     account: "Cuenta",
     signedIn: "Sesión iniciada en Ciciro",
     signOut: "Cerrar sesión",

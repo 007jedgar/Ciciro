@@ -1,4 +1,4 @@
-import { Redirect, Tabs, useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
@@ -29,6 +29,8 @@ export default function ProjectTabsLayout() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const segments = useSegments();
+  const onEditor = segments[segments.length - 1] === "manuscript";
 
   if (!ready) {
     return (
@@ -57,7 +59,7 @@ export default function ProjectTabsLayout() {
     <ProjectProvider projectId={id}>
       <View style={layout.screen}>
         <ProjectHeader />
-        <WritingMeter />
+        {onEditor ? <WritingMeter /> : null}
         <View style={{ flex: 1 }}>
           <Tabs
             backBehavior="none"

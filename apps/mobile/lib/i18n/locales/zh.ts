@@ -12,6 +12,10 @@ const zh: Translations = {
     settings: "设置",
     ciciro: "Ciciro",
     loading: "加载中",
+    close: "关闭",
+  },
+  info: {
+    aboutA11y: "关于{{topic}}",
   },
   errors: {
     network: "网络出错，请重试。",
@@ -141,6 +145,11 @@ const zh: Translations = {
     wordGoal: "字数目标",
     dailyGoalValue: "{{count}} 词",
     meterA11y: "今日 {{words}} / {{goal}} 词",
+    meterTitle: "每日写作目标",
+    meterHint: "这条进度条会随着你今天的写作从 0 填到字数目标，并在午夜重置。",
+    meterRemaining_one: "还差 {{count}} 词",
+    meterRemaining_other: "还差 {{count}} 词",
+    meterDone: "今日目标已达成。",
     account: "账户",
     signedIn: "已登录 Ciciro",
     signOut: "退出登录",

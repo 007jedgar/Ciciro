@@ -10,6 +10,10 @@ const en = {
     settings: "Settings",
     ciciro: "Ciciro",
     loading: "Loading",
+    close: "Close",
+  },
+  info: {
+    aboutA11y: "About {{topic}}",
   },
   errors: {
     network: "Network error. Try again.",
@@ -140,6 +144,12 @@ const en = {
     wordGoal: "Word goal",
     dailyGoalValue: "{{count}} words",
     meterA11y: "{{words}} of {{goal}} words today",
+    meterTitle: "Daily writing goal",
+    meterHint:
+      "This bar fills as you write today, from 0 up to your word goal. It resets at midnight.",
+    meterRemaining_one: "{{count}} word left",
+    meterRemaining_other: "{{count}} words left",
+    meterDone: "Today's goal is met.",
     account: "Account",
     signedIn: "Signed in to Ciciro",
     signOut: "Sign out",
