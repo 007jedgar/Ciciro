@@ -1,5 +1,6 @@
 import { htmlToDoc } from "../lib/manuscript";
 import {
+  appendParagraphsOps,
   mergeBlockOps,
   newParagraphHtml,
   replaceBlockOps,
@@ -103,5 +104,21 @@ describe("block editor keystrokes", () => {
     expect(
       serializeBlockHtml({ id: "q", html: "<blockquote data-block-id=\"q\">Old</blockquote>" }, "New")
     ).toBe('<blockquote data-block-id="q">New</blockquote>');
+  });
+
+  it("appends AI paragraphs after the last block", () => {
+    const { doc } = htmlToDoc('<p data-block-id="b1">Night.</p>', 3);
+    const ops = appendParagraphsOps(doc, ["Dawn."], { ...seqIds("a"), actor: "ai" });
+    expect(ops).toEqual([
+      {
+        opId: "a-op-2",
+        baseRevision: 3,
+        actor: "ai",
+        type: "insert_block",
+        afterBlockId: "b1",
+        blockId: "a-block-1",
+        html: newParagraphHtml("a-block-1", "Dawn."),
+      },
+    ]);
   });
 });

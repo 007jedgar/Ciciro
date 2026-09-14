@@ -12,6 +12,10 @@ const hi: Translations = {
     settings: "सेटिंग्स",
     ciciro: "Ciciro",
     loading: "लोड हो रहा है",
+    close: "बंद करें",
+  },
+  info: {
+    aboutA11y: "{{topic}} के बारे में",
   },
   errors: {
     network: "नेटवर्क त्रुटि। फिर कोशिश करें।",
@@ -141,6 +145,12 @@ const hi: Translations = {
     wordGoal: "शब्द लक्ष्य",
     dailyGoalValue: "{{count}} शब्द",
     meterA11y: "आज {{goal}} में से {{words}} शब्द",
+    meterTitle: "दैनिक लेखन लक्ष्य",
+    meterHint:
+      "यह बार आज लिखते समय भरता है, 0 से आपके शब्द लक्ष्य तक। यह आधी रात को रीसेट होता है।",
+    meterRemaining_one: "{{count}} शब्द बाकी",
+    meterRemaining_other: "{{count}} शब्द बाकी",
+    meterDone: "आज का लक्ष्य पूरा हो गया।",
     account: "खाता",
     signedIn: "Ciciro में साइन इन हैं",
     signOut: "साइन आउट",
@@ -186,14 +196,35 @@ const hi: Translations = {
   },
   ciciroTab: {
     title: "Ciciro",
-    placeholder:
-      "आप एक साथी से बात करते हैं: Ciciro, संपादक। चैट, ड्राफ्ट और टूल कॉल अभी होस्टेड ऐप पर चलते हैं (POST /api/chat)। यह टैब एक स्थानधारक है ताकि फ़ोन का कार्यक्षेत्र अध्याय, पांडुलिपि और Ciciro से मेल खाए, बिना दूसरा सहायक जोड़े।",
+    empty:
+      "इस पांडुलिपि के बारे में Ciciro से पूछें, या लेखन उपकरणों से जारी रखें, फिर से लिखें, या वर्णन चुनें।",
+    composer: "Ciciro को संदेश लिखें",
+    send: "भेजें",
+    sending: "सोच रहा है…",
+    sendError: "Ciciro उत्तर नहीं दे सका। फिर कोशिश करें।",
+    clear: "चैट साफ़ करें",
+    clearConfirm: "इससे इस पांडुलिपि की बातचीत हट जाएगी।",
+    insert: "पांडुलिपि में डालें",
+    inserted: "डाल दिया गया",
+    insertError: "पहले एक अध्याय खोलें, फिर डालें।",
+    share: "साझा करें",
+    writing: "लिख रहा है…",
+    tools: "{{name}} का उपयोग",
     logline: "लॉगलाइन: {{logline}}",
     requested: "अनुरोध किया गया",
     intent: {
       continue: "ड्राफ्ट जारी रखें",
       rewrite: "अंश फिर से लिखें",
       describe: "विवरण जोड़ें",
+    },
+    phase: {
+      queued: "कतार में",
+      running: "काम चल रहा है",
+      continuing: "जारी",
+      verifying: "जाँच",
+      completed: "हो गया",
+      failed: "विफल",
+      cancelled: "रद्द",
     },
   },
   manuscriptTabBar: {
