@@ -169,6 +169,12 @@ const hi: Translations = {
     empty: "अभी कोई अध्याय नहीं।",
     wordCount_one: "{{count}} शब्द",
     wordCount_other: "{{count}} शब्द",
+    deleteA11y: "{{title}} हटाएँ",
+    deleteTitle: "{{title}} हटाएँ?",
+    deleteMessage: "यह वापस नहीं लिया जा सकता।",
+    deleteError: "अध्याय नहीं हटाया जा सका।",
+    deleteBlockedTitle: "अध्याय खाली नहीं है",
+    deleteBlockedMessage: "हटाने से पहले अध्याय खाली करें।",
   },
   manuscript: {
     noChapters: "इस पांडुलिपि में अभी अध्याय नहीं हैं।",

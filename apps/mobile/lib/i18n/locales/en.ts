@@ -168,6 +168,12 @@ const en = {
     empty: "No chapters yet.",
     wordCount_one: "{{count}} word",
     wordCount_other: "{{count}} words",
+    deleteA11y: "Delete {{title}}",
+    deleteTitle: "Delete {{title}}?",
+    deleteMessage: "This cannot be undone.",
+    deleteError: "Could not delete chapter.",
+    deleteBlockedTitle: "Chapter is not empty",
+    deleteBlockedMessage: "Empty the chapter before deleting it.",
   },
   manuscript: {
     noChapters: "This manuscript has no chapters yet.",
