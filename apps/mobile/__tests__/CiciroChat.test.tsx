@@ -7,6 +7,16 @@ import type { ChatMessage } from "../lib/api/types";
 import { emptyChatStreamState } from "../lib/ciciro-stream";
 import { colors, makeLayout } from "../lib/theme";
 
+jest.mock("expo-haptics", () => ({
+  impactAsync: jest.fn(async () => {}),
+  ImpactFeedbackStyle: { Light: "light" },
+}));
+
+jest.mock("expo-blur", () => {
+  const { View } = require("react-native");
+  return { BlurView: View };
+});
+
 function wrap(ui: ReactNode) {
   const layout = makeLayout(colors);
   return (
@@ -33,54 +43,49 @@ const assistant: ChatMessage = {
   createdAt: "2026-09-14T00:00:00.000Z",
 };
 
+const idle = {
+  messages: [] as ChatMessage[],
+  stream: emptyChatStreamState(),
+  streaming: false,
+  error: null,
+  phase: null,
+  onComposerChange: jest.fn(),
+  onSend: jest.fn(),
+  onClear: jest.fn(),
+  onInsertDraft: jest.fn(),
+  insertedKeys: new Set<string>(),
+  bottomInset: 0,
+};
+
 describe("CiciroChat", () => {
-  it("shows the empty prompt and does not send a blank composer", () => {
+  it("shows the empty prompt and hides send until there is text", () => {
     const onSend = jest.fn();
-    render(
-      wrap(
-        <CiciroChat
-          messages={[]}
-          stream={emptyChatStreamState()}
-          streaming={false}
-          error={null}
-          phase={null}
-          composer="   "
-          onComposerChange={jest.fn()}
-          onSend={onSend}
-          onClear={jest.fn()}
-          onInsertDraft={jest.fn()}
-          insertedKeys={new Set()}
-          bottomInset={0}
-        />
-      )
+    const { rerender, unmount } = render(
+      wrap(<CiciroChat {...idle} composer="   " onSend={onSend} />)
     );
     expect(
       screen.getByText(
         "Ask Ciciro about this manuscript, or pick Continue, Rewrite, or Describe from the writing tools."
       )
     ).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Send"));
-    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Send")).toBeNull();
+
+    rerender(wrap(<CiciroChat {...idle} composer="Tighten the opening." onSend={onSend} />));
+    expect(screen.getByLabelText("Send")).toBeTruthy();
+    unmount();
   });
 
   it("sends typed copy and inserts a closed draft into the manuscript", () => {
     const onSend = jest.fn();
     const onInsertDraft = jest.fn();
-    render(
+    const { unmount } = render(
       wrap(
         <CiciroChat
+          {...idle}
           messages={[assistant]}
-          stream={emptyChatStreamState()}
-          streaming={false}
-          error={null}
-          phase={null}
           composer="Tighten the opening."
-          onComposerChange={jest.fn()}
           onSend={onSend}
-          onClear={jest.fn()}
           onInsertDraft={onInsertDraft}
-          insertedKeys={new Set()}
-          bottomInset={0}
         />
       )
     );
@@ -88,5 +93,14 @@ describe("CiciroChat", () => {
     expect(onSend).toHaveBeenCalledTimes(1);
     fireEvent.press(screen.getByLabelText("Insert into manuscript"));
     expect(onInsertDraft).toHaveBeenCalledWith("The night was long.", "t1", 1);
+    unmount();
+  });
+
+  it("keeps send hidden while a reply is streaming", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} streaming composer="Still typing" />)
+    );
+    expect(screen.queryByLabelText("Send")).toBeNull();
+    unmount();
   });
 });

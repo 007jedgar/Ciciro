@@ -1,21 +1,28 @@
 import { useEffect, useRef } from "react";
 import {
   Alert,
+  Animated,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   Share,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import { insertionKey } from "../lib/chat-insert";
 import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
 import { useAppTheme } from "../lib/settings";
+import { Glass } from "./Glass";
+import { ArrowUpIcon } from "./icons";
+
+const SEND_SIZE = 32;
 
 function MessageBody({
   content,
@@ -97,6 +104,65 @@ function MessageBody({
   );
 }
 
+function ChatSendButton({
+  onPress,
+  label,
+  accent,
+  iconColor,
+  reduceMotion,
+}: {
+  onPress: () => void;
+  label: string;
+  accent: string;
+  iconColor: string;
+  reduceMotion: boolean;
+}) {
+  const appear = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      appear.setValue(1);
+      return;
+    }
+    appear.setValue(0);
+    Animated.spring(appear, {
+      toValue: 1,
+      damping: 15,
+      stiffness: 240,
+      mass: 0.6,
+      useNativeDriver: false,
+    }).start();
+  }, [appear, reduceMotion]);
+
+  function send() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onPress();
+  }
+
+  return (
+    <Animated.View
+      style={{
+        width: appear.interpolate({ inputRange: [0, 1], outputRange: [0, SEND_SIZE] }),
+        marginLeft: appear.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }),
+        opacity: appear,
+        transform: [{ scale: appear.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) }],
+        overflow: "hidden",
+        justifyContent: "flex-end",
+        alignItems: "flex-end",
+      }}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={send}
+        style={({ pressed }) => [styles.send, { backgroundColor: accent, opacity: pressed ? 0.85 : 1 }]}
+      >
+        <ArrowUpIcon color={iconColor} size={16} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export function CiciroChat({
   messages,
   stream,
@@ -125,8 +191,9 @@ export function CiciroChat({
   bottomInset: number;
 }) {
   const { t } = useTranslation();
-  const { layout, colors } = useAppTheme();
+  const { layout, colors, dark, settings } = useAppTheme();
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const canSend = Boolean(composer.trim()) && !streaming;
 
   useEffect(() => {
     const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
@@ -217,16 +284,7 @@ export function CiciroChat({
           {error}
         </Text>
       ) : null}
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 8,
-          paddingBottom: bottomInset,
-          borderTopWidth: 1,
-          borderTopColor: colors.line,
-          backgroundColor: colors.bg,
-        }}
-      >
+      <View style={[styles.dock, { paddingBottom: bottomInset, backgroundColor: colors.bg }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("ciciroTab.clear")}
@@ -236,35 +294,72 @@ export function CiciroChat({
               { text: t("ciciroTab.clear"), style: "destructive", onPress: () => void onClear() },
             ])
           }
-          style={{ alignSelf: "flex-start", marginBottom: 8 }}
+          style={styles.clear}
         >
           <Text style={{ color: colors.inkSoft, fontSize: 13 }}>{t("ciciroTab.clear")}</Text>
         </Pressable>
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-          <TextInput
-            style={[layout.input, { flex: 1, marginBottom: 0, maxHeight: 120 }]}
-            accessibilityLabel={t("ciciroTab.composer")}
-            placeholder={t("ciciroTab.composer")}
-            placeholderTextColor={colors.inkSoft}
-            value={composer}
-            onChangeText={onComposerChange}
-            multiline
-            editable={!streaming}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("ciciroTab.send")}
-            disabled={streaming || !composer.trim()}
-            onPress={onSend}
-            style={[
-              layout.primaryBtn,
-              { marginTop: 0, paddingHorizontal: 16, opacity: streaming || !composer.trim() ? 0.45 : 1 },
-            ]}
-          >
-            <Text style={layout.primaryBtnText}>{t("ciciroTab.send")}</Text>
-          </Pressable>
-        </View>
+        <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
+          <View style={styles.composer}>
+            <TextInput
+              style={[styles.field, { color: colors.ink }]}
+              accessibilityLabel={t("ciciroTab.composer")}
+              placeholder={t("ciciroTab.composer")}
+              placeholderTextColor={colors.inkSoft}
+              value={composer}
+              onChangeText={onComposerChange}
+              multiline
+              editable={!streaming}
+            />
+            {canSend ? (
+              <ChatSendButton
+                onPress={onSend}
+                label={t("ciciroTab.send")}
+                accent={colors.accent}
+                iconColor={colors.panel}
+                reduceMotion={settings.reduceMotion}
+              />
+            ) : null}
+          </View>
+        </Glass>
       </View>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  dock: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  clear: {
+    alignSelf: "flex-start",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  bubble: {
+    minHeight: 52,
+  },
+  composer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 8,
+  },
+  field: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+    maxHeight: 120,
+    paddingTop: Platform.OS === "ios" ? 8 : 6,
+    paddingBottom: Platform.OS === "ios" ? 8 : 6,
+    margin: 0,
+  },
+  send: {
+    width: SEND_SIZE,
+    height: SEND_SIZE,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
