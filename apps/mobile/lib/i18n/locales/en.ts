@@ -195,14 +195,35 @@ const en = {
   },
   ciciroTab: {
     title: "Ciciro",
-    placeholder:
-      "You talk to one partner: Ciciro, the editor. Chat, drafting, and tool calls still run on the hosted app (POST /api/chat). This tab is a placeholder so the phone workspace matches Chapters, Manuscript, and Ciciro without embedding a second assistant.",
+    empty:
+      "Ask Ciciro about this manuscript, or pick Continue, Rewrite, or Describe from the writing tools.",
+    composer: "Message Ciciro",
+    send: "Send",
+    sending: "Thinking…",
+    sendError: "Ciciro could not reply. Try again.",
+    clear: "Clear chat",
+    clearConfirm: "This removes the conversation for this manuscript.",
+    insert: "Insert into manuscript",
+    inserted: "Inserted",
+    insertError: "Open a chapter first, then insert.",
+    share: "Share",
+    writing: "Writing…",
+    tools: "Using {{name}}",
     logline: "Logline: {{logline}}",
     requested: "Requested",
     intent: {
       continue: "Continue the draft",
       rewrite: "Rewrite the passage",
       describe: "Add description",
+    },
+    phase: {
+      queued: "Queued",
+      running: "Working",
+      continuing: "Continuing",
+      verifying: "Checking",
+      completed: "Done",
+      failed: "Failed",
+      cancelled: "Cancelled",
     },
   },
   manuscriptTabBar: {

@@ -197,14 +197,35 @@ const es: Translations = {
   },
   ciciroTab: {
     title: "Ciciro",
-    placeholder:
-      "Hablas con un solo compañero: Ciciro, el editor. El chat, los borradores y las herramientas siguen en la app web (POST /api/chat). Esta pestaña es un marcador para que el teléfono coincida con Capítulos, Manuscrito y Ciciro, sin un segundo asistente.",
+    empty:
+      "Pregunta a Ciciro sobre este manuscrito, o elige Continuar, Reescribir o Describir en las herramientas de escritura.",
+    composer: "Escribe a Ciciro",
+    send: "Enviar",
+    sending: "Pensando…",
+    sendError: "Ciciro no pudo responder. Inténtalo de nuevo.",
+    clear: "Borrar chat",
+    clearConfirm: "Esto elimina la conversación de este manuscrito.",
+    insert: "Insertar en el manuscrito",
+    inserted: "Insertado",
+    insertError: "Abre un capítulo primero y luego inserta.",
+    share: "Compartir",
+    writing: "Escribiendo…",
+    tools: "Usando {{name}}",
     logline: "Premisa: {{logline}}",
     requested: "Solicitado",
     intent: {
       continue: "Continuar el borrador",
       rewrite: "Reescribir el pasaje",
       describe: "Añadir descripción",
+    },
+    phase: {
+      queued: "En cola",
+      running: "Trabajando",
+      continuing: "Continuando",
+      verifying: "Comprobando",
+      completed: "Listo",
+      failed: "Falló",
+      cancelled: "Cancelado",
     },
   },
   manuscriptTabBar: {
