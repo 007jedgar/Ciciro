@@ -8,6 +8,22 @@ import { AuthError } from "@/lib/auth/session";
 
 export { isNativeClient, sessionResponseBody };
 
+export function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  if (code === "P2021" || code === "P2010") return true;
+  const message = error instanceof Error ? error.message : String((error as { message?: unknown }).message ?? "");
+  return /no such table/i.test(message);
+}
+
+export function responseFromDbError(error: unknown): NextResponse | null {
+  if (!isMissingRelationError(error)) return null;
+  return NextResponse.json(
+    { error: "Database is missing a required table." },
+    { status: 500 }
+  );
+}
+
 /** JSON response for an AuthError, or null so callers can rethrow other errors. */
 export function responseFromAuthError(error: unknown): NextResponse | null {
   if (!error || typeof error !== "object") return null;

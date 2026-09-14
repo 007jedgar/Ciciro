@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, getSessionUser } from "@/lib/auth/session";
-import { responseFromAuthError } from "@/lib/auth/http";
+import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import {
   parseSyncAfter,
   parseSyncOp,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/sync";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function afterFromRequest(req: NextRequest, bodyAfter?: unknown) {
   if (bodyAfter !== undefined) return parseSyncAfter(bodyAfter);
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "after must be JSON" }, { status: 400 });
     }
-    const failure = responseFromAuthError(error);
+    const failure = responseFromAuthError(error) ?? responseFromDbError(error);
     if (failure) return failure;
     throw error;
   }
@@ -89,6 +90,8 @@ export async function POST(req: NextRequest) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "after must be JSON" }, { status: 400 });
     }
+    const missing = responseFromDbError(error);
+    if (missing) return missing;
     throw error;
   }
 }

@@ -31,6 +31,7 @@ function scheduleFlush(): void {
 async function sendHeartbeat(delta: WritingDayTotals): Promise<ServerDay | null> {
   const res = await fetch("/api/writing/day", {
     method: "PUT",
+    credentials: "include",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(delta),
   });
@@ -40,7 +41,9 @@ async function sendHeartbeat(delta: WritingDayTotals): Promise<ServerDay | null>
 }
 
 async function fetchDay(date: string): Promise<ServerDay | null> {
-  const res = await fetch(`/api/writing/day?date=${encodeURIComponent(date)}`);
+  const res = await fetch(`/api/writing/day?date=${encodeURIComponent(date)}`, {
+    credentials: "include",
+  });
   if (!res.ok) return null;
   const body = (await res.json()) as { day?: ServerDay };
   return body.day ?? null;

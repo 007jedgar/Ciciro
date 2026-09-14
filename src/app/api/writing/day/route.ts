@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { responseFromAuthError } from "@/lib/auth/http";
+import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { getWritingDay, putWritingDay } from "@/lib/writing-day-store";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function jsonDay(day: Awaited<ReturnType<typeof getWritingDay>>) {
   return NextResponse.json({
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     const day = await getWritingDay(user, date);
     return jsonDay(day);
   } catch (error) {
-    const failure = responseFromAuthError(error);
+    const failure = responseFromAuthError(error) ?? responseFromDbError(error);
     if (failure) return failure;
     throw error;
   }
@@ -38,7 +39,7 @@ export async function PUT(req: NextRequest) {
     const day = await putWritingDay(user, body);
     return jsonDay(day);
   } catch (error) {
-    const failure = responseFromAuthError(error);
+    const failure = responseFromAuthError(error) ?? responseFromDbError(error);
     if (failure) return failure;
     throw error;
   }
