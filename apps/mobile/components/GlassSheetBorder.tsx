@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Blur,
@@ -6,7 +6,8 @@ import {
   Group,
   LinearGradient,
   Paint,
-  RoundedRect,
+  Path,
+  Skia,
   SweepGradient,
   vec,
 } from "@shopify/react-native-skia";
@@ -22,15 +23,22 @@ import {
   GLASS_SHEET_RADIUS,
   glassSheetFillColors,
   glassSheetGlowColors,
+  topRoundedPath,
 } from "../lib/glass-sheet";
 
 export { GLASS_SHEET_RADIUS, glassSheetFillColors, glassSheetGlowColors };
 
 export const GLASS_SHEET_GLOW_MS = 7_200;
 
+/** A soft top-left sheen, the light a frosted pane catches off the screen. */
+function sheenColors(dark: boolean): string[] {
+  return dark ? ["#ffffff1f", "#ffffff00"] : ["#ffffff59", "#ffffff00"];
+}
+
 /**
  * Skia wash + hue-shifting glow stroke. The frost lives in GlassSheet's BlurView;
- * this layer is the material and the living edge.
+ * this layer is the material and the living edge. The shape is rounded on top and
+ * bleeds off the bottom of the canvas, so the sheet reads as rising out of the screen.
  */
 export function GlassSheetBorder({
   width,
@@ -38,6 +46,7 @@ export function GlassSheetBorder({
   radius = GLASS_SHEET_RADIUS,
   accent,
   dark,
+  base,
   reduceMotion,
 }: {
   width: number;
@@ -45,6 +54,7 @@ export function GlassSheetBorder({
   radius?: number;
   accent: string;
   dark: boolean;
+  base?: string;
   reduceMotion: boolean;
 }) {
   const hue = useSharedValue(0);
@@ -67,21 +77,36 @@ export function GlassSheetBorder({
   const start = useDerivedValue(() => hue.value);
   const end = useDerivedValue(() => hue.value + Math.PI * 2);
 
-  if (width < 2 || height < 2) return null;
+  const path = useMemo(
+    () => Skia.Path.MakeFromSVGString(topRoundedPath(width, height, radius)),
+    [height, radius, width]
+  );
+  // The glow is stroked on its own centre line, one pixel in, so the full bead
+  // stays on canvas instead of being halved by the screen edge.
+  const edge = useMemo(
+    () => Skia.Path.MakeFromSVGString(topRoundedPath(width, height, radius - 1, undefined, 1)),
+    [height, radius, width]
+  );
 
-  const inset = 1.25;
-  const innerW = width - inset * 2;
-  const innerH = height - inset * 2;
+  if (width < 2 || height < 2 || !path || !edge) return null;
+
   const center = vec(width / 2, height / 2);
   const glow = glassSheetGlowColors(accent);
-  const fill = glassSheetFillColors(dark);
+  const fill = glassSheetFillColors(dark, base);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Canvas style={StyleSheet.absoluteFill}>
-        <RoundedRect x={inset} y={inset} width={innerW} height={innerH} r={radius - 1}>
-          <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={fill} />
-        </RoundedRect>
+        <Path path={path}>
+          <LinearGradient start={vec(0, 0)} end={vec(width * 0.35, height)} colors={fill} />
+        </Path>
+        <Path path={path}>
+          <LinearGradient
+            start={vec(0, 0)}
+            end={vec(width * 0.75, height * 0.7)}
+            colors={sheenColors(dark)}
+          />
+        </Path>
         <Group
           layer={
             <Paint>
@@ -89,30 +114,13 @@ export function GlassSheetBorder({
             </Paint>
           }
         >
-          <RoundedRect
-            x={inset}
-            y={inset}
-            width={innerW}
-            height={innerH}
-            r={radius - 1}
-            style="stroke"
-            strokeWidth={7}
-            opacity={0.62}
-          >
+          <Path path={edge} style="stroke" strokeWidth={7} opacity={0.62}>
             <SweepGradient c={center} colors={glow} start={start} end={end} />
-          </RoundedRect>
+          </Path>
         </Group>
-        <RoundedRect
-          x={inset}
-          y={inset}
-          width={innerW}
-          height={innerH}
-          r={radius - 1}
-          style="stroke"
-          strokeWidth={1.6}
-        >
+        <Path path={edge} style="stroke" strokeWidth={1.6}>
           <SweepGradient c={center} colors={glow} start={start} end={end} />
-        </RoundedRect>
+        </Path>
       </Canvas>
     </View>
   );
