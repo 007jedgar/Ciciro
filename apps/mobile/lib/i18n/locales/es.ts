@@ -12,6 +12,10 @@ const es: Translations = {
     settings: "Ajustes",
     ciciro: "Ciciro",
     loading: "Cargando",
+    close: "Cerrar",
+  },
+  info: {
+    aboutA11y: "Acerca de {{topic}}",
   },
   errors: {
     network: "Error de red. Inténtalo de nuevo.",
@@ -142,6 +146,12 @@ const es: Translations = {
     wordGoal: "Meta diaria",
     dailyGoalValue: "{{count}} palabras",
     meterA11y: "{{words}} de {{goal}} palabras hoy",
+    meterTitle: "Meta diaria de escritura",
+    meterHint:
+      "Esta barra se llena a medida que escribes hoy, de 0 hasta tu meta de palabras. Se reinicia a medianoche.",
+    meterRemaining_one: "Falta {{count}} palabra",
+    meterRemaining_other: "Faltan {{count}} palabras",
+    meterDone: "Ya alcanzaste la meta de hoy.",
     account: "Cuenta",
     signedIn: "Sesión iniciada en Ciciro",
     signOut: "Cerrar sesión",
@@ -187,14 +197,35 @@ const es: Translations = {
   },
   ciciroTab: {
     title: "Ciciro",
-    placeholder:
-      "Hablas con un solo compañero: Ciciro, el editor. El chat, los borradores y las herramientas siguen en la app web (POST /api/chat). Esta pestaña es un marcador para que el teléfono coincida con Capítulos, Manuscrito y Ciciro, sin un segundo asistente.",
+    empty:
+      "Pregunta a Ciciro sobre este manuscrito, o elige Continuar, Reescribir o Describir en las herramientas de escritura.",
+    composer: "Escribe a Ciciro",
+    send: "Enviar",
+    sending: "Pensando…",
+    sendError: "Ciciro no pudo responder. Inténtalo de nuevo.",
+    clear: "Borrar chat",
+    clearConfirm: "Esto elimina la conversación de este manuscrito.",
+    insert: "Insertar en el manuscrito",
+    inserted: "Insertado",
+    insertError: "Abre un capítulo primero y luego inserta.",
+    share: "Compartir",
+    writing: "Escribiendo…",
+    tools: "Usando {{name}}",
     logline: "Premisa: {{logline}}",
     requested: "Solicitado",
     intent: {
       continue: "Continuar el borrador",
       rewrite: "Reescribir el pasaje",
       describe: "Añadir descripción",
+    },
+    phase: {
+      queued: "En cola",
+      running: "Trabajando",
+      continuing: "Continuando",
+      verifying: "Comprobando",
+      completed: "Listo",
+      failed: "Falló",
+      cancelled: "Cancelado",
     },
   },
   manuscriptTabBar: {

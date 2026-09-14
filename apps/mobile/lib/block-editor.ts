@@ -203,6 +203,36 @@ export function insertFirstBlockOps(
   return { ops: [op], focusBlockId: blockId, focusOffset: text.length };
 }
 
+/** Append one or more paragraphs after the last block (Ciciro draft insert). */
+export function appendParagraphsOps(
+  doc: ManuscriptDoc,
+  paragraphs: string[],
+  opts?: BlockEditorIds
+): ManuscriptOp[] {
+  const ids = idsOf(opts);
+  const ops: ManuscriptOp[] = [];
+  let current = doc;
+  for (const paragraph of paragraphs) {
+    const text = paragraph.trim();
+    if (!text) continue;
+    const blockId = ids.createBlockId();
+    const afterBlockId =
+      current.blocks.length === 0 ? null : current.blocks[current.blocks.length - 1].id;
+    const inserted = emit(current, {
+      opId: ids.createOpId(),
+      baseRevision: current.revision,
+      actor: ids.actor,
+      type: "insert_block",
+      afterBlockId,
+      blockId,
+      html: newParagraphHtml(blockId, text),
+    });
+    ops.push(inserted.op);
+    current = inserted.doc;
+  }
+  return ops;
+}
+
 export function applyOpsToDoc(doc: ManuscriptDoc, ops: ManuscriptOp[]): ManuscriptDoc {
   let current = doc;
   for (const op of ops) {
