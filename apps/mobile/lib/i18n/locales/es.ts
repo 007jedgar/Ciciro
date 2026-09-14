@@ -170,6 +170,12 @@ const es: Translations = {
     empty: "Aún no hay capítulos.",
     wordCount_one: "{{count}} palabra",
     wordCount_other: "{{count}} palabras",
+    deleteA11y: "Eliminar {{title}}",
+    deleteTitle: "¿Eliminar {{title}}?",
+    deleteMessage: "Esto no se puede deshacer.",
+    deleteError: "No se pudo eliminar el capítulo.",
+    deleteBlockedTitle: "El capítulo no está vacío",
+    deleteBlockedMessage: "Vacía el capítulo antes de eliminarlo.",
   },
   manuscript: {
     noChapters: "Este manuscrito aún no tiene capítulos.",

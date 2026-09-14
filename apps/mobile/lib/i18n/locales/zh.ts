@@ -169,6 +169,12 @@ const zh: Translations = {
     empty: "还没有章节。",
     wordCount_one: "{{count}} 词",
     wordCount_other: "{{count}} 词",
+    deleteA11y: "删除{{title}}",
+    deleteTitle: "删除{{title}}？",
+    deleteMessage: "此操作无法撤销。",
+    deleteError: "无法删除章节。",
+    deleteBlockedTitle: "章节不是空的",
+    deleteBlockedMessage: "请先清空章节再删除。",
   },
   manuscript: {
     noChapters: "这部手稿还没有章节。",

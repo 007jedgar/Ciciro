@@ -16,3 +16,8 @@ export function htmlToPlainText(html: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+/** True when TipTap HTML has no prose (empty `<p></p>` counts as empty). */
+export function isChapterEmpty(content: string | null | undefined): boolean {
+  return htmlToPlainText(content ?? "") === "";
+}
