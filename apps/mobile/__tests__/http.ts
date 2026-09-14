@@ -31,6 +31,17 @@ export function ndjsonResponse(lines: string[], status = 200): Response {
   });
 }
 
+/** Mimic React Native fetch: 200 NDJSON with no WHATWG `body` stream. */
+export function bufferedNdjsonResponse(body: string, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers({ "content-type": "application/x-ndjson; charset=utf-8" }),
+    body: null,
+    text: async () => body,
+  } as unknown as Response;
+}
+
 export function blobResponse(
   bytes: Uint8Array,
   init: { filename?: string; contentType?: string; status?: number } = {}

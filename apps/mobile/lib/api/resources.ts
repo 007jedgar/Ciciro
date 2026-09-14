@@ -1,5 +1,5 @@
-import { api, apiBlob, apiStream } from "./client";
-import { readNdjson } from "./ndjson";
+import { api, apiBlob, readNdjsonPost } from "./client";
+import { normalizeChatSnapshot } from "./types";
 import type {
   AuthMeResponse,
   AuthSessionResponse,
@@ -15,7 +15,6 @@ import type {
   Character,
   CharacterCreateRequest,
   CharacterPatchRequest,
-  ChatSnapshot,
   ChatStreamEvent,
   CompactResult,
   DraftInsertion,
@@ -84,11 +83,7 @@ async function streamEvents<T extends NdjsonEvent>(
   onEvent: (event: T) => void,
   opts?: RequestOpts
 ): Promise<void> {
-  const stream = await apiStream(path, jsonInit("POST", body, opts));
-  await readNdjson(stream, {
-    signal: opts?.signal ?? undefined,
-    onEvent: (event) => onEvent(event as T),
-  });
+  await readNdjsonPost(path, jsonInit("POST", body, opts), (event) => onEvent(event as T));
 }
 
 export const ciciro = {
@@ -253,8 +248,8 @@ export const ciciro = {
   },
 
   chat: {
-    get: (projectId: string, opts?: RequestOpts) =>
-      api<ChatSnapshot>(`/api/chat${queryString({ projectId })}`, opts),
+    get: async (projectId: string, opts?: RequestOpts) =>
+      normalizeChatSnapshot(await api<unknown>(`/api/chat${queryString({ projectId })}`, opts)),
     clear: (projectId: string, opts?: RequestOpts) =>
       api<OkResponse>(`/api/chat${queryString({ projectId })}`, jsonInit("DELETE", undefined, opts)),
     compact: (projectId: string, opts?: RequestOpts) =>

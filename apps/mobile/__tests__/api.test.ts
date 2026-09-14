@@ -1,6 +1,6 @@
-import { api, apiBlob, apiStream, ApiError, isApiError } from "../lib/api";
+import { api, apiBlob, apiStream, ApiError, isApiError, readNdjson } from "../lib/api";
 import { getSessionToken, resetSessionMemory, setSessionToken } from "../lib/session-store";
-import { jsonResponse, lastFetchCall, mockFetch, textResponse } from "./http";
+import { bufferedNdjsonResponse, jsonResponse, lastFetchCall, mockFetch, textResponse } from "./http";
 
 describe("api client", () => {
   const originalFetch = globalThis.fetch;
@@ -204,5 +204,18 @@ describe("api client", () => {
     mockFetch(async () => new Response(stream, { status: 200 }));
     const body = await apiStream("/api/chat", { method: "POST", body: "{}" });
     expect(typeof body.getReader).toBe("function");
+  });
+
+  it("parses a buffered NDJSON body when Response.body is missing", async () => {
+    mockFetch(async () =>
+      bufferedNdjsonResponse('{"type":"text","v":"Hi"}\n{"type":"done","status":"completed"}')
+    );
+    const events: unknown[] = [];
+    const body = await apiStream("/api/chat", { method: "POST", body: "{}" });
+    await readNdjson(body, { onEvent: (event) => events.push(event) });
+    expect(events).toEqual([
+      { type: "text", v: "Hi" },
+      { type: "done", status: "completed" },
+    ]);
   });
 });
