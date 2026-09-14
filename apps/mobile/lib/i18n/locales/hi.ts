@@ -165,9 +165,6 @@ const hi: Translations = {
     loadError: "पांडुलिपि लोड नहीं हो सकी।",
   },
   chapters: {
-    add: "अध्याय जोड़ें",
-    adding: "जोड़ा जा रहा है...",
-    addError: "अध्याय नहीं जुड़ सका।",
     newTitle: "नया अध्याय",
     empty: "अभी कोई अध्याय नहीं।",
     wordCount_one: "{{count}} शब्द",

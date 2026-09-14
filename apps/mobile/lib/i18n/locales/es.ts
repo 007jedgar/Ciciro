@@ -166,9 +166,6 @@ const es: Translations = {
     loadError: "No se pudo cargar el manuscrito.",
   },
   chapters: {
-    add: "Añadir capítulo",
-    adding: "Añadiendo...",
-    addError: "No se pudo añadir el capítulo.",
     newTitle: "Nuevo capítulo",
     empty: "Aún no hay capítulos.",
     wordCount_one: "{{count}} palabra",

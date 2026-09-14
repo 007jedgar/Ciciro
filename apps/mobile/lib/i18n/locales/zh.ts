@@ -165,9 +165,6 @@ const zh: Translations = {
     loadError: "无法加载手稿。",
   },
   chapters: {
-    add: "添加章节",
-    adding: "正在添加...",
-    addError: "无法添加章节。",
     newTitle: "新章节",
     empty: "还没有章节。",
     wordCount_one: "{{count}} 词",

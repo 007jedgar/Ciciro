@@ -164,9 +164,6 @@ const en = {
     loadError: "Could not load manuscript.",
   },
   chapters: {
-    add: "Add chapter",
-    adding: "Adding...",
-    addError: "Could not add chapter.",
     newTitle: "New chapter",
     empty: "No chapters yet.",
     wordCount_one: "{{count}} word",
