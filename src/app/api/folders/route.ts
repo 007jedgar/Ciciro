@@ -7,9 +7,9 @@ export const runtime = "nodejs";
 
 // GET /api/folders — list folders with their manuscripts. When a user is
 // signed in, only their folders are returned; local-first lists all.
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(req);
     const folders = await listFolders(user);
     return NextResponse.json(folders);
   } catch (error) {
@@ -21,7 +21,7 @@ export async function GET() {
 
 // POST /api/folders — create a folder, optionally filing manuscripts into it.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const folder = await createFolder(user, body);

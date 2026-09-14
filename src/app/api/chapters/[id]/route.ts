@@ -11,7 +11,7 @@ type Params = { params: Promise<{ id: string }> };
 // PATCH /api/chapters/:id — save content, title, order, status, or summary.
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const result = await updateChapter(id, user, body);
@@ -27,9 +27,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/chapters/:id — remove an empty chapter and re-number the rest.
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const result = await deleteChapter(id, user);
     return NextResponse.json(result);

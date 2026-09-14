@@ -4,12 +4,13 @@ import { responseFromAuthError } from "@/lib/auth/http";
 import { createProject, listProjects } from "@/lib/projects";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // GET /api/projects — list projects (most recent first). When a user is signed
 // in, only their manuscripts are returned; local-first (no session) lists all.
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(req);
     const projects = await listProjects(user);
     return NextResponse.json(projects);
   } catch (error) {
@@ -22,7 +23,7 @@ export async function GET() {
 // POST /api/projects — create a project with an opening chapter, owned by the
 // signed-in user when there is one.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const project = await createProject(user, body);

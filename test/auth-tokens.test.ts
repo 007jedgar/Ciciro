@@ -15,6 +15,7 @@ import {
   sessionResponseBody,
   tokenFromCookieHeader,
   hasRequestSession,
+  requestWithSessionHeaders,
 } from "@/lib/auth/constants";
 
 describe("session tokens", () => {
@@ -67,6 +68,24 @@ describe("native session delivery", () => {
     expect(hasRequestSession(new Headers(), "tok-123")).toBe(true);
     expect(hasRequestSession(new Headers({ cookie: "ciciro_session=tok" }))).toBe(true);
     expect(hasRequestSession(new Headers())).toBe(false);
+  });
+
+  it("copies the native session header onto Cookie for OpenNext", () => {
+    const request = requestWithSessionHeaders(
+      new Request("https://ciciro.app/api/projects/p1", {
+        headers: { "x-ciciro-session": "tok-123" },
+      })
+    );
+    expect(request.headers.get("x-ciciro-session")).toBe("tok-123");
+    expect(request.headers.get("cookie")).toBe("ciciro_session=tok-123");
+
+    const alreadyCookied = requestWithSessionHeaders(
+      new Request("https://ciciro.app/api/chapters?projectId=p1", {
+        headers: { cookie: "theme=dark; ciciro_session=tok-123" },
+      })
+    );
+    expect(alreadyCookied.headers.get("x-ciciro-session")).toBe("tok-123");
+    expect(alreadyCookied.headers.get("cookie")).toBe("theme=dark; ciciro_session=tok-123");
   });
 });
 

@@ -35,14 +35,51 @@ export function tokenFromCookieHeader(raw: string | null | undefined): string | 
   return null;
 }
 
+/** First session token found on the native header, Cookie header, or cookie jar. */
+export function sessionTokenFromHeaders(
+  headerStore: { get(name: string): string | null },
+  cookieValue?: string | null
+): string | null {
+  const header = headerStore.get(SESSION_HEADER)?.trim();
+  if (header) return header;
+  const fromCookieHeader = tokenFromCookieHeader(headerStore.get("cookie"));
+  if (fromCookieHeader) return fromCookieHeader;
+  const fromCookie = cookieValue?.trim();
+  return fromCookie || null;
+}
+
 /** True when the request carries a session cookie or the native session header. */
 export function hasRequestSession(
   headerStore: { get(name: string): string | null },
   cookieValue?: string | null
 ): boolean {
-  if (cookieValue?.trim()) return true;
-  if (headerStore.get(SESSION_HEADER)?.trim()) return true;
-  return Boolean(tokenFromCookieHeader(headerStore.get("cookie")));
+  return Boolean(sessionTokenFromHeaders(headerStore, cookieValue));
+}
+
+/**
+ * Copy the session onto both Cookie and x-ciciro-session. React Native often
+ * cannot set Cookie; OpenNext's cookie jar often misses the native header.
+ */
+export function applySessionHeaders(headers: Headers, token: string): Headers {
+  if (!headers.get(SESSION_HEADER)?.trim()) {
+    headers.set(SESSION_HEADER, token);
+  }
+  if (!tokenFromCookieHeader(headers.get("cookie"))) {
+    const existing = headers.get("cookie")?.trim();
+    headers.set(
+      "cookie",
+      existing ? `${existing}; ${SESSION_COOKIE}=${token}` : `${SESSION_COOKIE}=${token}`
+    );
+  }
+  return headers;
+}
+
+/** Clone a Request so OpenNext sees a Cookie even when the phone only sent the header. */
+export function requestWithSessionHeaders(request: Request): Request {
+  const token = sessionTokenFromHeaders(request.headers);
+  if (!token) return request;
+  const headers = applySessionHeaders(new Headers(request.headers), token);
+  return new Request(request, { headers });
 }
 
 export function isNativeClient(req: { headers: Headers }): boolean {

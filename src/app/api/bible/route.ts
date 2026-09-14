@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams.get("path");
   if (!projectId) return json({ error: "projectId required" }, 400);
   try {
-    await authorizeProject(projectId);
+    await authorizeProject(projectId, req);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { projectId } = body;
   if (!projectId) return json({ error: "projectId required" }, 400);
   try {
-    await authorizeProject(projectId);
+    await authorizeProject(projectId, req);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;

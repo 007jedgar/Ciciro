@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (!projectId) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const points = await listPlotPoints(projectId, user);
     return NextResponse.json(points);
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/plotpoints — add a plot point / open loop to track.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const point = await createPlotPoint(user, body);

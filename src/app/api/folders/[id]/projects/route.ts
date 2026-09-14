@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 // POST /api/folders/:id/projects — file manuscripts into this folder.
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const folder = await addProjectsToFolder(id, user, body);
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 // DELETE /api/folders/:id/projects — unfile manuscripts (body or ?projectId=).
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const url = req.nextUrl;
   let body: { projectIds?: unknown } = {};
   try {

@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 // GET /api/chapters/:id/ops?after=seq — ops after seq (default 0).
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const afterRaw = req.nextUrl.searchParams.get("after");
   const after = afterRaw == null || afterRaw === "" ? 0 : Number(afterRaw);
   if (!Number.isInteger(after) || after < 0) {
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 // POST /api/chapters/:id/ops — append author block ops.
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   const rawOps = Array.isArray(body.ops) ? body.ops : null;
   if (!rawOps) {

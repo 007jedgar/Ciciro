@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 // POST /api/correct — Haiku spelling/grammar spans for one block. Fail-soft.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }

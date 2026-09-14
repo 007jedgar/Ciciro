@@ -119,9 +119,30 @@ function pushToken(tokens: string[], value: string | null | undefined): void {
   if (token && !tokens.includes(token)) tokens.push(token);
 }
 
-async function sessionTokens(): Promise<string[]> {
+export type SessionRequest = {
+  headers: Headers;
+  cookies?: {
+    get(name: string): { value: string } | undefined;
+  };
+};
+
+function pushTokensFromRequest(tokens: string[], request?: SessionRequest): void {
+  if (!request) return;
+  pushToken(tokens, request.headers.get(SESSION_HEADER));
+  pushToken(tokens, tokenFromCookieHeader(request.headers.get("cookie")));
+  try {
+    pushToken(tokens, request.cookies?.get(SESSION_COOKIE)?.value);
+  } catch {
+    // NextRequest.cookies can throw outside a request.
+  }
+}
+
+async function sessionTokens(request?: SessionRequest): Promise<string[]> {
   const tokens: string[] = [];
   pushToken(tokens, peekRequestSession());
+  // Prefer the Route Handler Request: OpenNext often continues outside ALS and
+  // leaves next/headers empty on /api/projects/:id and /api/chapters?projectId=.
+  pushTokensFromRequest(tokens, request);
   try {
     const jar = await cookies();
     pushToken(tokens, jar.get(SESSION_COOKIE)?.value);
@@ -139,9 +160,9 @@ async function sessionTokens(): Promise<string[]> {
 }
 
 /** Resolve the current user from the session cookie, or null. Sweeps expiry. */
-export async function getSessionUser(): Promise<PublicUser | null> {
+export async function getSessionUser(request?: SessionRequest): Promise<PublicUser | null> {
   const now = Date.now();
-  for (const token of await sessionTokens()) {
+  for (const token of await sessionTokens(request)) {
     const session = await prisma.session.findUnique({
       where: { tokenHash: hashSessionToken(token) },
       include: { user: true },
@@ -157,8 +178,8 @@ export async function getSessionUser(): Promise<PublicUser | null> {
 }
 
 /** Like getSessionUser but throws a 401 AuthError when unauthenticated. */
-export async function requireSessionUser(): Promise<PublicUser> {
-  const user = await getSessionUser();
+export async function requireSessionUser(request?: SessionRequest): Promise<PublicUser> {
+  const user = await getSessionUser(request);
   if (!user) throw new AuthError("Authentication required.", 401);
   return user;
 }
@@ -222,10 +243,14 @@ export async function authorizeFolderId(
 }
 
 /**
- * Authorize access to a project using the current session cookie.
+ * Authorize access to a project using the current session (cookie, native
+ * header, or the Route Handler Request when one is passed).
  */
-export async function authorizeProject(projectId: string): Promise<void> {
-  await authorizeProjectId(projectId, await getSessionUser());
+export async function authorizeProject(
+  projectId: string,
+  request?: SessionRequest
+): Promise<void> {
+  await authorizeProjectId(projectId, await getSessionUser(request));
 }
 
 /** Destroy the current session (DB row + cookie). Idempotent. */

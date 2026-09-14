@@ -6,8 +6,8 @@ import { getUserSettings, replaceUserSettings, updateUserSettings } from "@/lib/
 export const runtime = "nodejs";
 
 // GET /api/settings — the signed-in user's synced chrome prefs.
-export async function GET() {
-  const user = await getSessionUser();
+export async function GET(req: NextRequest) {
+  const user = await getSessionUser(req);
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -23,7 +23,7 @@ export async function GET() {
 
 // PATCH /api/settings — merge fields into the stored prefs.
 export async function PATCH(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
 
 // PUT /api/settings — replace prefs (used when a device's local copy is newer).
 export async function PUT(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }

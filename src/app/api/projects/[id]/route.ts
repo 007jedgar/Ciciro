@@ -4,13 +4,14 @@ import { responseFromAuthError } from "@/lib/auth/http";
 import { deleteProject, getProject, updateProject } from "@/lib/projects";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/projects/:id — full project with chapters, characters, plot points.
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const project = await getProject(id, user);
     return NextResponse.json(project);
@@ -24,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // PATCH /api/projects/:id — update story-bible fields.
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const project = await updateProject(id, user, body);
@@ -37,9 +38,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/projects/:id — remove a project and all its content.
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const result = await deleteProject(id, user);
     return NextResponse.json(result);
