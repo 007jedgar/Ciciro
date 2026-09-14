@@ -115,6 +115,23 @@ export function PlusIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+/** Send: an up arrow for nested composer buttons. */
+export function ArrowUpIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Line x1="12" y1="19" x2="12" y2="6.5" stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+      <Polyline
+        points="6.5,12 12,6 17.5,12"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function ChaptersIcon({ color, size = 24, focused = false }: IconProps) {
   const stroke = focused ? 2 : 1.7;
   return (
