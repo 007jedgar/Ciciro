@@ -21,7 +21,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  GLASS_SHEET_INSET,
   GLASS_SHEET_RADIUS,
   pickSnapOffset,
   resolveGlassSnapHeights,
@@ -43,10 +42,11 @@ export {
 } from "../lib/glass-sheet";
 
 const SPRING = { damping: 28, stiffness: 320, mass: 0.86 } as const;
-const HIDDEN = 640;
+const BODY_PAD_TOP = 10;
+const BODY_PAD_BOTTOM = 14;
 
 /**
- * Frosted card sheet — floating inset, gradient wash, hue-shifting glow.
+ * Frosted bottom sheet — full-bleed, sandblasted wash, hue-shifting top edge.
  * Built with Reanimated + Skia. Not a wrapper around Gorhom.
  */
 export function GlassSheet({
@@ -75,9 +75,9 @@ export function GlassSheet({
   const ink = colors?.ink ?? "#2a2218";
   const inkSoft = colors?.inkSoft ?? "#6e6354";
   const insets = useSafeAreaInsets();
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const maxHeight = windowHeight - insets.top - 24;
-  const sheetWidth = Math.max(0, windowWidth - GLASS_SHEET_INSET * 2);
+  const bodyPadBottom = BODY_PAD_BOTTOM + insets.bottom;
 
   const [mounted, setMounted] = useState(visible);
   const [contentHeight, setContentHeight] = useState(0);
@@ -95,8 +95,8 @@ export function GlassSheet({
   );
   const sheetHeight = snapHeights[snapHeights.length - 1] ?? Math.round(windowHeight * 0.42);
 
-  const translateY = useSharedValue(HIDDEN);
-  const dragStart = useSharedValue(HIDDEN);
+  const translateY = useSharedValue(windowHeight);
+  const dragStart = useSharedValue(windowHeight);
   const sheetH = useSharedValue(sheetHeight);
   const snap0 = useSharedValue(sheetHeight);
   const snap1 = useSharedValue(sheetHeight);
@@ -150,17 +150,37 @@ export function GlassSheet({
     notifyClose();
   }, [notifyClose]);
 
+  const autoSized = snapPoints.length === 0 || snapPoints.some((point) => point === "auto");
+  const measured = !autoSized || contentHeight > 0;
+  const openedRef = useRef(false);
+
   useEffect(() => {
     if (visible) {
+      // Each open measures its own children, so drop the previous sheet's height.
+      setContentHeight(0);
       setMounted(true);
-      translateY.value = sheetHeight + 80;
-      openToRest();
       return;
     }
-    if (mounted) animateTo(sheetHeight + 80, true);
-    // Presentation is driven by `visible` only; sheet height is measured after open.
+    if (!mounted) return;
+    if (openedRef.current) {
+      openedRef.current = false;
+      animateTo(sheetHeight + 80, true);
+    } else {
+      setMounted(false);
+    }
+    // Presentation is driven by `visible` only; sheet height is measured after mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // An auto sheet waits for its measurement before it slides, so it arrives at
+  // full height instead of growing a frame at a time after it lands.
+  useEffect(() => {
+    if (!mounted || !visible || openedRef.current || !measured) return;
+    openedRef.current = true;
+    translateY.value = sheetHeight + 80;
+    openToRest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measured, mounted, visible]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -208,7 +228,7 @@ export function GlassSheet({
   }));
 
   const backdropStyle = useAnimatedStyle(() => {
-    const height = sheetH.value || HIDDEN;
+    const height = sheetH.value || windowHeight;
     const progress = interpolate(translateY.value, [0, height + 40], [1, 0], "clamp");
     return { opacity: progress };
   });
@@ -242,9 +262,10 @@ export function GlassSheet({
                 styles.card,
                 {
                   height: sheetHeight,
-                  width: sheetWidth,
-                  borderRadius: GLASS_SHEET_RADIUS,
-                  bottom: Math.max(insets.bottom, 8),
+                  borderTopLeftRadius: GLASS_SHEET_RADIUS,
+                  borderTopRightRadius: GLASS_SHEET_RADIUS,
+                  // Hidden for the measuring frame, before the open animation is aimed.
+                  opacity: measured ? 1 : 0,
                 },
                 sheetStyle,
               ]}
@@ -255,10 +276,18 @@ export function GlassSheet({
                 );
               }}
             >
-              <View style={[styles.clip, { borderRadius: GLASS_SHEET_RADIUS }]}>
+              <View
+                style={[
+                  styles.clip,
+                  {
+                    borderTopLeftRadius: GLASS_SHEET_RADIUS,
+                    borderTopRightRadius: GLASS_SHEET_RADIUS,
+                  },
+                ]}
+              >
                 <BlurView
                   tint={dark ? "dark" : "light"}
-                  intensity={dark ? 38 : 52}
+                  intensity={dark ? 44 : 60}
                   experimentalBlurMethod="dimezisBlurView"
                   style={StyleSheet.absoluteFill}
                 />
@@ -268,38 +297,45 @@ export function GlassSheet({
                 height={borderSize.height}
                 accent={accentColor}
                 dark={dark}
+                base={colors?.panel}
                 reduceMotion={reduceMotion}
               />
-              <View
-                style={[styles.body, { paddingBottom: 14 }]}
-                onLayout={(event) => {
-                  const next = event.nativeEvent.layout.height + 8;
-                  setContentHeight((current) => (current === next ? current : next));
-                }}
-              >
-                <View style={[styles.handle, { backgroundColor: alpha(inkSoft, 0.45) }]} />
-                <View style={styles.header}>
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.title, { color: inkSoft, opacity: title ? 1 : 0 }]}
-                  >
-                    {title ?? " "}
-                  </Text>
-                  <Pressable
-                    testID={`${testID}-close`}
-                    onPress={dismiss}
-                    accessibilityRole="button"
-                    accessibilityLabel="Close"
-                    hitSlop={10}
-                    style={({ pressed }) => [
-                      styles.closeBtn,
-                      { backgroundColor: alpha(ink, dark ? 0.14 : 0.08), opacity: pressed ? 0.65 : 1 },
-                    ]}
-                  >
-                    <CloseIcon color={ink} size={14} />
-                  </Pressable>
+              <View style={[styles.body, { paddingBottom: bodyPadBottom }]}>
+                <View
+                  style={styles.measure}
+                  onLayout={(event) => {
+                    const next =
+                      Math.round(event.nativeEvent.layout.height) + BODY_PAD_TOP + bodyPadBottom;
+                    setContentHeight((current) => (current === next ? current : next));
+                  }}
+                >
+                  <View style={[styles.handle, { backgroundColor: alpha(inkSoft, 0.45) }]} />
+                  <View style={styles.header}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.title, { color: inkSoft, opacity: title ? 1 : 0 }]}
+                    >
+                      {title ?? " "}
+                    </Text>
+                    <Pressable
+                      testID={`${testID}-close`}
+                      onPress={dismiss}
+                      accessibilityRole="button"
+                      accessibilityLabel="Close"
+                      hitSlop={10}
+                      style={({ pressed }) => [
+                        styles.closeBtn,
+                        {
+                          backgroundColor: alpha(ink, dark ? 0.14 : 0.08),
+                          opacity: pressed ? 0.65 : 1,
+                        },
+                      ]}
+                    >
+                      <CloseIcon color={ink} size={14} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.children}>{children}</View>
                 </View>
-                <View style={styles.children}>{children}</View>
               </View>
             </Animated.View>
           </GestureDetector>
@@ -313,17 +349,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(12, 14, 18, 0.38)",
+    backgroundColor: "rgba(6, 8, 12, 0.62)",
   },
   card: {
     position: "absolute",
-    left: GLASS_SHEET_INSET,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 18,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   clip: {
     ...StyleSheet.absoluteFillObject,
@@ -332,8 +364,9 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: BODY_PAD_TOP,
   },
+  measure: { flexShrink: 1 },
   handle: {
     alignSelf: "center",
     width: 36,
