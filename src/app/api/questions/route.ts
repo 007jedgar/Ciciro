@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (!projectId) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const questions = await listQuestions(projectId, user, status);
     return NextResponse.json(questions);
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/questions — create one manually.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const q = await createQuestion(user, body);

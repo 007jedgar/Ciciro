@@ -8,9 +8,9 @@ export const runtime = "nodejs";
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/projects/:id/position — this user's durable reading cursor.
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const position = await getReadingPosition(id, user);
     return NextResponse.json({ position });
@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 // PUT /api/projects/:id/position — last-write-wins upsert of the reading cursor.
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const position = await putReadingPosition(id, user, body);

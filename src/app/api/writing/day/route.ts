@@ -18,7 +18,7 @@ function jsonDay(day: Awaited<ReturnType<typeof getWritingDay>>) {
 
 // GET /api/writing/day?date=YYYY-MM-DD — today's merged words + active time.
 export async function GET(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const date = req.nextUrl.searchParams.get("date");
   try {
     const day = await getWritingDay(user, date);
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 // PUT /api/writing/day — add a heartbeat; same date merges.
 export async function PUT(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const day = await putWritingDay(user, body);

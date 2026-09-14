@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (!projectId) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const characters = await listCharacters(projectId, user);
     return NextResponse.json(characters);
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/characters — add a character to the story bible.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const character = await createCharacter(user, body);

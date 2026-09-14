@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return json({ error: "projectId and chapterId required" }, 400);
   }
   try {
-    await authorizeProject(projectId);
+    await authorizeProject(projectId, req);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;

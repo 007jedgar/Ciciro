@@ -27,7 +27,7 @@ function afterFromRequest(req: NextRequest, bodyAfter?: unknown) {
 // GET /api/sync?projectId=&after= — pull ops, bible, and position.
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId") ?? "";
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const after = afterFromRequest(req);
     const result = await pullSync(projectId, user, after);
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/sync — push ops / bible / position, then pull heads and leftovers.
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   const projectId = typeof body.projectId === "string" ? body.projectId : "";
   const rawOps = body.ops === undefined ? [] : body.ops;

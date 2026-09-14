@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await authorizeProject(input.projectId);
+    await authorizeProject(input.projectId, req);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -242,7 +242,7 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
   try {
-    await authorizeProject(projectId);
+    await authorizeProject(projectId, req);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -289,7 +289,7 @@ export async function DELETE(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
   try {
-    await authorizeProject(projectId);
+    await authorizeProject(projectId, req);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;

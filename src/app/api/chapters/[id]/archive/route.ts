@@ -8,9 +8,9 @@ export const runtime = "nodejs";
 type Params = { params: Promise<{ id: string }> };
 
 // POST /api/chapters/:id/archive — hide a chapter. Any chapter may be archived.
-export async function POST(_req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const chapter = await archiveChapter(id, user);
     return NextResponse.json(chapter);
@@ -22,9 +22,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/chapters/:id/archive — restore a hidden chapter to the live list.
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const chapter = await unarchiveChapter(id, user);
     return NextResponse.json(chapter);

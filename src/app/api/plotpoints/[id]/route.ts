@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const point = await updatePlotPoint(id, user, body);
@@ -21,9 +21,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const result = await deletePlotPoint(id, user);
     return NextResponse.json(result);

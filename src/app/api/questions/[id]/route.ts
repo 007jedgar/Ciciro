@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 // PATCH /api/questions/:id — update answer/status/resolution/etc.
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const q = await updateQuestion(id, user, body);
@@ -23,9 +23,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 // DELETE /api/questions/:id
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const result = await deleteQuestion(id, user);
     return NextResponse.json(result);

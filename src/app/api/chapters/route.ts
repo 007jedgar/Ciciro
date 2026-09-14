@@ -4,6 +4,7 @@ import { responseFromAuthError } from "@/lib/auth/http";
 import { createChapter, listChapters } from "@/lib/chapters";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function readArchivedFlag(value: string | null): boolean {
   return value === "1" || value === "true";
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "projectId required" }, { status: 400 });
   }
   const archived = readArchivedFlag(req.nextUrl.searchParams.get("archived"));
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   try {
     const chapters = await listChapters(projectId, user, { archived });
     return NextResponse.json(chapters);
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/chapters — add a chapter to a project (appended to the end).
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
+  const user = await getSessionUser(req);
   const body = await req.json().catch(() => ({}));
   try {
     const chapter = await createChapter(user, body);
