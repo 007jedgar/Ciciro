@@ -119,7 +119,7 @@ function codeFromText(raw: string): ChatFailureCode | null {
   const text = raw.toLowerCase();
   if (/abort|cancell?ed/.test(text)) return "cancelled";
   if (/network|fetch failed|econnrefused|enotfound|socket|offline/.test(text)) return "network";
-  if (/timed? ?out|etimedout|deadline/.test(text)) return "timeout";
+  if (/timed? ?out|etimedout|deadline|stalled/.test(text)) return "timeout";
   if (/overloaded|capacity/.test(text)) return "overloaded";
   if (/rate limit|too many requests|quota/.test(text)) return "rateLimit";
   if (/credit balance|billing|payment/.test(text)) return "auth";

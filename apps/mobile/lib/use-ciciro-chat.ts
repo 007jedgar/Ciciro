@@ -22,6 +22,12 @@ export type UseCiciroChat = {
   streaming: boolean;
   stream: ChatStreamState;
   send: (input: EditorRunInput) => Promise<void>;
+  /**
+   * Abandons the turn in flight, keeping the words that already landed. The
+   * server run is not cancelled — there is no endpoint for that — so the rest
+   * of its output turns up in the transcript on the next reload.
+   */
+  stop: () => void;
   /** Re-run the last turn. No-op when nothing has been sent yet. */
   retry: () => Promise<void>;
   /** Archives the conversation; resolves with the handle Undo restores by. */
@@ -62,6 +68,8 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   const [stream, setStream] = useState<ChatStreamState>(emptyChatStreamState);
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
+  /** Set only by `stop`, so a clear's abort does not resurrect the transcript. */
+  const stopRequestedRef = useRef(false);
   /** The last turn sent, so Try again can replay it verbatim. */
   const lastInputRef = useRef<EditorRunInput | null>(null);
 
@@ -100,6 +108,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       if (!input.resumeTurnId && !trimmed) return;
 
       streamingRef.current = true;
+      stopRequestedRef.current = false;
       lastInputRef.current = input;
       setStreaming(true);
       setFailure(null);
@@ -166,11 +175,19 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         // footer rides in the transcript, so the message itself carries the
         // failure and the bar below the composer stays clear.
       } catch (err) {
-        if ((err as { name?: string })?.name === "AbortError") return;
+        if ((err as { name?: string })?.name === "AbortError") {
+          // Stopping is the author's call, not a failure: keep what Ciciro had
+          // written so the turn reads as interrupted rather than erased.
+          if (stopRequestedRef.current && next.text.trim()) {
+            setMessages((current) => upsertStreamAssistant(current, next));
+          }
+          return;
+        }
         setFailure(failureFromError(err));
         await reload({ keepFailure: true }).catch(() => {});
       } finally {
         streamingRef.current = false;
+        stopRequestedRef.current = false;
         setStreaming(false);
         setStream(emptyChatStreamState());
         abortRef.current = null;
@@ -178,6 +195,12 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     },
     [projectId, reload]
   );
+
+  const stop = useCallback(() => {
+    if (!streamingRef.current) return;
+    stopRequestedRef.current = true;
+    abortRef.current?.abort();
+  }, []);
 
   const retry = useCallback(async () => {
     const input = lastInputRef.current;
@@ -226,6 +249,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     streaming,
     stream,
     send,
+    stop,
     retry,
     clear,
     undoClear,

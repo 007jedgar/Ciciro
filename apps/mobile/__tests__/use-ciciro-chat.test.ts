@@ -144,4 +144,42 @@ describe("useCiciroChat", () => {
     expect(posts[0]!.clientTurnId).not.toBe(posts[1]!.clientTurnId);
     unmount();
   });
+  it("stops a reply that never finishes, keeping the words that arrived", async () => {
+    // A hosted run that sends one chunk and then holds the connection open.
+    const encoder = new TextEncoder();
+    mockFetch(async (input, init) => {
+      const method = init?.method ?? "GET";
+      if (method !== "POST") return jsonResponse({ messages: [], runs: [] });
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('{"type":"turn","id":"t1"}\n'));
+            controller.enqueue(encoder.encode('{"type":"text","v":"Setting up the bible."}\n'));
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/x-ndjson" } }
+      );
+    });
+
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let sent: Promise<void> | undefined;
+    act(() => {
+      sent = result.current.send({ projectId: "p1", message: "Write chapter one" });
+    });
+    await waitFor(() => expect(result.current.stream.text).toBe("Setting up the bible."));
+
+    await act(async () => {
+      result.current.stop();
+      await sent;
+    });
+
+    expect(result.current.streaming).toBe(false);
+    expect(result.current.failure).toBeNull();
+    expect(
+      result.current.messages.some((message) => message.content === "Setting up the bible.")
+    ).toBe(true);
+    unmount();
+  });
 });

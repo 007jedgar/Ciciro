@@ -198,6 +198,7 @@ const zh: Translations = {
     empty: "向 Ciciro 询问这部手稿，或在写作工具中选择续写、重写或描写。",
     composer: "给 Ciciro 发消息",
     send: "发送",
+    stop: "停止",
     sending: "思考中…",
     sendError: "Ciciro 未能回复。请再试一次。",
     clear: "清空对话",

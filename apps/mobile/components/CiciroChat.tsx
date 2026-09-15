@@ -42,7 +42,7 @@ import { ChatClearMark } from "./ChatClearMark";
 import { ChatErrorNotice } from "./ChatErrorNotice";
 import { CiciroThinking } from "./CiciroThinking";
 import { Glass } from "./Glass";
-import { ArrowUpIcon, QuestionIcon } from "./icons";
+import { ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 
@@ -180,17 +180,24 @@ function AssistantTurn({
   );
 }
 
-function ChatSendButton({
+/**
+ * The one button at the end of the composer. It is Send while the author has
+ * something to say, and Stop for as long as Ciciro is still answering — a turn
+ * in flight must always have a way out.
+ */
+function ChatActionButton({
   onPress,
   label,
   accent,
   iconColor,
+  icon,
   reduceMotion,
 }: {
   onPress: () => void;
   label: string;
   accent: string;
   iconColor: string;
+  icon: "send" | "stop";
   reduceMotion: boolean;
 }) {
   const appear = useSharedValue(reduceMotion ? 1 : 0);
@@ -211,7 +218,7 @@ function ChatSendButton({
     transform: [{ scale: 0.35 + appear.value * 0.65 }],
   }));
 
-  function send() {
+  function press() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onPress();
   }
@@ -221,10 +228,14 @@ function ChatSendButton({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
-        onPress={send}
+        onPress={press}
         style={({ pressed }) => [styles.send, { backgroundColor: accent, opacity: pressed ? 0.85 : 1 }]}
       >
-        <ArrowUpIcon color={iconColor} size={16} />
+        {icon === "stop" ? (
+          <StopIcon color={iconColor} size={13} />
+        ) : (
+          <ArrowUpIcon color={iconColor} size={16} />
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -240,6 +251,7 @@ export function CiciroChat({
   composer,
   onComposerChange,
   onSend,
+  onStop,
   onRetry,
   onClear,
   onUndoClear,
@@ -259,6 +271,8 @@ export function CiciroChat({
   composer: string;
   onComposerChange: (value: string) => void;
   onSend: () => void;
+  /** Abandons the reply in flight, keeping whatever has already arrived. */
+  onStop: () => void;
   onRetry: () => void;
   /** Clears the conversation and resolves with the handle Undo restores by. */
   onClear: () => Promise<string | null>;
@@ -521,14 +535,25 @@ export function CiciroChat({
               value={composer}
               onChangeText={onComposerChange}
               multiline
-              editable={!streaming}
             />
-            {canSend ? (
-              <ChatSendButton
+            {streaming ? (
+              <ChatActionButton
+                key="stop"
+                onPress={onStop}
+                label={t("ciciroTab.stop")}
+                accent={colors.inkSoft}
+                iconColor={colors.panel}
+                icon="stop"
+                reduceMotion={reduceMotion}
+              />
+            ) : canSend ? (
+              <ChatActionButton
+                key="send"
                 onPress={onSend}
                 label={t("ciciroTab.send")}
                 accent={colors.accent}
                 iconColor={colors.panel}
+                icon="send"
                 reduceMotion={reduceMotion}
               />
             ) : null}
