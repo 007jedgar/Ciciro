@@ -383,79 +383,73 @@ async function checkpointIteration(input: Checkpoint) {
     closeDrafts: input.status === "completed",
   });
 
-  return prisma.$transaction(async (tx) => {
-    const current = await tx.editorRun.findUniqueOrThrow({
-      where: { id: input.runId },
-    });
-    if (current.lockToken !== input.claimToken) {
-      throw new Error("Editor run lease was lost.");
-    }
+  const current = await prisma.editorRun.findUniqueOrThrow({
+    where: { id: input.runId },
+  });
+  if (current.lockToken !== input.claimToken) {
+    throw new Error("Editor run lease was lost.");
+  }
 
-    let assistantMessageId = current.assistantMessageId;
-    if (assistantMessageId) {
-      await tx.chatMessage.update({
-        where: { id: assistantMessageId },
-        data: {
-          content: assistantContent,
-          status: chatStatus,
-          kind: current.kind,
-        },
-      });
-    } else if (assistantContent.trim()) {
-      const assistant = await tx.chatMessage.create({
-        data: {
-          projectId: current.projectId,
-          role: "assistant",
-          content: assistantContent,
-          status: chatStatus,
-          kind: current.kind,
-          turnId: current.turnId,
-        },
-      });
-      assistantMessageId = assistant.id;
-    }
-
-    await tx.editorStep.create({
+  let assistantMessageId = current.assistantMessageId;
+  if (assistantMessageId) {
+    await prisma.chatMessage.update({
+      where: { id: assistantMessageId },
       data: {
-        runId: input.runId,
-        iteration: input.iteration,
-        status: input.status,
-        stopReason: input.stopReason,
-        modelResponseJson: serialize(input.modelResponse),
-        toolResultsJson: input.toolResults
-          ? serialize(input.toolResults)
+        content: assistantContent,
+        status: chatStatus,
+        kind: current.kind,
+      },
+    });
+  } else if (assistantContent.trim()) {
+    const assistant = await prisma.chatMessage.create({
+      data: {
+        projectId: current.projectId,
+        role: "assistant",
+        content: assistantContent,
+        status: chatStatus,
+        kind: current.kind,
+        turnId: current.turnId,
+      },
+    });
+    assistantMessageId = assistant.id;
+  }
+
+  await prisma.editorStep.create({
+    data: {
+      runId: input.runId,
+      iteration: input.iteration,
+      status: input.status,
+      stopReason: input.stopReason,
+      modelResponseJson: serialize(input.modelResponse),
+      toolResultsJson: input.toolResults ? serialize(input.toolResults) : null,
+      visibleDelta: input.visibleDelta,
+      mutationCount: input.stepMutationCount,
+    },
+  });
+
+  return prisma.editorRun.update({
+    where: { id: input.runId },
+    data: {
+      assistantMessageId,
+      messagesJson: serialize(input.messages),
+      visibleOutput: assistantContent,
+      iterationCount: input.iteration,
+      mutationCount: input.totalMutationCount,
+      stopReason: input.stopReason,
+      status: input.status,
+      verificationJson:
+        input.verification === undefined ? undefined : serialize(input.verification),
+      error: input.error,
+      leaseExpiresAt:
+        input.status === "running" || input.status === "verifying"
+          ? new Date(Date.now() + LEASE_MS)
           : null,
-        visibleDelta: input.visibleDelta,
-        mutationCount: input.stepMutationCount,
-      },
-    });
-
-    return tx.editorRun.update({
-      where: { id: input.runId },
-      data: {
-        assistantMessageId,
-        messagesJson: serialize(input.messages),
-        visibleOutput: assistantContent,
-        iterationCount: input.iteration,
-        mutationCount: input.totalMutationCount,
-        stopReason: input.stopReason,
-        status: input.status,
-        verificationJson:
-          input.verification === undefined
-            ? undefined
-            : serialize(input.verification),
-        error: input.error,
-        leaseExpiresAt:
-          input.status === "running" || input.status === "verifying"
-            ? new Date(Date.now() + LEASE_MS)
-            : null,
-        lockToken:
-          input.status === "running" || input.status === "verifying"
-            ? input.claimToken
-            : null,
-        completedAt: input.status === "completed" ? new Date() : undefined,
-      },
-    });
+      lockToken:
+        input.status === "running" || input.status === "verifying"
+          ? input.claimToken
+          : null,
+      completedAt: input.status === "completed" ? new Date() : undefined,
+    },
   });
 }
 
@@ -484,31 +478,34 @@ async function finalizeVerification(
           content: verificationContinuation(verification),
         },
       ];
-  const final = await prisma.$transaction(async (tx) => {
-    const updated = await tx.editorRun.update({
-      where: { id: claim.id, lockToken: claim.claimToken },
+  const claimed = await prisma.editorRun.updateMany({
+    where: { id: claim.id, lockToken: claim.claimToken },
+    data: {
+      status: finalStatus,
+      messagesJson: serialize(persistedMessages),
+      verificationJson: serialize(verification),
+      lockToken: null,
+      leaseExpiresAt: null,
+      completedAt: finalStatus === "completed" ? new Date() : null,
+    },
+  });
+  if (claimed.count !== 1) {
+    throw new Error("Editor run lease was lost.");
+  }
+  const final = await prisma.editorRun.findUniqueOrThrow({
+    where: { id: claim.id },
+  });
+  if (final.assistantMessageId) {
+    await prisma.chatMessage.update({
+      where: { id: final.assistantMessageId },
       data: {
-        status: finalStatus,
-        messagesJson: serialize(persistedMessages),
-        verificationJson: serialize(verification),
-        lockToken: null,
-        leaseExpiresAt: null,
-        completedAt: finalStatus === "completed" ? new Date() : null,
+        content: healAssistantContent(final.visibleOutput, {
+          closeDrafts: finalStatus === "completed",
+        }),
+        status: finalStatus === "completed" ? "complete" : "continuing",
       },
     });
-    if (updated.assistantMessageId) {
-      await tx.chatMessage.update({
-        where: { id: updated.assistantMessageId },
-        data: {
-          content: healAssistantContent(updated.visibleOutput, {
-            closeDrafts: finalStatus === "completed",
-          }),
-          status: finalStatus === "completed" ? "complete" : "continuing",
-        },
-      });
-    }
-    return updated;
-  });
+  }
   if (finalStatus === "completed" && final.assistantMessageId) {
     ensureModelContent(final.assistantMessageId).catch(() => {});
   }

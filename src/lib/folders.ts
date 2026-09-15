@@ -129,27 +129,20 @@ export async function createFolder(user: PublicUser | null, input: FolderCreateI
   const projectIds = readProjectIds(input.projectIds);
   await requireOwnedProjects(user, projectIds);
 
-  return prisma.$transaction(async (tx) => {
-    const folder = await tx.folder.create({
-      data: {
-        userId: user?.id ?? null,
-        name,
-        notes,
-      },
-    });
-    if (projectIds.length > 0) {
-      await tx.project.updateMany({
-        where: { id: { in: projectIds } },
-        data: { folderId: folder.id },
-      });
-    }
-    return withProjectCount(
-      await tx.folder.findUniqueOrThrow({
-        where: { id: folder.id },
-        include: FOLDER_INCLUDE,
-      })
-    );
+  const folder = await prisma.folder.create({
+    data: {
+      userId: user?.id ?? null,
+      name,
+      notes,
+    },
   });
+  if (projectIds.length > 0) {
+    await prisma.project.updateMany({
+      where: { id: { in: projectIds } },
+      data: { folderId: folder.id },
+    });
+  }
+  return loadFolder(folder.id);
 }
 
 export async function updateFolder(

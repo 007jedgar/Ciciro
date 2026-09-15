@@ -611,6 +611,33 @@ function insertHtmlAt(html: string, insertHtml: string, at: number): string {
   return html.slice(0, at) + insertHtml + html.slice(at);
 }
 
+/**
+ * D1 cannot run interactive `prisma.$transaction(async (tx) => ...)`.
+ * Bump a chapter only when the caller's revision still matches.
+ */
+async function bumpChapterRevision(
+  id: string,
+  revision: number,
+  data: { content: string; wordCount: number }
+): Promise<boolean> {
+  const updated = await prisma.chapter.updateMany({
+    where: { id, revision },
+    data: { ...data, revision: { increment: 1 } },
+  });
+  return updated.count === 1;
+}
+
+async function recordManuscriptEdits(
+  edits: { chapterId: string; find: string; replace: string }[]
+): Promise<void> {
+  if (edits.length === 0) return;
+  if (edits.length === 1) {
+    await prisma.manuscriptEdit.create({ data: edits[0] });
+    return;
+  }
+  await prisma.manuscriptEdit.createMany({ data: edits });
+}
+
 export type ToolResult = {
   status: string;
   content: string;
@@ -751,21 +778,15 @@ export async function executeEditorTool(
         return { status: "delete failed", content: deletion.error };
       }
       const wordCount = countWords(htmlToText(deletion.content));
-      const committed = await prisma.$transaction(async (tx) => {
-        const updated = await tx.chapter.updateMany({
-          where: { id: chapter.id, revision: expectedRevision },
-          data: {
-            content: deletion.content,
-            wordCount,
-            revision: { increment: 1 },
-          },
-        });
-        if (updated.count !== 1) return false;
-        await tx.manuscriptEdit.create({
-          data: { chapterId: chapter.id, find: deletion.passage.id, replace: "" },
-        });
-        return true;
+      const committed = await bumpChapterRevision(chapter.id, expectedRevision, {
+        content: deletion.content,
+        wordCount,
       });
+      if (committed) {
+        await recordManuscriptEdits([
+          { chapterId: chapter.id, find: deletion.passage.id, replace: "" },
+        ]);
+      }
       if (!committed) {
         const current = await prisma.chapter.findUnique({ where: { id: chapter.id } });
         return {
@@ -953,79 +974,66 @@ export async function executeEditorTool(
         | { created: true; chapter: Awaited<ReturnType<typeof prisma.chapter.create>> };
       let committed: SplitCommit;
       try {
-        committed = await prisma.$transaction(async (tx) => {
-          const sourceUpdate = await tx.chapter.updateMany({
-            where: { id: source.id, revision: expectedSourceRevision },
-            data: {
-              content: split.sourceContent,
-              wordCount: sourceWordCount,
-              revision: { increment: 1 },
-            },
+        if (destination) {
+          const currentDestination = await prisma.chapter.findUnique({
+            where: { id: destination.id },
+            select: { revision: true },
           });
-          if (sourceUpdate.count !== 1) throw new Error("SOURCE_REVISION_CONFLICT");
+          if (currentDestination?.revision !== expectedDestinationRevision) {
+            throw new Error("DESTINATION_REVISION_CONFLICT");
+          }
+        }
 
-          if (destination) {
-            if (destinationAlreadyContainsSplit) {
-              const currentDestination = await tx.chapter.findUnique({
-                where: { id: destination.id },
-                select: { revision: true },
-              });
-              if (
-                currentDestination?.revision !== expectedDestinationRevision
-              ) {
-                throw new Error("DESTINATION_REVISION_CONFLICT");
-              }
-              await tx.manuscriptEdit.create({
-                data: {
-                  chapterId: source.id,
-                  find: split.boundary,
-                  replace: `[removed duplicate already in chapter ${destinationNumber}]`,
-                },
-              });
-              return {
-                created: false as const,
-                destinationChanged: false,
-                destinationRevision: expectedDestinationRevision as number,
-                destinationId: destination.id,
-              };
-            }
-            const destinationUpdate = await tx.chapter.updateMany({
-              where: {
-                id: destination.id,
-                revision: expectedDestinationRevision as number,
+        const sourceUpdate = await bumpChapterRevision(
+          source.id,
+          expectedSourceRevision,
+          { content: split.sourceContent, wordCount: sourceWordCount }
+        );
+        if (!sourceUpdate) throw new Error("SOURCE_REVISION_CONFLICT");
+
+        if (destination) {
+          if (destinationAlreadyContainsSplit) {
+            await recordManuscriptEdits([
+              {
+                chapterId: source.id,
+                find: split.boundary,
+                replace: `[removed duplicate already in chapter ${destinationNumber}]`,
               },
-              data: {
-                content: destinationContent,
-                wordCount: destinationWordCount,
-                revision: { increment: 1 },
+            ]);
+            committed = {
+              created: false as const,
+              destinationChanged: false,
+              destinationRevision: expectedDestinationRevision as number,
+              destinationId: destination.id,
+            };
+          } else {
+            const destinationUpdate = await bumpChapterRevision(
+              destination.id,
+              expectedDestinationRevision as number,
+              { content: destinationContent, wordCount: destinationWordCount }
+            );
+            if (!destinationUpdate) throw new Error("DESTINATION_REVISION_CONFLICT");
+            await recordManuscriptEdits([
+              {
+                chapterId: source.id,
+                find: split.boundary,
+                replace: `[split to chapter ${destinationNumber}]`,
               },
-            });
-            if (destinationUpdate.count !== 1) {
-              throw new Error("DESTINATION_REVISION_CONFLICT");
-            }
-            await tx.manuscriptEdit.createMany({
-              data: [
-                {
-                  chapterId: source.id,
-                  find: split.boundary,
-                  replace: `[split to chapter ${destinationNumber}]`,
-                },
-                {
-                  chapterId: destination.id,
-                  find: "",
-                  replace: `[split from chapter ${sourceNumber}]`,
-                },
-              ],
-            });
-            return {
+              {
+                chapterId: destination.id,
+                find: "",
+                replace: `[split from chapter ${sourceNumber}]`,
+              },
+            ]);
+            committed = {
               created: false as const,
               destinationChanged: true,
               destinationRevision: (expectedDestinationRevision as number) + 1,
               destinationId: destination.id,
             };
           }
-
-          const chapter = await tx.chapter.create({
+        } else {
+          const chapter = await prisma.chapter.create({
             data: {
               projectId,
               title:
@@ -1036,15 +1044,15 @@ export async function executeEditorTool(
               wordCount: destinationWordCount,
             },
           });
-          await tx.manuscriptEdit.create({
-            data: {
+          await recordManuscriptEdits([
+            {
               chapterId: source.id,
               find: split.boundary,
               replace: `[split to chapter ${destinationNumber}]`,
             },
-          });
-          return { created: true as const, chapter };
-        });
+          ]);
+          committed = { created: true as const, chapter };
+        }
       } catch (error) {
         if (
           (error as Error).message === "SOURCE_REVISION_CONFLICT" ||
@@ -1057,7 +1065,7 @@ export async function executeEditorTool(
           return {
             status: "revision conflict",
             content:
-              "STALE REVISION during split commit. The transaction was rolled back; " +
+              "STALE REVISION during split commit. Re-read both chapters; " +
               `current revisions: ${current
                 .map((chapter) => `${chapter.id}=${chapter.revision}`)
                 .join(", ")}.`,
@@ -1351,21 +1359,19 @@ export async function executeEditorTool(
       }
       const wordCount = countWords(htmlToText(content));
       if (content !== ch.content) {
-        const committed = await prisma.$transaction(async (tx) => {
-          const updated = await tx.chapter.updateMany({
-            where: { id: ch.id, revision: expectedRevision },
-            data: { content, wordCount, revision: { increment: 1 } },
-          });
-          if (updated.count !== 1) return false;
-          await tx.manuscriptEdit.createMany({
-            data: applied.map((a) => ({
+        const committed = await bumpChapterRevision(ch.id, expectedRevision, {
+          content,
+          wordCount,
+        });
+        if (committed) {
+          await recordManuscriptEdits(
+            applied.map((a) => ({
               chapterId: ch.id,
               find: a.find,
               replace: a.replace,
-            })),
-          });
-          return true;
-        });
+            }))
+          );
+        }
         if (!committed) {
           return {
             status: "revision conflict",
@@ -1557,25 +1563,19 @@ export async function executeEditorTool(
       const label = `${source.id} (${source.wordCount}w)`;
 
       if (fromN === toN) {
-        const committed = await prisma.$transaction(async (tx) => {
-          const updated = await tx.chapter.updateMany({
-            where: { id: fromCh.id, revision: expectedSourceRevision },
-            data: {
-              content: destWith,
-              wordCount: toWordCount,
-              revision: { increment: 1 },
-            },
-          });
-          if (updated.count !== 1) return false;
-          await tx.manuscriptEdit.create({
-            data: {
+        const committed = await bumpChapterRevision(fromCh.id, expectedSourceRevision, {
+          content: destWith,
+          wordCount: toWordCount,
+        });
+        if (committed) {
+          await recordManuscriptEdits([
+            {
               chapterId: fromCh.id,
               find: source.id,
               replace: `[moved within chapter ${fromN}]`,
             },
-          });
-          return true;
-        });
+          ]);
+        }
         if (!committed) {
           return {
             status: "revision conflict",
@@ -1603,37 +1603,29 @@ export async function executeEditorTool(
       }
 
       try {
-        await prisma.$transaction(async (tx) => {
-          const sourceUpdate = await tx.chapter.updateMany({
-            where: { id: fromCh.id, revision: expectedSourceRevision },
-            data: {
-              content: sourceWithout,
-              wordCount: fromWordCount,
-              revision: { increment: 1 },
-            },
-          });
-          if (sourceUpdate.count !== 1) throw new Error("SOURCE_REVISION_CONFLICT");
-          const destinationUpdate = await tx.chapter.updateMany({
-            where: {
-              id: toCh.id,
-              revision: expectedDestinationRevision as number,
-            },
-            data: {
-              content: destWith,
-              wordCount: toWordCount,
-              revision: { increment: 1 },
-            },
-          });
-          if (destinationUpdate.count !== 1) {
-            throw new Error("DESTINATION_REVISION_CONFLICT");
-          }
-          await tx.manuscriptEdit.createMany({
-            data: [
-              { chapterId: fromCh.id, find: source.id, replace: "" },
-              { chapterId: toCh.id, find: "", replace: source.id },
-            ],
-          });
+        const destinationRevision = await prisma.chapter.findUnique({
+          where: { id: toCh.id },
+          select: { revision: true },
         });
+        if (destinationRevision?.revision !== expectedDestinationRevision) {
+          throw new Error("DESTINATION_REVISION_CONFLICT");
+        }
+        const sourceUpdate = await bumpChapterRevision(
+          fromCh.id,
+          expectedSourceRevision,
+          { content: sourceWithout, wordCount: fromWordCount }
+        );
+        if (!sourceUpdate) throw new Error("SOURCE_REVISION_CONFLICT");
+        const destinationUpdate = await bumpChapterRevision(
+          toCh.id,
+          expectedDestinationRevision as number,
+          { content: destWith, wordCount: toWordCount }
+        );
+        if (!destinationUpdate) throw new Error("DESTINATION_REVISION_CONFLICT");
+        await recordManuscriptEdits([
+          { chapterId: fromCh.id, find: source.id, replace: "" },
+          { chapterId: toCh.id, find: "", replace: source.id },
+        ]);
       } catch (error) {
         if (
           (error as Error).message === "SOURCE_REVISION_CONFLICT" ||
@@ -1642,8 +1634,7 @@ export async function executeEditorTool(
           return {
             status: "revision conflict",
             content:
-              "STALE REVISION during move commit. The transaction was rolled back; " +
-              "no passage was moved.",
+              "STALE REVISION during move commit. Re-read both chapters; no further writes were applied after the mismatch.",
           };
         }
         throw error;
@@ -1718,17 +1709,13 @@ export async function executeEditorTool(
       const insertHtml = paragraphsToHtml(text);
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
       const wordCount = countWords(htmlToText(content));
-      const committed = await prisma.$transaction(async (tx) => {
-        const updated = await tx.chapter.updateMany({
-          where: { id: ch.id, revision: expectedRevision },
-          data: { content, wordCount, revision: { increment: 1 } },
-        });
-        if (updated.count !== 1) return false;
-        await tx.manuscriptEdit.create({
-          data: { chapterId: ch.id, find: "", replace: text },
-        });
-        return true;
+      const committed = await bumpChapterRevision(ch.id, expectedRevision, {
+        content,
+        wordCount,
       });
+      if (committed) {
+        await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
+      }
       if (!committed) {
         return {
           status: "revision conflict",
@@ -1783,6 +1770,7 @@ export async function executeEditorTool(
           orderBy: { order: "desc" },
         });
         if (toShift.length) {
+          // Prepared batch — D1 cannot run interactive $transaction callbacks.
           await prisma.$transaction(
             toShift.map((c) =>
               prisma.chapter.update({

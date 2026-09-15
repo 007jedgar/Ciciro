@@ -97,15 +97,11 @@ export async function maybeCompactChat(
     "the manuscript - use the OPEN CHAPTER index in context, or list_passages.]\n\n" +
     summaryText;
 
-  const created = await prisma.$transaction(async (tx) => {
-    const now = new Date();
-    await tx.chatMessage.updateMany({
-      where: { id: { in: older.map((m) => m.id) } },
-      data: { status: "archived", archivedAt: now },
-    });
-    // Anchor the summary just before the kept tail chronologically.
-    const anchor = newer[0]?.createdAt ?? new Date();
-    return tx.chatMessage.create({
+  const now = new Date();
+  // Anchor the summary just before the kept tail chronologically.
+  const anchor = newer[0]?.createdAt ?? new Date();
+  const [created] = await prisma.$transaction([
+    prisma.chatMessage.create({
       data: {
         projectId,
         role: "user",
@@ -114,8 +110,12 @@ export async function maybeCompactChat(
         status: "compact",
         createdAt: new Date(anchor.getTime() - 1),
       },
-    });
-  });
+    }),
+    prisma.chatMessage.updateMany({
+      where: { id: { in: older.map((m) => m.id) } },
+      data: { status: "archived", archivedAt: now },
+    }),
+  ]);
 
   return {
     compacted: true,
