@@ -26,7 +26,14 @@ export default function ProjectStackLayout() {
           // manuscript straight away and the bible collapses away over it. See
           // StackPopTransition: a pushed card detaches what is underneath, and
           // the collapse then plays against nothing.
-          presentation: "transparentModal",
+          //
+          // Contained, because this stack is nested inside the root one. The
+          // plain transparent modal is presented over the whole window from the
+          // react root, so what sits behind it is the window rather than this
+          // stack's own screens — the collapse then played over bare grey. The
+          // contained variant presents over the current context and keeps the
+          // tabs underneath (RNSScreen.mm maps it to OverCurrentContext).
+          presentation: "containedTransparentModal",
         }}
       />
     </Stack>

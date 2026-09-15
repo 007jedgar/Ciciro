@@ -18,7 +18,8 @@ export default function StoryBibleStackLayout() {
         name="[...path]"
         // Same reason as the bible route itself: closing a file should show the
         // list it came from first, then the file folding away to the right.
-        options={{ presentation: "transparentModal" }}
+        // Contained for the same reason too — this stack is nested deeper still.
+        options={{ presentation: "containedTransparentModal" }}
       />
     </Stack>
   );
