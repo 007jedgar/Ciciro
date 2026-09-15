@@ -350,6 +350,7 @@ export type BibleEntry = {
 export type BibleFile = {
   path: string;
   content: string;
+  revision?: number;
 };
 
 export type BibleWriteRequest = {
@@ -357,6 +358,12 @@ export type BibleWriteRequest = {
   path: string;
   content: string;
   expectedRevision?: number;
+};
+
+export type BibleWriteResult = {
+  ok: true;
+  path: string;
+  revision: number;
 };
 
 export type ManuscriptActor = "user" | "ai" | "correction";

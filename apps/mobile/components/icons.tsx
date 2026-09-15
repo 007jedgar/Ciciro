@@ -380,6 +380,29 @@ export function AlertIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+/** Story bible: an open book of canon, plot, and characters. */
+export function BookIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M4.5 5.2c2.2-.7 4.4-.7 6.5.4v13.2c-2.1-1.1-4.3-1.1-6.5-.4z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M19.5 5.2c-2.2-.7-4.4-.7-6.5.4v13.2c2.1-1.1 4.3-1.1 6.5-.4z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Line x1="12" y1="5.6" x2="12" y2="18.8" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** A question mark in a circle — the editor's open forks. */
 export function QuestionIcon({ color, size = 24 }: IconProps) {
   return (
