@@ -361,3 +361,29 @@ export function TypeIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+export function AlertIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth={1.8} />
+      <Line x1="12" y1="7.2" x2="12" y2="13" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Circle cx="12" cy="16.6" r="1.2" fill={color} />
+    </Svg>
+  );
+}
+
+/** A question mark in a circle — the editor's open forks. */
+export function QuestionIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth={1.8} />
+      <Path
+        d="M9.4 9.3a2.7 2.7 0 1 1 3.6 2.55c-.7.26-1 .8-1 1.5v.5"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+      <Circle cx="12" cy="16.7" r="1.15" fill={color} />
+    </Svg>
+  );
+}

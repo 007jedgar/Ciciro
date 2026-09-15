@@ -12,6 +12,7 @@ import {
   type EditorRunStatus,
 } from "@/lib/editor-run";
 import { getRunCoordinator } from "@/lib/durable/coordinator";
+import { archiveChat, loadChatSnapshot } from "@/lib/chat-history";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -248,43 +249,12 @@ export async function GET(req: NextRequest) {
     if (failure) return failure;
     throw error;
   }
-  const [messages, runs] = await Promise.all([
-    prisma.chatMessage.findMany({
-      where: { projectId, archivedAt: null },
-      orderBy: { createdAt: "asc" },
-      take: 200,
-    }),
-    prisma.editorRun.findMany({
-      where: { projectId },
-      orderBy: { createdAt: "asc" },
-      take: 200,
-      select: {
-        id: true,
-        projectId: true,
-        turnId: true,
-        userMessageId: true,
-        assistantMessageId: true,
-        kind: true,
-        scope: true,
-        activeChapterId: true,
-        selection: true,
-        autoMode: true,
-        status: true,
-        visibleOutput: true,
-        iterationCount: true,
-        mutationCount: true,
-        stopReason: true,
-        verificationJson: true,
-        error: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }),
-  ]);
+  const { messages, runs } = await loadChatSnapshot(projectId);
   return json({ messages, runs }, 200);
 }
 
-// DELETE /api/chat?projectId=... — hard-clear chat and its durable runs.
+// DELETE /api/chat?projectId=... — clear the chat. Archives rather than
+// deletes, so the reply to it can carry an Undo. Returns the stamp to undo by.
 export async function DELETE(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId");
   if (!projectId) return json({ error: "projectId required" }, 400);
@@ -295,13 +265,7 @@ export async function DELETE(req: NextRequest) {
     if (failure) return failure;
     throw error;
   }
-  await prisma.$transaction([
-    prisma.editorRun.deleteMany({ where: { projectId } }),
-    prisma.chatBlob.deleteMany({ where: { projectId } }),
-    prisma.draftInsertion.deleteMany({ where: { projectId } }),
-    prisma.chatMessage.deleteMany({ where: { projectId } }),
-  ]);
-  return json({ ok: true }, 200);
+  return json(await archiveChat(projectId), 200);
 }
 
 function json(obj: unknown, status: number) {

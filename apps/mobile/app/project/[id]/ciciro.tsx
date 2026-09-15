@@ -4,17 +4,33 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { CiciroChat } from "../../../components/CiciroChat";
 import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
+import { OpenQuestionsSheet } from "../../../components/OpenQuestionsSheet";
 import { SkeletonList } from "../../../components/Skeleton";
-import { ciciro, queryClient, queryKeys, useDraftInsertionsQuery } from "../../../lib/api";
+import {
+  ciciro,
+  queryClient,
+  queryKeys,
+  useDraftInsertionsQuery,
+  useQuestionsQuery,
+} from "../../../lib/api";
+import type { OpenQuestion } from "../../../lib/api/types";
 import { insertDraftOps, insertionKey } from "../../../lib/chat-insert";
-import { asCiciroIntent, chatRequestFromComposer, chatRequestFromIntent } from "../../../lib/ciciro-intents";
+import {
+  asCiciroIntent,
+  chatRequestFromAnswer,
+  chatRequestFromComposer,
+  chatRequestFromIntent,
+} from "../../../lib/ciciro-intents";
 import { useProject } from "../../../lib/project";
 import { useAppTheme } from "../../../lib/settings";
 import { useCiciroChat } from "../../../lib/use-ciciro-chat";
 
 export default function CiciroScreen() {
   const { project, loading, error, selectedChapterId, recordChapterOp } = useProject();
-  const { intent } = useLocalSearchParams<{ intent?: string }>();
+  const { intent, questions: questionsParam } = useLocalSearchParams<{
+    intent?: string;
+    questions?: string;
+  }>();
   const router = useRouter();
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
@@ -23,10 +39,19 @@ export default function CiciroScreen() {
   const projectId = project?.id ?? "";
   const chat = useCiciroChat(projectId);
   const insertions = useDraftInsertionsQuery(projectId, { enabled: Boolean(projectId) });
+  const questions = useQuestionsQuery(projectId, "open", { enabled: Boolean(projectId) });
   const [composer, setComposer] = useState("");
   const [insertError, setInsertError] = useState<string | null>(null);
   const [localInserted, setLocalInserted] = useState<Set<string>>(new Set());
+  const [questionsOpen, setQuestionsOpen] = useState(false);
   const lastIntent = useRef<string | null>(null);
+
+  /** chapterId → its 1-based number, so a question can name where it lands. */
+  const chapterNumbers = useMemo(() => {
+    const map = new Map<string, number>();
+    (project?.chapters ?? []).forEach((chapter, index) => map.set(chapter.id, index + 1));
+    return map;
+  }, [project?.chapters]);
 
   const insertedKeys = useMemo(() => {
     const next = new Set(localInserted);
@@ -46,6 +71,19 @@ export default function CiciroScreen() {
     setComposer("");
     void chat.send(input);
   }, [chat.send, composer, projectId, selectedChapterId]);
+
+  const answerQuestion = useCallback(
+    (question: OpenQuestion, answer: string) => {
+      if (!projectId) return;
+      const input = chatRequestFromAnswer(question, answer, {
+        projectId,
+        chapterId: question.chapterId ?? selectedChapterId,
+      });
+      if (!input) return;
+      void chat.send(input);
+    },
+    [chat.send, projectId, selectedChapterId]
+  );
 
   const insertDraft = useCallback(
     (text: string, turnId: string | null, index: number) => {
@@ -78,6 +116,13 @@ export default function CiciroScreen() {
     },
     [project, recordChapterOp, selectedChapterId, t]
   );
+
+  // Arriving from the tab bar's Questions action opens the sheet once.
+  useEffect(() => {
+    if (!questionsParam) return;
+    setQuestionsOpen(true);
+    router.setParams({ questions: undefined });
+  }, [questionsParam, router]);
 
   useEffect(() => {
     if (!requested) {
@@ -151,18 +196,30 @@ export default function CiciroScreen() {
         messages={chat.messages}
         stream={chat.stream}
         streaming={chat.streaming}
-        error={insertError ?? chat.error}
+        failure={chat.failure}
+        insertError={insertError}
         phase={chat.stream.status}
         composer={composer}
         onComposerChange={setComposer}
         onSend={sendComposer}
-        onClear={() => {
+        onRetry={() => void chat.retry()}
+        onClear={async () => {
           setLocalInserted(new Set());
-          void chat.clear();
+          return chat.clear();
         }}
+        onUndoClear={(token) => void chat.undoClear(token)}
         onInsertDraft={insertDraft}
         insertedKeys={insertedKeys}
+        openQuestionCount={questions.data?.length ?? 0}
+        onOpenQuestions={() => setQuestionsOpen(true)}
         bottomInset={clearance}
+      />
+      <OpenQuestionsSheet
+        projectId={projectId}
+        visible={questionsOpen}
+        onClose={() => setQuestionsOpen(false)}
+        onAnswer={answerQuestion}
+        chapterNumbers={chapterNumbers}
       />
     </View>
   );

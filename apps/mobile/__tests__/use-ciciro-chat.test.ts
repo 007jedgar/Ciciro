@@ -108,4 +108,40 @@ describe("useCiciroChat", () => {
     );
     unmount();
   });
+
+  it("classifies a turn that never reached the editor, and replays it on retry", async () => {
+    const posts: Record<string, unknown>[] = [];
+    let failNext = true;
+    mockFetch(async (input, init) => {
+      if ((init?.method ?? "GET") !== "POST") return jsonResponse({ messages: [], runs: [] });
+      posts.push(JSON.parse(String(init?.body ?? "{}")));
+      if (failNext) {
+        failNext = false;
+        return jsonResponse({ error: "Overloaded" }, { status: 529 });
+      }
+      return ndjsonResponse([
+        '{"type":"turn","id":"t2","runId":"r2"}',
+        '{"type":"text","v":"Hello."}',
+        '{"type":"done","status":"completed","runId":"r2"}',
+      ]);
+    });
+
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.send({ projectId: "p1", message: "Say hi" });
+    });
+    expect(result.current.failure).toMatchObject({ code: "overloaded", retryable: true });
+
+    await act(async () => {
+      await result.current.retry();
+    });
+    expect(result.current.failure).toBeNull();
+    expect(posts).toHaveLength(2);
+    expect(posts[1]).toMatchObject({ message: "Say hi" });
+    // A failed run replays its own error, so a retry must be a fresh turn.
+    expect(posts[0]!.clientTurnId).not.toBe(posts[1]!.clientTurnId);
+    unmount();
+  });
 });

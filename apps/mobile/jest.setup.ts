@@ -14,6 +14,28 @@ jest.mock("expo-localization", () => ({
   getLocales: jest.fn(() => [{ languageCode: "en", languageTag: "en-US" }]),
 }));
 
+// Reanimated's worklet runtime needs the native module, and the package's own
+// mock re-enters it. Ours lives in __mocks__/react-native-reanimated.tsx.
+jest.mock("react-native-reanimated");
+
+// Skia needs a real canvas. Components under test only care that it renders.
+jest.mock("@shopify/react-native-skia", () => {
+  const { View } = require("react-native");
+  const passthrough = () => null;
+  return {
+    Canvas: View,
+    Group: View,
+    Circle: passthrough,
+    Path: passthrough,
+    Paint: passthrough,
+    Blur: passthrough,
+    LinearGradient: passthrough,
+    SweepGradient: passthrough,
+    Skia: { Path: { Make: () => ({}) } },
+    vec: (x: number, y: number) => ({ x, y }),
+  };
+});
+
 jest.mock("@react-native-community/netinfo", () => ({
   addEventListener: jest.fn(() => jest.fn()),
   fetch: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),

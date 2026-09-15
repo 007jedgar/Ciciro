@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ciciro } from "./api";
-import { ApiError } from "./api/client";
 import { queryClient } from "./api/query";
 import { queryKeys } from "./api/keys";
 import type { ChatMessage, ChatStreamEvent, EditorRunInput } from "./api/types";
+import { failureFromError, type ChatFailure } from "./chat-errors";
 import {
   applyChatStreamEvent,
   emptyChatStreamState,
@@ -13,61 +13,77 @@ import {
   MAX_CONTINUATION_SLICES,
   type ChatStreamState,
 } from "./ciciro-stream";
-import i18n from "./i18n";
 
 export type UseCiciroChat = {
   messages: ChatMessage[];
   loading: boolean;
-  error: string | null;
+  /** The last turn's failure, classified. Null once a turn succeeds. */
+  failure: ChatFailure | null;
   streaming: boolean;
   stream: ChatStreamState;
   send: (input: EditorRunInput) => Promise<void>;
-  clear: () => Promise<void>;
-  reload: () => Promise<void>;
+  /** Re-run the last turn. No-op when nothing has been sent yet. */
+  retry: () => Promise<void>;
+  /** Archives the conversation; resolves with the handle Undo restores by. */
+  clear: () => Promise<string | null>;
+  /** Puts back one cleared conversation, by the handle `clear` returned. */
+  undoClear: (token: string) => Promise<void>;
+  reload: (options?: { keepFailure?: boolean }) => Promise<void>;
 };
 
 function newClientTurnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `turn-${Date.now().toString(36)}`;
 }
 
-function shouldInvalidateProject(event: ChatStreamEvent): boolean {
-  if (
-    event.type === "chapter_updated" ||
-    event.type === "chapter_created" ||
-    event.type === "open_chapter"
-  ) {
-    return true;
-  }
+const PROJECT_EVENTS = ["chapter_updated", "chapter_created", "open_chapter"];
+const QUESTION_EVENTS = ["question_raised", "question_resolved"];
+
+/** Tool UI events arrive bare or wrapped in `{ type: "ui", event }`. */
+function uiEventType(event: ChatStreamEvent): string {
   if (event.type === "ui") {
-    const inner = (event as { event?: { type?: string } }).event?.type;
-    return inner === "chapter_updated" || inner === "chapter_created" || inner === "open_chapter";
+    return (event as { event?: { type?: string } }).event?.type ?? "";
   }
-  return false;
+  return event.type;
+}
+
+function shouldInvalidateProject(event: ChatStreamEvent): boolean {
+  return PROJECT_EVENTS.includes(uiEventType(event));
+}
+
+function shouldInvalidateQuestions(event: ChatStreamEvent): boolean {
+  return QUESTION_EVENTS.includes(uiEventType(event));
 }
 
 export function useCiciroChat(projectId: string): UseCiciroChat {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ChatFailure | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [stream, setStream] = useState<ChatStreamState>(emptyChatStreamState);
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
+  /** The last turn sent, so Try again can replay it verbatim. */
+  const lastInputRef = useRef<EditorRunInput | null>(null);
 
-  const reload = useCallback(async () => {
+  /**
+   * Refetch the transcript. `keepFailure` is for the reload that follows a
+   * failed turn: the turn failed, not the fetch, so a successful refetch must
+   * not quietly erase what the author is being told.
+   */
+  const reload = useCallback(async (options?: { keepFailure?: boolean }) => {
     if (!projectId) {
       setMessages([]);
       setLoading(false);
-      setError(null);
+      if (!options?.keepFailure) setFailure(null);
       return;
     }
     setLoading(true);
     try {
       const snapshot = await ciciro.chat.get(projectId);
       setMessages(hydrateChatMessages(snapshot));
-      setError(null);
+      if (!options?.keepFailure) setFailure(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : i18n.t("ciciroTab.sendError"));
+      setFailure(failureFromError(err));
     } finally {
       setLoading(false);
     }
@@ -84,8 +100,9 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       if (!input.resumeTurnId && !trimmed) return;
 
       streamingRef.current = true;
+      lastInputRef.current = input;
       setStreaming(true);
-      setError(null);
+      setFailure(null);
       setStream(emptyChatStreamState());
       const abort = new AbortController();
       abortRef.current = abort;
@@ -124,6 +141,11 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
               if (shouldInvalidateProject(event)) {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
               }
+              if (shouldInvalidateQuestions(event)) {
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.questions.all(projectId),
+                });
+              }
             },
             { signal: abort.signal }
           );
@@ -136,14 +158,17 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         try {
           const snapshot = await ciciro.chat.get(projectId);
           setMessages((current) => mergeChatTranscript(hydrateChatMessages(snapshot), current));
-          setError(null);
+          setFailure(null);
         } catch (reloadError) {
           if (!next.text.trim()) throw reloadError;
         }
+        // A run that died mid-flight still resolves here — its `[Ciciro error:]`
+        // footer rides in the transcript, so the message itself carries the
+        // failure and the bar below the composer stays clear.
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
-        setError(err instanceof ApiError ? err.message : i18n.t("ciciroTab.sendError"));
-        await reload().catch(() => {});
+        setFailure(failureFromError(err));
+        await reload({ keepFailure: true }).catch(() => {});
       } finally {
         streamingRef.current = false;
         setStreaming(false);
@@ -154,18 +179,56 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     [projectId, reload]
   );
 
+  const retry = useCallback(async () => {
+    const input = lastInputRef.current;
+    if (!input || streamingRef.current) return;
+    // A replay is a new turn: drop the id so the server does not resume the run
+    // that just failed.
+    await send({ ...input, clientTurnId: undefined, resumeTurnId: undefined });
+  }, [send]);
+
   const clear = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) return null;
     abortRef.current?.abort();
-    await ciciro.chat.clear(projectId);
+    const result = await ciciro.chat.clear(projectId);
     setMessages([]);
+    setFailure(null);
+    lastInputRef.current = null;
     setStream(emptyChatStreamState());
     void queryClient.invalidateQueries({ queryKey: queryKeys.chat.snapshot(projectId) });
+    return result.archivedAt;
   }, [projectId]);
+
+  const undoClear = useCallback(
+    async (token: string) => {
+      if (!projectId || !token) return;
+      try {
+        await ciciro.chat.restore(projectId, token);
+        await reload();
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.chat.insertions(projectId),
+        });
+      } catch (err) {
+        setFailure(failureFromError(err));
+      }
+    },
+    [projectId, reload]
+  );
 
   useEffect(() => {
     return () => abortRef.current?.abort();
   }, []);
 
-  return { messages, loading, error, streaming, stream, send, clear, reload };
+  return {
+    messages,
+    loading,
+    failure,
+    streaming,
+    stream,
+    send,
+    retry,
+    clear,
+    undoClear,
+    reload,
+  };
 }

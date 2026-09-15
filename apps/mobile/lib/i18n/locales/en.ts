@@ -216,6 +216,37 @@ const en = {
       rewrite: "Rewrite the passage",
       describe: "Add description",
     },
+    cleared: "Chat cleared.",
+    undo: "Undo",
+    restored: "Chat restored.",
+    retry: "Try again",
+    showDetails: "Details",
+    hideDetails: "Hide details",
+    /** One sentence per failure kind, keyed by ChatFailure.code. */
+    failure: {
+      auth:
+        "Ciciro could not reach the writing model — the server's API key was rejected. This needs a fix on the server, not another try.",
+      permission:
+        "Ciciro's account is not allowed to use this model. Trying again won't change that.",
+      rateLimit:
+        "Too many requests just now. Give it a moment and send again.",
+      overloaded:
+        "The writing model is overloaded. Try again in a moment.",
+      upstream:
+        "The writing model had a problem on its end. Try again.",
+      invalidRequest:
+        "Ciciro sent something the model wouldn't accept. The turn was dropped.",
+      tooLong:
+        "This conversation is too long for one turn. Clear the chat, or ask something shorter.",
+      network:
+        "Couldn't reach Ciciro. Check your connection and try again.",
+      timeout:
+        "Ciciro took too long to answer. Try again.",
+      cancelled:
+        "That turn was stopped.",
+      unknown:
+        "Ciciro couldn't finish that turn.",
+    },
     phase: {
       queued: "Queued",
       running: "Working",
@@ -226,6 +257,23 @@ const en = {
       cancelled: "Cancelled",
     },
   },
+  questions: {
+    title: "Open questions",
+    blurb: "Forks Ciciro answered provisionally so it could keep writing. Answer one and it reconciles the manuscript — correcting the prose only if your answer differs from what it wrote.",
+    empty: "No open questions. Ciciro isn't waiting on you.",
+    loadError: "Couldn't load your open questions.",
+    wentWith: "Went with: {{provisional}}",
+    chapter: "Chapter {{number}}",
+    answerLabel: "Your answer",
+    answerPlaceholder: "Your answer…",
+    answer: "Answer & reconcile",
+    dismiss: "Dismiss",
+    answered: "Answered: {{answer}}",
+    resolvedCount: "Resolved ({{count}})",
+    banner_one: "Ciciro has 1 open question",
+    banner_other: "Ciciro has {{count}} open questions",
+    review: "Review",
+  },
   manuscriptTabBar: {
     open: "Writing tools",
     close: "Close",
@@ -233,6 +281,7 @@ const en = {
     continue: "Continue",
     rewrite: "Rewrite",
     describe: "Describe",
+    questions: "Questions",
     newChapter: "New chapter",
     chapters: "Chapters",
     typography: "Typography",

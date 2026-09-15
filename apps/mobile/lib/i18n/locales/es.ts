@@ -218,6 +218,37 @@ const es: Translations = {
       rewrite: "Reescribir el pasaje",
       describe: "Añadir descripción",
     },
+    cleared: "Chat borrado.",
+    undo: "Deshacer",
+    restored: "Chat restaurado.",
+    retry: "Reintentar",
+    showDetails: "Detalles",
+    hideDetails: "Ocultar detalles",
+    /** One sentence per failure kind, keyed by ChatFailure.code. */
+    failure: {
+      auth:
+        "Ciciro no pudo acceder al modelo de escritura: el servidor rechazó la clave de API. Esto se arregla en el servidor, no reintentando.",
+      permission:
+        "La cuenta de Ciciro no tiene permiso para usar este modelo. Reintentar no lo cambiará.",
+      rateLimit:
+        "Demasiadas peticiones ahora mismo. Espera un momento y vuelve a enviar.",
+      overloaded:
+        "El modelo de escritura está saturado. Inténtalo en un momento.",
+      upstream:
+        "El modelo de escritura tuvo un problema. Inténtalo de nuevo.",
+      invalidRequest:
+        "Ciciro envió algo que el modelo no aceptó. El turno se descartó.",
+      tooLong:
+        "Esta conversación es demasiado larga para un turno. Borra el chat o pregunta algo más corto.",
+      network:
+        "No se pudo conectar con Ciciro. Revisa tu conexión e inténtalo de nuevo.",
+      timeout:
+        "Ciciro tardó demasiado en responder. Inténtalo de nuevo.",
+      cancelled:
+        "Ese turno se detuvo.",
+      unknown:
+        "Ciciro no pudo terminar ese turno.",
+    },
     phase: {
       queued: "En cola",
       running: "Trabajando",
@@ -228,6 +259,23 @@ const es: Translations = {
       cancelled: "Cancelado",
     },
   },
+  questions: {
+    title: "Preguntas abiertas",
+    blurb: "Bifurcaciones que Ciciro resolvió provisionalmente para poder seguir escribiendo. Responde una y reconciliará el manuscrito, corrigiendo la prosa solo si tu respuesta difiere de lo que escribió.",
+    empty: "No hay preguntas abiertas. Ciciro no te está esperando.",
+    loadError: "No se pudieron cargar tus preguntas abiertas.",
+    wentWith: "Optó por: {{provisional}}",
+    chapter: "Capítulo {{number}}",
+    answerLabel: "Tu respuesta",
+    answerPlaceholder: "Tu respuesta…",
+    answer: "Responder y reconciliar",
+    dismiss: "Descartar",
+    answered: "Respondido: {{answer}}",
+    resolvedCount: "Resueltas ({{count}})",
+    banner_one: "Ciciro tiene 1 pregunta abierta",
+    banner_other: "Ciciro tiene {{count}} preguntas abiertas",
+    review: "Revisar",
+  },
   manuscriptTabBar: {
     open: "Herramientas de escritura",
     close: "Cerrar",
@@ -235,6 +283,7 @@ const es: Translations = {
     continue: "Continuar",
     rewrite: "Reescribir",
     describe: "Describir",
+    questions: "Preguntas",
     newChapter: "Nuevo capítulo",
     chapters: "Capítulos",
     typography: "Tipografía",

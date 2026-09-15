@@ -60,3 +60,34 @@ export function chatRequestFromComposer(
     activeChapterId: ctx.chapterId,
   };
 }
+
+/**
+ * The turn that carries an author's answer back to the editor.
+ *
+ * Answering is not bookkeeping: the editor already wrote something based on its
+ * guess, so it has to compare the answer against that guess, fix the prose and
+ * the bible where they diverge, and only then resolve the question. The id is
+ * passed through so it can call resolve_question on the right row.
+ *
+ * English, because this is a model instruction rather than UI copy.
+ */
+export function chatRequestFromAnswer(
+  question: { id: string; question: string; provisional: string },
+  answer: string,
+  ctx: { projectId: string; chapterId: string | null }
+): EditorRunInput | null {
+  const trimmed = answer.trim();
+  if (!trimmed) return null;
+  return {
+    projectId: ctx.projectId,
+    message:
+      `I'm answering an open question. [id: ${question.id}] Question: "${question.question}". ` +
+      `You provisionally went with: "${question.provisional || "n/a"}". My answer: ${trimmed}. ` +
+      "Reconcile the manuscript and bible: if your provisional choice already matches, just " +
+      "resolve it; if it differs, correct the affected prose and the bible, then resolve it. " +
+      "Report what you changed.",
+    kind: "reconcile",
+    scope: "chapter",
+    activeChapterId: ctx.chapterId,
+  };
+}
