@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
 import { ManuscriptTabBar } from "../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../components/Skeleton";
+import { StoryBibleHost } from "../../../components/StoryBibleSheet";
 import { WritingMeter } from "../../../components/WritingMeter";
 import { ProjectProvider, useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
@@ -57,23 +58,25 @@ export default function ProjectTabsLayout() {
 
   return (
     <ProjectProvider projectId={id}>
-      <View style={layout.screen}>
-        <ProjectHeader />
-        {onEditor ? <WritingMeter /> : null}
-        <View style={{ flex: 1 }}>
-          <Tabs
-            backBehavior="none"
-            tabBar={() => null}
-            screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
-          >
-            <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
-            <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
-            <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
-            <Tabs.Screen name="index" options={{ href: null }} />
-          </Tabs>
-          <ManuscriptTabBar projectId={id} />
+      <StoryBibleHost projectId={id}>
+        <View style={layout.screen}>
+          <ProjectHeader />
+          {onEditor ? <WritingMeter /> : null}
+          <View style={{ flex: 1 }}>
+            <Tabs
+              backBehavior="none"
+              tabBar={() => null}
+              screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
+            >
+              <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
+              <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
+              <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
+              <Tabs.Screen name="index" options={{ href: null }} />
+            </Tabs>
+            <ManuscriptTabBar projectId={id} />
+          </View>
         </View>
-      </View>
+      </StoryBibleHost>
     </ProjectProvider>
   );
 }

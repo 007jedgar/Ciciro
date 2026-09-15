@@ -9,6 +9,7 @@ import type {
   BibleFile,
   BibleNewCharacterRequest,
   BibleWriteRequest,
+  BibleWriteResult,
   Chapter,
   ChapterCreateRequest,
   ChapterPatchRequest,
@@ -244,7 +245,7 @@ export const ciciro = {
     read: (projectId: string, path: string, opts?: RequestOpts) =>
       api<BibleFile>(`/api/bible${queryString({ projectId, path })}`, opts),
     write: (body: BibleWriteRequest, opts?: RequestOpts) =>
-      api<OkResponse>("/api/bible", jsonInit("POST", body, opts)),
+      api<BibleWriteResult>("/api/bible", jsonInit("POST", body, opts)),
     createCharacter: (body: BibleNewCharacterRequest, opts?: RequestOpts) =>
       api<BibleFile>("/api/bible", jsonInit("POST", body, opts)),
   },

@@ -6,6 +6,7 @@ import type {
   BibleFile,
   BibleNewCharacterRequest,
   BibleWriteRequest,
+  BibleWriteResult,
   Chapter,
   ChapterCreateRequest,
   Character,
@@ -715,7 +716,7 @@ export function useDeleteQuestionMutation() {
 export function useWriteBibleMutation() {
   return useMutation({
     mutationFn: (body: BibleWriteRequest) => ciciro.bible.write(body),
-    onSuccess: (_data, vars) => {
+    onSuccess: (_data: BibleWriteResult, vars) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.bible.index(vars.projectId) });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.bible.file(vars.projectId, vars.path),
