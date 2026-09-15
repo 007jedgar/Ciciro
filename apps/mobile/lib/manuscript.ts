@@ -59,7 +59,11 @@ export type HtmlToDocOptions = {
 const BLOCK_RE =
   /<(p|h[1-6]|li|blockquote)\b[^>]*>[\s\S]*?<\/\1>|<hr\b[^>]*\/?>/gi;
 
-const defaultCreateId = (): string => crypto.randomUUID();
+// Hermes has no `crypto` global, and a bare reference to one throws rather
+// than coming back undefined — this only ever held up under Node, in tests.
+// Same shape as the id in block-editor, so the two read alike.
+const defaultCreateId = (): string =>
+  globalThis.crypto?.randomUUID?.() ?? `b-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, " ").trim();
