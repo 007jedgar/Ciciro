@@ -43,6 +43,16 @@ export {
 } from "../lib/glass-sheet";
 
 const SPRING = { damping: 28, stiffness: 320, mass: 0.86 } as const;
+/**
+ * The exit is timed, not sprung. A spring is only "finished" once it settles
+ * inside Reanimated's rest thresholds, and this one is underdamped: it clears
+ * the screen in a quarter of a second but takes the better part of another
+ * second to formally land. The sheet unmounts on that callback, so all of that
+ * time was spent with an invisible modal over the app eating taps.
+ */
+const EXIT_MS = 220;
+/** Reduced motion replaces every sheet movement with this short fade of travel. */
+const REDUCED_MS = 140;
 const BODY_PAD_TOP = 10;
 const BODY_PAD_BOTTOM = 14;
 
@@ -92,6 +102,12 @@ export function GlassSheet({
    */
   const [openSeq, setOpenSeq] = useState(0);
   const seqRef = useRef(0);
+  /**
+   * True from the moment a close starts until the sheet is gone. The modal
+   * stops taking touches immediately, so even a late unmount cannot swallow a
+   * tap meant for the screen underneath.
+   */
+  const [closing, setClosing] = useState(false);
 
   const snapHeights = useMemo(
     () =>
@@ -136,20 +152,27 @@ export function GlassSheet({
     // A reopen has already claimed a newer sequence; this close is stale.
     if (seq !== seqRef.current) return;
     setMounted(false);
+    setClosing(false);
   }, []);
 
   const animateTo = useCallback(
     (to: number, hide: boolean) => {
       const seq = seqRef.current;
-      if (reduceMotion) {
-        translateY.value = withTiming(to, { duration: 140 }, (finished) => {
-          if (finished && hide) runOnJS(unmount)(seq);
-        });
+      if (hide) {
+        translateY.value = withTiming(
+          to,
+          { duration: reduceMotion ? REDUCED_MS : EXIT_MS },
+          (finished) => {
+            if (finished) runOnJS(unmount)(seq);
+          }
+        );
         return;
       }
-      translateY.value = withSpring(to, SPRING, (finished) => {
-        if (finished && hide) runOnJS(unmount)(seq);
-      });
+      if (reduceMotion) {
+        translateY.value = withTiming(to, { duration: REDUCED_MS });
+        return;
+      }
+      translateY.value = withSpring(to, SPRING);
     },
     [reduceMotion, translateY, unmount]
   );
@@ -174,6 +197,7 @@ export function GlassSheet({
       seqRef.current += 1;
       setOpenSeq(seqRef.current);
       openedRef.current = false;
+      setClosing(false);
       cancelAnimation(translateY);
       setContentHeight(0);
       setMounted(true);
@@ -182,9 +206,11 @@ export function GlassSheet({
     if (!mounted) return;
     if (openedRef.current) {
       openedRef.current = false;
+      setClosing(true);
       animateTo(sheetHeight + 80, true);
     } else {
       setMounted(false);
+      setClosing(false);
     }
     // Presentation is driven by `visible` only; sheet height is measured after mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,7 +289,11 @@ export function GlassSheet({
       onRequestClose={dismiss}
     >
       <GestureHandlerRootView style={styles.flex}>
-        <View style={styles.flex} testID={testID}>
+        <View
+          style={styles.flex}
+          testID={testID}
+          pointerEvents={closing ? "none" : "auto"}
+        >
           <Animated.View testID={`${testID}-scrim`} style={[styles.backdrop, backdropStyle]}>
             <Pressable
               testID={`${testID}-backdrop`}
@@ -321,6 +351,7 @@ export function GlassSheet({
               <View style={[styles.body, { paddingBottom: bodyPadBottom }]}>
                 <View
                   key={openSeq}
+                  testID={`${testID}-measure`}
                   style={styles.measure}
                   onLayout={(event) => {
                     const next =
