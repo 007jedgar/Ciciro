@@ -145,6 +145,33 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("lifts the composer onto the keyboard and keeps the tail in reach", () => {
+    const keyboardState = jest.requireMock("react-native-keyboard-controller")
+      .useKeyboardState as jest.Mock;
+    const resting = keyboardState.getMockImplementation();
+    keyboardState.mockImplementation((select: (s: unknown) => unknown) =>
+      select({ isVisible: true, height: 300 })
+    );
+    try {
+      const { unmount } = render(
+        wrap(<CiciroChat {...idle} composer="" bottomInset={96} messages={[assistant]} />)
+      );
+      fireEvent(screen.getByTestId("chat-dock"), "layout", {
+        nativeEvent: { layout: { height: 180, width: 390, x: 0, y: 0 } },
+      });
+      // The tab bar's reserve is handed back, so the dock rests on the keyboard
+      // rather than floating a bar's height above it.
+      expect(screen.getByTestId("chat-dock").props.offset).toEqual({ closed: 0, opened: 86 });
+      const padding = StyleSheet.flatten(
+        screen.getByTestId("chat-thread").props.contentContainerStyle
+      ).paddingBottom;
+      expect(padding).toBe(180 + (300 + 10 - 96) + 16);
+      unmount();
+    } finally {
+      keyboardState.mockImplementation(resting);
+    }
+  });
+
   it("renders a reply's markdown as formatting, not as stray markers", () => {
     const { unmount } = render(
       wrap(

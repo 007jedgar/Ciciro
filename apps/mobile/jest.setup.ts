@@ -36,6 +36,11 @@ jest.mock("@shopify/react-native-skia", () => {
   };
 });
 
+// The keyboard is a native surface; the library ships its own mock for it.
+jest.mock("react-native-keyboard-controller", () =>
+  require("react-native-keyboard-controller/jest")
+);
+
 jest.mock("@react-native-community/netinfo", () => ({
   addEventListener: jest.fn(() => jest.fn()),
   fetch: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),
