@@ -1,16 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, View, type TextStyle } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
   interpolateColor,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-import { shimmerBrightness } from "../lib/shimmer";
+import { shimmerBrightness, shimmerLit } from "../lib/shimmer";
 
 const CYCLE_MS = 1_900;
 
@@ -61,15 +62,29 @@ export function ShimmerText({
   rest,
   lit,
   style,
+  cycles,
+  onDone,
   reduceMotion = false,
   decorative = false,
 }: {
   text: string;
   /** The label's settled colour. */
   rest: string;
-  /** The colour at the crest of the sweep — the theme's accent. */
-  lit: string;
+  /**
+   * The colour at the crest of the sweep — the theme's accent. A list instead
+   * deals its colours out along the string, so the band lights up in several
+   * at once: use that to mark something that landed, not something running.
+   */
+  lit: string | string[];
   style?: TextStyle;
+  /**
+   * How many times the sweep runs. Left out it runs until unmounted, which is
+   * what an in-progress label wants; a count runs that many passes and then
+   * calls `onDone`, so a one-off flourish can hand the text back afterwards.
+   */
+  cycles?: number;
+  /** Called after the last cycle, and immediately when motion is reduced. */
+  onDone?: () => void;
   reduceMotion?: boolean;
   /**
    * Set when the surrounding element already announces this text — the
@@ -79,21 +94,31 @@ export function ShimmerText({
   decorative?: boolean;
 }) {
   const clock = useSharedValue(0);
+  // Read inside the animation's callback, which outlives the render that set it.
+  const done = useRef(onDone);
+  done.current = onDone;
 
   useEffect(() => {
     if (reduceMotion) {
       clock.value = 0;
+      // Nothing will sweep, so anything waiting on the flourish is let go now
+      // rather than left holding a state that never resolves.
+      done.current?.();
       return;
     }
     clock.value = 0;
     clock.value = withRepeat(
       withTiming(1, { duration: CYCLE_MS, easing: Easing.linear }),
-      -1,
-      false
+      cycles ?? -1,
+      false,
+      (finished) => {
+        "worklet";
+        if (finished && done.current) runOnJS(done.current)();
+      }
     );
     return () => cancelAnimation(clock);
     // Restarting on a new label keeps the sweep in step with the words shown.
-  }, [clock, reduceMotion, text]);
+  }, [clock, cycles, reduceMotion, text]);
 
   const base: TextStyle = { fontSize: 13, ...style };
   const chars = [...text];
@@ -126,7 +151,7 @@ export function ShimmerText({
           count={chars.length}
           clock={clock}
           rest={rest}
-          lit={lit}
+          lit={shimmerLit(lit, index)}
           style={base}
         />
       ))}
