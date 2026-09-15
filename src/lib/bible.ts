@@ -14,6 +14,7 @@ import { AuthError } from "@/lib/auth/session";
 //   timeline.md     - chronology
 //   world.md        - settings, lore, rules
 //   characters/<slug>.md
+//   plot/<slug>.md  - individual plot lines / threads
 //
 // Every file opens with a one-line summary (that is the index the editor sees
 // without loading full contents).
@@ -248,6 +249,32 @@ type SeedProject = {
   }[];
 };
 
+export function emptyCharacterFile(name: string): string {
+  return `# ${name}\n> Character\n\n**Role:** \n\n## Description\n\n## Arc\n\n## Voice\n> How they speak: diction, rhythm, tics.\n`;
+}
+
+export function emptyPlotLineFile(name: string): string {
+  return (
+    `# ${name}\n> Plot line — a beat, loop, or thread the story must pay off.\n\n` +
+    `## Setup\n\n## Stakes\n\n## Payoff\n`
+  );
+}
+
+export async function createNamedBibleFile(
+  projectId: string,
+  kind: "character" | "plot",
+  name: string
+): Promise<BibleFileRecord> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Name required");
+  const path =
+    kind === "character"
+      ? `characters/${slugify(trimmed)}.md`
+      : `plot/${slugify(trimmed)}.md`;
+  const content = kind === "character" ? emptyCharacterFile(trimmed) : emptyPlotLineFile(trimmed);
+  return writeBibleFile(projectId, path, content);
+}
+
 function characterFile(c: SeedProject["characters"][number]): string {
   return (
     `# ${c.name}\n> ${c.role || "Character"}${
@@ -259,6 +286,14 @@ function characterFile(c: SeedProject["characters"][number]): string {
     `## Voice\n> How they speak: diction, rhythm, tics.\n${
       c.notes ? c.notes + "\n" : "- (describe their voice)\n"
     }`
+  );
+}
+
+function plotLineFile(pt: SeedProject["plotPoints"][number]): string {
+  return (
+    `# ${pt.title}\n> ${pt.type || "Plot line"} — a beat, loop, or thread the story must pay off.\n\n` +
+    (pt.description ? `## Setup\n${pt.description}\n\n` : `## Setup\n\n`) +
+    `## Stakes\n\n## Payoff\n`
   );
 }
 
@@ -299,5 +334,10 @@ export async function ensureBible(projectId: string): Promise<void> {
     const path = `characters/${slugify(c.name)}.md`;
     if (have.has(path)) continue;
     await writeBibleFile(projectId, path, characterFile(c));
+  }
+  for (const pt of seed.plotPoints) {
+    const path = `plot/${slugify(pt.title)}.md`;
+    if (have.has(path)) continue;
+    await writeBibleFile(projectId, path, plotLineFile(pt));
   }
 }

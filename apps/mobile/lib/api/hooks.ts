@@ -5,6 +5,7 @@ import { ciciro } from "./resources";
 import type {
   BibleFile,
   BibleNewCharacterRequest,
+  BibleNewPlotRequest,
   BibleWriteRequest,
   BibleWriteResult,
   Chapter,
@@ -725,11 +726,25 @@ export function useWriteBibleMutation() {
   });
 }
 
+function cacheCreatedBibleFile(data: BibleFile, projectId: string) {
+  queryClient.setQueryData(queryKeys.bible.file(projectId, data.path), data);
+  void queryClient.invalidateQueries({ queryKey: queryKeys.bible.index(projectId) });
+}
+
 export function useCreateBibleCharacterMutation() {
   return useMutation({
     mutationFn: (body: BibleNewCharacterRequest) => ciciro.bible.createCharacter(body),
-    onSuccess: (_data: BibleFile, vars) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.bible.index(vars.projectId) });
+    onSuccess: (data: BibleFile, vars) => {
+      cacheCreatedBibleFile(data, vars.projectId);
+    },
+  });
+}
+
+export function useCreateBiblePlotMutation() {
+  return useMutation({
+    mutationFn: (body: BibleNewPlotRequest) => ciciro.bible.createPlot(body),
+    onSuccess: (data: BibleFile, vars) => {
+      cacheCreatedBibleFile(data, vars.projectId);
     },
   });
 }

@@ -8,6 +8,7 @@ import type {
   BibleEntry,
   BibleFile,
   BibleNewCharacterRequest,
+  BibleNewPlotRequest,
   BibleWriteRequest,
   BibleWriteResult,
   Chapter,
@@ -247,6 +248,8 @@ export const ciciro = {
     write: (body: BibleWriteRequest, opts?: RequestOpts) =>
       api<BibleWriteResult>("/api/bible", jsonInit("POST", body, opts)),
     createCharacter: (body: BibleNewCharacterRequest, opts?: RequestOpts) =>
+      api<BibleFile>("/api/bible", jsonInit("POST", body, opts)),
+    createPlot: (body: BibleNewPlotRequest, opts?: RequestOpts) =>
       api<BibleFile>("/api/bible", jsonInit("POST", body, opts)),
   },
 

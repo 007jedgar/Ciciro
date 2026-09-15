@@ -325,6 +325,13 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/bible$/,
     body: { projectId: "p1", newCharacter: "Ada" },
   },
+  {
+    name: "bible.createPlot",
+    run: () => ciciro.bible.createPlot({ projectId: "p1", newPlot: "The heist" }),
+    method: "POST",
+    path: /\/api\/bible$/,
+    body: { projectId: "p1", newPlot: "The heist" },
+  },
   { name: "chat.get", run: () => ciciro.chat.get("p1"), path: /\/api\/chat\?projectId=p1$/ },
   {
     name: "chat.clear",
