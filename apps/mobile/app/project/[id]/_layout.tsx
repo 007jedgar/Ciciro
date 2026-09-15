@@ -19,7 +19,16 @@ export default function ProjectStackLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="bible" />
+      <Stack.Screen
+        name="bible"
+        options={{
+          // Over the tabs rather than in place of them, so going back shows the
+          // manuscript straight away and the bible collapses away over it. See
+          // StackPopTransition: a pushed card detaches what is underneath, and
+          // the collapse then plays against nothing.
+          presentation: "transparentModal",
+        }}
+      />
     </Stack>
   );
 
