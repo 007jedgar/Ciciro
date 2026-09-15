@@ -122,3 +122,30 @@ describe("block editor keystrokes", () => {
     ]);
   });
 });
+
+describe("htmlToDoc without a crypto global", () => {
+  // Hermes has no `crypto`, and a bare reference to one throws rather than
+  // coming back undefined. Node hands tests a `crypto`, which is exactly why
+  // this went out working and failed the moment it ran on a phone.
+  const realCrypto = globalThis.crypto;
+
+  beforeEach(() => {
+    // @ts-expect-error -- standing in for a runtime that has no crypto at all.
+    delete globalThis.crypto;
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, "crypto", {
+      value: realCrypto,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  it("still stamps every block with an id of its own", () => {
+    const { doc } = htmlToDoc("<p>One.</p><p>Two.</p><p>Three.</p>", 1);
+    expect(doc.blocks).toHaveLength(3);
+    for (const block of doc.blocks) expect(block.id).toBeTruthy();
+    expect(new Set(doc.blocks.map((b) => b.id)).size).toBe(3);
+  });
+});
