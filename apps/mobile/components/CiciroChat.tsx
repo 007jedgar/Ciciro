@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   Share,
@@ -23,6 +22,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { KeyboardStickyView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import {
@@ -50,6 +50,8 @@ import { Snackbar } from "./Snackbar";
 const SEND_SIZE = 32;
 /** How far above the dock the bottom fade starts. */
 const FADE_LEAD = 130;
+/** Air between the composer and the top of the keyboard. */
+const KEYBOARD_GAP = 10;
 
 /**
  * A Ciciro reply: prose on the page, drafts in a card.
@@ -295,10 +297,23 @@ export function CiciroChat({
   // The tail of the stream is where new words land; everything above it is read.
   const liveAnimate = animate && streaming;
 
+  /**
+   * The dock rides the keyboard rather than the screen bottom. Closed, it
+   * reserves room for the floating tab bar; open, that reserve would be a dead
+   * gap over the keyboard, so the sticky offset gives it back.
+   */
+  const keyboardHeight = useKeyboardState((state) => (state.isVisible ? state.height : 0));
+  const stickyOffset = Math.max(0, bottomInset - KEYBOARD_GAP);
+  // What the raised dock hides that the resting one did not, so the last reply
+  // stays reachable with the keyboard up.
+  const keyboardLift = Math.max(0, keyboardHeight + KEYBOARD_GAP - bottomInset);
+
+  // New words, and the keyboard opening under them, both mean the tail of the
+  // conversation is what the author wants to be looking at.
   useEffect(() => {
     const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     return () => clearTimeout(id);
-  }, [messages.length, stream.text]);
+  }, [messages.length, stream.text, keyboardLift]);
 
   // Clearing the conversation: the thread falls into the mark, the mark takes
   // the hit, and Undo stays within reach for a few seconds after.
@@ -409,10 +424,7 @@ export function CiciroChat({
         : t("ciciroTab.sending");
 
   return (
-    <KeyboardAvoidingView
-      style={layout.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={layout.screen}>
       {openQuestionCount > 0 && onOpenQuestions ? (
         <Animated.View entering={animate ? FadeIn.duration(220) : undefined}>
           <Pressable
@@ -448,7 +460,9 @@ export function CiciroChat({
         style={{ flex: 1 }}
         data={messages}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: dockHeight + 16 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: dockHeight + keyboardLift + 16 }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         ListEmptyComponent={
           streaming ? null : (
             <Text style={[layout.body, { marginTop: 8 }]}>{t("ciciroTab.empty")}</Text>
@@ -510,8 +524,9 @@ export function CiciroChat({
         gradient. The fade is the one concession to legibility: prose dissolves
         toward the composer instead of colliding with the Clear chat label.
       */}
-      <View
+      <KeyboardStickyView
         testID="chat-dock"
+        offset={{ closed: 0, opened: stickyOffset }}
         pointerEvents="box-none"
         style={styles.dockWrap}
         onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)}
@@ -615,8 +630,8 @@ export function CiciroChat({
             </View>
           </Glass>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardStickyView>
+    </View>
   );
 }
 
