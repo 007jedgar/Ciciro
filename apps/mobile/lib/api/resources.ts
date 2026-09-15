@@ -39,6 +39,8 @@ import type {
   ProjectListItem,
   ProjectPatchRequest,
   ProjectRecord,
+  ChatClearResult,
+  ChatRestoreResult,
   QuestionCreateRequest,
   QuestionPatchRequest,
   ReadingPositionPutRequest,
@@ -250,8 +252,17 @@ export const ciciro = {
   chat: {
     get: async (projectId: string, opts?: RequestOpts) =>
       normalizeChatSnapshot(await api<unknown>(`/api/chat${queryString({ projectId })}`, opts)),
+    /** Archives the conversation and hands back the stamp `restore` undoes by. */
     clear: (projectId: string, opts?: RequestOpts) =>
-      api<OkResponse>(`/api/chat${queryString({ projectId })}`, jsonInit("DELETE", undefined, opts)),
+      api<ChatClearResult>(
+        `/api/chat${queryString({ projectId })}`,
+        jsonInit("DELETE", undefined, opts)
+      ),
+    restore: (projectId: string, archivedAt: string, opts?: RequestOpts) =>
+      api<ChatRestoreResult>(
+        "/api/chat/restore",
+        jsonInit("POST", { projectId, archivedAt }, opts)
+      ),
     compact: (projectId: string, opts?: RequestOpts) =>
       api<CompactResult>(
         "/api/chat",

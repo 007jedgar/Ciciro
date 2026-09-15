@@ -247,7 +247,7 @@ export function usePlotPointsQuery(projectId: string, options?: Enabled) {
 
 export function useQuestionsQuery(projectId: string, status?: string, options?: Enabled) {
   return useQuery({
-    queryKey: queryKeys.questions(projectId, status),
+    queryKey: queryKeys.questions.list(projectId, status),
     queryFn: () => ciciro.questions.list(projectId, status),
     enabled: (options?.enabled ?? true) && Boolean(projectId),
   });
@@ -680,7 +680,7 @@ export function useCreateQuestionMutation() {
   return useMutation({
     mutationFn: (body: QuestionCreateRequest) => ciciro.questions.create(body),
     onSuccess: (_data, vars) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.questions(vars.projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.questions.all(vars.projectId) });
     },
   });
 }
@@ -697,7 +697,7 @@ export function usePatchQuestionMutation() {
       body: Parameters<typeof ciciro.questions.patch>[1];
     }) => ciciro.questions.patch(id, body),
     onSuccess: (_data, vars) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.questions(vars.projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.questions.all(vars.projectId) });
     },
   });
 }
@@ -707,7 +707,7 @@ export function useDeleteQuestionMutation() {
     mutationFn: ({ id, projectId }: { id: string; projectId: string }) =>
       ciciro.questions.delete(id).then((result) => ({ ...result, projectId })),
     onSuccess: (_data, vars) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.questions(vars.projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.questions.all(vars.projectId) });
     },
   });
 }

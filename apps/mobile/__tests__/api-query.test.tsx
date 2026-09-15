@@ -26,8 +26,10 @@ describe("query keys", () => {
     expect(queryKeys.projects.list()).toEqual(["projects", "list"]);
     expect(queryKeys.projects.detail("p1")).toEqual(["projects", "detail", "p1"]);
     expect(queryKeys.folders.detail("f1")[0]).toBe("folders");
-    expect(queryKeys.questions("p1")).toEqual(["questions", "p1", "all"]);
-    expect(queryKeys.questions("p1", "open")).toEqual(["questions", "p1", "open"]);
+    expect(queryKeys.questions.list("p1")).toEqual(["questions", "p1", "all"]);
+    expect(queryKeys.questions.list("p1", "open")).toEqual(["questions", "p1", "open"]);
+    // The prefix covers both views, so answering a question refreshes each one.
+    expect(queryKeys.questions.all("p1")).toEqual(["questions", "p1"]);
     expect(queryKeys.chapters.archived("p1")).toEqual(["chapters", "p1", "archived"]);
     expect(queryKeys.bible.file("p1", "canon.md")).toEqual(["bible", "p1", "canon.md"]);
   });

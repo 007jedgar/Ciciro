@@ -217,6 +217,37 @@ const hi: Translations = {
       rewrite: "अंश फिर से लिखें",
       describe: "विवरण जोड़ें",
     },
+    cleared: "चैट साफ़ हो गई।",
+    undo: "पूर्ववत करें",
+    restored: "चैट वापस आ गई।",
+    retry: "फिर कोशिश करें",
+    showDetails: "विवरण",
+    hideDetails: "विवरण छिपाएँ",
+    /** One sentence per failure kind, keyed by ChatFailure.code. */
+    failure: {
+      auth:
+        "Ciciro लेखन मॉडल तक नहीं पहुँच सका — सर्वर की API कुंजी अस्वीकार हो गई। यह सर्वर पर ठीक करना होगा, दोबारा कोशिश करने से नहीं।",
+      permission:
+        "Ciciro के खाते को इस मॉडल की अनुमति नहीं है। दोबारा कोशिश करने से यह नहीं बदलेगा।",
+      rateLimit:
+        "अभी बहुत सारे अनुरोध हैं। एक क्षण रुककर फिर भेजें।",
+      overloaded:
+        "लेखन मॉडल पर बहुत भार है। थोड़ी देर में फिर कोशिश करें।",
+      upstream:
+        "लेखन मॉडल की ओर से कोई समस्या आई। फिर कोशिश करें।",
+      invalidRequest:
+        "Ciciro ने कुछ ऐसा भेजा जो मॉडल ने स्वीकार नहीं किया। यह बारी छोड़ दी गई।",
+      tooLong:
+        "यह बातचीत एक बारी के लिए बहुत लंबी है। चैट साफ़ करें, या कुछ छोटा पूछें।",
+      network:
+        "Ciciro तक नहीं पहुँच सके। अपना कनेक्शन जाँचें और फिर कोशिश करें।",
+      timeout:
+        "Ciciro को जवाब देने में बहुत समय लगा। फिर कोशिश करें।",
+      cancelled:
+        "वह बारी रोक दी गई।",
+      unknown:
+        "Ciciro वह बारी पूरी नहीं कर सका।",
+    },
     phase: {
       queued: "कतार में",
       running: "काम चल रहा है",
@@ -227,6 +258,23 @@ const hi: Translations = {
       cancelled: "रद्द",
     },
   },
+  questions: {
+    title: "खुले सवाल",
+    blurb: "वे मोड़ जिन पर Ciciro ने लिखते रहने के लिए अस्थायी निर्णय ले लिया। किसी एक का उत्तर दें और वह पांडुलिपि को मिलाएगा — गद्य तभी सुधारेगा जब आपका उत्तर उसके लिखे से अलग हो।",
+    empty: "कोई खुला सवाल नहीं। Ciciro आपकी प्रतीक्षा नहीं कर रहा।",
+    loadError: "आपके खुले सवाल लोड नहीं हो सके।",
+    wentWith: "यह चुना: {{provisional}}",
+    chapter: "अध्याय {{number}}",
+    answerLabel: "आपका उत्तर",
+    answerPlaceholder: "आपका उत्तर…",
+    answer: "उत्तर दें और मिलाएँ",
+    dismiss: "हटाएँ",
+    answered: "उत्तर: {{answer}}",
+    resolvedCount: "हल हुए ({{count}})",
+    banner_one: "Ciciro का 1 खुला सवाल है",
+    banner_other: "Ciciro के {{count}} खुले सवाल हैं",
+    review: "देखें",
+  },
   manuscriptTabBar: {
     open: "लेखन उपकरण",
     close: "बंद करें",
@@ -234,6 +282,7 @@ const hi: Translations = {
     continue: "जारी रखें",
     rewrite: "फिर से लिखें",
     describe: "वर्णन करें",
+    questions: "सवाल",
     newChapter: "नया अध्याय",
     chapters: "अध्याय",
     typography: "टाइपोग्राफ़ी",

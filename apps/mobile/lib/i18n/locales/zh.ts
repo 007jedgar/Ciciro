@@ -215,6 +215,37 @@ const zh: Translations = {
       rewrite: "重写这一段",
       describe: "添加描写",
     },
+    cleared: "聊天已清空。",
+    undo: "撤销",
+    restored: "聊天已恢复。",
+    retry: "重试",
+    showDetails: "详情",
+    hideDetails: "隐藏详情",
+    /** One sentence per failure kind, keyed by ChatFailure.code. */
+    failure: {
+      auth:
+        "Ciciro 无法连接写作模型——服务器的 API 密钥被拒绝。这需要在服务器端修复，重试无济于事。",
+      permission:
+        "Ciciro 的账户无权使用此模型。重试不会改变这一点。",
+      rateLimit:
+        "此刻请求过多。稍等片刻再发送。",
+      overloaded:
+        "写作模型负载过高。请稍后再试。",
+      upstream:
+        "写作模型那边出了问题。请再试一次。",
+      invalidRequest:
+        "Ciciro 发送了模型无法接受的内容。这一轮已被丢弃。",
+      tooLong:
+        "这段对话对单轮来说太长了。清空聊天，或提一个更短的问题。",
+      network:
+        "无法连接 Ciciro。请检查网络后重试。",
+      timeout:
+        "Ciciro 回应超时。请再试一次。",
+      cancelled:
+        "该轮已停止。",
+      unknown:
+        "Ciciro 未能完成这一轮。",
+    },
     phase: {
       queued: "排队中",
       running: "进行中",
@@ -225,6 +256,23 @@ const zh: Translations = {
       cancelled: "已取消",
     },
   },
+  questions: {
+    title: "待答问题",
+    blurb: "Ciciro 为了继续写作而暂且自行决定的岔路。回答其中一个，它便会校订稿件——只有当你的答案与它所写的不同时才修改文字。",
+    empty: "没有待答问题。Ciciro 没有在等你。",
+    loadError: "无法加载你的待答问题。",
+    wentWith: "当时选择：{{provisional}}",
+    chapter: "第 {{number}} 章",
+    answerLabel: "你的答案",
+    answerPlaceholder: "你的答案……",
+    answer: "回答并校订",
+    dismiss: "忽略",
+    answered: "已回答：{{answer}}",
+    resolvedCount: "已解决（{{count}}）",
+    banner_one: "Ciciro 有 1 个待答问题",
+    banner_other: "Ciciro 有 {{count}} 个待答问题",
+    review: "查看",
+  },
   manuscriptTabBar: {
     open: "写作工具",
     close: "关闭",
@@ -232,6 +280,7 @@ const zh: Translations = {
     continue: "续写",
     rewrite: "重写",
     describe: "描写",
+    questions: "问题",
     newChapter: "新章节",
     chapters: "章节",
     typography: "字体排印",

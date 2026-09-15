@@ -1238,6 +1238,16 @@ export async function executeEditorTool(
         status: "logged an open question",
         content: `Logged open question ${q.id}: "${question}" (went with: ${q.provisional || "n/a"}).`,
         mutationCount: 1,
+        ui: {
+          type: "question_raised",
+          question: {
+            id: q.id,
+            question: q.question,
+            provisional: q.provisional,
+            affects: q.affects,
+            chapterId: q.chapterId,
+          },
+        },
       };
     }
 
@@ -1274,6 +1284,11 @@ export async function executeEditorTool(
           status: "resolved a question",
           content: `Resolved: ${q.question}`,
           mutationCount: 1,
+          ui: {
+            type: "question_resolved",
+            questionId: q.id,
+            resolution: q.resolution,
+          },
         };
       } catch (e) {
         return { status: "resolve failed", content: `Error: ${(e as Error).message}` };

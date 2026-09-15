@@ -24,8 +24,12 @@ export const queryKeys = {
   },
   characters: (projectId: string) => ["characters", projectId] as const,
   plotPoints: (projectId: string) => ["plotpoints", projectId] as const,
-  questions: (projectId: string, status?: string) =>
-    ["questions", projectId, status ?? "all"] as const,
+  questions: {
+    /** Prefix covering every status view, so one invalidation refreshes them all. */
+    all: (projectId: string) => ["questions", projectId] as const,
+    list: (projectId: string, status?: string) =>
+      ["questions", projectId, status ?? "all"] as const,
+  },
   bible: {
     index: (projectId: string) => ["bible", projectId] as const,
     file: (projectId: string, path: string) => ["bible", projectId, path] as const,

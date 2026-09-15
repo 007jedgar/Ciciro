@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -84,11 +85,18 @@ export function BrandDots({
   size = 48,
   color = "#b4552d",
   interactive = true,
+  playSignal = 0,
 }: {
   size?: number;
   color?: string;
   /** When false, renders the static mark (e.g. a decorative overlay). */
   interactive?: boolean;
+  /**
+   * Bump to play the hop from outside, without a tap — the mark reacting to
+   * something the app did, such as a thread collapsing into it. Haptics are the
+   * caller's to fire, since only the caller knows what the gesture meant.
+   */
+  playSignal?: number;
 }) {
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -106,11 +114,24 @@ export function BrandDots({
   const ys = [y0, y1, y2];
   const scales = [s0, s1, s2];
 
-  const play = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  const hopAll = () => {
     if (reduceMotion) return;
     ys.forEach((y, i) => hop(y, scales[i]!, i * STAGGER_MS, jump));
   };
+
+  const play = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    hopAll();
+  };
+
+  const lastSignal = useRef(playSignal);
+  useEffect(() => {
+    if (playSignal === lastSignal.current) return;
+    lastSignal.current = playSignal;
+    hopAll();
+    // `hopAll` closes over shared values, which are stable for the mark's life.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playSignal]);
 
   const mark = (
     <View style={{ width: size, height: size, overflow: "visible" }} pointerEvents="none">

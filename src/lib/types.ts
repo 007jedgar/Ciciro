@@ -160,4 +160,21 @@ export type ClientUiEvent =
       wordCount: number;
       revision: number;
       title?: string;
+    }
+  | {
+      // A fork the editor resolved provisionally. The client surfaces it so the
+      // author can answer without hunting through the questions drawer.
+      type: "question_raised";
+      question: {
+        id: string;
+        question: string;
+        provisional: string;
+        affects: string;
+        chapterId: string | null;
+      };
+    }
+  | {
+      type: "question_resolved";
+      questionId: string;
+      resolution: string;
     };

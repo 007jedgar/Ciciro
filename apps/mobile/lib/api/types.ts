@@ -312,6 +312,18 @@ export type PlotPointPatchRequest = {
   chapterId?: string | null;
 };
 
+export type ChatClearResult = {
+  ok: true;
+  /**
+   * The stamp this clear was archived under, and the handle Undo restores by.
+   * Null when there was nothing on screen to clear.
+   */
+  archivedAt: string | null;
+  count: number;
+};
+
+export type ChatRestoreResult = { ok: true; count: number };
+
 export type QuestionCreateRequest = {
   projectId: string;
   question: string;
@@ -515,7 +527,16 @@ export type ClientUiEvent =
       wordCount: number;
       revision: number;
       title?: string;
-    };
+    }
+  | {
+      // A fork the editor resolved provisionally rather than stopping to ask.
+      type: "question_raised";
+      question: Pick<
+        OpenQuestion,
+        "id" | "question" | "provisional" | "affects" | "chapterId"
+      >;
+    }
+  | { type: "question_resolved"; questionId: string; resolution: string };
 
 export type ChatStreamEvent =
   | { type: "ping" }
