@@ -24,6 +24,10 @@ function createD1Prisma(d1: unknown): PrismaClient {
   });
 }
 
+// D1 cannot run interactive `prisma.$transaction(async (tx) => ...)`.
+// Use sequential queries, or `prisma.$transaction([ ... ])` when every
+// statement can be prepared up front.
+
 function getPrisma(): PrismaClient {
   const scoped = requestPrisma.getStore();
   if (scoped) return scoped;

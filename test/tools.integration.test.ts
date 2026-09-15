@@ -89,7 +89,7 @@ describe("revision-safe structural tools", () => {
     expect(destinationAfter.revision).toBe(destination.revision);
   });
 
-  it("rolls back both chapters on a stale split destination", async () => {
+  it("leaves both chapters unchanged on a stale split destination", async () => {
     const project = await seedFixture();
     const [source, destination] = project.chapters;
     const result = await executeEditorTool(
