@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -22,6 +22,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import {
@@ -41,12 +42,14 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 import { ChatClearMark } from "./ChatClearMark";
 import { ChatErrorNotice } from "./ChatErrorNotice";
 import { CiciroThinking } from "./CiciroThinking";
-import { Glass } from "./Glass";
+import { alpha, Glass } from "./Glass";
 import { ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 
 const SEND_SIZE = 32;
+/** How far above the dock the bottom fade starts. */
+const FADE_LEAD = 130;
 
 /**
  * A Ciciro reply: prose on the page, drafts in a card.
@@ -300,6 +303,27 @@ export function CiciroChat({
   // Clearing the conversation: the thread falls into the mark, the mark takes
   // the hit, and Undo stays within reach for a few seconds after.
   const [clearPhase, setClearPhase] = useState<ClearPhase>("idle");
+  /**
+   * How tall the floating dock is right now. The thread runs the full height of
+   * the screen and scrolls underneath it, so the only thing keeping the last
+   * reply reachable is matching padding at the end of the list — and the dock
+   * grows with a multiline composer or a failure notice.
+   */
+  const [dockHeight, setDockHeight] = useState(0);
+
+  /**
+   * Where the fade closes, in fractions of its own height. Gradient stops are
+   * fractional but the thing being covered is not: the Clear chat label sits a
+   * fixed distance down, and prose reading straight through it is the whole
+   * failure being avoided. So the stops are derived from the measured dock
+   * rather than guessed, and stay put as the composer grows.
+   */
+  const fadeStops = useMemo<readonly [number, number, number]>(() => {
+    const height = FADE_LEAD + dockHeight;
+    const at = (px: number) => Math.max(0, Math.min(1, px / height));
+    // Closed just before the label, and fully by the composer below it.
+    return [0, at(FADE_LEAD - 20), 1];
+  }, [dockHeight]);
   const [hopSignal, setHopSignal] = useState(0);
   const [undoToken, setUndoToken] = useState<string | null>(null);
   const collapse = useSharedValue(0);
@@ -419,11 +443,12 @@ export function CiciroChat({
       {showsThread(clearPhase) ? (
       <Animated.View style={[styles.threadFill, threadStyle]}>
       <FlatList
+        testID="chat-thread"
         ref={listRef}
         style={{ flex: 1 }}
         data={messages}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: dockHeight + 16 }]}
         ListEmptyComponent={
           streaming ? null : (
             <Text style={[layout.body, { marginTop: 8 }]}>{t("ciciroTab.empty")}</Text>
@@ -478,87 +503,118 @@ export function CiciroChat({
       ) : null}
       </View>
 
-      {insertError ? (
-        <Text style={[layout.error, { marginHorizontal: 20 }]} role="alert">
-          {insertError}
-        </Text>
-      ) : null}
-
-      {failure ? (
-        <View style={styles.failureDock}>
-          <ChatErrorNotice failure={failure} colors={colors} onRetry={onRetry} />
-        </View>
-      ) : null}
-
-      {offersUndo(clearPhase, undoToken) ? (
-        <Snackbar
-          message={t("ciciroTab.cleared")}
-          actionLabel={t("ciciroTab.undo")}
-          onAction={undoClear}
-          colors={colors}
-          dark={dark}
-          reduceMotion={reduceMotion}
+      {/*
+        The dock floats over the thread rather than walling it off, so the
+        conversation stays visible scrolling underneath the composer and the
+        tab bar below it. box-none lets a tap through wherever the dock is only
+        gradient. The fade is the one concession to legibility: prose dissolves
+        toward the composer instead of colliding with the Clear chat label.
+      */}
+      <View
+        testID="chat-dock"
+        pointerEvents="box-none"
+        style={styles.dockWrap}
+        onLayout={(event) => setDockHeight(event.nativeEvent.layout.height)}
+      >
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            alpha(colors.bg, 0),
+            alpha(colors.bg, 0.5),
+            alpha(colors.bg, 0.78),
+          ]}
+          locations={fadeStops}
+          style={styles.dockFade}
         />
-      ) : null}
 
-      <View style={[styles.dock, { paddingBottom: bottomInset, backgroundColor: colors.bg }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: clearPhase !== "idle" || messages.length === 0 }}
-          accessibilityLabel={t("ciciroTab.clear")}
-          disabled={clearPhase !== "idle" || messages.length === 0}
-          onPress={() =>
-            Alert.alert(t("ciciroTab.clear"), t("ciciroTab.clearConfirm"), [
-              { text: t("common.cancel"), style: "cancel" },
-              { text: t("ciciroTab.clear"), style: "destructive", onPress: runClear },
-            ])
-          }
-          style={styles.clear}
-        >
-          <Text
-            style={{
-              color: colors.inkSoft,
-              fontSize: 13,
-              opacity: messages.length === 0 ? 0.4 : 1,
-            }}
-          >
-            {t("ciciroTab.clear")}
+        {insertError ? (
+          <Text style={[layout.error, { marginHorizontal: 20 }]} role="alert">
+            {insertError}
           </Text>
-        </Pressable>
-        <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
-          <View style={styles.composer}>
-            <TextInput
-              style={[styles.field, { color: colors.ink }]}
-              accessibilityLabel={t("ciciroTab.composer")}
-              placeholder={t("ciciroTab.composer")}
-              placeholderTextColor={colors.inkSoft}
-              value={composer}
-              onChangeText={onComposerChange}
-              multiline
-            />
-            {streaming ? (
-              <ChatActionButton
-                key="stop"
-                onPress={onStop}
-                label={t("ciciroTab.stop")}
-                accent={colors.inkSoft}
-                iconColor={colors.panel}
-                icon="stop"
-                reduceMotion={reduceMotion}
-              />
-            ) : canSend ? (
-              <ChatActionButton
-                key="send"
-                onPress={onSend}
-                label={t("ciciroTab.send")}
-                accent={colors.accent}
-                iconColor={colors.panel}
-                icon="send"
-                reduceMotion={reduceMotion}
-              />
-            ) : null}
+        ) : null}
+
+        {failure ? (
+          <View style={styles.failureDock}>
+            <ChatErrorNotice failure={failure} colors={colors} onRetry={onRetry} />
           </View>
-        </Glass>
+        ) : null}
+
+        {offersUndo(clearPhase, undoToken) ? (
+          <Snackbar
+            message={t("ciciroTab.cleared")}
+            actionLabel={t("ciciroTab.undo")}
+            onAction={undoClear}
+            colors={colors}
+            dark={dark}
+            reduceMotion={reduceMotion}
+          />
+        ) : null}
+
+        <View style={[styles.dock, { paddingBottom: bottomInset }]}>
+          {/*
+            Its own frosted chip rather than bare text. The thread scrolls live
+            underneath this whole dock, and a plain label would have prose
+            running straight through it.
+          */}
+          <Glass
+            dark={dark}
+            colors={colors}
+            radius={14}
+            style={[styles.clearWrap, { opacity: messages.length === 0 ? 0.45 : 1 }]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: clearPhase !== "idle" || messages.length === 0 }}
+              accessibilityLabel={t("ciciroTab.clear")}
+              disabled={clearPhase !== "idle" || messages.length === 0}
+              onPress={() =>
+                Alert.alert(t("ciciroTab.clear"), t("ciciroTab.clearConfirm"), [
+                  { text: t("common.cancel"), style: "cancel" },
+                  { text: t("ciciroTab.clear"), style: "destructive", onPress: runClear },
+                ])
+              }
+              style={styles.clear}
+            >
+              <Text style={{ color: colors.inkSoft, fontSize: 13 }}>
+                {t("ciciroTab.clear")}
+              </Text>
+            </Pressable>
+          </Glass>
+          <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
+            <View style={styles.composer}>
+              <TextInput
+                style={[styles.field, { color: colors.ink }]}
+                accessibilityLabel={t("ciciroTab.composer")}
+                placeholder={t("ciciroTab.composer")}
+                placeholderTextColor={colors.inkSoft}
+                value={composer}
+                onChangeText={onComposerChange}
+                multiline
+              />
+              {streaming ? (
+                <ChatActionButton
+                  key="stop"
+                  onPress={onStop}
+                  label={t("ciciroTab.stop")}
+                  accent={colors.inkSoft}
+                  iconColor={colors.panel}
+                  icon="stop"
+                  reduceMotion={reduceMotion}
+                />
+              ) : canSend ? (
+                <ChatActionButton
+                  key="send"
+                  onPress={onSend}
+                  label={t("ciciroTab.send")}
+                  accent={colors.accent}
+                  iconColor={colors.panel}
+                  icon="send"
+                  reduceMotion={reduceMotion}
+                />
+              ) : null}
+            </View>
+          </Glass>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -600,15 +656,28 @@ const styles = StyleSheet.create({
   },
   bannerText: { flex: 1, fontSize: 14, lineHeight: 19 },
   failureDock: { paddingHorizontal: 20 },
+  dockWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  /**
+   * The fade reaches well above the dock it belongs to. A ramp confined to the
+   * dock would be a visible edge; starting it early gives prose room to dissolve
+   * on its way under the composer instead of being cut off by it.
+   */
+  dockFade: { position: "absolute", top: -FADE_LEAD, left: 0, right: 0, bottom: 0 },
   dock: {
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  clear: {
+  clearWrap: {
     alignSelf: "flex-start",
-    marginBottom: 8,
+    marginBottom: 10,
     marginLeft: 4,
   },
+  clear: { paddingHorizontal: 13, paddingVertical: 7 },
   bubble: {
     minHeight: 52,
   },

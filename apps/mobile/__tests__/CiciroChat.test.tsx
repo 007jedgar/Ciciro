@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
 import type { ReactNode } from "react";
 import { CiciroChat } from "../components/CiciroChat";
 import { defaultSettings } from "../lib/app-settings";
@@ -128,6 +128,20 @@ describe("CiciroChat", () => {
     expect(field.props.editable).not.toBe(false);
     fireEvent.changeText(field, "Still typing more");
     expect(onComposerChange).toHaveBeenCalledWith("Still typing more");
+    unmount();
+  });
+
+  it("keeps the last reply clear of the dock the thread scrolls under", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    fireEvent(screen.getByTestId("chat-dock"), "layout", {
+      nativeEvent: { layout: { height: 180, width: 390, x: 0, y: 0 } },
+    });
+    const padding = StyleSheet.flatten(
+      screen.getByTestId("chat-thread").props.contentContainerStyle
+    ).paddingBottom;
+    expect(padding).toBeGreaterThanOrEqual(180);
     unmount();
   });
 
