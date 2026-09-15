@@ -128,6 +128,17 @@ export function interpolate(
 export const interpolateColor = (_value: number, _input: number[], output: string[]) =>
   output[0] ?? "#000";
 
+/**
+ * Gesture handler builds its detectors on these. They only need to exist and
+ * hand the handlers back — under Jest nothing drives them.
+ */
+export const useEvent = <T,>(handler: T) => handler;
+export const useHandler = () => ({ context: {}, doDependenciesDiffer: false, useWeb: false });
+export const useAnimatedGestureHandler = <T,>(handlers: T) => handlers;
+export const useComposedEventHandler = <T,>(handlers: T) => handlers;
+export const setGestureState = () => {};
+export const useFrameCallback = () => ({ setActive: () => {}, isActive: false });
+
 export const createAnimatedComponent = animate;
 export const isSharedValue = (value: unknown) =>
   Boolean(value && typeof value === "object" && "value" in (value as object));

@@ -31,10 +31,13 @@ jest.mock("@shopify/react-native-skia", () => {
     Blur: passthrough,
     LinearGradient: passthrough,
     SweepGradient: passthrough,
-    Skia: { Path: { Make: () => ({}) } },
+    Skia: { Path: { Make: () => ({}), MakeFromSVGString: () => ({}) } },
     vec: (x: number, y: number) => ({ x, y }),
   };
 });
+
+// Gesture handler needs its native module stubbed before anything imports it.
+require("react-native-gesture-handler/jestSetup");
 
 // The keyboard is a native surface; the library ships its own mock for it.
 jest.mock("react-native-keyboard-controller", () =>
