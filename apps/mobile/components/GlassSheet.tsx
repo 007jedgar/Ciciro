@@ -11,6 +11,7 @@ import {
 import { BlurView } from "expo-blur";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
+  cancelAnimation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -82,6 +83,15 @@ export function GlassSheet({
   const [mounted, setMounted] = useState(visible);
   const [contentHeight, setContentHeight] = useState(0);
   const [borderSize, setBorderSize] = useState({ width: 0, height: 0 });
+  /**
+   * One number per open. It keys the measuring subtree, so a reopen always gets
+   * a fresh layout pass even when the new sheet happens to be the same size as
+   * the one before it, and it stamps the exit animation, so a close that gets
+   * interrupted cannot unmount the sheet that replaced it. Either failure left
+   * a transparent modal sitting over the screen eating taps.
+   */
+  const [openSeq, setOpenSeq] = useState(0);
+  const seqRef = useRef(0);
 
   const snapHeights = useMemo(
     () =>
@@ -122,20 +132,23 @@ export function GlassSheet({
     reduceSV.value = reduceMotion ? 1 : 0;
   }, [reduceMotion, reduceSV]);
 
-  const unmount = useCallback(() => {
+  const unmount = useCallback((seq: number) => {
+    // A reopen has already claimed a newer sequence; this close is stale.
+    if (seq !== seqRef.current) return;
     setMounted(false);
   }, []);
 
   const animateTo = useCallback(
     (to: number, hide: boolean) => {
+      const seq = seqRef.current;
       if (reduceMotion) {
         translateY.value = withTiming(to, { duration: 140 }, (finished) => {
-          if (finished && hide) runOnJS(unmount)();
+          if (finished && hide) runOnJS(unmount)(seq);
         });
         return;
       }
       translateY.value = withSpring(to, SPRING, (finished) => {
-        if (finished && hide) runOnJS(unmount)();
+        if (finished && hide) runOnJS(unmount)(seq);
       });
     },
     [reduceMotion, translateY, unmount]
@@ -156,7 +169,12 @@ export function GlassSheet({
 
   useEffect(() => {
     if (visible) {
-      // Each open measures its own children, so drop the previous sheet's height.
+      // Each open measures its own children, so drop the previous sheet's height
+      // and hand the measuring subtree a new key to guarantee it reports one.
+      seqRef.current += 1;
+      setOpenSeq(seqRef.current);
+      openedRef.current = false;
+      cancelAnimation(translateY);
       setContentHeight(0);
       setMounted(true);
       return;
@@ -246,7 +264,7 @@ export function GlassSheet({
     >
       <GestureHandlerRootView style={styles.flex}>
         <View style={styles.flex} testID={testID}>
-          <Animated.View style={[styles.backdrop, backdropStyle]}>
+          <Animated.View testID={`${testID}-scrim`} style={[styles.backdrop, backdropStyle]}>
             <Pressable
               testID={`${testID}-backdrop`}
               accessibilityRole="button"
@@ -302,6 +320,7 @@ export function GlassSheet({
               />
               <View style={[styles.body, { paddingBottom: bodyPadBottom }]}>
                 <View
+                  key={openSeq}
                   style={styles.measure}
                   onLayout={(event) => {
                     const next =
@@ -348,7 +367,7 @@ export function GlassSheet({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(6, 8, 12, 0.62)",
   },
   card: {
@@ -358,7 +377,7 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   clip: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: "hidden",
   },
   body: {
