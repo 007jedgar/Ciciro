@@ -62,7 +62,9 @@ export default function CiciroScreen() {
   }, [insertions.data, localInserted]);
 
   const sendComposer = useCallback(() => {
-    if (!projectId) return;
+    // The composer stays live while Ciciro answers, so a send that the hook
+    // would drop must not take the author's typing with it.
+    if (!projectId || chat.streaming) return;
     const input = chatRequestFromComposer(composer, {
       projectId,
       chapterId: selectedChapterId,
@@ -70,7 +72,7 @@ export default function CiciroScreen() {
     if (!input) return;
     setComposer("");
     void chat.send(input);
-  }, [chat.send, composer, projectId, selectedChapterId]);
+  }, [chat.send, chat.streaming, composer, projectId, selectedChapterId]);
 
   const answerQuestion = useCallback(
     (question: OpenQuestion, answer: string) => {
@@ -202,6 +204,7 @@ export default function CiciroScreen() {
         composer={composer}
         onComposerChange={setComposer}
         onSend={sendComposer}
+        onStop={chat.stop}
         onRetry={() => void chat.retry()}
         onClear={async () => {
           setLocalInserted(new Set());

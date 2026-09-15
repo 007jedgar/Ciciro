@@ -1,5 +1,5 @@
 import type { ColorValue } from "react-native";
-import Svg, { Circle, Line, Path, Polyline, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line, Path, Polyline, Rect, Text as SvgText } from "react-native-svg";
 
 type IconProps = {
   color: ColorValue;
@@ -139,6 +139,15 @@ export function ArrowUpIcon({ color, size = 16 }: IconProps) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </Svg>
+  );
+}
+
+/** Stop: a filled square, for interrupting a reply that is still arriving. */
+export function StopIcon({ color, size = 14 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x="5" y="5" width="14" height="14" rx="3" fill={color} />
     </Svg>
   );
 }

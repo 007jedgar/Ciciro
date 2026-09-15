@@ -57,6 +57,7 @@ const idle = {
   phase: null,
   onComposerChange: jest.fn(),
   onSend: jest.fn(),
+  onStop: jest.fn(),
   onRetry: jest.fn(),
   onClear: jest.fn(async () => null),
   onUndoClear: jest.fn(),
@@ -104,11 +105,29 @@ describe("CiciroChat", () => {
     unmount();
   });
 
-  it("keeps send hidden while a reply is streaming", () => {
+  it("swaps send for stop while a reply is streaming, and keeps typing alive", () => {
+    const onStop = jest.fn();
+    const onComposerChange = jest.fn();
     const { unmount } = render(
-      wrap(<CiciroChat {...idle} streaming composer="Still typing" />)
+      wrap(
+        <CiciroChat
+          {...idle}
+          streaming
+          composer="Still typing"
+          onStop={onStop}
+          onComposerChange={onComposerChange}
+        />
+      )
     );
     expect(screen.queryByLabelText("Send")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Stop"));
+    expect(onStop).toHaveBeenCalledTimes(1);
+
+    // A turn in flight must not lock the composer.
+    const field = screen.getByLabelText("Message Ciciro");
+    expect(field.props.editable).not.toBe(false);
+    fireEvent.changeText(field, "Still typing more");
+    expect(onComposerChange).toHaveBeenCalledWith("Still typing more");
     unmount();
   });
 

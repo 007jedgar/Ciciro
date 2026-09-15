@@ -201,6 +201,7 @@ const es: Translations = {
       "Pregunta a Ciciro sobre este manuscrito, o elige Continuar, Reescribir o Describir en las herramientas de escritura.",
     composer: "Escribe a Ciciro",
     send: "Enviar",
+    stop: "Detener",
     sending: "Pensando…",
     sendError: "Ciciro no pudo responder. Inténtalo de nuevo.",
     clear: "Borrar chat",

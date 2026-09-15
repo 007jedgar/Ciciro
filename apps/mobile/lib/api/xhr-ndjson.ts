@@ -1,9 +1,12 @@
 import type { NdjsonEvent } from "./types";
-import { emitNdjsonChunk, emitNdjsonText } from "./ndjson";
+import { emitNdjsonChunk, emitNdjsonText, StallError } from "./ndjson";
 
 export function shouldUseXhrNdjson(): boolean {
   return typeof XMLHttpRequest !== "undefined" && process.env.JEST_WORKER_ID == null;
 }
+
+/** Matches the fetch reader's patience in `readNdjson`. */
+const DEFAULT_STALL_MS = 45_000;
 
 export type XhrNdjsonInit = {
   method?: string;
@@ -11,6 +14,8 @@ export type XhrNdjsonInit = {
   body?: string | null;
   signal?: AbortSignal | null;
   onEvent?: (evt: NdjsonEvent) => void;
+  /** Silence this long ends the request. 0 or Infinity waits forever. */
+  stallMs?: number;
 };
 
 export type XhrNdjsonResult = {
@@ -23,8 +28,14 @@ export type XhrNdjsonResult = {
  * React Native's WHATWG fetch often finishes a 200 NDJSON chat stream with
  * `body` null and an empty `text()`. XHR `responseText` grows as chunks
  * arrive, which is the same bytes a proxy inspector shows.
+ *
+ * XHR will also wait forever on a run that stops sending without closing the
+ * connection, which leaves the caller — and the composer behind it — stuck
+ * with no way out. A watchdog restarted by every chunk tears the request down
+ * instead, so the turn fails like any other timeout.
  */
 export function readNdjsonViaXhr(url: string, init: XhrNdjsonInit): Promise<XhrNdjsonResult> {
+  const stallMs = init.stallMs ?? DEFAULT_STALL_MS;
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(init.method ?? "POST", url);
@@ -34,6 +45,33 @@ export function readNdjsonViaXhr(url: string, init: XhrNdjsonInit): Promise<XhrN
 
     let seen = 0;
     let buffer = "";
+    let settled = false;
+    let stalled = false;
+    let stallTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const onAbort = () => {
+      xhr.abort();
+    };
+
+    /** Claims the single settlement, and stands everything else down. */
+    const claim = () => {
+      if (settled) return false;
+      settled = true;
+      if (stallTimer) clearTimeout(stallTimer);
+      init.signal?.removeEventListener("abort", onAbort);
+      return true;
+    };
+
+    const arm = () => {
+      if (settled) return;
+      if (stallTimer) clearTimeout(stallTimer);
+      if (!Number.isFinite(stallMs) || stallMs <= 0) return;
+      stallTimer = setTimeout(() => {
+        stalled = true;
+        xhr.abort();
+      }, stallMs);
+    };
+
     const consume = () => {
       const chunk = xhr.responseText.slice(seen);
       seen = xhr.responseText.length;
@@ -41,22 +79,24 @@ export function readNdjsonViaXhr(url: string, init: XhrNdjsonInit): Promise<XhrN
       buffer = emitNdjsonChunk(buffer + chunk, init.onEvent);
     };
 
-    const onAbort = () => {
-      xhr.abort();
-    };
     init.signal?.addEventListener("abort", onAbort);
 
-    xhr.onprogress = consume;
+    xhr.onprogress = () => {
+      arm();
+      consume();
+    };
     xhr.onerror = () => {
-      init.signal?.removeEventListener("abort", onAbort);
-      reject(new TypeError("Network request failed"));
+      if (claim()) reject(new TypeError("Network request failed"));
     };
     xhr.onabort = () => {
-      init.signal?.removeEventListener("abort", onAbort);
-      reject(new DOMException("Aborted", "AbortError"));
+      if (!claim()) return;
+      reject(stalled ? new StallError() : new DOMException("Aborted", "AbortError"));
+    };
+    xhr.ontimeout = () => {
+      if (claim()) reject(new StallError());
     };
     xhr.onload = () => {
-      init.signal?.removeEventListener("abort", onAbort);
+      if (!claim()) return;
       consume();
       emitNdjsonText(buffer, init.onEvent);
       resolve({
@@ -70,6 +110,7 @@ export function readNdjsonViaXhr(url: string, init: XhrNdjsonInit): Promise<XhrN
       onAbort();
       return;
     }
+    arm();
     xhr.send(init.body ?? null);
   });
 }

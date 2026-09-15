@@ -199,6 +199,7 @@ const en = {
       "Ask Ciciro about this manuscript, or pick Continue, Rewrite, or Describe from the writing tools.",
     composer: "Message Ciciro",
     send: "Send",
+    stop: "Stop",
     sending: "Thinking…",
     sendError: "Ciciro could not reply. Try again.",
     clear: "Clear chat",
