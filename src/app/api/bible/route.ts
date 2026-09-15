@@ -2,11 +2,11 @@ import { NextRequest } from "next/server";
 import { authorizeProject } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import {
+  createNamedBibleFile,
   ensureBible,
   getBibleFile,
   listBible,
   writeBibleFile,
-  slugify,
 } from "@/lib/bible";
 
 export const runtime = "nodejs";
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/bible  { projectId, path, content, expectedRevision? } -> write a file
 // POST /api/bible  { projectId, newCharacter: "Name" }             -> create a character file
+// POST /api/bible  { projectId, newPlot: "Name" }                  -> create a plot-line file
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { projectId } = body;
@@ -53,13 +54,12 @@ export async function POST(req: NextRequest) {
   }
   await ensureBible(projectId);
 
-  if (body.newCharacter?.trim()) {
-    const name = body.newCharacter.trim();
-    const path = `characters/${slugify(name)}.md`;
-    const content = `# ${name}\n> Character\n\n**Role:** \n\n## Description\n\n## Arc\n\n## Voice\n> How they speak: diction, rhythm, tics.\n`;
+  if (body.newCharacter?.trim() || body.newPlot?.trim()) {
+    const kind = body.newCharacter?.trim() ? "character" : "plot";
+    const name = (kind === "character" ? body.newCharacter : body.newPlot).trim();
     try {
-      const file = await writeBibleFile(projectId, path, content);
-      return json({ path, content: file.content, revision: file.revision }, 201);
+      const file = await createNamedBibleFile(projectId, kind, name);
+      return json({ path: file.path, content: file.content, revision: file.revision }, 201);
     } catch (e) {
       const failure = responseFromAuthError(e);
       if (failure) return failure;

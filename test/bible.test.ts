@@ -13,6 +13,7 @@ import {
   listBibleFiles,
   readBibleFile,
   writeBibleFile,
+  createNamedBibleFile,
 } from "@/lib/bible";
 
 describe("bible D1 storage", () => {
@@ -58,6 +59,7 @@ describe("bible D1 storage", () => {
       "canon.md",
       "characters/ada-lovelace.md",
       "plot.md",
+      "plot/the-turn.md",
       "style.md",
       "timeline.md",
       "world.md",
@@ -67,11 +69,12 @@ describe("bible D1 storage", () => {
     expect(await readBibleFile(project.id, "characters/ada-lovelace.md")).toContain(
       "Ada Lovelace"
     );
+    expect(await readBibleFile(project.id, "plot/the-turn.md")).toContain("The turn");
     expect(await readBibleFile(project.id, "missing.md")).toBe("");
 
     const dataDir = path.join(process.cwd(), "data", project.id);
     await expect(fs.access(dataDir)).rejects.toMatchObject({ code: "ENOENT" });
-    expect(await prisma.bibleFile.count({ where: { projectId: project.id } })).toBe(6);
+    expect(await prisma.bibleFile.count({ where: { projectId: project.id } })).toBe(7);
   });
 
   it("writes, lists, and CAS-protects bible files", async () => {
@@ -124,5 +127,25 @@ describe("bible D1 storage", () => {
       /escapes/
     );
     await expect(readBibleFile(project.id, "notes.txt")).rejects.toThrow(/\.md/);
+  });
+
+  it("creates empty character and plot-line files from a name", async () => {
+    const ada = await registerUser({
+      email: "ada@example.com",
+      password: "long-enough-pw",
+    });
+    const project = await createProject(ada, { title: "Book" });
+
+    const character = await createNamedBibleFile(project.id, "character", "Mara");
+    expect(character.path).toBe("characters/mara.md");
+    expect(character.content).toContain("# Mara");
+
+    const plot = await createNamedBibleFile(project.id, "plot", "The heist");
+    expect(plot.path).toBe("plot/the-heist.md");
+    expect(plot.content).toContain("# The heist");
+
+    await expect(createNamedBibleFile(project.id, "character", "   ")).rejects.toThrow(
+      /Name required/
+    );
   });
 });

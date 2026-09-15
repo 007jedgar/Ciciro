@@ -483,6 +483,11 @@ export type BibleNewCharacterRequest = {
   newCharacter: string;
 };
 
+export type BibleNewPlotRequest = {
+  projectId: string;
+  newPlot: string;
+};
+
 export type EditorScope = "selection" | "chapter" | "book";
 
 export type EditorRunInput = {
