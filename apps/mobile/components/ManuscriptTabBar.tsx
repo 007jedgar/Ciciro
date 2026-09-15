@@ -12,6 +12,7 @@ import { useRouter, useSegments } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProject } from "../lib/project";
+import { bibleIndexHref } from "../lib/bible-files";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { Glass, alpha } from "./Glass";
@@ -30,7 +31,6 @@ import {
   SparkleIcon,
   TypeIcon,
 } from "./icons";
-import { useStoryBibleUi } from "./StoryBibleSheet";
 
 const BUBBLE_W = 64;
 const BUBBLE_H = 44;
@@ -75,7 +75,6 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const router = useRouter();
   const segments = useSegments();
   const { addChapter } = useProject();
-  const { openBible } = useStoryBibleUi();
   const [open, setOpen] = useState(false);
 
   const tabs: TabDef[] = [
@@ -142,7 +141,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
     { key: "rewrite", Icon: RewriteIcon, labelKey: "manuscriptTabBar.rewrite", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?intent=rewrite` as never) },
     { key: "describe", Icon: QuoteIcon, labelKey: "manuscriptTabBar.describe", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?intent=describe` as never) },
     { key: "questions", Icon: QuestionIcon, labelKey: "manuscriptTabBar.questions", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?questions=1` as never) },
-    { key: "bible", Icon: BookIcon, labelKey: "manuscriptTabBar.bible", tone: "tool", run: openBible },
+    { key: "bible", Icon: BookIcon, labelKey: "manuscriptTabBar.bible", tone: "tool", run: () => router.push(bibleIndexHref(projectId) as never) },
     { key: "newChapter", Icon: NewChapterIcon, labelKey: "manuscriptTabBar.newChapter", tone: "tool", run: newChapter },
     { key: "chapters", Icon: ChaptersIcon, labelKey: "manuscriptTabBar.chapters", tone: "tool", run: () => router.navigate(`/project/${projectId}/chapters` as never) },
     { key: "typography", Icon: TypeIcon, labelKey: "manuscriptTabBar.typography", tone: "tool", run: () => router.push("/settings") },

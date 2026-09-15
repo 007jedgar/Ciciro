@@ -1,82 +1,44 @@
-import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
-import { Text, View } from "react-native";
-import { useTranslation } from "react-i18next";
-import { AppHeader } from "../../../components/AppHeader";
-import { ManuscriptTabBar } from "../../../components/ManuscriptTabBar";
-import { SkeletonList } from "../../../components/Skeleton";
-import { StoryBibleHost } from "../../../components/StoryBibleSheet";
-import { WritingMeter } from "../../../components/WritingMeter";
-import { ProjectProvider, useProject } from "../../../lib/project";
-import { useSession } from "../../../lib/session";
-import { useAppTheme } from "../../../lib/settings";
+import { Stack } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+import { StackPopTransition } from "../../../components/StackPopTransition";
+import { ProjectProvider } from "../../../lib/project";
+import { useReduceMotion } from "../../../lib/use-reduce-motion";
 
-function ProjectHeader() {
-  const router = useRouter();
-  const { t } = useTranslation();
-  const { project } = useProject();
-  return (
-    <AppHeader
-      title={project?.title || t("project.untitled")}
-      onBack={() => router.dismissTo("/manuscripts")}
-      backAccessibilityLabel={t("project.backToManuscripts")}
-      onSettings={() => router.push("/settings")}
-    />
-  );
-}
-
-export default function ProjectTabsLayout() {
-  const router = useRouter();
-  const { t } = useTranslation();
-  const { user, ready } = useSession();
-  const { layout, colors } = useAppTheme();
+export default function ProjectStackLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const segments = useSegments();
-  const onEditor = segments[segments.length - 1] === "manuscript";
+  const reduceMotion = useReduceMotion();
+  const projectId = typeof id === "string" ? id : "";
 
-  if (!ready) {
-    return (
-      <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
-        <SkeletonList count={5} accessibilityLabel={t("common.loading")} />
-      </View>
-    );
-  }
-  if (!user) return <Redirect href="/login" />;
-  if (!id || Array.isArray(id)) {
-    return (
-      <View style={layout.screen}>
-        <AppHeader
-          title={t("project.manuscript")}
-          onBack={() => router.dismissTo("/manuscripts")}
-          backAccessibilityLabel={t("project.backToManuscripts")}
-        />
-        <View style={layout.padded}>
-          <Text style={layout.error}>{t("project.missingId")}</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <ProjectProvider projectId={id}>
-      <StoryBibleHost projectId={id}>
-        <View style={layout.screen}>
-          <ProjectHeader />
-          {onEditor ? <WritingMeter /> : null}
-          <View style={{ flex: 1 }}>
-            <Tabs
-              backBehavior="none"
-              tabBar={() => null}
-              screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
-            >
-              <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
-              <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
-              <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
-              <Tabs.Screen name="index" options={{ href: null }} />
-            </Tabs>
-            <ManuscriptTabBar projectId={id} />
-          </View>
-        </View>
-      </StoryBibleHost>
-    </ProjectProvider>
+  const stack = (
+    <Stack
+      screenLayout={({ children }) => <StackPopTransition>{children}</StackPopTransition>}
+      screenOptions={{
+        headerShown: false,
+        animation: reduceMotion ? "fade" : "none",
+        animationDuration: reduceMotion ? 140 : 320,
+      }}
+    >
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="bible"
+        options={{
+          // Over the tabs rather than in place of them, so going back shows the
+          // manuscript straight away and the bible collapses away over it. See
+          // StackPopTransition: a pushed card detaches what is underneath, and
+          // the collapse then plays against nothing.
+          //
+          // Contained, because this stack is nested inside the root one. The
+          // plain transparent modal is presented over the whole window from the
+          // react root, so what sits behind it is the window rather than this
+          // stack's own screens — the collapse then played over bare grey. The
+          // contained variant presents over the current context and keeps the
+          // tabs underneath (RNSScreen.mm maps it to OverCurrentContext).
+          presentation: "containedTransparentModal",
+        }}
+      />
+    </Stack>
   );
+
+  if (!projectId) return stack;
+  return <ProjectProvider projectId={projectId}>{stack}</ProjectProvider>;
 }

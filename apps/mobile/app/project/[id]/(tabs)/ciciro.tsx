@@ -2,28 +2,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { CiciroChat } from "../../../components/CiciroChat";
-import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
-import { OpenQuestionsSheet } from "../../../components/OpenQuestionsSheet";
-import { SkeletonList } from "../../../components/Skeleton";
+import { CiciroChat } from "../../../../components/CiciroChat";
+import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
+import { OpenQuestionsSheet } from "../../../../components/OpenQuestionsSheet";
+import { SkeletonList } from "../../../../components/Skeleton";
 import {
   ciciro,
   queryClient,
   queryKeys,
   useDraftInsertionsQuery,
   useQuestionsQuery,
-} from "../../../lib/api";
-import type { OpenQuestion } from "../../../lib/api/types";
-import { insertDraftOps, insertionKey } from "../../../lib/chat-insert";
+} from "../../../../lib/api";
+import type { OpenQuestion } from "../../../../lib/api/types";
+import { insertDraftOps, insertionKey } from "../../../../lib/chat-insert";
 import {
   asCiciroIntent,
   chatRequestFromAnswer,
   chatRequestFromComposer,
   chatRequestFromIntent,
-} from "../../../lib/ciciro-intents";
-import { useProject } from "../../../lib/project";
-import { useAppTheme } from "../../../lib/settings";
-import { useCiciroChat } from "../../../lib/use-ciciro-chat";
+} from "../../../../lib/ciciro-intents";
+import { useProject } from "../../../../lib/project";
+import { useAppTheme } from "../../../../lib/settings";
+import { useCiciroChat } from "../../../../lib/use-ciciro-chat";
 
 export default function CiciroScreen() {
   const { project, loading, error, selectedChapterId, recordChapterOp } = useProject();

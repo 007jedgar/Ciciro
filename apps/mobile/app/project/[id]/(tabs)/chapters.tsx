@@ -2,22 +2,21 @@ import { useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ChapterListCard } from "../../../components/ChapterListCard";
-import { ManuscriptTag } from "../../../components/ManuscriptTag";
-import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
-import { SkeletonList } from "../../../components/Skeleton";
-import { useStoryBibleUi } from "../../../components/StoryBibleSheet";
-import { ApiError, useDeleteChapterMutation, usePatchProjectMutation } from "../../../lib/api";
-import { confirmChapterDelete } from "../../../lib/chapter-delete";
-import { useProject } from "../../../lib/project";
-import { useAppTheme } from "../../../lib/settings";
-import type { Chapter } from "../../../lib/types";
+import { ChapterListCard } from "../../../../components/ChapterListCard";
+import { ManuscriptTag } from "../../../../components/ManuscriptTag";
+import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
+import { SkeletonList } from "../../../../components/Skeleton";
+import { ApiError, useDeleteChapterMutation, usePatchProjectMutation } from "../../../../lib/api";
+import { bibleIndexHref } from "../../../../lib/bible-files";
+import { confirmChapterDelete } from "../../../../lib/chapter-delete";
+import { useProject } from "../../../../lib/project";
+import { useAppTheme } from "../../../../lib/settings";
+import type { Chapter } from "../../../../lib/types";
 
 export default function ChaptersScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { project, loading, error, selectedChapterId, setSelectedChapterId } = useProject();
-  const { openBible } = useStoryBibleUi();
   const { t } = useTranslation();
   const { layout } = useAppTheme();
   const clearance = useTabBarClearance();
@@ -111,7 +110,7 @@ export default function ChaptersScreen() {
               />
               <Pressable
                 style={[layout.card, { marginBottom: 16 }]}
-                onPress={openBible}
+                onPress={() => router.push(bibleIndexHref(projectId) as never)}
                 accessibilityRole="button"
                 accessibilityLabel={t("bible.title")}
               >

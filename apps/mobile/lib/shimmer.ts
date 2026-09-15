@@ -5,6 +5,8 @@
  * and tested on its own — the renderer only turns a brightness into a colour.
  */
 
+import { rotateHue } from "./color";
+
 /**
  * Half-width of the lit band, as a fraction of the string. Wide enough that a
  * few characters glow together rather than one blinking at a time.
@@ -41,4 +43,36 @@ export function shimmerBrightness(clock: number, index: number, count: number): 
   if (distance >= SHIMMER_TAIL) return 0;
   const closeness = 1 - distance / SHIMMER_TAIL;
   return closeness * closeness;
+}
+
+/**
+ * How far around the wheel the celebratory palette reaches from the accent.
+ * Far enough that neighbouring characters read as different colours, near
+ * enough that the run still looks like the theme rather than a party trick.
+ */
+export const SHIMMER_SPREAD_DEG = 44;
+
+/**
+ * The colours a sweep lights up in when it is marking something that landed,
+ * rather than something still running. Built from the theme's own accent and
+ * draft green, so a candle-lit page shimmers warm and a sage one shimmers cool.
+ */
+export function shimmerPalette(accent: string, draft: string): string[] {
+  return [
+    accent,
+    rotateHue(accent, SHIMMER_SPREAD_DEG, 0.04),
+    draft,
+    rotateHue(accent, -SHIMMER_SPREAD_DEG, 0.04),
+  ];
+}
+
+/**
+ * The crest colour for one character. A single colour lights the whole run in
+ * that colour; a palette deals itself out along the string, so the band lights
+ * up in several colours at once as it passes.
+ */
+export function shimmerLit(lit: string | string[], index: number): string {
+  if (typeof lit === "string") return lit;
+  if (lit.length === 0) return "#000000";
+  return lit[index % lit.length]!;
 }

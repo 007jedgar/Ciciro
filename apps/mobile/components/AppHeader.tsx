@@ -24,6 +24,9 @@ export function AppHeader({
   onSettings,
   onNew,
   newExpanded = false,
+  actionLabel,
+  onAction,
+  actionDisabled = false,
 }: {
   title: string;
   onBack?: () => void;
@@ -32,6 +35,9 @@ export function AppHeader({
   onNew?: () => void;
   /** When true, the "+" rotates into an "×" - used when it toggles a menu. */
   newExpanded?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -81,8 +87,35 @@ export function AppHeader({
             {title}
           </Animated.Text>
         </View>
-        {onSettings || onNew ? (
+        {onSettings || onNew || onAction ? (
           <View style={styles.actions}>
+            {onAction && actionLabel ? (
+              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(180)}>
+                <Pressable
+                  onPress={onAction}
+                  disabled={actionDisabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={actionLabel}
+                  hitSlop={10}
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    {
+                      backgroundColor: actionDisabled ? colors.panel2 : colors.accent,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <Animated.Text
+                    style={[
+                      styles.actionText,
+                      { color: actionDisabled ? colors.inkSoft : colors.panel },
+                    ]}
+                  >
+                    {actionLabel}
+                  </Animated.Text>
+                </Pressable>
+              </Animated.View>
+            ) : null}
             {onSettings ? (
               <Pressable
                 onPress={onSettings}
@@ -125,6 +158,14 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontFamily: fonts.serif, fontSize: 26 },
   actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  actionBtn: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionText: { fontSize: 14, fontWeight: "600" },
   newBtn: {
     width: 38,
     height: 38,

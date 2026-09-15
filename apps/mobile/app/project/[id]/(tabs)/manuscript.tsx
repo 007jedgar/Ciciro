@@ -10,11 +10,11 @@ import {
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { GrammarPopup } from "../../../components/GrammarPopup";
-import { useTabBarClearance } from "../../../components/ManuscriptTabBar";
-import { SkeletonList } from "../../../components/Skeleton";
-import { ciciro } from "../../../lib/api";
-import type { SyncOp } from "../../../lib/api/types";
+import { GrammarPopup } from "../../../../components/GrammarPopup";
+import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
+import { SkeletonList } from "../../../../components/Skeleton";
+import { ciciro } from "../../../../lib/api";
+import type { SyncOp } from "../../../../lib/api/types";
 import {
   applyOpsToDoc,
   CARET_FLUSH_MS,
@@ -23,7 +23,7 @@ import {
   REPLACE_FLUSH_MS,
   replaceBlockOps,
   splitBlockOps,
-} from "../../../lib/block-editor";
+} from "../../../../lib/block-editor";
 import {
   applySpans,
   caretAfterSpans,
@@ -35,19 +35,19 @@ import {
   spanAnchorFromLines,
   type GrammarSuggestion,
   type TextLineMetrics,
-} from "../../../lib/grammar";
+} from "../../../../lib/grammar";
 import {
   docToHtml,
   htmlToDoc,
   resumePlainTextIndex,
   type ManuscriptBlock,
   type ManuscriptOp,
-} from "../../../lib/manuscript";
-import { useProject } from "../../../lib/project";
-import { useAppTheme } from "../../../lib/settings";
-import { fonts } from "../../../lib/theme";
-import type { Chapter } from "../../../lib/types";
-import { useReduceMotion } from "../../../lib/use-reduce-motion";
+} from "../../../../lib/manuscript";
+import { useProject } from "../../../../lib/project";
+import { useAppTheme } from "../../../../lib/settings";
+import { fonts } from "../../../../lib/theme";
+import type { Chapter } from "../../../../lib/types";
+import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 
 type EditorStyle = {
   fontFamily: string;
