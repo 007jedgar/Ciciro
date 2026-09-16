@@ -8,6 +8,8 @@ import {
   rememberPathname,
   resetLastPlace,
   restoreHref,
+  restoreLastPlace,
+  restoreStackHrefs,
   unloadLastPlace,
 } from "../lib/last-place";
 
@@ -108,5 +110,31 @@ describe("rememberPathname", () => {
     expect(getLastScreen()).toBe("/project/p1/manuscript");
     expect(getLastManuscript()).toBe("p1");
     expect(restoreHref("user-1")).toBe("/project/p1/manuscript");
+  });
+});
+
+describe("restoring puts the list under the last place", () => {
+  beforeEach(() => resetLastPlace());
+
+  it("stacks manuscripts first, then the manuscript", () => {
+    rememberPathname("/project/p1/chapters", "user-1");
+    expect(restoreStackHrefs("user-1")).toEqual([DEFAULT_HREF, "/project/p1/chapters"]);
+    const calls: string[] = [];
+    restoreLastPlace(
+      { replace: (href) => calls.push(`replace ${href}`), push: (href) => calls.push(`push ${href}`) },
+      "user-1"
+    );
+    expect(calls).toEqual(["replace /manuscripts", "push /project/p1/chapters"]);
+  });
+
+  it("is just the list when that is where they were", () => {
+    rememberPathname("/manuscripts", "user-1");
+    expect(restoreStackHrefs("user-1")).toEqual([DEFAULT_HREF]);
+    const calls: string[] = [];
+    restoreLastPlace(
+      { replace: (href) => calls.push(`replace ${href}`), push: (href) => calls.push(`push ${href}`) },
+      "user-1"
+    );
+    expect(calls).toEqual(["replace /manuscripts"]);
   });
 });

@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useStackBack } from "../../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../components/AppHeader";
 import { SkeletonList } from "../../components/Skeleton";
@@ -29,6 +30,7 @@ function errorText(error: unknown, fallback: string): string {
 
 export default function FolderScreen() {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const folderId = typeof id === "string" ? id : "";
@@ -130,7 +132,7 @@ export default function FolderScreen() {
     <View style={layout.screen}>
       <AppHeader
         title={folder?.name || t("folder.fallbackTitle")}
-        onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
+        onBack={() => backOr("/manuscripts")}
         backAccessibilityLabel={t("folder.backToManuscripts")}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>

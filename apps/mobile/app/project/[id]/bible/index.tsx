@@ -1,4 +1,5 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useStackBack } from "../../../../lib/use-stack-back";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../../components/AppHeader";
@@ -9,6 +10,7 @@ import { useSession } from "../../../../lib/session";
 
 export default function StoryBibleIndexScreen() {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, ready } = useSession();
@@ -23,7 +25,7 @@ export default function StoryBibleIndexScreen() {
     <View style={layout.screen}>
       <AppHeader
         title={t("bible.title")}
-        onBack={() => (router.canGoBack() ? router.back() : router.navigate(`/project/${projectId}/chapters`))}
+        onBack={() => backOr(`/project/${projectId}/chapters`)}
         backAccessibilityLabel={t("bible.backToManuscript")}
       />
       <StoryBibleIndex

@@ -13,6 +13,7 @@ import { SettingsProvider } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
 import { StackPopTransition } from "../components/StackPopTransition";
+import { POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
 import { WritingDayProvider } from "../lib/writing-day-session";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 
@@ -46,26 +47,34 @@ function ThemedStack() {
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
         <Stack.Screen name="manuscripts" options={{ title: t("manuscripts.title"), headerShown: false }} />
-        <Stack.Screen name="new-manuscript" options={{ title: t("newManuscript.title"), headerShown: false }} />
-        <Stack.Screen name="new-folder" options={{ title: t("newFolder.title"), headerShown: false }} />
-        <Stack.Screen name="folder/[id]" options={{ title: t("folder.fallbackTitle"), headerShown: false }} />
         <Stack.Screen
-          name="settings"
+          name="new-manuscript"
           options={{
-            title: t("settings.title"),
+            title: t("newManuscript.title"),
             headerShown: false,
-            // Presented over the stack rather than in place of it, so the screen
-            // being returned to is already on show underneath while settings
-            // collapses away over it. A pushed card detaches what is below it,
-            // and the collapse then plays against an empty background.
-            presentation: "transparentModal",
-            // The page colour comes from the collapsing view itself (see
-            // StackPopTransition), so nothing opaque is left standing over the
-            // screen underneath once the collapse starts.
-            contentStyle: { backgroundColor: "transparent" },
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
           }}
         />
-        <Stack.Screen name="project/[id]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="new-folder"
+          options={{ title: t("newFolder.title"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
+        />
+        <Stack.Screen
+          name="folder/[id]"
+          options={{
+            title: t("folder.fallbackTitle"),
+            headerShown: false,
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
+          }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ title: t("settings.title"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
+        />
+        <Stack.Screen
+          name="project/[id]"
+          options={{ headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
+        />
       </Stack>
     </>
   );

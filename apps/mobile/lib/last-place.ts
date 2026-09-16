@@ -229,3 +229,25 @@ export function resetLastPlace(): void {
   unloadLastPlace();
   writeDisk(null);
 }
+
+/**
+ * The screens to put on the stack when restoring, bottom first.
+ *
+ * The last place is always reached from the manuscripts list, so the list goes
+ * under it: back then has a screen to pop to and reveal, instead of the
+ * manuscript being the only thing on the stack with nothing behind it.
+ */
+export function restoreStackHrefs(userId: string): [string, ...string[]] {
+  const href = restoreHref(userId);
+  return href === DEFAULT_HREF ? [href] : [DEFAULT_HREF, href];
+}
+
+/** Puts the restored screens on the stack: the list first, then the last place over it. */
+export function restoreLastPlace(
+  router: { replace: (href: never) => void; push: (href: never) => void },
+  userId: string
+): void {
+  const [first, ...rest] = restoreStackHrefs(userId);
+  router.replace(first as never);
+  for (const href of rest) router.push(href as never);
+}

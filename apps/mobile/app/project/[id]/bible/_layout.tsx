@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { StackPopTransition } from "../../../../components/StackPopTransition";
+import { CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS } from "../../../../lib/stack-pop";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 
 export default function StoryBibleStackLayout() {
@@ -18,8 +19,7 @@ export default function StoryBibleStackLayout() {
         name="[...path]"
         // Same reason as the bible route itself: closing a file should show the
         // list it came from first, then the file folding away to the right.
-        // Contained for the same reason too — this stack is nested deeper still.
-        options={{ presentation: "containedTransparentModal" }}
+        options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS}
       />
     </Stack>
   );

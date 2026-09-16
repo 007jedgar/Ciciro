@@ -4,6 +4,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
 import { NewManuscriptForm } from "../components/NewManuscriptForm";
@@ -12,6 +13,7 @@ import { useSession } from "../lib/session";
 
 export default function NewManuscriptScreen() {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { folderId } = useLocalSearchParams<{ folderId?: string }>();
   const { user, ready } = useSession();
@@ -27,7 +29,7 @@ export default function NewManuscriptScreen() {
     >
       <AppHeader
         title={t("newManuscript.title")}
-        onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
+        onBack={() => backOr("/manuscripts")}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}>
         <NewManuscriptForm

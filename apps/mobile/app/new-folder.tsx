@@ -4,6 +4,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
 import { NewFolderForm } from "../components/NewFolderForm";
@@ -12,6 +13,7 @@ import { useSession } from "../lib/session";
 
 export default function NewFolderScreen() {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
@@ -26,7 +28,7 @@ export default function NewFolderScreen() {
     >
       <AppHeader
         title={t("newFolder.title")}
-        onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
+        onBack={() => backOr("/manuscripts")}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16 }}>
         <NewFolderForm onCreated={(folder) => router.replace(`/folder/${folder.id}`)} />

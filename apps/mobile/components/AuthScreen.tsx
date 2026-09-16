@@ -22,7 +22,8 @@ import Animated, {
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
-import { useRouter, type Href } from "expo-router";
+import { useRouter } from "expo-router";
+import { useStackBack } from "../lib/use-stack-back";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { BrandDots } from "./BrandDots";
@@ -37,7 +38,7 @@ import {
 } from "../lib/auth-form";
 import { useAuthFormStore } from "../lib/auth-form-store";
 import { useAppTheme } from "../lib/settings";
-import { restoreHref } from "../lib/last-place";
+import { restoreLastPlace } from "../lib/last-place";
 import { useSession } from "../lib/session";
 import { fonts } from "../lib/theme";
 
@@ -83,6 +84,7 @@ function ChevronLeft({ color }: { color: string }) {
 
 export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const insets = useSafeAreaInsets();
   const { colors, dark, layout, settings } = useAppTheme();
   const { login, signup } = useSession();
@@ -109,10 +111,10 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
     try {
       if (isSignup) {
         const user = await signup({ email: email.trim(), password, name: name.trim() || undefined });
-        router.replace(restoreHref(user.id) as Href);
+        restoreLastPlace(router, user.id);
       } else {
         const user = await login(email.trim(), password);
-        router.replace(restoreHref(user.id) as Href);
+        restoreLastPlace(router, user.id);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("errors.network"));
@@ -160,9 +162,13 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
 
   useEffect(() => cancelAnimation(grow), [grow]);
 
+  // Welcome is only underneath when sign-in was opened from it. Every other
+  // screen redirects here once the session is gone, and then there is nothing
+  // below to pop to — so fall back to swapping this screen for welcome.
+  const leave = () => backOr("/");
   const goBack = () => {
     if (reduceMotion) {
-      router.back();
+      leave();
       return;
     }
     head.value = withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) });
@@ -170,7 +176,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
       0,
       { duration: 300, easing: Easing.in(Easing.cubic) },
       (finished) => {
-        if (finished) runOnJS(router.back)();
+        if (finished) runOnJS(leave)();
       }
     );
   };
