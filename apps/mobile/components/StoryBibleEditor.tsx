@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import { Text, TextInput, View } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api/client";
@@ -94,10 +94,16 @@ export function StoryBibleEditor({
   }
 
   return (
-    <KeyboardAvoidingView style={layout.screen} behavior="padding">
+    <KeyboardAwareScrollView
+      testID="bible-editor"
+      style={layout.screen}
+      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={24}
+    >
       <Animated.View
         entering={reduceMotion ? undefined : FadeInDown.duration(260)}
-        style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 24 }}
+        style={{ flexGrow: 1 }}
       >
         {error ? (
           <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
@@ -107,7 +113,8 @@ export function StoryBibleEditor({
         <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{path}</Text>
         <TextInput
           style={{
-            flex: 1,
+            flexGrow: 1,
+            minHeight: 240,
             backgroundColor: colors.panel,
             borderColor: colors.line,
             borderWidth: 1,
@@ -127,10 +134,11 @@ export function StoryBibleEditor({
             setDirty(true);
           }}
           multiline
+          scrollEnabled={false}
           autoCorrect={autoCorrect}
           spellCheck={autoCorrect}
         />
       </Animated.View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
