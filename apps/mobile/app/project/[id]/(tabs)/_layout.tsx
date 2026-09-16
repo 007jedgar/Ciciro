@@ -8,15 +8,19 @@ import { WritingMeter } from "../../../../components/WritingMeter";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
 import { useAppTheme } from "../../../../lib/settings";
+import { useStackBack } from "../../../../lib/use-stack-back";
 
 function ProjectHeader() {
   const router = useRouter();
+  const { backTo } = useStackBack();
   const { t } = useTranslation();
   const { project } = useProject();
   return (
     <AppHeader
       title={project?.title || t("project.untitled")}
-      onBack={() => router.dismissTo("/manuscripts")}
+      // Pops to the list when it is underneath, and swaps to it when the app
+      // was restored straight onto this manuscript and there is nothing under.
+      onBack={() => backTo("/manuscripts")}
       backAccessibilityLabel={t("project.backToManuscripts")}
       onSettings={() => router.push("/settings")}
     />
@@ -24,7 +28,7 @@ function ProjectHeader() {
 }
 
 export default function ProjectTabsLayout() {
-  const router = useRouter();
+  const { backTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
@@ -45,7 +49,7 @@ export default function ProjectTabsLayout() {
       <View style={layout.screen}>
         <AppHeader
           title={t("project.manuscript")}
-          onBack={() => router.dismissTo("/manuscripts")}
+          onBack={() => backTo("/manuscripts")}
           backAccessibilityLabel={t("project.backToManuscripts")}
         />
         <View style={layout.padded}>

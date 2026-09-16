@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useStackBack } from "../../../../lib/use-stack-back";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../../components/AppHeader";
@@ -10,6 +11,7 @@ import { useSession } from "../../../../lib/session";
 
 export default function StoryBibleFileScreen() {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { id, path: pathParam } = useLocalSearchParams<{ id: string; path?: string | string[] }>();
   const { user, ready } = useSession();
@@ -30,8 +32,7 @@ export default function StoryBibleFileScreen() {
       const ok = await saveRef.current();
       if (!ok) return;
     }
-    if (router.canGoBack()) router.back();
-    else router.navigate(`/project/${projectId}/bible`);
+    backOr(`/project/${projectId}/bible`);
   }
 
   if (!ready) return null;

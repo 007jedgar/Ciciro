@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { View } from "react-native";
-import { Redirect, useRouter, type Href } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { LivingPage } from "../components/LivingPage";
-import { restoreHref } from "../lib/last-place";
+import { restoreLastPlace } from "../lib/last-place";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 
@@ -31,6 +31,21 @@ function BlinkingCursor({ color }: { color: string }) {
   );
 }
 
+/**
+ * Sends a signed-in author back to where they left off. Like `Redirect`, but
+ * the manuscripts list goes on the stack first so the last place has a screen
+ * under it to go back to.
+ */
+function RestoreLastPlace({ userId }: { userId: string }) {
+  const router = useRouter();
+  useFocusEffect(
+    useCallback(() => {
+      restoreLastPlace(router, userId);
+    }, [router, userId])
+  );
+  return null;
+}
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
@@ -44,7 +59,7 @@ export default function WelcomeScreen() {
     );
   }
 
-  if (user) return <Redirect href={restoreHref(user.id) as Href} />;
+  if (user) return <RestoreLastPlace userId={user.id} />;
 
   return (
     <LivingPage

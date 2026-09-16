@@ -1,4 +1,7 @@
 import {
+  CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS,
+  ownsStackRemove,
+  POP_OVER_STACK_SCREEN_OPTIONS,
   shouldInterceptStackRemove,
   STACK_POP_FADE_START,
   stackPopTransform,
@@ -52,5 +55,65 @@ describe("stack pop transition", () => {
     expect(shouldInterceptStackRemove("POP_TO")).toBe(true);
     expect(shouldInterceptStackRemove("NAVIGATE")).toBe(false);
     expect(shouldInterceptStackRemove("REPLACE")).toBe(false);
+  });
+});
+
+describe("screens that leave by the pop transition", () => {
+  // The collapse plays on the leaving screen, so the screen being returned to
+  // has to already be on show underneath. A pushed card detaches it and the
+  // whole thing plays against an empty background — which is what closing a
+  // manuscript did, because `project/[id]` was left as a plain pushed card.
+  it("are presented over the stack rather than in place of it", () => {
+    expect(POP_OVER_STACK_SCREEN_OPTIONS.presentation).toBe("transparentModal");
+  });
+
+  it("use the contained variant when the stack is nested in another one", () => {
+    // A plain transparent modal comes from the react root, so it would sit over
+    // the window instead of over the parent stack's own screens.
+    expect(CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS.presentation).toBe(
+      "containedTransparentModal"
+    );
+  });
+
+  it("leave the page colour to the collapsing view, not the screen content", () => {
+    // An opaque content background sits a level above the animated view and
+    // would stay full-screen for the whole collapse, hiding the destination.
+    expect(POP_OVER_STACK_SCREEN_OPTIONS.contentStyle.backgroundColor).toBe("transparent");
+    expect(CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS.contentStyle.backgroundColor).toBe(
+      "transparent"
+    );
+  });
+
+  it("intercepts the action a manuscript's back button actually dispatches", () => {
+    // The manuscript header closes with `router.dismissTo("/manuscripts")`,
+    // which expo-router sends as POP_TO rather than GO_BACK.
+    expect(shouldInterceptStackRemove("POP_TO")).toBe(true);
+  });
+});
+
+describe("which screen plays the pop", () => {
+  const root = { key: "stack-root", index: 1 };
+  const nested = { key: "stack-project", index: 0 };
+
+  it("is the one whose own navigator is removing it", () => {
+    const dismissTo = { type: "POP_TO", target: "stack-root" };
+    expect(ownsStackRemove(dismissTo, root)).toBe(true);
+    // The tabs inside the manuscript hear the same removal first, but it is
+    // not theirs to play: they would collapse over their own background and
+    // re-dispatch with a route key the root stack does not know.
+    expect(ownsStackRemove(dismissTo, nested)).toBe(false);
+  });
+
+  it("gives an untargeted back to the deepest stack that can go back", () => {
+    const back = { type: "GO_BACK" };
+    expect(ownsStackRemove(back, nested)).toBe(false);
+    expect(ownsStackRemove(back, root)).toBe(true);
+    expect(ownsStackRemove(back, { key: "stack-project", index: 1 })).toBe(true);
+  });
+});
+
+describe("ownsStackRemove without a navigator state", () => {
+  it("lets the action through untouched rather than guessing", () => {
+    expect(ownsStackRemove({ type: "GO_BACK" }, undefined)).toBe(false);
   });
 });

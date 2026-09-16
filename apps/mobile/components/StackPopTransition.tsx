@@ -12,6 +12,7 @@ import Animated, {
 import { useOptionalAppTheme } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import {
+  ownsStackRemove,
   shouldInterceptStackRemove,
   STACK_POP_FADE_MS,
   STACK_POP_MS,
@@ -50,9 +51,13 @@ export function StackPopTransition({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsub = navigation.addListener("beforeRemove", (event) => {
       if (allowing.current) return;
-      if (!shouldInterceptStackRemove(event.data.action.type)) return;
-      event.preventDefault();
       const action = event.data.action;
+      if (!shouldInterceptStackRemove(action.type)) return;
+      // Screens nested inside the one being removed hear this too, and first.
+      // Only the screen whose own navigator is doing the removing plays the
+      // collapse — see ownsStackRemove for what goes wrong otherwise.
+      if (!ownsStackRemove(action, navigation.getState())) return;
+      event.preventDefault();
       const duration = reduceMotion ? STACK_POP_FADE_MS : STACK_POP_MS;
       progress.value = withTiming(1, { duration, easing: reduceMotion ? Easing.linear : EASE_OUT }, (finished) => {
         if (finished) runOnJS(dispatchAction)(action);

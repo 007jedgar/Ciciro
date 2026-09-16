@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { StackPopTransition } from "../../../components/StackPopTransition";
+import { CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS } from "../../../lib/stack-pop";
 import { ProjectProvider } from "../../../lib/project";
 import { useReduceMotion } from "../../../lib/use-reduce-motion";
 
@@ -21,20 +22,9 @@ export default function ProjectStackLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="bible"
-        options={{
-          // Over the tabs rather than in place of them, so going back shows the
-          // manuscript straight away and the bible collapses away over it. See
-          // StackPopTransition: a pushed card detaches what is underneath, and
-          // the collapse then plays against nothing.
-          //
-          // Contained, because this stack is nested inside the root one. The
-          // plain transparent modal is presented over the whole window from the
-          // react root, so what sits behind it is the window rather than this
-          // stack's own screens — the collapse then played over bare grey. The
-          // contained variant presents over the current context and keeps the
-          // tabs underneath (RNSScreen.mm maps it to OverCurrentContext).
-          presentation: "containedTransparentModal",
-        }}
+        // Over the tabs rather than in place of them, so going back shows the
+        // manuscript straight away and the bible collapses away over it.
+        options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS}
       />
     </Stack>
   );

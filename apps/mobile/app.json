@@ -39,7 +39,8 @@
       "expo-image",
       "expo-dev-client",
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      "./plugins/with-ios-scene-lifecycle"
     ],
     "experiments": {
       "typedRoutes": true

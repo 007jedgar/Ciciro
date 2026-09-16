@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
@@ -182,6 +183,7 @@ function OptionRow({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
@@ -209,7 +211,7 @@ export default function SettingsScreen() {
     <View style={layout.screen}>
       <AppHeader
         title={t("settings.title")}
-        onBack={() => (router.canGoBack() ? router.back() : router.navigate("/manuscripts"))}
+        onBack={() => backOr("/manuscripts")}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
