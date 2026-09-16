@@ -112,6 +112,13 @@ describe("StoryBibleIndex", () => {
     expect(onOpenFile).toHaveBeenCalledWith("plot/the-heist.md");
     unmount();
   });
+
+  it("keeps the add fields a gap above the keyboard", () => {
+    mockIndex();
+    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} />);
+    expect(screen.getByTestId("bible-index").props.bottomOffset).toBe(24);
+    unmount();
+  });
 });
 
 describe("StoryBibleEditor", () => {
@@ -143,6 +150,21 @@ describe("StoryBibleEditor", () => {
       content: "# Canon\nThe fire was arson.\n",
       expectedRevision: 0,
     });
+    unmount();
+  });
+
+  it("lifts the editor a gap above the keyboard", async () => {
+    useBibleFileQueryMock.mockReturnValue({
+      data: { path: "canon.md", content: "# Canon\n", revision: 0 },
+      isPending: false,
+      isError: false,
+    } as never);
+    useWriteBibleMutationMock.mockReturnValue({
+      mutateAsync: jest.fn(),
+      isPending: false,
+    } as never);
+    const { unmount } = render(<StoryBibleEditor projectId="p1" path="canon.md" />);
+    expect((await screen.findByTestId("bible-editor")).props.bottomOffset).toBe(24);
     unmount();
   });
 });

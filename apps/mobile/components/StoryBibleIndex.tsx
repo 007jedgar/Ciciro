@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api/client";
@@ -72,10 +73,12 @@ export function StoryBibleIndex({
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
+      testID="bible-index"
       style={{ flex: 1 }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      bottomOffset={24}
     >
       <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(260)}>
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("bible.blurb")}</Text>
@@ -162,7 +165,7 @@ export function StoryBibleIndex({
           ))}
         </Section>
       ) : null}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
