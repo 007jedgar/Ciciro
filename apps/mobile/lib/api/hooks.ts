@@ -31,6 +31,7 @@ import type {
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
 import { stampChapterMetadata } from "../chapter-metadata";
+import { overlayReplicaChapters } from "../editor-session";
 import i18n from "../i18n";
 import { sqliteReplica } from "../replica-sqlite";
 import { Platform } from "react-native";
@@ -180,10 +181,23 @@ export function useProjectsQuery(
   });
 }
 
+/** The server payload with the replica laid over it where the replica is as new or newer. */
+export async function fetchProjectWithReplica(id: string): Promise<ProjectDetail> {
+  const project = await ciciro.projects.get(id);
+  if (Platform.OS === "web") return project;
+  try {
+    const snapshots = await sqliteReplica.listChapters(id);
+    if (snapshots.length === 0) return project;
+    return { ...project, chapters: overlayReplicaChapters(project.chapters, snapshots) };
+  } catch {
+    return project;
+  }
+}
+
 export function useProjectQuery(id: string, options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.projects.detail(id),
-    queryFn: () => ciciro.projects.get(id),
+    queryFn: () => fetchProjectWithReplica(id),
     enabled: (options?.enabled ?? true) && Boolean(id),
   });
 }

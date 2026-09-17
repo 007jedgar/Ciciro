@@ -13,6 +13,7 @@ import {
   takeReturnSplit,
   backspaceAtStartOps,
 } from "../lib/block-editor";
+import { takePlaceholderBlockId } from "../lib/editor-session";
 
 function seqIds(prefix: string) {
   let n = 0;
@@ -106,6 +107,28 @@ describe("block editor keystrokes", () => {
     );
     expect(empty.ops.map((op) => op.type)).toEqual(["insert_block", "insert_block"]);
     expect(empty.focusBlockId).toBe("z-block-3");
+  });
+
+  it("does not reuse the empty-chapter placeholder for the paragraph Return inserts", () => {
+    const empty = { current: "draft-block" as string | null };
+    let ops = 0;
+    const result = splitOrInsertBlockOps(
+      { revision: 0, blocks: [] },
+      "draft-block",
+      "Hello.",
+      "",
+      {
+        createBlockId: () => takePlaceholderBlockId(empty),
+        createOpId: () => `op-${++ops}`,
+      }
+    );
+    const ids = result.ops
+      .filter((op): op is Extract<(typeof result.ops)[number], { type: "insert_block" }> => op.type === "insert_block")
+      .map((op) => op.blockId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toBe("draft-block");
+    expect(ids[1]).not.toBe("draft-block");
+    expect(new Set(ids).size).toBe(2);
   });
 
   it("merges on backspace at offset 0 into replace_block + delete_block", () => {

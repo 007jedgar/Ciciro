@@ -6,10 +6,12 @@ import {
   freezeResumePlace,
   isBackspaceAtStart,
   isGuardDeleted,
+  overlayReplicaChapters,
   reuseUnchangedBlocks,
   sameLocalDoc,
   sameReadingPosition,
   stripCaretGuard,
+  takePlaceholderBlockId,
   toLogicalOffset,
   toNativeOffset,
   withCaretGuard,
@@ -82,5 +84,43 @@ describe("caret guard", () => {
     expect(isBackspaceAtStart({ text: "", range: { start: 0, end: 0 }, isComposing: true }, 0, 0)).toBe(
       false
     );
+  });
+});
+
+describe("placeholder block ids", () => {
+  it("hands the empty-chapter id to the first insert only", () => {
+    const empty = { current: "draft-block" as string | null };
+    expect(takePlaceholderBlockId(empty)).toBe("draft-block");
+    expect(empty.current).toBeNull();
+    const second = takePlaceholderBlockId(empty);
+    const third = takePlaceholderBlockId(empty);
+    expect(second).not.toBe("draft-block");
+    expect(third).not.toBe("draft-block");
+    expect(second).not.toBe(third);
+  });
+});
+
+describe("overlayReplicaChapters", () => {
+  const server = [
+    { id: "c1", content: "<p>server</p>", revision: 4, wordCount: 1, title: "One", summary: "", status: "draft" },
+    { id: "c2", content: "<p>server</p>", revision: 1, wordCount: 1, title: "Two", summary: "", status: "draft" },
+  ];
+
+  it("keeps replica prose that is as new or newer and yields to a server chapter that is ahead", () => {
+    const merged = overlayReplicaChapters(server, [
+      { id: "c1", content: "<p>replica</p>", revision: 5, wordCount: 1 },
+      { id: "c2", content: "<p>stale replica</p>", revision: 0, wordCount: 2 },
+    ]);
+    expect(merged[0].content).toBe("<p>replica</p>");
+    expect(merged[0].revision).toBe(5);
+    expect(merged[0].title).toBe("One");
+    expect(merged[1]).toBe(server[1]);
+  });
+
+  it("returns the same object when the replica already matches", () => {
+    const merged = overlayReplicaChapters(server, [
+      { id: "c1", content: "<p>server</p>", revision: 4, wordCount: 1 },
+    ]);
+    expect(merged[0]).toBe(server[0]);
   });
 });

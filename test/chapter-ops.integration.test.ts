@@ -4,7 +4,8 @@ import { registerUser } from "@/lib/auth/session";
 import { createProject } from "@/lib/projects";
 import { updateChapter } from "@/lib/chapters";
 import { appendOps, listChapterOps } from "@/lib/chapter-ops";
-import type { ManuscriptOp } from "@/lib/manuscript";
+import { listChapters } from "@/lib/chapters";
+import { stableBlockId, type ManuscriptOp } from "@/lib/manuscript";
 
 describe("chapter ops", () => {
   beforeEach(async () => {
@@ -105,5 +106,52 @@ describe("chapter ops", () => {
     await expect(appendOps(chapter.id, bob, [first])).rejects.toMatchObject({
       status: 403,
     });
+  });
+
+  it("lands a phone op on a legacy chapter stored without block ids", async () => {
+    const ada = await registerUser({
+      email: "ada@example.com",
+      password: "long-enough-pw",
+    });
+    const project = await createProject(ada, { title: "Legacy" });
+    const chapter = project.chapters[0];
+    // The way autowrite and the passage tools used to write: raw paragraphs,
+    // revision bumped, no ChapterOp rows.
+    await prisma.chapter.update({
+      where: { id: chapter.id },
+      data: { content: "<p>One.</p><p>Two.</p>", revision: 3 },
+    });
+
+    // The phone parsed the same HTML and addresses the second paragraph by
+    // its position-and-text id.
+    const result = await appendOps(chapter.id, ada, [
+      {
+        opId: "phone-legacy-1",
+        baseRevision: 3,
+        actor: "user",
+        type: "replace_block",
+        blockId: stableBlockId(1, "<p>Two.</p>"),
+        html: `<p data-block-id="${stableBlockId(1, "<p>Two.</p>")}">Two, revised.</p>`,
+      },
+    ]);
+    expect(result.rejected).toHaveLength(0);
+    expect(result.accepted).toHaveLength(1);
+    expect(result.chapter.revision).toBe(4);
+    expect(result.chapter.content).toBe(
+      `<p data-block-id="${stableBlockId(0, "<p>One.</p>")}">One.</p>` +
+        `<p data-block-id="${stableBlockId(1, "<p>Two.</p>")}">Two, revised.</p>`
+    );
+
+    // Reads stamp legacy rows in place without moving the revision.
+    await prisma.chapter.update({
+      where: { id: chapter.id },
+      data: { content: "<p>Fresh.</p>", revision: 7 },
+    });
+    const listed = await listChapters(project.id, ada);
+    expect(listed[0].revision).toBe(7);
+    expect(listed[0].content).toBe(`<p data-block-id="${stableBlockId(0, "<p>Fresh.</p>")}">Fresh.</p>`);
+    const stored = await prisma.chapter.findUnique({ where: { id: chapter.id } });
+    expect(stored?.content).toBe(listed[0].content);
+    expect(stored?.revision).toBe(7);
   });
 });

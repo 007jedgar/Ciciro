@@ -9,6 +9,7 @@ import {
 } from "@/lib/bible";
 import { DRAFTER_SYSTEM } from "@/lib/prompts";
 import { htmlToText, countWords } from "@/lib/text";
+import { stampBlockIds } from "@/lib/manuscript";
 import {
   countPassageOccurrences,
   deletePassageRange,
@@ -622,7 +623,7 @@ async function bumpChapterRevision(
 ): Promise<boolean> {
   const updated = await prisma.chapter.updateMany({
     where: { id, revision },
-    data: { ...data, revision: { increment: 1 } },
+    data: { ...data, content: stampBlockIds(data.content), revision: { increment: 1 } },
   });
   return updated.count === 1;
 }

@@ -228,6 +228,39 @@ async function applyPositionPull(
   return row;
 }
 
+/**
+ * Ops are the fast path, but not every revision has one: autowrite, the
+ * passage tools, and legacy id stamping move `Chapter.revision` without a
+ * `ChapterOp`. Any chapter whose head is still ahead of the replica after the
+ * ops were applied is refetched whole, so the phone can never wedge behind
+ * the server and push from a base that no longer exists.
+ */
+async function reconcileHeads(
+  store: ReplicaStore,
+  api: SyncApi,
+  projectId: string,
+  heads: SyncResult["chapters"],
+  skipBlockIds?: Iterable<string>
+): Promise<number> {
+  const behind: string[] = [];
+  for (const head of heads) {
+    const local = await store.getChapter(head.id);
+    if (!local || local.revision < head.revision) behind.push(head.id);
+  }
+  if (behind.length === 0) return 0;
+  const listed = await api.listChapters(projectId);
+  let refetched = 0;
+  for (const chapterId of behind) {
+    const found = listed.find((c) => c.id === chapterId);
+    if (!found) continue;
+    const local = await store.getChapter(chapterId);
+    const fresh = toChapterSnapshot(found);
+    await store.upsertChapter(local ? preserveFocusedBlocks(local, fresh, skipBlockIds) : fresh);
+    refetched += 1;
+  }
+  return refetched;
+}
+
 async function applySyncResult(
   store: ReplicaStore,
   api: SyncApi,
@@ -236,6 +269,7 @@ async function applySyncResult(
   skipBlockIds?: Iterable<string>
 ): Promise<{ pulledOps: number; position: ReplicaReadingPosition | null }> {
   const pulledOps = await applyPulledOps(store, api, scope.projectId, result.ops, skipBlockIds);
+  await reconcileHeads(store, api, scope.projectId, result.chapters, skipBlockIds);
   await applyBiblePull(store, scope.projectId, result.bibleFiles);
   const position = await applyPositionPull(store, scope, result.position);
   return { pulledOps, position };

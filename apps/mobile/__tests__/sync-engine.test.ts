@@ -126,6 +126,49 @@ describe("mobile sync engine", () => {
     expect((await store.getChapter("c1"))?.content).toContain("still burning");
   });
 
+  it("refetches a chapter whose head moved without ops (autowrite, tools, legacy stamping)", async () => {
+    const store = createMemoryReplica();
+    await store.upsertChapter({
+      ...chapter,
+      content: '<p data-block-id="b-desk">The lantern was still burning.</p>',
+      revision: 2,
+    });
+    const rewritten = {
+      ...chapter,
+      revision: 4,
+      content:
+        '<p data-block-id="b-desk">The lantern was still burning.</p><p data-block-id="b-ai">Then it went out.</p>',
+      wordCount: 9,
+    };
+    let listed = 0;
+    const afters: number[] = [];
+    const api: SyncApi = {
+      listChapters: async () => {
+        listed += 1;
+        return [rewritten];
+      },
+      pull: async (_id, after) => {
+        afters.push(after?.chapters?.c1 ?? -1);
+        // Revisions 3 and 4 have no ChapterOp rows: only the head says so.
+        return emptyResult({ chapters: [{ id: "c1", revision: 4, wordCount: 9 }] });
+      },
+      push: async () => emptyResult(),
+    };
+
+    await pullProject(store, { projectId: "p1", userId: "u1" }, api, { skipBlockIds: ["b-desk"] });
+    const local = await store.getChapter("c1");
+    expect(listed).toBe(1);
+    expect(local?.revision).toBe(4);
+    expect(local?.content).toContain("Then it went out.");
+    // The focused paragraph keeps its local HTML across the refetch.
+    expect(local?.content).toContain("The lantern was still burning.");
+
+    // A replica that is already at the head is left alone.
+    await pullProject(store, { projectId: "p1", userId: "u1" }, api);
+    expect(listed).toBe(1);
+    expect(afters).toEqual([2, 4]);
+  });
+
   it("pushes queued ops, bible, and position and rebases a stale reject", async () => {
     const store = createMemoryReplica();
     await store.upsertChapter({

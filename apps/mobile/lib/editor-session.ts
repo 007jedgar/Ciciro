@@ -1,4 +1,4 @@
-import type { ManuscriptBlock } from "./manuscript";
+import { newBlockId, type ManuscriptBlock } from "./manuscript";
 
 /** Invisible prefix so iOS has a character to delete at visual offset 0. */
 export const CARET_GUARD = "\u200B";
@@ -141,6 +141,28 @@ export function assignChaptersFromSnapshots<T extends ChapterContentSlice & { id
   return changed ? next : chapters;
 }
 
+/**
+ * A server fetch of the project must not paint over prose the replica already
+ * holds at the same or a newer revision (local ops applied, echo not yet
+ * pulled). Server chapters that are genuinely ahead win; sync will bring the
+ * replica up to them.
+ */
+export function overlayReplicaChapters<T extends ChapterContentSlice & { id: string }>(
+  chapters: T[],
+  snapshots: Array<Pick<ChapterContentSlice, "content" | "revision" | "wordCount"> & { id: string }>
+): T[] {
+  const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+  return chapters.map((chapter) => {
+    const snapshot = byId.get(chapter.id);
+    if (!snapshot || snapshot.revision < chapter.revision) return chapter;
+    return assignChapterSlice(chapter, {
+      content: snapshot.content,
+      revision: snapshot.revision,
+      wordCount: snapshot.wordCount,
+    });
+  });
+}
+
 export function sameReadingPosition(
   a: Pick<ReadingPlace, "chapterId" | "blockId" | "offset"> | null | undefined,
   b: Pick<ReadingPlace, "chapterId" | "blockId" | "offset"> | null | undefined
@@ -169,4 +191,15 @@ export function sameLocalDoc(
     current.content === next.content &&
     current.revision === next.revision
   );
+}
+
+/**
+ * The empty-chapter TextInput keeps one placeholder id so the first keystroke
+ * does not remount. Return and later inserts must mint a new id — reusing
+ * `draft-block` is what produced duplicate React keys.
+ */
+export function takePlaceholderBlockId(emptyId: { current: string | null }): string {
+  const id = emptyId.current;
+  emptyId.current = null;
+  return id ?? newBlockId();
 }

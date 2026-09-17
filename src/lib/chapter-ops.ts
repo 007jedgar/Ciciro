@@ -10,6 +10,7 @@ import {
   type ManuscriptOp,
 } from "@/lib/manuscript";
 import { countWords, htmlToText } from "@/lib/text";
+import { ensureBlockIds } from "@/lib/block-ids";
 
 export type ChapterOpRecord = ManuscriptOp & {
   chapterId: string;
@@ -114,7 +115,8 @@ export function opFromRow(row: ChapterOp): ChapterOpRecord {
 async function loadChapter(chapterId: string): Promise<Chapter> {
   const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });
   if (!chapter) throw new AuthError("Not found.", 404);
-  return chapter;
+  // Legacy rows are stamped here so an op aimed at a stable id can land.
+  return ensureBlockIds(chapter);
 }
 
 export async function appendOps(

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { EDITOR_SYSTEM, DRAFTER_SYSTEM, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
 import { countWords, htmlToText } from "@/lib/text";
+import { stampBlockIds } from "@/lib/manuscript";
 
 // The autonomous drafting loop. The editor (Opus) plans a chapter into beats;
 // for each beat the drafter (Sonnet) writes prose from a brief, the editor edits
@@ -270,7 +271,7 @@ export async function runAutoWrite(opts: {
 
   // Save the accumulated prose to the chapter.
   emit({ type: "phase", v: "saving" });
-  const finalContent = (chapter.content || "") + newHtml;
+  const finalContent = stampBlockIds((chapter.content || "") + newHtml);
   const wordCount = countWords(htmlToText(finalContent));
   const saved = await prisma.chapter.update({
     where: { id: chapterId },

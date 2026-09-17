@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } from "@/lib/auth/session";
+import { ensureChaptersBlockIds } from "@/lib/block-ids";
 import {
   visibleChapterIdInclude,
   visibleChaptersInclude,
@@ -81,7 +82,7 @@ export async function getProject(id: string, user: PublicUser | null) {
     include: PROJECT_DETAIL_INCLUDE,
   });
   if (!project) throw new AuthError("Not found.", 404);
-  return project;
+  return { ...project, chapters: await ensureChaptersBlockIds(project.chapters) };
 }
 
 export async function updateProject(

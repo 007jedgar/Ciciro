@@ -101,21 +101,50 @@ export function applyRemoteOps(
   return { ok: true, chapter: current, applied, skipped };
 }
 
+function lastBlockId(doc: { blocks: { id: string }[] }): string | null {
+  return doc.blocks.length === 0 ? null : doc.blocks[doc.blocks.length - 1].id;
+}
+
+/**
+ * Re-aim a rejected op at the server's current head. A `stale` op only needs
+ * its base revision restamped. A `missing_block` op is prose the author typed
+ * into a paragraph the server no longer has; rather than drop it, the text is
+ * appended as a fresh paragraph. Only a delete of a vanished block is dropped,
+ * since there is nothing left to delete.
+ */
 export function rebaseRejectedOp(rejected: RejectedRemoteOp): {
   chapter: RejectedRemoteOp["chapter"];
   retry: ManuscriptOp | null;
 } {
   const chapter = rejected.chapter;
-  const retried: ManuscriptOp = {
-    ...rejected.op,
-    baseRevision: chapter.revision,
-  };
   const { doc } = htmlToDoc(chapter.content, chapter.revision);
-  const result = applyOp(doc, retried);
-  if (!result.ok) {
+  const restamped: ManuscriptOp = { ...rejected.op, baseRevision: chapter.revision };
+  if (applyOp(doc, restamped).ok) {
+    return { chapter, retry: restamped };
+  }
+  const op = rejected.op;
+  if (op.type === "delete_block") {
     return { chapter, retry: null };
   }
-  return { chapter, retry: retried };
+  const text = htmlToDoc(op.html, 0).doc.blocks[0]?.text ?? "";
+  if (!text.trim()) {
+    return { chapter, retry: null };
+  }
+  const appended: ManuscriptOp = {
+    opId: op.opId,
+    baseRevision: chapter.revision,
+    actor: op.actor,
+    type: "insert_block",
+    afterBlockId: lastBlockId(doc),
+    blockId: op.blockId,
+    html: op.html,
+  };
+  if (doc.blocks.some((block) => block.id === op.blockId)) {
+    // The id exists but the op could not apply (unknown anchor); the
+    // paragraph is already on the server, so there is nothing to add.
+    return { chapter, retry: null };
+  }
+  return { chapter, retry: applyOp(doc, appended).ok ? appended : null };
 }
 
 export function applyPendingOps(chapter: ChapterSnapshot, pending: ManuscriptOp[]): ChapterSnapshot {
