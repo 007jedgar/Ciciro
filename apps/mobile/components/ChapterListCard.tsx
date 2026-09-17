@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { ChapterStatusPicker } from "./ChapterStatusPicker";
+import type { ChapterStatus } from "../lib/chapter-status";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { Chapter } from "../lib/types";
@@ -11,12 +13,14 @@ export function ChapterListCard({
   deleting = false,
   onOpen,
   onRequestDelete,
+  onStatusChange,
 }: {
   chapter: Chapter;
   selected: boolean;
   deleting?: boolean;
   onOpen: () => void;
   onRequestDelete: () => void;
+  onStatusChange?: (status: ChapterStatus) => void;
 }) {
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
@@ -39,10 +43,14 @@ export function ChapterListCard({
         accessibilityLabel={title}
       >
         <Text style={layout.cardTitle}>{title}</Text>
-        <Text style={layout.cardMeta}>
-          {t("chapters.wordCount", { count: chapter.wordCount })}
-          {chapter.status ? ` · ${chapter.status}` : ""}
-        </Text>
+        <Text style={layout.cardMeta}>{t("chapters.wordCount", { count: chapter.wordCount })}</Text>
+        {onStatusChange ? (
+          <ChapterStatusPicker
+            status={chapter.status}
+            disabled={deleting}
+            onChange={onStatusChange}
+          />
+        ) : null}
         {chapter.summary ? <Text style={layout.cardMeta}>{chapter.summary}</Text> : null}
       </Pressable>
       <Pressable

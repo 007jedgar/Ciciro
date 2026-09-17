@@ -4,6 +4,7 @@ import { queryKeys } from "./api/keys";
 import { queryClient } from "./api/query";
 import type { ProjectDetail, SyncOp } from "./api/types";
 import type { ReplicaReadingPosition } from "./db";
+import { assignChapterSlice, assignChaptersFromSnapshots, sameReadingPosition } from "./editor-session";
 import { createMemoryReplica } from "./replica-memory";
 import { sqliteReplica } from "./replica-sqlite";
 import type { ReplicaStore } from "./replica-store";
@@ -33,35 +34,41 @@ function defaultReplica(): ReplicaStore {
 function writeChaptersToCache(projectId: string, result: SyncCycleResult): void {
   queryClient.setQueryData<ProjectDetail>(queryKeys.projects.detail(projectId), (current) => {
     if (!current) return current;
-    const byId = new Map(result.chapters.map((chapter) => [chapter.id, chapter]));
-    return {
-      ...current,
-      chapters: current.chapters.map((chapter) => {
-        const next = byId.get(chapter.id);
-        if (!next) return chapter;
-        return {
-          ...chapter,
-          content: next.content,
-          revision: next.revision,
-          wordCount: next.wordCount,
-          title: next.title,
-          summary: next.summary,
-          status: next.status,
-        };
-      }),
-    };
+    const chapters = assignChaptersFromSnapshots(current.chapters, result.chapters);
+    if (chapters === current.chapters) return current;
+    return { ...current, chapters };
   });
-  queryClient.setQueryData(queryKeys.projects.position(projectId), {
-    position: result.position
-      ? {
-          projectId: result.position.projectId,
-          chapterId: result.position.chapterId,
-          blockId: result.position.blockId,
-          offset: result.position.offset,
-          updatedAt: result.position.updatedAt,
-        }
-      : null,
-  });
+  queryClient.setQueryData(
+    queryKeys.projects.position(projectId),
+    (
+      current:
+        | {
+            position: {
+              projectId: string;
+              chapterId: string;
+              blockId: string;
+              offset: number;
+              updatedAt: string;
+            } | null;
+          }
+        | undefined
+    ) => {
+      const next = result.position
+        ? {
+            projectId: result.position.projectId,
+            chapterId: result.position.chapterId,
+            blockId: result.position.blockId,
+            offset: result.position.offset,
+            updatedAt: result.position.updatedAt,
+          }
+        : null;
+      if (sameReadingPosition(current?.position, next) && (current?.position?.updatedAt ?? null) === (next?.updatedAt ?? null)) {
+        return current;
+      }
+      if (!current && !next) return current;
+      return { position: next };
+    }
+  );
 }
 
 export function useProjectSync(
@@ -76,8 +83,15 @@ export function useProjectSync(
   const store = opts?.store ?? defaultReplica();
   const api = opts?.api ?? defaultSyncApi;
   const [position, setPosition] = useState<ReplicaReadingPosition | null>(null);
-  const [syncing, setSyncing] = useState(false);
   const running = useRef<Promise<SyncCycleResult | null> | null>(null);
+  const lastPlaceRef = useRef<{ chapterId: string; blockId: string; offset: number } | null>(null);
+  if (position && !lastPlaceRef.current) {
+    lastPlaceRef.current = {
+      chapterId: position.chapterId,
+      blockId: position.blockId,
+      offset: position.offset,
+    };
+  }
 
   const skipOpts = useCallback(() => {
     const id = opts?.skipBlockIdRef?.current;
@@ -88,7 +102,6 @@ export function useProjectSync(
     async (mode: "auto" | "pull" | "push" = "auto"): Promise<SyncCycleResult | null> => {
       if (!user || !projectId) return null;
       if (running.current) return running.current;
-      setSyncing(true);
       const scope = { projectId, userId: user.id };
       const skip = skipOpts();
       const work = (async () => {
@@ -98,14 +111,24 @@ export function useProjectSync(
             : mode === "push"
               ? await pushProject(store, scope, api, skip)
               : await syncProject(store, scope, api, skip);
-        setPosition(result.position);
+        setPosition((prev) => {
+          if (sameReadingPosition(prev, result.position)) return prev;
+          if (
+            prev &&
+            result.position &&
+            prev.chapterId === result.position.chapterId &&
+            prev.blockId === result.position.blockId
+          ) {
+            return prev;
+          }
+          return result.position;
+        });
         writeChaptersToCache(projectId, result);
         return result;
       })()
         .catch(() => null)
         .finally(() => {
           running.current = null;
-          setSyncing(false);
         });
       running.current = work;
       return work;
@@ -139,19 +162,17 @@ export function useProjectSync(
       if (snapshot) {
         queryClient.setQueryData<ProjectDetail>(queryKeys.projects.detail(projectId), (current) => {
           if (!current) return current;
-          return {
-            ...current,
-            chapters: current.chapters.map((chapter) =>
-              chapter.id === snapshot.id
-                ? {
-                    ...chapter,
-                    content: snapshot.content,
-                    revision: snapshot.revision,
-                    wordCount: snapshot.wordCount,
-                  }
-                : chapter
-            ),
-          };
+          const chapters = current.chapters.map((chapter) =>
+            chapter.id === snapshot.id
+              ? assignChapterSlice(chapter, {
+                  content: snapshot.content,
+                  revision: snapshot.revision,
+                  wordCount: snapshot.wordCount,
+                })
+              : chapter
+          );
+          if (chapters.every((chapter, index) => chapter === current.chapters[index])) return current;
+          return { ...current, chapters };
         });
       }
       await run("push");
@@ -170,24 +191,27 @@ export function useProjectSync(
   const recordPosition = useCallback(
     async (next: { chapterId: string; blockId: string; offset: number }) => {
       if (!user) return;
+      if (sameReadingPosition(lastPlaceRef.current, next)) return;
       const row = await enqueuePosition(store, { projectId, userId: user.id }, next);
       noteWritingStroke();
-      setPosition(row);
-      void run("push");
+      lastPlaceRef.current = next;
+      if (!position || position.chapterId !== row.chapterId) {
+        setPosition(row);
+      }
     },
-    [projectId, run, store, user]
+    [position, projectId, store, user]
   );
 
   return useMemo(
     () => ({
       position,
-      syncing,
+      syncing: false,
       syncNow: () => run("auto"),
       pullNow: () => run("pull"),
       recordOp,
       recordBible,
       recordPosition,
     }),
-    [position, recordBible, recordOp, recordPosition, run, syncing]
+    [position, recordBible, recordOp, recordPosition, run]
   );
 }

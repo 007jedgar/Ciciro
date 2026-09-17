@@ -179,6 +179,13 @@ const hi: Translations = {
     empty: "अभी कोई अध्याय नहीं।",
     wordCount_one: "{{count}} शब्द",
     wordCount_other: "{{count}} शब्द",
+    status: {
+      draft: "मसौदा",
+      revised: "संशोधित",
+      final: "अंतिम",
+    },
+    statusA11y: "अध्याय की अवस्था: {{status}}",
+    statusError: "अध्याय की अवस्था अपडेट नहीं हो सकी।",
     deleteA11y: "{{title}} हटाएँ",
     deleteTitle: "{{title}} हटाएँ?",
     deleteMessage: "यह वापस नहीं लिया जा सकता।",
@@ -189,6 +196,7 @@ const hi: Translations = {
   manuscript: {
     noChapters: "इस पांडुलिपि में अभी अध्याय नहीं हैं।",
     emptyChapter: "यह अध्याय खाली है। इसे वेब संपादक पर लिखें।",
+    continueWriting: "लिखना जारी रखें",
     grammarAccept: "स्वीकार करें",
     grammarIgnore: "अनदेखा करें",
     grammarA11y: "व्याकरण सुझाव: {{original}} से {{replacement}}",

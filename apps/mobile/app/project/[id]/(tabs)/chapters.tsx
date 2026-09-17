@@ -6,12 +6,20 @@ import { ChapterListCard } from "../../../../components/ChapterListCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
-import { ApiError, useDeleteChapterMutation, usePatchProjectMutation } from "../../../../lib/api";
+import {
+  ApiError,
+  queryClient,
+  queryKeys,
+  useDeleteChapterMutation,
+  usePatchChapterMutation,
+  usePatchProjectMutation,
+} from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
 import { confirmChapterDelete } from "../../../../lib/chapter-delete";
 import { useProject } from "../../../../lib/project";
 import { useAppTheme } from "../../../../lib/settings";
-import type { Chapter } from "../../../../lib/types";
+import type { Chapter, ProjectDetail } from "../../../../lib/types";
+import type { ChapterStatus } from "../../../../lib/chapter-status";
 
 export default function ChaptersScreen() {
   const router = useRouter();
@@ -22,6 +30,7 @@ export default function ChaptersScreen() {
   const clearance = useTabBarClearance();
   const removeChapter = useDeleteChapterMutation();
   const patchProject = usePatchProjectMutation();
+  const patchChapter = usePatchChapterMutation();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -88,6 +97,27 @@ export default function ChaptersScreen() {
     }
   }
 
+  async function saveStatus(chapter: Chapter, status: ChapterStatus) {
+    if (!projectId) return;
+    setDeleteError(null);
+    queryClient.setQueryData<ProjectDetail>(queryKeys.projects.detail(projectId), (current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        chapters: current.chapters.map((item) => (item.id === chapter.id ? { ...item, status } : item)),
+      };
+    });
+    try {
+      await patchChapter.mutateAsync({
+        id: chapter.id,
+        body: { expectedRevision: chapter.revision, status },
+      });
+    } catch (err) {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+      setDeleteError(err instanceof ApiError ? err.message : t("chapters.statusError"));
+    }
+  }
+
   return (
     <View style={layout.padded}>
       {deleteError ? (
@@ -131,6 +161,9 @@ export default function ChaptersScreen() {
               if (projectId) router.navigate(`/project/${projectId}/manuscript`);
             }}
             onRequestDelete={() => requestDelete(item)}
+            onStatusChange={(status) => {
+              void saveStatus(item, status);
+            }}
           />
         )}
       />
