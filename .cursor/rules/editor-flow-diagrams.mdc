@@ -2,6 +2,7 @@
 description: Draw mermaid data-flow and state-flow diagrams before changing the mobile editor, sync, replica merge, grammar corrections, or WritingDay heartbeats.
 globs:
   - apps/mobile/lib/block-editor.ts
+  - apps/mobile/lib/editor-session.ts
   - apps/mobile/lib/sync-engine.ts
   - apps/mobile/lib/sync-merge.ts
   - apps/mobile/lib/use-project-sync.ts

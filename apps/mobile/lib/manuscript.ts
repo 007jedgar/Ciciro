@@ -54,6 +54,8 @@ export type ApplyOpResult =
 
 export type HtmlToDocOptions = {
   createId?: () => string;
+  /** Reuse ids from the last parse when HTML is missing `data-block-id`. */
+  previous?: readonly Pick<ManuscriptBlock, "id">[];
 };
 
 const BLOCK_RE =
@@ -141,13 +143,26 @@ function blockFromHtml(raw: string, id: string): ManuscriptBlock {
   return { id, html, text, ...classifyBlock(raw, text) };
 }
 
-function parseBlocks(html: string, createId: () => string): ManuscriptBlock[] {
+function parseBlocks(
+  html: string,
+  createId: () => string,
+  previous?: readonly Pick<ManuscriptBlock, "id">[]
+): ManuscriptBlock[] {
   const blocks: ManuscriptBlock[] = [];
+  const claimed = new Set<string>();
   BLOCK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
+  let index = 0;
   while ((m = BLOCK_RE.exec(html))) {
     const raw = m[0];
-    const id = readBlockId(raw) ?? createId();
+    let id = readBlockId(raw);
+    if (!id) {
+      const inherit = previous?.[index];
+      if (inherit && !claimed.has(inherit.id)) id = inherit.id;
+      else id = createId();
+    }
+    claimed.add(id);
+    index += 1;
     blocks.push(blockFromHtml(raw, id));
   }
   return blocks;
@@ -159,7 +174,7 @@ export function htmlToDoc(
   opts?: HtmlToDocOptions
 ): { doc: ManuscriptDoc; html: string } {
   const createId = opts?.createId ?? defaultCreateId;
-  const blocks = parseBlocks(html, createId);
+  const blocks = parseBlocks(html, createId, opts?.previous);
   const stampedHtml = blocks.map((b) => b.html).join("");
   return { doc: { revision, blocks }, html: stampedHtml };
 }

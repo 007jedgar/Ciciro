@@ -178,6 +178,13 @@ const zh: Translations = {
     empty: "还没有章节。",
     wordCount_one: "{{count}} 词",
     wordCount_other: "{{count}} 词",
+    status: {
+      draft: "草稿",
+      revised: "已修订",
+      final: "定稿",
+    },
+    statusA11y: "章节阶段：{{status}}",
+    statusError: "无法更新章节阶段。",
     deleteA11y: "删除{{title}}",
     deleteTitle: "删除{{title}}？",
     deleteMessage: "此操作无法撤销。",
@@ -188,6 +195,7 @@ const zh: Translations = {
   manuscript: {
     noChapters: "这部手稿还没有章节。",
     emptyChapter: "这一章是空的。请在网页编辑器中撰写。",
+    continueWriting: "继续写",
     grammarAccept: "接受",
     grammarIgnore: "忽略",
     grammarA11y: "语法建议：将 {{original}} 改为 {{replacement}}",

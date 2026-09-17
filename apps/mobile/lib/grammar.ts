@@ -175,7 +175,7 @@ export function placeCallout(opts: {
 /**
  * Idle/terminator grammar loop. Never blocks typing: a keystroke aborts that
  * block's in-flight request, and a stale focused-block span is dropped.
- * Auto-accept is armed here (not on popup mount) so FlashList recycle cannot cancel it.
+ * Auto-accept is armed here (not on popup mount) so a row remount cannot cancel it.
  */
 export class GrammarLoop {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();

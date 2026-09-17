@@ -178,6 +178,13 @@ const en = {
     empty: "No chapters yet.",
     wordCount_one: "{{count}} word",
     wordCount_other: "{{count}} words",
+    status: {
+      draft: "Draft",
+      revised: "Revised",
+      final: "Final",
+    },
+    statusA11y: "Chapter stage: {{status}}",
+    statusError: "Could not update the chapter stage.",
     deleteA11y: "Delete {{title}}",
     deleteTitle: "Delete {{title}}?",
     deleteMessage: "This cannot be undone.",
@@ -188,6 +195,7 @@ const en = {
   manuscript: {
     noChapters: "This manuscript has no chapters yet.",
     emptyChapter: "This chapter is empty. Write it on the hosted web editor.",
+    continueWriting: "Continue writing",
     grammarAccept: "Accept",
     grammarIgnore: "Ignore",
     grammarA11y: "Grammar suggestion: {{original}} to {{replacement}}",

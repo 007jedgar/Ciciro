@@ -180,6 +180,13 @@ const es: Translations = {
     empty: "Aún no hay capítulos.",
     wordCount_one: "{{count}} palabra",
     wordCount_other: "{{count}} palabras",
+    status: {
+      draft: "Borrador",
+      revised: "Revisado",
+      final: "Final",
+    },
+    statusA11y: "Estado del capítulo: {{status}}",
+    statusError: "No se pudo actualizar el estado del capítulo.",
     deleteA11y: "Eliminar {{title}}",
     deleteTitle: "¿Eliminar {{title}}?",
     deleteMessage: "Esto no se puede deshacer.",
@@ -190,6 +197,7 @@ const es: Translations = {
   manuscript: {
     noChapters: "Este manuscrito aún no tiene capítulos.",
     emptyChapter: "Este capítulo está vacío. Escríbelo en el editor web.",
+    continueWriting: "Seguir escribiendo",
     grammarAccept: "Aceptar",
     grammarIgnore: "Ignorar",
     grammarA11y: "Sugerencia gramatical: {{original}} por {{replacement}}",

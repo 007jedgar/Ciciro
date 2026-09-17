@@ -54,4 +54,24 @@ describe("ChapterListCard", () => {
     expect(onRequestDelete).toHaveBeenCalledTimes(1);
     expect(onOpen).not.toHaveBeenCalled();
   });
+
+  it("changes the chapter stage without opening the editor", () => {
+    const onOpen = jest.fn();
+    const onRequestDelete = jest.fn();
+    const onStatusChange = jest.fn();
+    render(
+      <ChapterListCard
+        chapter={chapter({ status: "draft" })}
+        selected={false}
+        onOpen={onOpen}
+        onRequestDelete={onRequestDelete}
+        onStatusChange={onStatusChange}
+      />
+    );
+
+    fireEvent.press(screen.getByLabelText("Final"));
+    expect(onStatusChange).toHaveBeenCalledWith("final");
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(onRequestDelete).not.toHaveBeenCalled();
+  });
 });

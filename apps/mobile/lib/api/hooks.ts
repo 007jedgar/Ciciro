@@ -30,7 +30,10 @@ import type {
   SyncPushRequest,
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
+import { stampChapterMetadata } from "../chapter-metadata";
 import i18n from "../i18n";
+import { sqliteReplica } from "../replica-sqlite";
+import { Platform } from "react-native";
 
 type Enabled = { enabled?: boolean };
 
@@ -545,9 +548,32 @@ export function usePatchChapterMutation() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: Parameters<typeof ciciro.chapters.patch>[1] }) =>
       ciciro.chapters.patch(id, body),
-    onSuccess: (chapter: Chapter) => {
+    onSuccess: async (chapter: Chapter) => {
       invalidateProject(chapter.projectId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.list(chapter.projectId) });
+      queryClient.setQueryData<ProjectDetail>(queryKeys.projects.detail(chapter.projectId), (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          chapters: current.chapters.map((item) =>
+            item.id === chapter.id
+              ? {
+                  ...item,
+                  title: chapter.title,
+                  summary: chapter.summary,
+                  status: chapter.status,
+                  revision: chapter.revision,
+                }
+              : item
+          ),
+        };
+      });
+      if (Platform.OS === "web") return;
+      try {
+        await stampChapterMetadata(sqliteReplica, chapter);
+      } catch {
+        /* replica is optional in tests and on web */
+      }
     },
   });
 }
