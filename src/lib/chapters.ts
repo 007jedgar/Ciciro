@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
 import { appendOps } from "@/lib/chapter-ops";
-import { diffHtmlToOps, type ManuscriptActor } from "@/lib/manuscript";
+import { ensureChaptersBlockIds } from "@/lib/block-ids";
+import { diffHtmlToOps, stampBlockIds, type ManuscriptActor } from "@/lib/manuscript";
 import { countWords, htmlToText, isChapterEmpty } from "@/lib/text";
 
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
@@ -51,13 +52,14 @@ export async function listChapters(
 ) {
   await requireProject(projectId, user);
   const archivedOnly = opts?.archived === true;
-  return prisma.chapter.findMany({
+  const rows = await prisma.chapter.findMany({
     where: {
       projectId,
       archivedAt: archivedOnly ? { not: null } : null,
     },
     orderBy: archivedOnly ? { archivedAt: "desc" } : { order: "asc" },
   });
+  return ensureChaptersBlockIds(rows);
 }
 
 export async function createChapter(
@@ -179,7 +181,7 @@ export async function updateChapter(
 
     const chapter = await casUpdateChapter(id, expectedRevision, {
       ...metadata,
-      content: body.content as string,
+      content: stampBlockIds(body.content as string),
       wordCount: countWords(htmlToText(body.content as string)),
     });
     return { chapter, contentChanged: true };

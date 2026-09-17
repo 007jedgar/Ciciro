@@ -1,5 +1,5 @@
 import type { ChapterSnapshot } from "../lib/db";
-import { applyRemoteOps, opTouchesBlock, preserveFocusedBlocks } from "../lib/sync-merge";
+import { applyRemoteOps, opTouchesBlock, preserveFocusedBlocks, rebaseRejectedOp } from "../lib/sync-merge";
 import type { RemoteChapterOp } from "../lib/sync-merge";
 
 const chapter: ChapterSnapshot = {
@@ -66,5 +66,66 @@ describe("focused-block skip on remote apply", () => {
     expect(
       opTouchesBlock({ opId: "d", baseRevision: 2, actor: "user", type: "delete_block", blockId: "b1" }, "b1")
     ).toBe(true);
+  });
+});
+
+describe("rebase keeps the author's prose", () => {
+  const head = {
+    ...chapter,
+    revision: 9,
+    content: '<p data-block-id="b1">Hello.</p><p data-block-id="b2">World.</p>',
+  };
+
+  it("restamps a stale op onto the server head", () => {
+    const { retry } = rebaseRejectedOp({
+      op: replaceOp(3, "b2", "World, revised."),
+      reason: "stale",
+      chapter: head,
+    });
+    expect(retry).toMatchObject({ type: "replace_block", blockId: "b2", baseRevision: 9 });
+  });
+
+  it("appends a replace aimed at a paragraph the server no longer has", () => {
+    const { retry } = rebaseRejectedOp({
+      op: replaceOp(3, "gone", "Typed into a deleted paragraph."),
+      reason: "missing_block",
+      chapter: head,
+    });
+    expect(retry).toMatchObject({
+      type: "insert_block",
+      afterBlockId: "b2",
+      blockId: "gone",
+      baseRevision: 9,
+    });
+    expect((retry as { html: string }).html).toContain("Typed into a deleted paragraph.");
+  });
+
+  it("re-anchors an insert whose anchor vanished and drops a delete of a vanished block", () => {
+    const insert: RemoteChapterOp = {
+      opId: "i",
+      chapterId: "c1",
+      baseRevision: 3,
+      actor: "user",
+      type: "insert_block",
+      afterBlockId: "gone",
+      blockId: "new",
+      html: '<p data-block-id="new">New paragraph.</p>',
+      seq: 4,
+    };
+    expect(rebaseRejectedOp({ op: insert, reason: "missing_block", chapter: head }).retry).toMatchObject({
+      type: "insert_block",
+      afterBlockId: "b2",
+      blockId: "new",
+    });
+    expect(
+      rebaseRejectedOp({
+        op: { opId: "d", baseRevision: 3, actor: "user", type: "delete_block", blockId: "gone" },
+        reason: "missing_block",
+        chapter: head,
+      }).retry
+    ).toBeNull();
+    expect(
+      rebaseRejectedOp({ op: replaceOp(3, "gone", "   "), reason: "missing_block", chapter: head }).retry
+    ).toBeNull();
   });
 });

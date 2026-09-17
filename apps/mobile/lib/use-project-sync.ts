@@ -21,6 +21,7 @@ import {
   toChapterSnapshot,
   type SyncApi,
   type SyncCycleResult,
+  type SyncScope,
 } from "./sync-engine";
 import { noteWritingStroke, noteWritingWords } from "./writing-day-session";
 import { positiveWordDelta } from "./writing-day";
@@ -29,6 +30,16 @@ const webReplica = createMemoryReplica();
 
 function defaultReplica(): ReplicaStore {
   return Platform.OS === "web" ? webReplica : sqliteReplica;
+}
+
+/** A push outranks a pull, and either outranks the auto choice. */
+function mergeMode(
+  queued: "auto" | "pull" | "push" | null,
+  incoming: "auto" | "pull" | "push"
+): "auto" | "pull" | "push" {
+  if (queued === "push" || incoming === "push") return "push";
+  if (queued === "pull" || incoming === "pull") return "pull";
+  return "auto";
 }
 
 function writeChaptersToCache(projectId: string, result: SyncCycleResult): void {
@@ -98,42 +109,66 @@ export function useProjectSync(
     return id ? { skipBlockIds: [id] } : undefined;
   }, [opts?.skipBlockIdRef]);
 
+  const followUp = useRef<"auto" | "pull" | "push" | null>(null);
+
+  const cycle = useCallback(
+    async (mode: "auto" | "pull" | "push", scope: SyncScope): Promise<SyncCycleResult> => {
+      const skip = skipOpts();
+      const result =
+        mode === "pull"
+          ? await pullProject(store, scope, api, skip)
+          : mode === "push"
+            ? await pushProject(store, scope, api, skip)
+            : await syncProject(store, scope, api, skip);
+      setPosition((prev) => {
+        if (sameReadingPosition(prev, result.position)) return prev;
+        if (
+          prev &&
+          result.position &&
+          prev.chapterId === result.position.chapterId &&
+          prev.blockId === result.position.blockId
+        ) {
+          return prev;
+        }
+        return result.position;
+      });
+      writeChaptersToCache(projectId, result);
+      return result;
+    },
+    [api, projectId, skipOpts, store]
+  );
+
+  /**
+   * One cycle at a time per hook. A request that lands while a cycle is in
+   * flight is not dropped and not started in parallel: exactly one follow-up
+   * cycle runs after the current one, so an op enqueued mid-cycle is pushed
+   * without waiting for the next keystroke or foreground.
+   */
   const run = useCallback(
     async (mode: "auto" | "pull" | "push" = "auto"): Promise<SyncCycleResult | null> => {
       if (!user || !projectId) return null;
-      if (running.current) return running.current;
       const scope = { projectId, userId: user.id };
-      const skip = skipOpts();
+      if (running.current) {
+        followUp.current = mergeMode(followUp.current, mode);
+        return running.current;
+      }
       const work = (async () => {
-        const result =
-          mode === "pull"
-            ? await pullProject(store, scope, api, skip)
-            : mode === "push"
-              ? await pushProject(store, scope, api, skip)
-              : await syncProject(store, scope, api, skip);
-        setPosition((prev) => {
-          if (sameReadingPosition(prev, result.position)) return prev;
-          if (
-            prev &&
-            result.position &&
-            prev.chapterId === result.position.chapterId &&
-            prev.blockId === result.position.blockId
-          ) {
-            return prev;
-          }
-          return result.position;
-        });
-        writeChaptersToCache(projectId, result);
+        let result: SyncCycleResult | null = null;
+        let next: "auto" | "pull" | "push" | null = mode;
+        while (next) {
+          const current = next;
+          followUp.current = null;
+          result = await cycle(current, scope).catch(() => result);
+          next = followUp.current;
+        }
         return result;
-      })()
-        .catch(() => null)
-        .finally(() => {
-          running.current = null;
-        });
+      })().finally(() => {
+        running.current = null;
+      });
       running.current = work;
       return work;
     },
-    [api, projectId, skipOpts, store, user]
+    [cycle, projectId, user]
   );
 
   useEffect(() => {

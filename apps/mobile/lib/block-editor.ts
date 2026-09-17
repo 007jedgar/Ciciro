@@ -1,4 +1,4 @@
-import { applyOp, type ManuscriptActor, type ManuscriptBlock, type ManuscriptDoc, type ManuscriptOp } from "./manuscript";
+import { applyOp, newBlockId, type ManuscriptActor, type ManuscriptBlock, type ManuscriptDoc, type ManuscriptOp } from "./manuscript";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -15,8 +15,7 @@ export type BlockEditorResult = {
   focusOffset: number;
 };
 
-const defaultId = (): string =>
-  globalThis.crypto?.randomUUID?.() ?? `b-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const defaultId = newBlockId;
 
 export function tagOfHtml(html: string): string {
   if (/^<hr\b/i.test(html)) return "hr";

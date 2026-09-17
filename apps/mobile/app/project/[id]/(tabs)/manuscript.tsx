@@ -11,6 +11,7 @@ import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { ciciro } from "../../../../lib/api";
 import type { SyncOp } from "../../../../lib/api/types";
+import { chapterDrafts } from "../../../../lib/chapter-drafts";
 import {
   applyOpsToDoc,
   backspaceAtStartOps,
@@ -24,7 +25,16 @@ import {
   freezeResumePlace,
   reuseUnchangedBlocks,
   sameLocalDoc,
+  takePlaceholderBlockId,
 } from "../../../../lib/editor-session";
+import {
+  docToHtml,
+  htmlToDoc,
+  newBlockId,
+  resumePlainTextIndex,
+  type ManuscriptBlock,
+  type ManuscriptOp,
+} from "../../../../lib/manuscript";
 import {
   applySpans,
   caretAfterSpans,
@@ -33,13 +43,6 @@ import {
   selectPopupSpan,
   type GrammarSuggestion,
 } from "../../../../lib/grammar";
-import {
-  docToHtml,
-  htmlToDoc,
-  resumePlainTextIndex,
-  type ManuscriptBlock,
-  type ManuscriptOp,
-} from "../../../../lib/manuscript";
 import { useProject } from "../../../../lib/project";
 import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
@@ -76,7 +79,8 @@ export default function ManuscriptScreen() {
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const chapterRef = useRef<Chapter | null>(null);
   const emptyIdRef = useRef<string | null>(null);
-  const draftsRef = useRef(new Map<string, string>());
+  // Unflushed typing lives outside this component so a remount cannot lose it.
+  const draftsRef = useMemo(() => ({ current: chapterDrafts(chapter?.id ?? "") }), [chapter?.id]);
   const previousBlocksRef = useRef<ManuscriptBlock[]>([]);
   const replaceTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const caretTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,16 +92,18 @@ export default function ManuscriptScreen() {
   const [localDoc, setLocalDoc] = useState<{ chapterId: string; content: string; revision: number } | null>(
     null
   );
+  // Commits this screen has issued whose push has not finished. While any are
+  // outstanding the screen paints its own optimistic document; once the chain
+  // drains it adopts whatever the replica settled on (accepted, rebased, or
+  // refetched), so a rejected op can never pin stale prose on screen.
+  const [inflight, setInflight] = useState(0);
   const didFocusResume = useRef<string | null>(null);
   const grammarRef = useRef<GrammarLoop | null>(null);
   const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0 });
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
 
-  const localAhead =
-    Boolean(chapter) &&
-    localDoc?.chapterId === chapter?.id &&
-    (localDoc?.revision ?? 0) > (chapter?.revision ?? 0);
+  const overlay = chapter && inflight > 0 && localDoc?.chapterId === chapter.id ? localDoc : null;
 
   if (!chapter) {
     chapterRef.current = null;
@@ -105,7 +111,7 @@ export default function ManuscriptScreen() {
   } else if (chapterRef.current?.id !== chapter.id) {
     chapterRef.current = chapter;
     frozenResumeRef.current = null;
-  } else if (!localAhead && chapter.revision >= (chapterRef.current?.revision ?? -1)) {
+  } else if (!overlay) {
     chapterRef.current = chapter;
   }
 
@@ -129,26 +135,20 @@ export default function ManuscriptScreen() {
     };
   }, [chapter, frozenResume]);
 
-  const content =
-    chapter && localDoc?.chapterId === chapter.id && localDoc.revision > chapter.revision
-      ? localDoc.content
-      : (chapter?.content ?? "");
-  const revision =
-    chapter && localDoc?.chapterId === chapter.id && localDoc.revision > chapter.revision
-      ? localDoc.revision
-      : (chapter?.revision ?? 0);
+  const content = overlay ? overlay.content : (chapter?.content ?? "");
+  const revision = overlay ? overlay.revision : (chapter?.revision ?? 0);
 
   const blocks = useMemo(() => {
     if (!chapter?.id) return [];
     const parsed = reuseUnchangedBlocks(
       previousBlocksRef.current,
-      htmlToDoc(content, revision, { previous: previousBlocksRef.current }).doc.blocks
+      htmlToDoc(content, revision).doc.blocks
     );
     if (parsed.length > 0) {
       emptyIdRef.current = null;
       return parsed;
     }
-    emptyIdRef.current ??= globalThis.crypto?.randomUUID?.() ?? "draft-block";
+    emptyIdRef.current ??= newBlockId();
     const id = emptyIdRef.current;
     return reuseUnchangedBlocks(previousBlocksRef.current, [
       {
@@ -165,7 +165,7 @@ export default function ManuscriptScreen() {
 
   const firstBlockIds = useCallback(
     () => ({
-      createBlockId: () => emptyIdRef.current ?? (globalThis.crypto?.randomUUID?.() ?? "draft-block"),
+      createBlockId: () => takePlaceholderBlockId(emptyIdRef),
     }),
     []
   );
@@ -174,10 +174,7 @@ export default function ManuscriptScreen() {
     (ops: ManuscriptOp[]) => {
       const current = chapterRef.current;
       if (!current || ops.length === 0) return;
-      const next = applyOpsToDoc(
-        htmlToDoc(current.content, current.revision, { previous: previousBlocksRef.current }).doc,
-        ops
-      );
+      const next = applyOpsToDoc(htmlToDoc(current.content, current.revision).doc, ops);
       const nextContent = docToHtml(next);
       const local = { chapterId: current.id, content: nextContent, revision: next.revision };
       if (current.content !== nextContent || current.revision !== next.revision) {
@@ -185,7 +182,11 @@ export default function ManuscriptScreen() {
       }
       setLocalDoc((prev) => (sameLocalDoc(prev, local) ? prev : local));
       const payload: SyncOp[] = ops.map((op) => ({ ...op, chapterId: current.id }));
-      commitChain.current = commitChain.current.then(() => recordChapterOp(payload));
+      setInflight((count) => count + 1);
+      commitChain.current = commitChain.current
+        .then(() => recordChapterOp(payload))
+        .catch(() => undefined)
+        .finally(() => setInflight((count) => Math.max(0, count - 1)));
     },
     [recordChapterOp]
   );
@@ -199,9 +200,7 @@ export default function ManuscriptScreen() {
       }
       const current = chapterRef.current;
       if (!current) return;
-      const doc = htmlToDoc(current.content, current.revision, {
-        previous: previousBlocksRef.current,
-      }).doc;
+      const doc = htmlToDoc(current.content, current.revision).doc;
       if (doc.blocks.length === 0) {
         commitOps(insertFirstBlockOps(doc, text, firstBlockIds()).ops);
         return;
@@ -247,7 +246,6 @@ export default function ManuscriptScreen() {
   useEffect(() => {
     grammarRef.current?.cancelAll();
     grammarRef.current?.setSuggestion(null);
-    draftsRef.current.clear();
   }, [chapter?.id]);
 
   const onDraft = useCallback(
@@ -296,9 +294,7 @@ export default function ManuscriptScreen() {
       }
       const current = chapterRef.current;
       if (!current) return;
-      const doc = htmlToDoc(current.content, current.revision, {
-        previous: previousBlocksRef.current,
-      }).doc;
+      const doc = htmlToDoc(current.content, current.revision).doc;
       const result = splitOrInsertBlockOps(doc, blockId, left, right, firstBlockIds());
       grammarRef.current?.forgetBlock(blockId);
       grammarRef.current?.noteDraft(blockId, left);
@@ -336,9 +332,7 @@ export default function ManuscriptScreen() {
       }
       const current = chapterRef.current;
       if (!current) return;
-      const doc = htmlToDoc(current.content, current.revision, {
-        previous: previousBlocksRef.current,
-      }).doc;
+      const doc = htmlToDoc(current.content, current.revision).doc;
       const result = backspaceAtStartOps(doc, blockId, text);
       if (result.ops.length === 0) return;
       const next = applyOpsToDoc(doc, result.ops);
@@ -401,9 +395,7 @@ export default function ManuscriptScreen() {
     const current = chapterRef.current;
     const loop = grammarRef.current;
     if (!suggestion || !current || !loop) return;
-    const doc = htmlToDoc(current.content, current.revision, {
-      previous: previousBlocksRef.current,
-    }).doc;
+    const doc = htmlToDoc(current.content, current.revision).doc;
     const live =
       loop.draftOf(suggestion.blockId) ??
       doc.blocks.find((block) => block.id === suggestion.blockId)?.text ??
@@ -531,10 +523,14 @@ export default function ManuscriptScreen() {
     >
       <Text style={layout.title}>{chapter.title}</Text>
       {resume ? (
+        // Test hook only: where the caret resumed. Kept out of layout and
+        // out of the accessibility tree so it cannot shift the page.
         <Text
           testID="reading-caret"
           accessibilityLabel={`${resume.blockId}:${resume.offset}`}
-          style={[layout.body, { marginBottom: 12 }]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
         >
           {`${resume.blockId}:${resume.offset}`}
         </Text>

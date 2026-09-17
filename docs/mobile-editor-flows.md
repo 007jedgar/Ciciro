@@ -55,9 +55,9 @@ flowchart TD
   LIST -.->|"focused BlockInput ignores block.text; remount reads draftsRef"| DRAFT
 ```
 
-`htmlToDoc` reuses ids from the previous parse when HTML is missing `data-block-id`. `reuseUnchangedBlocks` keeps the previous block object when id+html+text match, so a sync echo that did not change prose does not remount TextInputs. `assignChaptersFromSnapshots` returns the same chapter object (and the same React Query record) when content/revision/title/status are already accurate. `BlockInput` only passes a `selection` prop while placing a caret, then omits it — a controlled `{start,end}` on every render is what made iOS select-all and replace the paragraph on the next keystroke. Each paragraph is displayed with a zero-width caret guard so Backspace at visual offset 0 is a real deletion.
+`htmlToDoc` identifies a block that has no `data-block-id` by `stableBlockId(index, rawHtml)` — the same hash on the server, the replica, and the screen — and re-stamps a duplicate id. The server stamps ids on every write and lazily on read (`ensureBlockIds`), so stored HTML is always addressable. `reuseUnchangedBlocks` keeps the previous block object when id+html+text match, so a sync echo that did not change prose does not remount TextInputs. `assignChaptersFromSnapshots` returns the same chapter object (and the same React Query record) when content/revision/title/status are already accurate. `BlockInput` only passes a `selection` prop while placing a caret, then omits it — a controlled `{start,end}` on every render is what made iOS select-all and replace the paragraph on the next keystroke. Each paragraph is displayed with a zero-width caret guard so Backspace at visual offset 0 is a real deletion.
 
-`syncProject` is per-project single-flight. Pending ops take the push path; otherwise pull. Pull also runs after a successful push so the replica sees desk ops.
+`syncProject` is per-project single-flight. Pending ops take the push path; otherwise pull. Pull also runs after a successful push so the replica sees desk ops. `useProjectSync.run` coalesces: a request that lands while a cycle is in flight schedules exactly one follow-up cycle (push outranks pull), so an op enqueued mid-cycle is never left in the pending table. After ops are applied, `reconcileHeads` refetches any chapter whose server head is still ahead of the replica (revisions bumped without ops: autowrite, passage tools, legacy stamping). `useProjectQuery` overlays replica snapshots that are at or ahead of the server revision, so a project refetch cannot paint over local edits.
 
 Desk is not this loop: Workspace debounce-patches chapter HTML; the server diffs to ops and `appendOps`. Those ops arrive on the phone as the pull arrow above.
 
@@ -92,7 +92,7 @@ flowchart TD
   RET["Return / newline"] --> SPLIT["takeReturnSplit or splitAtOffset"]
   SPLIT --> OPS["splitOrInsertBlockOps"]
   OPS -->|"block exists"| NEW["insert_block after current"]
-  OPS -->|"empty doc"| FIRST["insertFirst then split"]
+  OPS -->|"empty doc"| FIRST["insertFirst reuses placeholder id, then split mints a new one"]
   OPS -->|"id missing"| AFTER["insert_block after last"]
   NEW --> FOCUS["pendingFocus new empty paragraph"]
   FIRST --> FOCUS
@@ -234,7 +234,7 @@ flowchart TD
 
 `applyOp` returns `stale` unless `op.baseRevision === doc.revision`. D1 then `updateMany` where `revision` still matches; a concurrent desk patch or another device op loses the race and the op is `rejected`.
 
-Mobile `handleRejected` writes the server chapter head, `rebaseRejectedOp` restamps `baseRevision`, and `pushProject` retries **once**. If the block is gone, the pending op is **dropped** — the author's unflushed TextInput may still hold the lost text until blur.
+Mobile `handleRejected` writes the server chapter head, `rebaseRejectedOp` restamps `baseRevision`, and `pushProject` retries **once**. If the block is gone (`missing_block`), a non-empty `replace_block` is re-issued as an `insert_block` after the last block and an `insert_block` whose anchor vanished is appended; only a `delete_block` of a vanished block is dropped. Prose is never discarded; in a true conflict it lands at the end of the chapter.
 
 Split/merge emit two ops with sequential `baseRevision`s. If the first is accepted and the second is stale, only the second rebases. If the first is rejected, the second's base is now wrong too.
 
@@ -277,6 +277,14 @@ Do not apply remote HTML to the focused block "to stay in sync." Flush on blur, 
 ### iOS backspace at offset 0
 
 UIKit does not reliably send Backspace (or `onChangeText`) when the caret is at native offset 0, including the start of `"Yes," I said.` after a run of empty `<p>`s. `BlockInput` prefixes a zero-width caret guard so that deletion is a real character change (`isGuardDeleted`). `onTextInput` with `range {0,0}` and `onKeyPress` are extra detectors. `backspaceAtStartOps` deletes every empty previous paragraph on the first Backspace (caret stays on the current sentence). A second Backspace with no empty gap left then merges into the nearest non-empty block.
+
+### Duplicate `draft-block` keys
+
+The empty-chapter placeholder used a constant `"draft-block"` (Hermes has no `crypto.randomUUID`), and `createBlockId` kept returning that same ref on every Return. React then saw two `BlockInput`s with `key="draft-block"`, and `findBlock` aimed a split from the last paragraph at the first one. `takePlaceholderBlockId` consumes the placeholder once; later inserts call `newBlockId`; `parseBlocks` re-stamps any duplicate it reads so existing rows are repaired on the next parse.
+
+### Screen state pinned by revision
+
+`manuscript.tsx` used to paint `localDoc` whenever its revision was greater than the cache's. A dropped op left the local revision permanently ahead, so the screen never adopted remote content again and every later op was based on a document the server did not have. The overlay is now gated by `inflight` (commits whose push has not finished): while any are outstanding the optimistic document is shown; once the chain drains the screen adopts the cache. The keystroke buffer lives in `lib/chapter-drafts.ts` at module scope, so a remount of `BlockInput` or the screen reads it back. See `docs/mobile-editor-sync-diagnosis.md` for the incident this came from.
 
 ---
 

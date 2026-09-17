@@ -4,6 +4,9 @@ import {
   diffHtmlToOps,
   docToHtml,
   htmlToDoc,
+  needsBlockIds,
+  stableBlockId,
+  stampBlockIds,
   type ManuscriptDoc,
 } from "@/lib/manuscript";
 
@@ -53,6 +56,30 @@ describe("manuscript block model", () => {
     expect(doc.blocks.map((b) => b.id)).toEqual(["keep-me", "also-keep"]);
     expect(html).toContain('data-block-id="keep-me"');
     expect(html).toContain('data-block-id="also-keep"');
+  });
+
+  it("mints the same id for the same paragraph at the same position on every runtime", () => {
+    // Same vector as apps/mobile/__tests__/editor-blocks.test.ts.
+    expect(stableBlockId(0, "<p>One.</p>")).toBe("s2b47tdoulh5");
+    expect(stableBlockId(1, "<p>Two.</p>")).toBe("s19zrb3a29zm");
+    expect(stableBlockId(0, "<p>Two.</p>")).toBe("s21jygq4x7s4");
+    const { doc } = htmlToDoc("<p>One.</p><p>Two.</p>", 1);
+    expect(doc.blocks.map((b) => b.id)).toEqual(["s2b47tdoulh5", "s19zrb3a29zm"]);
+    expect(stampBlockIds("<p>One.</p><p>Two.</p>")).toBe(
+      '<p data-block-id="s2b47tdoulh5">One.</p><p data-block-id="s19zrb3a29zm">Two.</p>'
+    );
+    expect(needsBlockIds("<p>One.</p>")).toBe(true);
+    expect(needsBlockIds('<p data-block-id="x">One.</p>')).toBe(false);
+  });
+
+  it("re-stamps a duplicate id so ops cannot land on the wrong paragraph", () => {
+    const { doc } = htmlToDoc(
+      '<p data-block-id="draft-block">Asdasd</p><p data-block-id="draft-block">Hello.</p>',
+      2
+    );
+    expect(doc.blocks[0].id).toBe("draft-block");
+    expect(doc.blocks[1].id).not.toBe("draft-block");
+    expect(needsBlockIds('<p data-block-id="d">A</p><p data-block-id="d">B</p>')).toBe(true);
   });
 
   it("stamps missing data-block-id attributes", () => {

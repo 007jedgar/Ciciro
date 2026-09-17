@@ -53,9 +53,8 @@ export type ApplyOpResult =
   | { ok: false; reason: "stale" | "missing_block" };
 
 export type HtmlToDocOptions = {
+  /** Override how a block without a usable `data-block-id` is identified. */
   createId?: () => string;
-  /** Reuse ids from the last parse when HTML is missing `data-block-id`. */
-  previous?: readonly Pick<ManuscriptBlock, "id">[];
 };
 
 const BLOCK_RE =
@@ -63,9 +62,43 @@ const BLOCK_RE =
 
 // Hermes has no `crypto` global, and a bare reference to one throws rather
 // than coming back undefined — this only ever held up under Node, in tests.
-// Same shape as the id in block-editor, so the two read alike.
-const defaultCreateId = (): string =>
-  globalThis.crypto?.randomUUID?.() ?? `b-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+// The numeric seq is what keeps two fallback ids from colliding in the same ms.
+let fallbackSeq = 0;
+
+export function newBlockId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `b-${Date.now().toString(36)}-${(++fallbackSeq).toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  );
+}
+
+const defaultCreateId = newBlockId;
+
+// cyrb53: a small, fast 53-bit string hash. It is the same on Node, Workers,
+// and Hermes, which is the whole point — see stableBlockId.
+function hash53(input: string): number {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+/**
+ * Id for a block that was stored without one. It depends only on the block's
+ * position and raw HTML, so the desk, the phone's replica, the phone's screen,
+ * and the server all agree on the id of the same paragraph without a round
+ * trip. Blocks that are *created* (Return, AI inserts) still get random ids.
+ * Must stay byte-for-byte identical to src/lib/manuscript.ts.
+ */
+export function stableBlockId(index: number, raw: string): string {
+  return `s${hash53(`${index}\u0000${raw}`).toString(36)}`;
+}
 
 function normalizeWhitespace(s: string): string {
   return s.replace(/\s+/g, " ").trim();
@@ -143,11 +176,7 @@ function blockFromHtml(raw: string, id: string): ManuscriptBlock {
   return { id, html, text, ...classifyBlock(raw, text) };
 }
 
-function parseBlocks(
-  html: string,
-  createId: () => string,
-  previous?: readonly Pick<ManuscriptBlock, "id">[]
-): ManuscriptBlock[] {
+function parseBlocks(html: string, createId?: () => string): ManuscriptBlock[] {
   const blocks: ManuscriptBlock[] = [];
   const claimed = new Set<string>();
   BLOCK_RE.lastIndex = 0;
@@ -155,15 +184,17 @@ function parseBlocks(
   let index = 0;
   while ((m = BLOCK_RE.exec(html))) {
     const raw = m[0];
+    // A duplicate id (two paragraphs stamped `draft-block`) is as unusable as
+    // a missing one: every op would land on the first match.
     let id = readBlockId(raw);
-    if (!id) {
-      const inherit = previous?.[index];
-      if (inherit && !claimed.has(inherit.id)) id = inherit.id;
-      else id = createId();
+    if (!id || claimed.has(id)) {
+      id = createId ? createId() : stableBlockId(index, raw);
+      let salt = 0;
+      while (claimed.has(id)) id = `${stableBlockId(index, raw)}-${++salt}`;
     }
     claimed.add(id);
-    index += 1;
     blocks.push(blockFromHtml(raw, id));
+    index += 1;
   }
   return blocks;
 }
@@ -173,10 +204,19 @@ export function htmlToDoc(
   revision: number,
   opts?: HtmlToDocOptions
 ): { doc: ManuscriptDoc; html: string } {
-  const createId = opts?.createId ?? defaultCreateId;
-  const blocks = parseBlocks(html, createId, opts?.previous);
+  const blocks = parseBlocks(html, opts?.createId);
   const stampedHtml = blocks.map((b) => b.html).join("");
   return { doc: { revision, blocks }, html: stampedHtml };
+}
+
+/** Canonical stored form: every block carries a unique `data-block-id`. */
+export function stampBlockIds(html: string): string {
+  return htmlToDoc(html, 0).html;
+}
+
+/** True when storing `html` as-is would leave a block without a durable id. */
+export function needsBlockIds(html: string): boolean {
+  return html !== stampBlockIds(html);
 }
 
 export function docToHtml(doc: ManuscriptDoc): string {
@@ -212,7 +252,7 @@ export function diffHtmlToOps(
   baseRevision: number,
   opts?: DiffHtmlOptions
 ): ManuscriptOp[] {
-  const createId = opts?.createId ?? defaultCreateId;
+  const createId = opts?.createId;
   const createOpId = opts?.createOpId ?? defaultCreateId;
   const actor = opts?.actor ?? "user";
   const oldParsed = htmlToDoc(oldHtml, baseRevision, { createId });
@@ -228,7 +268,8 @@ export function diffHtmlToOps(
         id = inherit.id;
         claimed.add(id);
       } else {
-        id = createId();
+        id = createId ? createId() : stableBlockId(i, raw.html);
+        while (claimed.has(id)) id = createId ? createId() : `${id}-x`;
         claimed.add(id);
       }
     }
