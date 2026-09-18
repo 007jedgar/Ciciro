@@ -59,6 +59,27 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+/**
+ * Sort key for the outbox. It has to be strictly increasing, not merely
+ * current: a split's replace and insert are enqueued in the same millisecond,
+ * SQLite's sort is not stable, and two rows sharing a timestamp can come back
+ * in either order — which scrambles a group's base revisions and gets the
+ * whole group rejected. Nothing parses this as a date; it only ever orders.
+ */
+let lastQueueMs = 0;
+let queueTicks = 0;
+
+function queueStamp(): string {
+  const now = Date.now();
+  if (now === lastQueueMs) {
+    queueTicks += 1;
+  } else {
+    lastQueueMs = now;
+    queueTicks = 0;
+  }
+  return `${new Date(now).toISOString()}-${String(queueTicks).padStart(6, "0")}`;
+}
+
 function iso(value: string | Date | undefined): string {
   if (!value) return nowIso();
   return typeof value === "string" ? value : value.toISOString();
@@ -367,7 +388,7 @@ export async function recordChapterOp(
     chapterId: op.chapterId,
     projectId,
     payload: payloadOf(op),
-    createdAt: nowIso(),
+    createdAt: queueStamp(),
   });
 }
 
@@ -476,34 +497,94 @@ function rejectedGroups(rejected: SyncResult["rejected"]): RejectedGroup[] {
   return order;
 }
 
+/** Rejected groups for one chapter, in the order the client queued them. */
+function rejectedByChapter(groups: RejectedGroup[]): Map<string, RejectedGroup[]> {
+  const byChapter = new Map<string, RejectedGroup[]>();
+  for (const group of groups) {
+    const list = byChapter.get(group.chapter.id);
+    if (list) list.push(group);
+    else byChapter.set(group.chapter.id, [group]);
+  }
+  return byChapter;
+}
+
+/**
+ * Repaint a chapter as the author is actually seeing it: the server's document
+ * with everything still in the outbox applied on top, replayed from the queue
+ * in order.
+ *
+ * The rejection carries the server's bytes, and writing those straight to the
+ * replica is what used to take an unsent sentence off the screen — it was
+ * still queued, still on its way, and simply stopped being visible. The author
+ * then retypes it into a paragraph whose HTML no longer contains it, and once
+ * both writes land the sentence is gone from the log too.
+ */
+async function repaintFromQueue(
+  store: ReplicaStore,
+  projectId: string,
+  snapshot: ChapterSnapshot,
+  skipBlockIds?: Iterable<string>
+): Promise<void> {
+  const pending = await store.listPendingOps(projectId);
+  const queued = pending
+    .filter((row) => row.chapterId === snapshot.id)
+    .map((row) => opFromPayload(row.payload));
+  const painted = applyPendingOps(snapshot, queued);
+  const local = await store.getChapter(snapshot.id);
+  await store.upsertChapter(
+    local ? preserveFocusedBlocks(local, painted, skipBlockIds) : painted
+  );
+}
+
 async function handleRejected(
   store: ReplicaStore,
   scope: SyncScope,
   result: SyncResult,
-  body: SyncPushRequest
+  body: SyncPushRequest,
+  skipBlockIds?: Iterable<string>
 ): Promise<{ rebased: number; dropped: number }> {
   let rebased = 0;
   let dropped = 0;
-  for (const group of rejectedGroups(result.rejected)) {
-    const snapshot = snapshotFromRejected(group.chapter, scope.projectId);
-    await store.upsertChapter(snapshot);
-    const { retry } = rebaseRejectedGroup({
-      ops: group.ops,
-      reason: group.reason,
-      chapter: snapshot,
-    });
-    await store.deletePendingOps(group.ops.map((op) => op.opId));
-    dropped += group.ops.length - retry.length;
-    for (const op of retry) {
+  const queuedAt = new Map(
+    (await store.listPendingOps(scope.projectId)).map((row) => [row.opId, row.createdAt])
+  );
+  for (const [, groups] of rejectedByChapter(rejectedGroups(result.rejected))) {
+    const snapshot = snapshotFromRejected(groups[0].chapter, scope.projectId);
+    // Each group is re-aimed at the document the one before it will produce,
+    // not at the server head all over again. Rebasing every group against the
+    // same snapshot hands them all the same base revision, so only the first
+    // could ever be accepted — and a group aimed at a paragraph this client is
+    // still queuing would be told the paragraph does not exist and re-insert
+    // it under an id the document already has.
+    let running = snapshot;
+    const retries: ManuscriptOp[] = [];
+    for (const group of groups) {
+      const { retry } = rebaseRejectedGroup({
+        ops: group.ops,
+        reason: group.reason,
+        chapter: running,
+      });
+      await store.deletePendingOps(group.ops.map((op) => op.opId));
+      dropped += group.ops.length - retry.length;
+      if (retry.length === 0) continue;
+      running = applyPendingOps(running, retry);
+      retries.push(...retry);
+    }
+    for (const op of retries) {
       await store.enqueueOp({
         opId: op.opId,
         chapterId: snapshot.id,
         projectId: scope.projectId,
         payload: payloadOf(op),
-        createdAt: nowIso(),
+        // Its original place in the queue, not the back of it. A rebased op is
+        // the same authoring action it always was, and everything queued behind
+        // it was typed on top of it — restamping it moves it after its own
+        // successors and hands the server a causal run in the wrong order.
+        createdAt: queuedAt.get(op.opId) ?? queueStamp(),
       });
       rebased += 1;
     }
+    await repaintFromQueue(store, scope.projectId, snapshot, skipBlockIds);
   }
 
   const rejectedBible = new Set(result.bibleRejected.map((file) => file.path));
@@ -598,7 +679,7 @@ async function pushOnce(
 }> {
   const body = await collectPushBody(store, scope);
   const result = await api.push(body);
-  const handled = await handleRejected(store, scope, result, body);
+  const handled = await handleRejected(store, scope, result, body, skipBlockIds);
   const applied = await applySyncResult(store, api, scope, result, skipBlockIds);
   return { result, body, ...handled, healed: applied.healed };
 }

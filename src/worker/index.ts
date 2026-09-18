@@ -2,9 +2,10 @@
 //
 // `opennextjs-cloudflare build` compiles the Next.js app into
 // `.open-next/worker.js`. This thin entry wraps that handler so we can also:
-//   1. export the EditorRunDO and ProjectPokeDO Durable Object classes
-//      (wrangler needs the class exported from the worker module named in its
-//      migration),
+//   1. export the EditorRunDO Durable Object class (wrangler needs the class
+//      exported from the worker module named in its migration; poke reuses
+//      this class under PROJECT_POKE_DO so a second sqlite class is not
+//      required),
 //   2. publish the DO namespace bindings to the run coordinator and the chapter
 //      poke hub on each request, so durable editor-run slices are serialized
 //      fleet-wide and a head that moves in one isolate reaches the streams held
@@ -18,7 +19,6 @@
 // wrangler.jsonc `main` points at this file.
 
 import { EditorRunDO } from "./run-do";
-import { ProjectPokeDO } from "./poke-do";
 import { setD1Database } from "../lib/d1-binding";
 import { runWithRequestPrisma } from "../lib/db";
 import {
@@ -39,7 +39,7 @@ import { runWithRequestSession } from "../lib/auth/session-binding";
 // @ts-expect-error - build artifact resolved by wrangler, not by tsc
 import openNextHandler from "../../.open-next/worker.js";
 
-export { EditorRunDO, ProjectPokeDO };
+export { EditorRunDO };
 
 type Env = {
   EDITOR_RUN_DO?: RunDurableObjectNamespace;

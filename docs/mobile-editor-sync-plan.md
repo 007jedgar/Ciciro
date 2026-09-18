@@ -123,7 +123,15 @@ Two deliberate limits: a chapter holding unpushed ops sends no hash (its local r
 
 **Was.** Scenario unit/integration tests. No randomized multi-client harness.
 
-**Now.** Seeded, reproducible fuzz harnesses on both sides drive desk, phone, and AI writers with random interleavings and offline gaps, asserting replicas end byte-identical, that `revision` is explained by seqs 1..N with no gaps, that no accepted prose disappears, and that no group ever half-applied.
+**Now.** Seeded, reproducible fuzz harnesses on both sides drive desk, phone, and AI writers with random interleavings and offline gaps, asserting replicas end byte-identical, that `revision` is explained by seqs 1..N with no gaps, that replaying the log from genesis reproduces `Chapter.content` byte for byte, that no accepted prose disappears, and that no group ever half-applied. The workload gives every block one owner, so "every acknowledged sentence survives" is exact rather than approximate.
+
+It earned its keep immediately, finding three ways text could still be lost. All three are fixed, and each keeps a reduced repro as a regression guard:
+
+1. **A rejected op replayed over the op that overtook it.** A client's push is a causal run — each `replace_block` carries the whole block, written on top of the op before it. When the head had moved by exactly one, the *first* op was stale while the *second* named the head exactly and was accepted; the client then rebased the first and replayed it, overwriting the newer text. Both had been acknowledged. `appendGroups` now rejects every group that follows a rejection in the same push.
+2. **A rejection un-painted queued typing.** `handleRejected` wrote the server's bytes to the replica raw, taking a still-queued sentence off the screen. The author retypes it into a paragraph whose HTML no longer has it, and once both land it is gone from the log too. The replica is now repainted from the outbox — server document plus everything still pending.
+3. **A rebase re-inserted a block the client was still queuing.** Groups were rebased against the server's document alone, which does not have the paragraph the author just created, so the salvage path appended the text again under an id the document already held — leaving a block neither device could aim an op at. Each group now rebases against the document the group before it produces, starting from the server head plus this client's own queue.
+
+Two ordering defects came out of the same work: the outbox sorted on millisecond timestamps (a split's two halves tie, and SQLite's sort is not stable), and a rebased op was restamped to the back of the queue, behind its own successors. Both fixed.
 
 ---
 

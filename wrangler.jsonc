@@ -24,12 +24,10 @@
     "binding": "ASSETS"
   },
 
-  // One Durable Object per editor run: the fleet-wide single-writer lock that
-  // serializes durable run slices (see src/worker/run-do.ts).
-  //
-  // One per project as well: the meeting point where a chapter head that moved
-  // in one isolate reaches the sync streams the other isolates are holding open
-  // (see src/worker/poke-do.ts).
+  // One Durable Object class, two bindings. Editor runs are keyed by run id;
+  // chapter pokes are keyed by project id. A second sqlite class cannot be
+  // created by Workers Builds (`wrangler versions upload`); poke traffic
+  // therefore uses the existing EditorRunDO class (see src/worker/run-do.ts).
   "durable_objects": {
     "bindings": [
       {
@@ -38,7 +36,7 @@
       },
       {
         "name": "PROJECT_POKE_DO",
-        "class_name": "ProjectPokeDO"
+        "class_name": "EditorRunDO"
       }
     ]
   },
@@ -47,10 +45,6 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["EditorRunDO"]
-    },
-    {
-      "tag": "v2",
-      "new_sqlite_classes": ["ProjectPokeDO"]
     }
   ],
 

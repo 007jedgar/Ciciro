@@ -386,7 +386,7 @@ export async function listPendingOps(projectId: string): Promise<PendingChapterO
   return query<PendingChapterOp>(
     db,
     `SELECT opId, chapterId, projectId, payload, createdAt
-     FROM PendingOp WHERE projectId = ? ORDER BY createdAt ASC`,
+     FROM PendingOp WHERE projectId = ? ORDER BY createdAt ASC, opId ASC`,
     [projectId]
   );
 }

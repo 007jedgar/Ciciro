@@ -59,6 +59,50 @@ function parseHeads(value: unknown): ChapterHead[] {
   return heads;
 }
 
+/**
+ * Shared by ProjectPokeDO (tests) and EditorRunDO (production). A new Durable
+ * Object class cannot ride `wrangler versions upload`, so production poke
+ * traffic uses the existing EditorRunDO class under a second binding, keyed by
+ * project id rather than run id. The handlers have to live on that class.
+ */
+export async function handlePokeFetch(state: DurableObjectState, request: Request): Promise<Response> {
+  const path = new URL(request.url).pathname.replace(/^\/+/, "");
+
+  if (path === "subscribe") {
+    if (request.headers.get("upgrade") !== "websocket") {
+      return json({ error: "expected websocket" }, 426);
+    }
+    const pair = new WebSocketPair();
+    state.acceptWebSocket(pair[1]);
+    return upgraded(pair[0]);
+  }
+
+  if (path === "publish") {
+    const body = (await request.json().catch(() => ({}))) as { heads?: unknown };
+    const heads = parseHeads(body.heads);
+    if (heads.length === 0) return json({ delivered: 0 });
+    const frame = JSON.stringify({ heads });
+    let delivered = 0;
+    for (const ws of state.getWebSockets()) {
+      try {
+        ws.send(frame);
+        delivered += 1;
+      } catch {
+        // A socket the runtime has not noticed is gone yet. Drop it rather
+        // than let one dead phone fail the publish for the live ones.
+        try {
+          ws.close(1011, "send failed");
+        } catch {
+          /* already closed */
+        }
+      }
+    }
+    return json({ delivered });
+  }
+
+  return json({ error: "not found" }, 404);
+}
+
 export class ProjectPokeDO {
   private state: DurableObjectState;
 
@@ -67,41 +111,7 @@ export class ProjectPokeDO {
   }
 
   async fetch(request: Request): Promise<Response> {
-    const path = new URL(request.url).pathname.replace(/^\/+/, "");
-
-    if (path === "subscribe") {
-      if (request.headers.get("upgrade") !== "websocket") {
-        return json({ error: "expected websocket" }, 426);
-      }
-      const pair = new WebSocketPair();
-      this.state.acceptWebSocket(pair[1]);
-      return upgraded(pair[0]);
-    }
-
-    if (path === "publish") {
-      const body = (await request.json().catch(() => ({}))) as { heads?: unknown };
-      const heads = parseHeads(body.heads);
-      if (heads.length === 0) return json({ delivered: 0 });
-      const frame = JSON.stringify({ heads });
-      let delivered = 0;
-      for (const ws of this.state.getWebSockets()) {
-        try {
-          ws.send(frame);
-          delivered += 1;
-        } catch {
-          // A socket the runtime has not noticed is gone yet. Drop it rather
-          // than let one dead phone fail the publish for the live ones.
-          try {
-            ws.close(1011, "send failed");
-          } catch {
-            /* already closed */
-          }
-        }
-      }
-      return json({ delivered });
-    }
-
-    return json({ error: "not found" }, 404);
+    return handlePokeFetch(this.state, request);
   }
 
   // Subscribers only listen, so anything they say is ignored. The handler still

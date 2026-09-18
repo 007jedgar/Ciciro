@@ -2,6 +2,7 @@ import {
   applyOp,
   docToHtml,
   htmlToDoc,
+  mergeReplaceHtml,
   type ManuscriptOp,
 } from "@/lib/manuscript";
 import { countWords, htmlToText } from "@/lib/text";
@@ -81,11 +82,18 @@ export function rebaseRejectedOp(rejected: RejectedRemoteOp): {
   retry: ManuscriptOp | null;
 } {
   const chapter = rejected.chapter;
-  const retried: ManuscriptOp = {
-    ...rejected.op,
-    baseRevision: chapter.revision,
-  };
   const { doc } = htmlToDoc(chapter.content, chapter.revision);
+  const retried: ManuscriptOp =
+    rejected.op.type === "replace_block"
+      ? {
+          ...rejected.op,
+          baseRevision: chapter.revision,
+          html: mergeReplaceHtml(
+            doc.blocks.find((block) => block.id === rejected.op.blockId)?.html ?? rejected.op.html,
+            rejected.op.html
+          ),
+        }
+      : { ...rejected.op, baseRevision: chapter.revision };
   const result = applyOp(doc, retried);
   if (!result.ok) {
     return { chapter, retry: null };

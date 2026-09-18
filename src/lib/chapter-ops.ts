@@ -353,6 +353,19 @@ async function appendGroups(
   const created: ChapterOpRecord[] = [];
 
   for (const group of groupOps(ops)) {
+    if (rejected.length > 0) {
+      // Everything after a rejection goes back with it. One client's queue is a
+      // causal run: a `replace_block` carries the whole block, built on top of
+      // what the op before it wrote. Accepting a later op whose base happens to
+      // name the head — while the op it was written on top of was refused —
+      // means the client rebases the refused one and replays it over the newer
+      // text. Both were acknowledged; the author still loses the sentence.
+      const head = await loadChapter(chapterId);
+      for (const op of group.ops) {
+        rejected.push({ op, reason: "stale", chapter: head });
+      }
+      continue;
+    }
     const outcome = await applyGroup(chapterId, projectId, group, actor);
     accepted.push(...outcome.accepted);
     rejected.push(...outcome.rejected);

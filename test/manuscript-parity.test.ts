@@ -113,4 +113,12 @@ describe("manuscript parity between the server and the phone", () => {
     expect(ops[0].groupId ?? null).toBeNull();
     expect(server.asOpGroup(ops, "g")).toEqual(ops);
   });
+
+  it("merges a restamped replace identically", () => {
+    const live = '<p data-block-id="b1">One. Two.</p>';
+    const incoming = '<p data-block-id="b1">One. Three.</p>';
+    expect(phone.mergeReplaceHtml(live, incoming)).toBe(server.mergeReplaceHtml(live, incoming));
+    expect(server.mergeReplaceHtml(live, incoming)).toContain("Two.");
+    expect(server.mergeReplaceHtml(live, incoming)).toContain("Three.");
+  });
 });

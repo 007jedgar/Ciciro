@@ -4,6 +4,7 @@ import {
   diffHtmlToOps,
   docToHtml,
   htmlToDoc,
+  mergeReplaceHtml,
   needsBlockIds,
   stableBlockId,
   stampBlockIds,
@@ -268,5 +269,18 @@ describe("manuscript block model", () => {
       type: "replace_block",
       blockId: "keep",
     });
+  });
+
+  it("keeps a live sentence a restamped replace would otherwise overwrite", () => {
+    const live = '<p data-block-id="phone-b9">Phone line 10. Phone line 22.</p>';
+    const incoming = '<p data-block-id="phone-b9">Phone line 10. Phone line 5.</p>';
+    expect(mergeReplaceHtml(live, incoming)).toContain("Phone line 22.");
+    expect(mergeReplaceHtml(live, incoming)).toContain("Phone line 5.");
+  });
+
+  it("still lets a split shrink the original block", () => {
+    const live = '<p data-block-id="b1">Phone line 10. Phone line 22.</p>';
+    const incoming = '<p data-block-id="b1">Phone line 10.</p>';
+    expect(mergeReplaceHtml(live, incoming)).toBe(incoming);
   });
 });

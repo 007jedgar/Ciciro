@@ -374,6 +374,41 @@ export function diffHtmlToOps(
   return asOpGroup(ops, opts?.groupId ?? createOpId());
 }
 
+function sentencesOf(text: string): string[] {
+  return (text.match(/[^.]+\./g) ?? []).map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * A restamped `replace_block` carries the whole paragraph the client last
+ * saw. If the live block grew a sentence the client has not absorbed,
+ * applying that stale HTML would delete it. Keep live-only sentences unless
+ * the incoming HTML is a truncation of the live block (a split), which must
+ * shrink so the matching insert can carry the tail.
+ *
+ * Must stay byte-for-byte identical to apps/mobile/lib/manuscript.ts.
+ */
+export function mergeReplaceHtml(liveHtml: string, incomingHtml: string): string {
+  const live = htmlToDoc(liveHtml, 0).doc.blocks[0];
+  const incoming = htmlToDoc(incomingHtml, 0).doc.blocks[0];
+  if (!live || !incoming) return incomingHtml;
+  const liveSentences = sentencesOf(live.text);
+  const incomingSentences = sentencesOf(incoming.text);
+  const incomingHas = new Set(incomingSentences);
+  const extras = liveSentences.filter((s) => !incomingHas.has(s));
+  if (extras.length === 0) return incomingHtml;
+  const liveHas = new Set(liveSentences);
+  if (incomingSentences.every((s) => liveHas.has(s))) return incomingHtml;
+  const merged = [...liveSentences];
+  for (const s of incomingSentences) {
+    if (!liveHas.has(s)) merged.push(s);
+  }
+  const nextText = merged.join(" ");
+  if (!incoming.text) return incomingHtml;
+  const at = incoming.html.indexOf(incoming.text);
+  if (at < 0) return incomingHtml;
+  return incoming.html.slice(0, at) + nextText + incoming.html.slice(at + incoming.text.length);
+}
+
 export function applyOp(doc: ManuscriptDoc, op: ManuscriptOp): ApplyOpResult {
   if (op.baseRevision !== doc.revision) {
     return { ok: false, reason: "stale" };
