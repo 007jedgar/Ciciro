@@ -594,9 +594,15 @@ async function runSeed(user: PublicUser, seed: number): Promise<void> {
    */
   async function loseAParagraphAndHeal(): Promise<void> {
     const head = await serverChapter();
-    if (head.revision !== phone.confirmed.revision) return;
     const doc = htmlToDoc(phone.confirmed.html, phone.confirmed.revision).doc;
-    if (doc.blocks.length < 2) return;
+    // Called once per seed, after the drain, so both of these hold. They are
+    // asserted rather than skipped past: a probe that quietly declines to run
+    // is worse than no probe, because the coverage looks like it is there.
+    expect({
+      seed,
+      revision: phone.confirmed.revision,
+      blocks: doc.blocks.length > 1,
+    }).toEqual({ seed, revision: head.revision, blocks: true });
     const blocks = doc.blocks.slice();
     blocks.splice(rng.int(blocks.length), 1);
     phone.confirmed = { html: docToHtml({ ...doc, blocks }), revision: doc.revision };
@@ -670,12 +676,6 @@ async function runSeed(user: PublicUser, seed: number): Promise<void> {
     }
   }
 
-  // Now that the backlog is drained and both sides claim the same revision,
-  // the hash check has something to compare. Run it here rather than at a
-  // random point mid-round: a phone with ops still queued sends no hash at
-  // all, so a probe that fires whenever the dice say so almost never fires.
-  await loseAParagraphAndHeal();
-
   // -- invariants -----------------------------------------------------------
 
   const chapter = await serverChapter();
@@ -693,6 +693,12 @@ async function runSeed(user: PublicUser, seed: number): Promise<void> {
     desk: docHash(desk.confirmed.html),
     phone: docHash(phone.confirmed.html),
   }).toEqual({ seed, deskPending: 0, phonePending: 0, desk: settled, phone: settled });
+
+  // Only now, with the backlog drained and both sides claiming the same
+  // revision, does the hash check have anything to compare. Run it here rather
+  // than at a random point mid-round: a phone with ops still queued sends no
+  // hash at all, so a probe fired by the dice almost never fires at all.
+  await loseAParagraphAndHeal();
 
   // The log is the source of truth: seqs are 1..N with no gaps or duplicates,
   // and the head names the last one. A revision that outruns the log is the
