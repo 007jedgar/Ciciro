@@ -11,6 +11,8 @@
 // without pulling in @cloudflare/workers-types; the real runtime types are
 // structurally compatible.
 
+import { handlePokeFetch } from "./poke-do";
+
 interface DurableObjectStorage {
   get<T>(key: string): Promise<T | undefined>;
   put<T>(key: string, value: T): Promise<void>;
@@ -18,9 +20,16 @@ interface DurableObjectStorage {
   setAlarm(scheduledTime: number): Promise<void>;
 }
 
+interface PokeWebSocket {
+  send(message: string): void;
+  close(code?: number, reason?: string): void;
+}
+
 interface DurableObjectState {
   storage: DurableObjectStorage;
   blockConcurrencyWhile<T>(fn: () => Promise<T>): Promise<T>;
+  acceptWebSocket(ws: PokeWebSocket): void;
+  getWebSockets(): PokeWebSocket[];
 }
 
 type Lease = { token: string; expiresAt: number };
@@ -54,6 +63,11 @@ export class EditorRunDO {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/+/, "");
+    // Poke traffic shares this class under PROJECT_POKE_DO (see wrangler.jsonc):
+    // a new sqlite class cannot be created by `wrangler versions upload`.
+    if (path === "subscribe" || path === "publish") {
+      return handlePokeFetch(this.state, request);
+    }
     const body = (await request.json().catch(() => ({}))) as {
       token?: string;
       ttlMs?: number;
@@ -98,6 +112,24 @@ export class EditorRunDO {
     }
 
     return json({ error: "not found" }, 404);
+  }
+
+  async webSocketMessage(): Promise<void> {}
+
+  async webSocketClose(ws: PokeWebSocket): Promise<void> {
+    try {
+      ws.close();
+    } catch {
+      /* the peer already hung up */
+    }
+  }
+
+  async webSocketError(ws: PokeWebSocket): Promise<void> {
+    try {
+      ws.close(1011, "socket error");
+    } catch {
+      /* the peer already hung up */
+    }
   }
 
   // Fired when a lease TTL elapses without release; clears the dead lock.

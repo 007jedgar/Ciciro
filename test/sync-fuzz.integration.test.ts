@@ -12,6 +12,7 @@ import {
   docHash,
   docToHtml,
   htmlToDoc,
+  mergeReplaceHtml,
   type ManuscriptDoc,
   type ManuscriptOp,
 } from "@/lib/manuscript";
@@ -164,6 +165,14 @@ function lastBlockId(doc: ManuscriptDoc): string | null {
   return doc.blocks.length === 0 ? null : doc.blocks[doc.blocks.length - 1].id;
 }
 
+function restampOp(doc: ManuscriptDoc, op: ManuscriptOp): ManuscriptOp {
+  const restamped: ManuscriptOp = { ...op, baseRevision: doc.revision };
+  if (restamped.type !== "replace_block") return restamped;
+  const live = doc.blocks.find((block) => block.id === restamped.blockId);
+  if (!live) return restamped;
+  return { ...restamped, html: mergeReplaceHtml(live.html, restamped.html) };
+}
+
 function rebaseGroup(
   doc: ManuscriptDoc,
   ops: ManuscriptOp[]
@@ -171,7 +180,7 @@ function rebaseGroup(
   let current = doc;
   const replayed: ManuscriptOp[] = [];
   for (const op of ops) {
-    const restamped: ManuscriptOp = { ...op, baseRevision: current.revision };
+    const restamped = restampOp(current, op);
     const result = applyOp(current, restamped);
     if (!result.ok) break;
     current = result.doc;
@@ -182,7 +191,7 @@ function rebaseGroup(
   let running = doc;
   const salvaged: ManuscriptOp[] = [];
   for (const op of ops) {
-    const restamped: ManuscriptOp = { ...op, baseRevision: running.revision, groupId: null };
+    const restamped: ManuscriptOp = { ...restampOp(running, op), groupId: null };
     const direct = applyOp(running, restamped);
     if (direct.ok) {
       running = direct.doc;
@@ -807,10 +816,10 @@ describe("sync fuzz: desk, phone, and AI converge", () => {
    * for a chapter is rejected, every later group in the same push is based on
    * a revision that no longer exists and has to be rejected with it.
    *
-   * `it.fails` so the suite stays honest — when this starts passing, remove
-   * the marker and the bug with it.
+   * Fixed: `appendGroups` now rejects every group that follows a rejection in
+   * the same push. Kept as the regression guard.
    */
-  it.fails("does not replay a rejected op over the newer op that overtook it", async () => {
+  it("does not replay a rejected op over the newer op that overtook it", async () => {
     const project = await createProject(ada, { title: "Causal order" });
     const chapterId = project.chapters[0].id;
 
@@ -857,17 +866,31 @@ describe("sync fuzz: desk, phone, and AI converge", () => {
     };
     const push = await appendOps(chapterId, ada, [early, late], { actor: "user" });
 
-    // `late` lands even though `early` — the op it was written on top of —
-    // did not. Everything after a rejection should have been rejected too.
+    // `late` must not land while `early` — the op it was written on top of —
+    // did not. Accepting it used to mean the client rebased `early` onto the
+    // head `late` created, replayed it, and overwrote "Third." with the older
+    // whole-block HTML that never had it.
     expect(push.accepted.map((item) => item.op.opId)).toEqual([]);
+    expect(push.rejected.map((item) => item.op.opId)).toEqual([
+      "repro-early",
+      "repro-late",
+    ]);
 
-    // And this is what it costs: the client rebases `early` onto the head and
-    // replays it, and "Third." — which the server accepted — disappears.
+    // Rejected together, they rebase together and both land, in order.
     const head = await prisma.chapter.findUnique({ where: { id: chapterId } });
-    await appendOps(chapterId, ada, [{ ...early, baseRevision: head?.revision ?? 0 }], {
-      actor: "user",
-    });
+    const base = head?.revision ?? 0;
+    const replay = await appendOps(
+      chapterId,
+      ada,
+      [
+        { ...early, baseRevision: base },
+        { ...late, baseRevision: base + 1 },
+      ],
+      { actor: "user" }
+    );
+    expect(replay.rejected).toEqual([]);
     const after = await prisma.chapter.findUnique({ where: { id: chapterId } });
     expect(after?.content).toContain("Third.");
+    expect(after?.content).toContain("Assistant.");
   });
 });

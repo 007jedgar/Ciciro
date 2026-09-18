@@ -9,6 +9,7 @@ import type {
   Chapter,
   ChapterOpRecord,
   SyncAfter,
+  SyncPushRequest,
   SyncResult,
 } from "../lib/api/types";
 import {
@@ -308,6 +309,17 @@ function createModelServer(rng: Rng, onAccept: (opId: string) => void): ModelSer
         const rejected: SyncResult["rejected"] = [];
         const mine = (body.ops ?? []).filter((op) => op.chapterId === CHAPTER_ID);
         for (const group of groupOps(mine)) {
+          if (rejected.length > 0) {
+            // Everything after a rejection goes back with it, exactly as
+            // `appendGroups` does: one client's queue is a causal run, and a
+            // later op accepted while the op it was written on top of was
+            // refused is a sentence the author loses on the replay.
+            const snapshot = chapter();
+            for (const op of group) {
+              rejected.push({ op, reason: "stale" as const, chapter: snapshot });
+            }
+            continue;
+          }
           const outcome = applyGroup(group);
           accepted.push(...outcome.accepted);
           rejected.push(...outcome.rejected);
@@ -646,10 +658,10 @@ describe("mobile sync fuzz: the replica converges on the server", () => {
    * `preserveFocusedBlocks` does not cover this: `handleRejected` upserts the
    * server snapshot raw, with no `skipBlockIds`.
    *
-   * `it.failing` so the suite stays honest — when this starts passing, remove
-   * the marker and the bug with it.
+   * Fixed: `handleRejected` now repaints the chapter from the outbox instead
+   * of writing the server's bytes raw. Kept as the regression guard.
    */
-  it.failing("keeps queued ops painted on the replica after a rejection", async () => {
+  it("keeps queued ops painted on the replica after a rejection", async () => {
     const store = createMemoryReplica();
     const rng = makeRng(1);
     const server = createModelServer(rng, () => {});
@@ -706,10 +718,33 @@ describe("mobile sync fuzz: the replica converges on the server", () => {
       ]);
     }
 
-    await syncProject(store, { projectId: PROJECT_ID, userId: USER_ID }, server.api);
+    // The desk keeps writing between the push and its retry, so the backlog is
+    // rejected again and genuinely stays in the outbox. Without that, the retry
+    // lands and the repaint never has to hold anything on screen.
+    let restless = 0;
+    const api = {
+      ...server.api,
+      push: async (body: SyncPushRequest) => {
+        server.write([
+          {
+            opId: `restless-${restless}`,
+            baseRevision: server.revision(),
+            actor: "user" as const,
+            type: "insert_block" as const,
+            afterBlockId: "b1",
+            blockId: `r${restless++}`,
+            html: `<p data-block-id="r${restless}">Desk again.</p>`,
+          },
+        ]);
+        return server.api.push(body);
+      },
+    };
+    await syncProject(store, { projectId: PROJECT_ID, userId: USER_ID }, api);
 
-    // "Third." is still queued — it was rebased, not dropped — so the author
-    // should still be able to see it. They cannot.
+    // "Third." was rebased, not dropped, so it is still in the outbox — and
+    // the author has to be able to see it while it waits. Repainting from the
+    // queue is what keeps it on screen; writing the server's bytes raw is what
+    // used to take it off.
     const queued = await store.listPendingOps(PROJECT_ID);
     expect(queued.map((op) => op.opId)).toContain("typed-2");
     expect((await store.getChapter(CHAPTER_ID))?.content).toContain("Third.");
@@ -736,10 +771,11 @@ describe("mobile sync fuzz: the replica converges on the server", () => {
    * still-pending ops*, which is the document the author is actually looking
    * at — `applyPendingOps` already exists to build it.
    *
-   * `it.failing` so the suite stays honest — when this starts passing, remove
-   * the marker and the bug with it.
+   * Fixed: each rejected group is now rebased against the document the group
+   * before it produces, starting from the server head plus this client's own
+   * queue. Kept as the regression guard.
    */
-  it.failing("does not re-insert a block the client is still queuing", async () => {
+  it("does not re-insert a block the client is still queuing", async () => {
     const store = createMemoryReplica();
     const rng = makeRng(1);
     const server = createModelServer(rng, () => {});

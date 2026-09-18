@@ -1,5 +1,5 @@
 import type { ChapterSnapshot } from "../lib/db";
-import { applyRemoteOps, opTouchesBlock, preserveFocusedBlocks, rebaseRejectedOp } from "../lib/sync-merge";
+import { applyRemoteOps, opTouchesBlock, preserveFocusedBlocks, rebaseRejectedGroup, rebaseRejectedOp } from "../lib/sync-merge";
 import type { RemoteChapterOp } from "../lib/sync-merge";
 
 const chapter: ChapterSnapshot = {
@@ -127,5 +127,37 @@ describe("rebase keeps the author's prose", () => {
     expect(
       rebaseRejectedOp({ op: replaceOp(3, "gone", "   "), reason: "missing_block", chapter: head }).retry
     ).toBeNull();
+  });
+
+  it("does not let a restamped merge wipe a sentence that landed in the same block", () => {
+    const grown = {
+      ...head,
+      content: '<p data-block-id="b1">Hello. Extra.</p><p data-block-id="b2">World.</p>',
+    };
+    const { retry } = rebaseRejectedGroup({
+      ops: [
+        {
+          opId: "merge-replace",
+          baseRevision: 3,
+          actor: "user",
+          groupId: "g1",
+          type: "replace_block",
+          blockId: "b1",
+          html: '<p data-block-id="b1">Hello. World.</p>',
+        },
+        {
+          opId: "merge-delete",
+          baseRevision: 4,
+          actor: "user",
+          groupId: "g1",
+          type: "delete_block",
+          blockId: "b2",
+        },
+      ],
+      reason: "stale",
+      chapter: grown,
+    });
+    const replace = retry.find((op) => op.type === "replace_block");
+    expect(replace && "html" in replace ? replace.html : "").toContain("Extra.");
   });
 });

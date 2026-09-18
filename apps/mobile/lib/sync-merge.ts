@@ -1,5 +1,5 @@
 import { htmlToPlainText } from "./html";
-import { applyOp, countWords, docToHtml, htmlToDoc } from "./manuscript";
+import { applyOp, countWords, docToHtml, htmlToDoc, mergeReplaceHtml } from "./manuscript";
 import type { ManuscriptOp } from "./manuscript";
 import type { ChapterSnapshot } from "./db";
 
@@ -105,6 +105,14 @@ function lastBlockId(doc: { blocks: { id: string }[] }): string | null {
   return doc.blocks.length === 0 ? null : doc.blocks[doc.blocks.length - 1].id;
 }
 
+function restampOp(doc: { revision: number; blocks: { id: string; html: string }[] }, op: ManuscriptOp): ManuscriptOp {
+  const restamped: ManuscriptOp = { ...op, baseRevision: doc.revision };
+  if (restamped.type !== "replace_block") return restamped;
+  const live = doc.blocks.find((block) => block.id === restamped.blockId);
+  if (!live) return restamped;
+  return { ...restamped, html: mergeReplaceHtml(live.html, restamped.html) };
+}
+
 /**
  * Re-aim a rejected op at the server's current head. A `stale` op only needs
  * its base revision restamped. A `missing_block` op is prose the author typed
@@ -118,7 +126,7 @@ export function rebaseRejectedOp(rejected: RejectedRemoteOp): {
 } {
   const chapter = rejected.chapter;
   const { doc } = htmlToDoc(chapter.content, chapter.revision);
-  const restamped: ManuscriptOp = { ...rejected.op, baseRevision: chapter.revision };
+  const restamped = restampOp(doc, rejected.op);
   if (applyOp(doc, restamped).ok) {
     return { chapter, retry: restamped };
   }
@@ -176,7 +184,7 @@ export function rebaseRejectedGroup(rejected: RejectedRemoteGroup): {
   let current = doc;
   const replayed: ManuscriptOp[] = [];
   for (const op of rejected.ops) {
-    const restamped: ManuscriptOp = { ...op, baseRevision: current.revision };
+    const restamped = restampOp(current, op);
     const result = applyOp(current, restamped);
     if (!result.ok) break;
     current = result.doc;
