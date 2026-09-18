@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
-import { appendOps, listChapterOps, parseManuscriptOp } from "@/lib/chapter-ops";
+import { OP_VERSION } from "@/lib/manuscript";
+import {
+  appendOps,
+  listChapterOps,
+  parseManuscriptOp,
+  unsupportedOpVersion,
+} from "@/lib/chapter-ops";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
+
+/**
+ * A build newer than this server is talking to us. Say so plainly instead of
+ * parsing the fields we recognize and dropping the rest — a silent partial
+ * apply is how prose goes missing.
+ */
+function upgradeRequired(sent: number) {
+  return {
+    error: "Unsupported manuscript op version",
+    sentVersion: sent,
+    supportedVersion: OP_VERSION,
+  };
+}
 
 // GET /api/chapters/:id/ops?after=seq — ops after seq (default 0).
 export async function GET(req: NextRequest, { params }: Params) {
@@ -34,6 +53,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   const rawOps = Array.isArray(body.ops) ? body.ops : null;
   if (!rawOps) {
     return NextResponse.json({ error: "ops array required" }, { status: 400 });
+  }
+  const unsupported = unsupportedOpVersion(rawOps);
+  if (unsupported !== null) {
+    return NextResponse.json(upgradeRequired(unsupported), { status: 426 });
   }
   const ops = [];
   for (const item of rawOps) {

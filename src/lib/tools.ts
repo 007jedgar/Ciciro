@@ -9,7 +9,11 @@ import {
 } from "@/lib/bible";
 import { DRAFTER_SYSTEM } from "@/lib/prompts";
 import { htmlToText, countWords } from "@/lib/text";
-import { stampBlockIds } from "@/lib/manuscript";
+import {
+  writeChapterHtml,
+  type ChapterHtmlWrite,
+  type ChapterWriteResult,
+} from "@/lib/chapter-writes";
 import {
   countPassageOccurrences,
   deletePassageRange,
@@ -613,19 +617,27 @@ function insertHtmlAt(html: string, insertHtml: string, at: number): string {
 }
 
 /**
- * D1 cannot run interactive `prisma.$transaction(async (tx) => ...)`.
- * Bump a chapter only when the caller's revision still matches.
+ * Commit one chapter's new HTML, and only while the caller's revision is still
+ * the head.
+ *
+ * Every manuscript mutation goes through the op log. Writing the snapshot and
+ * incrementing `revision` left the phone with a head no op explained, and its
+ * only recovery was to refetch the chapter out from under whatever the author
+ * was typing. Each chapter a tool touches is one grouped write: a tool that
+ * moves prose between two chapters commits two actions, and neither may
+ * half-apply.
  */
 async function bumpChapterRevision(
-  id: string,
+  chapter: { id: string; projectId: string; content: string; revision: number },
   revision: number,
-  data: { content: string; wordCount: number }
-): Promise<boolean> {
-  const updated = await prisma.chapter.updateMany({
-    where: { id, revision },
-    data: { ...data, content: stampBlockIds(data.content), revision: { increment: 1 } },
-  });
-  return updated.count === 1;
+  data: ChapterHtmlWrite
+): Promise<ChapterWriteResult> {
+  if (chapter.revision !== revision) {
+    // The caller read this row and checked it against the revision the editor
+    // was given, so a mismatch here means the head moved under it.
+    return { ok: false, revision: chapter.revision, content: chapter.content };
+  }
+  return writeChapterHtml(chapter, data.content, { actor: "ai" });
 }
 
 async function recordManuscriptEdits(
@@ -779,25 +791,27 @@ export async function executeEditorTool(
         return { status: "delete failed", content: deletion.error };
       }
       const wordCount = countWords(htmlToText(deletion.content));
-      const committed = await bumpChapterRevision(chapter.id, expectedRevision, {
+      const committed = await bumpChapterRevision(chapter, expectedRevision, {
         content: deletion.content,
         wordCount,
       });
-      if (committed) {
+      if (committed.ok) {
         await recordManuscriptEdits([
           { chapterId: chapter.id, find: deletion.passage.id, replace: "" },
         ]);
       }
-      if (!committed) {
-        const current = await prisma.chapter.findUnique({ where: { id: chapter.id } });
+      if (!committed.ok) {
         return {
           status: "revision conflict",
           content:
             `STALE REVISION: chapter ${parsed.chapter} changed to revision ` +
-            `${current?.revision ?? "unknown"} before commit. No passages were deleted.`,
+            `${committed.revision} before commit. No passages were deleted.`,
         };
       }
-      const revision = expectedRevision + 1;
+      // The revision a grouped write lands on is the caller's plus one op per
+      // block it touched, so it is read back from the commit rather than
+      // guessed — the desk stores it as the base for the author's next save.
+      const revision = committed.revision;
       return {
         status: backstageLine("delete_passages"),
         content:
@@ -808,7 +822,7 @@ export async function executeEditorTool(
         ui: {
           type: "chapter_updated",
           chapterId: chapter.id,
-          content: deletion.content,
+          content: committed.content,
           wordCount,
           revision,
         },
@@ -965,14 +979,16 @@ export async function executeEditorTool(
         };
       }
 
-      type SplitCommit =
+      type SplitCommit = { sourceRevision: number; sourceContent: string } & (
         | {
             created: false;
             destinationChanged: boolean;
             destinationRevision: number;
+            destinationContent: string;
             destinationId: string;
           }
-        | { created: true; chapter: Awaited<ReturnType<typeof prisma.chapter.create>> };
+        | { created: true; chapter: Awaited<ReturnType<typeof prisma.chapter.create>> }
+      );
       let committed: SplitCommit;
       try {
         if (destination) {
@@ -986,11 +1002,15 @@ export async function executeEditorTool(
         }
 
         const sourceUpdate = await bumpChapterRevision(
-          source.id,
+          source,
           expectedSourceRevision,
           { content: split.sourceContent, wordCount: sourceWordCount }
         );
-        if (!sourceUpdate) throw new Error("SOURCE_REVISION_CONFLICT");
+        if (!sourceUpdate.ok) throw new Error("SOURCE_REVISION_CONFLICT");
+        const sourceCommit = {
+          sourceRevision: sourceUpdate.revision,
+          sourceContent: sourceUpdate.content,
+        };
 
         if (destination) {
           if (destinationAlreadyContainsSplit) {
@@ -1002,18 +1022,20 @@ export async function executeEditorTool(
               },
             ]);
             committed = {
+              ...sourceCommit,
               created: false as const,
               destinationChanged: false,
               destinationRevision: expectedDestinationRevision as number,
+              destinationContent: destination.content,
               destinationId: destination.id,
             };
           } else {
             const destinationUpdate = await bumpChapterRevision(
-              destination.id,
+              destination,
               expectedDestinationRevision as number,
               { content: destinationContent, wordCount: destinationWordCount }
             );
-            if (!destinationUpdate) throw new Error("DESTINATION_REVISION_CONFLICT");
+            if (!destinationUpdate.ok) throw new Error("DESTINATION_REVISION_CONFLICT");
             await recordManuscriptEdits([
               {
                 chapterId: source.id,
@@ -1027,9 +1049,11 @@ export async function executeEditorTool(
               },
             ]);
             committed = {
+              ...sourceCommit,
               created: false as const,
               destinationChanged: true,
-              destinationRevision: (expectedDestinationRevision as number) + 1,
+              destinationRevision: destinationUpdate.revision,
+              destinationContent: destinationUpdate.content,
               destinationId: destination.id,
             };
           }
@@ -1052,7 +1076,7 @@ export async function executeEditorTool(
               replace: `[split to chapter ${destinationNumber}]`,
             },
           ]);
-          committed = { created: true as const, chapter };
+          committed = { ...sourceCommit, created: true as const, chapter };
         }
       } catch (error) {
         if (
@@ -1075,7 +1099,7 @@ export async function executeEditorTool(
         throw error;
       }
 
-      const sourceRevision = expectedSourceRevision + 1;
+      const sourceRevision = committed.sourceRevision;
       const destinationEvent: ClientUiEvent | null = committed.created
         ? {
             type: "chapter_created",
@@ -1097,7 +1121,7 @@ export async function executeEditorTool(
           ? {
             type: "chapter_updated",
             chapterId: committed.destinationId,
-            content: destinationContent,
+            content: committed.destinationContent,
             wordCount: destinationWordCount,
             revision: committed.destinationRevision,
             }
@@ -1118,7 +1142,7 @@ export async function executeEditorTool(
           {
             type: "chapter_updated",
             chapterId: source.id,
-            content: split.sourceContent,
+            content: committed.sourceContent,
             wordCount: sourceWordCount,
             revision: sourceRevision,
           },
@@ -1359,12 +1383,15 @@ export async function executeEditorTool(
         }
       }
       const wordCount = countWords(htmlToText(content));
-      if (content !== ch.content) {
-        const committed = await bumpChapterRevision(ch.id, expectedRevision, {
+      const changed = content !== ch.content;
+      let revision = expectedRevision;
+      let savedContent = content;
+      if (changed) {
+        const committed = await bumpChapterRevision(ch, expectedRevision, {
           content,
           wordCount,
         });
-        if (committed) {
+        if (committed.ok) {
           await recordManuscriptEdits(
             applied.map((a) => ({
               chapterId: ch.id,
@@ -1373,7 +1400,7 @@ export async function executeEditorTool(
             }))
           );
         }
-        if (!committed) {
+        if (!committed.ok) {
           return {
             status: "revision conflict",
             content:
@@ -1381,24 +1408,23 @@ export async function executeEditorTool(
               "No replacements were applied.",
           };
         }
+        revision = committed.revision;
+        savedContent = committed.content;
       }
-      const revision =
-        content !== ch.content ? expectedRevision + 1 : expectedRevision;
       return {
         status: `correcting chapter ${n}`,
         content:
           `Chapter ${n} (${ch.title}), revision ${revision}:\n${report.join("\n")}`,
-        mutationCount: content !== ch.content ? 1 : 0,
-        ui:
-          content !== ch.content
-            ? {
-                type: "chapter_updated",
-                chapterId: ch.id,
-                content,
-                wordCount,
-                revision,
-              }
-            : undefined,
+        mutationCount: changed ? 1 : 0,
+        ui: changed
+          ? {
+              type: "chapter_updated",
+              chapterId: ch.id,
+              content: savedContent,
+              wordCount,
+              revision,
+            }
+          : undefined,
       };
     }
 
@@ -1564,11 +1590,11 @@ export async function executeEditorTool(
       const label = `${source.id} (${source.wordCount}w)`;
 
       if (fromN === toN) {
-        const committed = await bumpChapterRevision(fromCh.id, expectedSourceRevision, {
+        const committed = await bumpChapterRevision(fromCh, expectedSourceRevision, {
           content: destWith,
           wordCount: toWordCount,
         });
-        if (committed) {
+        if (committed.ok) {
           await recordManuscriptEdits([
             {
               chapterId: fromCh.id,
@@ -1577,7 +1603,7 @@ export async function executeEditorTool(
             },
           ]);
         }
-        if (!committed) {
+        if (!committed.ok) {
           return {
             status: "revision conflict",
             content:
@@ -1585,7 +1611,7 @@ export async function executeEditorTool(
               "No passage was moved.",
           };
         }
-        const revision = expectedSourceRevision + 1;
+        const revision = committed.revision;
         return {
           status: backstageLine("move_text"),
           content:
@@ -1596,13 +1622,15 @@ export async function executeEditorTool(
           ui: {
             type: "chapter_updated",
             chapterId: fromCh.id,
-            content: destWith,
+            content: committed.content,
             wordCount: toWordCount,
             revision,
           },
         };
       }
 
+      let sourceCommit: ChapterWriteResult;
+      let destinationCommit: ChapterWriteResult;
       try {
         const destinationRevision = await prisma.chapter.findUnique({
           where: { id: toCh.id },
@@ -1611,18 +1639,18 @@ export async function executeEditorTool(
         if (destinationRevision?.revision !== expectedDestinationRevision) {
           throw new Error("DESTINATION_REVISION_CONFLICT");
         }
-        const sourceUpdate = await bumpChapterRevision(
-          fromCh.id,
+        sourceCommit = await bumpChapterRevision(
+          fromCh,
           expectedSourceRevision,
           { content: sourceWithout, wordCount: fromWordCount }
         );
-        if (!sourceUpdate) throw new Error("SOURCE_REVISION_CONFLICT");
-        const destinationUpdate = await bumpChapterRevision(
-          toCh.id,
+        if (!sourceCommit.ok) throw new Error("SOURCE_REVISION_CONFLICT");
+        destinationCommit = await bumpChapterRevision(
+          toCh,
           expectedDestinationRevision as number,
           { content: destWith, wordCount: toWordCount }
         );
-        if (!destinationUpdate) throw new Error("DESTINATION_REVISION_CONFLICT");
+        if (!destinationCommit.ok) throw new Error("DESTINATION_REVISION_CONFLICT");
         await recordManuscriptEdits([
           { chapterId: fromCh.id, find: source.id, replace: "" },
           { chapterId: toCh.id, find: "", replace: source.id },
@@ -1640,8 +1668,8 @@ export async function executeEditorTool(
         }
         throw error;
       }
-      const sourceRevision = expectedSourceRevision + 1;
-      const destinationRevision = (expectedDestinationRevision as number) + 1;
+      const sourceRevision = sourceCommit.revision;
+      const destinationRevision = destinationCommit.revision;
 
       return {
         status: backstageLine("move_text"),
@@ -1657,14 +1685,14 @@ export async function executeEditorTool(
           {
             type: "chapter_updated",
             chapterId: fromCh.id,
-            content: sourceWithout,
+            content: sourceCommit.content,
             wordCount: fromWordCount,
             revision: sourceRevision,
           },
           {
             type: "chapter_updated",
             chapterId: toCh.id,
-            content: destWith,
+            content: destinationCommit.content,
             wordCount: toWordCount,
             revision: destinationRevision,
           },
@@ -1710,21 +1738,21 @@ export async function executeEditorTool(
       const insertHtml = paragraphsToHtml(text);
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
       const wordCount = countWords(htmlToText(content));
-      const committed = await bumpChapterRevision(ch.id, expectedRevision, {
+      const committed = await bumpChapterRevision(ch, expectedRevision, {
         content,
         wordCount,
       });
-      if (committed) {
+      if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
       }
-      if (!committed) {
+      if (!committed.ok) {
         return {
           status: "revision conflict",
           content:
             `STALE REVISION: chapter ${n} changed before commit. No text was inserted.`,
         };
       }
-      const revision = expectedRevision + 1;
+      const revision = committed.revision;
       return {
         status: `inserting into chapter ${n}`,
         content:
@@ -1735,7 +1763,7 @@ export async function executeEditorTool(
         ui: {
           type: "chapter_updated",
           chapterId: ch.id,
-          content,
+          content: committed.content,
           wordCount,
           revision,
         },

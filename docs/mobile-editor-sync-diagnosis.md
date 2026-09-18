@@ -1,5 +1,7 @@
 # Mobile chapter editor: why typing is lost, Return misfires, and the page jumps
 
+Companion: [mobile-editor-sync-plan.md](./mobile-editor-sync-plan.md) is the ranked engine plan (atomic CAS, grouped ops, hash-on-pull, poke, fuzz). This file is the incident that motivated the durable-id patches; the plan is what still remains.
+
 Written 2026-09-16 against `main` (`a00f49e`) plus the uncommitted `takePlaceholderBlockId` work. Reproduced on the iPhone 17 Pro simulator with the `jtest@test.com` account and a Maestro flow (tap the end of the last paragraph, type ` END`, press Return, type `New para`).
 
 ## What was observed
@@ -36,6 +38,8 @@ Server writes that store HTML without ids and without an op-log entry:
 Once a chapter has unstamped content, a phone `replace_block` op names a phone-minted id. `appendOps` parses the stored HTML with fresh ids, finds nothing, and rejects with `missing_block`. `rebaseRejectedOp` on the phone parses the returned head with yet another set of fresh ids, fails again, and **drops the op**. The typing is gone from the durable record while the screen still shows it.
 
 ### 2. Revisions advance without ops, and the phone only replays ops
+
+> Fixed. Autowrite and the passage tools now commit through the op log, and claiming a `seq` is the only way to move a revision. See [mobile-editor-sync-plan.md](./mobile-editor-sync-plan.md) §1, §3 and §5.
 
 `pullProject` asks for ops with `seq > localRevision`. Revisions 3 and 4 above have no `ChapterOp` rows, so the pull returns nothing and the replica stays at revision 2 forever. `applyPulledOps` only looks at chapters that had ops in the response; the `chapters` heads (which say revision 4) are ignored. Every push then starts from a stale base, is rejected as `stale`, rebased onto an unstamped head, and dropped (cause 1).
 

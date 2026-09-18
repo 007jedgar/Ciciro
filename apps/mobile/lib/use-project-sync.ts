@@ -23,6 +23,7 @@ import {
   type SyncCycleResult,
   type SyncScope,
 } from "./sync-engine";
+import { listenChapterHeads, type ChapterHeadSubscription } from "./sync-poke";
 import { noteWritingStroke, noteWritingWords } from "./writing-day-session";
 import { positiveWordDelta } from "./writing-day";
 
@@ -87,12 +88,14 @@ export function useProjectSync(
   opts?: {
     store?: ReplicaStore;
     api?: SyncApi;
+    listen?: ChapterHeadSubscription;
     skipBlockIdRef?: MutableRefObject<string | null>;
   }
 ) {
   const { user } = useSession();
   const store = opts?.store ?? defaultReplica();
   const api = opts?.api ?? defaultSyncApi;
+  const listen = opts?.listen ?? listenChapterHeads;
   const [position, setPosition] = useState<ReplicaReadingPosition | null>(null);
   const running = useRef<Promise<SyncCycleResult | null> | null>(null);
   const lastPlaceRef = useRef<{ chapterId: string; blockId: string; offset: number } | null>(null);
@@ -177,6 +180,26 @@ export function useProjectSync(
       void run("auto");
     });
   }, [run]);
+
+  /**
+   * Desk edits used to sit on the server until the author typed or brought the
+   * app forward. The poke channel closes that gap: when a head moves past the
+   * revision this client is holding, one pull cycle fetches it. The cache is
+   * the synchronous view of what we already have — `run` keeps it current — so
+   * a poke for a revision we already applied costs nothing.
+   */
+  useEffect(() => {
+    if (!user || !projectId) return;
+    return listen(projectId, {
+      onBehind: () => {
+        void run("pull");
+      },
+      localRevision: (chapterId) =>
+        queryClient
+          .getQueryData<ProjectDetail>(queryKeys.projects.detail(projectId))
+          ?.chapters.find((chapter) => chapter.id === chapterId)?.revision,
+    });
+  }, [listen, projectId, run, user]);
 
   const recordOp = useCallback(
     async (op: SyncOp | SyncOp[]) => {

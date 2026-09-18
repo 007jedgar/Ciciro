@@ -87,6 +87,8 @@ describe("sync envelope", () => {
           opId: "correction-op",
           chapterId: chapter.id,
           baseRevision: 2,
+          // A client asking to be recorded as the assistant. The sync route is
+          // an author route, so the server stamps "user" over it.
           actor: "correction",
           type: "replace_block",
           blockId: "b1",
@@ -95,9 +97,14 @@ describe("sync envelope", () => {
       ],
     });
     expect(mixed.accepted.map((row) => row.op.opId)).toEqual(["author-op", "correction-op"]);
-    expect(mixed.accepted.map((row) => row.op.actor)).toEqual(["user", "correction"]);
     expect(mixed.rejected).toHaveLength(0);
     expect(mixed.chapters.find((c) => c.id === chapter.id)?.revision).toBe(3);
+
+    const logged = await prisma.chapterOp.findMany({
+      where: { chapterId: chapter.id },
+      orderBy: { seq: "asc" },
+    });
+    expect(logged.map((row) => row.actor)).toEqual(["user", "user", "user"]);
 
     await expect(pullSync(project.id, bob)).rejects.toMatchObject({ status: 403 });
     await expect(

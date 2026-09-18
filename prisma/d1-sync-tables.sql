@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS "ChapterOp" (
     "actor" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "payload" TEXT NOT NULL,
+    "groupId" TEXT,
+    "v" INTEGER NOT NULL DEFAULT 1,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ChapterOp_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "Chapter" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "ChapterOp_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -21,6 +23,9 @@ CREATE TABLE IF NOT EXISTS "ChapterOp" (
 CREATE INDEX IF NOT EXISTS "ChapterOp_chapterId_seq_idx" ON "ChapterOp"("chapterId", "seq");
 CREATE INDEX IF NOT EXISTS "ChapterOp_projectId_createdAt_idx" ON "ChapterOp"("projectId", "createdAt");
 CREATE UNIQUE INDEX IF NOT EXISTS "ChapterOp_chapterId_opId_key" ON "ChapterOp"("chapterId", "opId");
+-- Claiming a seq is the atomic right to write that revision. See appendOps.
+CREATE UNIQUE INDEX IF NOT EXISTS "ChapterOp_chapterId_seq_key" ON "ChapterOp"("chapterId", "seq");
+CREATE INDEX IF NOT EXISTS "ChapterOp_chapterId_groupId_idx" ON "ChapterOp"("chapterId", "groupId");
 
 CREATE TABLE IF NOT EXISTS "BibleFile" (
     "id" TEXT NOT NULL PRIMARY KEY,

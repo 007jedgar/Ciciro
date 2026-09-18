@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { EDITOR_SYSTEM, DRAFTER_SYSTEM, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
 import { countWords, htmlToText } from "@/lib/text";
-import { stampBlockIds } from "@/lib/manuscript";
+import { writeChapterHtml } from "@/lib/chapter-writes";
 
 // The autonomous drafting loop. The editor (Opus) plans a chapter into beats;
 // for each beat the drafter (Sonnet) writes prose from a brief, the editor edits
@@ -175,6 +175,39 @@ Return ONLY the final edited prose for this beat - no commentary, no headings, n
   return textBlocks(res);
 }
 
+/**
+ * Commit the run's prose onto the chapter as it stands right now.
+ *
+ * The beats above stream for minutes, and the author can be typing in another
+ * window the whole time. The chapter is re-read here instead of reusing the
+ * snapshot the run planned against, so the new prose is appended after their
+ * paragraphs rather than over them, and the compare-and-swap inside
+ * `writeChapterHtml` means a commit that still raced a keystroke is retried
+ * against the newer head instead of winning.
+ */
+async function commitProse(
+  chapterId: string,
+  projectId: string,
+  newHtml: string
+): Promise<{ content: string; revision: number } | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await prisma.chapter.findUnique({ where: { id: chapterId } });
+    if (!current) return null;
+    const written = await writeChapterHtml(
+      {
+        id: current.id,
+        projectId,
+        content: current.content,
+        revision: current.revision,
+      },
+      (current.content || "") + newHtml,
+      { actor: "ai" }
+    );
+    if (written.ok) return { content: written.content, revision: written.revision };
+  }
+  return null;
+}
+
 export async function runAutoWrite(opts: {
   projectId: string;
   chapterId: string;
@@ -269,25 +302,25 @@ export async function runAutoWrite(opts: {
     emit({ type: "prose", v: prose });
   }
 
-  // Save the accumulated prose to the chapter.
+  // Save the accumulated prose to the chapter. The beat events above are
+  // progress, not ops: a token stream that wrote an op per chunk would flood
+  // the log and re-render the phone on every chunk. One stream, one commit.
   emit({ type: "phase", v: "saving" });
-  const finalContent = stampBlockIds((chapter.content || "") + newHtml);
-  const wordCount = countWords(htmlToText(finalContent));
-  const saved = await prisma.chapter.update({
-    where: { id: chapterId },
-    data: {
-      content: finalContent,
-      wordCount,
-      revision: { increment: 1 },
-    },
-  });
+  const saved = await commitProse(chapterId, projectId, newHtml);
+  if (!saved) {
+    emit({
+      type: "error",
+      v: "The chapter changed while the draft was running; the new prose was not saved.",
+    });
+    return;
+  }
 
   emit({
     type: "done",
     beats: accepted,
     words: countWords(running) - countWords(existingText),
-    content: finalContent,
+    content: saved.content,
     revision: saved.revision,
-    wordCount: saved.wordCount,
+    wordCount: countWords(htmlToText(saved.content)),
   });
 }

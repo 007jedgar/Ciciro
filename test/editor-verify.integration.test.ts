@@ -408,7 +408,15 @@ describe("intent-aware completion verification", () => {
     expect(toolResult.mutationCount).toBe(1);
     expect(verification.passed).toBe(true);
     expect(verification.noOp).toBe(false);
-    expect(chapters[0].revision).toBe(fixture.chapters[0].revision + 1);
+    // A chapter's revision is its op seq, so a split that rewrites two blocks
+    // moves the head by two. What has to hold is that the log explains the head
+    // it landed on — not that one tool call equals one revision.
+    const sourceOps = await prisma.chapterOp.findMany({
+      where: { chapterId: chapters[0].id },
+      orderBy: { seq: "asc" },
+    });
+    expect(chapters[0].revision).toBeGreaterThan(fixture.chapters[0].revision);
+    expect(sourceOps[sourceOps.length - 1]?.seq).toBe(chapters[0].revision);
     expect(chapters[1].revision).toBe(fixture.chapters[1].revision);
     expect(chapters[1].content).toBe(fixture.chapters[1].content);
   });

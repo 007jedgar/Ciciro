@@ -54,6 +54,7 @@ import type {
   SyncAfter,
   SyncPushRequest,
   SyncResult,
+  SyncStreamEvent,
   ChapterOpsListResponse,
   ChapterOpsPushRequest,
   ChapterOpsPushResponse,
@@ -88,6 +89,19 @@ async function streamEvents<T extends NdjsonEvent>(
   opts?: RequestOpts
 ): Promise<void> {
   await readNdjsonPost(path, jsonInit("POST", body, opts), (event) => onEvent(event as T));
+}
+
+/**
+ * A GET feed read by the same NDJSON machinery as the POST streams: React
+ * Native has no EventSource, and XHR's growing responseText is the only
+ * reliable way to see a long-lived body arrive chunk by chunk.
+ */
+async function streamFeed<T extends NdjsonEvent>(
+  path: string,
+  onEvent: (event: T) => void,
+  opts?: RequestOpts
+): Promise<void> {
+  await readNdjsonPost(path, { ...opts, method: "GET" }, (event) => onEvent(event as T));
 }
 
 export const ciciro = {
@@ -314,5 +328,11 @@ export const ciciro = {
       ),
     push: (body: SyncPushRequest, opts?: RequestOpts) =>
       api<SyncResult>("/api/sync", jsonInit("POST", body, opts)),
+    /** Resolves when the server closes the poke channel; abort via opts.signal. */
+    stream: (
+      projectId: string,
+      onEvent: (event: SyncStreamEvent) => void,
+      opts?: RequestOpts
+    ) => streamFeed(`/api/sync/stream${queryString({ projectId })}`, onEvent, opts),
   },
 };
