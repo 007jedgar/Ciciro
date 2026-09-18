@@ -135,8 +135,11 @@ model Chapter {
   @@index([projectId, archivedAt])
 }
 
-// Append-only block op log. Chapter.content + revision is the materialized
-// snapshot; seq equals Chapter.revision after a successful apply.
+// Append-only block op log. This is the source of truth for a chapter's prose:
+// Chapter.content + revision is a cache the log projects onto, and seq equals
+// Chapter.revision after a successful apply. `@@unique([chapterId, seq])` is
+// what makes that true — claiming seq N is the atomic right to write revision
+// N, so two concurrent writers cannot both believe they won (see appendOps).
 model ChapterOp {
   id        String  @id @default(cuid())
   chapterId String
@@ -147,15 +150,22 @@ model ChapterOp {
   opId         String // client uuid, unique per chapter
   seq          Int    // monotonic per chapter
   baseRevision Int
-  actor        String // user | ai | correction
+  actor        String // user | ai | correction — set by the server, never the client
   type         String // replace_block | insert_block | delete_block
   payload      String // JSON of the op fields (blockId, html, afterBlockId, …)
+  // Ops written by one authoring action (split, merge, an AI insert) share a
+  // groupId and are applied or rejected together. Null for a lone keystroke op.
+  groupId      String?
+  // Wire format version. Rows written before versioning read as 1.
+  v            Int     @default(1)
 
   createdAt DateTime @default(now())
 
   @@unique([chapterId, opId])
+  @@unique([chapterId, seq])
   @@index([chapterId, seq])
   @@index([projectId, createdAt])
+  @@index([chapterId, groupId])
 }
 
 // Story bible markdown, one row per path. Hosted Workers have no filesystem,

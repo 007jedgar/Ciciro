@@ -147,6 +147,60 @@ export function rebaseRejectedOp(rejected: RejectedRemoteOp): {
   return { chapter, retry: applyOp(doc, appended).ok ? appended : null };
 }
 
+export type RejectedRemoteGroup = {
+  ops: ManuscriptOp[];
+  reason: "stale" | "missing_block";
+  chapter: RejectedRemoteOp["chapter"];
+};
+
+/**
+ * Re-aim a whole rejected group at the server's head. A group is one authoring
+ * action, so it has to move as a unit: rebasing its ops one at a time is how
+ * the replace half of a split lands and the insert half is left behind.
+ *
+ * The common case is a group the server merely had not seen yet — restamp the
+ * base revisions in sequence and the whole thing replays. When it genuinely
+ * cannot replay (the server no longer has the paragraph it was aimed at) each
+ * op falls back to the single-op rebase against a running document, which
+ * keeps the author's prose by appending it rather than dropping it. Those
+ * salvaged ops travel ungrouped: insisting on atomicity there would throw away
+ * the parts that could still land.
+ */
+export function rebaseRejectedGroup(rejected: RejectedRemoteGroup): {
+  chapter: RejectedRemoteOp["chapter"];
+  retry: ManuscriptOp[];
+} {
+  const chapter = rejected.chapter;
+  const { doc } = htmlToDoc(chapter.content, chapter.revision);
+
+  let current = doc;
+  const replayed: ManuscriptOp[] = [];
+  for (const op of rejected.ops) {
+    const restamped: ManuscriptOp = { ...op, baseRevision: current.revision };
+    const result = applyOp(current, restamped);
+    if (!result.ok) break;
+    current = result.doc;
+    replayed.push(restamped);
+  }
+  if (replayed.length === rejected.ops.length) return { chapter, retry: replayed };
+
+  let running = doc;
+  const salvaged: ManuscriptOp[] = [];
+  for (const op of rejected.ops) {
+    const one = rebaseRejectedOp({
+      op,
+      reason: rejected.reason,
+      chapter: { ...chapter, content: docToHtml(running), revision: running.revision },
+    });
+    if (!one.retry) continue;
+    const applied = applyOp(running, one.retry);
+    if (!applied.ok) continue;
+    running = applied.doc;
+    salvaged.push({ ...one.retry, groupId: null });
+  }
+  return { chapter, retry: salvaged };
+}
+
 export function applyPendingOps(chapter: ChapterSnapshot, pending: ManuscriptOp[]): ChapterSnapshot {
   let current = chapter;
   for (const op of pending) {

@@ -65,13 +65,13 @@ describe("chapter ops", () => {
       blockId: "b1",
       html: "<p>First sentence.</p>",
     };
-    const pushed = await appendOps(chapter.id, ada, [first]);
+    const pushed = await appendOps(chapter.id, ada, [first], { actor: "user" });
     expect(pushed.accepted).toHaveLength(1);
     expect(pushed.rejected).toHaveLength(0);
     expect(pushed.chapter.revision).toBe(1);
     expect(pushed.chapter.content).toContain("First sentence.");
 
-    const again = await appendOps(chapter.id, ada, [first]);
+    const again = await appendOps(chapter.id, ada, [first], { actor: "user" });
     expect(again.accepted).toHaveLength(1);
     expect(again.accepted[0].seq).toBe(1);
     expect(again.ops).toHaveLength(0);
@@ -90,7 +90,7 @@ describe("chapter ops", () => {
       blockId: "b1",
       html: "<p>Stale edit.</p>",
     };
-    const conflict = await appendOps(chapter.id, ada, [stale]);
+    const conflict = await appendOps(chapter.id, ada, [stale], { actor: "user" });
     expect(conflict.accepted).toHaveLength(0);
     expect(conflict.rejected).toEqual([
       expect.objectContaining({
@@ -103,7 +103,7 @@ describe("chapter ops", () => {
       }),
     ]);
 
-    await expect(appendOps(chapter.id, bob, [first])).rejects.toMatchObject({
+    await expect(appendOps(chapter.id, bob, [first], { actor: "user" })).rejects.toMatchObject({
       status: 403,
     });
   });
@@ -133,7 +133,7 @@ describe("chapter ops", () => {
         blockId: stableBlockId(1, "<p>Two.</p>"),
         html: `<p data-block-id="${stableBlockId(1, "<p>Two.</p>")}">Two, revised.</p>`,
       },
-    ]);
+    ], { actor: "user" });
     expect(result.rejected).toHaveLength(0);
     expect(result.accepted).toHaveLength(1);
     expect(result.chapter.revision).toBe(4);

@@ -2,7 +2,7 @@
 
 Mapped from code on `feat/writing-day` (`5cab8f8`, which includes the native editor) plus the in-flight grammar path on `feat/grammar-popups` (`16632e2`). Grammar popups, WritingDay, and the native editor are implemented on those branches — this doc is the race map, not a substitute for them.
 
-Draw these diagrams (or an updated slice) before changing the mobile editor, `/api/sync`, replica merge, grammar `correction` ops, or WritingDay heartbeats. See `.cursor/rules/editor-flow-diagrams.mdc`.
+Draw these diagrams (or an updated slice) before changing the mobile editor, `/api/sync`, replica merge, grammar `correction` ops, or WritingDay heartbeats. See `.cursor/rules/editor-flow-diagrams.mdc`. Engine work that is not yet in the code lives in [mobile-editor-sync-plan.md](./mobile-editor-sync-plan.md).
 
 ## Source map
 
@@ -57,7 +57,7 @@ flowchart TD
 
 `htmlToDoc` identifies a block that has no `data-block-id` by `stableBlockId(index, rawHtml)` — the same hash on the server, the replica, and the screen — and re-stamps a duplicate id. The server stamps ids on every write and lazily on read (`ensureBlockIds`), so stored HTML is always addressable. `reuseUnchangedBlocks` keeps the previous block object when id+html+text match, so a sync echo that did not change prose does not remount TextInputs. `assignChaptersFromSnapshots` returns the same chapter object (and the same React Query record) when content/revision/title/status are already accurate. `BlockInput` only passes a `selection` prop while placing a caret, then omits it — a controlled `{start,end}` on every render is what made iOS select-all and replace the paragraph on the next keystroke. Each paragraph is displayed with a zero-width caret guard so Backspace at visual offset 0 is a real deletion.
 
-`syncProject` is per-project single-flight. Pending ops take the push path; otherwise pull. Pull also runs after a successful push so the replica sees desk ops. `useProjectSync.run` coalesces: a request that lands while a cycle is in flight schedules exactly one follow-up cycle (push outranks pull), so an op enqueued mid-cycle is never left in the pending table. After ops are applied, `reconcileHeads` refetches any chapter whose server head is still ahead of the replica (revisions bumped without ops: autowrite, passage tools, legacy stamping). `useProjectQuery` overlays replica snapshots that are at or ahead of the server revision, so a project refetch cannot paint over local edits.
+`syncProject` is per-project single-flight. Pending ops take the push path; otherwise pull. Pull also runs after a successful push so the replica sees desk ops. `useProjectSync.run` coalesces: a request that lands while a cycle is in flight schedules exactly one follow-up cycle (push outranks pull), so an op enqueued mid-cycle is never left in the pending table. After ops are applied, `reconcileHeads` refetches any chapter whose server head is still ahead of the replica — a safety net now, since autowrite and the passage tools commit through the log and no app path bumps a revision without an op. A pull also carries a `docHash` per confirmed chapter, and the server answers `diverged` when the bytes disagree at the same revision. `useProjectQuery` overlays replica snapshots that are at or ahead of the server revision, so a project refetch cannot paint over local edits.
 
 Desk is not this loop: Workspace debounce-patches chapter HTML; the server diffs to ops and `appendOps`. Those ops arrive on the phone as the pull arrow above.
 

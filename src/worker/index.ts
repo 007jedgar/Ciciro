@@ -2,10 +2,13 @@
 //
 // `opennextjs-cloudflare build` compiles the Next.js app into
 // `.open-next/worker.js`. This thin entry wraps that handler so we can also:
-//   1. export the EditorRunDO Durable Object class (wrangler needs the class
-//      exported from the worker module named in its migration),
-//   2. publish the DO namespace binding to the run coordinator on each request,
-//      so durable editor-run slices are serialized fleet-wide, and
+//   1. export the EditorRunDO and ProjectPokeDO Durable Object classes
+//      (wrangler needs the class exported from the worker module named in its
+//      migration),
+//   2. publish the DO namespace bindings to the run coordinator and the chapter
+//      poke hub on each request, so durable editor-run slices are serialized
+//      fleet-wide and a head that moves in one isolate reaches the streams held
+//      open by the others, and
 //   3. bind D1 + a request-scoped Prisma client (never a process singleton),
 //   4. copy string vars/secrets onto process.env so Next.js route handlers can
 //      read ANTHROPIC_API_KEY (OpenNext + a custom entry does not always do this),
@@ -15,12 +18,17 @@
 // wrangler.jsonc `main` points at this file.
 
 import { EditorRunDO } from "./run-do";
+import { ProjectPokeDO } from "./poke-do";
 import { setD1Database } from "../lib/d1-binding";
 import { runWithRequestPrisma } from "../lib/db";
 import {
   setRunDurableObjectNamespace,
   type RunDurableObjectNamespace,
 } from "../lib/durable/coordinator";
+import {
+  setPokeDurableObjectNamespace,
+  type PokeDurableObjectNamespace,
+} from "../lib/chapter-poke";
 import {
   requestWithSessionHeaders,
   sessionTokenFromHeaders,
@@ -31,10 +39,11 @@ import { runWithRequestSession } from "../lib/auth/session-binding";
 // @ts-expect-error - build artifact resolved by wrangler, not by tsc
 import openNextHandler from "../../.open-next/worker.js";
 
-export { EditorRunDO };
+export { EditorRunDO, ProjectPokeDO };
 
 type Env = {
   EDITOR_RUN_DO?: RunDurableObjectNamespace;
+  PROJECT_POKE_DO?: PokeDurableObjectNamespace;
   DB?: D1Database;
 } & Record<string, unknown>;
 
@@ -50,6 +59,9 @@ export default {
     publishStringEnv(env);
     if (env.EDITOR_RUN_DO) {
       setRunDurableObjectNamespace(env.EDITOR_RUN_DO);
+    }
+    if (env.PROJECT_POKE_DO) {
+      setPokeDurableObjectNamespace(env.PROJECT_POKE_DO);
     }
     if (env.DB) setD1Database(env.DB);
     const forwarded = requestWithSessionHeaders(request);

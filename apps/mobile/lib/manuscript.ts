@@ -22,31 +22,60 @@ export type ManuscriptDoc = {
   blocks: ManuscriptBlock[];
 };
 
+/**
+ * Wire format version for ops. Bump it when the op shape changes in a way an
+ * older server cannot apply. The server refuses anything newer than it
+ * understands and says so, rather than parsing the known fields and silently
+ * dropping the rest — a phone that has not updated is told to upgrade instead
+ * of watching its typing disappear.
+ */
+export const OP_VERSION = 1;
+
+type ManuscriptOpBase = {
+  opId: string;
+  baseRevision: number;
+  /**
+   * Who wrote this. The server stamps it from the calling route; a value sent
+   * by a client is ignored, so nothing can claim to be the assistant.
+   */
+  actor: ManuscriptActor;
+  /**
+   * Ops from one authoring action — a split, a merge, an accepted AI insert —
+   * share a groupId and are applied or rejected together. Without it the first
+   * half of a split can land while the second is rejected, which is how a
+   * paragraph ends up torn in two on one device and whole on the other. A lone
+   * keystroke op needs no group: it is already atomic.
+   */
+  groupId?: string | null;
+  /** Absent on rows and bodies written before versioning; read those as 1. */
+  v?: number;
+};
+
 export type ManuscriptOp =
-  | {
-      opId: string;
-      baseRevision: number;
-      actor: ManuscriptActor;
+  | (ManuscriptOpBase & {
       type: "replace_block";
       blockId: string;
       html: string;
-    }
-  | {
-      opId: string;
-      baseRevision: number;
-      actor: ManuscriptActor;
+    })
+  | (ManuscriptOpBase & {
       type: "insert_block";
       afterBlockId: string | null;
       html: string;
       blockId: string;
-    }
-  | {
-      opId: string;
-      baseRevision: number;
-      actor: ManuscriptActor;
+    })
+  | (ManuscriptOpBase & {
       type: "delete_block";
       blockId: string;
-    };
+    });
+
+/**
+ * Stamp one authoring action's ops as a group. Ops that must land together and
+ * ops that merely happened nearby are indistinguishable on the wire otherwise.
+ */
+export function asOpGroup(ops: ManuscriptOp[], groupId: string): ManuscriptOp[] {
+  if (ops.length < 2) return ops;
+  return ops.map((op) => ({ ...op, groupId }));
+}
 
 export type ApplyOpResult =
   | { ok: true; doc: ManuscriptDoc }
@@ -98,6 +127,19 @@ function hash53(input: string): number {
  */
 export function stableBlockId(index: number, raw: string): string {
   return `s${hash53(`${index}\u0000${raw}`).toString(36)}`;
+}
+
+/**
+ * Fingerprint of a confirmed chapter document. Two replicas that believe they
+ * are at the same seq must produce the same string; when they do not, one of
+ * them has silently diverged and its snapshot has to be refetched. Comparing
+ * canonical (id-stamped) HTML means a client that has not stamped legacy
+ * blocks yet still agrees with the server about bytes it has not rewritten.
+ *
+ * Must stay byte-for-byte identical to the other manuscript.ts.
+ */
+export function docHash(html: string): string {
+  return `h${hash53(stampBlockIds(html)).toString(36)}`;
 }
 
 function normalizeWhitespace(s: string): string {
@@ -237,6 +279,12 @@ function parseRawBlocks(html: string): { id: string | null; html: string }[] {
 export type DiffHtmlOptions = HtmlToDocOptions & {
   actor?: ManuscriptActor;
   createOpId?: () => string;
+  /**
+   * Group the emitted ops under this id. Omit it and a diff that produces more
+   * than one op still gets a minted group: one HTML edit is one authoring
+   * action, so it must not half-apply.
+   */
+  groupId?: string | null;
 };
 
 export function countWords(text: string): number {
@@ -347,7 +395,8 @@ export function diffHtmlToOps(
     });
   }
 
-  return ops;
+  if (ops.length < 2) return ops;
+  return asOpGroup(ops, opts?.groupId ?? createOpId());
 }
 
 export function applyOp(doc: ManuscriptDoc, op: ManuscriptOp): ApplyOpResult {

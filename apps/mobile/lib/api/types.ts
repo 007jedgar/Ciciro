@@ -366,33 +366,12 @@ export type BibleWriteResult = {
   revision: number;
 };
 
-export type ManuscriptActor = "user" | "ai" | "correction";
+// The wire shape of an op is the editor's shape. Re-exported rather than
+// restated so a third copy cannot drift from the two that already have to
+// agree byte-for-byte (src/lib/manuscript.ts and ../manuscript.ts).
+import type { ManuscriptActor, ManuscriptOp } from "../manuscript";
 
-export type ManuscriptOp =
-  | {
-      opId: string;
-      baseRevision: number;
-      actor: ManuscriptActor;
-      type: "replace_block";
-      blockId: string;
-      html: string;
-    }
-  | {
-      opId: string;
-      baseRevision: number;
-      actor: ManuscriptActor;
-      type: "insert_block";
-      afterBlockId: string | null;
-      html: string;
-      blockId: string;
-    }
-  | {
-      opId: string;
-      baseRevision: number;
-      actor: ManuscriptActor;
-      type: "delete_block";
-      blockId: string;
-    };
+export type { ManuscriptActor, ManuscriptOp };
 
 export type ChapterOpRecord = ManuscriptOp & {
   chapterId: string;
@@ -455,6 +434,22 @@ export type WritingDayResponse = {
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;
+  /**
+   * Fingerprint of the confirmed document per chapter, at the revision named
+   * in `chapters`. Sent only for chapters with nothing pending locally: a
+   * chapter holding unpushed ops has a locally-advanced revision that names no
+   * server seq, so there would be nothing to compare against.
+   */
+  hashes?: Record<string, string>;
+};
+
+/** A chapter the server and this replica disagree about at the same revision. */
+export type ChapterDivergence = {
+  chapterId: string;
+  revision: number;
+  clientHash: string;
+  serverHash: string;
+  chapter: Chapter;
 };
 
 export type SyncOp = ManuscriptOp & { chapterId: string };
@@ -476,7 +471,19 @@ export type SyncResult = {
   position: ReadingPosition | null;
   ops: ChapterOpRecord[];
   bibleFiles: Array<{ path: string; content: string; revision: number }>;
+  diverged?: ChapterDivergence[];
 };
+
+export type ChapterHeadFrame = {
+  type: "heads";
+  chapters: Array<{ id: string; revision: number }>;
+};
+
+/** Frames on GET /api/sync/stream: a poke when a head moves, else a keepalive. */
+export type SyncStreamEvent =
+  | { type: "ping" }
+  | ChapterHeadFrame
+  | ({ type: string } & Record<string, unknown>);
 
 export type BibleNewCharacterRequest = {
   projectId: string;
@@ -599,7 +606,7 @@ export type AutowriteStreamEvent =
     }
   | ({ type: string } & Record<string, unknown>);
 
-export type NdjsonEvent = ChatStreamEvent | AutowriteStreamEvent;
+export type NdjsonEvent = ChatStreamEvent | AutowriteStreamEvent | SyncStreamEvent;
 
 export type ExportFile = {
   bytes: ArrayBuffer;

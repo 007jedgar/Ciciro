@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
+import { unsupportedOpVersion } from "@/lib/chapter-ops";
+import { OP_VERSION } from "@/lib/manuscript";
 import {
   parseSyncAfter,
   parseSyncOp,
@@ -51,6 +53,18 @@ export async function POST(req: NextRequest) {
   const rawOps = body.ops === undefined ? [] : body.ops;
   if (!Array.isArray(rawOps)) {
     return NextResponse.json({ error: "ops must be an array" }, { status: 400 });
+  }
+  const unsupported = unsupportedOpVersion(rawOps);
+  if (unsupported !== null) {
+    // Told to upgrade, not quietly half-applied. See OP_VERSION.
+    return NextResponse.json(
+      {
+        error: "Unsupported manuscript op version",
+        sentVersion: unsupported,
+        supportedVersion: OP_VERSION,
+      },
+      { status: 426 }
+    );
   }
   const ops = [];
   for (const item of rawOps) {

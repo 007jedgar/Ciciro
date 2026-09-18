@@ -4,7 +4,7 @@ import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/session";
 import { appendOps } from "@/lib/chapter-ops";
 import { ensureChaptersBlockIds } from "@/lib/block-ids";
-import { diffHtmlToOps, stampBlockIds, type ManuscriptActor } from "@/lib/manuscript";
+import { diffHtmlToOps, stampBlockIds } from "@/lib/manuscript";
 import { countWords, htmlToText, isChapterEmpty } from "@/lib/text";
 
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
@@ -88,12 +88,7 @@ export type ChapterPatchInput = {
   status?: unknown;
   order?: unknown;
   expectedRevision?: unknown;
-  actor?: unknown;
 };
-
-function patchActor(value: unknown): ManuscriptActor {
-  return value === "ai" || value === "correction" ? value : "user";
-}
 
 function metadataFromPatch(body: ChapterPatchInput): Prisma.ChapterUpdateManyMutationInput {
   const data: Prisma.ChapterUpdateManyMutationInput = {};
@@ -155,11 +150,11 @@ export async function updateChapter(
       });
     }
 
-    const ops = diffHtmlToOps(current.content, body.content as string, current.revision, {
-      actor: patchActor(body.actor),
-    });
+    // One editor state is one authoring action: diffHtmlToOps groups what it
+    // emits, so a split cannot land its replace and lose its insert.
+    const ops = diffHtmlToOps(current.content, body.content as string, current.revision);
     if (ops.length > 0) {
-      const result = await appendOps(id, user, ops);
+      const result = await appendOps(id, user, ops, { actor: "user" });
       if (result.rejected.length > 0) {
         throw new AuthError("Chapter revision conflict", 409, {
           error: "Chapter revision conflict",

@@ -1,4 +1,12 @@
-import { applyOp, newBlockId, type ManuscriptActor, type ManuscriptBlock, type ManuscriptDoc, type ManuscriptOp } from "./manuscript";
+import {
+  applyOp,
+  asOpGroup,
+  newBlockId,
+  type ManuscriptActor,
+  type ManuscriptBlock,
+  type ManuscriptDoc,
+  type ManuscriptOp,
+} from "./manuscript";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -6,6 +14,7 @@ export const CARET_FLUSH_MS = 600;
 export type BlockEditorIds = {
   createOpId?: () => string;
   createBlockId?: () => string;
+  createGroupId?: () => string;
   actor?: ManuscriptActor;
 };
 
@@ -43,8 +52,19 @@ function idsOf(opts?: BlockEditorIds) {
   return {
     createOpId: opts?.createOpId ?? defaultId,
     createBlockId: opts?.createBlockId ?? defaultId,
+    createGroupId: opts?.createGroupId ?? defaultId,
     actor: opts?.actor ?? ("user" as const),
   };
+}
+
+/**
+ * One keystroke's worth of intent is one unit on the wire. Return splits a
+ * paragraph with a replace plus an insert, and Backspace folds one into
+ * another with a replace plus a delete; sent loose, the server can accept the
+ * first and reject the second, and the author is left looking at half of it.
+ */
+function grouped(ops: ManuscriptOp[], ids: ReturnType<typeof idsOf>): ManuscriptOp[] {
+  return asOpGroup(ops, ids.createGroupId());
 }
 
 function emit(doc: ManuscriptDoc, op: ManuscriptOp): { doc: ManuscriptDoc; op: ManuscriptOp } {
@@ -139,7 +159,7 @@ export function splitBlockOps(
 
   const focusNew = left.length > 0;
   return {
-    ops,
+    ops: grouped(ops, ids),
     focusBlockId: focusNew ? newId : blockId,
     focusOffset: focusNew ? 0 : 0,
   };
@@ -165,7 +185,7 @@ export function splitOrInsertBlockOps(
     const after = applyOpsToDoc(doc, first.ops);
     const split = splitBlockOps(after, first.focusBlockId, left, right, opts);
     return {
-      ops: [...first.ops, ...split.ops],
+      ops: grouped([...first.ops, ...split.ops], idsOf(opts)),
       focusBlockId: split.focusBlockId,
       focusOffset: split.focusOffset,
     };
@@ -223,15 +243,15 @@ export function backspaceAtStartOps(
 
   const index = current.blocks.findIndex((block) => block.id === blockId);
   if (index <= 0) {
-    return { ops, focusBlockId: blockId, focusOffset: 0 };
+    return { ops: grouped(ops, ids), focusBlockId: blockId, focusOffset: 0 };
   }
   if (ops.length > 0) {
-    return { ops, focusBlockId: blockId, focusOffset: 0 };
+    return { ops: grouped(ops, ids), focusBlockId: blockId, focusOffset: 0 };
   }
 
   const merged = mergeBlockOps(current, blockId, text, opts);
   return {
-    ops: [...ops, ...merged.ops],
+    ops: grouped([...ops, ...merged.ops], ids),
     focusBlockId: merged.focusBlockId,
     focusOffset: merged.focusOffset,
   };
@@ -278,7 +298,7 @@ export function mergeBlockOps(
   });
   ops.push(deleted.op);
 
-  return { ops, focusBlockId: prev.id, focusOffset: caret };
+  return { ops: grouped(ops, ids), focusBlockId: prev.id, focusOffset: caret };
 }
 
 /** First keystroke in an empty chapter: insert a paragraph. */
@@ -332,7 +352,7 @@ export function appendParagraphsOps(
     ops.push(inserted.op);
     current = inserted.doc;
   }
-  return ops;
+  return grouped(ops, ids);
 }
 
 export function applyOpsToDoc(doc: ManuscriptDoc, ops: ManuscriptOp[]): ManuscriptDoc {
