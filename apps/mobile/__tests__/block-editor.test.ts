@@ -168,20 +168,29 @@ describe("block editor keystrokes", () => {
     expect(mergeBlockOps(doc, "b1").ops).toEqual([]);
   });
 
-  it("collapses empty paragraphs above the caret then merges into the last real sentence", () => {
+  it("removes one empty paragraph per Backspace instead of collapsing the whole gap", () => {
     const { doc } = htmlToDoc(
-      '<p data-block-id="b1">Was that the airflow lady?</p><p data-block-id="e1"></p><p data-block-id="e2"></p><p data-block-id="b2">"Yes," I said.</p>',
+      '<p data-block-id="b1">Was that the airflow lady?</p><p data-block-id="e1"></p><p data-block-id="e2"></p><p data-block-id="e3"></p>',
       4
     );
-    const result = backspaceAtStartOps(doc, "b2", '"Yes," I said.', seqIds("k"));
-    expect(result.ops.map((op) => op.type)).toEqual(["delete_block", "delete_block"]);
-    expect(result.ops[0]).toMatchObject({ type: "delete_block", blockId: "e2" });
-    expect(result.ops[1]).toMatchObject({ type: "delete_block", blockId: "e1" });
-    expect(result.focusBlockId).toBe("b2");
-    expect(result.focusOffset).toBe(0);
-    expect(result.focusText).toBe('"Yes," I said.');
-    const afterGap = applyOpsToDoc(doc, result.ops);
-    const merged = backspaceAtStartOps(afterGap, "b2", '"Yes," I said.', seqIds("m"));
+    const first = backspaceAtStartOps(doc, "e3", "", seqIds("k"));
+    expect(first.ops.map((op) => op.type)).toEqual(["delete_block"]);
+    expect(first.ops[0]).toMatchObject({ type: "delete_block", blockId: "e3" });
+    expect(first.focusBlockId).toBe("e2");
+    expect(first.focusText).toBe("");
+    const afterOne = applyOpsToDoc(doc, first.ops);
+    expect(afterOne.blocks.map((block) => block.id)).toEqual(["b1", "e1", "e2"]);
+
+    const second = backspaceAtStartOps(afterOne, "e2", "", seqIds("n"));
+    expect(applyOpsToDoc(afterOne, second.ops).blocks.map((block) => block.id)).toEqual(["b1", "e1"]);
+  });
+
+  it("folds a sentence into the paragraph above on Backspace at offset 0", () => {
+    const { doc } = htmlToDoc(
+      '<p data-block-id="b1">Was that the airflow lady?</p><p data-block-id="b2">"Yes," I said.</p>',
+      4
+    );
+    const merged = backspaceAtStartOps(doc, "b2", '"Yes," I said.', seqIds("m"));
     expect(merged.ops.map((op) => op.type)).toEqual(["replace_block", "delete_block"]);
     expect(merged.focusBlockId).toBe("b1");
     expect(merged.focusOffset).toBe("Was that the airflow lady?".length);

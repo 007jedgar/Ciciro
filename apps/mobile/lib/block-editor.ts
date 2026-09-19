@@ -325,9 +325,8 @@ export function splitOrInsertBlockOps(
 }
 
 /**
- * Backspace at visual offset 0. Empty paragraphs above this one are deleted
- * first (iOS often never delivers Backspace once the caret sits in an empty
- * field). If the previous block already has text, fold this block into it.
+ * Backspace at visual offset 0: fold this block into the previous one.
+ * One keystroke removes one paragraph break, including a blank line.
  */
 export function backspaceAtStartOps(
   doc: ManuscriptDoc,
@@ -340,38 +339,7 @@ export function backspaceAtStartOps(
     return { ops: [], focusBlockId: blockId, focusOffset: 0 };
   }
   const text = currentText ?? found.block.text;
-  const ids = idsOf(opts);
-  const ops: ManuscriptOp[] = [];
-  let current = doc;
-
-  while (true) {
-    const index = current.blocks.findIndex((block) => block.id === blockId);
-    if (index <= 0) break;
-    const prev = current.blocks[index - 1];
-    if (prev.text.trim()) break;
-    const deleted = emit(current, {
-      opId: ids.createOpId(),
-      baseRevision: current.revision,
-      actor: ids.actor,
-      type: "delete_block",
-      blockId: prev.id,
-    });
-    current = deleted.doc;
-    ops.push(deleted.op);
-  }
-
-  const index = current.blocks.findIndex((block) => block.id === blockId);
-  if (index <= 0 || ops.length > 0) {
-    return { ops: grouped(ops, ids), focusBlockId: blockId, focusOffset: 0, focusText: text };
-  }
-
-  const merged = mergeBlockOps(current, blockId, text, opts);
-  return {
-    ops: grouped([...ops, ...merged.ops], ids),
-    focusBlockId: merged.focusBlockId,
-    focusOffset: merged.focusOffset,
-    focusText: merged.focusText,
-  };
+  return mergeBlockOps(doc, blockId, text, opts);
 }
 
 /** Backspace at offset 0: fold this block into the previous one, then delete it. */
