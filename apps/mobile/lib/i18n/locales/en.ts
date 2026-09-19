@@ -208,7 +208,6 @@ const en = {
   manuscript: {
     noChapters: "This manuscript has no chapters yet.",
     emptyChapter: "This chapter is empty. Write it on the hosted web editor.",
-    continueWriting: "Continue writing",
     grammarAccept: "Accept",
     grammarIgnore: "Ignore",
     grammarA11y: "Grammar suggestion: {{original}} to {{replacement}}",

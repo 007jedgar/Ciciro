@@ -23,21 +23,6 @@ export type GrammarRequest = (input: {
   signal: AbortSignal;
 }) => Promise<{ spans: CorrectionSpan[] }>;
 
-export type TextLineMetrics = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  text: string;
-};
-
-export type SpanAnchor = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
 export function endedOnSentence(text: string): boolean {
   return /[.!?。！？]["'”’)\]]?\s*$/.test(text);
 }
@@ -121,105 +106,10 @@ export function autoAcceptProgress(shownAt: number, durationMs: number, now: num
   return Math.min(1, Math.max(0, (now - shownAt) / durationMs));
 }
 
-/** Pin a callout to the line that still holds `start` (from Text onTextLayout). */
-export function spanAnchorFromLines(
-  lines: TextLineMetrics[],
-  start: number,
-  end: number
-): SpanAnchor | null {
-  if (lines.length === 0 || start < 0 || end <= start) return null;
-  let offset = 0;
-  for (const line of lines) {
-    const len = line.text.length;
-    const lineEnd = offset + len;
-    if (start < lineEnd) {
-      const local = Math.max(0, Math.min(len, start - offset));
-      const frac = len === 0 ? 0 : local / len;
-      const spanEnd = Math.min(end, lineEnd);
-      const spanChars = Math.max(0, spanEnd - Math.max(start, offset));
-      const widthFrac = len === 0 ? 0 : spanChars / len;
-      return {
-        x: line.x + frac * line.width,
-        y: line.y,
-        width: Math.max(8, widthFrac * line.width),
-        height: line.height || 22,
-      };
-    }
-    offset = lineEnd;
-  }
-  const last = lines[lines.length - 1];
-  return {
-    x: last.x + last.width,
-    y: last.y,
-    width: 8,
-    height: last.height || 22,
-  };
-}
-
-export function caretAnchorFromLines(
-  lines: TextLineMetrics[],
-  offset: number
-): Pick<SpanAnchor, "x" | "y" | "height"> | null {
-  if (lines.length === 0 || offset < 0) return null;
-  let pos = 0;
-  for (const line of lines) {
-    const len = line.text.length;
-    const lineEnd = pos + len;
-    if (offset <= lineEnd) {
-      const local = Math.max(0, Math.min(len, offset - pos));
-      const frac = len === 0 ? 0 : local / len;
-      return {
-        x: line.x + frac * line.width,
-        y: line.y,
-        height: line.height || 22,
-      };
-    }
-    pos = lineEnd;
-  }
-  const last = lines[lines.length - 1];
-  return { x: last.x + last.width, y: last.y, height: last.height || 22 };
-}
-
-export function estimateSpanAnchor(opts: {
-  text: string;
-  start: number;
-  end: number;
-  width: number;
-  fontSize: number;
-  lineHeight: number;
-}): SpanAnchor {
-  const avg = Math.max(1, opts.fontSize * 0.52);
-  const cols = Math.max(1, Math.floor(opts.width / avg) || 1);
-  const line = Math.floor(opts.start / cols);
-  const col = opts.start % cols;
-  const spanEnd = Math.min(opts.end, (line + 1) * cols);
-  return {
-    x: col * avg,
-    y: line * opts.lineHeight,
-    width: Math.max(8, (spanEnd - opts.start) * avg),
-    height: opts.lineHeight,
-  };
-}
-
-export function placeCallout(opts: {
-  anchor: SpanAnchor;
-  popup: { width: number; height: number };
-  blockWidth: number;
-  gap?: number;
-}): { top: number; left: number } {
-  const gap = opts.gap ?? 6;
-  const above = opts.anchor.y >= opts.popup.height + gap;
-  const top = above
-    ? opts.anchor.y - opts.popup.height - gap
-    : opts.anchor.y + opts.anchor.height + gap;
-  const maxLeft = Math.max(0, opts.blockWidth - opts.popup.width);
-  return { top, left: Math.min(maxLeft, Math.max(0, opts.anchor.x)) };
-}
-
 /**
  * Idle/terminator grammar loop. Never blocks typing: a keystroke aborts that
  * block's in-flight request, and a stale focused-block span is dropped.
- * Auto-accept is armed here (not on popup mount) so a row remount cannot cancel it.
+ * Auto-accept is armed here (not on popup mount) so a remount cannot cancel it.
  */
 export class GrammarLoop {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();

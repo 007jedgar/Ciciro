@@ -31,7 +31,7 @@ function replaceOp(seq: number, blockId: string, text: string): RemoteChapterOp 
 }
 
 describe("focused-block skip on remote apply", () => {
-  it("applies ops to other blocks and leaves the focused TextInput's block alone", () => {
+  it("applies ops to other blocks and leaves the focused editor's block alone", () => {
     const result = applyRemoteOps(
       chapter,
       [replaceOp(3, "b1", "Hello from desk."), replaceOp(4, "b2", "World from desk.")],

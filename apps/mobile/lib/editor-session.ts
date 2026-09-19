@@ -1,7 +1,4 @@
-import { newBlockId, type ManuscriptBlock } from "./manuscript";
-
-/** Invisible prefix so iOS has a character to delete at visual offset 0. */
-export const CARET_GUARD = "\u200B";
+import type { ManuscriptBlock } from "./manuscript";
 
 export type ChapterContentSlice = {
   content: string;
@@ -17,52 +14,6 @@ export type ReadingPlace = {
   blockId: string;
   offset: number;
 };
-
-export type TextInputDelta = {
-  text?: string;
-  previousText?: string;
-  range?: { start: number; end: number };
-  key?: string;
-  isComposing?: boolean;
-};
-
-export function withCaretGuard(text: string): string {
-  return text.startsWith(CARET_GUARD) ? text : `${CARET_GUARD}${text}`;
-}
-
-export function stripCaretGuard(text: string): string {
-  return text.split(CARET_GUARD).join("");
-}
-
-export function toNativeOffset(logical: number): number {
-  return Math.max(0, logical) + CARET_GUARD.length;
-}
-
-export function toLogicalOffset(native: number): number {
-  return Math.max(0, native - CARET_GUARD.length);
-}
-
-/**
- * iOS deletes only the leading guard when Backspace is pressed at the visual
- * start of a paragraph. Selecting all and typing is not this case.
- */
-export function isGuardDeleted(next: string, displayed: string): boolean {
-  if (!displayed.startsWith(CARET_GUARD) || next.startsWith(CARET_GUARD)) return false;
-  return next === displayed.slice(CARET_GUARD.length);
-}
-
-export function isBackspaceAtStart(
-  event: TextInputDelta,
-  selectionStart: number,
-  selectionEnd: number = selectionStart
-): boolean {
-  if (event.isComposing) return false;
-  if (event.key === "Backspace" && selectionStart === 0 && selectionEnd === 0) return true;
-  const range = event.range;
-  if (!range || selectionStart !== 0 || selectionEnd !== 0) return false;
-  if (range.start !== 0 || range.end !== 0) return false;
-  return (event.text ?? "") === "";
-}
 
 export function reuseUnchangedBlocks(
   previous: readonly ManuscriptBlock[] | undefined,
@@ -191,15 +142,4 @@ export function sameLocalDoc(
     current.content === next.content &&
     current.revision === next.revision
   );
-}
-
-/**
- * The empty-chapter TextInput keeps one placeholder id so the first keystroke
- * does not remount. Return and later inserts must mint a new id — reusing
- * `draft-block` is what produced duplicate React keys.
- */
-export function takePlaceholderBlockId(emptyId: { current: string | null }): string {
-  const id = emptyId.current;
-  emptyId.current = null;
-  return id ?? newBlockId();
 }

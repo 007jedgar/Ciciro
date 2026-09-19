@@ -1,8 +1,7 @@
 import { createMemoryReplica } from "../lib/replica-memory";
 import { pullProject, pushProject, recordChapterOp, resetSyncLocks, type SyncApi } from "../lib/sync-engine";
 import { rebaseRejectedGroup } from "../lib/sync-merge";
-import { splitBlockOps, mergeBlockOps } from "../lib/block-editor";
-import { docHash, htmlToDoc, type ManuscriptOp } from "../lib/manuscript";
+import { asOpGroup, docHash, type ManuscriptOp } from "../lib/manuscript";
 import type { Chapter, SyncAfter, SyncPushRequest, SyncResult } from "../lib/api/types";
 
 function emptyResult(overrides: Partial<SyncResult> = {}): SyncResult {
@@ -36,14 +35,61 @@ const chapter: Chapter = {
 
 const scope = { projectId: "p1", userId: "u1" };
 
+function groupedReplaceAndInsert(): ManuscriptOp[] {
+  return asOpGroup(
+    [
+      {
+        opId: "op-1",
+        baseRevision: 1,
+        actor: "user",
+        type: "replace_block",
+        blockId: "b1",
+        html: '<p data-block-id="b1">One two</p>',
+      },
+      {
+        opId: "op-2",
+        baseRevision: 1,
+        actor: "user",
+        type: "insert_block",
+        afterBlockId: "b1",
+        blockId: "b2",
+        html: '<p data-block-id="b2">three four.</p>',
+      },
+    ],
+    "g1"
+  );
+}
+
+function groupedReplaceAndDelete(): ManuscriptOp[] {
+  return asOpGroup(
+    [
+      {
+        opId: "op-1",
+        baseRevision: 1,
+        actor: "user",
+        type: "replace_block",
+        blockId: "b1",
+        html: '<p data-block-id="b1">One.Two.</p>',
+      },
+      {
+        opId: "op-2",
+        baseRevision: 1,
+        actor: "user",
+        type: "delete_block",
+        blockId: "b2",
+      },
+    ],
+    "g1"
+  );
+}
+
 describe("grouped ops on the phone", () => {
   beforeEach(() => {
     resetSyncLocks();
   });
 
-  it("puts a Return's replace and insert under one group", () => {
-    const { doc } = htmlToDoc(chapter.content, chapter.revision);
-    const { ops } = splitBlockOps(doc, "b1", "One two", "three four.");
+  it("puts a replace and insert under one group", () => {
+    const ops = groupedReplaceAndInsert();
 
     expect(ops).toHaveLength(2);
     expect(ops[0].type).toBe("replace_block");
@@ -53,12 +99,8 @@ describe("grouped ops on the phone", () => {
     expect([...groups][0]).toBeTruthy();
   });
 
-  it("puts a Backspace's replace and delete under one group", () => {
-    const { doc } = htmlToDoc(
-      '<p data-block-id="b1">One.</p><p data-block-id="b2">Two.</p>',
-      1
-    );
-    const { ops } = mergeBlockOps(doc, "b2");
+  it("puts a replace and delete under one group", () => {
+    const ops = groupedReplaceAndDelete();
 
     expect(ops.map((op) => op.type)).toEqual(["replace_block", "delete_block"]);
     expect(ops[0].groupId).toBe(ops[1].groupId);
@@ -69,8 +111,7 @@ describe("grouped ops on the phone", () => {
     // The phone split a paragraph at revision 1; the desk moved the chapter to
     // revision 4 first, so the group came back stale. Nothing about the split
     // is impossible at the new head — it just has to be restamped as a unit.
-    const { doc } = htmlToDoc(chapter.content, 1);
-    const { ops } = splitBlockOps(doc, "b1", "One two", "three four.");
+    const ops = groupedReplaceAndInsert();
 
     const { retry } = rebaseRejectedGroup({
       ops,
@@ -88,8 +129,7 @@ describe("grouped ops on the phone", () => {
     // The server no longer has b1 at all — the desk deleted that paragraph.
     // The split cannot replay in place, but the words the author typed are
     // still theirs, so they land as trailing paragraphs instead of vanishing.
-    const { doc } = htmlToDoc(chapter.content, 1);
-    const { ops } = splitBlockOps(doc, "b1", "One two", "three four.");
+    const ops = groupedReplaceAndInsert();
 
     const { retry } = rebaseRejectedGroup({
       ops,
@@ -111,8 +151,7 @@ describe("grouped ops on the phone", () => {
   it("drops a rejected group's pending rows and enqueues only the rebased ones", async () => {
     const store = createMemoryReplica();
     await store.upsertChapter({ ...chapter, archivedAt: null });
-    const { doc } = htmlToDoc(chapter.content, chapter.revision);
-    const { ops } = splitBlockOps(doc, "b1", "One two", "three four.");
+    const ops = groupedReplaceAndInsert();
     for (const op of ops) {
       await recordChapterOp(store, "p1", { ...op, chapterId: "c1" });
     }
