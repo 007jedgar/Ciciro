@@ -14,7 +14,6 @@ import { FormatBubble } from "./FormatBubble";
 import { FormatPressMenu } from "./FormatPressMenu";
 import type { FormatBlockKind } from "./FormatBar";
 import {
-  caretAnchorFromLines,
   estimateSpanAnchor,
   placeCallout,
   spanAnchorFromLines,
@@ -22,7 +21,7 @@ import {
 } from "../lib/grammar";
 import type { BlockKind, ManuscriptBlock } from "../lib/manuscript";
 import { splitAtOffset, takeReturnSplit, type BlockMark, type BlockMarks } from "../lib/block-editor";
-import { applyPlainEdit, innerHtmlOf, parseInlineHtml, type InlineSpan } from "../lib/inline-html";
+import { applyPlainEdit, innerHtmlOf, italicAtOffset, parseInlineHtml, spansThroughOffset, type InlineSpan } from "../lib/inline-html";
 import {
   CARET_GUARD,
   isBackspaceAtStart,
@@ -147,8 +146,8 @@ export const BlockInput = memo(function BlockInput({
   const nativeFocused = useRef(false);
   const [blockWidth, setBlockWidth] = useState(0);
   const [lines, setLines] = useState<TextLineMetrics[]>([]);
-  const [overlayLines, setOverlayLines] = useState<TextLineMetrics[]>([]);
   const [logicalSel, setLogicalSel] = useState({ start: 0, end: 0 });
+  const [prefixCaret, setPrefixCaret] = useState<{ x: number; y: number; height: number } | null>(null);
   const [popupSize, setPopupSize] = useState({ width: 240, height: 88 });
   const [bubbleSize, setBubbleSize] = useState({ width: 148, height: 40 });
   const splitting = useRef(false);
@@ -225,16 +224,18 @@ export const BlockInput = memo(function BlockInput({
     () => parseInlineHtml(applyPlainEdit(innerHtmlOf(block.html), text)),
     [block.html, text]
   );
+  const prefixSpans = useMemo(
+    () => spansThroughOffset(spans, logicalSel.start),
+    [spans, logicalSel.start]
+  );
+  const caretItalic = block.kind === "quote" || italicAtOffset(spans, logicalSel.start);
 
   const align = block.kind === "scene_break" ? ("center" as const) : ("left" as const);
   const displayed = withCaretGuard(text);
+  const caretWidth = 2;
   const paintedCaret =
     focused && logicalSel.start === logicalSel.end
-      ? (caretAnchorFromLines(overlayLines, logicalSel.start) ?? {
-          x: 0,
-          y: 0,
-          height: style.lineHeight,
-        })
+      ? (prefixCaret ?? { x: 0, y: 0, height: style.lineHeight })
       : null;
 
   const measureLayout = Boolean(popup || formatBubble);
@@ -360,7 +361,6 @@ export const BlockInput = memo(function BlockInput({
             color: editorStyle.color,
           },
         ]}
-        onTextLayout={(e) => setOverlayLines(e.nativeEvent.lines)}
       >
         {spans.map((span, index) => (
           <Text key={index} style={spanStyle(span, block.kind, style)}>
@@ -507,18 +507,61 @@ export const BlockInput = memo(function BlockInput({
         caretHidden
       />
       {paintedCaret ? (
-        <View
-          testID={`block-${block.id}-caret`}
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            left: paintedCaret.x + ("paddingLeft" in style ? style.paddingLeft : 0),
-            top: paintedCaret.y,
-            width: 2,
-            height: paintedCaret.height,
-            backgroundColor: editorStyle.color,
-          }}
-        />
+        <>
+          <Text
+            testID={`block-${block.id}-caret-probe`}
+            pointerEvents="none"
+            style={[
+              style,
+              {
+                position: "absolute",
+                opacity: 0,
+                left: 0,
+                right: 0,
+                top: 0,
+                padding: 0,
+                margin: 0,
+              },
+            ]}
+            onTextLayout={(e) => {
+              const last = e.nativeEvent.lines[e.nativeEvent.lines.length - 1];
+              if (!last) {
+                setPrefixCaret({ x: 0, y: 0, height: style.lineHeight });
+                return;
+              }
+              setPrefixCaret({
+                x: last.x + last.width,
+                y: last.y,
+                height: last.height || style.lineHeight,
+              });
+            }}
+          >
+            {prefixSpans.length === 0
+              ? "\u200B"
+              : prefixSpans.map((span, index) => (
+                  <Text key={index} style={spanStyle(span, block.kind, style)}>
+                    {span.text}
+                  </Text>
+                ))}
+          </Text>
+          <View
+            testID={`block-${block.id}-caret`}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left:
+                paintedCaret.x -
+                caretWidth / 2 +
+                ("paddingLeft" in style ? style.paddingLeft : 0),
+              top: paintedCaret.y,
+              width: caretWidth,
+              height: paintedCaret.height,
+              backgroundColor: editorStyle.color,
+              transformOrigin: "bottom",
+              transform: caretItalic ? [{ skewX: "-13deg" }] : undefined,
+            }}
+          />
+        </>
       ) : null}
       {measureLayout ? (
         <Text

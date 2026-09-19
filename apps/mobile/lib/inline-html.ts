@@ -216,3 +216,30 @@ export function splitInnerHtml(inner: string, offset: number): { left: string; r
     right: serializeInlineHtml(fromChars(text.slice(at), chars.slice(at))),
   };
 }
+
+/** Spans for the painted prefix in front of a collapsed caret. */
+export function spansThroughOffset(spans: readonly InlineSpan[], offset: number): InlineSpan[] {
+  let remaining = Math.max(0, offset);
+  const next: InlineSpan[] = [];
+  for (const span of spans) {
+    if (remaining <= 0) break;
+    const take = Math.min(span.text.length, remaining);
+    if (take > 0) next.push({ ...span, text: span.text.slice(0, take) });
+    remaining -= take;
+  }
+  return next;
+}
+
+/** Italic at the insertion point follows the character before the caret. */
+export function italicAtOffset(spans: readonly InlineSpan[], offset: number): boolean {
+  const text = spansToText(spans);
+  if (text.length === 0) return false;
+  const at = Math.max(0, Math.min(offset > 0 ? offset - 1 : 0, text.length - 1));
+  let i = 0;
+  for (const span of spans) {
+    const end = i + span.text.length;
+    if (at < end) return span.italic;
+    i = end;
+  }
+  return false;
+}

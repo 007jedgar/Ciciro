@@ -3,7 +3,9 @@ import {
   marksCovering,
   parseInlineHtml,
   serializeInlineHtml,
+  spansThroughOffset,
   splitInnerHtml,
+  italicAtOffset,
   toggleMarkInRange,
 } from "../lib/inline-html";
 
@@ -46,5 +48,14 @@ describe("inline html marks", () => {
       left: "<strong>Hello</strong>",
       right: "<strong> world.</strong>",
     });
+  });
+
+  it("takes the painted prefix in front of a caret and knows when that run is italic", () => {
+    const spans = parseInlineHtml("Hello <em>world</em>.");
+    expect(spansThroughOffset(spans, 6).map((span) => span.text).join("")).toBe("Hello ");
+    expect(italicAtOffset(spans, 6)).toBe(false);
+    expect(italicAtOffset(spans, 8)).toBe(true);
+    expect(italicAtOffset(spans, 11)).toBe(true);
+    expect(italicAtOffset(spans, 12)).toBe(false);
   });
 });
