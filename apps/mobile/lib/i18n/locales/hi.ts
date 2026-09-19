@@ -223,6 +223,8 @@ const hi: Translations = {
     formatHeading: "शीर्षक",
     formatQuote: "उद्धरण",
     formatList: "सूची",
+    formatParagraph: "अनुच्छेद",
+    formatPress: "अनुच्छेद फ़ॉर्मैट",
   },
   ciciroTab: {
     title: "Ciciro",

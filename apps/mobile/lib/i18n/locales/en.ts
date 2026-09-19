@@ -222,6 +222,8 @@ const en = {
     formatHeading: "Heading",
     formatQuote: "Quote",
     formatList: "List",
+    formatParagraph: "Paragraph",
+    formatPress: "Paragraph format",
   },
   ciciroTab: {
     title: "Ciciro",

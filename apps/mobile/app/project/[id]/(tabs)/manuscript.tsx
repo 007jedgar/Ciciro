@@ -55,7 +55,7 @@ import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
-import { FORMAT_IDLE_MS, formatBarPlacement, hideFormatBarWhileTyping, showSelectionBubble } from "../../../../lib/format-chrome";
+import { FORMAT_IDLE_MS, formatBarPlacement, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../../../../lib/format-chrome";
 
 function blockStyleFor(
   settings: { editorFont: "serif" | "sans"; editorFontSize: number },
@@ -112,6 +112,7 @@ export default function ManuscriptScreen() {
   const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0, end: 0 });
   const [formatTarget, setFormatTarget] = useState({ blockId: "", start: 0, end: 0 });
+  const [pressMenuId, setPressMenuId] = useState<string | null>(null);
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
   const [typing, setTyping] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -272,6 +273,7 @@ export default function ManuscriptScreen() {
           ? { blockId, start: 0, end: 0 }
           : current
       );
+      setPressMenuId((current) => (current === blockId ? null : current));
       if (typingTimer.current) clearTimeout(typingTimer.current);
       typingTimer.current = setTimeout(() => setTyping(false), FORMAT_IDLE_MS);
       const current = chapterRef.current;
@@ -444,15 +446,18 @@ export default function ManuscriptScreen() {
 
   const applyFormat = useCallback(
     (ops: ReturnType<typeof retagBlockOps>) => {
-      if (!targetBlockId || ops.length === 0) return;
-      const pending = replaceTimers.current.get(targetBlockId);
-      if (pending) {
-        clearTimeout(pending);
-        replaceTimers.current.delete(targetBlockId);
+      if (ops.length === 0) return;
+      const blockId = ops[0] && "blockId" in ops[0] ? ops[0].blockId : null;
+      if (blockId) {
+        const pending = replaceTimers.current.get(blockId);
+        if (pending) {
+          clearTimeout(pending);
+          replaceTimers.current.delete(blockId);
+        }
       }
       commitOps(ops);
     },
-    [commitOps, targetBlockId]
+    [commitOps]
   );
 
   const onToggleMark = useCallback(
@@ -475,12 +480,14 @@ export default function ManuscriptScreen() {
   const onSetKind = useCallback(
     (kind: FormatBlockKind) => {
       const current = chapterRef.current;
-      if (!current || !targetBlockId) return;
+      const blockId = pressMenuId || targetBlockId;
+      if (!current || !blockId) return;
       const doc = htmlToDoc(current.content, current.revision).doc;
-      const live = draftsRef.current.get(targetBlockId);
-      applyFormat(retagBlockOps(doc, targetBlockId, kind, live));
+      const live = draftsRef.current.get(blockId);
+      applyFormat(retagBlockOps(doc, blockId, kind, live));
+      setPressMenuId(null);
     },
-    [applyFormat, targetBlockId]
+    [applyFormat, pressMenuId, targetBlockId]
   );
 
   useEffect(() => {
@@ -689,6 +696,20 @@ export default function ManuscriptScreen() {
                   onToggleMark,
                 }
               : null
+          }
+          pressMenu={
+            pressMenuId === item.id
+              ? {
+                  kind:
+                    item.kind === "heading" || item.kind === "quote" || item.kind === "list_item"
+                      ? item.kind
+                      : "paragraph",
+                  onSetKind,
+                }
+              : null
+          }
+          onPressFormat={
+            showPressMenu(settings.formatChrome) ? () => setPressMenuId(item.id) : undefined
           }
           draftsRef={draftsRef}
           onFocused={onFocused}

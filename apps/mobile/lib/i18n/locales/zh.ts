@@ -222,6 +222,8 @@ const zh: Translations = {
     formatHeading: "标题",
     formatQuote: "引文",
     formatList: "列表",
+    formatParagraph: "段落",
+    formatPress: "段落格式",
   },
   ciciroTab: {
     title: "Ciciro",
