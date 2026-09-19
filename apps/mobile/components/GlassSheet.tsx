@@ -22,10 +22,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  GLASS_SHEET_BODY_PAD_BOTTOM,
+  GLASS_SHEET_BODY_PAD_TOP,
   GLASS_SHEET_RADIUS,
   pickSnapOffset,
   resolveGlassSnapHeights,
   restOffset,
+  sheetHeightForContent,
   type GlassSnapPoint,
 } from "../lib/glass-sheet";
 import { useOptionalAppTheme } from "../lib/settings";
@@ -53,8 +56,6 @@ const SPRING = { damping: 28, stiffness: 320, mass: 0.86 } as const;
 const EXIT_MS = 220;
 /** Reduced motion replaces every sheet movement with this short fade of travel. */
 const REDUCED_MS = 140;
-const BODY_PAD_TOP = 10;
-const BODY_PAD_BOTTOM = 14;
 
 /**
  * Frosted bottom sheet — full-bleed, sandblasted wash, hue-shifting top edge.
@@ -88,7 +89,7 @@ export function GlassSheet({
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const maxHeight = windowHeight - insets.top - 24;
-  const bodyPadBottom = BODY_PAD_BOTTOM + insets.bottom;
+  const bodyPadBottom = GLASS_SHEET_BODY_PAD_BOTTOM + insets.bottom;
 
   const [mounted, setMounted] = useState(visible);
   const [contentHeight, setContentHeight] = useState(0);
@@ -354,8 +355,11 @@ export function GlassSheet({
                   testID={`${testID}-measure`}
                   style={styles.measure}
                   onLayout={(event) => {
-                    const next =
-                      Math.round(event.nativeEvent.layout.height) + BODY_PAD_TOP + bodyPadBottom;
+                    const next = sheetHeightForContent(
+                      event.nativeEvent.layout.height,
+                      insets.bottom,
+                      maxHeight
+                    );
                     setContentHeight((current) => (current === next ? current : next));
                   }}
                 >
@@ -414,9 +418,9 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: BODY_PAD_TOP,
+    paddingTop: GLASS_SHEET_BODY_PAD_TOP,
   },
-  measure: { flexShrink: 1 },
+  measure: { flexGrow: 0, flexShrink: 0 },
   handle: {
     alignSelf: "center",
     width: 36,

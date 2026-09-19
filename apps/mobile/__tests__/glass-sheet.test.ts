@@ -4,6 +4,7 @@ import {
   mixHex,
   pickSnapOffset,
   resolveGlassSnapHeights,
+  sheetHeightForContent,
   topRoundedPath,
 } from "../lib/glass-sheet";
 
@@ -19,12 +20,25 @@ describe("glass sheet", () => {
     ).toEqual([280]);
     expect(
       resolveGlassSnapHeights({
+        snapPoints: ["auto"],
+        windowHeight: 800,
+        contentHeight: 0,
+        maxHeight: 700,
+      })
+    ).toEqual([700]);
+    expect(
+      resolveGlassSnapHeights({
         snapPoints: [0.4, 0.9],
         windowHeight: 800,
         contentHeight: 0,
         maxHeight: 700,
       })
     ).toEqual([320, 700]);
+  });
+
+  it("sizes an auto sheet to its body plus chrome, without clipping the last row", () => {
+    expect(sheetHeightForContent(400, 34, 761)).toBe(458);
+    expect(sheetHeightForContent(900, 34, 761)).toBe(761);
   });
 
   it("dismisses a drag past the smallest snap and otherwise snaps to the nearest rest", () => {
