@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { Text, View } from "react-native";
+import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import type { EnrichedTextInputInstance, OnChangeStateEvent } from "react-native-enriched-html";
 import {
   ChapterEditor,
@@ -12,6 +13,7 @@ import {
 } from "../../../../components/ChapterEditor";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { FormatBubble } from "../../../../components/FormatBubble";
+import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -59,8 +61,8 @@ import {
   FORMAT_BAR_HEIGHT,
   formatBarPlacement,
   hideFormatBarWhileTyping,
+  overlayFormatChrome,
   showPressMenu,
-  showSelectionBubble,
 } from "../../../../lib/format-chrome";
 
 function blockStyleFor(
@@ -122,8 +124,10 @@ export default function ManuscriptScreen() {
   const [targetKind, setTargetKind] = useState<FormatBlockKind>("paragraph");
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
   const [typing, setTyping] = useState(false);
+  const [pressMenuOpen, setPressMenuOpen] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideBar = useSharedValue(0);
+  const keyboardVisible = useKeyboardState((state) => state.isVisible);
 
   const overlay = chapter && inflight > 0 && localDoc?.chapterId === chapter.id ? localDoc : null;
 
@@ -242,6 +246,7 @@ export default function ManuscriptScreen() {
 
   const onChangeText = useCallback(
     (text: string) => {
+      setPressMenuOpen(false);
       markTyping();
       const current = chapterRef.current;
       if (!current) return;
@@ -295,6 +300,7 @@ export default function ManuscriptScreen() {
     focusedRef.current = false;
     setFocused(false);
     setTyping(false);
+    setPressMenuOpen(false);
     if (typingTimer.current) clearTimeout(typingTimer.current);
     setEditingBlockIds([]);
     void flush();
@@ -326,6 +332,7 @@ export default function ManuscriptScreen() {
     (kind: FormatBlockKind) => {
       const editor = editorRef.current;
       if (!editor) return;
+      setPressMenuOpen(false);
       if (kind === "heading") editor.toggleH2();
       else if (kind === "quote") editor.toggleBlockQuote();
       else if (kind === "list_item") editor.toggleUnorderedList();
@@ -337,6 +344,11 @@ export default function ManuscriptScreen() {
     },
     [markTyping, scheduleFlush, targetKind]
   );
+
+  const openPressMenu = useCallback(() => {
+    setPressMenuOpen(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
 
   const onChangeState = useCallback((state: OnChangeStateEvent) => {
     setTargetMarks(marksFromEnrichedState(state));
@@ -395,15 +407,6 @@ export default function ManuscriptScreen() {
     editorRef.current = ref;
   }, []);
 
-  const onContinue = useCallback(() => {
-    editorRef.current?.focus();
-    const last = blocks[blocks.length - 1];
-    if (!last) return;
-    const index = resumePlainTextIndex(content, last.id, last.text.length);
-    if (index == null) return;
-    editorRef.current?.setSelection(index, index);
-  }, [blocks, content]);
-
   const popupSpan = grammarSuggestion
     ? selectPopupSpan(
         grammarRef.current?.draftOf(grammarSuggestion.blockId) ?? grammarSuggestion.text,
@@ -411,6 +414,18 @@ export default function ManuscriptScreen() {
         grammarSuggestion.spans
       )
     : null;
+  const grammarOpen = Boolean(settings.autoCorrect && grammarSuggestion && popupSpan);
+  const formatOverlay = overlayFormatChrome({
+    chrome: settings.formatChrome,
+    selected: formatTarget.start !== formatTarget.end,
+    pressOpen: pressMenuOpen,
+    grammarOpen,
+  });
+  const editorBottomInset = keyboardVisible
+    ? 16
+    : barPlacement === "accessory"
+      ? 8
+      : clearance;
 
   if (loading && !project) {
     return (
@@ -456,84 +471,84 @@ export default function ManuscriptScreen() {
           </Animated.View>
         </View>
       ) : null}
-      <KeyboardAwareScrollView
-        style={{ flex: 1 }}
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="none"
-        bottomOffset={clearance + (barPlacement === "accessory" ? FORMAT_BAR_HEIGHT : 0)}
-        contentContainerStyle={{
-          padding: 20,
-          paddingBottom: clearance + (barPlacement === "accessory" ? FORMAT_BAR_HEIGHT : 0),
-          flexGrow: 1,
-          justifyContent: "flex-start",
-          alignItems: "stretch",
-        }}
-      >
-        <Text style={layout.title}>{chapter.title}</Text>
-        {resume ? (
-          <Text
-            testID="reading-caret"
-            accessibilityLabel={`${resume.blockId}:${resume.offset}`}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
-          >
-            {`${resume.blockId}:${resume.offset}`}
-          </Text>
-        ) : null}
-        {settings.autoCorrect && grammarSuggestion && popupSpan ? (
-          <View style={{ marginBottom: 12 }}>
-            <GrammarPopup
-              original={popupSpan.original}
-              replacement={popupSpan.replacement}
-              shownAt={grammarSuggestion.shownAt}
-              reduceMotion={reduceMotion}
-              onAccept={acceptGrammar}
-              onIgnore={ignoreGrammar}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
+        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}>
+          <Text style={layout.title}>{chapter.title}</Text>
+          {resume ? (
+            <Text
+              testID="reading-caret"
+              accessibilityLabel={`${resume.blockId}:${resume.offset}`}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
+            >
+              {`${resume.blockId}:${resume.offset}`}
+            </Text>
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <ChapterEditor
+              chapterId={chapter.id}
+              html={content}
+              editorStyle={editorStyle}
+              placeholder={t("manuscript.emptyChapter")}
+              focused={focused}
+              resumeOffset={resume?.index ?? null}
+              bottomInset={editorBottomInset}
+              onFocused={onFocused}
+              onBlurred={onBlurred}
+              onChangeText={onChangeText}
+              onChangeState={onChangeState}
+              onChangeSelection={onCaret}
+              onLongPress={showPressMenu(settings.formatChrome) ? openPressMenu : undefined}
+              onSetKind={showPressMenu(settings.formatChrome) ? onSetKind : undefined}
+              registerEditor={registerEditor}
+            />
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: "absolute",
+                top: 8,
+                left: 0,
+                right: 0,
+                zIndex: 2,
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {grammarOpen && popupSpan && grammarSuggestion ? (
+                <View style={{ alignSelf: "stretch" }}>
+                  <GrammarPopup
+                    original={popupSpan.original}
+                    replacement={popupSpan.replacement}
+                    shownAt={grammarSuggestion.shownAt}
+                    reduceMotion={reduceMotion}
+                    onAccept={acceptGrammar}
+                    onIgnore={ignoreGrammar}
+                  />
+                </View>
+              ) : null}
+              {formatOverlay.press ? (
+                <FormatPressMenu kind={targetKind} onSetKind={onSetKind} />
+              ) : null}
+              {formatOverlay.bubble ? (
+                <FormatBubble marks={targetMarks} onToggleMark={onToggleMark} />
+              ) : null}
+            </View>
+          </View>
+        </View>
+        {barPlacement === "accessory" ? (
+          <View style={{ marginBottom: keyboardVisible ? 0 : clearance }}>
+            <FormatBar
+              marks={targetMarks}
+              kind={targetKind}
+              placement="accessory"
+              disabled={!focused}
+              onToggleMark={onToggleMark}
+              onSetKind={onSetKind}
             />
           </View>
         ) : null}
-        {showSelectionBubble(settings.formatChrome, formatTarget.start !== formatTarget.end) &&
-        !(grammarSuggestion && popupSpan) ? (
-          <View style={{ marginBottom: 12 }}>
-            <FormatBubble marks={targetMarks} onToggleMark={onToggleMark} />
-          </View>
-        ) : null}
-        <ChapterEditor
-          chapterId={chapter.id}
-          html={content}
-          editorStyle={editorStyle}
-          placeholder={t("manuscript.emptyChapter")}
-          focused={focused}
-          resumeOffset={resume?.index ?? null}
-          onFocused={onFocused}
-          onBlurred={onBlurred}
-          onChangeText={onChangeText}
-          onChangeState={onChangeState}
-          onChangeSelection={onCaret}
-          onSetKind={showPressMenu(settings.formatChrome) ? onSetKind : undefined}
-          registerEditor={registerEditor}
-        />
-        <Pressable
-          testID="continue-writing"
-          accessibilityRole="button"
-          accessibilityLabel={t("manuscript.continueWriting")}
-          onPress={onContinue}
-          style={{ minHeight: 180 }}
-        />
-      </KeyboardAwareScrollView>
-      {barPlacement === "accessory" ? (
-        <View style={{ marginBottom: clearance }}>
-          <FormatBar
-            marks={targetMarks}
-            kind={targetKind}
-            placement="accessory"
-            disabled={!focused}
-            onToggleMark={onToggleMark}
-            onSetKind={onSetKind}
-          />
-        </View>
-      ) : null}
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -2,6 +2,7 @@ import type { FormatChrome } from "./app-settings";
 
 export const FORMAT_IDLE_MS = 900;
 export const FORMAT_BAR_HEIGHT = 52;
+export const FORMAT_PRESS_MS = 420;
 
 /** Fade and lift the overlay. Never change layout height — that shoves the page. */
 export function headerBarOverlay(progress: number): { opacity: number; translateY: number } {
@@ -26,4 +27,22 @@ export function showSelectionBubble(chrome: FormatChrome, selected: boolean): bo
 
 export function showPressMenu(chrome: FormatChrome): boolean {
   return chrome === "smart" || chrome === "press";
+}
+
+/** Overlay chips only. Never insert them into the chapter flow — that shoves the page. */
+export function overlayFormatChrome({
+  chrome,
+  selected,
+  pressOpen,
+  grammarOpen,
+}: {
+  chrome: FormatChrome;
+  selected: boolean;
+  pressOpen: boolean;
+  grammarOpen: boolean;
+}): { bubble: boolean; press: boolean } {
+  return {
+    bubble: !grammarOpen && showSelectionBubble(chrome, selected),
+    press: showPressMenu(chrome) && pressOpen,
+  };
 }
