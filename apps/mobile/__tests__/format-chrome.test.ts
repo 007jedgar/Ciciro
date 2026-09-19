@@ -1,4 +1,4 @@
-import { formatBarPlacement, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../lib/format-chrome";
+import { formatBarPlacement, headerBarOverlay, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../lib/format-chrome";
 
 describe("format chrome placement", () => {
   it("pins a smart header and a keyboard bar, and hides the header while typing", () => {
@@ -21,5 +21,10 @@ describe("format chrome placement", () => {
     expect(showPressMenu("press")).toBe(true);
     expect(showPressMenu("selection")).toBe(false);
     expect(showPressMenu("always")).toBe(false);
+  });
+
+  it("hides the header by fading it, not by collapsing layout", () => {
+    expect(headerBarOverlay(0)).toEqual({ opacity: 1, translateY: 0 });
+    expect(headerBarOverlay(1)).toEqual({ opacity: 0, translateY: -12 });
   });
 });

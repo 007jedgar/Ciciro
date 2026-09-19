@@ -7,6 +7,7 @@ import { emptyBlockMarks } from "../lib/block-editor";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { alpha } from "./Glass";
+import { FORMAT_BAR_HEIGHT } from "../lib/format-chrome";
 
 export type FormatBlockKind = Extract<BlockKind, "paragraph" | "heading" | "quote" | "list_item">;
 
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    minHeight: 52,
+    minHeight: FORMAT_BAR_HEIGHT,
     gap: 2,
   },
   mark: {
