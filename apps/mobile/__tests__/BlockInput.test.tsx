@@ -323,6 +323,30 @@ describe("BlockInput", () => {
     fireEvent(screen.getByTestId("block-b1"), "focus");
     expect(screen.getByTestId("block-b1").props.caretHidden).toBe(true);
     expect(screen.getByTestId("block-b1-caret")).toBeTruthy();
+    fireEvent(screen.getByTestId("block-b1-caret-probe"), "textLayout", {
+      nativeEvent: {
+        lines: [{ x: 0, y: 0, width: 120, height: 28, text: ORIGINAL.slice(0, 10) }],
+      },
+    });
+    const caret = StyleSheet.flatten(screen.getByTestId("block-b1-caret").props.style);
+    expect(caret.left).toBe(119);
+    expect(caret.transform).toBeUndefined();
+  });
+
+  it("slants the caret when the insertion point is in italic", () => {
+    renderBlock({
+      focused: true,
+      block: {
+        ...block,
+        html: `<p data-block-id="b1"><em>${ORIGINAL}</em></p>`,
+      },
+    });
+    fireEvent(screen.getByTestId("block-b1"), "focus");
+    fireEvent(screen.getByTestId("block-b1"), "selectionChange", {
+      nativeEvent: { selection: { start: toNativeOffset(4), end: toNativeOffset(4) } },
+    });
+    const caret = StyleSheet.flatten(screen.getByTestId("block-b1-caret").props.style);
+    expect(caret.transform).toEqual([{ skewX: "-13deg" }]);
   });
 
   it("adopts the folded-in text when a merge sends the caret back", async () => {
