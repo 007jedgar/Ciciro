@@ -74,9 +74,11 @@ export function pickSnapOffset(
   return best;
 }
 
-/** Iridescent stops that orbit the sheet's accent. */
-export function glassSheetGlowColors(accent: string): string[] {
-  return [accent, "#5eead4", "#7dd3fc", "#c4b5fd", "#fb7185", "#fbbf24", accent];
+/** Quiet pane rim — a hairline of light, not a hue-shifting glow. */
+export function glassSheetRimColors(dark: boolean): string[] {
+  return dark
+    ? ["#ffffff3d", "#ffffff1a", "#ffffff0f"]
+    : ["#ffffff8c", "#ffffff3d", "#ffffff1f"];
 }
 
 /** Blend two 6-digit hex colors. `amount` is how much of `target` to take. */
@@ -96,14 +98,14 @@ function withAlpha(hex: string, a: number): string {
 }
 
 /**
- * Sandblasted glass: near-opaque so nothing behind reads through, with a light
- * top falling to a deep bottom so the pane still looks lit from the screen.
+ * Frosted pane wash: translucent so the BlurView reads as glass, denser at the
+ * bottom so type on the sheet still sits on a solid-enough ground.
  */
 export function glassSheetFillColors(dark: boolean, base?: string): string[] {
   const panel = base ?? (dark ? "#20262e" : "#f6f8fb");
-  const top = mixHex(panel, "#ffffff", dark ? 0.2 : 0.62);
-  const bottom = mixHex(panel, "#000000", dark ? 0.42 : 0.1);
-  return [withAlpha(top, dark ? 0.93 : 0.95), withAlpha(bottom, dark ? 0.99 : 0.99)];
+  const top = mixHex(panel, "#ffffff", dark ? 0.14 : 0.48);
+  const bottom = mixHex(panel, "#000000", dark ? 0.28 : 0.06);
+  return [withAlpha(top, dark ? 0.48 : 0.4), withAlpha(bottom, dark ? 0.72 : 0.62)];
 }
 
 /**

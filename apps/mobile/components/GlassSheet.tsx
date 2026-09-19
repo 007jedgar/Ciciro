@@ -39,7 +39,7 @@ import { alpha } from "./Glass";
 export {
   GLASS_SHEET_RADIUS,
   glassSheetFillColors,
-  glassSheetGlowColors,
+  glassSheetRimColors,
   pickSnapOffset,
   resolveGlassSnapHeights,
   type GlassSnapPoint,
@@ -58,14 +58,13 @@ const EXIT_MS = 220;
 const REDUCED_MS = 140;
 
 /**
- * Frosted bottom sheet — full-bleed, sandblasted wash, hue-shifting top edge.
+ * Frosted bottom sheet — full-bleed glass pane, hairline rim.
  * Built with Reanimated + Skia. Not a wrapper around Gorhom.
  */
 export function GlassSheet({
   visible,
   onClose,
   children,
-  accent,
   title,
   snapPoints = ["auto"],
   testID = "glass-sheet",
@@ -83,7 +82,6 @@ export function GlassSheet({
   const reduceMotion = Boolean(theme?.settings.reduceMotion || osReduce);
   const dark = theme?.dark ?? false;
   const colors = theme?.colors;
-  const accentColor = accent ?? colors?.accent ?? "#b4552d";
   const ink = colors?.ink ?? "#2a2218";
   const inkSoft = colors?.inkSoft ?? "#6e6354";
   const insets = useSafeAreaInsets();
@@ -336,7 +334,7 @@ export function GlassSheet({
               >
                 <BlurView
                   tint={dark ? "dark" : "light"}
-                  intensity={dark ? 44 : 60}
+                  intensity={dark ? 56 : 72}
                   experimentalBlurMethod="dimezisBlurView"
                   style={StyleSheet.absoluteFill}
                 />
@@ -344,10 +342,8 @@ export function GlassSheet({
               <GlassSheetBorder
                 width={borderSize.width}
                 height={borderSize.height}
-                accent={accentColor}
                 dark={dark}
                 base={colors?.panel}
-                reduceMotion={reduceMotion}
               />
               <View style={[styles.body, { paddingBottom: bodyPadBottom }]}>
                 <View
