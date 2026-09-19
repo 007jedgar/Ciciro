@@ -25,11 +25,12 @@ describe("app settings", () => {
     expect(s.chatWidth).toBe(720);
     expect(s.dailyWordGoal).toBe(250);
     expect(s.showDailyGoal).toBe(true);
+    expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);
   });
 
   it("ignores unknown theme and font values", () => {
-    const s = normalizeSettings({ theme: "neon", editorFont: "comic" });
+    const s = normalizeSettings({ theme: "neon", editorFont: "comic", formatChrome: "floating" });
     expect(s).toMatchObject({
       theme: "parchment",
       editorFont: "serif",
@@ -38,6 +39,7 @@ describe("app settings", () => {
       reduceMotion: false,
       dailyWordGoal: 250,
       showDailyGoal: true,
+      formatChrome: "smart",
       updatedAt: SETTINGS_EPOCH,
     });
   });

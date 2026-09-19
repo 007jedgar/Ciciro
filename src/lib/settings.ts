@@ -8,6 +8,13 @@ export const SETTINGS_SYNC_EVENT = "ciciro-session";
 export const EDITOR_FONT_SIZES = [15, 17, 19, 21, 23] as const;
 export type EditorFontSize = (typeof EDITOR_FONT_SIZES)[number];
 export type EditorFont = "serif" | "sans";
+export const FORMAT_CHROME = ["smart", "selection", "press", "always"] as const;
+export type FormatChrome = (typeof FORMAT_CHROME)[number];
+export const DEFAULT_FORMAT_CHROME: FormatChrome = "smart";
+
+export function isFormatChrome(value: unknown): value is FormatChrome {
+  return typeof value === "string" && (FORMAT_CHROME as readonly string[]).includes(value);
+}
 
 export const CHAT_WIDTH_MIN = 280;
 export const CHAT_WIDTH_MAX = 720;
@@ -18,6 +25,7 @@ export type AppSettings = {
   theme: ThemeId;
   editorFont: EditorFont;
   editorFontSize: EditorFontSize;
+  formatChrome: FormatChrome;
   autoCorrect: boolean;
   reduceMotion: boolean;
   chatWidth: number;
@@ -35,6 +43,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     theme: "parchment",
     editorFont: "serif",
     editorFontSize: DEFAULT_EDITOR_FONT_SIZE,
+    formatChrome: DEFAULT_FORMAT_CHROME,
     autoCorrect: true,
     reduceMotion: false,
     chatWidth: DEFAULT_CHAT_WIDTH,
@@ -86,6 +95,7 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
     typeof src.editorFontSize === "number" && Number.isFinite(src.editorFontSize)
       ? nearestFontSize(src.editorFontSize)
       : defaults.editorFontSize;
+  const formatChrome = isFormatChrome(src.formatChrome) ? src.formatChrome : defaults.formatChrome;
   const autoCorrect = typeof src.autoCorrect === "boolean" ? src.autoCorrect : defaults.autoCorrect;
   const reduceMotion = typeof src.reduceMotion === "boolean" ? src.reduceMotion : defaults.reduceMotion;
   const chatWidth =
@@ -101,6 +111,7 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
     theme,
     editorFont,
     editorFontSize,
+    formatChrome,
     autoCorrect,
     reduceMotion,
     chatWidth,
@@ -149,6 +160,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
       return { error: "editorFontSize must be a number." };
     }
     patch.editorFontSize = nearestFontSize(src.editorFontSize);
+  }
+  if ("formatChrome" in src) {
+    if (!isFormatChrome(src.formatChrome)) {
+      return { error: "formatChrome must be smart, selection, press, or always." };
+    }
+    patch.formatChrome = src.formatChrome;
   }
   if ("autoCorrect" in src) {
     if (typeof src.autoCorrect !== "boolean") {
@@ -202,6 +219,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.theme === b.theme &&
     a.editorFont === b.editorFont &&
     a.editorFontSize === b.editorFontSize &&
+    a.formatChrome === b.formatChrome &&
     a.autoCorrect === b.autoCorrect &&
     a.reduceMotion === b.reduceMotion &&
     a.chatWidth === b.chatWidth &&

@@ -1027,10 +1027,18 @@ textarea {
   padding: 6px 2px;
   font-size: 12.5px;
 }
+.settings-row-stack {
+  align-items: flex-start;
+}
 .settings-seg {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.settings-seg.wrap {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 220px;
 }
 .settings-seg button {
   border: 1px solid var(--line);

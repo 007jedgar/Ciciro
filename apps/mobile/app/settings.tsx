@@ -6,13 +6,13 @@ import { useTranslation } from "react-i18next";
 import { AppHeader } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
-import { EDITOR_FONT_SIZES, type EditorFont, type EditorFontSize } from "../lib/app-settings";
+import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize, type FormatChrome } from "../lib/app-settings";
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
-type SheetId = "language" | "theme" | "font" | "size" | "goal";
+type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal";
 
 const WORD_GOALS = [100, 250, 500] as const;
 
@@ -123,6 +123,7 @@ function ToggleRow({
 
 function OptionRow({
   label,
+  hint,
   selected,
   onPress,
   colors,
@@ -130,6 +131,7 @@ function OptionRow({
   preview,
 }: {
   label: string;
+  hint?: string;
   selected: boolean;
   onPress: () => void;
   colors: ColorTokens;
@@ -141,10 +143,12 @@ function OptionRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      accessibilityHint={hint}
       style={({ pressed }) => ({
-        minHeight: 48,
+        minHeight: hint ? 64 : 48,
         borderRadius: 14,
         paddingHorizontal: 14,
+        paddingVertical: hint ? 10 : 0,
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
@@ -166,16 +170,20 @@ function OptionRow({
           }}
         />
       ) : null}
-      <Text
-        style={{
-          flex: 1,
-          fontSize: 17,
-          color: colors.ink,
-          fontFamily: preview === "serif" ? fonts.serif : preview === "sans" ? fonts.sans : undefined,
-        }}
-      >
-        {label}
-      </Text>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 17,
+            color: colors.ink,
+            fontFamily: preview === "serif" ? fonts.serif : preview === "sans" ? fonts.sans : undefined,
+          }}
+        >
+          {label}
+        </Text>
+        {hint ? (
+          <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{hint}</Text>
+        ) : null}
+      </View>
       {selected ? <CheckIcon color={colors.accent} size={16} /> : null}
     </Pressable>
   );
@@ -203,9 +211,11 @@ export default function SettingsScreen() {
           ? t("settings.type")
           : sheet === "size"
             ? t("settings.size")
-            : sheet === "goal"
-              ? t("settings.wordGoal")
-              : undefined;
+            : sheet === "format"
+              ? t("settings.formatting")
+              : sheet === "goal"
+                ? t("settings.wordGoal")
+                : undefined;
 
   return (
     <View style={layout.screen}>
@@ -239,6 +249,12 @@ export default function SettingsScreen() {
             label={t("settings.size")}
             value={t("settings.sizeValue", { size: settings.editorFontSize })}
             onPress={() => setSheet("size")}
+            colors={colors}
+          />
+          <SheetRow
+            label={t("settings.formatting")}
+            value={t(`settings.formatChrome.${settings.formatChrome}`)}
+            onPress={() => setSheet("format")}
             colors={colors}
             last
           />
@@ -358,6 +374,21 @@ export default function SettingsScreen() {
                 colors={colors}
                 onPress={() => {
                   patch({ editorFontSize: size as EditorFontSize });
+                  setSheet(null);
+                }}
+              />
+            ))
+          : null}
+        {sheet === "format"
+          ? FORMAT_CHROME.map((home) => (
+              <OptionRow
+                key={home}
+                label={t(`settings.formatChrome.${home}`)}
+                hint={t(`settings.formatChromeHint.${home}`)}
+                selected={settings.formatChrome === home}
+                colors={colors}
+                onPress={() => {
+                  patch({ formatChrome: home as FormatChrome });
                   setSheet(null);
                 }}
               />

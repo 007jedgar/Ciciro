@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { THEMES, type ThemeId } from "@/lib/theme";
-import { EDITOR_FONT_SIZES } from "@/lib/settings";
+import { EDITOR_FONT_SIZES, FORMAT_CHROME, type FormatChrome } from "@/lib/settings";
 import { useSettings } from "@/components/SettingsProvider";
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
@@ -146,6 +146,36 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               </button>
             </div>
           </div>
+          <div className="settings-row settings-row-stack">
+            <span>Formatting</span>
+            <div className="settings-seg wrap">
+              {FORMAT_CHROME.map((home) => (
+                <button
+                  key={home}
+                  type="button"
+                  className={settings.formatChrome === home ? "active" : ""}
+                  onClick={() => patch({ formatChrome: home as FormatChrome })}
+                >
+                  {home === "smart"
+                    ? "Smart"
+                    : home === "selection"
+                      ? "Highlight"
+                      : home === "press"
+                        ? "Press"
+                        : "Always"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="settings-hint">
+            {settings.formatChrome === "smart"
+              ? "Hides while you type. Highlight and long-press still work."
+              : settings.formatChrome === "selection"
+                ? "A bubble only when words are selected."
+                : settings.formatChrome === "press"
+                  ? "Long-press a paragraph for heading, quote, or list."
+                  : "A keyboard bar that never leaves."}
+          </p>
           <div className="settings-row">
             <span>Autocorrect</span>
             <button

@@ -74,6 +74,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 theme: next.theme,
                 editorFont: next.editorFont,
                 editorFontSize: next.editorFontSize,
+                formatChrome: next.formatChrome,
                 autoCorrect: next.autoCorrect,
                 reduceMotion: next.reduceMotion,
                 chatWidth: next.chatWidth,

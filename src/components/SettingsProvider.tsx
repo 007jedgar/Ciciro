@@ -119,6 +119,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               theme: body.theme,
               editorFont: body.editorFont,
               editorFontSize: body.editorFontSize,
+              formatChrome: body.formatChrome,
               autoCorrect: body.autoCorrect,
               reduceMotion: body.reduceMotion,
               chatWidth: body.chatWidth,
