@@ -65,6 +65,35 @@ describe("GlassSheet", () => {
   });
 
   /**
+   * Auto sheets used to measure inside a 42% stub, so Theme clipped Candle
+   * and Formatting never showed its last row. Measure in a full-height pane,
+   * then shrink to the body.
+   */
+  it("grows to the measured body instead of stopping at a short stub", () => {
+    const { unmount } = render(
+      wrap(
+        <GlassSheet visible onClose={jest.fn()} title="Theme">
+          <Text>Parchment</Text>
+          <Text>Sage</Text>
+          <Text>Ember</Text>
+          <Text>Walnut</Text>
+          <Text>Inkwell</Text>
+          <Text>Candle</Text>
+        </GlassSheet>
+      )
+    );
+    const before = StyleSheet.flatten(screen.getByTestId("glass-sheet-card").props.style);
+    fireEvent(screen.getByTestId("glass-sheet-measure"), "layout", {
+      nativeEvent: { layout: { height: 400, width: 390, x: 0, y: 0 } },
+    });
+    const after = StyleSheet.flatten(screen.getByTestId("glass-sheet-card").props.style);
+    expect(before.height).toBeGreaterThan(400);
+    expect(after.height).toBe(458);
+    expect(after.height).toBeLessThan(before.height);
+    unmount();
+  });
+
+  /**
    * React Native 0.86 dropped `StyleSheet.absoluteFillObject`. Spreading it
    * left the backdrop with a background colour and no geometry, so it covered
    * nothing, tinted nothing, and swallowed no taps.
@@ -79,7 +108,6 @@ describe("GlassSheet", () => {
     );
     const scrim = StyleSheet.flatten(screen.getByTestId("glass-sheet-scrim").props.style);
     expect(scrim).toMatchObject({ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 });
-    // And it has to be visible, or nothing tells the reader it can be tapped.
     expect(scrim.backgroundColor).toBeTruthy();
     unmount();
   });

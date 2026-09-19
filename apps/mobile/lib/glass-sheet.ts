@@ -4,6 +4,22 @@ export const GLASS_SHEET_RADIUS = 28;
 export const GLASS_SHEET_DISMISS_PX = 108;
 /** How far the Skia shape runs past the sheet so its bottom edge never shows. */
 export const GLASS_SHEET_BLEED = 72;
+export const GLASS_SHEET_BODY_PAD_TOP = 10;
+export const GLASS_SHEET_BODY_PAD_BOTTOM = 14;
+
+/** Padding the sheet adds around a measured body, including the home indicator. */
+export function sheetHeightForContent(
+  layoutHeight: number,
+  insetBottom: number,
+  maxHeight: number
+): number {
+  const raw =
+    Math.round(layoutHeight) +
+    GLASS_SHEET_BODY_PAD_TOP +
+    GLASS_SHEET_BODY_PAD_BOTTOM +
+    Math.max(0, insetBottom);
+  return Math.min(Math.max(raw, 160), maxHeight);
+}
 
 export function resolveGlassSnapHeights({
   snapPoints,
@@ -19,7 +35,9 @@ export function resolveGlassSnapHeights({
   const points = snapPoints.length > 0 ? snapPoints : (["auto"] as GlassSnapPoint[]);
   const heights = points.map((point) => {
     if (point === "auto") {
-      const measured = contentHeight > 0 ? contentHeight : Math.round(windowHeight * 0.42);
+      // Until the body reports its height, occupy the full allowed pane so the
+      // measure pass is not squeezed into a 42% stub that clips Theme / Candle.
+      const measured = contentHeight > 0 ? contentHeight : maxHeight;
       return Math.min(Math.max(measured, 160), maxHeight);
     }
     return Math.min(Math.max(point * windowHeight, 160), maxHeight);
