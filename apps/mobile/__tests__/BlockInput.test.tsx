@@ -1,4 +1,4 @@
-import { StyleSheet, type TextInput } from "react-native";
+import { StyleSheet, Text, type TextInput } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { BlockInput, type BlockInputProps } from "../components/BlockInput";
 import { CARET_GUARD, toNativeOffset, withCaretGuard } from "../lib/editor-session";
@@ -175,6 +175,32 @@ describe("BlockInput", () => {
     fireEvent(input, "submitEditing");
     await flushFrames();
     expect(onSplit).toHaveBeenCalledWith("b1", ORIGINAL, "");
+  });
+
+  it("paints bold on the marked characters instead of the whole paragraph", () => {
+    renderBlock({
+      block: {
+        ...block,
+        html: `<p data-block-id="b1"><strong>He</strong>llo this is first test of the chapter writing.</p>`,
+      },
+    });
+    const overlay = screen.getByTestId("block-b1-marks");
+    const marked = overlay.findAllByType(Text).filter((node) => {
+      const style = StyleSheet.flatten(node.props.style);
+      return style?.fontWeight === "600" && node.props.children === "He";
+    });
+    expect(marked).toHaveLength(1);
+    expect(StyleSheet.flatten(screen.getByTestId("block-b1").props.style).fontWeight).toBe("400");
+    expect(StyleSheet.flatten(screen.getByTestId("block-b1").props.style).color).toBe("transparent");
+  });
+
+  it("reports the selected character range", () => {
+    const onCaret = jest.fn();
+    renderBlock({ focused: true, onCaret });
+    fireEvent(screen.getByTestId("block-b1"), "selectionChange", {
+      nativeEvent: { selection: { start: toNativeOffset(1), end: toNativeOffset(2) } },
+    });
+    expect(onCaret).toHaveBeenCalledWith("b1", 1, 2);
   });
 
   it("does not empty the paragraph when submitEditing is stuck at offset 0", async () => {

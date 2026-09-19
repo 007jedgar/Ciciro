@@ -213,6 +213,25 @@ describe("block editor keystrokes", () => {
     expect(bold[0].html).toBe('<h2 data-block-id="b1"><strong>Night Watch</strong></h2>');
   });
 
+  it("toggles bold on one character instead of the whole paragraph", () => {
+    const { doc } = htmlToDoc('<p data-block-id="b1">Hello</p>', 2);
+    const one = toggleBlockMarkOps(doc, "b1", "bold", undefined, seqIds("c"), { start: 1, end: 1 });
+    expect(one[0].html).toBe('<p data-block-id="b1">H<strong>e</strong>llo</p>');
+    const range = toggleBlockMarkOps(doc, "b1", "italic", undefined, seqIds("i"), { start: 1, end: 4 });
+    expect(range[0].html).toBe('<p data-block-id="b1">H<em>ell</em>o</p>');
+  });
+
+  it("keeps marks on both sides of a Return split", () => {
+    const { doc } = htmlToDoc('<p data-block-id="b1"><strong>Hello world.</strong></p>', 2);
+    const mid = splitBlockOps(doc, "b1", "Hello", " world.", seqIds("s"));
+    expect(mid.ops[0]).toMatchObject({
+      html: '<p data-block-id="b1"><strong>Hello</strong></p>',
+    });
+    expect(mid.ops[1]).toMatchObject({
+      html: '<p data-block-id="s-block-2"><strong> world.</strong></p>',
+    });
+  });
+
   it("appends AI paragraphs after the last block", () => {
     const { doc } = htmlToDoc('<p data-block-id="b1">Night.</p>', 3);
     const ops = appendParagraphsOps(doc, ["Dawn."], { ...seqIds("a"), actor: "ai" });

@@ -14,9 +14,11 @@ import {
   spanAnchorFromLines,
   type TextLineMetrics,
 } from "../lib/grammar";
-import type { ManuscriptBlock } from "../lib/manuscript";
-import { splitAtOffset, takeReturnSplit, readBlockMarks } from "../lib/block-editor";
+import type { BlockKind, ManuscriptBlock } from "../lib/manuscript";
+import { splitAtOffset, takeReturnSplit } from "../lib/block-editor";
+import { applyPlainEdit, innerHtmlOf, parseInlineHtml, type InlineSpan } from "../lib/inline-html";
 import {
+  CARET_GUARD,
   isBackspaceAtStart,
   isGuardDeleted,
   stripCaretGuard,
@@ -64,7 +66,7 @@ export type BlockInputProps = {
   onDraft: (id: string, text: string) => void;
   onSplit: (id: string, left: string, right: string) => void;
   onMerge: (id: string, text: string) => void;
-  onCaret: (id: string, offset: number) => void;
+  onCaret: (id: string, start: number, end: number) => void;
   onComposing: (id: string, composing: boolean) => void;
   onCaretPlaced: (id: string) => void;
   registerInput: (id: string, ref: TextInput | null) => void;
@@ -72,6 +74,21 @@ export type BlockInputProps = {
 
 function initialText(block: ManuscriptBlock, drafts: Map<string, string>): string {
   return drafts.get(block.id) ?? block.text;
+}
+
+function decorationLine(span: InlineSpan): "none" | "underline" | "line-through" | "underline line-through" {
+  if (span.underline && span.strike) return "underline line-through";
+  if (span.strike) return "line-through";
+  if (span.underline) return "underline";
+  return "none";
+}
+
+function spanStyle(span: InlineSpan, kind: BlockKind) {
+  return {
+    fontWeight: (span.bold || kind === "heading" ? "600" : "400") as "600" | "400",
+    fontStyle: (span.italic || kind === "quote" ? "italic" : "normal") as "italic" | "normal",
+    textDecorationLine: decorationLine(span),
+  };
 }
 
 export const BlockInput = memo(function BlockInput({
@@ -157,20 +174,11 @@ export const BlockInput = memo(function BlockInput({
   }, [pendingFocus, block.id, onCaretPlaced]);
 
   const style = useMemo(() => {
-    const marks = readBlockMarks(block.html);
-    const decoration =
-      marks.underline && marks.strike
-        ? ("underline line-through" as const)
-        : marks.strike
-          ? ("line-through" as const)
-          : marks.underline
-            ? ("underline" as const)
-            : ("none" as const);
     const base = {
       ...editorStyle,
-      fontWeight: (marks.bold || block.kind === "heading" ? "600" : "400") as "600" | "400",
-      fontStyle: (marks.italic || block.kind === "quote" ? "italic" : "normal") as "italic" | "normal",
-      textDecorationLine: decoration,
+      fontWeight: (block.kind === "heading" ? "600" : "400") as "600" | "400",
+      fontStyle: (block.kind === "quote" ? "italic" : "normal") as "italic" | "normal",
+      textDecorationLine: "none" as const,
     };
     if (block.kind === "heading") {
       return { ...base, fontSize: editorStyle.fontSize + 6 };
@@ -182,7 +190,12 @@ export const BlockInput = memo(function BlockInput({
       return { ...base, paddingLeft: 18 };
     }
     return base;
-  }, [block.html, block.kind, editorStyle]);
+  }, [block.kind, editorStyle]);
+
+  const spans = useMemo(
+    () => parseInlineHtml(applyPlainEdit(innerHtmlOf(block.html), text)),
+    [block.html, text]
+  );
 
   const align = block.kind === "scene_break" ? ("center" as const) : ("left" as const);
   const displayed = withCaretGuard(text);
@@ -260,6 +273,33 @@ export const BlockInput = memo(function BlockInput({
         justifyContent: "flex-start",
       }}
     >
+      <Text
+        testID={`block-${block.id}-marks`}
+        pointerEvents="none"
+        style={[
+          style,
+          {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            padding: 0,
+            margin: 0,
+            minHeight: style.lineHeight,
+            textAlign: align,
+            textAlignVertical: "top" as const,
+            includeFontPadding: false,
+            color: editorStyle.color,
+          },
+        ]}
+      >
+        {CARET_GUARD}
+        {spans.map((span, index) => (
+          <Text key={index} style={spanStyle(span, block.kind)}>
+            {span.text}
+          </Text>
+        ))}
+      </Text>
       <TextInput
         ref={(node) => {
           inputRef.current = node;
@@ -334,7 +374,9 @@ export const BlockInput = memo(function BlockInput({
         }}
         onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
           selectionRef.current = e.nativeEvent.selection;
-          onCaret(block.id, toLogicalOffset(e.nativeEvent.selection.start));
+          const start = toLogicalOffset(e.nativeEvent.selection.start);
+          const end = toLogicalOffset(e.nativeEvent.selection.end);
+          onCaret(block.id, start, end);
         }}
         onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
           // Enter used to split from selectionRef here. iOS often leaves that
@@ -349,6 +391,11 @@ export const BlockInput = memo(function BlockInput({
         onFocus={() => {
           nativeFocused.current = true;
           onFocused(block.id);
+          onCaret(
+            block.id,
+            toLogicalOffset(selectionRef.current.start),
+            toLogicalOffset(selectionRef.current.end)
+          );
           if (pendingFocus?.id === block.id) {
             placePending(pendingFocus);
             onCaretPlaced(block.id);
@@ -376,8 +423,12 @@ export const BlockInput = memo(function BlockInput({
             textAlign: align,
             textAlignVertical: "top" as const,
             includeFontPadding: false,
+            color: "transparent",
+            backgroundColor: "transparent",
           },
         ]}
+        cursorColor={editorStyle.color}
+        selectionColor="rgba(90, 140, 180, 0.35)"
       />
       {popup ? (
         <Text

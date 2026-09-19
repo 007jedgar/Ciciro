@@ -7,6 +7,13 @@ import {
   type ManuscriptDoc,
   type ManuscriptOp,
 } from "./manuscript";
+import {
+  applyPlainEdit,
+  innerHtmlOf,
+  splitInnerHtml,
+  toggleMarkInRange,
+  wrapBlockHtml,
+} from "./inline-html";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -69,17 +76,17 @@ export function wrapInnerHtml(text: string, marks: BlockMarks): string {
   return inner;
 }
 
-/** Serialize plain text with the block's original tag so headings and quotes survive a flush. */
+/** Serialize text while keeping any inline marks already on the block. */
 export function serializeBlockHtml(
   block: Pick<ManuscriptBlock, "id" | "html">,
   text: string,
-  marks: BlockMarks = readBlockMarks(block.html),
+  _marks?: BlockMarks,
   tag = tagOfHtml(block.html)
 ): string {
   if (tag === "hr") {
     return `<hr data-block-id="${block.id}" />`;
   }
-  return `<${tag} data-block-id="${block.id}">${wrapInnerHtml(text, marks)}</${tag}>`;
+  return wrapBlockHtml(block.id, tag, applyPlainEdit(innerHtmlOf(block.html), text));
 }
 
 export function newParagraphHtml(blockId: string, text: string): string {
@@ -168,7 +175,8 @@ export function retagBlockOps(
   const found = findBlock(doc, blockId);
   if (!found) return [];
   const text = currentText ?? found.block.text;
-  const html = serializeBlockHtml(found.block, text, readBlockMarks(found.block.html), BLOCK_TAGS[kind]);
+  const inner = applyPlainEdit(innerHtmlOf(found.block.html), text);
+  const html = wrapBlockHtml(found.block.id, BLOCK_TAGS[kind], inner);
   if (html === found.block.html) return [];
   const ids = idsOf(opts);
   const { op } = emit(doc, {
@@ -187,14 +195,17 @@ export function toggleBlockMarkOps(
   blockId: string,
   mark: BlockMark,
   currentText?: string,
-  opts?: BlockEditorIds
+  opts?: BlockEditorIds,
+  range?: { start: number; end: number }
 ): ManuscriptOp[] {
   const found = findBlock(doc, blockId);
   if (!found) return [];
   const text = currentText ?? found.block.text;
-  const marks = readBlockMarks(found.block.html);
-  marks[mark] = !marks[mark];
-  const html = serializeBlockHtml(found.block, text, marks);
+  const inner = applyPlainEdit(innerHtmlOf(found.block.html), text);
+  const start = range?.start ?? 0;
+  const end = range?.end ?? text.length;
+  const next = toggleMarkInRange(inner, start, end, mark);
+  const html = wrapBlockHtml(found.block.id, tagOfHtml(found.block.html), next);
   if (html === found.block.html) return [];
   const ids = idsOf(opts);
   const { op } = emit(doc, {
@@ -228,15 +239,19 @@ export function splitBlockOps(
   const ids = idsOf(opts);
   const ops: ManuscriptOp[] = [];
   let current = doc;
+  const live = `${left}${right}`;
+  const inner = applyPlainEdit(innerHtmlOf(found.block.html), live);
+  const parts = splitInnerHtml(inner, left.length);
+  const tag = tagOfHtml(found.block.html);
 
-  if (found.block.text !== left) {
+  if (found.block.html !== wrapBlockHtml(found.block.id, tag, parts.left) || found.block.text !== left) {
     const replaced = emit(current, {
       opId: ids.createOpId(),
       baseRevision: current.revision,
       actor: ids.actor,
       type: "replace_block",
       blockId,
-      html: serializeBlockHtml(found.block, left),
+      html: wrapBlockHtml(found.block.id, tag, parts.left),
     });
     current = replaced.doc;
     ops.push(replaced.op);
@@ -250,7 +265,7 @@ export function splitBlockOps(
     type: "insert_block",
     afterBlockId: blockId,
     blockId: newId,
-    html: newParagraphHtml(newId, right),
+    html: wrapBlockHtml(newId, "p", parts.right),
   });
   ops.push(inserted.op);
 
