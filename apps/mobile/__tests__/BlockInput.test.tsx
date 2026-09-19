@@ -285,6 +285,44 @@ describe("BlockInput", () => {
     expect(screen.getByTestId("block-b1").props.submitBehavior).toBe("newline");
   });
 
+  it("sizes the paragraph from the painted prose, not the native field", () => {
+    // iOS reports a multiline field's content height a frame or two late, and
+    // it still holds the Return newline while the controlled value catches up.
+    // While that field drove layout, every Return and Backspace bounced the
+    // page: a short frame, then a frame one line too tall, then the truth.
+    renderBlock();
+    const painted = StyleSheet.flatten(screen.getByTestId("block-b1-marks").props.style);
+    expect(painted.position).toBeUndefined();
+    expect(painted.minHeight).toBe(28);
+    const field = StyleSheet.flatten(screen.getByTestId("block-b1").props.style);
+    expect(field.position).toBe("absolute");
+    expect(field.top).toBe(0);
+    expect(field.left).toBe(0);
+    expect(field.right).toBe(0);
+  });
+
+  it("adopts the folded-in text when a merge sends the caret back", async () => {
+    // Backspace at offset 0 lands on a paragraph that is already mounted and
+    // already holds a draft entry, so neither sync effect will pick the merged
+    // sentence up. It has to arrive with the caret.
+    const draftsRef = { current: new Map([["b1", ORIGINAL]]) };
+    const merged = `${ORIGINAL} And the rest of it.`;
+    const { rerender, props } = renderBlock({ draftsRef });
+    expect(screen.getByTestId("block-b1").props.value).toBe(withCaretGuard(ORIGINAL));
+
+    rerender(
+      <BlockInput
+        {...props}
+        draftsRef={draftsRef}
+        pendingFocus={{ id: "b1", offset: ORIGINAL.length, text: merged }}
+      />
+    );
+    fireEvent(screen.getByTestId("block-b1"), "focus");
+    await flushFrames();
+    expect(screen.getByTestId("block-b1").props.value).toBe(withCaretGuard(merged));
+    expect(draftsRef.current.get("b1")).toBe(merged);
+  });
+
   it("merges when the leading caret guard is deleted", () => {
     const onMerge = jest.fn();
     renderBlock({ focused: true, onMerge });
