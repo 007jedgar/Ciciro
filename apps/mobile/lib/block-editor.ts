@@ -115,7 +115,9 @@ export function replaceBlockOps(
 
 /**
  * Return key: replace the current block with `left` (same tag) and insert `right` as a new paragraph after.
- * Empty `right` is a paragraph break at the end; empty `left` is a break at offset 0.
+ * Empty `right` is a paragraph break at the end; empty `left` with a non-empty `right`
+ * is a break at offset 0 (caret stays in the blank above the sentence). Return in an
+ * already-empty paragraph inserts another blank below and moves into it.
  */
 export function splitBlockOps(
   doc: ManuscriptDoc,
@@ -157,11 +159,11 @@ export function splitBlockOps(
   });
   ops.push(inserted.op);
 
-  const focusNew = left.length > 0;
+  const stayOnCurrent = left.length === 0 && right.length > 0;
   return {
     ops: grouped(ops, ids),
-    focusBlockId: focusNew ? newId : blockId,
-    focusOffset: focusNew ? 0 : 0,
+    focusBlockId: stayOnCurrent ? blockId : newId,
+    focusOffset: 0,
   };
 }
 

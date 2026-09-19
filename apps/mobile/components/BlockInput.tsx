@@ -43,13 +43,20 @@ export type GrammarCallout = {
   onIgnore: () => void;
 };
 
+export type PendingFocus = {
+  id: string;
+  offset: number;
+  /** When set, replace the live field (grammar accept) instead of only moving the caret. */
+  text?: string;
+};
+
 export type BlockInputProps = {
   block: ManuscriptBlock;
   editorStyle: EditorStyle;
   autoCorrect: boolean;
   focused: boolean;
   resumeOffset: number | null;
-  pendingFocus: { id: string; offset: number } | null;
+  pendingFocus: PendingFocus | null;
   popup: GrammarCallout | null;
   draftsRef: MutableRefObject<Map<string, string>>;
   onFocused: (id: string) => void;
@@ -93,11 +100,14 @@ export const BlockInput = memo(function BlockInput({
     end: toNativeOffset(resumeOffset ?? 0),
   });
   const restored = useRef(resumeOffset == null);
+  const inputRef = useRef<TextInput | null>(null);
+  const nativeFocused = useRef(false);
   const [blockWidth, setBlockWidth] = useState(0);
   const [lines, setLines] = useState<TextLineMetrics[]>([]);
   const [popupSize, setPopupSize] = useState({ width: 240, height: 88 });
   const splitting = useRef(false);
   const merging = useRef(false);
+  const emittedSplit = useRef<{ left: string; right: string } | null>(null);
   const frames = useRef<number[]>([]);
 
   function later(fn: () => void) {
@@ -125,17 +135,25 @@ export const BlockInput = memo(function BlockInput({
     setText(block.text);
   }, [block.id, block.text, draftsRef, focused]);
 
-  useEffect(() => {
-    if (pendingFocus?.id !== block.id) return;
-    const offset = toNativeOffset(pendingFocus.offset);
+  function placePending(target: PendingFocus) {
+    if (target.text != null) {
+      draftsRef.current.set(block.id, target.text);
+      setText(target.text);
+    }
+    const offset = toNativeOffset(target.offset);
     selectionRef.current = { start: offset, end: offset };
     setCaret({ start: offset, end: offset });
-    const frame = requestAnimationFrame(() => {
-      setCaret(null);
+  }
+
+  useEffect(() => {
+    if (pendingFocus?.id !== block.id) return;
+    placePending(pendingFocus);
+    if (nativeFocused.current) {
       onCaretPlaced(block.id);
-    });
-    frames.current.push(frame);
-    return () => cancelAnimationFrame(frame);
+      later(() => setCaret(null));
+      return;
+    }
+    inputRef.current?.focus();
   }, [pendingFocus, block.id, onCaretPlaced]);
 
   const style = useMemo(() => {
@@ -178,10 +196,20 @@ export const BlockInput = memo(function BlockInput({
   }
 
   function splitParagraph(left: string, right: string) {
+    const same =
+      emittedSplit.current &&
+      emittedSplit.current.left === left &&
+      emittedSplit.current.right === right;
+    if (same) {
+      draftsRef.current.set(block.id, left);
+      setText(left);
+      return;
+    }
     if (splitting.current) return;
-    splitting.current = true;
     draftsRef.current.set(block.id, left);
     setText(left);
+    emittedSplit.current = { left, right };
+    splitting.current = true;
     onComposing(block.id, false);
     onSplit(block.id, left, right);
     later(() => {
@@ -215,7 +243,11 @@ export const BlockInput = memo(function BlockInput({
       }}
     >
       <TextInput
-        ref={(node) => registerInput(block.id, node)}
+        ref={(node) => {
+          inputRef.current = node;
+          registerInput(block.id, node);
+        }}
+        autoFocus={pendingFocus?.id === block.id}
         nativeID={block.id}
         testID={resumeOffset != null ? "reading-caret-block" : `block-${block.id}`}
         multiline
@@ -245,7 +277,17 @@ export const BlockInput = memo(function BlockInput({
               isBackspaceAtStart(native, toLogicalOffset(selectionRef.current.start), toLogicalOffset(selectionRef.current.end))
             ) {
               mergeNow();
+              return;
             }
+            const range = native.range;
+            const inserted = native.text ?? "";
+            if (range) {
+              const caret = range.start + inserted.length;
+              selectionRef.current = { start: caret, end: caret };
+            }
+            if (native.isComposing || inserted !== "\n" || !range) return;
+            const at = splitAtOffset(text, toLogicalOffset(range.start));
+            splitParagraph(at.left, at.right);
           },
         } as Record<string, unknown>)}
         onChangeText={(next) => {
@@ -259,31 +301,42 @@ export const BlockInput = memo(function BlockInput({
             splitParagraph(split.left, split.right);
             return;
           }
+          emittedSplit.current = null;
           if (splitting.current) return;
           commitText(logical);
         }}
         onSubmitEditing={() => {
-          const at = splitAtOffset(text, toLogicalOffset(selectionRef.current.start));
-          splitParagraph(at.left, at.right);
+          const snapshot = text;
+          const start = toLogicalOffset(selectionRef.current.start);
+          later(() => {
+            if (emittedSplit.current) return;
+            const at = splitAtOffset(snapshot, start);
+            splitParagraph(at.left, at.right);
+          });
         }}
         onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
           selectionRef.current = e.nativeEvent.selection;
           onCaret(block.id, toLogicalOffset(e.nativeEvent.selection.start));
         }}
         onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-          const key = e.nativeEvent.key;
-          if (key === "Enter") {
-            const at = splitAtOffset(text, toLogicalOffset(selectionRef.current.start));
-            splitParagraph(at.left, at.right);
-            return;
-          }
-          if (key !== "Backspace") return;
+          // Enter used to split from selectionRef here. iOS often leaves that
+          // caret at 0, so Return emptied the paragraph and left a blank line
+          // in the one above. The newline in onTextInput / onChangeText is
+          // the real split point.
+          if (e.nativeEvent.key !== "Backspace") return;
           if (toLogicalOffset(selectionRef.current.start) === 0 && toLogicalOffset(selectionRef.current.end) === 0) {
             mergeNow();
           }
         }}
         onFocus={() => {
+          nativeFocused.current = true;
           onFocused(block.id);
+          if (pendingFocus?.id === block.id) {
+            placePending(pendingFocus);
+            onCaretPlaced(block.id);
+            later(() => setCaret(null));
+            return;
+          }
           if (!restored.current && resumeOffset != null) {
             restored.current = true;
             const offset = toNativeOffset(Math.min(resumeOffset, text.length));
@@ -292,7 +345,10 @@ export const BlockInput = memo(function BlockInput({
             later(() => setCaret(null));
           }
         }}
-        onBlur={() => onBlurred(block.id, text)}
+        onBlur={() => {
+          nativeFocused.current = false;
+          onBlurred(block.id, draftsRef.current.get(block.id) ?? text);
+        }}
         style={[
           style,
           {

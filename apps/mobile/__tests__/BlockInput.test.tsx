@@ -1,5 +1,5 @@
 import { StyleSheet, type TextInput } from "react-native";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { BlockInput, type BlockInputProps } from "../components/BlockInput";
 import { CARET_GUARD, toNativeOffset, withCaretGuard } from "../lib/editor-session";
 import type { ManuscriptBlock } from "../lib/manuscript";
@@ -55,6 +55,14 @@ function renderBlock(overrides: Partial<BlockInputProps> = {}) {
   };
   const result = render(<BlockInput {...props} />);
   return { ...result, props, draftsRef };
+}
+
+async function flushFrames() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
 }
 
 describe("BlockInput", () => {
@@ -115,7 +123,49 @@ describe("BlockInput", () => {
     expect(screen.getByTestId("block-b1").props.value).toBe(withCaretGuard(ORIGINAL));
   });
 
-  it("starts a new paragraph when Return does not insert a newline", () => {
+  it("does not split at offset 0 when the Return key fires before the newline", () => {
+    const onSplit = jest.fn();
+    renderBlock({ focused: true, onSplit });
+    const input = screen.getByTestId("block-b1");
+    fireEvent(input, "keyPress", { nativeEvent: { key: "Enter" } });
+    expect(onSplit).not.toHaveBeenCalled();
+    expect(input.props.value).toBe(withCaretGuard(ORIGINAL));
+  });
+
+  it("splits at the native newline when the caret report is still at the start", () => {
+    const onSplit = jest.fn();
+    renderBlock({ focused: true, onSplit });
+    const input = screen.getByTestId("block-b1");
+    fireEvent(input, "textInput", {
+      nativeEvent: {
+        text: "\n",
+        previousText: withCaretGuard(ORIGINAL),
+        range: { start: toNativeOffset(ORIGINAL.length), end: toNativeOffset(ORIGINAL.length) },
+      },
+    });
+    expect(onSplit).toHaveBeenCalledWith("b1", ORIGINAL, "");
+    expect(input.props.value).toBe(withCaretGuard(ORIGINAL));
+  });
+
+  it("strips a leftover Return newline without inserting a second paragraph", () => {
+    const onSplit = jest.fn();
+    renderBlock({ focused: true, onSplit });
+    const input = screen.getByTestId("block-b1");
+    fireEvent.changeText(input, `${ORIGINAL}\n`);
+    fireEvent.changeText(input, `${ORIGINAL}\n`);
+    expect(onSplit).toHaveBeenCalledTimes(1);
+    expect(onSplit).toHaveBeenCalledWith("b1", ORIGINAL, "");
+    expect(input.props.value).toBe(withCaretGuard(ORIGINAL));
+  });
+
+  it("inserts a paragraph before when Return lands at the start of the field", () => {
+    const onSplit = jest.fn();
+    renderBlock({ focused: true, onSplit });
+    fireEvent.changeText(screen.getByTestId("block-b1"), `\n${ORIGINAL}`);
+    expect(onSplit).toHaveBeenCalledWith("b1", "", ORIGINAL);
+  });
+
+  it("starts a new paragraph when Return does not insert a newline", async () => {
     const onSplit = jest.fn();
     renderBlock({ focused: true, onSplit });
     const input = screen.getByTestId("block-b1");
@@ -123,7 +173,53 @@ describe("BlockInput", () => {
       nativeEvent: { selection: { start: toNativeOffset(ORIGINAL.length), end: toNativeOffset(ORIGINAL.length) } },
     });
     fireEvent(input, "submitEditing");
+    await flushFrames();
     expect(onSplit).toHaveBeenCalledWith("b1", ORIGINAL, "");
+  });
+
+  it("does not empty the paragraph when submitEditing is stuck at offset 0", async () => {
+    const onSplit = jest.fn();
+    renderBlock({ focused: true, onSplit });
+    const input = screen.getByTestId("block-b1");
+    fireEvent(input, "submitEditing");
+    fireEvent.changeText(input, `${ORIGINAL}\n`);
+    await flushFrames();
+    expect(onSplit).toHaveBeenCalledTimes(1);
+    expect(onSplit).toHaveBeenCalledWith("b1", ORIGINAL, "");
+    expect(input.props.value).toBe(withCaretGuard(ORIGINAL));
+  });
+
+  it("places the pending caret only after the native field focuses", () => {
+    const onCaretPlaced = jest.fn();
+    renderBlock({ pendingFocus: { id: "b1", offset: 0 }, onCaretPlaced });
+    expect(onCaretPlaced).not.toHaveBeenCalled();
+    fireEvent(screen.getByTestId("block-b1"), "focus");
+    expect(onCaretPlaced).toHaveBeenCalledWith("b1");
+  });
+
+  it("applies an accepted correction to the live field", async () => {
+    const onCaretPlaced = jest.fn();
+    const draftsRef = { current: new Map([["b1", ORIGINAL]]) };
+    const corrected = "Hello this is the second test of the chapter writing.";
+    const { rerender, props } = renderBlock({
+      focused: true,
+      draftsRef,
+      onCaretPlaced,
+    });
+    fireEvent(screen.getByTestId("block-b1"), "focus");
+    rerender(
+      <BlockInput
+        {...props}
+        focused
+        draftsRef={draftsRef}
+        onCaretPlaced={onCaretPlaced}
+        pendingFocus={{ id: "b1", offset: corrected.length, text: corrected }}
+      />
+    );
+    await flushFrames();
+    expect(screen.getByTestId("block-b1").props.value).toBe(withCaretGuard(corrected));
+    expect(draftsRef.current.get("b1")).toBe(corrected);
+    expect(onCaretPlaced).toHaveBeenCalledWith("b1");
   });
 
   it("lets a paragraph grow instead of locking one line of height", () => {
