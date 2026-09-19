@@ -137,4 +137,69 @@ describe("ChapterEditor", () => {
     fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. More.");
     expect(onChangeText).toHaveBeenCalledWith("Hello there. More.");
   });
+
+  it("opens the long-press menu after a stationary hold", () => {
+    jest.useFakeTimers();
+    const onLongPress = jest.fn();
+    try {
+      render(
+        <ChapterEditor
+          chapterId="c1"
+          html={html}
+          editorStyle={editorStyle}
+          focused
+          resumeOffset={null}
+          onFocused={jest.fn()}
+          onBlurred={jest.fn()}
+          onChangeText={jest.fn()}
+          onChangeState={jest.fn()}
+          onChangeSelection={jest.fn()}
+          onLongPress={onLongPress}
+          registerEditor={jest.fn()}
+        />
+      );
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "touchStart", {
+        nativeEvent: { pageX: 12, pageY: 40 },
+      });
+      jest.advanceTimersByTime(419);
+      expect(onLongPress).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(1);
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("cancels a long-press when the finger moves", () => {
+    jest.useFakeTimers();
+    const onLongPress = jest.fn();
+    try {
+      render(
+        <ChapterEditor
+          chapterId="c1"
+          html={html}
+          editorStyle={editorStyle}
+          focused
+          resumeOffset={null}
+          onFocused={jest.fn()}
+          onBlurred={jest.fn()}
+          onChangeText={jest.fn()}
+          onChangeState={jest.fn()}
+          onChangeSelection={jest.fn()}
+          onLongPress={onLongPress}
+          registerEditor={jest.fn()}
+        />
+      );
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "touchStart", {
+        nativeEvent: { pageX: 12, pageY: 40 },
+      });
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "touchMove", {
+        nativeEvent: { pageX: 12, pageY: 80 },
+      });
+      jest.advanceTimersByTime(500);
+      expect(onLongPress).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

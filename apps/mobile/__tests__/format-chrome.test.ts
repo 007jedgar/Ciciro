@@ -1,4 +1,4 @@
-import { formatBarPlacement, headerBarOverlay, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../lib/format-chrome";
+import { formatBarPlacement, headerBarOverlay, hideFormatBarWhileTyping, overlayFormatChrome, showPressMenu, showSelectionBubble } from "../lib/format-chrome";
 
 describe("format chrome placement", () => {
   it("pins a smart header and a keyboard bar, and hides the header while typing", () => {
@@ -21,6 +21,21 @@ describe("format chrome placement", () => {
     expect(showPressMenu("press")).toBe(true);
     expect(showPressMenu("selection")).toBe(false);
     expect(showPressMenu("always")).toBe(false);
+  });
+
+  it("keeps highlight and long-press chips as overlays, not page flow", () => {
+    expect(
+      overlayFormatChrome({ chrome: "smart", selected: true, pressOpen: true, grammarOpen: false })
+    ).toEqual({ bubble: true, press: true });
+    expect(
+      overlayFormatChrome({ chrome: "smart", selected: true, pressOpen: false, grammarOpen: true })
+    ).toEqual({ bubble: false, press: false });
+    expect(
+      overlayFormatChrome({ chrome: "press", selected: false, pressOpen: true, grammarOpen: false })
+    ).toEqual({ bubble: false, press: true });
+    expect(
+      overlayFormatChrome({ chrome: "selection", selected: true, pressOpen: true, grammarOpen: false })
+    ).toEqual({ bubble: true, press: false });
   });
 
   it("hides the header by fading it, not by collapsing layout", () => {
