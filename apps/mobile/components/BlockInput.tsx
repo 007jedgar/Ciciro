@@ -14,6 +14,7 @@ import { FormatBubble } from "./FormatBubble";
 import { FormatPressMenu } from "./FormatPressMenu";
 import type { FormatBlockKind } from "./FormatBar";
 import {
+  caretAnchorFromLines,
   estimateSpanAnchor,
   placeCallout,
   spanAnchorFromLines,
@@ -98,8 +99,15 @@ function decorationLine(span: InlineSpan): "none" | "underline" | "line-through"
   return "none";
 }
 
-function spanStyle(span: InlineSpan, kind: BlockKind) {
+function spanStyle(
+  span: InlineSpan,
+  kind: BlockKind,
+  base: { fontFamily: string; fontSize: number; lineHeight: number }
+) {
   return {
+    fontFamily: base.fontFamily,
+    fontSize: base.fontSize,
+    lineHeight: base.lineHeight,
     fontWeight: (span.bold || kind === "heading" ? "600" : "400") as "600" | "400",
     fontStyle: (span.italic || kind === "quote" ? "italic" : "normal") as "italic" | "normal",
     textDecorationLine: decorationLine(span),
@@ -139,6 +147,8 @@ export const BlockInput = memo(function BlockInput({
   const nativeFocused = useRef(false);
   const [blockWidth, setBlockWidth] = useState(0);
   const [lines, setLines] = useState<TextLineMetrics[]>([]);
+  const [overlayLines, setOverlayLines] = useState<TextLineMetrics[]>([]);
+  const [logicalSel, setLogicalSel] = useState({ start: 0, end: 0 });
   const [popupSize, setPopupSize] = useState({ width: 240, height: 88 });
   const [bubbleSize, setBubbleSize] = useState({ width: 148, height: 40 });
   const splitting = useRef(false);
@@ -218,6 +228,14 @@ export const BlockInput = memo(function BlockInput({
 
   const align = block.kind === "scene_break" ? ("center" as const) : ("left" as const);
   const displayed = withCaretGuard(text);
+  const paintedCaret =
+    focused && logicalSel.start === logicalSel.end
+      ? (caretAnchorFromLines(overlayLines, logicalSel.start) ?? {
+          x: 0,
+          y: 0,
+          height: style.lineHeight,
+        })
+      : null;
 
   const measureLayout = Boolean(popup || formatBubble);
   const grammarAnchor = popup
@@ -342,10 +360,10 @@ export const BlockInput = memo(function BlockInput({
             color: editorStyle.color,
           },
         ]}
+        onTextLayout={(e) => setOverlayLines(e.nativeEvent.lines)}
       >
-        {CARET_GUARD}
         {spans.map((span, index) => (
-          <Text key={index} style={spanStyle(span, block.kind)}>
+          <Text key={index} style={spanStyle(span, block.kind, style)}>
             {span.text}
           </Text>
         ))}
@@ -426,6 +444,9 @@ export const BlockInput = memo(function BlockInput({
           selectionRef.current = e.nativeEvent.selection;
           const start = toLogicalOffset(e.nativeEvent.selection.start);
           const end = toLogicalOffset(e.nativeEvent.selection.end);
+          setLogicalSel((current) =>
+            current.start === start && current.end === end ? current : { start, end }
+          );
           onCaret(block.id, start, end);
         }}
         onKeyPress={(e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
@@ -481,9 +502,24 @@ export const BlockInput = memo(function BlockInput({
             backgroundColor: "transparent",
           },
         ]}
-        cursorColor={editorStyle.color}
+        cursorColor="transparent"
         selectionColor="rgba(90, 140, 180, 0.35)"
+        caretHidden
       />
+      {paintedCaret ? (
+        <View
+          testID={`block-${block.id}-caret`}
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: paintedCaret.x + ("paddingLeft" in style ? style.paddingLeft : 0),
+            top: paintedCaret.y,
+            width: 2,
+            height: paintedCaret.height,
+            backgroundColor: editorStyle.color,
+          }}
+        />
+      ) : null}
       {measureLayout ? (
         <Text
           pointerEvents="none"

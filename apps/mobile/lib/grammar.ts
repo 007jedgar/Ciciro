@@ -156,6 +156,30 @@ export function spanAnchorFromLines(
   };
 }
 
+export function caretAnchorFromLines(
+  lines: TextLineMetrics[],
+  offset: number
+): Pick<SpanAnchor, "x" | "y" | "height"> | null {
+  if (lines.length === 0 || offset < 0) return null;
+  let pos = 0;
+  for (const line of lines) {
+    const len = line.text.length;
+    const lineEnd = pos + len;
+    if (offset <= lineEnd) {
+      const local = Math.max(0, Math.min(len, offset - pos));
+      const frac = len === 0 ? 0 : local / len;
+      return {
+        x: line.x + frac * line.width,
+        y: line.y,
+        height: line.height || 22,
+      };
+    }
+    pos = lineEnd;
+  }
+  const last = lines[lines.length - 1];
+  return { x: last.x + last.width, y: last.y, height: last.height || 22 };
+}
+
 export function estimateSpanAnchor(opts: {
   text: string;
   start: number;

@@ -1,6 +1,7 @@
 import {
   applySpans,
   autoAcceptProgress,
+  caretAnchorFromLines,
   caretAfterSpans,
   acceptedCorrection,
   endedOnSentence,
@@ -103,6 +104,13 @@ describe("grammar helpers", () => {
       lineHeight: 24,
     }).y).toBe(0);
     expect(autoAcceptProgress(0, GRAMMAR_AUTO_ACCEPT_MS, 1500)).toBe(0.5);
+  });
+
+  it("places a caret at a collapsed offset on the painted line", () => {
+    const lines = [{ x: 0, y: 0, width: 200, height: 28, text: "Hello world." }];
+    expect(caretAnchorFromLines(lines, 0)).toEqual({ x: 0, y: 0, height: 28 });
+    expect(caretAnchorFromLines(lines, 12)).toEqual({ x: 200, y: 0, height: 28 });
+    expect(caretAnchorFromLines([], 0)).toBeNull();
   });
 });
 

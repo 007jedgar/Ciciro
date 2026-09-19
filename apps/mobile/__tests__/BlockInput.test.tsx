@@ -301,6 +301,30 @@ describe("BlockInput", () => {
     expect(field.right).toBe(0);
   });
 
+  it("keeps marked letters on the same typeface as the field", () => {
+    renderBlock({
+      block: {
+        ...block,
+        html: `<p data-block-id="b1"><em>Hello</em> this is first test of the chapter writing.</p>`,
+      },
+    });
+    const overlay = screen.getByTestId("block-b1-marks");
+    const italic = overlay.findAllByType(Text).filter((node) => {
+      const nested = StyleSheet.flatten(node.props.style);
+      return nested?.fontStyle === "italic" && node.props.children === "Hello";
+    });
+    expect(italic).toHaveLength(1);
+    expect(StyleSheet.flatten(italic[0].props.style).fontFamily).toBe("Georgia");
+    expect(StyleSheet.flatten(italic[0].props.style).fontSize).toBe(18);
+  });
+
+  it("paints the caret on the overlay so mixed marks cannot shove it through a letter", () => {
+    renderBlock({ focused: true });
+    fireEvent(screen.getByTestId("block-b1"), "focus");
+    expect(screen.getByTestId("block-b1").props.caretHidden).toBe(true);
+    expect(screen.getByTestId("block-b1-caret")).toBeTruthy();
+  });
+
   it("adopts the folded-in text when a merge sends the caret back", async () => {
     // Backspace at offset 0 lands on a paragraph that is already mounted and
     // already holds a draft entry, so neither sync effect will pick the merged
