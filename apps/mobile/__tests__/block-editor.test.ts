@@ -162,6 +162,9 @@ describe("block editor keystrokes", () => {
     });
     expect(merged.focusBlockId).toBe("b1");
     expect(merged.focusOffset).toBe("Hello".length);
+    // The survivor is already mounted with its own draft, so the folded-in
+    // tail has to ride along or the field paints the pre-merge sentence.
+    expect(merged.focusText).toBe("Hello world.");
     expect(mergeBlockOps(doc, "b1").ops).toEqual([]);
   });
 
@@ -176,11 +179,13 @@ describe("block editor keystrokes", () => {
     expect(result.ops[1]).toMatchObject({ type: "delete_block", blockId: "e1" });
     expect(result.focusBlockId).toBe("b2");
     expect(result.focusOffset).toBe(0);
+    expect(result.focusText).toBe('"Yes," I said.');
     const afterGap = applyOpsToDoc(doc, result.ops);
     const merged = backspaceAtStartOps(afterGap, "b2", '"Yes," I said.', seqIds("m"));
     expect(merged.ops.map((op) => op.type)).toEqual(["replace_block", "delete_block"]);
     expect(merged.focusBlockId).toBe("b1");
     expect(merged.focusOffset).toBe("Was that the airflow lady?".length);
+    expect(merged.focusText).toBe('Was that the airflow lady?"Yes," I said.');
   });
 
   it("serializes headings and quotes without flattening the tag", () => {

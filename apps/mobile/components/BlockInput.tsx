@@ -321,16 +321,18 @@ export const BlockInput = memo(function BlockInput({
         justifyContent: "flex-start",
       }}
     >
+      {/*
+        The painted prose is what sizes the paragraph. The native field below is
+        transparent and absolute, so its content height — which iOS reports a
+        frame or two late, and which still holds the Return newline while the
+        controlled value is being reconciled — can no longer shove the page.
+      */}
       <Text
         testID={`block-${block.id}-marks`}
         pointerEvents="none"
         style={[
           style,
           {
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: 0,
             padding: 0,
             margin: 0,
             minHeight: style.lineHeight,
@@ -465,6 +467,10 @@ export const BlockInput = memo(function BlockInput({
         style={[
           style,
           {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
             padding: 0,
             margin: 0,
             minHeight: style.lineHeight,

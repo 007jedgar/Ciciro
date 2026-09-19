@@ -29,6 +29,13 @@ export type BlockEditorResult = {
   ops: ManuscriptOp[];
   focusBlockId: string;
   focusOffset: number;
+  /**
+   * The text the focus block ends up holding, when this edit changed it. A
+   * merge folds one paragraph into a neighbour that is already mounted and
+   * already holds a draft entry, so the survivor cannot discover its new text
+   * from the document alone — it has to travel with the caret.
+   */
+  focusText?: string;
 };
 
 const defaultId = newBlockId;
@@ -354,11 +361,8 @@ export function backspaceAtStartOps(
   }
 
   const index = current.blocks.findIndex((block) => block.id === blockId);
-  if (index <= 0) {
-    return { ops: grouped(ops, ids), focusBlockId: blockId, focusOffset: 0 };
-  }
-  if (ops.length > 0) {
-    return { ops: grouped(ops, ids), focusBlockId: blockId, focusOffset: 0 };
+  if (index <= 0 || ops.length > 0) {
+    return { ops: grouped(ops, ids), focusBlockId: blockId, focusOffset: 0, focusText: text };
   }
 
   const merged = mergeBlockOps(current, blockId, text, opts);
@@ -366,6 +370,7 @@ export function backspaceAtStartOps(
     ops: grouped([...ops, ...merged.ops], ids),
     focusBlockId: merged.focusBlockId,
     focusOffset: merged.focusOffset,
+    focusText: merged.focusText,
   };
 }
 
@@ -410,7 +415,7 @@ export function mergeBlockOps(
   });
   ops.push(deleted.op);
 
-  return { ops: grouped(ops, ids), focusBlockId: prev.id, focusOffset: caret };
+  return { ops: grouped(ops, ids), focusBlockId: prev.id, focusOffset: caret, focusText: mergedText };
 }
 
 /** First keystroke in an empty chapter: insert a paragraph. */

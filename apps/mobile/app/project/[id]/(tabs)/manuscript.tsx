@@ -96,6 +96,7 @@ export default function ManuscriptScreen() {
   const inputs = useRef(new Map<string, TextInput>());
   const frozenResumeRef = useRef<{ chapterId: string; blockId: string; offset: number } | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const focusedIdRef = useRef<string | null>(null);
   const [pendingFocus, setPendingFocus] = useState<PendingFocus | null>(null);
   const pendingFocusRef = useRef(pendingFocus);
   pendingFocusRef.current = pendingFocus;
@@ -185,6 +186,25 @@ export default function ManuscriptScreen() {
     []
   );
 
+  // The ref lands before the next render, so a blur arriving after focus has
+  // already hopped to a sibling paragraph can tell itself apart from a blur
+  // that really left the editor.
+  const focusBlock = useCallback((id: string | null) => {
+    focusedIdRef.current = id;
+    setFocusedId(id);
+  }, []);
+
+  /**
+   * Return and Backspace are typing. They do not run through onDraft, so
+   * without this the smart header faded out mid-word and flashed back in the
+   * moment the author started a new paragraph.
+   */
+  const markTyping = useCallback(() => {
+    setTyping(true);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => setTyping(false), FORMAT_IDLE_MS);
+  }, []);
+
   const commitOps = useCallback(
     (ops: ManuscriptOp[]) => {
       const current = chapterRef.current;
@@ -267,15 +287,13 @@ export default function ManuscriptScreen() {
     (blockId: string, text: string) => {
       draftsRef.current.set(blockId, text);
       scheduleReplace(blockId, text);
-      setTyping(true);
+      markTyping();
       setFormatTarget((current) =>
         current.blockId === blockId && current.start !== current.end
           ? { blockId, start: 0, end: 0 }
           : current
       );
       setPressMenuId((current) => (current === blockId ? null : current));
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-      typingTimer.current = setTimeout(() => setTyping(false), FORMAT_IDLE_MS);
       const current = chapterRef.current;
       if (!current) return;
       grammarRef.current?.onKeystroke({
@@ -286,7 +304,7 @@ export default function ManuscriptScreen() {
         autoCorrect: settings.autoCorrect,
       });
     },
-    [scheduleReplace, settings.autoCorrect]
+    [markTyping, scheduleReplace, settings.autoCorrect]
   );
 
   const onComposing = useCallback(
@@ -325,12 +343,13 @@ export default function ManuscriptScreen() {
       grammarRef.current?.noteDraft(result.focusBlockId, right);
       draftsRef.current.set(blockId, left);
       draftsRef.current.set(result.focusBlockId, right);
+      markTyping();
       setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
       setEditingBlockId(result.focusBlockId);
-      setFocusedId(result.focusBlockId);
+      focusBlock(result.focusBlockId);
       commitOps(result.ops);
     },
-    [commitOps, firstBlockIds, setEditingBlockId]
+    [commitOps, firstBlockIds, focusBlock, markTyping, setEditingBlockId]
   );
 
   const onContinueAfterLast = useCallback(() => {
@@ -340,12 +359,12 @@ export default function ManuscriptScreen() {
     if (!live) {
       setPendingFocus({ id: last.id, offset: 0 });
       setEditingBlockId(last.id);
-      setFocusedId(last.id);
+      focusBlock(last.id);
       inputs.current.get(last.id)?.focus();
       return;
     }
     onSplit(last.id, live, "");
-  }, [blocks, onSplit, setEditingBlockId]);
+  }, [blocks, focusBlock, onSplit, setEditingBlockId]);
 
   const onMerge = useCallback(
     (blockId: string, text: string) => {
@@ -359,23 +378,32 @@ export default function ManuscriptScreen() {
       const doc = htmlToDoc(current.content, current.revision).doc;
       const result = backspaceAtStartOps(doc, blockId, text);
       if (result.ops.length === 0) return;
-      const next = applyOpsToDoc(doc, result.ops);
-      const focused = next.blocks.find((block) => block.id === result.focusBlockId);
+      const merged = result.focusText;
       for (const op of result.ops) {
         if (op.type === "delete_block") {
           draftsRef.current.delete(op.blockId);
           grammarRef.current?.forgetBlock(op.blockId);
         }
       }
-      if (focused) draftsRef.current.set(focused.id, focused.text);
       grammarRef.current?.forgetBlock(blockId);
-      if (focused) grammarRef.current?.noteDraft(focused.id, focused.text);
-      setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
+      if (merged != null) {
+        draftsRef.current.set(result.focusBlockId, merged);
+        grammarRef.current?.noteDraft(result.focusBlockId, merged);
+      }
+      markTyping();
+      // The surviving paragraph is already mounted and already holds a draft
+      // entry, so neither of BlockInput's sync effects will pick the folded-in
+      // tail up. It has to travel with the caret.
+      setPendingFocus({
+        id: result.focusBlockId,
+        offset: result.focusOffset,
+        text: merged,
+      });
       setEditingBlockId(result.focusBlockId);
-      setFocusedId(result.focusBlockId);
+      focusBlock(result.focusBlockId);
       commitOps(result.ops);
     },
-    [commitOps, setEditingBlockId]
+    [commitOps, focusBlock, markTyping, setEditingBlockId]
   );
 
   const onCaret = useCallback(
@@ -396,11 +424,11 @@ export default function ManuscriptScreen() {
 
   const onFocused = useCallback(
     (id: string) => {
-      setFocusedId(id);
+      focusBlock(id);
       setEditingBlockId(id);
       setPendingFocus((current) => (current && current.id !== id ? null : current));
     },
-    [setEditingBlockId]
+    [focusBlock, setEditingBlockId]
   );
 
   const onBlurred = useCallback(
@@ -410,15 +438,15 @@ export default function ManuscriptScreen() {
       grammarRef.current?.noteDraft(id, live);
       flushReplace(id, live);
       draftsRef.current.delete(id);
+      // Return and Backspace blur the old paragraph on their way to the new
+      // one. Only a blur that leaves the editor ends the typing window.
+      if (focusedIdRef.current !== id) return;
       setTyping(false);
       if (typingTimer.current) clearTimeout(typingTimer.current);
-      setFocusedId((current) => {
-        if (current !== id) return current;
-        setEditingBlockId(null);
-        return null;
-      });
+      focusBlock(null);
+      setEditingBlockId(null);
     },
-    [flushReplace, setEditingBlockId]
+    [flushReplace, focusBlock, setEditingBlockId]
   );
 
   const targetBlockId =
