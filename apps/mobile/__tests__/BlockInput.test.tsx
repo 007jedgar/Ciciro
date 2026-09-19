@@ -1,6 +1,12 @@
 import { StyleSheet, Text, type TextInput } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { BlockInput, type BlockInputProps } from "../components/BlockInput";
+import {
+  BlockInput,
+  CARET_GAP,
+  CARET_ITALIC_DEG,
+  caretPaintStyle,
+  type BlockInputProps,
+} from "../components/BlockInput";
 import { CARET_GUARD, toNativeOffset, withCaretGuard } from "../lib/editor-session";
 import type { ManuscriptBlock } from "../lib/manuscript";
 
@@ -329,7 +335,7 @@ describe("BlockInput", () => {
       },
     });
     const caret = StyleSheet.flatten(screen.getByTestId("block-b1-caret").props.style);
-    expect(caret.left).toBe(119);
+    expect(caret.left).toBe(120 + CARET_GAP);
     expect(caret.transform).toBeUndefined();
   });
 
@@ -345,8 +351,23 @@ describe("BlockInput", () => {
     fireEvent(screen.getByTestId("block-b1"), "selectionChange", {
       nativeEvent: { selection: { start: toNativeOffset(4), end: toNativeOffset(4) } },
     });
+    fireEvent(screen.getByTestId("block-b1-caret-probe"), "textLayout", {
+      nativeEvent: {
+        lines: [{ x: 0, y: 0, width: 80, height: 28, text: ORIGINAL.slice(0, 4) }],
+      },
+    });
     const caret = StyleSheet.flatten(screen.getByTestId("block-b1-caret").props.style);
-    expect(caret.transform).toEqual([{ skewX: "-13deg" }]);
+    const expected = caretPaintStyle({
+      x: 80,
+      y: 0,
+      height: 28,
+      paddingLeft: 0,
+      italic: true,
+      color: editorStyle.color,
+    });
+    expect(caret.transform).toEqual([{ skewX: `-${CARET_ITALIC_DEG}deg` }]);
+    expect(caret.left).toBe(expected.left);
+    expect(caret.left).toBeGreaterThan(80 + CARET_GAP);
   });
 
   it("adopts the folded-in text when a merge sends the caret back", async () => {
