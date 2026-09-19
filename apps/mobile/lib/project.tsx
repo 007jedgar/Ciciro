@@ -20,7 +20,7 @@ type ProjectState = {
     offset: number;
   }) => Promise<void>;
   recordChapterOp: ReturnType<typeof useProjectSync>["recordOp"];
-  setEditingBlockId: (id: string | null) => void;
+  setEditingBlockIds: (ids: string[]) => void;
 };
 
 const ProjectContext = createContext<ProjectState | null>(null);
@@ -35,14 +35,14 @@ export function ProjectProvider({
   const { t } = useTranslation();
   const query = useProjectQuery(projectId);
   const createChapter = useCreateChapterMutation();
-  const editingBlockIdRef = useRef<string | null>(null);
-  const sync = useProjectSync(projectId, { skipBlockIdRef: editingBlockIdRef });
+  const editingBlockIdsRef = useRef<string[]>([]);
+  const sync = useProjectSync(projectId, { skipBlockIdsRef: editingBlockIdsRef });
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const project = query.data ?? null;
   const restoredPosition = useRef<string | null>(null);
 
-  const setEditingBlockId = useCallback((id: string | null) => {
-    editingBlockIdRef.current = id;
+  const setEditingBlockIds = useCallback((ids: string[]) => {
+    editingBlockIdsRef.current = ids;
   }, []);
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export function ProjectProvider({
       readingPosition: sync.position,
       recordReadingPosition: sync.recordPosition,
       recordChapterOp: sync.recordOp,
-      setEditingBlockId,
+      setEditingBlockIds,
     }),
     [
       addChapter,
@@ -105,7 +105,7 @@ export function ProjectProvider({
       query.isPending,
       query.refetch,
       selectedChapterId,
-      setEditingBlockId,
+      setEditingBlockIds,
       sync.position,
       sync.recordOp,
       sync.recordPosition,

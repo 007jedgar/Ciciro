@@ -1,0 +1,64 @@
+import {
+  blockAtPlainOffset,
+  fromEnrichedHtml,
+  opsFromEnrichedHtml,
+  restampCiciroHtml,
+  toEnrichedHtml,
+} from "../lib/enriched-html";
+import { htmlToDoc } from "../lib/manuscript";
+
+describe("enriched html adapter", () => {
+  it("strips block ids and wraps lists for the native input", () => {
+    const ciciro =
+      '<p data-block-id="a">Hello <strong>there</strong>.</p><li data-block-id="b">Item</li><hr data-block-id="c" />';
+    expect(toEnrichedHtml(ciciro)).toBe(
+      "<p>Hello <b>there</b>.</p><ul><li>Item</li></ul><p>***</p>"
+    );
+  });
+
+  it("turns Enriched output into Ciciro blocks", () => {
+    const enriched =
+      "<html><b>Hi</b> <i>you</i><br><blockquote><p>Quoted</p></blockquote><ul><li>One</li></ul></html>";
+    const next = fromEnrichedHtml(enriched);
+    expect(next).toContain("<strong>Hi</strong>");
+    expect(next).toContain("<em>you</em>");
+    expect(next).toContain("<p></p>");
+    expect(next).toContain("<blockquote>Quoted</blockquote>");
+    expect(next).toContain("<li>One</li>");
+  });
+
+  it("keeps ids when a paragraph is only edited in place", () => {
+    const previous = '<p data-block-id="a">Hello.</p><p data-block-id="b">World.</p>';
+    const incoming = "<p>Hello there.</p><p>World.</p>";
+    const stamped = restampCiciroHtml(previous, incoming);
+    const ids = htmlToDoc(stamped, 0).doc.blocks.map((block) => block.id);
+    expect(ids).toEqual(["a", "b"]);
+    expect(stamped).toContain("Hello there.");
+  });
+
+  it("reuses the left id when Return splits a paragraph", () => {
+    const previous = '<p data-block-id="a">Hello world.</p><p data-block-id="b">Next.</p>';
+    const incoming = "<p>Hello</p><p>world.</p><p>Next.</p>";
+    const stamped = restampCiciroHtml(previous, incoming);
+    const blocks = htmlToDoc(stamped, 0).doc.blocks;
+    expect(blocks.map((block) => block.text)).toEqual(["Hello", "world.", "Next."]);
+    expect(blocks[0].id).toBe("a");
+    expect(blocks[2].id).toBe("b");
+    expect(blocks[1].id).not.toBe("a");
+    expect(blocks[1].id).not.toBe("b");
+  });
+
+  it("emits insert ops when a paragraph is added in the middle", () => {
+    const previous = '<p data-block-id="a">Hello.</p><p data-block-id="b">World.</p>';
+    const ops = opsFromEnrichedHtml(previous, "<p>Hello.</p><p>Inserted.</p><p>World.</p>", 3);
+    expect(ops.map((op) => op.type)).toEqual(["insert_block"]);
+    expect(ops[0]).toMatchObject({ type: "insert_block", afterBlockId: "a" });
+  });
+
+  it("maps a document caret onto the block it sits in", () => {
+    const html = '<p data-block-id="a">Hi</p><p data-block-id="b">There</p>';
+    expect(blockAtPlainOffset(html, 0)).toEqual({ blockId: "a", local: 0 });
+    expect(blockAtPlainOffset(html, 2)).toEqual({ blockId: "a", local: 2 });
+    expect(blockAtPlainOffset(html, 3)).toEqual({ blockId: "b", local: 0 });
+  });
+});
