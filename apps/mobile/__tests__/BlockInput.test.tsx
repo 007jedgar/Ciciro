@@ -203,6 +203,21 @@ describe("BlockInput", () => {
     expect(onCaret).toHaveBeenCalledWith("b1", 1, 2);
   });
 
+  it("pins a format bubble to a highlighted range", () => {
+    const onToggleMark = jest.fn();
+    renderBlock({
+      formatBubble: {
+        start: 1,
+        end: 5,
+        marks: { bold: false, italic: false, underline: false, strike: false },
+        onToggleMark,
+      },
+    });
+    expect(screen.getByTestId("format-bubble")).toBeTruthy();
+    fireEvent(screen.getByLabelText("Bold"), "pressIn");
+    expect(onToggleMark).toHaveBeenCalledWith("bold");
+  });
+
   it("does not empty the paragraph when submitEditing is stuck at offset 0", async () => {
     const onSplit = jest.fn();
     renderBlock({ focused: true, onSplit });

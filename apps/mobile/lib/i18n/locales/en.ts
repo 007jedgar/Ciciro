@@ -214,6 +214,7 @@ const en = {
     grammarA11y: "Grammar suggestion: {{original}} to {{replacement}}",
     grammarAutoAcceptA11y: "Auto-accepting in {{seconds}} seconds",
     formatBar: "Formatting",
+    formatSelection: "Selection format",
     formatBold: "Bold",
     formatItalic: "Italic",
     formatUnderline: "Underline",

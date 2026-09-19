@@ -25,6 +25,7 @@ import {
   retagBlockOps,
   splitOrInsertBlockOps,
   toggleBlockMarkOps,
+  emptyBlockMarks,
   type BlockMark,
 } from "../../../../lib/block-editor";
 import { applyPlainEdit, innerHtmlOf, marksCovering } from "../../../../lib/inline-html";
@@ -54,7 +55,7 @@ import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
-import { FORMAT_IDLE_MS, formatBarPlacement, hideFormatBarWhileTyping } from "../../../../lib/format-chrome";
+import { FORMAT_IDLE_MS, formatBarPlacement, hideFormatBarWhileTyping, showSelectionBubble } from "../../../../lib/format-chrome";
 
 function blockStyleFor(
   settings: { editorFont: "serif" | "sans"; editorFontSize: number },
@@ -110,7 +111,7 @@ export default function ManuscriptScreen() {
   const grammarRef = useRef<GrammarLoop | null>(null);
   const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0, end: 0 });
-  const [formatRange, setFormatRange] = useState({ start: 0, end: 0 });
+  const [formatTarget, setFormatTarget] = useState({ blockId: "", start: 0, end: 0 });
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
   const [typing, setTyping] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -266,6 +267,11 @@ export default function ManuscriptScreen() {
       draftsRef.current.set(blockId, text);
       scheduleReplace(blockId, text);
       setTyping(true);
+      setFormatTarget((current) =>
+        current.blockId === blockId && current.start !== current.end
+          ? { blockId, start: 0, end: 0 }
+          : current
+      );
       if (typingTimer.current) clearTimeout(typingTimer.current);
       typingTimer.current = setTimeout(() => setTyping(false), FORMAT_IDLE_MS);
       const current = chapterRef.current;
@@ -373,9 +379,9 @@ export default function ManuscriptScreen() {
   const onCaret = useCallback(
     (blockId: string, start: number, end: number) => {
       caretRef.current = { blockId, offset: start, end };
-      setFormatRange((current) =>
-        current.start === start && current.end === end ? current : { start, end }
-      );
+      if (start !== end) {
+        setFormatTarget({ blockId, start, end });
+      }
       const current = chapterRef.current;
       if (!current) return;
       if (caretTimer.current) clearTimeout(caretTimer.current);
@@ -413,16 +419,20 @@ export default function ManuscriptScreen() {
     [flushReplace, setEditingBlockId]
   );
 
-  const targetBlockId = focusedId ?? blocks[0]?.id ?? null;
+  const targetBlockId =
+    focusedId ??
+    (formatTarget.blockId || null) ??
+    blocks[0]?.id ??
+    null;
   const targetBlock = blocks.find((block) => block.id === targetBlockId) ?? null;
-  const targetLive = targetBlock
-    ? (draftsRef.current.get(targetBlock.id) ?? targetBlock.text)
-    : "";
-  const targetMarks = targetBlock
+  const markBlock =
+    (formatTarget.blockId && blocks.find((block) => block.id === formatTarget.blockId)) || targetBlock;
+  const markLive = markBlock ? (draftsRef.current.get(markBlock.id) ?? markBlock.text) : "";
+  const targetMarks = markBlock
     ? marksCovering(
-        applyPlainEdit(innerHtmlOf(targetBlock.html), targetLive),
-        formatRange.start,
-        formatRange.end
+        applyPlainEdit(innerHtmlOf(markBlock.html), markLive),
+        formatTarget.start,
+        formatTarget.end
       )
     : undefined;
   const targetKind: FormatBlockKind =
@@ -448,16 +458,18 @@ export default function ManuscriptScreen() {
   const onToggleMark = useCallback(
     (mark: BlockMark) => {
       const current = chapterRef.current;
-      if (!current || !targetBlockId) return;
+      const blockId =
+        formatTarget.start !== formatTarget.end ? formatTarget.blockId : targetBlockId;
+      if (!current || !blockId) return;
       const doc = htmlToDoc(current.content, current.revision).doc;
-      const live = draftsRef.current.get(targetBlockId);
+      const live = draftsRef.current.get(blockId);
       const range =
-        caretRef.current.blockId === targetBlockId
-          ? { start: caretRef.current.offset, end: caretRef.current.end }
+        formatTarget.blockId === blockId
+          ? { start: formatTarget.start, end: formatTarget.end }
           : undefined;
-      applyFormat(toggleBlockMarkOps(doc, targetBlockId, mark, live, undefined, range));
+      applyFormat(toggleBlockMarkOps(doc, blockId, mark, live, undefined, range));
     },
-    [applyFormat, targetBlockId]
+    [applyFormat, formatTarget.blockId, formatTarget.end, formatTarget.start, targetBlockId]
   );
 
   const onSetKind = useCallback(
@@ -666,6 +678,18 @@ export default function ManuscriptScreen() {
           resumeOffset={resume?.blockId === item.id ? resume.offset : null}
           pendingFocus={pendingFocus?.id === item.id ? pendingFocus : null}
           popup={grammarCallout && grammarSuggestion?.blockId === item.id ? grammarCallout : null}
+          formatBubble={
+            showSelectionBubble(settings.formatChrome, formatTarget.start !== formatTarget.end) &&
+            item.id === formatTarget.blockId &&
+            !(grammarCallout && grammarSuggestion?.blockId === item.id)
+              ? {
+                  start: formatTarget.start,
+                  end: formatTarget.end,
+                  marks: targetMarks ?? emptyBlockMarks(),
+                  onToggleMark,
+                }
+              : null
+          }
           draftsRef={draftsRef}
           onFocused={onFocused}
           onBlurred={onBlurred}

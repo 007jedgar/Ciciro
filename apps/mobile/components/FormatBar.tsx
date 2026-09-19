@@ -75,7 +75,7 @@ export function FormatBar({
       ]}
     >
       {markBtns.map((btn) => (
-        <Mark
+        <FormatMark
           key={btn.id}
           label={btn.label}
           a11y={btn.a11y}
@@ -90,7 +90,7 @@ export function FormatBar({
       ))}
       <View style={[styles.gap, { backgroundColor: colors.line }]} />
       {blockBtns.map((btn) => (
-        <Mark
+        <FormatMark
           key={btn.id}
           label={btn.label}
           a11y={btn.a11y}
@@ -104,7 +104,7 @@ export function FormatBar({
   );
 }
 
-function Mark({
+export function FormatMark({
   label,
   a11y,
   active,
@@ -112,8 +112,10 @@ function Mark({
   strike,
   underline,
   disabled,
+  compact = false,
   colors,
   onPress,
+  onPressIn,
 }: {
   label: string;
   a11y: string;
@@ -122,8 +124,10 @@ function Mark({
   strike?: boolean;
   underline?: boolean;
   disabled: boolean;
+  compact?: boolean;
   colors: { ink: string; accent: string; accentSoft: string };
-  onPress: () => void;
+  onPress?: () => void;
+  onPressIn?: () => void;
 }) {
   return (
     <Pressable
@@ -131,9 +135,10 @@ function Mark({
       accessibilityLabel={a11y}
       accessibilityState={{ selected: active, disabled }}
       onPress={onPress}
+      onPressIn={onPressIn}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.mark,
+        compact ? styles.markCompact : styles.mark,
         {
           backgroundColor: active ? colors.accentSoft : "transparent",
           opacity: disabled ? 0.4 : pressed ? 0.65 : 1,
@@ -143,7 +148,7 @@ function Mark({
       <Text
         style={{
           fontFamily: fonts.sans,
-          fontSize: 16,
+          fontSize: compact ? 14 : 16,
           fontWeight: "600",
           fontStyle: italic ? "italic" : "normal",
           textDecorationLine: strike ? "line-through" : underline ? "underline" : "none",
@@ -169,6 +174,13 @@ const styles = StyleSheet.create({
     minWidth: 36,
     height: 36,
     borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  markCompact: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },

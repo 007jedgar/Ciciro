@@ -8,6 +8,8 @@ import {
   type TextInputSelectionChangeEventData,
 } from "react-native";
 import { GrammarPopup } from "./GrammarPopup";
+import { FormatBubble } from "./FormatBubble";
+import type { BlockMark, BlockMarks } from "../lib/block-editor";
 import {
   estimateSpanAnchor,
   placeCallout,
@@ -52,6 +54,13 @@ export type PendingFocus = {
   text?: string;
 };
 
+export type FormatCallout = {
+  start: number;
+  end: number;
+  marks: BlockMarks;
+  onToggleMark: (mark: BlockMark) => void;
+};
+
 export type BlockInputProps = {
   block: ManuscriptBlock;
   editorStyle: EditorStyle;
@@ -60,6 +69,7 @@ export type BlockInputProps = {
   resumeOffset: number | null;
   pendingFocus: PendingFocus | null;
   popup: GrammarCallout | null;
+  formatBubble?: FormatCallout | null;
   draftsRef: MutableRefObject<Map<string, string>>;
   onFocused: (id: string) => void;
   onBlurred: (id: string, text: string) => void;
@@ -99,6 +109,7 @@ export const BlockInput = memo(function BlockInput({
   resumeOffset,
   pendingFocus,
   popup,
+  formatBubble = null,
   draftsRef,
   onFocused,
   onBlurred,
@@ -122,6 +133,7 @@ export const BlockInput = memo(function BlockInput({
   const [blockWidth, setBlockWidth] = useState(0);
   const [lines, setLines] = useState<TextLineMetrics[]>([]);
   const [popupSize, setPopupSize] = useState({ width: 240, height: 88 });
+  const [bubbleSize, setBubbleSize] = useState({ width: 148, height: 40 });
   const splitting = useRef(false);
   const merging = useRef(false);
   const emittedSplit = useRef<{ left: string; right: string } | null>(null);
@@ -200,7 +212,8 @@ export const BlockInput = memo(function BlockInput({
   const align = block.kind === "scene_break" ? ("center" as const) : ("left" as const);
   const displayed = withCaretGuard(text);
 
-  const anchor = popup
+  const measureLayout = Boolean(popup || formatBubble);
+  const grammarAnchor = popup
     ? spanAnchorFromLines(lines, popup.start, popup.end) ??
       estimateSpanAnchor({
         text,
@@ -212,10 +225,29 @@ export const BlockInput = memo(function BlockInput({
       })
     : null;
   const placed =
-    popup && anchor
+    popup && grammarAnchor
       ? placeCallout({
-          anchor,
+          anchor: grammarAnchor,
           popup: popupSize,
+          blockWidth: blockWidth || 320,
+        })
+      : null;
+  const bubbleAnchor = formatBubble
+    ? spanAnchorFromLines(lines, formatBubble.start, formatBubble.end) ??
+      estimateSpanAnchor({
+        text,
+        start: formatBubble.start,
+        end: formatBubble.end,
+        width: blockWidth || 320,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+      })
+    : null;
+  const bubblePlaced =
+    formatBubble && bubbleAnchor
+      ? placeCallout({
+          anchor: bubbleAnchor,
+          popup: bubbleSize,
           blockWidth: blockWidth || 320,
         })
       : null;
@@ -430,7 +462,7 @@ export const BlockInput = memo(function BlockInput({
         cursorColor={editorStyle.color}
         selectionColor="rgba(90, 140, 180, 0.35)"
       />
-      {popup ? (
+      {measureLayout ? (
         <Text
           pointerEvents="none"
           style={[style, { position: "absolute", opacity: 0, left: 0, width: blockWidth || "100%" }]}
@@ -438,6 +470,26 @@ export const BlockInput = memo(function BlockInput({
         >
           {text}
         </Text>
+      ) : null}
+      {bubblePlaced && formatBubble && !popup ? (
+        <View
+          pointerEvents="box-none"
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            if (!width || !height) return;
+            setBubbleSize((current) =>
+              current.width === width && current.height === height ? current : { width, height }
+            );
+          }}
+          style={{
+            position: "absolute",
+            top: bubblePlaced.top,
+            left: bubblePlaced.left,
+            zIndex: 6,
+          }}
+        >
+          <FormatBubble marks={formatBubble.marks} onToggleMark={formatBubble.onToggleMark} />
+        </View>
       ) : null}
       {popup && placed ? (
         <View
