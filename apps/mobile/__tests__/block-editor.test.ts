@@ -5,12 +5,14 @@ import {
   mergeBlockOps,
   newParagraphHtml,
   replaceBlockOps,
+  retagBlockOps,
   serializeBlockHtml,
   splitAtOffset,
   splitBlockOps,
   splitOrInsertBlockOps,
   tagOfHtml,
   takeReturnSplit,
+  toggleBlockMarkOps,
   backspaceAtStartOps,
 } from "../lib/block-editor";
 import { takePlaceholderBlockId } from "../lib/editor-session";
@@ -188,6 +190,27 @@ describe("block editor keystrokes", () => {
     expect(
       serializeBlockHtml({ id: "q", html: "<blockquote data-block-id=\"q\">Old</blockquote>" }, "New")
     ).toBe('<blockquote data-block-id="q">New</blockquote>');
+  });
+
+  it("keeps inline marks when the author keeps typing", () => {
+    expect(
+      serializeBlockHtml(
+        { id: "b", html: '<p data-block-id="b"><strong>Old</strong></p>' },
+        "New"
+      )
+    ).toBe('<p data-block-id="b"><strong>New</strong></p>');
+  });
+
+  it("retags a paragraph as a heading and toggles bold", () => {
+    const { doc } = htmlToDoc('<p data-block-id="b1">Night Watch</p>', 2);
+    const heading = retagBlockOps(doc, "b1", "heading", undefined, seqIds("h"));
+    expect(heading[0]).toMatchObject({
+      type: "replace_block",
+      html: '<h2 data-block-id="b1">Night Watch</h2>',
+    });
+    const next = applyOpsToDoc(doc, heading);
+    const bold = toggleBlockMarkOps(next, "b1", "bold", undefined, seqIds("b"));
+    expect(bold[0].html).toBe('<h2 data-block-id="b1"><strong>Night Watch</strong></h2>');
   });
 
   it("appends AI paragraphs after the last block", () => {

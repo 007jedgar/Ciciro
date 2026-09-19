@@ -35,13 +35,51 @@ export function escapeHtmlText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export type BlockMarks = {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+};
+
+export type BlockMark = keyof BlockMarks;
+
+export const HEADING_TAG = "h2";
+
+export function emptyBlockMarks(): BlockMarks {
+  return { bold: false, italic: false, underline: false, strike: false };
+}
+
+export function readBlockMarks(html: string): BlockMarks {
+  const inner = html.replace(/^<[^>]+>/i, "").replace(/<\/[a-z][a-z0-9]*>\s*$/i, "");
+  return {
+    bold: /<(strong|b)\b/i.test(inner),
+    italic: /<(em|i)\b/i.test(inner),
+    underline: /<u\b/i.test(inner),
+    strike: /<(s|strike|del)\b/i.test(inner),
+  };
+}
+
+export function wrapInnerHtml(text: string, marks: BlockMarks): string {
+  let inner = escapeHtmlText(text);
+  if (marks.strike) inner = `<s>${inner}</s>`;
+  if (marks.underline) inner = `<u>${inner}</u>`;
+  if (marks.italic) inner = `<em>${inner}</em>`;
+  if (marks.bold) inner = `<strong>${inner}</strong>`;
+  return inner;
+}
+
 /** Serialize plain text with the block's original tag so headings and quotes survive a flush. */
-export function serializeBlockHtml(block: Pick<ManuscriptBlock, "id" | "html">, text: string): string {
-  const tag = tagOfHtml(block.html);
+export function serializeBlockHtml(
+  block: Pick<ManuscriptBlock, "id" | "html">,
+  text: string,
+  marks: BlockMarks = readBlockMarks(block.html),
+  tag = tagOfHtml(block.html)
+): string {
   if (tag === "hr") {
     return `<hr data-block-id="${block.id}" />`;
   }
-  return `<${tag} data-block-id="${block.id}">${escapeHtmlText(text)}</${tag}>`;
+  return `<${tag} data-block-id="${block.id}">${wrapInnerHtml(text, marks)}</${tag}>`;
 }
 
 export function newParagraphHtml(blockId: string, text: string): string {
@@ -109,6 +147,63 @@ export function replaceBlockOps(
     type: "replace_block",
     blockId,
     html: serializeBlockHtml(found.block, text),
+  });
+  return [op];
+}
+
+const BLOCK_TAGS = {
+  paragraph: "p",
+  heading: HEADING_TAG,
+  quote: "blockquote",
+  list_item: "li",
+} as const;
+
+export function retagBlockOps(
+  doc: ManuscriptDoc,
+  blockId: string,
+  kind: keyof typeof BLOCK_TAGS,
+  currentText?: string,
+  opts?: BlockEditorIds
+): ManuscriptOp[] {
+  const found = findBlock(doc, blockId);
+  if (!found) return [];
+  const text = currentText ?? found.block.text;
+  const html = serializeBlockHtml(found.block, text, readBlockMarks(found.block.html), BLOCK_TAGS[kind]);
+  if (html === found.block.html) return [];
+  const ids = idsOf(opts);
+  const { op } = emit(doc, {
+    opId: ids.createOpId(),
+    baseRevision: doc.revision,
+    actor: ids.actor,
+    type: "replace_block",
+    blockId,
+    html,
+  });
+  return [op];
+}
+
+export function toggleBlockMarkOps(
+  doc: ManuscriptDoc,
+  blockId: string,
+  mark: BlockMark,
+  currentText?: string,
+  opts?: BlockEditorIds
+): ManuscriptOp[] {
+  const found = findBlock(doc, blockId);
+  if (!found) return [];
+  const text = currentText ?? found.block.text;
+  const marks = readBlockMarks(found.block.html);
+  marks[mark] = !marks[mark];
+  const html = serializeBlockHtml(found.block, text, marks);
+  if (html === found.block.html) return [];
+  const ids = idsOf(opts);
+  const { op } = emit(doc, {
+    opId: ids.createOpId(),
+    baseRevision: doc.revision,
+    actor: ids.actor,
+    type: "replace_block",
+    blockId,
+    html,
   });
   return [op];
 }
