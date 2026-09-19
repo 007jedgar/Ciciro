@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -14,18 +12,10 @@ import {
   setCachedUser,
   setSessionToken,
 } from "./session-store";
+import { SessionContext } from "./session-context";
 import type { PublicUser } from "./types";
 
-type SessionState = {
-  user: PublicUser | null;
-  ready: boolean;
-  refresh: () => Promise<void>;
-  login: (email: string, password: string) => Promise<PublicUser>;
-  signup: (input: { email: string; password: string; name?: string }) => Promise<PublicUser>;
-  logout: () => Promise<void>;
-};
-
-const SessionContext = createContext<SessionState | null>(null);
+export { useSession, type SessionState } from "./session-context";
 
 function rememberUser(user: PublicUser | null): void {
   setCachedUser(user);
@@ -119,10 +109,4 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
-}
-
-export function useSession(): SessionState {
-  const ctx = useContext(SessionContext);
-  if (!ctx) throw new Error("useSession must be used within SessionProvider");
-  return ctx;
 }
