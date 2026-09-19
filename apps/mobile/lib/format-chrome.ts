@@ -11,3 +11,12 @@ export function formatBarPlacement(chrome: FormatChrome): "header" | "accessory"
 export function hideFormatBarWhileTyping(chrome: FormatChrome, typing: boolean): boolean {
   return chrome === "smart" && typing;
 }
+
+export function showSelectionBubble(chrome: FormatChrome, selected: boolean): boolean {
+  if (!selected) return false;
+  return chrome === "smart" || chrome === "selection";
+}
+
+export function showPressMenu(chrome: FormatChrome): boolean {
+  return chrome === "smart" || chrome === "press";
+}

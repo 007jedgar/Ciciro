@@ -215,6 +215,7 @@ const hi: Translations = {
     grammarA11y: "व्याकरण सुझाव: {{original}} से {{replacement}}",
     grammarAutoAcceptA11y: "{{seconds}} सेकंड में अपने आप स्वीकार होगा",
     formatBar: "फ़ॉर्मैटिंग",
+    formatSelection: "चयन फ़ॉर्मैट",
     formatBold: "बोल्ड",
     formatItalic: "इटैलिक",
     formatUnderline: "रेखांकित",

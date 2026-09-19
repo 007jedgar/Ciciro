@@ -214,6 +214,7 @@ const zh: Translations = {
     grammarA11y: "语法建议：将 {{original}} 改为 {{replacement}}",
     grammarAutoAcceptA11y: "{{seconds}} 秒后自动接受",
     formatBar: "格式",
+    formatSelection: "选中格式",
     formatBold: "粗体",
     formatItalic: "斜体",
     formatUnderline: "下划线",

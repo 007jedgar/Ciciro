@@ -216,6 +216,7 @@ const es: Translations = {
     grammarA11y: "Sugerencia gramatical: {{original}} por {{replacement}}",
     grammarAutoAcceptA11y: "Se aceptará automáticamente en {{seconds}} segundos",
     formatBar: "Formato",
+    formatSelection: "Formato de la selección",
     formatBold: "Negrita",
     formatItalic: "Cursiva",
     formatUnderline: "Subrayado",
