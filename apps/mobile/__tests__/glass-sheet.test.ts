@@ -1,6 +1,6 @@
 import {
   glassSheetFillColors,
-  glassSheetGlowColors,
+  glassSheetRimColors,
   mixHex,
   pickSnapOffset,
   resolveGlassSnapHeights,
@@ -49,11 +49,11 @@ describe("glass sheet", () => {
     expect(pickSnapOffset(20, [300], 300, 1_800)).toBe("dismiss");
   });
 
-  it("keeps the accent in the glow loop so the border can hue-shift around it", () => {
-    const glow = glassSheetGlowColors("#b4552d");
-    expect(glow[0]).toBe("#b4552d");
-    expect(glow[glow.length - 1]).toBe("#b4552d");
-    expect(glow.length).toBeGreaterThan(3);
+  it("draws a quiet pane rim instead of a hue-shifting glow", () => {
+    const rim = glassSheetRimColors(true);
+    expect(rim[0].startsWith("#ffffff")).toBe(true);
+    expect(rim.length).toBe(3);
+    expect(parseInt(rim[0].slice(7), 16)).toBeLessThan(parseInt("80", 16));
   });
 
   it("rounds only the top corners and runs the shape off the bottom", () => {
@@ -67,16 +67,19 @@ describe("glass sheet", () => {
     expect(inset).toContain("L 389 372");
   });
 
-  it("fills the pane nearly opaque so nothing behind it reads through", () => {
+  it("fills the pane as frost, not a solid slab", () => {
     for (const [dark, panel] of [
       [true, "#221e19"],
       [false, "#faf6ef"],
     ] as const) {
       const [top, bottom] = glassSheetFillColors(dark, panel);
       expect(top).toMatch(/^#[0-9a-f]{8}$/);
-      expect(parseInt(top.slice(7), 16) / 255).toBeGreaterThan(0.9);
-      expect(parseInt(bottom.slice(7), 16) / 255).toBeGreaterThan(0.95);
-      // A visible wash: the top of the pane is lighter than its bottom.
+      const topA = parseInt(top.slice(7), 16) / 255;
+      const bottomA = parseInt(bottom.slice(7), 16) / 255;
+      expect(topA).toBeGreaterThan(0.3);
+      expect(topA).toBeLessThan(0.7);
+      expect(bottomA).toBeGreaterThan(topA);
+      expect(bottomA).toBeLessThan(0.85);
       expect(parseInt(top.slice(1, 3), 16)).toBeGreaterThan(parseInt(bottom.slice(1, 3), 16));
     }
     expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080");
