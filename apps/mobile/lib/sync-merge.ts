@@ -25,7 +25,7 @@ export type ApplyOpsResult =
     };
 
 export type ApplyRemoteOpsOptions = {
-  /** Leave these blocks' HTML alone so a focused TextInput is not clobbered. */
+  /** Leave these blocks' HTML alone so a focused editor is not clobbered. */
   skipBlockIds?: Iterable<string>;
 };
 

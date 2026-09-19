@@ -210,7 +210,6 @@ const es: Translations = {
   manuscript: {
     noChapters: "Este manuscrito aún no tiene capítulos.",
     emptyChapter: "Este capítulo está vacío. Escríbelo en el editor web.",
-    continueWriting: "Seguir escribiendo",
     grammarAccept: "Aceptar",
     grammarIgnore: "Ignorar",
     grammarA11y: "Sugerencia gramatical: {{original}} por {{replacement}}",

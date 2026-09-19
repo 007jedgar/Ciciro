@@ -2,19 +2,11 @@ import type { ManuscriptBlock } from "../lib/manuscript";
 import {
   assignChapterSlice,
   assignChaptersFromSnapshots,
-  CARET_GUARD,
   freezeResumePlace,
-  isBackspaceAtStart,
-  isGuardDeleted,
   overlayReplicaChapters,
   reuseUnchangedBlocks,
   sameLocalDoc,
   sameReadingPosition,
-  stripCaretGuard,
-  takePlaceholderBlockId,
-  toLogicalOffset,
-  toNativeOffset,
-  withCaretGuard,
 } from "../lib/editor-session";
 
 const block = (id: string, text: string): ManuscriptBlock => ({
@@ -64,39 +56,6 @@ describe("editor session identity", () => {
     expect(sameLocalDoc({ chapterId: "c1", content: "<p>Hi</p>", revision: 2 }, { chapterId: "c1", content: "<p>Hi</p>", revision: 2 })).toBe(
       true
     );
-  });
-});
-
-describe("caret guard", () => {
-  it("treats deleting the leading guard as backspace at the visual start", () => {
-    const displayed = withCaretGuard('"Yes," I said.');
-    expect(displayed.startsWith(CARET_GUARD)).toBe(true);
-    expect(isGuardDeleted('"Yes," I said.', displayed)).toBe(true);
-    expect(isGuardDeleted("X", displayed)).toBe(false);
-    expect(stripCaretGuard(displayed)).toBe('"Yes," I said.');
-    expect(toLogicalOffset(toNativeOffset(0))).toBe(0);
-  });
-
-  it("detects a native backspace delta at offset 0", () => {
-    expect(isBackspaceAtStart({ key: "Backspace" }, 0, 0)).toBe(true);
-    expect(isBackspaceAtStart({ text: "", range: { start: 0, end: 0 } }, 0, 0)).toBe(true);
-    expect(isBackspaceAtStart({ text: "", range: { start: 3, end: 4 } }, 4, 4)).toBe(false);
-    expect(isBackspaceAtStart({ text: "", range: { start: 0, end: 0 }, isComposing: true }, 0, 0)).toBe(
-      false
-    );
-  });
-});
-
-describe("placeholder block ids", () => {
-  it("hands the empty-chapter id to the first insert only", () => {
-    const empty = { current: "draft-block" as string | null };
-    expect(takePlaceholderBlockId(empty)).toBe("draft-block");
-    expect(empty.current).toBeNull();
-    const second = takePlaceholderBlockId(empty);
-    const third = takePlaceholderBlockId(empty);
-    expect(second).not.toBe("draft-block");
-    expect(third).not.toBe("draft-block");
-    expect(second).not.toBe(third);
   });
 });
 

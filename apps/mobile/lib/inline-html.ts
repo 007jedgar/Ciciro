@@ -11,8 +11,6 @@ export type InlineMarks = {
 
 export type InlineSpan = InlineMarks & { text: string };
 
-export type InlineMark = keyof InlineMarks;
-
 export function emptyInlineMarks(): InlineMarks {
   return { bold: false, italic: false, underline: false, strike: false };
 }
@@ -138,50 +136,6 @@ function fromChars(text: string, chars: readonly InlineMarks[]): InlineSpan[] {
   return spans;
 }
 
-export function marksCovering(inner: string, start: number, end: number): InlineMarks {
-  const spans = parseInlineHtml(inner);
-  const text = spansToText(spans);
-  if (text.length === 0) return emptyInlineMarks();
-  if (start === end) {
-    const at = start < text.length ? start : Math.max(0, text.length - 1);
-    const chars = toChars(spans);
-    return chars[at] ? { ...chars[at]! } : emptyInlineMarks();
-  }
-  const from = Math.max(0, Math.min(start, text.length));
-  const to = Math.max(from, Math.min(end, text.length));
-  const chars = toChars(spans);
-  const slice = chars.slice(from, to);
-  if (slice.length === 0) return emptyInlineMarks();
-  return {
-    bold: slice.every((mark) => mark.bold),
-    italic: slice.every((mark) => mark.italic),
-    underline: slice.every((mark) => mark.underline),
-    strike: slice.every((mark) => mark.strike),
-  };
-}
-
-export function toggleMarkInRange(inner: string, start: number, end: number, mark: InlineMark): string {
-  const spans = parseInlineHtml(inner);
-  const text = spansToText(spans);
-  let from = Math.max(0, Math.min(start, text.length));
-  let to = Math.max(0, Math.min(end, text.length));
-  if (from === to) {
-    if (text.length === 0) return inner;
-    if (from < text.length) to = from + 1;
-    else from = Math.max(0, from - 1);
-  }
-  if (from === to) return inner;
-  const chars = toChars(spans);
-  const covering = chars.slice(from, to);
-  const nextOn = !covering.every((item) => item[mark]);
-  for (let i = from; i < to; i++) {
-    const current = chars[i];
-    if (!current) continue;
-    chars[i] = { ...current, [mark]: nextOn };
-  }
-  return serializeInlineHtml(fromChars(text, chars));
-}
-
 export function applyPlainEdit(inner: string, nextText: string, insertMarks?: InlineMarks): string {
   const spans = parseInlineHtml(inner);
   const oldText = spansToText(spans);
@@ -204,42 +158,4 @@ export function applyPlainEdit(inner: string, nextText: string, insertMarks?: In
     emptyInlineMarks();
   const nextChars = [...chars.slice(0, prefix), ...inserted.split("").map(() => ({ ...inherited })), ...chars.slice(oldEnd)];
   return serializeInlineHtml(fromChars(nextText, nextChars));
-}
-
-export function splitInnerHtml(inner: string, offset: number): { left: string; right: string } {
-  const spans = parseInlineHtml(inner);
-  const text = spansToText(spans);
-  const at = Math.max(0, Math.min(offset, text.length));
-  const chars = toChars(spans);
-  return {
-    left: serializeInlineHtml(fromChars(text.slice(0, at), chars.slice(0, at))),
-    right: serializeInlineHtml(fromChars(text.slice(at), chars.slice(at))),
-  };
-}
-
-/** Spans for the painted prefix in front of a collapsed caret. */
-export function spansThroughOffset(spans: readonly InlineSpan[], offset: number): InlineSpan[] {
-  let remaining = Math.max(0, offset);
-  const next: InlineSpan[] = [];
-  for (const span of spans) {
-    if (remaining <= 0) break;
-    const take = Math.min(span.text.length, remaining);
-    if (take > 0) next.push({ ...span, text: span.text.slice(0, take) });
-    remaining -= take;
-  }
-  return next;
-}
-
-/** Italic at the insertion point follows the character before the caret. */
-export function italicAtOffset(spans: readonly InlineSpan[], offset: number): boolean {
-  const text = spansToText(spans);
-  if (text.length === 0) return false;
-  const at = Math.max(0, Math.min(offset > 0 ? offset - 1 : 0, text.length - 1));
-  let i = 0;
-  for (const span of spans) {
-    const end = i + span.text.length;
-    if (at < end) return span.italic;
-    i = end;
-  }
-  return false;
 }

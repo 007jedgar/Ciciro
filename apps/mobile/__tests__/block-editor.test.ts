@@ -1,21 +1,11 @@
 import { htmlToDoc } from "../lib/manuscript";
 import {
-  applyOpsToDoc,
   appendParagraphsOps,
-  mergeBlockOps,
   newParagraphHtml,
   replaceBlockOps,
-  retagBlockOps,
   serializeBlockHtml,
-  splitAtOffset,
-  splitBlockOps,
-  splitOrInsertBlockOps,
   tagOfHtml,
-  takeReturnSplit,
-  toggleBlockMarkOps,
-  backspaceAtStartOps,
 } from "../lib/block-editor";
-import { takePlaceholderBlockId } from "../lib/editor-session";
 
 function seqIds(prefix: string) {
   let n = 0;
@@ -25,8 +15,8 @@ function seqIds(prefix: string) {
   };
 }
 
-describe("block editor keystrokes", () => {
-  it("turns typing into a replace_block that keeps the original tag", () => {
+describe("block editor", () => {
+  it("turns a text replace into a replace_block that keeps the original tag", () => {
     const { doc } = htmlToDoc(
       '<h2 data-block-id="h1">Night</h2><blockquote data-block-id="q1">Quiet.</blockquote>',
       4
@@ -52,198 +42,19 @@ describe("block editor keystrokes", () => {
     });
   });
 
-  it("splits on return into replace_block + insert_block", () => {
-    const { doc } = htmlToDoc('<p data-block-id="b1">Hello world.</p>', 2);
-    const mid = splitBlockOps(doc, "b1", "Hello", " world.", seqIds("s"));
-    expect(mid.ops.map((op) => op.type)).toEqual(["replace_block", "insert_block"]);
-    expect(mid.ops[0]).toMatchObject({
-      type: "replace_block",
-      blockId: "b1",
-      baseRevision: 2,
-      html: '<p data-block-id="b1">Hello</p>',
-    });
-    expect(mid.ops[1]).toMatchObject({
-      type: "insert_block",
-      afterBlockId: "b1",
-      baseRevision: 3,
-      html: newParagraphHtml("s-block-2", " world."),
-    });
-    expect(mid.focusBlockId).toBe("s-block-2");
-    expect(mid.focusOffset).toBe(0);
-
-    const atEnd = splitBlockOps(doc, "b1", "Hello world.", "", seqIds("e"));
-    expect(atEnd.ops).toHaveLength(1);
-    expect(atEnd.ops[0]).toMatchObject({
-      type: "insert_block",
-      afterBlockId: "b1",
-      baseRevision: 2,
-      html: '<p data-block-id="e-block-1"></p>',
-    });
-    expect(atEnd.focusBlockId).toBe("e-block-1");
-
-    const atStart = splitBlockOps(doc, "b1", "", "Hello world.", seqIds("t"));
-    expect(atStart.focusBlockId).toBe("b1");
-
-    const { doc: blank } = htmlToDoc('<p data-block-id="e1"></p>', 1);
-    const another = splitBlockOps(blank, "e1", "", "", seqIds("n"));
-    expect(another.ops).toHaveLength(1);
-    expect(another.ops[0]).toMatchObject({ type: "insert_block", afterBlockId: "e1" });
-    expect(another.focusBlockId).toBe("n-block-1");
-  });
-
-  it("turns a Return character into a left/right paragraph split", () => {
-    expect(takeReturnSplit("Hello world.")).toBeNull();
-    expect(takeReturnSplit("Hello\nworld.")).toEqual({ left: "Hello", right: "world." });
-    expect(takeReturnSplit("Hello\n\nworld.")).toEqual({ left: "Hello", right: "world." });
-    expect(splitAtOffset("Hello world.", 5)).toEqual({ left: "Hello", right: " world." });
-  });
-
-  it("still inserts a new paragraph when Return hits a block the committed HTML does not know", () => {
-    const { doc } = htmlToDoc('<p data-block-id="b1">Hello world.</p>', 2);
-    const missing = splitOrInsertBlockOps(doc, "ghost", "Hello world.", "", seqIds("g"));
-    expect(missing.ops).toHaveLength(1);
-    expect(missing.ops[0]).toMatchObject({
-      type: "insert_block",
-      afterBlockId: "b1",
-      html: newParagraphHtml("g-block-1", ""),
-    });
-    expect(missing.focusBlockId).toBe("g-block-1");
-
-    const empty = splitOrInsertBlockOps(
-      { revision: 0, blocks: [] },
-      "draft-block",
-      "Hello.",
-      "Next.",
-      seqIds("z")
-    );
-    expect(empty.ops.map((op) => op.type)).toEqual(["insert_block", "insert_block"]);
-    expect(empty.focusBlockId).toBe("z-block-3");
-  });
-
-  it("does not reuse the empty-chapter placeholder for the paragraph Return inserts", () => {
-    const empty = { current: "draft-block" as string | null };
-    let ops = 0;
-    const result = splitOrInsertBlockOps(
-      { revision: 0, blocks: [] },
-      "draft-block",
-      "Hello.",
-      "",
-      {
-        createBlockId: () => takePlaceholderBlockId(empty),
-        createOpId: () => `op-${++ops}`,
-      }
-    );
-    const ids = result.ops
-      .filter((op): op is Extract<(typeof result.ops)[number], { type: "insert_block" }> => op.type === "insert_block")
-      .map((op) => op.blockId);
-    expect(ids).toHaveLength(2);
-    expect(ids[0]).toBe("draft-block");
-    expect(ids[1]).not.toBe("draft-block");
-    expect(new Set(ids).size).toBe(2);
-  });
-
-  it("merges on backspace at offset 0 into replace_block + delete_block", () => {
-    const { doc } = htmlToDoc(
-      '<p data-block-id="b1">Hello</p><p data-block-id="b2"> world.</p>',
-      7
-    );
-    const merged = mergeBlockOps(doc, "b2", " world.", seqIds("m"));
-    expect(merged.ops.map((op) => op.type)).toEqual(["replace_block", "delete_block"]);
-    expect(merged.ops[0]).toMatchObject({
-      type: "replace_block",
-      blockId: "b1",
-      baseRevision: 7,
-      html: '<p data-block-id="b1">Hello world.</p>',
-    });
-    expect(merged.ops[1]).toMatchObject({
-      type: "delete_block",
-      blockId: "b2",
-      baseRevision: 8,
-    });
-    expect(merged.focusBlockId).toBe("b1");
-    expect(merged.focusOffset).toBe("Hello".length);
-    // The survivor is already mounted with its own draft, so the folded-in
-    // tail has to ride along or the field paints the pre-merge sentence.
-    expect(merged.focusText).toBe("Hello world.");
-    expect(mergeBlockOps(doc, "b1").ops).toEqual([]);
-  });
-
-  it("removes one empty paragraph per Backspace instead of collapsing the whole gap", () => {
-    const { doc } = htmlToDoc(
-      '<p data-block-id="b1">Was that the airflow lady?</p><p data-block-id="e1"></p><p data-block-id="e2"></p><p data-block-id="e3"></p>',
-      4
-    );
-    const first = backspaceAtStartOps(doc, "e3", "", seqIds("k"));
-    expect(first.ops.map((op) => op.type)).toEqual(["delete_block"]);
-    expect(first.ops[0]).toMatchObject({ type: "delete_block", blockId: "e3" });
-    expect(first.focusBlockId).toBe("e2");
-    expect(first.focusText).toBe("");
-    const afterOne = applyOpsToDoc(doc, first.ops);
-    expect(afterOne.blocks.map((block) => block.id)).toEqual(["b1", "e1", "e2"]);
-
-    const second = backspaceAtStartOps(afterOne, "e2", "", seqIds("n"));
-    expect(applyOpsToDoc(afterOne, second.ops).blocks.map((block) => block.id)).toEqual(["b1", "e1"]);
-  });
-
-  it("folds a sentence into the paragraph above on Backspace at offset 0", () => {
-    const { doc } = htmlToDoc(
-      '<p data-block-id="b1">Was that the airflow lady?</p><p data-block-id="b2">"Yes," I said.</p>',
-      4
-    );
-    const merged = backspaceAtStartOps(doc, "b2", '"Yes," I said.', seqIds("m"));
-    expect(merged.ops.map((op) => op.type)).toEqual(["replace_block", "delete_block"]);
-    expect(merged.focusBlockId).toBe("b1");
-    expect(merged.focusOffset).toBe("Was that the airflow lady?".length);
-    expect(merged.focusText).toBe('Was that the airflow lady?"Yes," I said.');
-  });
-
   it("serializes headings and quotes without flattening the tag", () => {
     expect(
-      serializeBlockHtml({ id: "h", html: "<h3 data-block-id=\"h\">Old</h3>" }, "New")
+      serializeBlockHtml({ id: "h", html: '<h3 data-block-id="h">Old</h3>' }, "New")
     ).toBe('<h3 data-block-id="h">New</h3>');
     expect(
-      serializeBlockHtml({ id: "q", html: "<blockquote data-block-id=\"q\">Old</blockquote>" }, "New")
+      serializeBlockHtml({ id: "q", html: '<blockquote data-block-id="q">Old</blockquote>' }, "New")
     ).toBe('<blockquote data-block-id="q">New</blockquote>');
   });
 
   it("keeps inline marks when the author keeps typing", () => {
     expect(
-      serializeBlockHtml(
-        { id: "b", html: '<p data-block-id="b"><strong>Old</strong></p>' },
-        "New"
-      )
+      serializeBlockHtml({ id: "b", html: '<p data-block-id="b"><strong>Old</strong></p>' }, "New")
     ).toBe('<p data-block-id="b"><strong>New</strong></p>');
-  });
-
-  it("retags a paragraph as a heading and toggles bold", () => {
-    const { doc } = htmlToDoc('<p data-block-id="b1">Night Watch</p>', 2);
-    const heading = retagBlockOps(doc, "b1", "heading", undefined, seqIds("h"));
-    expect(heading[0]).toMatchObject({
-      type: "replace_block",
-      html: '<h2 data-block-id="b1">Night Watch</h2>',
-    });
-    const next = applyOpsToDoc(doc, heading);
-    const bold = toggleBlockMarkOps(next, "b1", "bold", undefined, seqIds("b"));
-    expect(bold[0].html).toBe('<h2 data-block-id="b1"><strong>Night Watch</strong></h2>');
-  });
-
-  it("toggles bold on one character instead of the whole paragraph", () => {
-    const { doc } = htmlToDoc('<p data-block-id="b1">Hello</p>', 2);
-    const one = toggleBlockMarkOps(doc, "b1", "bold", undefined, seqIds("c"), { start: 1, end: 1 });
-    expect(one[0].html).toBe('<p data-block-id="b1">H<strong>e</strong>llo</p>');
-    const range = toggleBlockMarkOps(doc, "b1", "italic", undefined, seqIds("i"), { start: 1, end: 4 });
-    expect(range[0].html).toBe('<p data-block-id="b1">H<em>ell</em>o</p>');
-  });
-
-  it("keeps marks on both sides of a Return split", () => {
-    const { doc } = htmlToDoc('<p data-block-id="b1"><strong>Hello world.</strong></p>', 2);
-    const mid = splitBlockOps(doc, "b1", "Hello", " world.", seqIds("s"));
-    expect(mid.ops[0]).toMatchObject({
-      html: '<p data-block-id="b1"><strong>Hello</strong></p>',
-    });
-    expect(mid.ops[1]).toMatchObject({
-      html: '<p data-block-id="s-block-2"><strong> world.</strong></p>',
-    });
   });
 
   it("appends AI paragraphs after the last block", () => {

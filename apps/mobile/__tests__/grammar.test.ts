@@ -1,18 +1,14 @@
 import {
   applySpans,
   autoAcceptProgress,
-  caretAnchorFromLines,
   caretAfterSpans,
   acceptedCorrection,
   endedOnSentence,
-  estimateSpanAnchor,
   GrammarLoop,
   GRAMMAR_AUTO_ACCEPT_MS,
   matchingSpans,
-  placeCallout,
   selectPopupSpan,
   shouldRequestCorrect,
-  spanAnchorFromLines,
 } from "../lib/grammar";
 
 function deferred<T>() {
@@ -71,46 +67,7 @@ describe("grammar helpers", () => {
         caret: 5,
       })
     ).toBeNull();
-  });
-
-  it("pins a callout to the line that still holds the span", () => {
-    const lines = [
-      { x: 0, y: 0, width: 200, height: 22, text: "Hello " },
-      { x: 0, y: 24, width: 180, height: 22, text: "Their going." },
-    ];
-    const anchor = spanAnchorFromLines(lines, 6, 11);
-    expect(anchor).toMatchObject({ y: 24, height: 22 });
-    expect(anchor && anchor.x).toBe(0);
-    const placed = placeCallout({
-      anchor: anchor!,
-      popup: { width: 160, height: 80 },
-      blockWidth: 200,
-    });
-    expect(placed.top).toBe(24 + 22 + 6);
-    expect(placed.left).toBe(0);
-    expect(
-      placeCallout({
-        anchor: { x: 10, y: 120, width: 40, height: 22 },
-        popup: { width: 160, height: 80 },
-        blockWidth: 200,
-      })
-    ).toEqual({ top: 120 - 80 - 6, left: 10 });
-    expect(estimateSpanAnchor({
-      text: "Their going.",
-      start: 0,
-      end: 5,
-      width: 200,
-      fontSize: 16,
-      lineHeight: 24,
-    }).y).toBe(0);
     expect(autoAcceptProgress(0, GRAMMAR_AUTO_ACCEPT_MS, 1500)).toBe(0.5);
-  });
-
-  it("places a caret at a collapsed offset on the painted line", () => {
-    const lines = [{ x: 0, y: 0, width: 200, height: 28, text: "Hello world." }];
-    expect(caretAnchorFromLines(lines, 0)).toEqual({ x: 0, y: 0, height: 28 });
-    expect(caretAnchorFromLines(lines, 12)).toEqual({ x: 200, y: 0, height: 28 });
-    expect(caretAnchorFromLines([], 0)).toBeNull();
   });
 });
 

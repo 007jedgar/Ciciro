@@ -7,13 +7,7 @@ import {
   type ManuscriptDoc,
   type ManuscriptOp,
 } from "./manuscript";
-import {
-  applyPlainEdit,
-  innerHtmlOf,
-  splitInnerHtml,
-  toggleMarkInRange,
-  wrapBlockHtml,
-} from "./inline-html";
+import { applyPlainEdit, innerHtmlOf, wrapBlockHtml } from "./inline-html";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -23,19 +17,6 @@ export type BlockEditorIds = {
   createBlockId?: () => string;
   createGroupId?: () => string;
   actor?: ManuscriptActor;
-};
-
-export type BlockEditorResult = {
-  ops: ManuscriptOp[];
-  focusBlockId: string;
-  focusOffset: number;
-  /**
-   * The text the focus block ends up holding, when this edit changed it. A
-   * merge folds one paragraph into a neighbour that is already mounted and
-   * already holds a draft entry, so the survivor cannot discover its new text
-   * from the document alone — it has to travel with the caret.
-   */
-  focusText?: string;
 };
 
 const defaultId = newBlockId;
@@ -58,36 +39,14 @@ export type BlockMarks = {
 
 export type BlockMark = keyof BlockMarks;
 
-export const HEADING_TAG = "h2";
-
 export function emptyBlockMarks(): BlockMarks {
   return { bold: false, italic: false, underline: false, strike: false };
-}
-
-export function readBlockMarks(html: string): BlockMarks {
-  const inner = html.replace(/^<[^>]+>/i, "").replace(/<\/[a-z][a-z0-9]*>\s*$/i, "");
-  return {
-    bold: /<(strong|b)\b/i.test(inner),
-    italic: /<(em|i)\b/i.test(inner),
-    underline: /<u\b/i.test(inner),
-    strike: /<(s|strike|del)\b/i.test(inner),
-  };
-}
-
-export function wrapInnerHtml(text: string, marks: BlockMarks): string {
-  let inner = escapeHtmlText(text);
-  if (marks.strike) inner = `<s>${inner}</s>`;
-  if (marks.underline) inner = `<u>${inner}</u>`;
-  if (marks.italic) inner = `<em>${inner}</em>`;
-  if (marks.bold) inner = `<strong>${inner}</strong>`;
-  return inner;
 }
 
 /** Serialize text while keeping any inline marks already on the block. */
 export function serializeBlockHtml(
   block: Pick<ManuscriptBlock, "id" | "html">,
   text: string,
-  _marks?: BlockMarks,
   tag = tagOfHtml(block.html)
 ): string {
   if (tag === "hr") {
@@ -109,12 +68,6 @@ function idsOf(opts?: BlockEditorIds) {
   };
 }
 
-/**
- * One keystroke's worth of intent is one unit on the wire. Return splits a
- * paragraph with a replace plus an insert, and Backspace folds one into
- * another with a replace plus a delete; sent loose, the server can accept the
- * first and reject the second, and the author is left looking at half of it.
- */
 function grouped(ops: ManuscriptOp[], ids: ReturnType<typeof idsOf>): ManuscriptOp[] {
   return asOpGroup(ops, ids.createGroupId());
 }
@@ -131,17 +84,6 @@ function findBlock(doc: ManuscriptDoc, blockId: string): { block: ManuscriptBloc
   const index = doc.blocks.findIndex((block) => block.id === blockId);
   if (index === -1) return null;
   return { block: doc.blocks[index], index };
-}
-
-export function takeReturnSplit(text: string): { left: string; right: string } | null {
-  const nl = text.indexOf("\n");
-  if (nl === -1) return null;
-  return { left: text.slice(0, nl), right: text.slice(nl + 1).replace(/\n/g, "") };
-}
-
-export function splitAtOffset(text: string, offset: number): { left: string; right: string } {
-  const start = Math.max(0, Math.min(offset, text.length));
-  return { left: text.slice(0, start), right: text.slice(start) };
 }
 
 export function replaceBlockOps(
@@ -163,251 +105,6 @@ export function replaceBlockOps(
     html: serializeBlockHtml(found.block, text),
   });
   return [op];
-}
-
-const BLOCK_TAGS = {
-  paragraph: "p",
-  heading: HEADING_TAG,
-  quote: "blockquote",
-  list_item: "li",
-} as const;
-
-export function retagBlockOps(
-  doc: ManuscriptDoc,
-  blockId: string,
-  kind: keyof typeof BLOCK_TAGS,
-  currentText?: string,
-  opts?: BlockEditorIds
-): ManuscriptOp[] {
-  const found = findBlock(doc, blockId);
-  if (!found) return [];
-  const text = currentText ?? found.block.text;
-  const inner = applyPlainEdit(innerHtmlOf(found.block.html), text);
-  const html = wrapBlockHtml(found.block.id, BLOCK_TAGS[kind], inner);
-  if (html === found.block.html) return [];
-  const ids = idsOf(opts);
-  const { op } = emit(doc, {
-    opId: ids.createOpId(),
-    baseRevision: doc.revision,
-    actor: ids.actor,
-    type: "replace_block",
-    blockId,
-    html,
-  });
-  return [op];
-}
-
-export function toggleBlockMarkOps(
-  doc: ManuscriptDoc,
-  blockId: string,
-  mark: BlockMark,
-  currentText?: string,
-  opts?: BlockEditorIds,
-  range?: { start: number; end: number }
-): ManuscriptOp[] {
-  const found = findBlock(doc, blockId);
-  if (!found) return [];
-  const text = currentText ?? found.block.text;
-  const inner = applyPlainEdit(innerHtmlOf(found.block.html), text);
-  const start = range?.start ?? 0;
-  const end = range?.end ?? text.length;
-  const next = toggleMarkInRange(inner, start, end, mark);
-  const html = wrapBlockHtml(found.block.id, tagOfHtml(found.block.html), next);
-  if (html === found.block.html) return [];
-  const ids = idsOf(opts);
-  const { op } = emit(doc, {
-    opId: ids.createOpId(),
-    baseRevision: doc.revision,
-    actor: ids.actor,
-    type: "replace_block",
-    blockId,
-    html,
-  });
-  return [op];
-}
-
-/**
- * Return key: replace the current block with `left` (same tag) and insert `right` as a new paragraph after.
- * Empty `right` is a paragraph break at the end; empty `left` with a non-empty `right`
- * is a break at offset 0 (caret stays in the blank above the sentence). Return in an
- * already-empty paragraph inserts another blank below and moves into it.
- */
-export function splitBlockOps(
-  doc: ManuscriptDoc,
-  blockId: string,
-  left: string,
-  right: string,
-  opts?: BlockEditorIds
-): BlockEditorResult {
-  const found = findBlock(doc, blockId);
-  if (!found) {
-    return { ops: [], focusBlockId: blockId, focusOffset: 0 };
-  }
-  const ids = idsOf(opts);
-  const ops: ManuscriptOp[] = [];
-  let current = doc;
-  const live = `${left}${right}`;
-  const inner = applyPlainEdit(innerHtmlOf(found.block.html), live);
-  const parts = splitInnerHtml(inner, left.length);
-  const tag = tagOfHtml(found.block.html);
-
-  if (found.block.html !== wrapBlockHtml(found.block.id, tag, parts.left) || found.block.text !== left) {
-    const replaced = emit(current, {
-      opId: ids.createOpId(),
-      baseRevision: current.revision,
-      actor: ids.actor,
-      type: "replace_block",
-      blockId,
-      html: wrapBlockHtml(found.block.id, tag, parts.left),
-    });
-    current = replaced.doc;
-    ops.push(replaced.op);
-  }
-
-  const newId = ids.createBlockId();
-  const inserted = emit(current, {
-    opId: ids.createOpId(),
-    baseRevision: current.revision,
-    actor: ids.actor,
-    type: "insert_block",
-    afterBlockId: blockId,
-    blockId: newId,
-    html: wrapBlockHtml(newId, "p", parts.right),
-  });
-  ops.push(inserted.op);
-
-  const stayOnCurrent = left.length === 0 && right.length > 0;
-  return {
-    ops: grouped(ops, ids),
-    focusBlockId: stayOnCurrent ? blockId : newId,
-    focusOffset: 0,
-  };
-}
-
-/**
- * Return key when the live TextInput's id is not in the last committed HTML yet
- * (empty chapter, unflushed first keystroke, or a missing block). Always yields
- * a new paragraph so Return cannot no-op and swallow the caret.
- */
-export function splitOrInsertBlockOps(
-  doc: ManuscriptDoc,
-  blockId: string,
-  left: string,
-  right: string,
-  opts?: BlockEditorIds
-): BlockEditorResult {
-  if (findBlock(doc, blockId)) {
-    return splitBlockOps(doc, blockId, left, right, opts);
-  }
-  if (doc.blocks.length === 0) {
-    const first = insertFirstBlockOps(doc, left, opts);
-    const after = applyOpsToDoc(doc, first.ops);
-    const split = splitBlockOps(after, first.focusBlockId, left, right, opts);
-    return {
-      ops: grouped([...first.ops, ...split.ops], idsOf(opts)),
-      focusBlockId: split.focusBlockId,
-      focusOffset: split.focusOffset,
-    };
-  }
-  const ids = idsOf(opts);
-  const newId = ids.createBlockId();
-  const afterBlockId = doc.blocks[doc.blocks.length - 1].id;
-  const { op } = emit(doc, {
-    opId: ids.createOpId(),
-    baseRevision: doc.revision,
-    actor: ids.actor,
-    type: "insert_block",
-    afterBlockId,
-    blockId: newId,
-    html: newParagraphHtml(newId, right),
-  });
-  return { ops: [op], focusBlockId: newId, focusOffset: right.length };
-}
-
-/**
- * Backspace at visual offset 0: fold this block into the previous one.
- * One keystroke removes one paragraph break, including a blank line.
- */
-export function backspaceAtStartOps(
-  doc: ManuscriptDoc,
-  blockId: string,
-  currentText?: string,
-  opts?: BlockEditorIds
-): BlockEditorResult {
-  const found = findBlock(doc, blockId);
-  if (!found || found.index === 0) {
-    return { ops: [], focusBlockId: blockId, focusOffset: 0 };
-  }
-  const text = currentText ?? found.block.text;
-  return mergeBlockOps(doc, blockId, text, opts);
-}
-
-/** Backspace at offset 0: fold this block into the previous one, then delete it. */
-export function mergeBlockOps(
-  doc: ManuscriptDoc,
-  blockId: string,
-  currentText?: string,
-  opts?: BlockEditorIds
-): BlockEditorResult {
-  const found = findBlock(doc, blockId);
-  if (!found || found.index === 0) {
-    return { ops: [], focusBlockId: blockId, focusOffset: 0 };
-  }
-  const prev = doc.blocks[found.index - 1];
-  const text = currentText ?? found.block.text;
-  const mergedText = prev.text + text;
-  const caret = prev.text.length;
-  const ids = idsOf(opts);
-  const ops: ManuscriptOp[] = [];
-  let current = doc;
-
-  if (prev.text !== mergedText) {
-    const replaced = emit(current, {
-      opId: ids.createOpId(),
-      baseRevision: current.revision,
-      actor: ids.actor,
-      type: "replace_block",
-      blockId: prev.id,
-      html: serializeBlockHtml(prev, mergedText),
-    });
-    current = replaced.doc;
-    ops.push(replaced.op);
-  }
-
-  const deleted = emit(current, {
-    opId: ids.createOpId(),
-    baseRevision: current.revision,
-    actor: ids.actor,
-    type: "delete_block",
-    blockId,
-  });
-  ops.push(deleted.op);
-
-  return { ops: grouped(ops, ids), focusBlockId: prev.id, focusOffset: caret, focusText: mergedText };
-}
-
-/** First keystroke in an empty chapter: insert a paragraph. */
-export function insertFirstBlockOps(
-  doc: ManuscriptDoc,
-  text: string,
-  opts?: BlockEditorIds
-): BlockEditorResult {
-  if (doc.blocks.length > 0) {
-    const first = doc.blocks[0];
-    return { ops: replaceBlockOps(doc, first.id, text, opts), focusBlockId: first.id, focusOffset: text.length };
-  }
-  const ids = idsOf(opts);
-  const blockId = ids.createBlockId();
-  const { op } = emit(doc, {
-    opId: ids.createOpId(),
-    baseRevision: doc.revision,
-    actor: ids.actor,
-    type: "insert_block",
-    afterBlockId: null,
-    blockId,
-    html: newParagraphHtml(blockId, text),
-  });
-  return { ops: [op], focusBlockId: blockId, focusOffset: text.length };
 }
 
 /** Append one or more paragraphs after the last block (Ciciro draft insert). */
