@@ -78,6 +78,15 @@ describe("block editor keystrokes", () => {
       html: '<p data-block-id="e-block-1"></p>',
     });
     expect(atEnd.focusBlockId).toBe("e-block-1");
+
+    const atStart = splitBlockOps(doc, "b1", "", "Hello world.", seqIds("t"));
+    expect(atStart.focusBlockId).toBe("b1");
+
+    const { doc: blank } = htmlToDoc('<p data-block-id="e1"></p>', 1);
+    const another = splitBlockOps(blank, "e1", "", "", seqIds("n"));
+    expect(another.ops).toHaveLength(1);
+    expect(another.ops[0]).toMatchObject({ type: "insert_block", afterBlockId: "e1" });
+    expect(another.focusBlockId).toBe("n-block-1");
   });
 
   it("turns a Return character into a left/right paragraph split", () => {

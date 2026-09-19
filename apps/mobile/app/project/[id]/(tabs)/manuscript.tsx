@@ -6,6 +6,7 @@ import {
   BlockInput,
   type EditorStyle,
   type GrammarCallout,
+  type PendingFocus,
 } from "../../../../components/BlockInput";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -36,8 +37,7 @@ import {
   type ManuscriptOp,
 } from "../../../../lib/manuscript";
 import {
-  applySpans,
-  caretAfterSpans,
+  acceptedCorrection,
   GrammarLoop,
   GRAMMAR_IDLE_MS,
   selectPopupSpan,
@@ -88,7 +88,9 @@ export default function ManuscriptScreen() {
   const inputs = useRef(new Map<string, TextInput>());
   const frozenResumeRef = useRef<{ chapterId: string; blockId: string; offset: number } | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [pendingFocus, setPendingFocus] = useState<{ id: string; offset: number } | null>(null);
+  const [pendingFocus, setPendingFocus] = useState<PendingFocus | null>(null);
+  const pendingFocusRef = useRef(pendingFocus);
+  pendingFocusRef.current = pendingFocus;
   const [localDoc, setLocalDoc] = useState<{ chapterId: string; content: string; revision: number } | null>(
     null
   );
@@ -371,15 +373,17 @@ export default function ManuscriptScreen() {
     (id: string) => {
       setFocusedId(id);
       setEditingBlockId(id);
+      setPendingFocus((current) => (current && current.id !== id ? null : current));
     },
     [setEditingBlockId]
   );
 
   const onBlurred = useCallback(
     (id: string, text: string) => {
+      const live = draftsRef.current.get(id) ?? text;
       grammarRef.current?.setComposing(id, false);
-      grammarRef.current?.noteDraft(id, text);
-      flushReplace(id, text);
+      grammarRef.current?.noteDraft(id, live);
+      flushReplace(id, live);
       draftsRef.current.delete(id);
       setFocusedId((current) => {
         if (current !== id) return current;
@@ -398,29 +402,27 @@ export default function ManuscriptScreen() {
     const doc = htmlToDoc(current.content, current.revision).doc;
     const live =
       loop.draftOf(suggestion.blockId) ??
+      draftsRef.current.get(suggestion.blockId) ??
       doc.blocks.find((block) => block.id === suggestion.blockId)?.text ??
       suggestion.text;
-    const spans = loop.acceptableSpans(suggestion.blockId, live);
-    if (spans.length === 0) {
+    const caret =
+      caretRef.current.blockId === suggestion.blockId ? caretRef.current.offset : live.length;
+    const accepted = acceptedCorrection({ suggestion, liveText: live, caret });
+    if (!accepted) {
       loop.setSuggestion(null);
       return;
     }
-    const span = spans[0];
-    const nextText = applySpans(live, [span]);
-    const timer = replaceTimers.current.get(suggestion.blockId);
+    const timer = replaceTimers.current.get(accepted.blockId);
     if (timer) {
       clearTimeout(timer);
-      replaceTimers.current.delete(suggestion.blockId);
+      replaceTimers.current.delete(accepted.blockId);
     }
-    loop.noteDraft(suggestion.blockId, nextText);
-    commitOps(replaceBlockOps(doc, suggestion.blockId, nextText, { actor: "correction" }));
-    if (focusedId === suggestion.blockId) {
-      const caret =
-        caretRef.current.blockId === suggestion.blockId ? caretRef.current.offset : nextText.length;
-      setPendingFocus({ id: suggestion.blockId, offset: caretAfterSpans(caret, [span]) });
-    }
+    loop.noteDraft(accepted.blockId, accepted.nextText);
+    draftsRef.current.set(accepted.blockId, accepted.nextText);
+    commitOps(replaceBlockOps(doc, accepted.blockId, accepted.nextText, { actor: "correction" }));
+    setPendingFocus({ id: accepted.blockId, offset: accepted.caret, text: accepted.nextText });
     loop.setSuggestion(null);
-  }, [commitOps, focusedId, grammarSuggestion]);
+  }, [commitOps, grammarSuggestion]);
   acceptGrammarRef.current = acceptGrammar;
 
   const ignoreGrammar = useCallback(() => {
@@ -448,8 +450,12 @@ export default function ManuscriptScreen() {
   }, [blocks, chapter, resume]);
 
   const registerInput = useCallback((id: string, ref: TextInput | null) => {
-    if (ref) inputs.current.set(id, ref);
-    else inputs.current.delete(id);
+    if (ref) {
+      inputs.current.set(id, ref);
+      if (pendingFocusRef.current?.id === id) ref.focus();
+    } else {
+      inputs.current.delete(id);
+    }
   }, []);
 
   const onCaretPlaced = useCallback((id: string) => {
@@ -458,7 +464,20 @@ export default function ManuscriptScreen() {
 
   useEffect(() => {
     if (!pendingFocus) return;
-    inputs.current.get(pendingFocus.id)?.focus();
+    const id = pendingFocus.id;
+    let next: number | null = null;
+    let attempts = 0;
+    const attempt = () => {
+      inputs.current.get(id)?.focus();
+      attempts += 1;
+      if (attempts < 12 && pendingFocusRef.current?.id === id) {
+        next = requestAnimationFrame(attempt);
+      }
+    };
+    next = requestAnimationFrame(attempt);
+    return () => {
+      if (next != null) cancelAnimationFrame(next);
+    };
   }, [pendingFocus]);
 
   const popupSpan = grammarSuggestion

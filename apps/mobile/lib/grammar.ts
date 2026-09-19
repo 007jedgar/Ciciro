@@ -91,6 +91,26 @@ export function selectPopupSpan(
   return { ...match, original: originalText.slice(match.start, match.end) };
 }
 
+/**
+ * What Accept / auto-accept should write. Null if the live draft no longer
+ * holds the span (the author typed through it).
+ */
+export function acceptedCorrection(opts: {
+  suggestion: Pick<GrammarSuggestion, "blockId" | "text" | "spans"> | null;
+  liveText: string;
+  caret: number;
+}): { blockId: string; nextText: string; caret: number } | null {
+  if (!opts.suggestion) return null;
+  const spans = matchingSpans(opts.liveText, opts.suggestion.text, opts.suggestion.spans);
+  if (spans.length === 0) return null;
+  const span = spans[0];
+  return {
+    blockId: opts.suggestion.blockId,
+    nextText: applySpans(opts.liveText, [span]),
+    caret: caretAfterSpans(opts.caret, [span]),
+  };
+}
+
 export function suggestionKey(suggestion: Pick<GrammarSuggestion, "chapterId" | "blockId" | "text" | "spans">): string {
   const span = suggestion.spans[0];
   return `${suggestion.chapterId}:${suggestion.blockId}:${suggestion.text}:${span?.start ?? ""}:${span?.end ?? ""}:${span?.replacement ?? ""}`;

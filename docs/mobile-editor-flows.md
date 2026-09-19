@@ -81,7 +81,7 @@ flowchart TD
 stateDiagram-v2
   [*] --> IdleUncontrolled: no selection prop
   IdleUncontrolled --> PlacingCaret: pendingFocus or resume on first focus
-  PlacingCaret --> IdleUncontrolled: rAF then onCaretPlaced clears pendingFocus
+  PlacingCaret --> IdleUncontrolled: native onFocus then onCaretPlaced clears pendingFocus
   IdleUncontrolled --> Buffering: keystroke
   Buffering --> Buffering: more keystrokes
   Buffering --> IdleUncontrolled: blur deletes draftsRef entry after flush
@@ -89,17 +89,20 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TD
-  RET["Return / newline"] --> SPLIT["takeReturnSplit or splitAtOffset"]
+  RET["Return"] --> NATIVE{"where did iOS put the newline?"}
+  NATIVE -->|"onTextInput range / onChangeText"| SPLIT["takeReturnSplit or splitAtOffset"]
+  NATIVE -->|"onKeyPress Enter"| IGNORE["do not split: selectionRef is often still 0"]
   SPLIT --> OPS["splitOrInsertBlockOps"]
   OPS -->|"block exists"| NEW["insert_block after current"]
   OPS -->|"empty doc"| FIRST["insertFirst reuses placeholder id, then split mints a new one"]
   OPS -->|"id missing"| AFTER["insert_block after last"]
-  NEW --> FOCUS["pendingFocus new empty paragraph"]
+  NEW --> FOCUS["pendingFocus next block; retry native focus until onFocus"]
   FIRST --> FOCUS
   AFTER --> FOCUS
   TAP["tap below last line"] --> LAST{"last paragraph empty?"}
   LAST -->|"yes"| FOCUSLAST["focus last caret at 0"]
   LAST -->|"no"| RET
+  ECHO["leftover newline in the old field"] --> STRIP["setText left again; do not insert a second paragraph"]
 ```
 
 ```mermaid
@@ -107,6 +110,8 @@ stateDiagram-v2
   [*] --> InParagraph: typing
   InParagraph --> Splitting: Return
   Splitting --> InParagraph: focus next block
+  Splitting --> EmptyParagraph: new blank
+  EmptyParagraph --> Splitting: Return again
   InParagraph --> InParagraph: wrap inside same TextInput
 ```
 
@@ -187,12 +192,15 @@ sequenceDiagram
     Loop-->>Author: clear suggestion + cancel auto-accept
   else Accept or 3s elapses
     Input->>Doc: replaceBlockOps live text + actor correction
+    Input->>Input: pendingFocus.text rewrites the focused TextInput
     Doc->>Sync: PendingOp
     Sync-->>Doc: CAS accept or stale rebase
   end
 ```
 
 Accept uses `loop.draftOf` (unflushed TextInput) then `replaceBlockOps` on `chapterRef` (last committed HTML). The replace timer for that block is cleared so a stale user flush cannot race the correction op. Auto-accept lives on `GrammarLoop`, not popup mount, so a row remount cannot cancel the 3s clock. Accept of a stale span is still a no-op.
+
+The focused `TextInput` is controlled from its own `text` state, so a `replace_block` that only updates `chapterRef` is invisible until blur. Accept now writes `draftsRef` and `pendingFocus.text` so the live field shows the replacement; blur flushes `draftsRef` rather than a stale closure, so it cannot clobber the correction.
 
 ---
 
@@ -242,13 +250,21 @@ Split/merge emit two ops with sequential `baseRevision`s. If the first is accept
 
 `onChangeText` treats the first `\n` as `splitBlockOps` and strips further newlines. During IME, composition events can look like text changes; grammar-popups abort `/api/correct` while `isComposing` but the native editor still flushes replace ops on the 1s timer. A composition commit that includes a newline will split mid-IME. `onKeyPress` Backspace-at-0 can merge before the IME buffer is final.
 
+### iOS Return leftover newline
+
+Return used to fire three ways: `onKeyPress` Enter, `onChangeText` `\n`, and `onSubmitEditing`. `onKeyPress` runs before the newline exists and used `selectionRef`, which iOS often leaves at logical 0 when `onSelectionChange` is skipped. That split the current paragraph at the start — empty space above the prose, caret at the beginning — and then iOS still inserted `\n` into the old field, so the previous paragraph grew a blank line.
+
+Return is consumed from the native insertion: `onTextInput` `\n` (the range is where the caret actually was) or `onChangeText` `takeReturnSplit`. `onKeyPress` does not split. `onSubmitEditing` waits a frame and no-ops if a newline already split, so a stale caret at 0 cannot empty the paragraph. A second event with the same left/right only strips the leftover newline from the old field. `onTextInput` also advances `selectionRef`, so a later submit is not stuck at offset 0.
+
+`splitBlockOps` keeps the caret on the current block only when Return is at the start of a non-empty paragraph (the current block becomes the blank above the sentence). Return at the end, in the middle, or in an already-empty paragraph focuses the new block. `pendingFocus` stays set until that field's native `onFocus`; the screen retries `focus()` for a few frames (and again when the new `TextInput` registers) so iOS cannot leave the keyboard in the previous paragraph. Tapping another paragraph cancels the pending move.
+
 ### Correction span mismatch
 
 Spans are offsets into the **requested** string. `matchingSpans` requires that exact slice to still sit at the same offsets in the live draft. Typing through the range drops the popup and cancels the 3s auto-accept. Accept of a stale popup is a no-op. Ignore clears the suggestion the same way.
 
 If accept runs against `chapterRef` that is behind the draft, `replace_block` still uploads the **full live text** (draft + span), which is correct — unless a concurrent skip-pull advanced `chapterRef.revision` via `chapter.revision >= chapterRef.current.revision` and replaced content with a replica that omitted unflushed typing. Blur-then-flush is the recovery; accepting grammar in that window can write an older committed block plus the span and **lose later keystrokes**.
 
-A desk (or other-device) `correction` op that touches the focused block is skipped locally. On blur, `flushReplace` pushes the author's buffer and can **clobber** that correction.
+A desk (or other-device) `correction` op that touches the focused block is skipped locally. On blur, `flushReplace` pushes `draftsRef` (the live buffer, including an accepted correction) so it cannot clobber a local accept. A remote correction still must not overwrite the focused field.
 
 ### Double-count words
 

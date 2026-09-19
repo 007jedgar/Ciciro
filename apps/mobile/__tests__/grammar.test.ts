@@ -2,6 +2,7 @@ import {
   applySpans,
   autoAcceptProgress,
   caretAfterSpans,
+  acceptedCorrection,
   endedOnSentence,
   estimateSpanAnchor,
   GrammarLoop,
@@ -51,6 +52,24 @@ describe("grammar helpers", () => {
     expect(applySpans(original, [span])).toBe("They're going home.");
     expect(caretAfterSpans(5, [span])).toBe(7);
     expect(selectPopupSpan("There going home.", original, [span])).toBeNull();
+    expect(
+      acceptedCorrection({
+        suggestion: {
+          blockId: "b1",
+          text: original,
+          spans: [span],
+        },
+        liveText: original,
+        caret: 5,
+      })
+    ).toEqual({ blockId: "b1", nextText: "They're going home.", caret: 7 });
+    expect(
+      acceptedCorrection({
+        suggestion: { blockId: "b1", text: original, spans: [span] },
+        liveText: "There going home.",
+        caret: 5,
+      })
+    ).toBeNull();
   });
 
   it("pins a callout to the line that still holds the span", () => {
