@@ -6,7 +6,7 @@ import type { ManuscriptBlock } from "../lib/manuscript";
 
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
-  ImpactFeedbackStyle: { Light: "light" },
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
 }));
 
 jest.mock("expo-blur", () => {
@@ -216,6 +216,20 @@ describe("BlockInput", () => {
     expect(screen.getByTestId("format-bubble")).toBeTruthy();
     fireEvent(screen.getByLabelText("Bold"), "pressIn");
     expect(onToggleMark).toHaveBeenCalledWith("bold");
+  });
+
+  it("opens a paragraph menu from a long press", () => {
+    const onPressFormat = jest.fn();
+    const onSetKind = jest.fn();
+    renderBlock({
+      onPressFormat,
+      pressMenu: { kind: "paragraph", onSetKind },
+    });
+    fireEvent(screen.getByTestId("block-b1-wrap"), "longPress");
+    expect(onPressFormat).toHaveBeenCalled();
+    expect(screen.getByTestId("format-press")).toBeTruthy();
+    fireEvent(screen.getByLabelText("Quote"), "pressIn");
+    expect(onSetKind).toHaveBeenCalledWith("quote");
   });
 
   it("does not empty the paragraph when submitEditing is stuck at offset 0", async () => {

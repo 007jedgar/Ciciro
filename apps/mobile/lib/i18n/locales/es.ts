@@ -224,6 +224,8 @@ const es: Translations = {
     formatHeading: "Título",
     formatQuote: "Cita",
     formatList: "Lista",
+    formatParagraph: "Párrafo",
+    formatPress: "Formato del párrafo",
   },
   ciciroTab: {
     title: "Ciciro",

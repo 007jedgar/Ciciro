@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import {
+  Pressable,
   Text,
   TextInput,
   View,
@@ -7,9 +8,11 @@ import {
   type TextInputKeyPressEventData,
   type TextInputSelectionChangeEventData,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { GrammarPopup } from "./GrammarPopup";
 import { FormatBubble } from "./FormatBubble";
-import type { BlockMark, BlockMarks } from "../lib/block-editor";
+import { FormatPressMenu } from "./FormatPressMenu";
+import type { FormatBlockKind } from "./FormatBar";
 import {
   estimateSpanAnchor,
   placeCallout,
@@ -17,7 +20,7 @@ import {
   type TextLineMetrics,
 } from "../lib/grammar";
 import type { BlockKind, ManuscriptBlock } from "../lib/manuscript";
-import { splitAtOffset, takeReturnSplit } from "../lib/block-editor";
+import { splitAtOffset, takeReturnSplit, type BlockMark, type BlockMarks } from "../lib/block-editor";
 import { applyPlainEdit, innerHtmlOf, parseInlineHtml, type InlineSpan } from "../lib/inline-html";
 import {
   CARET_GUARD,
@@ -70,6 +73,8 @@ export type BlockInputProps = {
   pendingFocus: PendingFocus | null;
   popup: GrammarCallout | null;
   formatBubble?: FormatCallout | null;
+  pressMenu?: { kind: FormatBlockKind; onSetKind: (kind: FormatBlockKind) => void } | null;
+  onPressFormat?: () => void;
   draftsRef: MutableRefObject<Map<string, string>>;
   onFocused: (id: string) => void;
   onBlurred: (id: string, text: string) => void;
@@ -110,6 +115,8 @@ export const BlockInput = memo(function BlockInput({
   pendingFocus,
   popup,
   formatBubble = null,
+  pressMenu = null,
+  onPressFormat,
   draftsRef,
   onFocused,
   onBlurred,
@@ -291,8 +298,17 @@ export const BlockInput = memo(function BlockInput({
   }
 
   return (
-    <View
-      testID={popup ? `grammar-anchor-${block.id}` : undefined}
+    <Pressable
+      testID={popup ? `grammar-anchor-${block.id}` : `block-${block.id}-wrap`}
+      delayLongPress={420}
+      onLongPress={
+        onPressFormat
+          ? () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              onPressFormat();
+            }
+          : undefined
+      }
       onLayout={(e) => {
         const width = e.nativeEvent.layout.width;
         setBlockWidth((current) => (current === width ? current : width));
@@ -300,7 +316,7 @@ export const BlockInput = memo(function BlockInput({
       style={{
         marginBottom: 12,
         overflow: "visible",
-        zIndex: popup ? 4 : 0,
+        zIndex: popup || pressMenu || formatBubble ? 4 : 0,
         alignSelf: "stretch",
         justifyContent: "flex-start",
       }}
@@ -491,6 +507,19 @@ export const BlockInput = memo(function BlockInput({
           <FormatBubble marks={formatBubble.marks} onToggleMark={formatBubble.onToggleMark} />
         </View>
       ) : null}
+      {pressMenu && !popup ? (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: "absolute",
+            top: -44,
+            left: 0,
+            zIndex: 6,
+          }}
+        >
+          <FormatPressMenu kind={pressMenu.kind} onSetKind={pressMenu.onSetKind} />
+        </View>
+      ) : null}
       {popup && placed ? (
         <View
           pointerEvents="box-none"
@@ -519,6 +548,6 @@ export const BlockInput = memo(function BlockInput({
           />
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 });
