@@ -20,7 +20,6 @@ import {
   backspaceAtStartOps,
   CARET_FLUSH_MS,
   insertFirstBlockOps,
-  readBlockMarks,
   REPLACE_FLUSH_MS,
   replaceBlockOps,
   retagBlockOps,
@@ -28,6 +27,7 @@ import {
   toggleBlockMarkOps,
   type BlockMark,
 } from "../../../../lib/block-editor";
+import { applyPlainEdit, innerHtmlOf, marksCovering } from "../../../../lib/inline-html";
 import {
   freezeResumePlace,
   reuseUnchangedBlocks,
@@ -109,7 +109,8 @@ export default function ManuscriptScreen() {
   const didFocusResume = useRef<string | null>(null);
   const grammarRef = useRef<GrammarLoop | null>(null);
   const acceptGrammarRef = useRef<() => void>(() => {});
-  const caretRef = useRef({ blockId: "", offset: 0 });
+  const caretRef = useRef({ blockId: "", offset: 0, end: 0 });
+  const [formatRange, setFormatRange] = useState({ start: 0, end: 0 });
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
   const [typing, setTyping] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -370,13 +371,16 @@ export default function ManuscriptScreen() {
   );
 
   const onCaret = useCallback(
-    (blockId: string, offset: number) => {
-      caretRef.current = { blockId, offset };
+    (blockId: string, start: number, end: number) => {
+      caretRef.current = { blockId, offset: start, end };
+      setFormatRange((current) =>
+        current.start === start && current.end === end ? current : { start, end }
+      );
       const current = chapterRef.current;
       if (!current) return;
       if (caretTimer.current) clearTimeout(caretTimer.current);
       caretTimer.current = setTimeout(() => {
-        void recordReadingPosition({ chapterId: current.id, blockId, offset });
+        void recordReadingPosition({ chapterId: current.id, blockId, offset: start });
       }, CARET_FLUSH_MS);
     },
     [recordReadingPosition]
@@ -411,7 +415,16 @@ export default function ManuscriptScreen() {
 
   const targetBlockId = focusedId ?? blocks[0]?.id ?? null;
   const targetBlock = blocks.find((block) => block.id === targetBlockId) ?? null;
-  const targetMarks = targetBlock ? readBlockMarks(targetBlock.html) : undefined;
+  const targetLive = targetBlock
+    ? (draftsRef.current.get(targetBlock.id) ?? targetBlock.text)
+    : "";
+  const targetMarks = targetBlock
+    ? marksCovering(
+        applyPlainEdit(innerHtmlOf(targetBlock.html), targetLive),
+        formatRange.start,
+        formatRange.end
+      )
+    : undefined;
   const targetKind: FormatBlockKind =
     targetBlock?.kind === "heading" || targetBlock?.kind === "quote" || targetBlock?.kind === "list_item"
       ? targetBlock.kind
@@ -438,7 +451,11 @@ export default function ManuscriptScreen() {
       if (!current || !targetBlockId) return;
       const doc = htmlToDoc(current.content, current.revision).doc;
       const live = draftsRef.current.get(targetBlockId);
-      applyFormat(toggleBlockMarkOps(doc, targetBlockId, mark, live));
+      const range =
+        caretRef.current.blockId === targetBlockId
+          ? { start: caretRef.current.offset, end: caretRef.current.end }
+          : undefined;
+      applyFormat(toggleBlockMarkOps(doc, targetBlockId, mark, live, undefined, range));
     },
     [applyFormat, targetBlockId]
   );
