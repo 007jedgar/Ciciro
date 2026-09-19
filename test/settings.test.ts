@@ -29,14 +29,16 @@ describe("app settings", () => {
     expect(s.chatWidth).toBe(720);
     expect(s.dailyWordGoal).toBe(250);
     expect(s.showDailyGoal).toBe(true);
+    expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);
     expect(clampChatWidth(100)).toBe(280);
   });
 
   it("ignores unknown theme and font values", () => {
-    const s = normalizeSettings({ theme: "neon", editorFont: "comic" });
+    const s = normalizeSettings({ theme: "neon", editorFont: "comic", formatChrome: "floating" });
     expect(s.theme).toBe("parchment");
     expect(s.editorFont).toBe("serif");
+    expect(s.formatChrome).toBe("smart");
   });
 
   it("parses empty JSON as defaults", () => {
@@ -48,6 +50,10 @@ describe("app settings", () => {
 
   it("rejects invalid patches", () => {
     expect(parseSettingsPatch({ theme: "neon" })).toEqual({ error: "Unknown theme." });
+    expect(parseSettingsPatch({ formatChrome: "floating" })).toEqual({
+      error: "formatChrome must be smart, selection, press, or always.",
+    });
+    expect(parseSettingsPatch({ formatChrome: "selection" })).toEqual({ formatChrome: "selection" });
     expect(parseSettingsPatch({ autoCorrect: "yes" })).toEqual({
       error: "autoCorrect must be a boolean.",
     });

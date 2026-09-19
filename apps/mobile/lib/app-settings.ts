@@ -4,6 +4,13 @@ import { clampDailyWordGoal, DEFAULT_DAILY_WORD_GOAL } from "./writing-day";
 export const EDITOR_FONT_SIZES = [15, 17, 19, 21, 23] as const;
 export type EditorFontSize = (typeof EDITOR_FONT_SIZES)[number];
 export type EditorFont = "serif" | "sans";
+export const FORMAT_CHROME = ["smart", "selection", "press", "always"] as const;
+export type FormatChrome = (typeof FORMAT_CHROME)[number];
+export const DEFAULT_FORMAT_CHROME: FormatChrome = "smart";
+
+export function isFormatChrome(value: unknown): value is FormatChrome {
+  return typeof value === "string" && (FORMAT_CHROME as readonly string[]).includes(value);
+}
 
 export const SETTINGS_EPOCH = "1970-01-01T00:00:00.000Z";
 
@@ -11,6 +18,7 @@ export type AppSettings = {
   theme: ThemeId;
   editorFont: EditorFont;
   editorFontSize: EditorFontSize;
+  formatChrome: FormatChrome;
   autoCorrect: boolean;
   reduceMotion: boolean;
   chatWidth: number;
@@ -26,6 +34,7 @@ export function defaultSettings(): AppSettings {
     theme: "parchment",
     editorFont: "serif",
     editorFontSize: 19,
+    formatChrome: DEFAULT_FORMAT_CHROME,
     autoCorrect: true,
     reduceMotion: false,
     chatWidth: 380,
@@ -61,6 +70,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
       typeof src.editorFontSize === "number" && Number.isFinite(src.editorFontSize)
         ? nearestFontSize(src.editorFontSize)
         : defaults.editorFontSize,
+    formatChrome: isFormatChrome(src.formatChrome) ? src.formatChrome : defaults.formatChrome,
     autoCorrect: typeof src.autoCorrect === "boolean" ? src.autoCorrect : defaults.autoCorrect,
     reduceMotion: typeof src.reduceMotion === "boolean" ? src.reduceMotion : defaults.reduceMotion,
     chatWidth:
@@ -88,6 +98,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.theme === b.theme &&
     a.editorFont === b.editorFont &&
     a.editorFontSize === b.editorFontSize &&
+    a.formatChrome === b.formatChrome &&
     a.autoCorrect === b.autoCorrect &&
     a.reduceMotion === b.reduceMotion &&
     a.chatWidth === b.chatWidth &&
