@@ -113,6 +113,34 @@ function spanStyle(
   };
 }
 
+export const CARET_WIDTH = 2;
+/** Hairline after the last glyph so the bar kisses the letter instead of covering it. */
+export const CARET_GAP = 1;
+/** Georgia’s italic lean; the bar shears around its baseline so the top follows the stems. */
+export const CARET_ITALIC_DEG = 14;
+
+export function caretPaintStyle(opts: {
+  x: number;
+  y: number;
+  height: number;
+  paddingLeft: number;
+  italic: boolean;
+  color: string;
+}) {
+  const shear = opts.italic
+    ? Math.tan((CARET_ITALIC_DEG * Math.PI) / 180) * opts.height
+    : 0;
+  return {
+    position: "absolute" as const,
+    left: opts.x + CARET_GAP + opts.paddingLeft + shear / 2,
+    top: opts.y,
+    width: CARET_WIDTH,
+    height: opts.height,
+    backgroundColor: opts.color,
+    transform: opts.italic ? [{ skewX: `-${CARET_ITALIC_DEG}deg` as const }] : undefined,
+  };
+}
+
 export const BlockInput = memo(function BlockInput({
   block,
   editorStyle,
@@ -232,7 +260,6 @@ export const BlockInput = memo(function BlockInput({
 
   const align = block.kind === "scene_break" ? ("center" as const) : ("left" as const);
   const displayed = withCaretGuard(text);
-  const caretWidth = 2;
   const paintedCaret =
     focused && logicalSel.start === logicalSel.end
       ? (prefixCaret ?? { x: 0, y: 0, height: style.lineHeight })
@@ -515,12 +542,16 @@ export const BlockInput = memo(function BlockInput({
               style,
               {
                 position: "absolute",
-                opacity: 0,
                 left: 0,
                 right: 0,
                 top: 0,
                 padding: 0,
                 margin: 0,
+                minHeight: style.lineHeight,
+                textAlign: align,
+                textAlignVertical: "top" as const,
+                includeFontPadding: false,
+                color: "transparent",
               },
             ]}
             onTextLayout={(e) => {
@@ -547,19 +578,14 @@ export const BlockInput = memo(function BlockInput({
           <View
             testID={`block-${block.id}-caret`}
             pointerEvents="none"
-            style={{
-              position: "absolute",
-              left:
-                paintedCaret.x -
-                caretWidth / 2 +
-                ("paddingLeft" in style ? style.paddingLeft : 0),
-              top: paintedCaret.y,
-              width: caretWidth,
+            style={caretPaintStyle({
+              x: paintedCaret.x,
+              y: paintedCaret.y,
               height: paintedCaret.height,
-              backgroundColor: editorStyle.color,
-              transformOrigin: "bottom",
-              transform: caretItalic ? [{ skewX: "-13deg" }] : undefined,
-            }}
+              paddingLeft: "paddingLeft" in style ? style.paddingLeft : 0,
+              italic: caretItalic,
+              color: editorStyle.color,
+            })}
           />
         </>
       ) : null}
