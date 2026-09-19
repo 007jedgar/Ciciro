@@ -1,44 +1,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import type { EnrichedTextInputInstance, OnChangeStateEvent } from "react-native-enriched-html";
 import {
-  BlockInput,
+  ChapterEditor,
+  kindFromEnrichedState,
+  marksFromEnrichedState,
   type EditorStyle,
-  type GrammarCallout,
-  type PendingFocus,
-} from "../../../../components/BlockInput";
+} from "../../../../components/ChapterEditor";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
+import { FormatBubble } from "../../../../components/FormatBubble";
+import { GrammarPopup } from "../../../../components/GrammarPopup";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { ciciro } from "../../../../lib/api";
 import type { SyncOp } from "../../../../lib/api/types";
-import { chapterDrafts } from "../../../../lib/chapter-drafts";
 import {
   applyOpsToDoc,
-  backspaceAtStartOps,
   CARET_FLUSH_MS,
-  insertFirstBlockOps,
   REPLACE_FLUSH_MS,
   replaceBlockOps,
-  retagBlockOps,
-  splitOrInsertBlockOps,
-  toggleBlockMarkOps,
   emptyBlockMarks,
   type BlockMark,
 } from "../../../../lib/block-editor";
-import { applyPlainEdit, innerHtmlOf, marksCovering } from "../../../../lib/inline-html";
 import {
   freezeResumePlace,
   reuseUnchangedBlocks,
   sameLocalDoc,
-  takePlaceholderBlockId,
 } from "../../../../lib/editor-session";
+import {
+  blockAtPlainOffset,
+  opsFromEnrichedHtml,
+  toEnrichedHtml,
+} from "../../../../lib/enriched-html";
 import {
   docToHtml,
   htmlToDoc,
-  newBlockId,
   resumePlainTextIndex,
   type ManuscriptBlock,
   type ManuscriptOp,
@@ -55,7 +54,14 @@ import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
-import { FORMAT_IDLE_MS, FORMAT_BAR_HEIGHT, formatBarPlacement, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../../../../lib/format-chrome";
+import {
+  FORMAT_IDLE_MS,
+  FORMAT_BAR_HEIGHT,
+  formatBarPlacement,
+  hideFormatBarWhileTyping,
+  showPressMenu,
+  showSelectionBubble,
+} from "../../../../lib/format-chrome";
 
 function blockStyleFor(
   settings: { editorFont: "serif" | "sans"; editorFontSize: number },
@@ -69,6 +75,16 @@ function blockStyleFor(
   };
 }
 
+function paragraphAtOffset(text: string, offset: number): string {
+  let remaining = Math.max(0, offset);
+  const parts = text.split("\n");
+  for (const part of parts) {
+    if (remaining <= part.length) return part;
+    remaining -= part.length + 1;
+  }
+  return parts[parts.length - 1] ?? text;
+}
+
 export default function ManuscriptScreen() {
   const {
     project,
@@ -78,7 +94,7 @@ export default function ManuscriptScreen() {
     readingPosition,
     recordChapterOp,
     recordReadingPosition,
-    setEditingBlockId,
+    setEditingBlockIds,
   } = useProject();
   const { t } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
@@ -86,34 +102,24 @@ export default function ManuscriptScreen() {
   const clearance = useTabBarClearance();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const chapterRef = useRef<Chapter | null>(null);
-  const emptyIdRef = useRef<string | null>(null);
-  // Unflushed typing lives outside this component so a remount cannot lose it.
-  const draftsRef = useMemo(() => ({ current: chapterDrafts(chapter?.id ?? "") }), [chapter?.id]);
   const previousBlocksRef = useRef<ManuscriptBlock[]>([]);
-  const replaceTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const replaceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const caretTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commitChain = useRef(Promise.resolve());
-  const inputs = useRef(new Map<string, TextInput>());
+  const editorRef = useRef<EnrichedTextInputInstance | null>(null);
   const frozenResumeRef = useRef<{ chapterId: string; blockId: string; offset: number } | null>(null);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const focusedIdRef = useRef<string | null>(null);
-  const [pendingFocus, setPendingFocus] = useState<PendingFocus | null>(null);
-  const pendingFocusRef = useRef(pendingFocus);
-  pendingFocusRef.current = pendingFocus;
+  const [focused, setFocused] = useState(false);
+  const focusedRef = useRef(false);
   const [localDoc, setLocalDoc] = useState<{ chapterId: string; content: string; revision: number } | null>(
     null
   );
-  // Commits this screen has issued whose push has not finished. While any are
-  // outstanding the screen paints its own optimistic document; once the chain
-  // drains it adopts whatever the replica settled on (accepted, rebased, or
-  // refetched), so a rejected op can never pin stale prose on screen.
   const [inflight, setInflight] = useState(0);
-  const didFocusResume = useRef<string | null>(null);
   const grammarRef = useRef<GrammarLoop | null>(null);
   const acceptGrammarRef = useRef<() => void>(() => {});
-  const caretRef = useRef({ blockId: "", offset: 0, end: 0 });
-  const [formatTarget, setFormatTarget] = useState({ blockId: "", start: 0, end: 0 });
-  const [pressMenuId, setPressMenuId] = useState<string | null>(null);
+  const caretRef = useRef({ blockId: "", offset: 0, end: 0, docOffset: 0 });
+  const [formatTarget, setFormatTarget] = useState({ start: 0, end: 0 });
+  const [targetMarks, setTargetMarks] = useState(emptyBlockMarks());
+  const [targetKind, setTargetKind] = useState<FormatBlockKind>("paragraph");
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
   const [typing, setTyping] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -156,49 +162,12 @@ export default function ManuscriptScreen() {
 
   const blocks = useMemo(() => {
     if (!chapter?.id) return [];
-    const parsed = reuseUnchangedBlocks(
-      previousBlocksRef.current,
-      htmlToDoc(content, revision).doc.blocks
-    );
-    if (parsed.length > 0) {
-      emptyIdRef.current = null;
-      return parsed;
-    }
-    emptyIdRef.current ??= newBlockId();
-    const id = emptyIdRef.current;
-    return reuseUnchangedBlocks(previousBlocksRef.current, [
-      {
-        id,
-        kind: "paragraph" as const,
-        html: `<p data-block-id="${id}"></p>`,
-        text: "",
-      },
-    ]);
+    return reuseUnchangedBlocks(previousBlocksRef.current, htmlToDoc(content, revision).doc.blocks);
   }, [chapter?.id, content, revision]);
   previousBlocksRef.current = blocks;
 
   const editorStyle = useMemo(() => blockStyleFor(settings, colors.ink), [settings, colors.ink]);
 
-  const firstBlockIds = useCallback(
-    () => ({
-      createBlockId: () => takePlaceholderBlockId(emptyIdRef),
-    }),
-    []
-  );
-
-  // The ref lands before the next render, so a blur arriving after focus has
-  // already hopped to a sibling paragraph can tell itself apart from a blur
-  // that really left the editor.
-  const focusBlock = useCallback((id: string | null) => {
-    focusedIdRef.current = id;
-    setFocusedId(id);
-  }, []);
-
-  /**
-   * Return and Backspace are typing. They do not run through onDraft, so
-   * without this the smart header faded out mid-word and flashed back in the
-   * moment the author started a new paragraph.
-   */
   const markTyping = useCallback(() => {
     setTyping(true);
     if (typingTimer.current) clearTimeout(typingTimer.current);
@@ -226,36 +195,24 @@ export default function ManuscriptScreen() {
     [recordChapterOp]
   );
 
-  const flushReplace = useCallback(
-    (blockId: string, text: string) => {
-      const timer = replaceTimers.current.get(blockId);
-      if (timer) {
-        clearTimeout(timer);
-        replaceTimers.current.delete(blockId);
-      }
-      const current = chapterRef.current;
-      if (!current) return;
-      const doc = htmlToDoc(current.content, current.revision).doc;
-      if (doc.blocks.length === 0) {
-        commitOps(insertFirstBlockOps(doc, text, firstBlockIds()).ops);
-        return;
-      }
-      commitOps(replaceBlockOps(doc, blockId, text));
-    },
-    [commitOps, firstBlockIds]
-  );
+  const flush = useCallback(async () => {
+    if (replaceTimer.current) {
+      clearTimeout(replaceTimer.current);
+      replaceTimer.current = null;
+    }
+    const current = chapterRef.current;
+    const editor = editorRef.current;
+    if (!current || !editor) return;
+    const enriched = await editor.getHTML();
+    commitOps(opsFromEnrichedHtml(current.content, enriched, current.revision));
+  }, [commitOps]);
 
-  const scheduleReplace = useCallback(
-    (blockId: string, text: string) => {
-      const existing = replaceTimers.current.get(blockId);
-      if (existing) clearTimeout(existing);
-      replaceTimers.current.set(
-        blockId,
-        setTimeout(() => flushReplace(blockId, text), REPLACE_FLUSH_MS)
-      );
-    },
-    [flushReplace]
-  );
+  const scheduleFlush = useCallback(() => {
+    if (replaceTimer.current) clearTimeout(replaceTimer.current);
+    replaceTimer.current = setTimeout(() => {
+      void flush();
+    }, REPLACE_FLUSH_MS);
+  }, [flush]);
 
   useEffect(() => {
     const loop = new GrammarLoop(
@@ -283,247 +240,114 @@ export default function ManuscriptScreen() {
     grammarRef.current?.setSuggestion(null);
   }, [chapter?.id]);
 
-  const onDraft = useCallback(
-    (blockId: string, text: string) => {
-      draftsRef.current.set(blockId, text);
-      scheduleReplace(blockId, text);
+  const onChangeText = useCallback(
+    (text: string) => {
       markTyping();
-      setFormatTarget((current) =>
-        current.blockId === blockId && current.start !== current.end
-          ? { blockId, start: 0, end: 0 }
-          : current
-      );
-      setPressMenuId((current) => (current === blockId ? null : current));
       const current = chapterRef.current;
       if (!current) return;
-      grammarRef.current?.onKeystroke({
-        chapterId: current.id,
-        blockId,
-        text,
-        revision: current.revision,
-        autoCorrect: settings.autoCorrect,
-      });
-    },
-    [markTyping, scheduleReplace, settings.autoCorrect]
-  );
-
-  const onComposing = useCallback(
-    (blockId: string, composing: boolean) => {
-      const loop = grammarRef.current;
-      if (!loop) return;
-      loop.setComposing(blockId, composing);
-      if (composing) return;
-      const current = chapterRef.current;
-      const text = loop.draftOf(blockId);
-      if (!current || text == null) return;
-      loop.onKeystroke({
-        chapterId: current.id,
-        blockId,
-        text,
-        revision: current.revision,
-        autoCorrect: settings.autoCorrect,
-      });
-    },
-    [settings.autoCorrect]
-  );
-
-  const onSplit = useCallback(
-    (blockId: string, left: string, right: string) => {
-      const pending = replaceTimers.current.get(blockId);
-      if (pending) {
-        clearTimeout(pending);
-        replaceTimers.current.delete(blockId);
+      const at = blockAtPlainOffset(current.content, caretRef.current.docOffset);
+      if (at && settings.autoCorrect) {
+        const live = paragraphAtOffset(text, caretRef.current.docOffset);
+        grammarRef.current?.onKeystroke({
+          chapterId: current.id,
+          blockId: at.blockId,
+          text: live,
+          revision: current.revision,
+          autoCorrect: true,
+        });
       }
-      const current = chapterRef.current;
-      if (!current) return;
-      const doc = htmlToDoc(current.content, current.revision).doc;
-      const result = splitOrInsertBlockOps(doc, blockId, left, right, firstBlockIds());
-      grammarRef.current?.forgetBlock(blockId);
-      grammarRef.current?.noteDraft(blockId, left);
-      grammarRef.current?.noteDraft(result.focusBlockId, right);
-      draftsRef.current.set(blockId, left);
-      draftsRef.current.set(result.focusBlockId, right);
-      markTyping();
-      setPendingFocus({ id: result.focusBlockId, offset: result.focusOffset });
-      setEditingBlockId(result.focusBlockId);
-      focusBlock(result.focusBlockId);
-      commitOps(result.ops);
+      scheduleFlush();
     },
-    [commitOps, firstBlockIds, focusBlock, markTyping, setEditingBlockId]
-  );
-
-  const onContinueAfterLast = useCallback(() => {
-    const last = blocks[blocks.length - 1];
-    if (!last) return;
-    const live = draftsRef.current.get(last.id) ?? last.text;
-    if (!live) {
-      setPendingFocus({ id: last.id, offset: 0 });
-      setEditingBlockId(last.id);
-      focusBlock(last.id);
-      inputs.current.get(last.id)?.focus();
-      return;
-    }
-    onSplit(last.id, live, "");
-  }, [blocks, focusBlock, onSplit, setEditingBlockId]);
-
-  const onMerge = useCallback(
-    (blockId: string, text: string) => {
-      const pending = replaceTimers.current.get(blockId);
-      if (pending) {
-        clearTimeout(pending);
-        replaceTimers.current.delete(blockId);
-      }
-      const current = chapterRef.current;
-      if (!current) return;
-      const doc = htmlToDoc(current.content, current.revision).doc;
-      const result = backspaceAtStartOps(doc, blockId, text);
-      if (result.ops.length === 0) return;
-      const merged = result.focusText;
-      for (const op of result.ops) {
-        if (op.type === "delete_block") {
-          draftsRef.current.delete(op.blockId);
-          grammarRef.current?.forgetBlock(op.blockId);
-        }
-      }
-      grammarRef.current?.forgetBlock(blockId);
-      if (merged != null) {
-        draftsRef.current.set(result.focusBlockId, merged);
-        grammarRef.current?.noteDraft(result.focusBlockId, merged);
-      }
-      markTyping();
-      // The surviving paragraph is already mounted and already holds a draft
-      // entry, so neither of BlockInput's sync effects will pick the folded-in
-      // tail up. It has to travel with the caret.
-      setPendingFocus({
-        id: result.focusBlockId,
-        offset: result.focusOffset,
-        text: merged,
-      });
-      setEditingBlockId(result.focusBlockId);
-      focusBlock(result.focusBlockId);
-      commitOps(result.ops);
-    },
-    [commitOps, focusBlock, markTyping, setEditingBlockId]
+    [markTyping, scheduleFlush, settings.autoCorrect]
   );
 
   const onCaret = useCallback(
-    (blockId: string, start: number, end: number) => {
-      caretRef.current = { blockId, offset: start, end };
-      if (start !== end) {
-        setFormatTarget({ blockId, start, end });
-      }
+    (start: number, end: number) => {
       const current = chapterRef.current;
       if (!current) return;
+      const at = blockAtPlainOffset(current.content, start);
+      caretRef.current = {
+        blockId: at?.blockId ?? "",
+        offset: at?.local ?? 0,
+        end: at ? at.local + (end - start) : 0,
+        docOffset: start,
+      };
+      setFormatTarget({ start, end });
       if (caretTimer.current) clearTimeout(caretTimer.current);
       caretTimer.current = setTimeout(() => {
-        void recordReadingPosition({ chapterId: current.id, blockId, offset: start });
+        void recordReadingPosition({
+          chapterId: current.id,
+          blockId: at?.blockId ?? "",
+          offset: at?.local ?? 0,
+        });
       }, CARET_FLUSH_MS);
     },
     [recordReadingPosition]
   );
 
-  const onFocused = useCallback(
-    (id: string) => {
-      focusBlock(id);
-      setEditingBlockId(id);
-      setPendingFocus((current) => (current && current.id !== id ? null : current));
-    },
-    [focusBlock, setEditingBlockId]
-  );
+  const onFocused = useCallback(() => {
+    focusedRef.current = true;
+    setFocused(true);
+    setEditingBlockIds(previousBlocksRef.current.map((block) => block.id));
+  }, [setEditingBlockIds]);
 
-  const onBlurred = useCallback(
-    (id: string, text: string) => {
-      const live = draftsRef.current.get(id) ?? text;
-      grammarRef.current?.setComposing(id, false);
-      grammarRef.current?.noteDraft(id, live);
-      flushReplace(id, live);
-      draftsRef.current.delete(id);
-      // Return and Backspace blur the old paragraph on their way to the new
-      // one. Only a blur that leaves the editor ends the typing window.
-      if (focusedIdRef.current !== id) return;
-      setTyping(false);
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-      focusBlock(null);
-      setEditingBlockId(null);
-    },
-    [flushReplace, focusBlock, setEditingBlockId]
-  );
+  const onBlurred = useCallback(() => {
+    focusedRef.current = false;
+    setFocused(false);
+    setTyping(false);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    setEditingBlockIds([]);
+    void flush();
+  }, [flush, setEditingBlockIds]);
 
-  const targetBlockId =
-    focusedId ??
-    (formatTarget.blockId || null) ??
-    blocks[0]?.id ??
-    null;
-  const targetBlock = blocks.find((block) => block.id === targetBlockId) ?? null;
-  const markBlock =
-    (formatTarget.blockId && blocks.find((block) => block.id === formatTarget.blockId)) || targetBlock;
-  const markLive = markBlock ? (draftsRef.current.get(markBlock.id) ?? markBlock.text) : "";
-  const targetMarks = markBlock
-    ? marksCovering(
-        applyPlainEdit(innerHtmlOf(markBlock.html), markLive),
-        formatTarget.start,
-        formatTarget.end
-      )
-    : undefined;
-  const targetKind: FormatBlockKind =
-    targetBlock?.kind === "heading" || targetBlock?.kind === "quote" || targetBlock?.kind === "list_item"
-      ? targetBlock.kind
-      : "paragraph";
+  useEffect(() => {
+    if (!focused) return;
+    setEditingBlockIds(blocks.map((block) => block.id));
+  }, [blocks, focused, setEditingBlockIds]);
+
   const barPlacement = formatBarPlacement(settings.formatChrome);
   const barHidden = hideFormatBarWhileTyping(settings.formatChrome, typing);
 
-  const applyFormat = useCallback(
-    (ops: ReturnType<typeof retagBlockOps>) => {
-      if (ops.length === 0) return;
-      const blockId = ops[0] && "blockId" in ops[0] ? ops[0].blockId : null;
-      if (blockId) {
-        const pending = replaceTimers.current.get(blockId);
-        if (pending) {
-          clearTimeout(pending);
-          replaceTimers.current.delete(blockId);
-        }
-      }
-      commitOps(ops);
-    },
-    [commitOps]
-  );
-
   const onToggleMark = useCallback(
     (mark: BlockMark) => {
-      const current = chapterRef.current;
-      const blockId =
-        formatTarget.start !== formatTarget.end ? formatTarget.blockId : targetBlockId;
-      if (!current || !blockId) return;
-      const doc = htmlToDoc(current.content, current.revision).doc;
-      const live = draftsRef.current.get(blockId);
-      const range =
-        formatTarget.blockId === blockId
-          ? { start: formatTarget.start, end: formatTarget.end }
-          : undefined;
-      applyFormat(toggleBlockMarkOps(doc, blockId, mark, live, undefined, range));
+      const editor = editorRef.current;
+      if (!editor) return;
+      if (mark === "bold") editor.toggleBold();
+      if (mark === "italic") editor.toggleItalic();
+      if (mark === "underline") editor.toggleUnderline();
+      if (mark === "strike") editor.toggleStrikeThrough();
+      markTyping();
+      scheduleFlush();
     },
-    [applyFormat, formatTarget.blockId, formatTarget.end, formatTarget.start, targetBlockId]
+    [markTyping, scheduleFlush]
   );
 
   const onSetKind = useCallback(
     (kind: FormatBlockKind) => {
-      const current = chapterRef.current;
-      const blockId = pressMenuId || targetBlockId;
-      if (!current || !blockId) return;
-      const doc = htmlToDoc(current.content, current.revision).doc;
-      const live = draftsRef.current.get(blockId);
-      applyFormat(retagBlockOps(doc, blockId, kind, live));
-      setPressMenuId(null);
+      const editor = editorRef.current;
+      if (!editor) return;
+      if (kind === "heading") editor.toggleH2();
+      else if (kind === "quote") editor.toggleBlockQuote();
+      else if (kind === "list_item") editor.toggleUnorderedList();
+      else if (targetKind === "heading") editor.toggleH2();
+      else if (targetKind === "quote") editor.toggleBlockQuote();
+      else if (targetKind === "list_item") editor.toggleUnorderedList();
+      markTyping();
+      scheduleFlush();
     },
-    [applyFormat, pressMenuId, targetBlockId]
+    [markTyping, scheduleFlush, targetKind]
   );
+
+  const onChangeState = useCallback((state: OnChangeStateEvent) => {
+    setTargetMarks(marksFromEnrichedState(state));
+    setTargetKind(kindFromEnrichedState(state));
+  }, []);
 
   useEffect(() => {
     hideBar.value = withTiming(barHidden ? 1 : 0, { duration: reduceMotion ? 1 : 220 });
   }, [barHidden, hideBar, reduceMotion]);
 
   const headerBarStyle = useAnimatedStyle(() => {
-    // Keep this math in the worklet. Calling JS helpers from the UI thread crashes.
     const amount = hideBar.value;
     return {
       opacity: 1 - amount,
@@ -539,25 +363,17 @@ export default function ManuscriptScreen() {
     const doc = htmlToDoc(current.content, current.revision).doc;
     const live =
       loop.draftOf(suggestion.blockId) ??
-      draftsRef.current.get(suggestion.blockId) ??
       doc.blocks.find((block) => block.id === suggestion.blockId)?.text ??
       suggestion.text;
-    const caret =
-      caretRef.current.blockId === suggestion.blockId ? caretRef.current.offset : live.length;
+    const caret = caretRef.current.blockId === suggestion.blockId ? caretRef.current.offset : live.length;
     const accepted = acceptedCorrection({ suggestion, liveText: live, caret });
     if (!accepted) {
       loop.setSuggestion(null);
       return;
     }
-    const timer = replaceTimers.current.get(accepted.blockId);
-    if (timer) {
-      clearTimeout(timer);
-      replaceTimers.current.delete(accepted.blockId);
-    }
-    loop.noteDraft(accepted.blockId, accepted.nextText);
-    draftsRef.current.set(accepted.blockId, accepted.nextText);
     commitOps(replaceBlockOps(doc, accepted.blockId, accepted.nextText, { actor: "correction" }));
-    setPendingFocus({ id: accepted.blockId, offset: accepted.caret, text: accepted.nextText });
+    const next = chapterRef.current;
+    if (next) editorRef.current?.setValue(toEnrichedHtml(next.content));
     loop.setSuggestion(null);
   }, [commitOps, grammarSuggestion]);
   acceptGrammarRef.current = acceptGrammar;
@@ -568,55 +384,25 @@ export default function ManuscriptScreen() {
 
   useEffect(() => {
     return () => {
-      for (const timer of replaceTimers.current.values()) clearTimeout(timer);
+      if (replaceTimer.current) clearTimeout(replaceTimer.current);
       if (caretTimer.current) clearTimeout(caretTimer.current);
       if (typingTimer.current) clearTimeout(typingTimer.current);
-      setEditingBlockId(null);
+      setEditingBlockIds([]);
     };
-  }, [setEditingBlockId]);
+  }, [setEditingBlockIds]);
 
-  useEffect(() => {
-    if (!chapter || !resume) return;
-    const key = chapter.id;
-    if (didFocusResume.current === key) return;
-    if (!blocks.some((block) => block.id === resume.blockId)) return;
-    didFocusResume.current = key;
-    const handle = requestAnimationFrame(() => {
-      inputs.current.get(resume.blockId)?.focus();
-    });
-    return () => cancelAnimationFrame(handle);
-  }, [blocks, chapter, resume]);
-
-  const registerInput = useCallback((id: string, ref: TextInput | null) => {
-    if (ref) {
-      inputs.current.set(id, ref);
-      if (pendingFocusRef.current?.id === id) ref.focus();
-    } else {
-      inputs.current.delete(id);
-    }
+  const registerEditor = useCallback((ref: EnrichedTextInputInstance | null) => {
+    editorRef.current = ref;
   }, []);
 
-  const onCaretPlaced = useCallback((id: string) => {
-    setPendingFocus((current) => (current?.id === id ? null : current));
-  }, []);
-
-  useEffect(() => {
-    if (!pendingFocus) return;
-    const id = pendingFocus.id;
-    let next: number | null = null;
-    let attempts = 0;
-    const attempt = () => {
-      inputs.current.get(id)?.focus();
-      attempts += 1;
-      if (attempts < 12 && pendingFocusRef.current?.id === id) {
-        next = requestAnimationFrame(attempt);
-      }
-    };
-    next = requestAnimationFrame(attempt);
-    return () => {
-      if (next != null) cancelAnimationFrame(next);
-    };
-  }, [pendingFocus]);
+  const onContinue = useCallback(() => {
+    editorRef.current?.focus();
+    const last = blocks[blocks.length - 1];
+    if (!last) return;
+    const index = resumePlainTextIndex(content, last.id, last.text.length);
+    if (index == null) return;
+    editorRef.current?.setSelection(index, index);
+  }, [blocks, content]);
 
   const popupSpan = grammarSuggestion
     ? selectPopupSpan(
@@ -625,20 +411,6 @@ export default function ManuscriptScreen() {
         grammarSuggestion.spans
       )
     : null;
-
-  const grammarCallout: GrammarCallout | null =
-    settings.autoCorrect && grammarSuggestion && popupSpan
-      ? {
-          start: popupSpan.start,
-          end: popupSpan.end,
-          original: popupSpan.original,
-          replacement: popupSpan.replacement,
-          shownAt: grammarSuggestion.shownAt,
-          reduceMotion,
-          onAccept: acceptGrammar,
-          onIgnore: ignoreGrammar,
-        }
-      : null;
 
   if (loading && !project) {
     return (
@@ -677,7 +449,7 @@ export default function ManuscriptScreen() {
               marks={targetMarks}
               kind={targetKind}
               placement="header"
-              disabled={!targetBlockId}
+              disabled={!focused}
               onToggleMark={onToggleMark}
               onSetKind={onSetKind}
             />
@@ -697,83 +469,66 @@ export default function ManuscriptScreen() {
           alignItems: "stretch",
         }}
       >
-      <Text style={layout.title}>{chapter.title}</Text>
-      {resume ? (
-        // Test hook only: where the caret resumed. Kept out of layout and
-        // out of the accessibility tree so it cannot shift the page.
-        <Text
-          testID="reading-caret"
-          accessibilityLabel={`${resume.blockId}:${resume.offset}`}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
-        >
-          {`${resume.blockId}:${resume.offset}`}
-        </Text>
-      ) : null}
-      {blocks.map((item) => (
-        <BlockInput
-          key={item.id}
-          block={item}
+        <Text style={layout.title}>{chapter.title}</Text>
+        {resume ? (
+          <Text
+            testID="reading-caret"
+            accessibilityLabel={`${resume.blockId}:${resume.offset}`}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
+          >
+            {`${resume.blockId}:${resume.offset}`}
+          </Text>
+        ) : null}
+        {settings.autoCorrect && grammarSuggestion && popupSpan ? (
+          <View style={{ marginBottom: 12 }}>
+            <GrammarPopup
+              original={popupSpan.original}
+              replacement={popupSpan.replacement}
+              shownAt={grammarSuggestion.shownAt}
+              reduceMotion={reduceMotion}
+              onAccept={acceptGrammar}
+              onIgnore={ignoreGrammar}
+            />
+          </View>
+        ) : null}
+        {showSelectionBubble(settings.formatChrome, formatTarget.start !== formatTarget.end) &&
+        !(grammarSuggestion && popupSpan) ? (
+          <View style={{ marginBottom: 12 }}>
+            <FormatBubble marks={targetMarks} onToggleMark={onToggleMark} />
+          </View>
+        ) : null}
+        <ChapterEditor
+          chapterId={chapter.id}
+          html={content}
           editorStyle={editorStyle}
-          autoCorrect={settings.autoCorrect}
-          focused={focusedId === item.id}
-          resumeOffset={resume?.blockId === item.id ? resume.offset : null}
-          pendingFocus={pendingFocus?.id === item.id ? pendingFocus : null}
-          popup={grammarCallout && grammarSuggestion?.blockId === item.id ? grammarCallout : null}
-          formatBubble={
-            showSelectionBubble(settings.formatChrome, formatTarget.start !== formatTarget.end) &&
-            item.id === formatTarget.blockId &&
-            !(grammarCallout && grammarSuggestion?.blockId === item.id)
-              ? {
-                  start: formatTarget.start,
-                  end: formatTarget.end,
-                  marks: targetMarks ?? emptyBlockMarks(),
-                  onToggleMark,
-                }
-              : null
-          }
-          pressMenu={
-            pressMenuId === item.id
-              ? {
-                  kind:
-                    item.kind === "heading" || item.kind === "quote" || item.kind === "list_item"
-                      ? item.kind
-                      : "paragraph",
-                  onSetKind,
-                }
-              : null
-          }
-          onPressFormat={
-            showPressMenu(settings.formatChrome) ? () => setPressMenuId(item.id) : undefined
-          }
-          draftsRef={draftsRef}
+          placeholder={t("manuscript.emptyChapter")}
+          focused={focused}
+          resumeOffset={resume?.index ?? null}
           onFocused={onFocused}
           onBlurred={onBlurred}
-          onDraft={onDraft}
-          onSplit={onSplit}
-          onMerge={onMerge}
-          onCaret={onCaret}
-          onComposing={onComposing}
-          onCaretPlaced={onCaretPlaced}
-          registerInput={registerInput}
+          onChangeText={onChangeText}
+          onChangeState={onChangeState}
+          onChangeSelection={onCaret}
+          onSetKind={showPressMenu(settings.formatChrome) ? onSetKind : undefined}
+          registerEditor={registerEditor}
         />
-      ))}
-      <Pressable
-        testID="continue-writing"
-        accessibilityRole="button"
-        accessibilityLabel={t("manuscript.continueWriting")}
-        onPress={onContinueAfterLast}
-        style={{ minHeight: 180 }}
-      />
-    </KeyboardAwareScrollView>
+        <Pressable
+          testID="continue-writing"
+          accessibilityRole="button"
+          accessibilityLabel={t("manuscript.continueWriting")}
+          onPress={onContinue}
+          style={{ minHeight: 180 }}
+        />
+      </KeyboardAwareScrollView>
       {barPlacement === "accessory" ? (
         <View style={{ marginBottom: clearance }}>
           <FormatBar
             marks={targetMarks}
             kind={targetKind}
             placement="accessory"
-            disabled={!targetBlockId}
+            disabled={!focused}
             onToggleMark={onToggleMark}
             onSetKind={onSetKind}
           />

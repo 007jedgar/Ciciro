@@ -89,7 +89,7 @@ export function useProjectSync(
     store?: ReplicaStore;
     api?: SyncApi;
     listen?: ChapterHeadSubscription;
-    skipBlockIdRef?: MutableRefObject<string | null>;
+    skipBlockIdsRef?: MutableRefObject<string[]>;
   }
 ) {
   const { user } = useSession();
@@ -108,9 +108,9 @@ export function useProjectSync(
   }
 
   const skipOpts = useCallback(() => {
-    const id = opts?.skipBlockIdRef?.current;
-    return id ? { skipBlockIds: [id] } : undefined;
-  }, [opts?.skipBlockIdRef]);
+    const ids = opts?.skipBlockIdsRef?.current;
+    return ids && ids.length > 0 ? { skipBlockIds: ids } : undefined;
+  }, [opts?.skipBlockIdsRef]);
 
   const followUp = useRef<"auto" | "pull" | "push" | null>(null);
 
