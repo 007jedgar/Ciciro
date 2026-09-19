@@ -55,7 +55,7 @@ import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
-import { FORMAT_IDLE_MS, formatBarPlacement, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../../../../lib/format-chrome";
+import { FORMAT_IDLE_MS, FORMAT_BAR_HEIGHT, formatBarPlacement, headerBarOverlay, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../../../../lib/format-chrome";
 
 function blockStyleFor(
   settings: { editorFont: "serif" | "sans"; editorFontSize: number },
@@ -494,10 +494,13 @@ export default function ManuscriptScreen() {
     hideBar.value = withTiming(barHidden ? 1 : 0, { duration: reduceMotion ? 1 : 220 });
   }, [barHidden, hideBar, reduceMotion]);
 
-  const headerBarStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: hideBar.value * -8 }],
-    marginTop: -52 * hideBar.value,
-  }));
+  const headerBarStyle = useAnimatedStyle(() => {
+    const overlay = headerBarOverlay(hideBar.value);
+    return {
+      opacity: overlay.opacity,
+      transform: [{ translateY: overlay.translateY }],
+    };
+  });
 
   const acceptGrammar = useCallback(() => {
     const suggestion = grammarRef.current?.suggestion ?? grammarSuggestion;
@@ -635,7 +638,11 @@ export default function ManuscriptScreen() {
   return (
     <View style={layout.screen}>
       {barPlacement === "header" ? (
-        <View style={{ overflow: "hidden" }}>
+        <View
+          testID="format-bar-slot"
+          pointerEvents={barHidden ? "none" : "auto"}
+          style={{ height: FORMAT_BAR_HEIGHT, overflow: "hidden" }}
+        >
           <Animated.View style={headerBarStyle}>
             <FormatBar
               marks={targetMarks}
@@ -652,10 +659,10 @@ export default function ManuscriptScreen() {
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="always"
         keyboardDismissMode="none"
-        bottomOffset={clearance + (barPlacement === "accessory" ? 52 : 0)}
+        bottomOffset={clearance + (barPlacement === "accessory" ? FORMAT_BAR_HEIGHT : 0)}
         contentContainerStyle={{
           padding: 20,
-          paddingBottom: clearance + (barPlacement === "accessory" ? 52 : 0),
+          paddingBottom: clearance + (barPlacement === "accessory" ? FORMAT_BAR_HEIGHT : 0),
           flexGrow: 1,
           justifyContent: "flex-start",
           alignItems: "stretch",
