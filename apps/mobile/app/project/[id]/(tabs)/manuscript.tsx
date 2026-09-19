@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import {
   BlockInput,
   type EditorStyle,
   type GrammarCallout,
   type PendingFocus,
 } from "../../../../components/BlockInput";
+import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { ciciro } from "../../../../lib/api";
@@ -18,9 +20,13 @@ import {
   backspaceAtStartOps,
   CARET_FLUSH_MS,
   insertFirstBlockOps,
+  readBlockMarks,
   REPLACE_FLUSH_MS,
   replaceBlockOps,
+  retagBlockOps,
   splitOrInsertBlockOps,
+  toggleBlockMarkOps,
+  type BlockMark,
 } from "../../../../lib/block-editor";
 import {
   freezeResumePlace,
@@ -48,6 +54,7 @@ import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
+import { FORMAT_IDLE_MS, formatBarPlacement, hideFormatBarWhileTyping } from "../../../../lib/format-chrome";
 
 function blockStyleFor(
   settings: { editorFont: "serif" | "sans"; editorFontSize: number },
@@ -104,6 +111,9 @@ export default function ManuscriptScreen() {
   const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0 });
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideBar = useSharedValue(0);
 
   const overlay = chapter && inflight > 0 && localDoc?.chapterId === chapter.id ? localDoc : null;
 
@@ -254,6 +264,9 @@ export default function ManuscriptScreen() {
     (blockId: string, text: string) => {
       draftsRef.current.set(blockId, text);
       scheduleReplace(blockId, text);
+      setTyping(true);
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      typingTimer.current = setTimeout(() => setTyping(false), FORMAT_IDLE_MS);
       const current = chapterRef.current;
       if (!current) return;
       grammarRef.current?.onKeystroke({
@@ -385,6 +398,8 @@ export default function ManuscriptScreen() {
       grammarRef.current?.noteDraft(id, live);
       flushReplace(id, live);
       draftsRef.current.delete(id);
+      setTyping(false);
+      if (typingTimer.current) clearTimeout(typingTimer.current);
       setFocusedId((current) => {
         if (current !== id) return current;
         setEditingBlockId(null);
@@ -393,6 +408,60 @@ export default function ManuscriptScreen() {
     },
     [flushReplace, setEditingBlockId]
   );
+
+  const targetBlockId = focusedId ?? blocks[0]?.id ?? null;
+  const targetBlock = blocks.find((block) => block.id === targetBlockId) ?? null;
+  const targetMarks = targetBlock ? readBlockMarks(targetBlock.html) : undefined;
+  const targetKind: FormatBlockKind =
+    targetBlock?.kind === "heading" || targetBlock?.kind === "quote" || targetBlock?.kind === "list_item"
+      ? targetBlock.kind
+      : "paragraph";
+  const barPlacement = formatBarPlacement(settings.formatChrome);
+  const barHidden = hideFormatBarWhileTyping(settings.formatChrome, typing);
+
+  const applyFormat = useCallback(
+    (ops: ReturnType<typeof retagBlockOps>) => {
+      if (!targetBlockId || ops.length === 0) return;
+      const pending = replaceTimers.current.get(targetBlockId);
+      if (pending) {
+        clearTimeout(pending);
+        replaceTimers.current.delete(targetBlockId);
+      }
+      commitOps(ops);
+    },
+    [commitOps, targetBlockId]
+  );
+
+  const onToggleMark = useCallback(
+    (mark: BlockMark) => {
+      const current = chapterRef.current;
+      if (!current || !targetBlockId) return;
+      const doc = htmlToDoc(current.content, current.revision).doc;
+      const live = draftsRef.current.get(targetBlockId);
+      applyFormat(toggleBlockMarkOps(doc, targetBlockId, mark, live));
+    },
+    [applyFormat, targetBlockId]
+  );
+
+  const onSetKind = useCallback(
+    (kind: FormatBlockKind) => {
+      const current = chapterRef.current;
+      if (!current || !targetBlockId) return;
+      const doc = htmlToDoc(current.content, current.revision).doc;
+      const live = draftsRef.current.get(targetBlockId);
+      applyFormat(retagBlockOps(doc, targetBlockId, kind, live));
+    },
+    [applyFormat, targetBlockId]
+  );
+
+  useEffect(() => {
+    hideBar.value = withTiming(barHidden ? 1 : 0, { duration: reduceMotion ? 1 : 220 });
+  }, [barHidden, hideBar, reduceMotion]);
+
+  const headerBarStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: hideBar.value * -8 }],
+    marginTop: -52 * hideBar.value,
+  }));
 
   const acceptGrammar = useCallback(() => {
     const suggestion = grammarRef.current?.suggestion ?? grammarSuggestion;
@@ -433,6 +502,7 @@ export default function ManuscriptScreen() {
     return () => {
       for (const timer of replaceTimers.current.values()) clearTimeout(timer);
       if (caretTimer.current) clearTimeout(caretTimer.current);
+      if (typingTimer.current) clearTimeout(typingTimer.current);
       setEditingBlockId(null);
     };
   }, [setEditingBlockId]);
@@ -527,19 +597,34 @@ export default function ManuscriptScreen() {
   }
 
   return (
-    <KeyboardAwareScrollView
-      style={layout.screen}
-      keyboardShouldPersistTaps="always"
-      keyboardDismissMode="none"
-      bottomOffset={clearance}
-      contentContainerStyle={{
-        padding: 20,
-        paddingBottom: clearance,
-        flexGrow: 1,
-        justifyContent: "flex-start",
-        alignItems: "stretch",
-      }}
-    >
+    <View style={layout.screen}>
+      {barPlacement === "header" ? (
+        <View style={{ overflow: "hidden" }}>
+          <Animated.View style={headerBarStyle}>
+            <FormatBar
+              marks={targetMarks}
+              kind={targetKind}
+              placement="header"
+              disabled={!targetBlockId}
+              onToggleMark={onToggleMark}
+              onSetKind={onSetKind}
+            />
+          </Animated.View>
+        </View>
+      ) : null}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
+        bottomOffset={clearance + (barPlacement === "accessory" ? 52 : 0)}
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: clearance + (barPlacement === "accessory" ? 52 : 0),
+          flexGrow: 1,
+          justifyContent: "flex-start",
+          alignItems: "stretch",
+        }}
+      >
       <Text style={layout.title}>{chapter.title}</Text>
       {resume ? (
         // Test hook only: where the caret resumed. Kept out of layout and
@@ -584,5 +669,18 @@ export default function ManuscriptScreen() {
         style={{ minHeight: 180 }}
       />
     </KeyboardAwareScrollView>
+      {barPlacement === "accessory" ? (
+        <View style={{ marginBottom: clearance }}>
+          <FormatBar
+            marks={targetMarks}
+            kind={targetKind}
+            placement="accessory"
+            disabled={!targetBlockId}
+            onToggleMark={onToggleMark}
+            onSetKind={onSetKind}
+          />
+        </View>
+      ) : null}
+    </View>
   );
 }

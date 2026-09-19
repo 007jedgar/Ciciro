@@ -15,7 +15,7 @@ import {
   type TextLineMetrics,
 } from "../lib/grammar";
 import type { ManuscriptBlock } from "../lib/manuscript";
-import { splitAtOffset, takeReturnSplit } from "../lib/block-editor";
+import { splitAtOffset, takeReturnSplit, readBlockMarks } from "../lib/block-editor";
 import {
   isBackspaceAtStart,
   isGuardDeleted,
@@ -157,14 +157,32 @@ export const BlockInput = memo(function BlockInput({
   }, [pendingFocus, block.id, onCaretPlaced]);
 
   const style = useMemo(() => {
+    const marks = readBlockMarks(block.html);
+    const decoration =
+      marks.underline && marks.strike
+        ? ("underline line-through" as const)
+        : marks.strike
+          ? ("line-through" as const)
+          : marks.underline
+            ? ("underline" as const)
+            : ("none" as const);
+    const base = {
+      ...editorStyle,
+      fontWeight: (marks.bold || block.kind === "heading" ? "600" : "400") as "600" | "400",
+      fontStyle: (marks.italic || block.kind === "quote" ? "italic" : "normal") as "italic" | "normal",
+      textDecorationLine: decoration,
+    };
     if (block.kind === "heading") {
-      return { ...editorStyle, fontSize: editorStyle.fontSize + 6, fontWeight: "600" as const };
+      return { ...base, fontSize: editorStyle.fontSize + 6 };
     }
     if (block.kind === "quote") {
-      return { ...editorStyle, fontStyle: "italic" as const, paddingLeft: 12 };
+      return { ...base, paddingLeft: 12 };
     }
-    return editorStyle;
-  }, [block.kind, editorStyle]);
+    if (block.kind === "list_item") {
+      return { ...base, paddingLeft: 18 };
+    }
+    return base;
+  }, [block.html, block.kind, editorStyle]);
 
   const align = block.kind === "scene_break" ? ("center" as const) : ("left" as const);
   const displayed = withCaretGuard(text);
