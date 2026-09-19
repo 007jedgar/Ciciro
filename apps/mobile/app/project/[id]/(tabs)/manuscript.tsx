@@ -55,7 +55,7 @@ import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
-import { FORMAT_IDLE_MS, FORMAT_BAR_HEIGHT, formatBarPlacement, headerBarOverlay, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../../../../lib/format-chrome";
+import { FORMAT_IDLE_MS, FORMAT_BAR_HEIGHT, formatBarPlacement, hideFormatBarWhileTyping, showPressMenu, showSelectionBubble } from "../../../../lib/format-chrome";
 
 function blockStyleFor(
   settings: { editorFont: "serif" | "sans"; editorFontSize: number },
@@ -495,10 +495,11 @@ export default function ManuscriptScreen() {
   }, [barHidden, hideBar, reduceMotion]);
 
   const headerBarStyle = useAnimatedStyle(() => {
-    const overlay = headerBarOverlay(hideBar.value);
+    // Keep this math in the worklet. Calling JS helpers from the UI thread crashes.
+    const amount = hideBar.value;
     return {
-      opacity: overlay.opacity,
-      transform: [{ translateY: overlay.translateY }],
+      opacity: 1 - amount,
+      transform: [{ translateY: -12 * amount }],
     };
   });
 
