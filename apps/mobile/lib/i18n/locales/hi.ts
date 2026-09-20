@@ -188,6 +188,7 @@ const hi: Translations = {
     loadError: "पांडुलिपि लोड नहीं हो सकी।",
   },
   chapters: {
+    number: "अध्याय {{number}}",
     newTitle: "नया अध्याय",
     empty: "अभी कोई अध्याय नहीं।",
     wordCount_one: "{{count}} शब्द",
