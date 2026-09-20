@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { AuthError, authenticate, registerUser } from "@/lib/auth/session";
+import { AuthError, authenticate, createSession, registerUser } from "@/lib/auth/session";
 import { hashSessionToken } from "@/lib/auth/tokens";
 
 describe("account registration and authentication", () => {
@@ -80,6 +80,19 @@ describe("account registration and authentication", () => {
       where: { tokenHash: hashSessionToken(raw) },
     });
     expect(stored.tokenHash).not.toBe(raw);
+    expect(stored.userId).toBe(user.id);
+  });
+
+  it("persists a session even when Next cookies() is unavailable", async () => {
+    const user = await registerUser({
+      email: "cookie-als@example.com",
+      password: "session-password",
+    });
+    const token = await createSession(user.id, "vitest");
+    expect(token.length).toBeGreaterThan(20);
+    const stored = await prisma.session.findUniqueOrThrow({
+      where: { tokenHash: hashSessionToken(token) },
+    });
     expect(stored.userId).toBe(user.id);
   });
 });

@@ -11,6 +11,7 @@ import {
   NATIVE_CLIENT_VALUE,
   SESSION_COOKIE,
   SESSION_TTL_MS,
+  sessionCookieOptions,
   isNativeClient,
   sessionResponseBody,
   tokenFromCookieHeader,
@@ -39,6 +40,11 @@ describe("session tokens", () => {
   it("uses a stable cookie name and a positive TTL", () => {
     expect(SESSION_COOKIE).toBe("ciciro_session");
     expect(SESSION_TTL_MS).toBeGreaterThan(0);
+    const opts = sessionCookieOptions(new Date("2026-12-01T00:00:00.000Z"));
+    expect(opts.httpOnly).toBe(true);
+    expect(opts.sameSite).toBe("lax");
+    expect(opts.path).toBe("/");
+    expect(opts.expires.toISOString()).toBe("2026-12-01T00:00:00.000Z");
   });
 });
 

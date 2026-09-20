@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  SESSION_COOKIE,
   SESSION_HEADER,
   isNativeClient,
+  sessionCookieOptions,
   sessionResponseBody,
 } from "@/lib/auth/constants";
 import { AuthError } from "@/lib/auth/session";
@@ -42,6 +44,9 @@ export function jsonWithSession<T extends Record<string, unknown>>(
   init?: { status?: number }
 ): NextResponse {
   const res = NextResponse.json(sessionResponseBody(body, token, native), init);
+  if (token) {
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+  }
   if (native && token) res.headers.set(SESSION_HEADER, token);
   return res;
 }

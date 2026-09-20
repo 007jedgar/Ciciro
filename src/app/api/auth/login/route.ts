@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isNativeClient } from "@/lib/auth/constants";
-import { jsonWithSession } from "@/lib/auth/http";
+import { jsonWithSession, responseFromDbError } from "@/lib/auth/http";
 import { AuthError, authenticate, createSession } from "@/lib/auth/session";
 import { getUserSettings } from "@/lib/user-settings";
 
@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    const mapped = responseFromDbError(error);
+    if (mapped) return mapped;
+    console.error("login failed", error);
     return NextResponse.json({ error: "Could not sign in." }, { status: 500 });
   }
 }
