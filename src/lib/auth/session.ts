@@ -5,6 +5,7 @@ import {
   authRequired,
   SESSION_COOKIE,
   SESSION_HEADER,
+  sessionCookieOptions,
   tokenFromCookieHeader,
 } from "@/lib/auth/constants";
 import { peekRequestSession } from "@/lib/auth/session-binding";
@@ -103,14 +104,13 @@ export async function createSession(
       expiresAt,
     },
   });
-  const jar = await cookies();
-  jar.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: expiresAt,
-  });
+  try {
+    const jar = await cookies();
+    jar.set(SESSION_COOKIE, token, sessionCookieOptions(expiresAt));
+  } catch {
+    // OpenNext often continues outside ALS. Login still returns the token and
+    // jsonWithSession writes Set-Cookie on the response.
+  }
   return token;
 }
 
@@ -254,13 +254,17 @@ export async function authorizeProject(
 }
 
 /** Destroy the current session (DB row + cookie). Idempotent. */
-export async function destroySession(): Promise<void> {
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) {
+export async function destroySession(request?: SessionRequest): Promise<void> {
+  const tokens = await sessionTokens(request);
+  if (tokens.length) {
     await prisma.session
-      .deleteMany({ where: { tokenHash: hashSessionToken(token) } })
+      .deleteMany({ where: { tokenHash: { in: tokens.map(hashSessionToken) } } })
       .catch(() => {});
   }
-  jar.delete(SESSION_COOKIE);
+  try {
+    const jar = await cookies();
+    jar.delete(SESSION_COOKIE);
+  } catch {
+    // Cookie jar missing; the logout route still expires Set-Cookie.
+  }
 }

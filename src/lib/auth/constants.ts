@@ -98,4 +98,15 @@ export function sessionResponseBody<T extends Record<string, unknown>>(
 // How long a freshly issued session is valid.
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+/** Cookie flags for `ciciro_session`. Shared by `cookies().set` and Set-Cookie. */
+export function sessionCookieOptions(expires = new Date(Date.now() + SESSION_TTL_MS)) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires,
+  };
+}
+
 export const MIN_PASSWORD_LENGTH = 8;

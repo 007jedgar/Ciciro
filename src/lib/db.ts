@@ -3,13 +3,14 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaD1 } from "@prisma/adapter-d1";
 import { getD1Database, runWithD1Database } from "@/lib/d1-binding";
 
-// Node: one client across hot reloads. Workers: one client per request, stored
-// in ALS so concurrent /api/projects + /api/folders + /api/chat do not share
-// Prisma promises across Cloudflare request contexts.
+// Node: one client across hot reloads. Workers: prefer the request ALS client,
+// and fall back to one isolate-level D1 client. OpenNext often leaves ALS;
+// creating a new Prisma WASM engine per query OOMs login.
 const requestPrisma = new AsyncLocalStorage<PrismaClient>();
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
+  d1Prisma?: PrismaClient;
 };
 
 function createNodePrisma(): PrismaClient {
@@ -34,9 +35,13 @@ function getPrisma(): PrismaClient {
 
   const d1 = getD1Database();
   if (d1) {
-    // OpenNext often leaves ALS. Never reuse one D1 PrismaClient across
-    // requests — that is what hung chat and the manuscript shelf.
-    return createD1Prisma(d1);
+    // OpenNext often leaves ALS. Spawning a new Prisma WASM engine on every
+    // query OOMs the Worker (login 500s, loadEngine / Uint8Array.subarray).
+    // Reuse one isolate client for the stable env.DB binding.
+    if (!globalForPrisma.d1Prisma) {
+      globalForPrisma.d1Prisma = createD1Prisma(d1);
+    }
+    return globalForPrisma.d1Prisma;
   }
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createNodePrisma();
@@ -44,9 +49,12 @@ function getPrisma(): PrismaClient {
   return globalForPrisma.prisma;
 }
 
-/** Bind a request-scoped Prisma client to this Worker request's D1. */
+/** Bind this request to the isolate D1 Prisma client (and ALS when it sticks). */
 export function runWithRequestPrisma<T>(d1: unknown, fn: () => T): T {
-  const client = createD1Prisma(d1);
+  if (!globalForPrisma.d1Prisma) {
+    globalForPrisma.d1Prisma = createD1Prisma(d1);
+  }
+  const client = globalForPrisma.d1Prisma;
   return runWithD1Database(d1, () => requestPrisma.run(client, fn));
 }
 

@@ -48,6 +48,12 @@ describe("app settings", () => {
     expect(s.updatedAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
+  it("accepts a Prisma/D1 timestamp string instead of a Date", () => {
+    const s = parseSettingsJson("{}", "2026-01-01T00:00:00.000Z");
+    expect(s.updatedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(() => parseSettingsJson("{}", "2026-09-20T05:50:19.259+00:00")).not.toThrow();
+  });
+
   it("rejects invalid patches", () => {
     expect(parseSettingsPatch({ theme: "neon" })).toEqual({ error: "Unknown theme." });
     expect(parseSettingsPatch({ formatChrome: "floating" })).toEqual({

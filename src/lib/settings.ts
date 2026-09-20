@@ -82,13 +82,23 @@ function timestamp(value: string): number {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+function asDate(value: unknown): Date {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) return parsed;
+  }
+  return new Date();
+}
+
 /** Normalize unknown JSON into a full AppSettings object. */
-export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
+export function normalizeSettings(raw: unknown, now: Date | string = new Date()): AppSettings {
+  const at = asDate(now);
   const src =
     raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, unknown>)
       : {};
-  const defaults = defaultSettings(now);
+  const defaults = defaultSettings(at);
   const theme = typeof src.theme === "string" && isThemeId(src.theme) ? src.theme : defaults.theme;
   const editorFont = src.editorFont === "sans" || src.editorFont === "serif" ? src.editorFont : defaults.editorFont;
   const editorFontSize =
@@ -121,14 +131,14 @@ export function normalizeSettings(raw: unknown, now = new Date()): AppSettings {
   };
 }
 
-export function parseSettingsJson(json: string, fallbackUpdatedAt?: Date): AppSettings {
+export function parseSettingsJson(json: string, fallbackUpdatedAt?: Date | string): AppSettings {
   let raw: unknown = {};
   try {
     raw = json ? JSON.parse(json) : {};
   } catch {
     raw = {};
   }
-  const now = fallbackUpdatedAt ?? new Date();
+  const now = asDate(fallbackUpdatedAt);
   const normalized = normalizeSettings(raw, now);
   if (!json || json === "{}") {
     return { ...normalized, updatedAt: now.toISOString() };
