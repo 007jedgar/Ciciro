@@ -472,8 +472,7 @@ export default function ManuscriptScreen() {
         </View>
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
-        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}>
-          <Text style={layout.title}>{chapter.title}</Text>
+        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
           {resume ? (
             <Text
               testID="reading-caret"

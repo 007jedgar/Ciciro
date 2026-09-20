@@ -151,9 +151,10 @@ export default function ChaptersScreen() {
           ) : null
         }
         ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <ChapterListCard
             chapter={item}
+            number={index + 1}
             selected={item.id === selectedChapterId}
             deleting={pendingId === item.id}
             onOpen={() => {

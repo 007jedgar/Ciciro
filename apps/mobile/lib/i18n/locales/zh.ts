@@ -187,6 +187,7 @@ const zh: Translations = {
     loadError: "无法加载手稿。",
   },
   chapters: {
+    number: "第 {{number}} 章",
     newTitle: "新章节",
     empty: "还没有章节。",
     wordCount_one: "{{count}} 词",

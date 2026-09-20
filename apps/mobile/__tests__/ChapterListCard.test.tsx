@@ -27,6 +27,7 @@ describe("ChapterListCard", () => {
     render(
       <ChapterListCard
         chapter={chapter({ wordCount: 12, status: "draft" })}
+        number={1}
         selected={false}
         onOpen={onOpen}
         onRequestDelete={onRequestDelete}
@@ -34,8 +35,25 @@ describe("ChapterListCard", () => {
     );
 
     fireEvent.press(screen.getByLabelText("Chapter 1"));
+    expect(screen.getByText("Chapter 1")).toBeTruthy();
     expect(onOpen).toHaveBeenCalledTimes(1);
     expect(onRequestDelete).not.toHaveBeenCalled();
+  });
+
+  it("puts the chapter number above a custom title", () => {
+    render(
+      <ChapterListCard
+        chapter={chapter({ title: "The Docks", order: 2, wordCount: 12 })}
+        number={3}
+        selected={false}
+        onOpen={jest.fn()}
+        onRequestDelete={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText("Chapter 3, The Docks")).toBeTruthy();
+    expect(screen.getByText("Chapter 3")).toBeTruthy();
+    expect(screen.getByText("The Docks")).toBeTruthy();
   });
 
   it("requests delete from the trash control without opening the chapter", () => {
@@ -44,6 +62,7 @@ describe("ChapterListCard", () => {
     render(
       <ChapterListCard
         chapter={chapter()}
+        number={1}
         selected={false}
         onOpen={onOpen}
         onRequestDelete={onRequestDelete}
@@ -62,6 +81,7 @@ describe("ChapterListCard", () => {
     render(
       <ChapterListCard
         chapter={chapter({ status: "draft" })}
+        number={1}
         selected={false}
         onOpen={onOpen}
         onRequestDelete={onRequestDelete}
@@ -73,5 +93,35 @@ describe("ChapterListCard", () => {
     expect(onStatusChange).toHaveBeenCalledWith("final");
     expect(onOpen).not.toHaveBeenCalled();
     expect(onRequestDelete).not.toHaveBeenCalled();
+  });
+
+  it("clips preview copy to ten lines", () => {
+    const summary = Array.from({ length: 20 }, (_, i) => `Line ${i + 1} of the chapter.`).join("\n");
+    render(
+      <ChapterListCard
+        chapter={chapter({ summary })}
+        number={1}
+        selected={false}
+        onOpen={jest.fn()}
+        onRequestDelete={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("chapter-preview").props.numberOfLines).toBe(10);
+    expect(screen.getByTestId("chapter-preview").props.ellipsizeMode).toBe("tail");
+  });
+
+  it("falls back to the chapter prose when there is no summary", () => {
+    render(
+      <ChapterListCard
+        chapter={chapter({ content: "<p>Rain on the quay.</p><p>A bell.</p>" })}
+        number={1}
+        selected={false}
+        onOpen={jest.fn()}
+        onRequestDelete={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("chapter-preview").props.children).toContain("Rain on the quay.");
   });
 });
