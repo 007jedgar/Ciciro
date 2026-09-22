@@ -36,7 +36,13 @@ import {
 } from "../lib/chat-clear";
 import { splitErrorFooter, type ChatFailure } from "../lib/chat-errors";
 import { insertionKey } from "../lib/chat-insert";
-import { CHAT_JUMP_FADE_SCREENS, CHAT_JUMP_START_SCREENS, jumpChipOpacity } from "../lib/chat-scroll";
+import {
+  CHAT_JUMP_FADE_SCREENS,
+  CHAT_JUMP_START_SCREENS,
+  anchorFooterMinHeight,
+  jumpChipOpacity,
+  promptAnchorGap,
+} from "../lib/chat-scroll";
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
@@ -311,12 +317,82 @@ export function CiciroChat({
   // stays reachable with the keyboard up.
   const keyboardLift = Math.max(0, keyboardHeight + KEYBOARD_GAP - bottomInset);
 
-  // New words, and the keyboard opening under them, both mean the tail of the
-  // conversation is what the author wants to be looking at.
+  const [listHeight, setListHeight] = useState(0);
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  const [promptHeight, setPromptHeight] = useState(0);
+  const [replyHeight, setReplyHeight] = useState(0);
+  /** The scroll offset that keeps the anchored prompt at the top. */
+  const holdOffset = useRef<number | null>(null);
+  const holdAnchor = useRef(false);
+  const userMoved = useRef(false);
+  const awaitingLock = useRef(false);
+  const openedAtTail = useRef(false);
+  const pinAttempt = useRef(0);
+  const pinnedId = useRef<string | null>(null);
+
+  const lastMessage = messages[messages.length - 1];
+  const livePromptId =
+    streaming && lastMessage?.role === "user" ? lastMessage.id : null;
+  const activeAnchor = livePromptId ?? anchorId;
+
   useEffect(() => {
-    const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+    if (messages.length === 0) {
+      pinnedId.current = null;
+      setAnchorId(null);
+      setPromptHeight(0);
+      setReplyHeight(0);
+      return;
+    }
+    if (!livePromptId || livePromptId === anchorId) return;
+    setAnchorId(livePromptId);
+    setPromptHeight(0);
+    setReplyHeight(0);
+  }, [anchorId, livePromptId, messages.length]);
+
+  // Opening a transcript lands on the latest reply. A prompt the author just
+  // sent is a different motion: that row goes to the top and then stays there
+  // while the reply streams underneath.
+  useEffect(() => {
+    if (messages.length === 0) {
+      openedAtTail.current = false;
+      return;
+    }
+    if (streaming || activeAnchor) return;
+    if (openedAtTail.current) return;
+    openedAtTail.current = true;
+    const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: !reduceMotion }), 50);
     return () => clearTimeout(id);
-  }, [messages.length, stream.text, keyboardLift]);
+  }, [activeAnchor, messages.length, reduceMotion, streaming]);
+
+  useEffect(() => {
+    if (!activeAnchor || listHeight <= 0) return;
+    if (pinnedId.current === activeAnchor) return;
+    const index = messages.findIndex((message) => message.id === activeAnchor);
+    if (index < 0) return;
+    const attempt = ++pinAttempt.current;
+    const id = setTimeout(() => {
+      if (pinAttempt.current !== attempt) return;
+      pinnedId.current = activeAnchor;
+      userMoved.current = false;
+      holdAnchor.current = false;
+      holdOffset.current = null;
+      awaitingLock.current = true;
+      listRef.current?.scrollToIndex({
+        index,
+        viewPosition: 0,
+        animated: false,
+      });
+    }, 50);
+    return () => clearTimeout(id);
+  }, [activeAnchor, listHeight, messages]);
+
+  // The keyboard used to drag the thread to its tail. Leave an anchored prompt
+  // where the author is reading it; only follow the tail when nothing is pinned.
+  useEffect(() => {
+    if (keyboardLift <= 0 || activeAnchor) return;
+    const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: !reduceMotion }), 50);
+    return () => clearTimeout(id);
+  }, [activeAnchor, keyboardLift, reduceMotion]);
 
   // Clearing the conversation: the thread falls into the mark, the mark takes
   // the hit, and Undo stays within reach for a few seconds after.
@@ -422,11 +498,25 @@ export function CiciroChat({
 
   const onThreadScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      if (awaitingLock.current) {
+        holdOffset.current = contentOffset.y;
+        holdAnchor.current = true;
+        awaitingLock.current = false;
+      } else if (
+        holdAnchor.current &&
+        !userMoved.current &&
+        holdOffset.current != null &&
+        contentOffset.y > holdOffset.current + 1
+      ) {
+        // The reply growing past the screen tries to stick the list to its
+        // tail. Put the prompt back; a shorter list is left where it landed.
+        listRef.current?.scrollToOffset({ offset: holdOffset.current, animated: false });
+      }
       if (messages.length === 0) {
         syncJump(0);
         return;
       }
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
       syncJump(
         jumpChipOpacity(
           contentSize.height,
@@ -440,11 +530,19 @@ export function CiciroChat({
     [messages.length, reduceMotion, syncJump]
   );
 
+  const releaseHold = useCallback(() => {
+    userMoved.current = true;
+    holdAnchor.current = false;
+    holdOffset.current = null;
+    awaitingLock.current = false;
+  }, []);
+
   const jumpToLatest = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    releaseHold();
     listRef.current?.scrollToEnd({ animated: true });
     syncJump(0);
-  }, [syncJump]);
+  }, [releaseHold, syncJump]);
 
   useEffect(() => {
     if (messages.length === 0) syncJump(0);
@@ -470,6 +568,24 @@ export function CiciroChat({
       : phase
         ? t(`ciciroTab.phase.${phase}`)
         : t("ciciroTab.sending");
+
+  const trailingPadding = dockHeight + keyboardLift + 16;
+  const anchorIndex = activeAnchor
+    ? messages.findIndex((message) => message.id === activeAnchor)
+    : -1;
+  const settledReply = anchorIndex >= 0 ? messages[anchorIndex + 1] : undefined;
+  const showStream = streaming && !settledReply;
+  const anchorGap = activeAnchor
+    ? promptAnchorGap(listHeight, promptHeight, trailingPadding)
+    : 0;
+  const footerMin = activeAnchor
+    ? anchorFooterMinHeight(anchorGap, showStream ? 0 : replyHeight)
+    : 0;
+
+  const restoreHold = useCallback(() => {
+    if (!holdAnchor.current || holdOffset.current == null || userMoved.current) return;
+    listRef.current?.scrollToOffset({ offset: holdOffset.current, animated: false });
+  }, []);
 
   return (
     <View style={layout.screen}>
@@ -508,10 +624,33 @@ export function CiciroChat({
         style={{ flex: 1 }}
         data={messages}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: dockHeight + keyboardLift + 16 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: trailingPadding }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        onLayout={(event) => {
+          const height = event.nativeEvent.layout.height;
+          setListHeight((current) => (current === height ? current : height));
+        }}
         onScroll={onThreadScroll}
+        onScrollBeginDrag={releaseHold}
+        onContentSizeChange={restoreHold}
+        onScrollToIndexFailed={(info) => {
+          awaitingLock.current = false;
+          listRef.current?.scrollToOffset({
+            offset: Math.max(0, info.averageItemLength * info.index),
+            animated: false,
+          });
+          const attempt = pinAttempt.current;
+          setTimeout(() => {
+            if (pinAttempt.current !== attempt || userMoved.current) return;
+            awaitingLock.current = true;
+            listRef.current?.scrollToIndex({
+              index: info.index,
+              viewPosition: 0,
+              animated: false,
+            });
+          }, 60);
+        }}
         scrollEventThrottle={16}
         ListEmptyComponent={
           streaming ? null : (
@@ -521,41 +660,80 @@ export function CiciroChat({
         renderItem={({ item }) =>
           item.role === "user" ? (
             <Animated.View
-              entering={animate ? FadeInDown.springify().damping(18).mass(0.7) : undefined}
+              testID={item.id === activeAnchor ? "chat-prompt" : undefined}
+              entering={
+                animate && item.id !== activeAnchor
+                  ? FadeInDown.springify().damping(18).mass(0.7)
+                  : undefined
+              }
+              onLayout={
+                item.id === activeAnchor
+                  ? (event) => {
+                      const height = event.nativeEvent.layout.height;
+                      setPromptHeight((current) => (current === height ? current : height));
+                    }
+                  : undefined
+              }
               style={[styles.user, { backgroundColor: colors.accentSoft, borderColor: colors.line }]}
             >
               <Text style={{ color: colors.ink, fontSize: 16, lineHeight: 24 }}>{item.content}</Text>
             </Animated.View>
           ) : (
-            <AssistantTurn
-              content={item.content}
-              turnId={item.turnId}
-              live={false}
-              inserted={insertedKeys}
-              onInsert={(text, index) => onInsertDraft(text, item.turnId ?? null, index)}
-              onShare={(text) => void Share.share({ message: text })}
-              onRetry={onRetry}
-              animate={false}
-            />
+            <View
+              testID={settledReply?.id === item.id ? "chat-settled-reply" : undefined}
+              onLayout={
+                settledReply?.id === item.id
+                  ? (event) => {
+                      const height = event.nativeEvent.layout.height;
+                      setReplyHeight((current) => (current === height ? current : height));
+                    }
+                  : undefined
+              }
+            >
+              <AssistantTurn
+                content={item.content}
+                turnId={item.turnId}
+                live={false}
+                inserted={insertedKeys}
+                onInsert={(text, index) => onInsertDraft(text, item.turnId ?? null, index)}
+                onShare={(text) => void Share.share({ message: text })}
+                onRetry={onRetry}
+                animate={false}
+              />
+            </View>
           )
         }
         ListFooterComponent={
-          streaming ? (
-            <View style={styles.assistant}>
-              {stream.text.trim() ? (
-                <AssistantTurn
-                  content={stream.text}
-                  turnId={stream.turnId}
-                  live
-                  inserted={insertedKeys}
-                  onInsert={(text, index) => onInsertDraft(text, stream.turnId, index)}
-                  onShare={(text) => void Share.share({ message: text })}
-                  onRetry={onRetry}
-                  animate={liveAnimate}
-                />
-              ) : (
-                <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />
-              )}
+          showStream || footerMin > 0 ? (
+            <View
+              testID={activeAnchor ? "chat-anchor" : undefined}
+              style={footerMin > 0 ? { minHeight: footerMin } : undefined}
+              collapsable={false}
+            >
+              {showStream ? (
+                <View
+                  style={styles.assistant}
+                  onLayout={(event) => {
+                    const height = event.nativeEvent.layout.height;
+                    setReplyHeight((current) => (current === height ? current : height));
+                  }}
+                >
+                  {stream.text.trim() ? (
+                    <AssistantTurn
+                      content={stream.text}
+                      turnId={stream.turnId}
+                      live
+                      inserted={insertedKeys}
+                      onInsert={(text, index) => onInsertDraft(text, stream.turnId, index)}
+                      onShare={(text) => void Share.share({ message: text })}
+                      onRetry={onRetry}
+                      animate={liveAnimate}
+                    />
+                  ) : (
+                    <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />
+                  )}
+                </View>
+              ) : null}
             </View>
           ) : null
         }
