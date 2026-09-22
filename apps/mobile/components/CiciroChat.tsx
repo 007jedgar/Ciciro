@@ -36,7 +36,7 @@ import {
 } from "../lib/chat-clear";
 import { splitErrorFooter, type ChatFailure } from "../lib/chat-errors";
 import { insertionKey } from "../lib/chat-insert";
-import { isScrolledFromBottom } from "../lib/chat-scroll";
+import { CHAT_JUMP_FADE_SCREENS, CHAT_JUMP_START_SCREENS, jumpChipOpacity } from "../lib/chat-scroll";
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
@@ -328,7 +328,8 @@ export function CiciroChat({
    * grows with a multiline composer or a failure notice.
    */
   const [dockHeight, setDockHeight] = useState(0);
-  const [showJump, setShowJump] = useState(false);
+  const jumpOpacity = useSharedValue(0);
+  const [jumpShown, setJumpShown] = useState(false);
 
   /**
    * Where the fade closes, in fractions of its own height. Gradient stops are
@@ -410,26 +411,48 @@ export function CiciroChat({
     onUndoClear(token);
   }, [endCeremony, onUndoClear, undoToken]);
 
+  const syncJump = useCallback(
+    (opacity: number) => {
+      jumpOpacity.value = opacity;
+      const shown = opacity > 0;
+      setJumpShown((prev) => (prev === shown ? prev : shown));
+    },
+    [jumpOpacity]
+  );
+
   const onThreadScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (messages.length === 0) {
+        syncJump(0);
+        return;
+      }
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      setShowJump(
-        messages.length > 0 &&
-          isScrolledFromBottom(contentSize.height, layoutMeasurement.height, contentOffset.y)
+      syncJump(
+        jumpChipOpacity(
+          contentSize.height,
+          layoutMeasurement.height,
+          contentOffset.y,
+          CHAT_JUMP_START_SCREENS,
+          reduceMotion ? 0 : CHAT_JUMP_FADE_SCREENS
+        )
       );
     },
-    [messages.length]
+    [messages.length, reduceMotion, syncJump]
   );
 
   const jumpToLatest = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     listRef.current?.scrollToEnd({ animated: true });
-    setShowJump(false);
-  }, []);
+    syncJump(0);
+  }, [syncJump]);
 
   useEffect(() => {
-    if (messages.length === 0) setShowJump(false);
-  }, [messages.length]);
+    if (messages.length === 0) syncJump(0);
+  }, [messages.length, syncJump]);
+
+  const jumpStyle = useAnimatedStyle(() => ({
+    opacity: jumpOpacity.value,
+  }));
 
   // The thread falls away from the reader and shrinks toward the centre, which
   // is where the mark is waiting for it.
@@ -623,8 +646,8 @@ export function CiciroChat({
                 </Text>
               </Pressable>
             </Glass>
-            {showJump && showsThread(clearPhase) ? (
-              <Animated.View entering={animate ? FadeIn.duration(180) : undefined}>
+            {jumpShown && showsThread(clearPhase) ? (
+              <Animated.View testID="chat-jump" style={jumpStyle}>
                 <Glass dark={dark} colors={colors} radius={14}>
                   <Pressable
                     accessibilityRole="button"
