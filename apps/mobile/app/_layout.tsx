@@ -12,6 +12,7 @@ import { useOptionalAppTheme } from "../lib/app-theme-context";
 import { SettingsProvider } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
+import { WritingReminderSync } from "../components/WritingReminderSync";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
 import { WritingDayProvider } from "../lib/writing-day-session";
@@ -72,6 +73,22 @@ function ThemedStack() {
           options={{ title: t("settings.title"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
         />
         <Stack.Screen
+          name="writing-reminder"
+          options={{
+            title: t("reminders.title"),
+            headerShown: false,
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
+          }}
+        />
+        <Stack.Screen
+          name="writing-reminders"
+          options={{
+            title: t("reminders.listTitle"),
+            headerShown: false,
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
+          }}
+        />
+        <Stack.Screen
           name="project/[id]"
           options={{ headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
         />
@@ -90,6 +107,7 @@ export default function RootLayout() {
               <SettingsProvider>
                 <WritingDayProvider>
                   <LastPlaceTracker />
+                  <WritingReminderSync />
                   <ThemedStack />
                 </WritingDayProvider>
               </SettingsProvider>

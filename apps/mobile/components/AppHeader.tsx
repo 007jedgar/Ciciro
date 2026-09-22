@@ -23,6 +23,7 @@ export function AppHeader({
   backAccessibilityLabel,
   onSettings,
   onNew,
+  newAccessibilityLabel,
   newExpanded = false,
   actionLabel,
   onAction,
@@ -35,6 +36,7 @@ export function AppHeader({
   onNew?: () => void;
   /** When true, the "+" rotates into an "×" - used when it toggles a menu. */
   newExpanded?: boolean;
+  newAccessibilityLabel?: string;
   actionLabel?: string;
   onAction?: () => void;
   actionDisabled?: boolean;
@@ -132,7 +134,7 @@ export function AppHeader({
                 onPress={onNew}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: newExpanded }}
-                accessibilityLabel={t("manuscripts.newA11y")}
+                accessibilityLabel={newAccessibilityLabel ?? t("manuscripts.newA11y")}
                 hitSlop={10}
                 style={({ pressed }) => [
                   styles.newBtn,

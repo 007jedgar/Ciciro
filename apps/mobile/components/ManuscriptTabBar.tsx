@@ -12,9 +12,12 @@ import { useRouter, useSegments } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProject } from "../lib/project";
+import { useSession } from "../lib/session";
 import { bibleIndexHref } from "../lib/bible-files";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+import { loadWritingReminders } from "../lib/writing-reminder-store";
+import { writingReminderEntryForProject } from "../lib/writing-reminder-sync";
 import { Glass, alpha } from "./Glass";
 import {
   BookIcon,
@@ -23,6 +26,7 @@ import {
   ContinueIcon,
   EditorIcon,
   NewChapterIcon,
+  BellIcon,
   PlusIcon,
   QuestionIcon,
   QuoteIcon,
@@ -74,8 +78,38 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
-  const { addChapter } = useProject();
+  const { addChapter, project } = useProject();
+  const { user } = useSession();
   const [open, setOpen] = useState(false);
+
+  const openReminder = () => {
+    const entry = writingReminderEntryForProject(
+      user ? loadWritingReminders(user.id) : [],
+      projectId
+    );
+    if (entry.kind === "list") {
+      router.push("/writing-reminders");
+      return;
+    }
+    if (entry.kind === "edit") {
+      router.push({
+        pathname: "/writing-reminder",
+        params: {
+          id: entry.reminderId,
+          projectId,
+          ...(project?.title ? { projectTitle: project.title } : {}),
+        },
+      } as never);
+      return;
+    }
+    router.push({
+      pathname: "/writing-reminder",
+      params: {
+        projectId,
+        ...(project?.title ? { projectTitle: project.title } : {}),
+      },
+    } as never);
+  };
 
   const tabs: TabDef[] = [
     { name: "chapters", route: `/project/${projectId}/chapters`, Icon: ChaptersIcon, labelKey: "project.chapters" },
@@ -143,6 +177,13 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
     { key: "questions", Icon: QuestionIcon, labelKey: "manuscriptTabBar.questions", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?questions=1` as never) },
     { key: "bible", Icon: BookIcon, labelKey: "manuscriptTabBar.bible", tone: "tool", run: () => router.push(bibleIndexHref(projectId) as never) },
     { key: "newChapter", Icon: NewChapterIcon, labelKey: "manuscriptTabBar.newChapter", tone: "tool", run: newChapter },
+    {
+      key: "reminder",
+      Icon: BellIcon,
+      labelKey: "manuscriptTabBar.reminder",
+      tone: "tool",
+      run: openReminder,
+    },
     { key: "chapters", Icon: ChaptersIcon, labelKey: "manuscriptTabBar.chapters", tone: "tool", run: () => router.navigate(`/project/${projectId}/chapters` as never) },
     { key: "typography", Icon: TypeIcon, labelKey: "manuscriptTabBar.typography", tone: "tool", run: () => router.push("/settings") },
     { key: "settings", Icon: SlidersIcon, labelKey: "manuscriptTabBar.settings", tone: "tool", run: () => router.push("/settings") },

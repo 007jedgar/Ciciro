@@ -117,6 +117,27 @@ export function SlidersIcon({ color, size = 20 }: IconProps) {
   );
 }
 
+export function BellIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M6.2 16.2V10.5a5.8 5.8 0 0 1 11.6 0v5.7l1.1 1.5a.7.7 0 0 1-.56 1.12H5.66a.7.7 0 0 1-.56-1.12l1.1-1.5z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M10 19.4a2 2 0 0 0 4 0"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export function PlusIcon({ color, size = 18 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">

@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,9 @@ import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize,
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
+import { getReminderPermission } from "../lib/writing-reminder-notifications";
+import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
+import { useWritingReminderList } from "../lib/writing-reminder-store";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal";
@@ -196,6 +199,38 @@ export default function SettingsScreen() {
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const [sheet, setSheet] = useState<SheetId | null>(null);
+  const reminders = useWritingReminderList(user?.id ?? null);
+  const [notificationPermission, setNotificationPermission] = useState<
+    "granted" | "denied" | "undetermined" | "unavailable" | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getReminderPermission(t("reminders.channel")).then((status) => {
+      if (!cancelled) setNotificationPermission(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  const activeReminders = reminders.filter((item) => item.enabled).length;
+  const pausedReminders = reminders.length - activeReminders;
+  const remindersGranted = notificationPermission === "granted";
+  const remindersValue =
+    notificationPermission == null
+      ? "…"
+      : !remindersGranted
+        ? t("reminders.settingsDenied")
+        : reminderSettingsSummary({
+            active: activeReminders,
+            paused: pausedReminders,
+            t: (key, options) => String(t(key, options)),
+          });
+  const showOpenSettings =
+    notificationPermission != null &&
+    notificationPermission !== "granted" &&
+    notificationPermission !== "unavailable";
   const locale = currentLocale();
   const localeName = LOCALE_OPTIONS.find((opt) => opt.id === locale)?.nativeName ?? locale;
 
@@ -291,6 +326,31 @@ export default function SettingsScreen() {
               colors={colors}
               last
             />
+          ) : null}
+        </Group>
+
+        <Group colors={colors}>
+          <SheetRow
+            label={t("reminders.settings")}
+            value={remindersValue}
+            onPress={() => router.push("/writing-reminders")}
+            colors={colors}
+            last={!showOpenSettings}
+          />
+          {showOpenSettings ? (
+            <Pressable
+              onPress={() => void Linking.openSettings()}
+              accessibilityRole="button"
+              accessibilityLabel={t("reminders.openSettings")}
+              style={({ pressed }) => ({
+                minHeight: 52,
+                paddingHorizontal: 16,
+                justifyContent: "center",
+                backgroundColor: pressed ? colors.panel2 : "transparent",
+              })}
+            >
+              <Text style={{ fontSize: 17, color: colors.accent }}>{t("reminders.openSettings")}</Text>
+            </Pressable>
           ) : null}
         </Group>
 
