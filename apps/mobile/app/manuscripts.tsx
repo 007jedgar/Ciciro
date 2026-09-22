@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
-import { FolderPlusIcon, NewChapterIcon } from "../components/icons";
+import { BellIcon, FolderPlusIcon, NewChapterIcon } from "../components/icons";
 import { SkeletonList } from "../components/Skeleton";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
@@ -82,6 +82,12 @@ export default function ManuscriptsScreen() {
       label: t("manuscripts.newFolder"),
       Icon: FolderPlusIcon,
       onPress: () => router.push("/new-folder"),
+    },
+    {
+      key: "reminder",
+      label: t("reminders.menu"),
+      Icon: BellIcon,
+      onPress: () => router.push("/writing-reminders"),
     },
   ];
 

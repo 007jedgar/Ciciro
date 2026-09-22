@@ -40,6 +40,12 @@
       "expo-dev-client",
       "expo-font",
       "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "color": "#b4552d"
+        }
+      ],
       "./plugins/with-ios-scene-lifecycle"
     ],
     "experiments": {
