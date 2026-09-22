@@ -81,7 +81,16 @@ describe("CiciroChat", () => {
     expect(screen.queryByLabelText("Send")).toBeNull();
 
     rerender(wrap(<CiciroChat {...idle} composer="Tighten the opening." onSend={onSend} />));
-    expect(screen.getByLabelText("Send")).toBeTruthy();
+    const send = screen.getByLabelText("Send");
+    const rawStyle = send.props.style;
+    const sendStyle = StyleSheet.flatten(
+      typeof rawStyle === "function" ? rawStyle({ pressed: false }) : rawStyle
+    );
+    expect(sendStyle.width).toBe(sendStyle.height);
+    expect(sendStyle.borderRadius).toBe(sendStyle.width / 2);
+    expect(StyleSheet.flatten(screen.getByTestId("chat-composer").props.style).alignItems).toBe(
+      "center"
+    );
     unmount();
   });
 

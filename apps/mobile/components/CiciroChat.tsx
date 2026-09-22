@@ -56,7 +56,8 @@ import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 
-const SEND_SIZE = 32;
+/** A circle nested in the pill, inset so it shares the field's curve. */
+const SEND_SIZE = 36;
 /** How far above the dock the bottom fade starts. */
 const FADE_LEAD = 130;
 /** Air between the composer and the top of the keyboard. */
@@ -840,7 +841,7 @@ export function CiciroChat({
             ) : null}
           </View>
           <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
-            <View style={styles.composer}>
+            <View testID="chat-composer" style={styles.composer}>
               <TextInput
                 style={[styles.field, { color: colors.ink }]}
                 accessibilityLabel={t("ciciroTab.composer")}
@@ -946,7 +947,7 @@ const styles = StyleSheet.create({
   },
   composer: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     paddingLeft: 16,
     paddingRight: 8,
     paddingVertical: 8,
@@ -962,13 +963,13 @@ const styles = StyleSheet.create({
   },
   sendWrap: {
     overflow: "hidden",
-    justifyContent: "flex-end",
-    alignItems: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
   },
   send: {
     width: SEND_SIZE,
     height: SEND_SIZE,
-    borderRadius: 11,
+    borderRadius: SEND_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
   },
