@@ -245,7 +245,7 @@ function Frost({
           style={StyleSheet.absoluteFill}
           intensity={MAX_BLUR}
           tint={dark ? "dark" : "light"}
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
         />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: washColor, opacity: 0.35 }]} />
       </Animated.View>

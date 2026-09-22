@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { StyleSheet, View, type TextStyle } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -94,16 +94,20 @@ export function ShimmerText({
   decorative?: boolean;
 }) {
   const clock = useSharedValue(0);
-  // Read inside the animation's callback, which outlives the render that set it.
+  // The completion callback outlives the render that set it. Keep the ref on
+  // the JS thread — a worklet that closes over the ref freezes `.current`.
   const done = useRef(onDone);
   done.current = onDone;
+  const notifyDone = useCallback(() => {
+    done.current?.();
+  }, []);
 
   useEffect(() => {
     if (reduceMotion) {
       clock.value = 0;
       // Nothing will sweep, so anything waiting on the flourish is let go now
       // rather than left holding a state that never resolves.
-      done.current?.();
+      notifyDone();
       return;
     }
     clock.value = 0;
@@ -113,12 +117,12 @@ export function ShimmerText({
       false,
       (finished) => {
         "worklet";
-        if (finished && done.current) runOnJS(done.current)();
+        if (finished) runOnJS(notifyDone)();
       }
     );
     return () => cancelAnimation(clock);
     // Restarting on a new label keeps the sweep in step with the words shown.
-  }, [clock, cycles, reduceMotion, text]);
+  }, [clock, cycles, notifyDone, reduceMotion, text]);
 
   const base: TextStyle = { fontSize: 13, ...style };
   const chars = [...text];

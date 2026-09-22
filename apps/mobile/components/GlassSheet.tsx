@@ -335,7 +335,7 @@ export function GlassSheet({
                 <BlurView
                   tint={dark ? "dark" : "light"}
                   intensity={dark ? 56 : 72}
-                  experimentalBlurMethod="dimezisBlurView"
+                  blurMethod="dimezisBlurView"
                   style={StyleSheet.absoluteFill}
                 />
               </View>
