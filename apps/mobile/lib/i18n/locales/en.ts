@@ -236,6 +236,7 @@ const en = {
     sendError: "Ciciro could not reply. Try again.",
     clear: "Clear chat",
     clearConfirm: "This removes the conversation for this manuscript.",
+    scrollToLatest: "Scroll to latest",
     insert: "Insert into manuscript",
     inserted: "Inserted",
     insertError: "Open a chapter first, then insert.",

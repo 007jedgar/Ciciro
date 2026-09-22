@@ -9,6 +9,8 @@ import {
   Text,
   TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import Animated, {
   Easing,
@@ -24,7 +26,6 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { KeyboardStickyView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import {
   CLEAR_TIMING,
   clearSchedule,
@@ -35,6 +36,8 @@ import {
 } from "../lib/chat-clear";
 import { splitErrorFooter, type ChatFailure } from "../lib/chat-errors";
 import { insertionKey } from "../lib/chat-insert";
+import { CHAT_JUMP_FADE_SCREENS, CHAT_JUMP_START_SCREENS, jumpChipOpacity } from "../lib/chat-scroll";
+import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
 import { useAppTheme } from "../lib/settings";
@@ -43,7 +46,7 @@ import { ChatClearMark } from "./ChatClearMark";
 import { ChatErrorNotice } from "./ChatErrorNotice";
 import { CiciroThinking } from "./CiciroThinking";
 import { alpha, Glass } from "./Glass";
-import { ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
+import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 
@@ -325,6 +328,8 @@ export function CiciroChat({
    * grows with a multiline composer or a failure notice.
    */
   const [dockHeight, setDockHeight] = useState(0);
+  const jumpOpacity = useSharedValue(0);
+  const [jumpShown, setJumpShown] = useState(false);
 
   /**
    * Where the fade closes, in fractions of its own height. Gradient stops are
@@ -406,6 +411,49 @@ export function CiciroChat({
     onUndoClear(token);
   }, [endCeremony, onUndoClear, undoToken]);
 
+  const syncJump = useCallback(
+    (opacity: number) => {
+      jumpOpacity.value = opacity;
+      const shown = opacity > 0;
+      setJumpShown((prev) => (prev === shown ? prev : shown));
+    },
+    [jumpOpacity]
+  );
+
+  const onThreadScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (messages.length === 0) {
+        syncJump(0);
+        return;
+      }
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      syncJump(
+        jumpChipOpacity(
+          contentSize.height,
+          layoutMeasurement.height,
+          contentOffset.y,
+          CHAT_JUMP_START_SCREENS,
+          reduceMotion ? 0 : CHAT_JUMP_FADE_SCREENS
+        )
+      );
+    },
+    [messages.length, reduceMotion, syncJump]
+  );
+
+  const jumpToLatest = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    listRef.current?.scrollToEnd({ animated: true });
+    syncJump(0);
+  }, [syncJump]);
+
+  useEffect(() => {
+    if (messages.length === 0) syncJump(0);
+  }, [messages.length, syncJump]);
+
+  const jumpStyle = useAnimatedStyle(() => ({
+    opacity: jumpOpacity.value,
+  }));
+
   // The thread falls away from the reader and shrinks toward the centre, which
   // is where the mark is waiting for it.
   const threadStyle = useAnimatedStyle(() => ({
@@ -463,6 +511,8 @@ export function CiciroChat({
         contentContainerStyle={[styles.list, { paddingBottom: dockHeight + keyboardLift + 16 }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        onScroll={onThreadScroll}
+        scrollEventThrottle={16}
         ListEmptyComponent={
           streaming ? null : (
             <Text style={[layout.body, { marginTop: 8 }]}>{t("ciciroTab.empty")}</Text>
@@ -571,30 +621,46 @@ export function CiciroChat({
             underneath this whole dock, and a plain label would have prose
             running straight through it.
           */}
-          <Glass
-            dark={dark}
-            colors={colors}
-            radius={14}
-            style={[styles.clearWrap, { opacity: messages.length === 0 ? 0.45 : 1 }]}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: clearPhase !== "idle" || messages.length === 0 }}
-              accessibilityLabel={t("ciciroTab.clear")}
-              disabled={clearPhase !== "idle" || messages.length === 0}
-              onPress={() =>
-                Alert.alert(t("ciciroTab.clear"), t("ciciroTab.clearConfirm"), [
-                  { text: t("common.cancel"), style: "cancel" },
-                  { text: t("ciciroTab.clear"), style: "destructive", onPress: runClear },
-                ])
-              }
-              style={styles.clear}
+          <View style={styles.chromeRow}>
+            <Glass
+              dark={dark}
+              colors={colors}
+              radius={14}
+              style={{ opacity: messages.length === 0 ? 0.45 : 1 }}
             >
-              <Text style={{ color: colors.inkSoft, fontSize: 13 }}>
-                {t("ciciroTab.clear")}
-              </Text>
-            </Pressable>
-          </Glass>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: clearPhase !== "idle" || messages.length === 0 }}
+                accessibilityLabel={t("ciciroTab.clear")}
+                disabled={clearPhase !== "idle" || messages.length === 0}
+                onPress={() =>
+                  Alert.alert(t("ciciroTab.clear"), t("ciciroTab.clearConfirm"), [
+                    { text: t("common.cancel"), style: "cancel" },
+                    { text: t("ciciroTab.clear"), style: "destructive", onPress: runClear },
+                  ])
+                }
+                style={styles.clear}
+              >
+                <Text style={{ color: colors.inkSoft, fontSize: 13 }}>
+                  {t("ciciroTab.clear")}
+                </Text>
+              </Pressable>
+            </Glass>
+            {jumpShown && showsThread(clearPhase) ? (
+              <Animated.View testID="chat-jump" style={jumpStyle}>
+                <Glass dark={dark} colors={colors} radius={14}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("ciciroTab.scrollToLatest")}
+                    onPress={jumpToLatest}
+                    style={styles.jump}
+                  >
+                    <ArrowDownIcon color={colors.inkSoft} size={16} />
+                  </Pressable>
+                </Glass>
+              </Animated.View>
+            ) : null}
+          </View>
           <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
             <View style={styles.composer}>
               <TextInput
@@ -687,12 +753,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  clearWrap: {
+  chromeRow: {
+    flexDirection: "row",
+    alignItems: "center",
     alignSelf: "flex-start",
+    gap: 8,
     marginBottom: 10,
     marginLeft: 4,
   },
   clear: { paddingHorizontal: 13, paddingVertical: 7 },
+  jump: { paddingHorizontal: 10, paddingVertical: 7 },
   bubble: {
     minHeight: 52,
   },

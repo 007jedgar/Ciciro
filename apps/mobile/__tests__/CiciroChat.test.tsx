@@ -405,4 +405,35 @@ describe("CiciroChat", () => {
     expect(screen.getByText("She opened the door.")).toBeTruthy();
     unmount();
   });
+
+  function scrollThread(distanceFromBottom: number, layoutHeight = 600) {
+    const contentHeight = distanceFromBottom + layoutHeight;
+    fireEvent.scroll(screen.getByTestId("chat-thread"), {
+      nativeEvent: {
+        contentOffset: { y: 0, x: 0 },
+        contentSize: { height: contentHeight, width: 400 },
+        layoutMeasurement: { height: layoutHeight, width: 400 },
+      },
+    });
+  }
+
+  it("fades the jump chip in only after two screens above the latest reply", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+
+    scrollThread(600);
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+
+    scrollThread(1200);
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+
+    scrollThread(1200 + 300);
+    expect(screen.getByLabelText("Scroll to latest")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Scroll to latest"));
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+    unmount();
+  });
 });

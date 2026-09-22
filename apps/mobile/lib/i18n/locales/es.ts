@@ -238,6 +238,7 @@ const es: Translations = {
     sendError: "Ciciro no pudo responder. Inténtalo de nuevo.",
     clear: "Borrar chat",
     clearConfirm: "Esto elimina la conversación de este manuscrito.",
+    scrollToLatest: "Ir al final",
     insert: "Insertar en el manuscrito",
     inserted: "Insertado",
     insertError: "Abre un capítulo primero y luego inserta.",

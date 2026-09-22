@@ -235,6 +235,7 @@ const zh: Translations = {
     sendError: "Ciciro 未能回复。请再试一次。",
     clear: "清空对话",
     clearConfirm: "这会删除这部手稿的对话。",
+    scrollToLatest: "回到最新",
     insert: "插入手稿",
     inserted: "已插入",
     insertError: "请先打开一个章节，然后再插入。",
