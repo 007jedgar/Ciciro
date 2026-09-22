@@ -237,6 +237,7 @@ const hi: Translations = {
     sendError: "Ciciro उत्तर नहीं दे सका। फिर कोशिश करें।",
     clear: "चैट साफ़ करें",
     clearConfirm: "इससे इस पांडुलिपि की बातचीत हट जाएगी।",
+    scrollToLatest: "नवीनतम पर जाएँ",
     insert: "पांडुलिपि में डालें",
     inserted: "डाल दिया गया",
     insertError: "पहले एक अध्याय खोलें, फिर डालें।",

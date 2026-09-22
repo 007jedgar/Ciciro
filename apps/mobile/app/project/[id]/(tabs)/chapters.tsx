@@ -128,6 +128,7 @@ export default function ChaptersScreen() {
       <FlatList
         data={chapters}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: clearance }}
         ListHeaderComponent={
           project ? (

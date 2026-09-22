@@ -405,4 +405,39 @@ describe("CiciroChat", () => {
     expect(screen.getByText("She opened the door.")).toBeTruthy();
     unmount();
   });
+
+  it("shows a jump-to-latest chip once the author has scrolled far enough up", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+
+    fireEvent.scroll(screen.getByTestId("chat-thread"), {
+      nativeEvent: {
+        contentOffset: { y: 0, x: 0 },
+        contentSize: { height: 2000, width: 400 },
+        layoutMeasurement: { height: 600, width: 400 },
+      },
+    });
+    expect(screen.getByLabelText("Scroll to latest")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Scroll to latest"));
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+    unmount();
+  });
+
+  it("keeps the jump chip hidden near the tail of the thread", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    fireEvent.scroll(screen.getByTestId("chat-thread"), {
+      nativeEvent: {
+        contentOffset: { y: 1300, x: 0 },
+        contentSize: { height: 2000, width: 400 },
+        layoutMeasurement: { height: 600, width: 400 },
+      },
+    });
+    expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+    unmount();
+  });
 });

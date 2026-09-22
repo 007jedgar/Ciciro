@@ -143,6 +143,23 @@ export function ArrowUpIcon({ color, size = 16 }: IconProps) {
   );
 }
 
+/** Jump to the latest reply after the author has scrolled up the thread. */
+export function ArrowDownIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Line x1="12" y1="5" x2="12" y2="17.5" stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+      <Polyline
+        points="6.5,12 12,18 17.5,12"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 /** Stop: a filled square, for interrupting a reply that is still arriving. */
 export function StopIcon({ color, size = 14 }: IconProps) {
   return (
