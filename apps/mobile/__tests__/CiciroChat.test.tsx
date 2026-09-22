@@ -6,6 +6,7 @@ import { defaultSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
 import type { ChatMessage } from "../lib/api/types";
 import { CLEAR_TIMING } from "../lib/chat-clear";
+import { promptAnchorGap } from "../lib/chat-scroll";
 import { classifyChatFailure } from "../lib/chat-errors";
 import { emptyChatStreamState } from "../lib/ciciro-stream";
 import { colors, makeLayout } from "../lib/theme";
@@ -434,6 +435,69 @@ describe("CiciroChat", () => {
 
     fireEvent.press(screen.getByLabelText("Scroll to latest"));
     expect(screen.queryByLabelText("Scroll to latest")).toBeNull();
+    unmount();
+  });
+
+  it("holds a new prompt at the top while the reply streams underneath", () => {
+    const prompt: ChatMessage = {
+      id: "u1",
+      role: "user",
+      content: "Tighten the opening.",
+      kind: "chat",
+      createdAt: "2026-09-14T00:00:00.000Z",
+    };
+    const { rerender, unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" streaming messages={[prompt]} phase="running" />)
+    );
+    fireEvent(screen.getByTestId("chat-thread"), "layout", {
+      nativeEvent: { layout: { height: 600, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId("chat-dock"), "layout", {
+      nativeEvent: { layout: { height: 180, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId("chat-prompt"), "layout", {
+      nativeEvent: { layout: { height: 48, width: 200, x: 0, y: 0 } },
+    });
+
+    const trailing = StyleSheet.flatten(
+      screen.getByTestId("chat-thread").props.contentContainerStyle
+    ).paddingBottom;
+    const gap = promptAnchorGap(600, 48, trailing);
+    expect(StyleSheet.flatten(screen.getByTestId("chat-anchor").props.style).minHeight).toBe(gap);
+
+    rerender(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          streaming
+          messages={[prompt]}
+          phase="running"
+          stream={{ ...emptyChatStreamState(), text: "She opened the door." }}
+        />
+      )
+    );
+    expect(screen.getAllByText("She opened the door.")).toHaveLength(1);
+    expect(StyleSheet.flatten(screen.getByTestId("chat-anchor").props.style).minHeight).toBe(gap);
+
+    rerender(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          streaming={false}
+          messages={[prompt, { ...assistant, content: "She opened the door." }]}
+        />
+      )
+    );
+    expect(screen.getAllByText("She opened the door.")).toHaveLength(1);
+    expect(screen.queryByLabelText("Working")).toBeNull();
+    fireEvent(screen.getByTestId("chat-settled-reply"), "layout", {
+      nativeEvent: { layout: { height: 120, width: 390, x: 0, y: 0 } },
+    });
+    expect(StyleSheet.flatten(screen.getByTestId("chat-anchor").props.style).minHeight).toBe(
+      gap - 120
+    );
     unmount();
   });
 });

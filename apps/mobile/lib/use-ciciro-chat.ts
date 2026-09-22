@@ -164,6 +164,11 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         if (next.text.trim()) {
           setMessages((current) => upsertStreamAssistant(current, next));
         }
+        // Retire the live footer in the same paint as the committed reply.
+        // Leaving it up through the reload paints the answer twice and the
+        // list jumps.
+        setStreaming(false);
+        setStream(emptyChatStreamState());
         try {
           const snapshot = await ciciro.chat.get(projectId);
           setMessages((current) => mergeChatTranscript(hydrateChatMessages(snapshot), current));
