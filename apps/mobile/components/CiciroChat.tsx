@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   FlatList,
@@ -21,6 +21,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -115,13 +116,9 @@ function MessageBody({
         const key = turnId ? insertionKey(turnId, idx) : `live:${idx}`;
         const already = inserted.has(key);
         const writing = seg.open && live;
-        return (
-          <Animated.View
-            key={idx}
-            entering={animate ? FadeInDown.duration(240) : undefined}
-            layout={LinearTransition.duration(200)}
-            style={[styles.draft, { borderColor: colors.line, backgroundColor: colors.panel2 }]}
-          >
+        const draftStyle = [styles.draft, { borderColor: colors.line, backgroundColor: colors.panel2 }];
+        const draftBody = (
+          <>
             <Markdown source={draft || (writing ? "…" : "")} colors={colors} animate={animate} />
             {writing ? (
               <Text style={[styles.writing, { color: colors.inkSoft }]}>
@@ -148,6 +145,23 @@ function MessageBody({
                 </Pressable>
               </View>
             )}
+          </>
+        );
+        if (!animate) {
+          return (
+            <View key={idx} style={draftStyle}>
+              {draftBody}
+            </View>
+          );
+        }
+        return (
+          <Animated.View
+            key={idx}
+            entering={FadeInDown.duration(240)}
+            layout={LinearTransition.duration(200)}
+            style={draftStyle}
+          >
+            {draftBody}
           </Animated.View>
         );
       })}
@@ -256,6 +270,117 @@ function ChatActionButton({
   );
 }
 
+/**
+ * The thread's collapse lives in its own component so the worklet does not
+ * share a closure with the list refs. A ref captured by a worklet is frozen,
+ * and writing `.current` afterwards is the warning on the way into chat.
+ */
+function ThreadFade({
+  collapse,
+  children,
+}: {
+  collapse: SharedValue<number>;
+  children: ReactNode;
+}) {
+  const threadStyle = useAnimatedStyle(() => ({
+    opacity: 1 - collapse.value,
+    transform: [
+      { scale: 1 - collapse.value * 0.32 },
+      { translateY: collapse.value * 18 },
+    ],
+  }));
+  return <Animated.View style={[styles.threadFill, threadStyle]}>{children}</Animated.View>;
+}
+
+function JumpChip({
+  opacity,
+  children,
+}: {
+  opacity: SharedValue<number>;
+  children: ReactNode;
+}) {
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <Animated.View testID="chat-jump" style={style}>
+      {children}
+    </Animated.View>
+  );
+}
+
+const ChatTurn = memo(function ChatTurn({
+  message,
+  anchored,
+  measureReply,
+  enter,
+  inserted,
+  onInsertDraft,
+  onRetry,
+  onPromptHeight,
+  onReplyHeight,
+}: {
+  message: ChatMessage;
+  anchored: boolean;
+  measureReply: boolean;
+  /** Fade in a user bubble that arrived after the transcript was already open. */
+  enter: boolean;
+  inserted: Set<string>;
+  onInsertDraft: (text: string, turnId: string | null, index: number) => void;
+  onRetry: () => void;
+  onPromptHeight: (height: number) => void;
+  onReplyHeight: (height: number) => void;
+}) {
+  const { colors } = useAppTheme();
+
+  if (message.role === "user") {
+    const body = (
+      <Text style={{ color: colors.ink, fontSize: 16, lineHeight: 24 }}>{message.content}</Text>
+    );
+    const frameStyle = [styles.user, { backgroundColor: colors.accentSoft, borderColor: colors.line }];
+    if (!enter) {
+      return (
+        <View
+          testID={anchored ? "chat-prompt" : undefined}
+          onLayout={
+            anchored
+              ? (event) => onPromptHeight(event.nativeEvent.layout.height)
+              : undefined
+          }
+          style={frameStyle}
+        >
+          {body}
+        </View>
+      );
+    }
+    return (
+      <Animated.View entering={FadeInDown.springify().damping(18).mass(0.7)} style={frameStyle}>
+        {body}
+      </Animated.View>
+    );
+  }
+
+  return (
+    <View
+      testID={measureReply ? "chat-settled-reply" : undefined}
+      onLayout={
+        measureReply
+          ? (event) => onReplyHeight(event.nativeEvent.layout.height)
+          : undefined
+      }
+    >
+      <AssistantTurn
+        content={message.content}
+        turnId={message.turnId}
+        live={false}
+        inserted={inserted}
+        onInsert={(text, index) => onInsertDraft(text, message.turnId ?? null, index)}
+        onShare={(text) => void Share.share({ message: text })}
+        onRetry={onRetry}
+        animate={false}
+      />
+    </View>
+  );
+});
+
 export function CiciroChat({
   messages,
   stream,
@@ -330,6 +455,17 @@ export function CiciroChat({
   const openedAtTail = useRef(false);
   const pinAttempt = useRef(0);
   const pinnedId = useRef<string | null>(null);
+  /**
+   * Messages already in the transcript when it first has rows. Those skip the
+   * enter animation — playing it on every bubble is most of the cost of
+   * opening the tab. A prompt sent after that still fades in.
+   */
+  const historyIds = useRef<Set<string> | null>(null);
+  if (messages.length === 0) {
+    historyIds.current = null;
+  } else if (historyIds.current === null) {
+    historyIds.current = new Set(messages.map((message) => message.id));
+  }
 
   const lastMessage = messages[messages.length - 1];
   const livePromptId =
@@ -549,20 +685,6 @@ export function CiciroChat({
     if (messages.length === 0) syncJump(0);
   }, [messages.length, syncJump]);
 
-  const jumpStyle = useAnimatedStyle(() => ({
-    opacity: jumpOpacity.value,
-  }));
-
-  // The thread falls away from the reader and shrinks toward the centre, which
-  // is where the mark is waiting for it.
-  const threadStyle = useAnimatedStyle(() => ({
-    opacity: 1 - collapse.value,
-    transform: [
-      { scale: 1 - collapse.value * 0.32 },
-      { translateY: collapse.value * 18 },
-    ],
-  }));
-
   const toolLabel =
     stream.tools.length > 0
       ? t("ciciroTab.tools", { name: stream.tools[stream.tools.length - 1] })
@@ -587,6 +709,45 @@ export function CiciroChat({
     if (!holdAnchor.current || holdOffset.current == null || userMoved.current) return;
     listRef.current?.scrollToOffset({ offset: holdOffset.current, animated: false });
   }, []);
+
+  const onPromptHeight = useCallback((height: number) => {
+    setPromptHeight((current) => (current === height ? current : height));
+  }, []);
+  const onReplyHeight = useCallback((height: number) => {
+    setReplyHeight((current) => (current === height ? current : height));
+  }, []);
+  const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: ChatMessage }) => (
+      <ChatTurn
+        message={item}
+        anchored={item.id === activeAnchor}
+        measureReply={settledReply?.id === item.id}
+        enter={
+          animate &&
+          item.role === "user" &&
+          item.id !== activeAnchor &&
+          historyIds.current != null &&
+          !historyIds.current.has(item.id)
+        }
+        inserted={insertedKeys}
+        onInsertDraft={onInsertDraft}
+        onRetry={onRetry}
+        onPromptHeight={onPromptHeight}
+        onReplyHeight={onReplyHeight}
+      />
+    ),
+    [
+      activeAnchor,
+      animate,
+      insertedKeys,
+      onInsertDraft,
+      onPromptHeight,
+      onReplyHeight,
+      onRetry,
+      settledReply?.id,
+    ]
+  );
 
   return (
     <View style={layout.screen}>
@@ -618,13 +779,12 @@ export function CiciroChat({
 
       <View style={styles.thread}>
       {showsThread(clearPhase) ? (
-      <Animated.View style={[styles.threadFill, threadStyle]}>
+      <ThreadFade collapse={collapse}>
       <FlatList
         testID="chat-thread"
         ref={listRef}
         style={{ flex: 1 }}
         data={messages}
-        keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.list, { paddingBottom: trailingPadding }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
@@ -653,55 +813,15 @@ export function CiciroChat({
           }, 60);
         }}
         scrollEventThrottle={16}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        initialNumToRender={6}
+        maxToRenderPerBatch={4}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
         ListEmptyComponent={
           streaming ? null : (
             <Text style={[layout.body, { marginTop: 8 }]}>{t("ciciroTab.empty")}</Text>
-          )
-        }
-        renderItem={({ item }) =>
-          item.role === "user" ? (
-            <Animated.View
-              testID={item.id === activeAnchor ? "chat-prompt" : undefined}
-              entering={
-                animate && item.id !== activeAnchor
-                  ? FadeInDown.springify().damping(18).mass(0.7)
-                  : undefined
-              }
-              onLayout={
-                item.id === activeAnchor
-                  ? (event) => {
-                      const height = event.nativeEvent.layout.height;
-                      setPromptHeight((current) => (current === height ? current : height));
-                    }
-                  : undefined
-              }
-              style={[styles.user, { backgroundColor: colors.accentSoft, borderColor: colors.line }]}
-            >
-              <Text style={{ color: colors.ink, fontSize: 16, lineHeight: 24 }}>{item.content}</Text>
-            </Animated.View>
-          ) : (
-            <View
-              testID={settledReply?.id === item.id ? "chat-settled-reply" : undefined}
-              onLayout={
-                settledReply?.id === item.id
-                  ? (event) => {
-                      const height = event.nativeEvent.layout.height;
-                      setReplyHeight((current) => (current === height ? current : height));
-                    }
-                  : undefined
-              }
-            >
-              <AssistantTurn
-                content={item.content}
-                turnId={item.turnId}
-                live={false}
-                inserted={insertedKeys}
-                onInsert={(text, index) => onInsertDraft(text, item.turnId ?? null, index)}
-                onShare={(text) => void Share.share({ message: text })}
-                onRetry={onRetry}
-                animate={false}
-              />
-            </View>
           )
         }
         ListFooterComponent={
@@ -739,7 +859,7 @@ export function CiciroChat({
           ) : null
         }
       />
-      </Animated.View>
+      </ThreadFade>
       ) : null}
       {showsMark(clearPhase) ? (
         <ChatClearMark colors={colors} hopSignal={hopSignal} reduceMotion={reduceMotion} />
@@ -826,7 +946,7 @@ export function CiciroChat({
               </Pressable>
             </Glass>
             {jumpShown && showsThread(clearPhase) ? (
-              <Animated.View testID="chat-jump" style={jumpStyle}>
+              <JumpChip opacity={jumpOpacity}>
                 <Glass dark={dark} colors={colors} radius={14}>
                   <Pressable
                     accessibilityRole="button"
@@ -837,7 +957,7 @@ export function CiciroChat({
                     <ArrowDownIcon color={colors.inkSoft} size={16} />
                   </Pressable>
                 </Glass>
-              </Animated.View>
+              </JumpChip>
             ) : null}
           </View>
           <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
