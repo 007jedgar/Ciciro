@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { StyleSheet, Text, View, type TextStyle } from "react-native";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import Animated, {
   cancelAnimation,
   FadeIn,
@@ -101,20 +101,58 @@ function Line({
   reveal: boolean;
   caret: boolean;
 }) {
+  // Settled prose is ordinary text. A shared value and animated style per run
+  // is what makes a long transcript expensive to mount.
+  if (!reveal) {
+    return (
+      <Text style={base}>
+        {spans.map((span, spanIndex) => (
+          <Text key={spanIndex} style={spanStyle(span, colors, base)}>
+            {span.text}
+          </Text>
+        ))}
+        {caret ? <Caret color={colors.accent} /> : null}
+      </Text>
+    );
+  }
+
   return (
     <Text style={base}>
       {spans.flatMap((span, spanIndex) =>
-        (reveal ? words(span) : [span]).map((run, runIndex) => (
+        words(span).map((run, runIndex) => (
           <Run
             key={`${spanIndex}:${runIndex}`}
             span={run}
             style={spanStyle(run, colors, base)}
-            animate={reveal}
+            animate
           />
         ))
       )}
       {caret ? <Caret color={colors.accent} /> : null}
     </Text>
+  );
+}
+
+/** Settled blocks are plain views. Entering animations are only for text still arriving. */
+function BlockFrame({
+  animate,
+  index,
+  style,
+  children,
+}: {
+  animate: boolean;
+  index: number;
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+}) {
+  if (!animate) return <View style={style}>{children}</View>;
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(260).delay(Math.min(index, 6) * BLOCK_STAGGER_MS)}
+      style={style}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -134,23 +172,16 @@ function Block({
   index: number;
 }) {
   const body: TextStyle = { color: colors.ink, fontSize: 16, lineHeight: 25 };
-  const entering = animate
-    ? FadeInDown.duration(260).delay(Math.min(index, 6) * BLOCK_STAGGER_MS)
-    : undefined;
 
   if (block.kind === "rule") {
-    return (
-      <Animated.View
-        entering={entering}
-        style={[styles.rule, { backgroundColor: colors.line }]}
-      />
-    );
+    return <BlockFrame animate={animate} index={index} style={[styles.rule, { backgroundColor: colors.line }]} />;
   }
 
   if (block.kind === "code") {
     return (
-      <Animated.View
-        entering={entering}
+      <BlockFrame
+        animate={animate}
+        index={index}
         style={[styles.code, { backgroundColor: colors.panel2, borderColor: colors.line }]}
       >
         <Text
@@ -158,14 +189,14 @@ function Block({
         >
           {block.text}
         </Text>
-      </Animated.View>
+      </BlockFrame>
     );
   }
 
   if (block.kind === "heading") {
     const sizes = [23, 20, 18, 17, 16, 16];
     return (
-      <Animated.View entering={entering} style={styles.heading}>
+      <BlockFrame animate={animate} index={index} style={styles.heading}>
         <Line
           spans={block.spans}
           colors={colors}
@@ -178,13 +209,13 @@ function Block({
           reveal={reveal}
           caret={caret}
         />
-      </Animated.View>
+      </BlockFrame>
     );
   }
 
   if (block.kind === "quote") {
     return (
-      <Animated.View entering={entering} style={styles.quoteRow}>
+      <BlockFrame animate={animate} index={index} style={styles.quoteRow}>
         <View style={[styles.quoteBar, { backgroundColor: colors.accent }]} />
         <View style={styles.quoteBody}>
           <Line
@@ -195,25 +226,25 @@ function Block({
             caret={caret}
           />
         </View>
-      </Animated.View>
+      </BlockFrame>
     );
   }
 
   if (block.kind === "listItem") {
     return (
-      <Animated.View entering={entering} style={styles.listRow}>
+      <BlockFrame animate={animate} index={index} style={styles.listRow}>
         <Text style={[body, styles.marker, { color: colors.inkSoft }]}>{block.marker}</Text>
         <View style={styles.listBody}>
           <Line spans={block.spans} colors={colors} base={body} reveal={reveal} caret={caret} />
         </View>
-      </Animated.View>
+      </BlockFrame>
     );
   }
 
   return (
-    <Animated.View entering={entering} style={styles.paragraph}>
+    <BlockFrame animate={animate} index={index} style={styles.paragraph}>
       <Line spans={block.spans} colors={colors} base={body} reveal={reveal} caret={caret} />
-    </Animated.View>
+    </BlockFrame>
   );
 }
 
@@ -238,27 +269,32 @@ export function Markdown({
   const blocks = useMemo(() => parseMarkdown(source), [source]);
   if (blocks.length === 0) return null;
   const label = blocks.map(blockText).filter(Boolean).join("\n\n");
+  const body = blocks.map((block, index) => (
+    <Block
+      key={index}
+      block={block}
+      colors={colors}
+      animate={animate}
+      // Only the block being written reveals word by word. Blocks above it
+      // are settled prose, and splitting them would re-render every word on
+      // every chunk for no visible gain.
+      reveal={animate && index === blocks.length - 1}
+      caret={caret && index === blocks.length - 1}
+      index={index}
+    />
+  ));
+
+  if (!animate) {
+    return (
+      <View accessible accessibilityLabel={label}>
+        {body}
+      </View>
+    );
+  }
 
   return (
-    <Animated.View
-      accessible
-      accessibilityLabel={label}
-      entering={animate ? FadeIn.duration(180) : undefined}
-    >
-      {blocks.map((block, index) => (
-        <Block
-          key={index}
-          block={block}
-          colors={colors}
-          animate={animate}
-          // Only the block being written reveals word by word. Blocks above it
-          // are settled prose, and splitting them would re-render every word on
-          // every chunk for no visible gain.
-          reveal={animate && index === blocks.length - 1}
-          caret={caret && index === blocks.length - 1}
-          index={index}
-        />
-      ))}
+    <Animated.View accessible accessibilityLabel={label} entering={FadeIn.duration(180)}>
+      {body}
     </Animated.View>
   );
 }

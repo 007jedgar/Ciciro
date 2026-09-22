@@ -24,3 +24,28 @@ export function jumpChipOpacity(
   if (span <= 0) return 1;
   return Math.min(1, (distance - start) / span);
 }
+
+/**
+ * Blank space kept under a prompt that was just sent, so that prompt can sit
+ * at the top of the viewport while the reply grows beneath it.
+ *
+ * Trailing padding is the dock and keyboard inset already applied to the list.
+ * The gap shrinks as the prompt is measured, and never goes negative.
+ */
+export function promptAnchorGap(
+  viewportHeight: number,
+  promptHeight: number,
+  trailingPadding: number
+): number {
+  if (viewportHeight <= 0) return 0;
+  return Math.max(0, viewportHeight - Math.max(0, promptHeight) - Math.max(0, trailingPadding));
+}
+
+/**
+ * Footer height once the reply has left the footer and taken its own row.
+ * While the reply is still streaming inside the footer, pass 0 so the footer
+ * itself holds the whole gap and growing text does not change the list height.
+ */
+export function anchorFooterMinHeight(gap: number, replyHeightOutside: number): number {
+  return Math.max(0, gap - Math.max(0, replyHeightOutside));
+}

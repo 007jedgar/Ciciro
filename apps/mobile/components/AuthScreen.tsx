@@ -305,9 +305,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
               style={StyleSheet.absoluteFill}
               tint={dark ? "dark" : "light"}
               intensity={Platform.OS === "android" ? 40 : 24}
-              experimentalBlurMethod={
-                Platform.OS === "android" ? "dimezisBlurView" : undefined
-              }
+              blurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
             />
             <View
               style={[StyleSheet.absoluteFill, { backgroundColor: colors.panel, opacity: 0.62 }]}

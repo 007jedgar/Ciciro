@@ -1,4 +1,10 @@
-import { CHAT_JUMP_FADE_SCREENS, CHAT_JUMP_START_SCREENS, jumpChipOpacity } from "../lib/chat-scroll";
+import {
+  CHAT_JUMP_FADE_SCREENS,
+  CHAT_JUMP_START_SCREENS,
+  anchorFooterMinHeight,
+  jumpChipOpacity,
+  promptAnchorGap,
+} from "../lib/chat-scroll";
 
 describe("jumpChipOpacity", () => {
   const layout = 600;
@@ -26,5 +32,21 @@ describe("jumpChipOpacity", () => {
   it("appears at full strength as soon as the fade starts when motion is reduced", () => {
     expect(at(start)).toBe(0);
     expect(jumpChipOpacity(start + layout + 1, layout, 0, CHAT_JUMP_START_SCREENS, 0)).toBe(1);
+  });
+});
+
+describe("prompt anchor", () => {
+  it("leaves a gap tall enough to park the prompt at the top of the viewport", () => {
+    expect(promptAnchorGap(600, 80, 196)).toBe(324);
+    expect(promptAnchorGap(600, 0, 0)).toBe(600);
+    expect(promptAnchorGap(600, 700, 40)).toBe(0);
+    expect(promptAnchorGap(0, 40, 0)).toBe(0);
+  });
+
+  it("keeps the footer gap stable while the reply streams inside it, then yields that space once the reply has its own row", () => {
+    const gap = promptAnchorGap(600, 80, 196);
+    expect(anchorFooterMinHeight(gap, 0)).toBe(gap);
+    expect(anchorFooterMinHeight(gap, 120)).toBe(gap - 120);
+    expect(anchorFooterMinHeight(gap, gap + 40)).toBe(0);
   });
 });
