@@ -72,6 +72,11 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   const stopRequestedRef = useRef(false);
   /** The last turn sent, so Try again can replay it verbatim. */
   const lastInputRef = useRef<EditorRunInput | null>(null);
+  /**
+   * What Try again repeats: whichever request put up the current failure. A
+   * transcript that failed to load has no turn to replay, so it reloads.
+   */
+  const retryActionRef = useRef<"send" | "reload" | null>(null);
 
   /**
    * Refetch the transcript. `keepFailure` is for the reload that follows a
@@ -91,7 +96,12 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       setMessages(hydrateChatMessages(snapshot));
       if (!options?.keepFailure) setFailure(null);
     } catch (err) {
-      setFailure(failureFromError(err));
+      // After a failed turn the turn's failure is the one worth keeping, and
+      // Try again should still replay it rather than just refetch.
+      if (!options?.keepFailure) {
+        retryActionRef.current = "reload";
+        setFailure(failureFromError(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -110,6 +120,9 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       streamingRef.current = true;
       stopRequestedRef.current = false;
       lastInputRef.current = input;
+      // A run that dies mid-flight resolves with an error footer in the reply,
+      // whose Try again replays this turn too.
+      retryActionRef.current = "send";
       setStreaming(true);
       setFailure(null);
       setStream(emptyChatStreamState());
@@ -208,12 +221,18 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   }, []);
 
   const retry = useCallback(async () => {
+    if (streamingRef.current) return;
+    if (retryActionRef.current === "reload") {
+      await reload();
+      return;
+    }
+    if (retryActionRef.current !== "send") return;
     const input = lastInputRef.current;
-    if (!input || streamingRef.current) return;
+    if (!input) return;
     // A replay is a new turn: drop the id so the server does not resume the run
     // that just failed.
     await send({ ...input, clientTurnId: undefined, resumeTurnId: undefined });
-  }, [send]);
+  }, [reload, send]);
 
   const clear = useCallback(async () => {
     if (!projectId) return null;
@@ -237,7 +256,10 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
           queryKey: queryKeys.chat.insertions(projectId),
         });
       } catch (err) {
-        setFailure(failureFromError(err));
+        // Try again only knows how to resend a turn or reload; offering it here
+        // would replay the author's last prompt instead of the restore.
+        retryActionRef.current = null;
+        setFailure({ ...failureFromError(err), retryable: false });
       }
     },
     [projectId, reload]
