@@ -143,6 +143,21 @@ describe("api client", () => {
     });
   });
 
+  it("never surfaces an HTML error page as the message", async () => {
+    const html = "<!DOCTYPE html><html><head><title>404: This page could not be found.</title></head></html>";
+    mockFetch(async () => textResponse(html, 404));
+    await expect(api("/api/auth/login")).rejects.toMatchObject({
+      message: "Ciciro's server sent an unexpected reply. Try again in a moment.",
+      status: 404,
+      body: { raw: html },
+    });
+
+    mockFetch(async () => textResponse("x".repeat(500), 500));
+    await expect(api("/api/health")).rejects.toMatchObject({
+      message: "Ciciro's server sent an unexpected reply. Try again in a moment.",
+    });
+  });
+
   it("returns an empty object for an empty 200 body", async () => {
     mockFetch(async () => new Response("", { status: 200 }));
     await expect(api("/api/health")).resolves.toEqual({});

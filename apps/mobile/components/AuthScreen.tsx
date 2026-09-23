@@ -45,6 +45,8 @@ import { fonts } from "../lib/theme";
 const ICON = { x: 20, y: 6, size: 46 };
 const HEADER_H = 52;
 const NAME_ROW_FALLBACK = 58;
+/** A server message never gets to push the button off screen. */
+const FORM_ERROR_LINES = 3;
 
 function authFieldMessage(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -377,9 +379,16 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 </Text>
               ) : null}
               {error ? (
-                <Text style={layout.error} role="alert">
-                  {error}
-                </Text>
+                <View style={[styles.formError, { borderColor: colors.danger }]}>
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.danger, opacity: 0.1 }]} />
+                  <Text
+                    style={[layout.error, styles.formErrorText]}
+                    role="alert"
+                    numberOfLines={FORM_ERROR_LINES}
+                  >
+                    {error}
+                  </Text>
+                </View>
               ) : null}
 
               <Animated.View style={submitScaleStyle}>
@@ -482,6 +491,15 @@ const styles = StyleSheet.create({
   content: { padding: 24 },
   nameField: { overflow: "hidden" },
   fieldError: { marginTop: 4, marginBottom: 4, fontSize: 13 },
+  formError: {
+    marginTop: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    overflow: "hidden",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  formErrorText: { marginTop: 0, fontSize: 13, lineHeight: 18 },
   nameMeasure: { position: "absolute", left: 0, right: 0, top: 0 },
   btnLabel: { height: 20, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   footer: { marginTop: 16, alignSelf: "stretch" },

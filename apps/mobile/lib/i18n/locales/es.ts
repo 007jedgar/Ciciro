@@ -20,6 +20,7 @@ const es: Translations = {
   errors: {
     network: "Error de red. Inténtalo de nuevo.",
     requestFailed: "Ha ocurrido un error.",
+    unexpectedResponse: "El servidor de Ciciro envió una respuesta inesperada. Inténtalo de nuevo en un momento.",
     emptyStream: "Transmisión vacía",
   },
   livingPage: {

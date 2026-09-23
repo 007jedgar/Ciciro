@@ -20,6 +20,7 @@ const zh: Translations = {
   errors: {
     network: "网络出错，请重试。",
     requestFailed: "发生了错误。",
+    unexpectedResponse: "Ciciro 服务器返回了意外的响应。请稍后再试。",
     emptyStream: "空数据流",
   },
   livingPage: {

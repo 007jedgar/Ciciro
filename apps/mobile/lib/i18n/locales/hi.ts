@@ -20,6 +20,7 @@ const hi: Translations = {
   errors: {
     network: "नेटवर्क त्रुटि। फिर कोशिश करें।",
     requestFailed: "एक त्रुटि हुई है।",
+    unexpectedResponse: "Ciciro के सर्वर से अप्रत्याशित जवाब मिला। थोड़ी देर में फिर से कोशिश करें।",
     emptyStream: "खाली स्ट्रीम",
   },
   livingPage: {

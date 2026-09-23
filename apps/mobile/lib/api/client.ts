@@ -57,14 +57,32 @@ function errorMessage(data: unknown, status: number): string {
   return i18n.t("errors.requestFailed", { status });
 }
 
+const MAX_PLAIN_ERROR_LENGTH = 200;
+
+/**
+ * A short plain-text error reads fine on screen. Markup or a long dump means
+ * the request reached something other than the Ciciro API (a proxy or another
+ * dev server), so keep it on the body for debugging and show a real sentence.
+ */
+function plainErrorText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.startsWith("<") || trimmed.length > MAX_PLAIN_ERROR_LENGTH) return null;
+  return trimmed;
+}
+
 async function readJson(res: Response): Promise<unknown> {
   const text = await res.text();
   if (!text) return {};
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    return res.ok ? { raw: text } : { error: text };
+    return res.ok ? { raw: text } : nonJsonErrorBody(text);
   }
+}
+
+function nonJsonErrorBody(text: string): { error: string; raw?: string } {
+  const plain = plainErrorText(text);
+  return plain ? { error: plain } : { raw: text, error: i18n.t("errors.unexpectedResponse") };
 }
 
 async function nativeHeaders(init: RequestInit = {}): Promise<Headers> {
@@ -157,7 +175,7 @@ export async function readNdjsonPost(
       try {
         data = result.body ? JSON.parse(result.body) : {};
       } catch {
-        data = { error: result.body };
+        data = nonJsonErrorBody(result.body);
       }
       throw new ApiError(errorMessage(data, result.status), result.status, data);
     }
