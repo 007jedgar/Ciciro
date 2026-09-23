@@ -18,6 +18,7 @@ const en = {
   errors: {
     network: "Network error. Try again.",
     requestFailed: "An error has occurred.",
+    unexpectedResponse: "Ciciro's server sent an unexpected reply. Try again in a moment.",
     emptyStream: "Empty stream",
   },
   livingPage: {
