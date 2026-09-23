@@ -144,6 +144,31 @@ describe("useCiciroChat", () => {
     expect(posts[0]!.clientTurnId).not.toBe(posts[1]!.clientTurnId);
     unmount();
   });
+  it("reloads the transcript on retry when loading it was what failed", async () => {
+    let gets = 0;
+    let posts = 0;
+    mockFetch(async (input, init) => {
+      if ((init?.method ?? "GET") === "POST") {
+        posts += 1;
+        return jsonResponse({});
+      }
+      gets += 1;
+      if (gets === 1) return jsonResponse({ error: "Bad gateway" }, { status: 502 });
+      return jsonResponse({ messages: [], runs: [] });
+    });
+
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.failure).toMatchObject({ retryable: true }));
+
+    await act(async () => {
+      await result.current.retry();
+    });
+    expect(gets).toBe(2);
+    expect(posts).toBe(0);
+    expect(result.current.failure).toBeNull();
+    unmount();
+  });
+
   it("stops a reply that never finishes, keeping the words that arrived", async () => {
     // A hosted run that sends one chunk and then holds the connection open.
     const encoder = new TextEncoder();
