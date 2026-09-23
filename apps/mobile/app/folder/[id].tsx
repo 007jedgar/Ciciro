@@ -10,7 +10,7 @@ import {
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useStackBack } from "../../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
-import { AppHeader } from "../../components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "../../components/AppHeader";
 import { SkeletonList } from "../../components/Skeleton";
 import {
   ApiError,
@@ -36,6 +36,7 @@ export default function FolderScreen() {
   const folderId = typeof id === "string" ? id : "";
   const { user, ready } = useSession();
   const { layout, colors, settings } = useAppTheme();
+  const headerHeight = useAppHeaderHeight();
 
   const folderQuery = useFolderQuery(folderId, { enabled: Boolean(user) && Boolean(folderId) });
   const projectsQuery = useProjectsQuery({ enabled: Boolean(user) });
@@ -134,8 +135,12 @@ export default function FolderScreen() {
         title={folder?.name || t("folder.fallbackTitle")}
         onBack={() => backOr("/manuscripts")}
         backAccessibilityLabel={t("folder.backToManuscripts")}
+        floating
       />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 20, paddingBottom: 48 }}
+        scrollIndicatorInsets={{ top: headerHeight }}
+      >
         {error ? (
           <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
             {error}

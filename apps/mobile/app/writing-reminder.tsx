@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { AppHeader } from "../components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { WritingReminderForm, type ManuscriptChoice } from "../components/WritingReminderForm";
 import { useProjectsQuery } from "../lib/api";
 import i18n from "../lib/i18n";
@@ -41,6 +41,7 @@ export default function WritingReminderScreen() {
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
+  const headerHeight = useAppHeaderHeight();
   const params = useLocalSearchParams<{
     id?: string | string[];
     projectId?: string | string[];
@@ -181,8 +182,12 @@ export default function WritingReminderScreen() {
       <AppHeader
         title={reminderId ? t("reminders.editTitle") : t("reminders.title")}
         onBack={() => backOr("/manuscripts")}
+        floating
       />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight + 8, paddingBottom: 40 }}
+        scrollIndicatorInsets={{ top: headerHeight }}
+      >
         <WritingReminderForm
           key={editing.id}
           reminder={editing}

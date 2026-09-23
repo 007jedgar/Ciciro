@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { AppHeader } from "../../../../components/AppHeader";
+import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { WritingMeter } from "../../../../components/WritingMeter";
@@ -10,7 +11,13 @@ import { useSession } from "../../../../lib/session";
 import { useAppTheme } from "../../../../lib/settings";
 import { useStackBack } from "../../../../lib/use-stack-back";
 
-function ProjectHeader() {
+function ProjectHeader({
+  showMeter,
+  onHeightChange,
+}: {
+  showMeter: boolean;
+  onHeightChange: (height: number) => void;
+}) {
   const router = useRouter();
   const { backTo } = useStackBack();
   const { t } = useTranslation();
@@ -23,6 +30,9 @@ function ProjectHeader() {
       onBack={() => backTo("/manuscripts")}
       backAccessibilityLabel={t("project.backToManuscripts")}
       onSettings={() => router.push("/settings")}
+      floating
+      accessory={showMeter ? <WritingMeter /> : null}
+      onHeightChange={onHeightChange}
     />
   );
 }
@@ -35,6 +45,8 @@ export default function ProjectTabsLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const segments = useSegments();
   const onEditor = segments[segments.length - 1] === "manuscript";
+  // Tabs scroll under the floating header, so they need its measured height.
+  const [headerHeight, setHeaderHeight] = useState<number | null>(null);
 
   if (!ready) {
     return (
@@ -60,22 +72,23 @@ export default function ProjectTabsLayout() {
   }
 
   return (
-    <View style={layout.screen}>
-      <ProjectHeader />
-      {onEditor ? <WritingMeter /> : null}
-      <View style={{ flex: 1 }}>
-        <Tabs
-          backBehavior="none"
-          tabBar={() => null}
-          screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
-        >
-          <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
-          <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
-          <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
-          <Tabs.Screen name="index" options={{ href: null }} />
-        </Tabs>
-        <ManuscriptTabBar projectId={id} />
+    <AppHeaderHeightContext.Provider value={headerHeight}>
+      <View style={layout.screen}>
+        <ProjectHeader showMeter={onEditor} onHeightChange={setHeaderHeight} />
+        <View style={{ flex: 1 }}>
+          <Tabs
+            backBehavior="none"
+            tabBar={() => null}
+            screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
+          >
+            <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
+            <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
+            <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
+            <Tabs.Screen name="index" options={{ href: null }} />
+          </Tabs>
+          <ManuscriptTabBar projectId={id} />
+        </View>
       </View>
-    </View>
+    </AppHeaderHeightContext.Provider>
   );
 }

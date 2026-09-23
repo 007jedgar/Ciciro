@@ -3,7 +3,7 @@ import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native
 import { Redirect, useRouter } from "expo-router";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
-import { AppHeader } from "../components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize, type FormatChrome } from "../lib/app-settings";
@@ -198,6 +198,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
+  const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
   const reminders = useWritingReminderList(user?.id ?? null);
   const [notificationPermission, setNotificationPermission] = useState<
@@ -257,8 +258,12 @@ export default function SettingsScreen() {
       <AppHeader
         title={t("settings.title")}
         onBack={() => backOr("/manuscripts")}
+        floating
       />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 20, paddingBottom: 48 }}
+        scrollIndicatorInsets={{ top: headerHeight }}
+      >
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
 
         <Group colors={colors}>
