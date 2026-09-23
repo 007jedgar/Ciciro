@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "setup": "prisma generate && prisma db push",
     "typecheck": "tsc --noEmit",
+    "higgsfield:example": "node --env-file-if-exists=.env.local scripts/higgsfield/index.ts",
     "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
     "typecheck:mobile": "npm run typecheck --prefix apps/mobile",
     "test:mobile": "npm test --prefix apps/mobile",
@@ -24,6 +25,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@higgsfield/client": "^0.2.6",
     "@prisma/adapter-d1": "^6.1.0",
     "@prisma/client": "^6.1.0",
     "@tiptap/extension-character-count": "^2.11.0",
