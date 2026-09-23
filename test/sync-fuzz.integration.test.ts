@@ -791,9 +791,15 @@ describe("sync fuzz: desk, phone, and AI converge", () => {
     await prisma.$disconnect();
   });
 
-  it.each(SEEDS)("converges with no lost prose (seed %i)", async (seed) => {
-    await runSeed(ada, seed);
-  });
+  // A seed takes ~0.3s locally, but a slow CI runner has pushed one past the
+  // 5s default. The ceiling is for a stalled runner; a real hang still fails.
+  it.each(SEEDS)(
+    "converges with no lost prose (seed %i)",
+    async (seed) => {
+      await runSeed(ada, seed);
+    },
+    30_000
+  );
 
   /**
    * Seed 89 of the fuzz above, reduced to four ops.
