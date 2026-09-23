@@ -86,6 +86,26 @@ describe("failureFromError", () => {
     expect(failureFromError(error)).toMatchObject({ code: "auth", retryable: false });
   });
 
+  it("leaves a proxy's HTML error page out of the details", () => {
+    const page =
+      '<!DOCTYPE html><html><body><div id="cf-wrapper"><h1>Internal server error</h1>' +
+      "<script>(function(){var a=document;})();</script></div></body></html>";
+    const message = "Ciciro's server sent an unexpected reply. Try again in a moment.";
+    const failure = failureFromError(new ApiError(message, 500, { raw: page, error: message }));
+    expect(failure).toMatchObject({ code: "upstream", status: 500, detail: message });
+  });
+
+  it("keeps only the visible words of markup that reaches a footer", () => {
+    const failure = classifyChatFailure(
+      '502 <html><head><style>p{color:red}</style></head><body><p>Bad gateway</p></body></html>'
+    );
+    expect(failure.detail).toBe("502 Bad gateway");
+  });
+
+  it("caps a long detail so the disclosure stays short", () => {
+    expect(classifyChatFailure("x".repeat(2000)).detail.length).toBeLessThanOrEqual(401);
+  });
+
   it("treats an aborted turn as cancelled rather than failed", () => {
     const abort = Object.assign(new Error("Aborted"), { name: "AbortError" });
     expect(failureFromError(abort)).toMatchObject({ code: "cancelled", retryable: false });

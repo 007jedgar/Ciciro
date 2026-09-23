@@ -128,6 +128,27 @@ function codeFromText(raw: string): ChatFailureCode | null {
   return null;
 }
 
+const MAX_DETAIL_LENGTH = 400;
+
+/**
+ * An error page from a proxy (Cloudflare, a dev server) is a wall of markup.
+ * Keep only its visible words, and cap anything long so the disclosure stays
+ * a note rather than a document.
+ */
+function readableDetail(text: string): string {
+  let out = text;
+  if (/<(!doctype|html|head|body|div|p|span|script)\b/i.test(out)) {
+    out = out
+      .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\\[nt]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return out.length > MAX_DETAIL_LENGTH ? `${out.slice(0, MAX_DETAIL_LENGTH).trimEnd()}…` : out;
+}
+
 /** Classify one raw failure string (a footer body, or an Error message). */
 export function classifyChatFailure(raw: string, knownStatus?: number | null): ChatFailure {
   const text = (raw ?? "").trim();
@@ -141,7 +162,7 @@ export function classifyChatFailure(raw: string, knownStatus?: number | null): C
   return {
     code,
     status: status ?? null,
-    detail: providerMessage(text),
+    detail: readableDetail(providerMessage(text)),
     retryable: RETRYABLE.has(code),
   };
 }
@@ -159,6 +180,19 @@ export function splitErrorFooter(content: string): {
   };
 }
 
+/**
+ * The part of an ApiError body worth adding to its message. The API client
+ * parks a non-JSON reply (an HTML error page) on `raw`, which is no use on
+ * screen, and an `error` field that only repeats the message adds nothing.
+ */
+function errorBodyText(body: unknown, message: string): string {
+  if (typeof body === "string") return body;
+  if (!body || typeof body !== "object") return "";
+  const { raw: _raw, ...rest } = body as Record<string, unknown>;
+  if (rest.error === message) delete rest.error;
+  return Object.keys(rest).length > 0 ? JSON.stringify(rest) : "";
+}
+
 /** Classify anything thrown by the API layer (ApiError, TypeError, abort). */
 export function failureFromError(error: unknown): ChatFailure {
   if (!error) return classifyChatFailure("");
@@ -166,19 +200,14 @@ export function failureFromError(error: unknown): ChatFailure {
     typeof (error as { status?: unknown }).status === "number"
       ? (error as { status: number }).status
       : null;
-  const body = (error as { body?: unknown }).body;
-  const bodyText =
-    typeof body === "string"
-      ? body
-      : body && typeof body === "object"
-        ? JSON.stringify(body)
-        : "";
   const message = (error as { message?: unknown }).message;
-  const raw = [typeof message === "string" ? message : "", bodyText]
+  const messageText = typeof message === "string" ? message : "";
+  const bodyText = errorBodyText((error as { body?: unknown }).body, messageText);
+  const raw = [messageText, bodyText]
     .filter(Boolean)
     .join(" ");
   if ((error as { name?: string }).name === "AbortError") {
-    return { code: "cancelled", status, detail: raw.trim(), retryable: false };
+    return { code: "cancelled", status, detail: readableDetail(raw.trim()), retryable: false };
   }
   return classifyChatFailure(raw, status);
 }
