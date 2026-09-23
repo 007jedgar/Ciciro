@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { failureMessageKey, type ChatFailure } from "../lib/chat-errors";
@@ -73,9 +73,17 @@ export function ChatErrorNotice({
 
       {open && detail ? (
         <Animated.View entering={FadeIn.duration(160)} style={styles.detail}>
-          <Text selectable style={[styles.detailText, { color: colors.inkSoft }]}>
-            {detail}
-          </Text>
+          {/* Capped so a long payload scrolls in place and Hide details stays in reach. */}
+          <ScrollView
+            style={[styles.detailScroll, { borderColor: colors.line }]}
+            contentContainerStyle={styles.detailContent}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+          >
+            <Text selectable style={[styles.detailText, { color: colors.inkSoft }]}>
+              {detail}
+            </Text>
+          </ScrollView>
           {code ? (
             <Text style={[styles.code, { color: colors.inkSoft }]}>{code}</Text>
           ) : null}
@@ -108,6 +116,12 @@ const styles = StyleSheet.create({
   },
   retryLabel: { fontSize: 13, fontWeight: "600" },
   detail: { marginTop: 12, marginLeft: 27 },
+  detailScroll: {
+    maxHeight: 160,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  detailContent: { padding: 10 },
   detailText: { fontSize: 13, lineHeight: 19, fontFamily: "Menlo" },
   code: { fontSize: 11, marginTop: 6, letterSpacing: 0.3 },
 });
