@@ -400,6 +400,7 @@ export function CiciroChat({
   openQuestionCount = 0,
   onOpenQuestions,
   bottomInset,
+  topInset = 0,
 }: {
   messages: ChatMessage[];
   stream: ChatStreamState;
@@ -422,6 +423,8 @@ export function CiciroChat({
   openQuestionCount?: number;
   onOpenQuestions?: () => void;
   bottomInset: number;
+  /** Height of a floating header the thread scrolls underneath. */
+  topInset?: number;
 }) {
   const { t } = useTranslation();
   const { layout, colors, dark } = useAppTheme();
@@ -443,6 +446,9 @@ export function CiciroChat({
   // stays reachable with the keyboard up.
   const keyboardLift = Math.max(0, keyboardHeight + KEYBOARD_GAP - bottomInset);
 
+  const bannerShown = openQuestionCount > 0 && Boolean(onOpenQuestions);
+  // The questions banner already clears the header, so the thread starts under it.
+  const listTop = bannerShown ? 0 : topInset;
   const [listHeight, setListHeight] = useState(0);
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [promptHeight, setPromptHeight] = useState(0);
@@ -517,11 +523,12 @@ export function CiciroChat({
       listRef.current?.scrollToIndex({
         index,
         viewPosition: 0,
+        viewOffset: listTop,
         animated: false,
       });
     }, 50);
     return () => clearTimeout(id);
-  }, [activeAnchor, listHeight, messages]);
+  }, [activeAnchor, listHeight, listTop, messages]);
 
   // The keyboard used to drag the thread to its tail. Leave an anchored prompt
   // where the author is reading it; only follow the tail when nothing is pinned.
@@ -699,7 +706,7 @@ export function CiciroChat({
   const settledReply = anchorIndex >= 0 ? messages[anchorIndex + 1] : undefined;
   const showStream = streaming && !settledReply;
   const anchorGap = activeAnchor
-    ? promptAnchorGap(listHeight, promptHeight, trailingPadding)
+    ? promptAnchorGap(listHeight - listTop, promptHeight, trailingPadding)
     : 0;
   const footerMin = activeAnchor
     ? anchorFooterMinHeight(anchorGap, showStream ? 0 : replyHeight)
@@ -751,7 +758,7 @@ export function CiciroChat({
 
   return (
     <View style={layout.screen}>
-      {openQuestionCount > 0 && onOpenQuestions ? (
+      {bannerShown ? (
         <Animated.View entering={animate ? FadeIn.duration(220) : undefined}>
           <Pressable
             accessibilityRole="button"
@@ -760,6 +767,7 @@ export function CiciroChat({
             style={({ pressed }) => [
               styles.banner,
               {
+                marginTop: topInset + 8,
                 borderColor: colors.line,
                 backgroundColor: colors.accentSoft,
                 opacity: pressed ? 0.75 : 1,
@@ -785,7 +793,11 @@ export function CiciroChat({
         ref={listRef}
         style={{ flex: 1 }}
         data={messages}
-        contentContainerStyle={[styles.list, { paddingBottom: trailingPadding }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingTop: listTop + 8, paddingBottom: trailingPadding },
+        ]}
+        scrollIndicatorInsets={{ top: listTop }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         onLayout={(event) => {
@@ -808,6 +820,7 @@ export function CiciroChat({
             listRef.current?.scrollToIndex({
               index: info.index,
               viewPosition: 0,
+              viewOffset: listTop,
               animated: false,
             });
           }, 60);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { CiciroChat } from "../../../../components/CiciroChat";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { OpenQuestionsSheet } from "../../../../components/OpenQuestionsSheet";
@@ -35,6 +36,7 @@ export default function CiciroScreen() {
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
   const clearance = useTabBarClearance();
+  const headerHeight = useAppHeaderHeight();
   const requested = asCiciroIntent(intent);
   const projectId = project?.id ?? "";
   const chat = useCiciroChat(projectId);
@@ -155,7 +157,7 @@ export default function CiciroScreen() {
 
   if (loading && !project) {
     return (
-      <View style={[layout.padded, { paddingTop: 8 }]}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 8 }]}>
         <SkeletonList count={4} accessibilityLabel={t("common.loading")} />
       </View>
     );
@@ -163,7 +165,7 @@ export default function CiciroScreen() {
 
   if (error) {
     return (
-      <View style={layout.padded}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
         <Text style={layout.error}>{error}</Text>
       </View>
     );
@@ -177,7 +179,7 @@ export default function CiciroScreen() {
         <View
           style={{
             marginHorizontal: 20,
-            marginTop: 8,
+            marginTop: headerHeight + 8,
             paddingVertical: 10,
             paddingHorizontal: 14,
             borderRadius: 12,
@@ -216,6 +218,8 @@ export default function CiciroScreen() {
         openQuestionCount={questions.data?.length ?? 0}
         onOpenQuestions={() => setQuestionsOpen(true)}
         bottomInset={clearance}
+        // The requested-intent card already clears the header.
+        topInset={requested ? 0 : headerHeight}
       />
       <OpenQuestionsSheet
         projectId={projectId}

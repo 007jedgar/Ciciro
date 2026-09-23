@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { ChapterListCard } from "../../../../components/ChapterListCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
@@ -28,6 +29,7 @@ export default function ChaptersScreen() {
   const { t } = useTranslation();
   const { layout } = useAppTheme();
   const clearance = useTabBarClearance();
+  const headerHeight = useAppHeaderHeight();
   const removeChapter = useDeleteChapterMutation();
   const patchProject = usePatchProjectMutation();
   const patchChapter = usePatchChapterMutation();
@@ -37,7 +39,7 @@ export default function ChaptersScreen() {
 
   if (loading && !project) {
     return (
-      <View style={[layout.padded, { paddingTop: 8 }]}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 8 }]}>
         <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
       </View>
     );
@@ -45,7 +47,7 @@ export default function ChaptersScreen() {
 
   if (error) {
     return (
-      <View style={layout.padded}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
         <Text style={layout.error}>{error}</Text>
       </View>
     );
@@ -119,9 +121,12 @@ export default function ChaptersScreen() {
   }
 
   return (
-    <View style={layout.padded}>
+    <View style={[layout.padded, { paddingTop: 0 }]}>
       {deleteError ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <Text
+          style={[layout.error, { marginTop: headerHeight + 16, marginBottom: 12 }]}
+          role="alert"
+        >
           {deleteError}
         </Text>
       ) : null}
@@ -129,7 +134,11 @@ export default function ChaptersScreen() {
         data={chapters}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: clearance }}
+        // An error line already clears the header, so the list starts under it.
+        contentContainerStyle={{
+          paddingTop: deleteError ? 0 : headerHeight + 16,
+          paddingBottom: clearance,
+        }}
         ListHeaderComponent={
           project ? (
             <View>

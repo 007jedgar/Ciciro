@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   FadeIn,
@@ -16,6 +16,29 @@ import * as Haptics from "expo-haptics";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
 import { ChevronLeftIcon, PlusIcon, SlidersIcon } from "./icons";
+import { ProgressiveBlur } from "./ProgressiveBlur";
+
+const TOP_GAP = 14;
+const ROW_HEIGHT = 38;
+const BOTTOM_GAP = 16;
+/** How far the blur keeps fading past the header's bottom edge. */
+const BLUR_TAIL = 28;
+
+/**
+ * A layout that floats a header over nested screens publishes its measured
+ * height here, since an accessory row under the header changes it.
+ */
+export const AppHeaderHeightContext = createContext<number | null>(null);
+
+/**
+ * Height of the header, so a screen using a floating header can start its
+ * scroll content just below it.
+ */
+export function useAppHeaderHeight(): number {
+  const measured = useContext(AppHeaderHeightContext);
+  const top = useSafeAreaInsets().top;
+  return measured ?? top + TOP_GAP + ROW_HEIGHT + BOTTOM_GAP;
+}
 
 export function AppHeader({
   title,
@@ -28,6 +51,9 @@ export function AppHeader({
   actionLabel,
   onAction,
   actionDisabled = false,
+  floating = false,
+  accessory,
+  onHeightChange,
 }: {
   title: string;
   onBack?: () => void;
@@ -40,9 +66,17 @@ export function AppHeader({
   actionLabel?: string;
   onAction?: () => void;
   actionDisabled?: boolean;
+  /**
+   * Float over the screen with a progressive blur so content scrolls under it.
+   * The screen must pad its scroll content by `useAppHeaderHeight()`.
+   */
+  floating?: boolean;
+  /** A full-width row under the title, kept inside the header's blur. */
+  accessory?: ReactNode;
+  onHeightChange?: (height: number) => void;
 }) {
   const { t } = useTranslation();
-  const { colors } = useAppTheme();
+  const { colors, dark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const newProgress = useSharedValue(0);
@@ -63,7 +97,19 @@ export function AppHeader({
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 14, backgroundColor: colors.bg }]}>
+    <View
+      style={[
+        styles.root,
+        { paddingTop: insets.top + TOP_GAP },
+        floating ? styles.floating : { backgroundColor: colors.bg },
+      ]}
+      onLayout={
+        onHeightChange ? (event) => onHeightChange(event.nativeEvent.layout.height) : undefined
+      }
+    >
+      {floating ? (
+        <ProgressiveBlur dark={dark} color={colors.bg} style={{ bottom: -BLUR_TAIL }} />
+      ) : null}
       <View style={styles.row}>
         <View style={styles.lead}>
           {onBack ? (
@@ -149,13 +195,23 @@ export function AppHeader({
           </View>
         ) : null}
       </View>
+      {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { paddingHorizontal: 20, paddingBottom: 16 },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  root: { paddingHorizontal: 20, paddingBottom: BOTTOM_GAP },
+  floating: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 },
+  // The accessory brings its own side and bottom padding.
+  accessory: { marginHorizontal: -20, marginTop: 12, marginBottom: -BOTTOM_GAP },
+  row: {
+    minHeight: ROW_HEIGHT,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   lead: { flex: 1, flexDirection: "row", alignItems: "center", gap: 2, minWidth: 0 },
   title: { flex: 1, fontFamily: fonts.serif, fontSize: 26 },
   actions: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { FlatList, Platform, Pressable, RefreshControl, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useFoldersQuery, useProjectsQuery } from "../lib/api";
-import { AppHeader } from "../components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { BellIcon, FolderPlusIcon, NewChapterIcon } from "../components/icons";
 import { SkeletonList } from "../components/Skeleton";
@@ -28,6 +28,7 @@ export default function ManuscriptsScreen() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const headerHeight = useAppHeaderHeight();
   const [menuOpen, setMenuOpen] = useState(false);
   const enabled = Boolean(user);
   const projectsQuery = useProjectsQuery({ enabled });
@@ -91,6 +92,9 @@ export default function ManuscriptsScreen() {
     },
   ];
 
+  // An error line already clears the header, so the list starts under it.
+  const listTop = error ? 0 : headerHeight;
+
   return (
     <View style={[layout.screen, { paddingBottom: 0 }]}>
       <View style={{ zIndex: 20 }}>
@@ -99,15 +103,19 @@ export default function ManuscriptsScreen() {
           onSettings={() => router.push("/settings")}
           onNew={() => setMenuOpen((o) => !o)}
           newExpanded={menuOpen}
+          floating
         />
       </View>
       {error ? (
-        <Text style={[layout.error, { marginHorizontal: 20, marginTop: 12 }]} role="alert">
+        <Text
+          style={[layout.error, { marginHorizontal: 20, marginTop: headerHeight + 12 }]}
+          role="alert"
+        >
           {error}
         </Text>
       ) : null}
       {loading && !error ? (
-        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: (error ? 0 : headerHeight) + 8 }}>
           <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
         </View>
       ) : (
@@ -115,7 +123,15 @@ export default function ManuscriptsScreen() {
           scrollEnabled={true}
           data={rows}
           keyExtractor={(item) => item.key}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 20 }}
+          // Inset (not padding) on iOS so the pull-to-refresh spinner sits below the header.
+          contentInset={{ top: listTop }}
+          contentOffset={{ x: 0, y: -listTop }}
+          scrollIndicatorInsets={{ top: listTop }}
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: Platform.OS === "ios" ? 0 : listTop,
+            paddingBottom: insets.bottom + 20,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={
@@ -128,6 +144,7 @@ export default function ManuscriptsScreen() {
                 void foldersQuery.refetch();
               }}
               tintColor={colors.accent}
+              progressViewOffset={listTop}
             />
           }
           ListEmptyComponent={

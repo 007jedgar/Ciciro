@@ -11,6 +11,7 @@ import {
   marksFromEnrichedState,
   type EditorStyle,
 } from "../../../../components/ChapterEditor";
+import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
@@ -102,6 +103,7 @@ export default function ManuscriptScreen() {
   const { layout, colors, settings } = useAppTheme();
   const reduceMotion = useReduceMotion();
   const clearance = useTabBarClearance();
+  const headerHeight = useAppHeaderHeight();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const chapterRef = useRef<Chapter | null>(null);
   const previousBlocksRef = useRef<ManuscriptBlock[]>([]);
@@ -429,7 +431,7 @@ export default function ManuscriptScreen() {
 
   if (loading && !project) {
     return (
-      <View style={[layout.padded, { paddingTop: 8 }]}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 8 }]}>
         <SkeletonList count={7} accessibilityLabel={t("common.loading")} />
       </View>
     );
@@ -437,7 +439,7 @@ export default function ManuscriptScreen() {
 
   if (error) {
     return (
-      <View style={layout.padded}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
         <Text style={layout.error}>{error}</Text>
       </View>
     );
@@ -445,14 +447,16 @@ export default function ManuscriptScreen() {
 
   if (!chapter) {
     return (
-      <View style={layout.padded}>
+      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
         <Text style={layout.body}>{t("manuscript.noChapters")}</Text>
       </View>
     );
   }
 
+  // The native editor clips its padding rather than scrolling under it, so the
+  // page starts below the floating header instead of running beneath it.
   return (
-    <View style={layout.screen}>
+    <View style={[layout.screen, { paddingTop: headerHeight }]}>
       {barPlacement === "header" ? (
         <View
           testID="format-bar-slot"
