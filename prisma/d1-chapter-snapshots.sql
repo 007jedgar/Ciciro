@@ -3,9 +3,6 @@
 --
 -- Until this runs, chapter writes still succeed: automatic snapshots are best
 -- effort and never block the op log. Only the history panel itself errors.
---
--- A database that created this table before it had "runId" also needs the
--- one-shot prisma/d1-snapshot-runs.sql.
 
 CREATE TABLE IF NOT EXISTS "ChapterSnapshot" (
     "id" TEXT NOT NULL PRIMARY KEY,

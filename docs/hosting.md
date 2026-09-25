@@ -121,13 +121,6 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-chapter-snapshots.sql
 Until it runs, chapter writes keep working (automatic snapshots are best
 effort) and only the History panel reports an error.
 
-A database that created `ChapterSnapshot` before it had `runId` also needs this
-one-shot upgrade (not re-runnable):
-
-```bash
-wrangler d1 execute ciciro --remote --file=prisma/d1-snapshot-runs.sql
-```
-
 ## Authentication
 
 - `POST /api/auth/signup` — create an account and start a session.
