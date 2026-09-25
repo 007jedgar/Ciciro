@@ -372,6 +372,14 @@ const en = {
     openSettings: "Writing settings",
     openA11y: "Open writing history",
   },
+  target: {
+    setNano: "Set NaNo pace (50k by Nov 30)",
+    complete: "Manuscript goal met",
+    pastDeadline_one: "{{count}} word left past the deadline",
+    pastDeadline_other: "{{count}} words left past the deadline",
+    pace_one: "{{count}} word today to finish by {{date}}",
+    pace_other: "{{count}} words today to finish by {{date}}",
+  },
   reminders: {
     menu: "Writing reminder",
     title: "Writing reminder",

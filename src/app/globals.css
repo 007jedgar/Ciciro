@@ -1164,6 +1164,24 @@ textarea {
   color: var(--ink);
 }
 
+.manuscript-pace {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  align-self: center;
+}
+.manuscript-pace-link {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  align-self: center;
+  white-space: nowrap;
+}
+
 .home-top {
   display: flex;
   align-items: flex-start;

@@ -31,6 +31,8 @@ import type {
   ImportResult,
   LoginRequest,
   ManuscriptEdit,
+  ManuscriptTargetPutRequest,
+  ManuscriptTargetResponse,
   NdjsonEvent,
   OkResponse,
   OpenQuestion,
@@ -175,6 +177,20 @@ export const ciciro = {
         api<ReadingPositionResponse>(
           `/api/projects/${encodeURIComponent(id)}/position`,
           jsonInit("PUT", body, opts)
+        ),
+    },
+    target: {
+      get: (id: string, opts?: RequestOpts) =>
+        api<ManuscriptTargetResponse>(`/api/projects/${encodeURIComponent(id)}/target`, opts),
+      put: (id: string, body: ManuscriptTargetPutRequest, opts?: RequestOpts) =>
+        api<ManuscriptTargetResponse>(
+          `/api/projects/${encodeURIComponent(id)}/target`,
+          jsonInit("PUT", body, opts)
+        ),
+      delete: (id: string, opts?: RequestOpts) =>
+        api<OkResponse>(
+          `/api/projects/${encodeURIComponent(id)}/target`,
+          jsonInit("DELETE", undefined, opts)
         ),
     },
   },

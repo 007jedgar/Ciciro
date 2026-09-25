@@ -373,6 +373,14 @@ const hi: Translations = {
     openSettings: "लेखन सेटिंग्स",
     openA11y: "लेखन इतिहास खोलें",
   },
+  target: {
+    setNano: "NaNo गति (30 नव तक 50हज़ार)",
+    complete: "पांडुलिपि लक्ष्य पूरा",
+    pastDeadline_one: "समयसीमा बाद {{count}} शब्द बाकी",
+    pastDeadline_other: "समयसीमा बाद {{count}} शब्द बाकी",
+    pace_one: "{{date}} तक खत्म करने के लिए आज {{count}} शब्द",
+    pace_other: "{{date}} तक खत्म करने के लिए आज {{count}} शब्द",
+  },
   reminders: {
     menu: "लेखन अनुस्मारक",
     title: "लेखन अनुस्मारक",

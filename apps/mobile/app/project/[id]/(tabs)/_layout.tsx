@@ -6,6 +6,7 @@ import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHea
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { WritingMeter } from "../../../../components/WritingMeter";
+import { ManuscriptPaceLabel } from "../../../../components/ManuscriptPaceLabel";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
 import { useAppTheme } from "../../../../lib/settings";
@@ -22,6 +23,10 @@ function ProjectHeader({
   const { backTo } = useStackBack();
   const { t } = useTranslation();
   const { project } = useProject();
+  const manuscriptWords = (project?.chapters ?? []).reduce(
+    (sum, chapter) => sum + (chapter.archivedAt ? 0 : chapter.wordCount || 0),
+    0
+  );
   return (
     <AppHeader
       title={project?.title || t("project.untitled")}
@@ -31,7 +36,14 @@ function ProjectHeader({
       backAccessibilityLabel={t("project.backToManuscripts")}
       onSettings={() => router.push("/settings")}
       floating
-      accessory={showMeter ? <WritingMeter /> : null}
+      accessory={
+        showMeter && project ? (
+          <>
+            <WritingMeter />
+            <ManuscriptPaceLabel projectId={project.id} manuscriptWords={manuscriptWords} />
+          </>
+        ) : null
+      }
       onHeightChange={onHeightChange}
     />
   );

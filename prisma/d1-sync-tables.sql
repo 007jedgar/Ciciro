@@ -84,3 +84,15 @@ CREATE TABLE IF NOT EXISTS "WritingSession" (
 );
 
 CREATE INDEX IF NOT EXISTS "WritingSession_userId_startedAt_idx" ON "WritingSession"("userId", "startedAt");
+
+CREATE TABLE IF NOT EXISTS "ManuscriptTarget" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "projectId" TEXT NOT NULL,
+    "wordGoal" INTEGER NOT NULL,
+    "deadline" TEXT NOT NULL,
+    "updatedAt" DATETIME NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ManuscriptTarget_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "ManuscriptTarget_projectId_key" ON "ManuscriptTarget"("projectId");

@@ -82,12 +82,27 @@ model Project {
   chapterOps        ChapterOp[]
   bibleFiles        BibleFile[]
   readingPositions  ReadingPosition[]
+  manuscriptTarget  ManuscriptTarget?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, updatedAt])
   @@index([folderId])
+}
+
+// A word goal and deadline for one manuscript. Pace is derived from chapter
+// word counts (not WritingDay), so falling behind raises tomorrow's number.
+model ManuscriptTarget {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  wordGoal  Int
+  deadline  String // YYYY-MM-DD inclusive
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 // A named grouping for an author's manuscripts. Deleting a folder unfiles

@@ -462,6 +462,31 @@ export type WritingSessionResponse = {
   session: WritingSession;
 };
 
+export type ManuscriptTargetPace = {
+  remaining: number;
+  daysLeft: number;
+  pace: number | null;
+  pastDeadline: boolean;
+  complete: boolean;
+};
+
+export type ManuscriptTarget = {
+  projectId: string;
+  wordGoal: number;
+  deadline: string;
+  manuscriptWords: number;
+  pace: ManuscriptTargetPace;
+};
+
+export type ManuscriptTargetPutRequest = {
+  wordGoal: number;
+  deadline: string;
+};
+
+export type ManuscriptTargetResponse = {
+  target: ManuscriptTarget | null;
+};
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

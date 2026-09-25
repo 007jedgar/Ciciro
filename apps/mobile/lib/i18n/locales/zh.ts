@@ -370,6 +370,14 @@ const zh: Translations = {
     openSettings: "写作设置",
     openA11y: "打开写作记录",
   },
+  target: {
+    setNano: "设定 NaNo 节奏（11/30 前 5 万字）",
+    complete: "书稿目标已达成",
+    pastDeadline_one: "已过截止日期，还差 {{count}} 字",
+    pastDeadline_other: "已过截止日期，还差 {{count}} 字",
+    pace_one: "要在 {{date}} 前写完，今天需 {{count}} 字",
+    pace_other: "要在 {{date}} 前写完，今天需 {{count}} 字",
+  },
   reminders: {
     menu: "写作提醒",
     title: "写作提醒",

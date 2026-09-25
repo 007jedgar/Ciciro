@@ -374,6 +374,14 @@ const es: Translations = {
     openSettings: "Ajustes de escritura",
     openA11y: "Abrir historial de escritura",
   },
+  target: {
+    setNano: "Ritmo NaNo (50k para el 30 nov)",
+    complete: "Meta del manuscrito cumplida",
+    pastDeadline_one: "{{count}} palabra restante tras la fecha",
+    pastDeadline_other: "{{count}} palabras restantes tras la fecha",
+    pace_one: "{{count}} palabra hoy para terminar el {{date}}",
+    pace_other: "{{count}} palabras hoy para terminar el {{date}}",
+  },
   reminders: {
     menu: "Recordatorio de escritura",
     title: "Recordatorio de escritura",
