@@ -12,8 +12,8 @@ you only ever see the editor.
 - **Chapters** (left) - add, select, and see word counts and draft status.
   Total word count sits at the bottom of the list.
 - **Manuscript** (center) - the open chapter. Title, word count, status
-  (`draft` / `revised` / `final`), **Auto-draft**, and **Prose** / **Diff**
-  views. Write here as you would in any editor; saves are automatic.
+  (`draft` / `revised` / `final`), **Auto-draft**, and **Prose** / **Diff** /
+  **History** views. Write here as you would in any editor; saves are automatic.
 - **Ciciro** (right) - the editor chat, quick-action chips, and composer.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
@@ -96,6 +96,21 @@ untouched.
 
 **Diff** shows the editor's recent corrections to the open chapter. **Prose**
 is the writing surface.
+
+## Version history
+
+**History** (chapter toolbar; on mobile, the clock icon on a chapter card in
+the Chapters tab) lists snapshots of the open chapter. **Save snapshot** keeps
+the current text, with an optional name. Ciciro also takes one on its own
+before it edits the chapter, when you start writing in a chapter again after
+30 minutes or more away (keeping how the last session ended), and before every
+restore. It keeps the newest 50 automatic and 100 saved snapshots per chapter.
+
+Open a version to see what restoring it would change, or its full text.
+**Restore** replaces the chapter with that version; your current text is saved
+to history first, and **Undo** puts it back. Ciciro will not restore or save a
+snapshot while your latest edits have not reached the server, so reconnect and
+try again if it says so.
 
 ## Import
 

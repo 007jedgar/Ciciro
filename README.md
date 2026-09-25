@@ -48,8 +48,8 @@ Quick-action chips cover critique, loose ends, misplaced passages, and continuin
 from the open chapter. **Auto** inserts accepted drafts as they finish; **Auto-draft**
 writes an unattended pass of the open chapter.
 
-A fuller walkthrough - workspace, prompting, quick actions, questions, compact, and
-export - is in [Using Ciciro](docs/using-ciciro.md).
+A fuller walkthrough - workspace, prompting, quick actions, questions, compact, version
+history, and export - is in [Using Ciciro](docs/using-ciciro.md).
 
 ## Story bible
 
