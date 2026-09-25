@@ -21,6 +21,8 @@ type ProjectState = {
   }) => Promise<void>;
   recordChapterOp: ReturnType<typeof useProjectSync>["recordOp"];
   flushEdits: () => Promise<boolean>;
+  /** Push queued edits and pull the server's, then settle. */
+  syncChapters: () => Promise<unknown>;
   setEditingBlockIds: (ids: string[]) => void;
 };
 
@@ -98,6 +100,7 @@ export function ProjectProvider({
       recordReadingPosition: sync.recordPosition,
       recordChapterOp: sync.recordOp,
       flushEdits: sync.flushEdits,
+      syncChapters: sync.syncNow,
       setEditingBlockIds,
     }),
     [

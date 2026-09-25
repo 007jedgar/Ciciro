@@ -260,6 +260,58 @@ export function useChapterEditsQuery(id: string, options?: Enabled) {
   });
 }
 
+export function useChapterSnapshotsQuery(id: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.chapters.snapshots(id),
+    queryFn: () => ciciro.chapters.snapshots.list(id).then((res) => res.snapshots),
+    enabled: (options?.enabled ?? true) && Boolean(id),
+  });
+}
+
+export function useChapterSnapshotQuery(id: string, snapshotId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.chapters.snapshot(id, snapshotId),
+    queryFn: () => ciciro.chapters.snapshots.get(id, snapshotId),
+    enabled: (options?.enabled ?? true) && Boolean(id) && Boolean(snapshotId),
+    // A snapshot's text never changes after it is taken.
+    staleTime: Infinity,
+  });
+}
+
+function invalidateSnapshots(chapterId: string): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.snapshots(chapterId), exact: true });
+}
+
+export function useSaveSnapshotMutation() {
+  return useMutation({
+    mutationFn: ({ chapterId, label }: { chapterId: string; label?: string }) =>
+      ciciro.chapters.snapshots.create(chapterId, label ? { label } : {}),
+    onSuccess: (_snapshot, vars) => invalidateSnapshots(vars.chapterId),
+  });
+}
+
+export function useDeleteSnapshotMutation() {
+  return useMutation({
+    mutationFn: ({ chapterId, snapshotId }: { chapterId: string; snapshotId: string }) =>
+      ciciro.chapters.snapshots.delete(chapterId, snapshotId),
+    onSettled: (_data, _err, vars) => invalidateSnapshots(vars.chapterId),
+  });
+}
+
+/**
+ * The restored text reaches this device the way any other edit does: as ops
+ * the sync engine pulls into the replica. The caller runs that pull; writing
+ * the returned chapter into the cache here would put the screen ahead of the
+ * replica it is supposed to mirror.
+ */
+export function useRestoreSnapshotMutation() {
+  return useMutation({
+    mutationFn: ({ chapterId, snapshotId }: { chapterId: string; snapshotId: string }) =>
+      ciciro.chapters.snapshots.restore(chapterId, snapshotId),
+    onSettled: (_data, _err, vars) => invalidateSnapshots(vars.chapterId),
+  });
+}
+
 export function useCharactersQuery(projectId: string, options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.characters(projectId),

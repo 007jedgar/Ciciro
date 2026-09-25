@@ -192,6 +192,35 @@ const RESOURCES: ResourceCase[] = [
   },
   { name: "chapters.edits", run: () => ciciro.chapters.edits("c1"), path: /\/api\/chapters\/c1\/edits$/ },
   {
+    name: "chapters.snapshots.list",
+    run: () => ciciro.chapters.snapshots.list("c1"),
+    path: /\/api\/chapters\/c1\/snapshots$/,
+  },
+  {
+    name: "chapters.snapshots.get",
+    run: () => ciciro.chapters.snapshots.get("c1", "s1"),
+    path: /\/api\/chapters\/c1\/snapshots\/s1$/,
+  },
+  {
+    name: "chapters.snapshots.create",
+    run: () => ciciro.chapters.snapshots.create("c1", { label: "Draft one" }),
+    method: "POST",
+    path: /\/api\/chapters\/c1\/snapshots$/,
+    body: { label: "Draft one" },
+  },
+  {
+    name: "chapters.snapshots.delete",
+    run: () => ciciro.chapters.snapshots.delete("c1", "s1"),
+    method: "DELETE",
+    path: /\/api\/chapters\/c1\/snapshots\/s1$/,
+  },
+  {
+    name: "chapters.snapshots.restore",
+    run: () => ciciro.chapters.snapshots.restore("c1", "s1"),
+    method: "POST",
+    path: /\/api\/chapters\/c1\/snapshots\/s1\/restore$/,
+  },
+  {
     name: "chapters.ops.list",
     run: () => ciciro.chapters.ops.list("c1", 3),
     path: /\/api\/chapters\/c1\/ops\?after=3$/,

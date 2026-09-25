@@ -23,6 +23,8 @@ export const queryKeys = {
     list: (projectId: string) => ["chapters", projectId] as const,
     archived: (projectId: string) => ["chapters", projectId, "archived"] as const,
     edits: (id: string) => ["chapter-edits", id] as const,
+    snapshots: (id: string) => ["chapter-snapshots", id] as const,
+    snapshot: (id: string, snapshotId: string) => ["chapter-snapshots", id, snapshotId] as const,
     ops: (id: string, after = 0) => ["chapter-ops", id, after] as const,
   },
   characters: (projectId: string) => ["characters", projectId] as const,
