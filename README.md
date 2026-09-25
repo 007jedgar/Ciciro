@@ -7,7 +7,8 @@ editor with chapter navigation, and you talk to **one** partner - Ciciro, the ed
 (Claude Opus 5). It holds the story's canon, plans, critiques, tracks plot points and
 loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
-Manuscripts export to standard (Shunn-style) `.docx`, EPUB, and PDF.
+Manuscripts import from Word, Google Docs, Markdown and Scrivener, and export to
+standard (Shunn-style) `.docx`, EPUB, and PDF.
 
 ## Contents
 
@@ -162,7 +163,7 @@ src/
     api/
       chat/route.ts          # editor agentic loop (NDJSON stream + tools)
       bible/route.ts         # list/read/write bible files
-      projects, chapters, export/[id]
+      projects, chapters, export/[id], import
   components/
     Workspace.tsx  Editor.tsx  ChapterSidebar.tsx  ChatPanel.tsx  StoryBible.tsx  ExportMenu.tsx
   lib/
@@ -172,6 +173,7 @@ src/
     bible.ts       # markdown story-bible files (read/write/seed, path-safe)
     editor-run.ts  # durable, bounded editor lifecycle + model/tool checkpoints
     tools.ts       # editor tool defs + executor (retrieval, capture, dispatch)
+    import/        # .docx, Markdown, HTML and Scrivener parsers -> chapters
     docx.ts  text.ts  db.ts  types.ts
     export/        # EPUB + PDF renderers (blocks, epub, pdf)
 prisma/schema.prisma
@@ -186,7 +188,7 @@ data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 
 ## Documentation
 
-- [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft.
+- [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft, import.
 - [Story bible](docs/story-bible.md) - files on disk and how to keep the model consistent.
 - [Durable editor runs](docs/editor-agent-runs.md) - run lifecycle, streaming, verification.
 - [Hosting](docs/hosting.md) - Cloudflare Workers, Docker, auth gate, and serverless databases.
