@@ -209,6 +209,19 @@ describe("chapter version history", () => {
     expect(undo.chapter.content).toBe(current.content);
   });
 
+  it("points undo at the snapshot that already holds the replaced text", async () => {
+    const { user, chapter } = await seed();
+    await authorWrites(chapter.id, user, "<p>Old.</p>");
+    const old = await saveManualSnapshot(chapter.id, user, {});
+    await authorWrites(chapter.id, user, "<p>New.</p>");
+    const named = await saveManualSnapshot(chapter.id, user, { label: "New" });
+
+    const result = await restoreSnapshot(chapter.id, old.id, user);
+    // "New." is already the newest snapshot, so no copy is made and undo uses it.
+    expect(result.backup?.id).toBe(named.id);
+    expect(await listSnapshots(chapter.id, user)).toHaveLength(2);
+  });
+
   it("restoring the text the chapter already has changes nothing", async () => {
     const { user, chapter } = await seed();
     const written = await authorWrites(chapter.id, user, "<p>Same.</p>");

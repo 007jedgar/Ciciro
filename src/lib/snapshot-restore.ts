@@ -15,6 +15,21 @@ export type RestoreResult = {
   backup: ChapterSnapshotSummary | null;
 };
 
+/**
+ * Snapshot the text a restore is about to replace, or find the snapshot that
+ * already holds it: capture skips a copy of the newest snapshot, and the
+ * author still needs something to undo to.
+ */
+async function keepCurrentText(current: Chapter): Promise<ChapterSnapshotSummary | null> {
+  const saved = await captureSnapshot(current, "before_restore");
+  if (saved) return toSnapshotSummary(saved);
+  const existing = await prisma.chapterSnapshot.findFirst({
+    where: { chapterId: current.id, content: current.content },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  return existing ? toSnapshotSummary(existing) : null;
+}
+
 /** Head moves between reading the chapter and committing are retried this often. */
 const RESTORE_ATTEMPTS = 3;
 
@@ -37,15 +52,16 @@ export async function restoreSnapshot(
   });
   if (!snapshot) throw new AuthError("Not found.", 404);
 
-  let backup: ChapterSnapshotSummary | null = null;
   for (let attempt = 0; attempt < RESTORE_ATTEMPTS; attempt++) {
     const found = await prisma.chapter.findUnique({ where: { id: chapterId } });
     if (!found) throw new AuthError("Not found.", 404);
     const current = await ensureBlockIds(found);
+    if (current.content === snapshot.content) {
+      return { chapter: current, restored: toSnapshotSummary(snapshot), backup: null };
+    }
     // Unlike the automatic snapshots this one is not best effort: a restore
     // that cannot keep the text it replaces does not run.
-    const saved = await captureSnapshot(current, "before_restore");
-    if (saved) backup = toSnapshotSummary(saved);
+    const backup = await keepCurrentText(current);
     const written = await writeChapterHtml(current, snapshot.content, { actor: "user" });
     if (written.ok) {
       const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });

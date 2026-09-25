@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cleanSnapshotLabel,
   diffStats,
+  formatSnapshotTime,
   isSnapshotKind,
   SNAPSHOT_LABEL_MAX,
   snapshotDiff,
@@ -43,5 +44,27 @@ describe("snapshot view helpers", () => {
   it("recognizes only known kinds", () => {
     expect(isSnapshotKind("before_restore")).toBe(true);
     expect(isSnapshotKind("nightly")).toBe(false);
+  });
+});
+
+describe("formatSnapshotTime", () => {
+  const now = new Date(2026, 8, 25, 18, 0);
+
+  it("names today and yesterday", () => {
+    expect(formatSnapshotTime(new Date(2026, 8, 25, 15, 42).toISOString(), now)).toBe(
+      "Today, 3:42 PM"
+    );
+    expect(formatSnapshotTime(new Date(2026, 8, 24, 9, 5).toISOString(), now)).toBe(
+      "Yesterday, 9:05 AM"
+    );
+  });
+
+  it("dates older snapshots, with the year only when it differs", () => {
+    expect(formatSnapshotTime(new Date(2026, 8, 21, 15, 42).toISOString(), now)).toBe(
+      "Sep 21, 3:42 PM"
+    );
+    expect(formatSnapshotTime(new Date(2025, 11, 31, 23, 59).toISOString(), now)).toBe(
+      "Dec 31, 2025, 11:59 PM"
+    );
   });
 });

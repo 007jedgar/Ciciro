@@ -78,3 +78,30 @@ export function diffStats(parts: SnapshotDiffPart[]): { added: number; removed: 
   }
   return { added, removed };
 }
+
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/**
+ * "Today, 3:42 PM", "Yesterday, 9:05 AM", "Sep 21, 3:42 PM", with the year
+ * only when it is not this one. Local time: history is read by its author.
+ */
+export function formatSnapshotTime(iso: string, now = new Date()): string {
+  const at = new Date(iso);
+  const time = at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (sameDay(at, now)) return `Today, ${time}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (sameDay(at, yesterday)) return `Yesterday, ${time}`;
+  const date = at.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+  });
+  return `${date}, ${time}`;
+}
