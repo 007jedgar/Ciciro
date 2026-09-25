@@ -22,11 +22,6 @@ export const AUTO_SNAPSHOT_LIMIT = 50;
 export const MANUAL_SNAPSHOT_LIMIT = 100;
 /** Quiet time on a chapter after which the next keystroke starts a new session. */
 export const SESSION_GAP_MS = 30 * 60 * 1000;
-/**
- * A pre-edit snapshot younger than this, followed only by the editor's own
- * ops, is the same run still working: one snapshot covers all of its edits.
- */
-export const AI_RUN_WINDOW_MS = 60 * 60 * 1000;
 
 type ChapterText = { id: string; projectId: string; content: string; revision: number };
 
@@ -96,7 +91,7 @@ export async function pruneSnapshots(
 export async function captureSnapshot(
   chapter: ChapterText,
   kind: SnapshotKind,
-  opts?: { label?: string; at?: Date; keep?: string }
+  opts?: { label?: string; at?: Date; keep?: string; runId?: string }
 ): Promise<ChapterSnapshot | null> {
   const wordCount = countWords(htmlToText(chapter.content));
   if (kind !== "manual") {
@@ -117,6 +112,7 @@ export async function captureSnapshot(
       content: chapter.content,
       wordCount,
       revision: chapter.revision,
+      ...(opts?.runId ? { runId: opts.runId } : {}),
       ...(opts?.at ? { createdAt: opts.at } : {}),
     },
   });
@@ -148,25 +144,23 @@ async function lastOp(chapterId: string) {
 /**
  * Called before the editor (or autowrite) commits prose to a chapter. Keeps
  * the text as the author left it, once per run: while the newest snapshot is
- * a recent pre-edit one and nobody but the editor has written since, the run
- * is still going and the snapshot already taken covers it.
+ * this run's own pre-edit one and nobody but the editor has written since,
+ * the snapshot already taken covers it. A different run always takes its own,
+ * so the version one request produced survives the next request replacing it.
  */
-export async function snapshotBeforeAiWrite(chapter: ChapterText, now = new Date()): Promise<void> {
+export async function snapshotBeforeAiWrite(chapter: ChapterText, runId: string): Promise<void> {
   await bestEffort("before_ai", async () => {
     const [op, latest] = await Promise.all([
       lastOp(chapter.id),
       prisma.chapterSnapshot.findFirst({
         where: { chapterId: chapter.id },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        select: { kind: true, createdAt: true },
+        select: { kind: true, runId: true },
       }),
     ]);
-    const sameRun =
-      op?.actor === "ai" &&
-      latest?.kind === "before_ai" &&
-      now.getTime() - latest.createdAt.getTime() < AI_RUN_WINDOW_MS;
+    const sameRun = op?.actor === "ai" && latest?.kind === "before_ai" && latest.runId === runId;
     if (sameRun) return;
-    await captureSnapshot(chapter, "before_ai");
+    await captureSnapshot(chapter, "before_ai", { runId });
   });
 }
 

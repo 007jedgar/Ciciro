@@ -39,9 +39,9 @@ async function authorWrites(chapterId: string, user: PublicUser, html: string) {
   return saved.chapter;
 }
 
-async function aiWrites(chapterId: string, html: string) {
+async function aiWrites(chapterId: string, html: string, runId = "run-1") {
   const current = await head(chapterId);
-  const written = await writeChapterHtml(current, html, { actor: "ai" });
+  const written = await writeChapterHtml(current, html, { actor: "ai", runId });
   expect(written.ok).toBe(true);
   return written;
 }
@@ -114,12 +114,27 @@ describe("chapter version history", () => {
     // The author writes again, then the next run starts: a second net.
     const latest = await head(chapter.id);
     await authorWrites(chapter.id, user, `${latest.content}<p>Mine again.</p>`);
-    await aiWrites(chapter.id, "<p>Rewritten by Ciciro.</p>");
+    await aiWrites(chapter.id, "<p>Rewritten by Ciciro.</p>", "run-2");
 
     list = await listSnapshots(chapter.id, user);
     expect(list.map((s) => s.kind)).toEqual(["before_ai", "before_ai"]);
     const second = await getSnapshot(chapter.id, list[0].id, user);
     expect(htmlToText(second.content)).toContain("Mine again.");
+  });
+
+  it("keeps the version one editor request made when the next request replaces it", async () => {
+    const { user, chapter } = await seed();
+    await authorWrites(chapter.id, user, "<p>Mine.</p>");
+
+    await aiWrites(chapter.id, "<p>Ciciro's first take.</p>", "run-1");
+    await aiWrites(chapter.id, "<p>Ciciro's second take.</p>", "run-2");
+
+    const list = await listSnapshots(chapter.id, user);
+    expect(list.map((s) => s.kind)).toEqual(["before_ai", "before_ai"]);
+    const texts = await Promise.all(
+      list.map(async (s) => htmlToText((await getSnapshot(chapter.id, s.id, user)).content))
+    );
+    expect(texts).toEqual(["Ciciro's first take.", "Mine."]);
   });
 
   it("does not snapshot an empty chapter before the editor drafts into it", async () => {

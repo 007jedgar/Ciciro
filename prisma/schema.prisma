@@ -204,6 +204,7 @@ model ChapterSnapshot {
   content   String // TipTap HTML, block ids included
   wordCount Int    @default(0)
   revision  Int    @default(0) // chapter revision the content was read at
+  runId     String? // the editor run or autowrite a before_ai snapshot guards
 
   createdAt DateTime @default(now())
 

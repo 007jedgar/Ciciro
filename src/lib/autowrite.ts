@@ -188,7 +188,8 @@ Return ONLY the final edited prose for this beat - no commentary, no headings, n
 async function commitProse(
   chapterId: string,
   projectId: string,
-  newHtml: string
+  newHtml: string,
+  runId: string
 ): Promise<{ content: string; revision: number } | null> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const current = await prisma.chapter.findUnique({ where: { id: chapterId } });
@@ -201,7 +202,7 @@ async function commitProse(
         revision: current.revision,
       },
       (current.content || "") + newHtml,
-      { actor: "ai" }
+      { actor: "ai", runId }
     );
     if (written.ok) return { content: written.content, revision: written.revision };
   }
@@ -306,7 +307,7 @@ export async function runAutoWrite(opts: {
   // progress, not ops: a token stream that wrote an op per chunk would flood
   // the log and re-render the phone on every chunk. One stream, one commit.
   emit({ type: "phase", v: "saving" });
-  const saved = await commitProse(chapterId, projectId, newHtml);
+  const saved = await commitProse(chapterId, projectId, newHtml, crypto.randomUUID());
   if (!saved) {
     emit({
       type: "error",

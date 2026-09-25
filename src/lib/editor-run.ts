@@ -673,6 +673,7 @@ export async function executeClaimedEditorRun(
             {
               projectId: claim.projectId,
               activeChapterId: claim.activeChapterId,
+              runId: claim.id,
             }
           );
           emit({ type: "tool", v: result.status });

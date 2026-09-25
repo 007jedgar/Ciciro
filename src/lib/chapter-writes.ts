@@ -98,11 +98,15 @@ function wholeDocumentOps(
  * head between the caller reading `chapter` and this commit, the whole group is
  * rejected and `ok` is false — nothing half-applies, and the caller reports its
  * own conflict to whoever asked for the write.
+ *
+ * `runId` names the editor run or autowrite the write belongs to: its first
+ * write keeps the author's text as a snapshot, later ones in the same run do
+ * not. Without one, the write is a run of its own.
  */
 export async function writeChapterHtml(
   chapter: ChapterHead,
   nextHtml: string,
-  opts?: { actor?: ManuscriptActor; groupId?: string }
+  opts?: { actor?: ManuscriptActor; groupId?: string; runId?: string }
 ): Promise<ChapterWriteResult> {
   const actor = opts?.actor ?? "ai";
   const groupId = opts?.groupId ?? newId();
@@ -121,7 +125,7 @@ export async function writeChapterHtml(
   }
 
   // The editor is about to change prose the author may want back.
-  if (actor === "ai") await snapshotBeforeAiWrite(chapter);
+  if (actor === "ai") await snapshotBeforeAiWrite(chapter, opts?.runId ?? groupId);
 
   const result = await appendSystemOps(chapter.id, chapter.projectId, ops, { actor });
   return {
