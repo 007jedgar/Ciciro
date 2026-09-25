@@ -363,6 +363,7 @@ const zh: Translations = {
     bestDayValue: "{{date}} · {{count}}",
     timeAtKeys: "敲键盘的时间",
     timeAtKeysValue: "平均 {{duration}}",
+    sittingAvgValue: "平均每次 {{duration}}",
     wordsValue_one: "{{count}} 字",
     wordsValue_other: "{{count}} 字",
     emptyValue: "—",

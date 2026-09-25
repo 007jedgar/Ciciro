@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { useWritingDaysQuery } from "../lib/api";
+import { ciciro } from "../lib/api/resources";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
@@ -16,6 +17,11 @@ import {
   summarizeWritingHistory,
   writingDayKey,
 } from "../lib/writing-day";
+import {
+  averageSittingDurationMs,
+  SITTING_AVG_MIN_COUNT,
+  type WritingSessionTotals,
+} from "../lib/writing-session";
 
 const HEATMAP_DAYS = 28;
 const ALL_TIME_FROM = "2018-01-01";
@@ -35,6 +41,23 @@ export default function WritingHistoryScreen() {
   const todaySnap = useWritingDay();
   const today = todaySnap.date || writingDayKey();
   const range = useWritingDaysQuery(ALL_TIME_FROM, today, { enabled: Boolean(user) });
+  const [sessions, setSessions] = useState<WritingSessionTotals[] | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void ciciro.writing.sessions.list(50).then(
+      (data) => {
+        if (!cancelled) setSessions(data.sessions ?? []);
+      },
+      () => {
+        if (!cancelled) setSessions([]);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const merged = useMemo(() => {
     const base = (range.data?.days ?? []).map((day) => ({
@@ -59,12 +82,24 @@ export default function WritingHistoryScreen() {
     () => buckets.reduce((max, row) => Math.max(max, row.words), 0),
     [buckets]
   );
+  const avgSittingMs = useMemo(() => {
+    if (!sessions || sessions.length < SITTING_AVG_MIN_COUNT) return null;
+    return averageSittingDurationMs(sessions);
+  }, [sessions]);
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
 
   const weekLabel = t("history.daysOfLast7", { count: summary.daysInLast7 });
   const error = range.isError ? t("history.loadError") : null;
+  const timeAtKeys =
+    avgSittingMs != null
+      ? t("history.sittingAvgValue", { duration: formatActiveDuration(avgSittingMs) })
+      : summary.avgActiveMs == null
+        ? t("history.emptyValue")
+        : t("history.timeAtKeysValue", {
+            duration: formatActiveDuration(summary.avgActiveMs),
+          });
 
   return (
     <View style={layout.screen}>
@@ -137,18 +172,7 @@ export default function WritingHistoryScreen() {
           }
           colors={colors}
         />
-        <StatRow
-          label={t("history.timeAtKeys")}
-          value={
-            summary.avgActiveMs == null
-              ? t("history.emptyValue")
-              : t("history.timeAtKeysValue", {
-                  duration: formatActiveDuration(summary.avgActiveMs),
-                })
-          }
-          colors={colors}
-          last
-        />
+        <StatRow label={t("history.timeAtKeys")} value={timeAtKeys} colors={colors} last />
 
         {range.isPending && !range.data ? (
           <Text style={[layout.body, { marginTop: 16 }]}>{t("common.loading")}</Text>

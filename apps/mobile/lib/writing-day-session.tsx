@@ -10,8 +10,15 @@ import {
   writingDayKey,
   type WritingDayTotals,
 } from "./writing-day";
+import {
+  SITTING_IDLE_MS,
+  WritingSessionTracker,
+  type WritingSessionTotals,
+} from "./writing-session";
 
 const acc = new WritingDayAccumulator();
+const sittings = new WritingSessionTracker();
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
 let cachedSnapshot: WritingDayTotals | null = null;
 let userId: string | null = null;
@@ -58,6 +65,32 @@ function scheduleFlush(): void {
 async function sendHeartbeat(delta: WritingDayTotals): Promise<WritingDayTotals | null> {
   const data = await ciciro.writing.day.put(delta);
   return data.day ?? null;
+}
+
+async function sendSitting(session: WritingSessionTotals): Promise<void> {
+  if (!userId) return;
+  try {
+    await ciciro.writing.sessions.post(session);
+  } catch {
+    /* sitting already closed locally */
+  }
+}
+
+function scheduleSittingIdle(): void {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    const closed = sittings.checkIdle(Date.now());
+    if (closed) void sendSitting(closed);
+  }, SITTING_IDLE_MS + 50);
+}
+
+function recordSitting(closed: WritingSessionTotals | null): void {
+  if (closed) void sendSitting(closed);
+  if (sittings.open) scheduleSittingIdle();
+  else if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
 }
 
 async function flushOne(delta: WritingDayTotals): Promise<void> {
@@ -138,6 +171,12 @@ export function stopWritingDay(): void {
     clearTimeout(timer);
     timer = null;
   }
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  const closed = sittings.close();
+  if (closed) void sendSitting(closed);
   appSub?.remove();
   appSub = null;
   userId = null;
@@ -164,6 +203,7 @@ export function subscribeWritingDay(listener: () => void): () => void {
 
 export function noteWritingStroke(now = Date.now()): void {
   const leftover = acc.noteStroke(now);
+  recordSitting(sittings.noteStroke(now));
   void persistLocal();
   void flushLeftover(leftover);
   emit();
@@ -172,10 +212,22 @@ export function noteWritingStroke(now = Date.now()): void {
 
 export function noteWritingWords(delta: number, now = Date.now()): void {
   const leftover = acc.noteWords(delta, now);
+  recordSitting(sittings.noteWords(delta, now));
   void persistLocal();
   void flushLeftover(leftover);
   emit();
   scheduleFlush();
+}
+
+/** Close the open sitting (sprint end). Returns the closed row if any. */
+export function closeWritingSitting(now = Date.now()): WritingSessionTotals | null {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  const closed = sittings.close(now);
+  if (closed) void sendSitting(closed);
+  return closed;
 }
 
 function subscribe(listener: () => void): () => void {

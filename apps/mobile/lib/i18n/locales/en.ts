@@ -365,6 +365,7 @@ const en = {
     bestDayValue: "{{count}} on {{date}}",
     timeAtKeys: "Time at the keys",
     timeAtKeysValue: "{{duration}} avg",
+    sittingAvgValue: "{{duration}} avg sitting",
     wordsValue_one: "{{count}} word",
     wordsValue_other: "{{count}} words",
     emptyValue: "—",

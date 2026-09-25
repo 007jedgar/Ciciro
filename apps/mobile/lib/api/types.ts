@@ -437,6 +437,31 @@ export type WritingDaysResponse = {
   days: WritingDay[];
 };
 
+export type WritingSession = {
+  id?: string;
+  projectId: string | null;
+  startedAt: number;
+  endedAt: number;
+  words: number;
+  activeMs: number;
+};
+
+export type WritingSessionPostRequest = {
+  projectId?: string | null;
+  startedAt: number;
+  endedAt: number;
+  words: number;
+  activeMs: number;
+};
+
+export type WritingSessionsResponse = {
+  sessions: WritingSession[];
+};
+
+export type WritingSessionResponse = {
+  session: WritingSession;
+};
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

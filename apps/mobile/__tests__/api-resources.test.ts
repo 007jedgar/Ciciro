@@ -78,6 +78,31 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/writing\/days\?from=2026-09-01&to=2026-09-14$/,
   },
   {
+    name: "writing.sessions.list",
+    run: () => ciciro.writing.sessions.list(20),
+    path: /\/api\/writing\/sessions\?limit=20$/,
+  },
+  {
+    name: "writing.sessions.post",
+    run: () =>
+      ciciro.writing.sessions.post({
+        projectId: null,
+        startedAt: 1_000,
+        endedAt: 2_000,
+        words: 12,
+        activeMs: 500,
+      }),
+    method: "POST",
+    path: /\/api\/writing\/sessions$/,
+    body: {
+      projectId: null,
+      startedAt: 1_000,
+      endedAt: 2_000,
+      words: 12,
+      activeMs: 500,
+    },
+  },
+  {
     name: "writing.day.put",
     run: () => ciciro.writing.day.put({ date: "2026-09-12", words: 12, activeMs: 4000 }),
     method: "PUT",

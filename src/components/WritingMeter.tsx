@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "@/components/SettingsProvider";
 import {
   fetchWritingDays,
+  fetchWritingSessions,
   getWritingDaySnapshot,
   hydrateWritingDay,
   subscribeWritingDay,
@@ -17,6 +18,11 @@ import {
   writingDayKey,
   type WritingDayTotals,
 } from "@/lib/writing-day";
+import {
+  averageSittingDurationMs,
+  SITTING_AVG_MIN_COUNT,
+  type WritingSessionTotals,
+} from "@/lib/writing-session";
 
 const HEATMAP_DAYS = 28;
 /** Far enough back for all-time totals without mirroring into SQLite. */
@@ -32,6 +38,7 @@ export default function WritingMeter() {
   const [day, setDay] = useState(getWritingDaySnapshot);
   const [open, setOpen] = useState(false);
   const [rangeDays, setRangeDays] = useState<WritingDayTotals[] | null>(null);
+  const [sessions, setSessions] = useState<WritingSessionTotals[] | null>(null);
   const [loading, setLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -62,9 +69,13 @@ export default function WritingMeter() {
     const todayKey = writingDayKey();
     void (async () => {
       try {
-        const rows = await fetchWritingDays(ALL_TIME_FROM, todayKey);
+        const [rows, sits] = await Promise.all([
+          fetchWritingDays(ALL_TIME_FROM, todayKey),
+          fetchWritingSessions(50),
+        ]);
         if (cancelled) return;
         setRangeDays(rows ?? []);
+        setSessions(sits ?? []);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -94,6 +105,16 @@ export default function WritingMeter() {
     () => buckets.reduce((max, row) => Math.max(max, row.words), 0),
     [buckets]
   );
+  const avgSittingMs = useMemo(() => {
+    if (!sessions || sessions.length < SITTING_AVG_MIN_COUNT) return null;
+    return averageSittingDurationMs(sessions);
+  }, [sessions]);
+  const timeAtKeys =
+    avgSittingMs != null
+      ? `${formatActiveDuration(avgSittingMs)} avg sitting`
+      : summary.avgActiveMs == null
+        ? "—"
+        : `${formatActiveDuration(summary.avgActiveMs)} avg`;
 
   if (!settings.showDailyGoal) return null;
 
@@ -164,11 +185,7 @@ export default function WritingMeter() {
               </div>
               <div>
                 <dt>Time at the keys</dt>
-                <dd>
-                  {summary.avgActiveMs == null
-                    ? "—"
-                    : `${formatActiveDuration(summary.avgActiveMs)} avg`}
-                </dd>
+                <dd>{timeAtKeys}</dd>
               </div>
               <div>
                 <dt>Last 7 days</dt>

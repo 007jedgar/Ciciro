@@ -367,6 +367,7 @@ const es: Translations = {
     bestDayValue: "{{count}} el {{date}}",
     timeAtKeys: "Tiempo en las teclas",
     timeAtKeysValue: "{{duration}} de media",
+    sittingAvgValue: "{{duration}} de media por sesión",
     wordsValue_one: "{{count}} palabra",
     wordsValue_other: "{{count}} palabras",
     emptyValue: "—",

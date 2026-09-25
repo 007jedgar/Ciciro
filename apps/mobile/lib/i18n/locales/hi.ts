@@ -366,6 +366,7 @@ const hi: Translations = {
     bestDayValue: "{{date}} को {{count}}",
     timeAtKeys: "कीज़ पर समय",
     timeAtKeysValue: "औसत {{duration}}",
+    sittingAvgValue: "औसत बैठक {{duration}}",
     wordsValue_one: "{{count}} शब्द",
     wordsValue_other: "{{count}} शब्द",
     emptyValue: "—",

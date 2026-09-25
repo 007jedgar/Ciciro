@@ -54,6 +54,9 @@ import type {
   WritingDayPutRequest,
   WritingDayResponse,
   WritingDaysResponse,
+  WritingSessionPostRequest,
+  WritingSessionResponse,
+  WritingSessionsResponse,
   SyncAfter,
   SyncPushRequest,
   SyncResult,
@@ -140,6 +143,15 @@ export const ciciro = {
     days: {
       get: (from: string, to: string, opts?: RequestOpts) =>
         api<WritingDaysResponse>(`/api/writing/days${queryString({ from, to })}`, opts),
+    },
+    sessions: {
+      list: (limit = 50, opts?: RequestOpts) =>
+        api<WritingSessionsResponse>(
+          `/api/writing/sessions${queryString({ limit: String(limit) })}`,
+          opts
+        ),
+      post: (body: WritingSessionPostRequest, opts?: RequestOpts) =>
+        api<WritingSessionResponse>("/api/writing/sessions", jsonInit("POST", body, opts)),
     },
   },
 

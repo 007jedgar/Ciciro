@@ -23,6 +23,7 @@ model User {
   folders           Folder[]
   readingPositions  ReadingPosition[]
   writingDays       WritingDay[]
+  writingSessions   WritingSession[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -222,6 +223,26 @@ model WritingDay {
 
   @@unique([userId, date])
   @@index([userId])
+}
+
+// One continuous sitting at the keys. Starts on the first keystroke and ends
+// after five minutes without one (or when a sprint closes). History prefers
+// the mean duration of these rows once a few exist; until then it falls back
+// to average activeMs per writing day.
+model WritingSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  startedAt DateTime
+  endedAt   DateTime
+  words     Int @default(0)
+  activeMs  Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, startedAt])
 }
 
 // A correction the editor applied via edit_manuscript - the raw find/replace
