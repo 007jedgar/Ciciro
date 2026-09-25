@@ -99,7 +99,7 @@ is the writing surface.
 
 ## Export
 
-**Export .docx** builds a Shunn-style manuscript: Times New Roman 12pt,
+**Export > Word (.docx)** builds a Shunn-style manuscript: Times New Roman 12pt,
 double-spaced, 1" margins, title page with word count, chapters on fresh
 pages, running header, `#` scene breaks.
 

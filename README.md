@@ -7,7 +7,7 @@ editor with chapter navigation, and you talk to **one** partner - Ciciro, the ed
 (Claude Opus 5). It holds the story's canon, plans, critiques, tracks plot points and
 loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
-Manuscripts export to standard (Shunn-style) `.docx`.
+Manuscripts export to standard (Shunn-style) `.docx`, EPUB, and PDF.
 
 ## Contents
 
@@ -71,7 +71,7 @@ aligned: [Story bible](docs/story-bible.md).
   memory the editor reads and writes.
 - **@anthropic-ai/sdk** - the editor (Opus 5) runs an agentic tool loop; the drafter
   (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
-- **docx** - manuscript-format Word export.
+- **docx** - manuscript-format Word export; **JSZip** and **pdf-lib** for EPUB and PDF.
 
 ## The architecture
 
@@ -164,7 +164,7 @@ src/
       bible/route.ts         # list/read/write bible files
       projects, chapters, export/[id]
   components/
-    Workspace.tsx  Editor.tsx  ChapterSidebar.tsx  ChatPanel.tsx  StoryBible.tsx
+    Workspace.tsx  Editor.tsx  ChapterSidebar.tsx  ChatPanel.tsx  StoryBible.tsx  ExportMenu.tsx
   lib/
     anthropic.ts   # editor + drafter model config
     prompts.ts     # editor & drafter system prompts, quick actions
@@ -173,6 +173,7 @@ src/
     editor-run.ts  # durable, bounded editor lifecycle + model/tool checkpoints
     tools.ts       # editor tool defs + executor (retrieval, capture, dispatch)
     docx.ts  text.ts  db.ts  types.ts
+    export/        # EPUB + PDF renderers (blocks, epub, pdf)
 prisma/schema.prisma
 docs/
   using-ciciro.md           # how to work with the editor
