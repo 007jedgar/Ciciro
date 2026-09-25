@@ -1,6 +1,7 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { Editor as TiptapEditor } from "@tiptap/core";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -9,6 +10,18 @@ import type { Node as PmNode } from "@tiptap/pm/model";
 import { BlockId } from "@/lib/tiptap-block-id";
 import { useSettings } from "@/components/SettingsProvider";
 import { typewriterScrollDelta } from "@/lib/typewriter";
+import { SuggestionCard, type SuggestionDetail } from "@/components/TrackChanges";
+import type { SuggestionAction, SuggestionAuthor } from "@/lib/suggestions";
+import {
+  DELETION_MARK,
+  INSERTION_MARK,
+  SuggestionDeletion,
+  SuggestionInsertion,
+  TrackChanges,
+  resolveInEditor,
+  suggestionAt,
+  suggestionRanges,
+} from "@/lib/tiptap-suggestions";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -21,6 +34,10 @@ export type EditorHandle = {
   /** Put the caret at the end of the document (for Auto-mode chapter switches). */
   focusEnd: () => void;
   setReadingPosition: (blockId: string, offset: number) => void;
+  /** Accept or reject pending suggestions: the given ids, or all of them. */
+  resolveSuggestions: (action: SuggestionAction, ids?: string[]) => void;
+  /** Put the caret on a suggestion and scroll it into view. */
+  revealSuggestion: (id: string) => void;
 };
 
 type ReadingCaret = { blockId: string; offset: number };
@@ -34,7 +51,45 @@ type Props = {
   restorePosition?: (ReadingCaret & { length?: number }) | null;
   /** When true on mount, place the caret at the end (AI opened this chapter). */
   focusEndOnMount?: boolean;
+  /** Track the author's edits as suggestions instead of applying them. */
+  suggesting?: boolean;
+  suggestionAuthor?: SuggestionAuthor;
+  onActiveSuggestionChange?: (id: string | null) => void;
 };
+
+type ActiveSuggestion = { detail: SuggestionDetail; top: number; left: number };
+
+const CARD_WIDTH = 320;
+
+/** What a suggestion adds and removes, read straight off the document marks. */
+function suggestionDetail(editor: TiptapEditor, id: string): SuggestionDetail | null {
+  let attrs: Record<string, unknown> | null = null;
+  let inserted = "";
+  let deleted = "";
+  let lastParent: unknown = null;
+  editor.state.doc.descendants((node, _pos, parent) => {
+    if (!node.isText) return;
+    for (const mark of node.marks) {
+      const kind = mark.type.name;
+      if ((kind !== INSERTION_MARK && kind !== DELETION_MARK) || mark.attrs.suggestionId !== id) continue;
+      attrs = attrs ?? mark.attrs;
+      const gap = lastParent && lastParent !== parent ? " " : "";
+      lastParent = parent;
+      if (kind === INSERTION_MARK) inserted += (inserted ? gap : "") + node.text;
+      else deleted += (deleted ? gap : "") + node.text;
+    }
+  });
+  if (!attrs) return null;
+  const found = attrs as Record<string, unknown>;
+  return {
+    id,
+    authorId: String(found.authorId ?? ""),
+    authorName: String(found.authorName ?? ""),
+    createdAt: String(found.createdAt ?? ""),
+    inserted,
+    deleted,
+  };
+}
 
 function caretFromEditor(editor: {
   state: { selection: { $from: { depth: number; node: (depth: number) => { attrs: Record<string, unknown> }; start: (depth: number) => number; pos: number } } };
@@ -82,10 +137,26 @@ function textOffsetToPos(block: PmNode, blockPos: number, offset: number, atEnd:
 }
 
 const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { content, onChange, onSelectionChange, onCaretChange, restorePosition, focusEndOnMount },
+  {
+    content,
+    onChange,
+    onSelectionChange,
+    onCaretChange,
+    restorePosition,
+    focusEndOnMount,
+    suggesting = false,
+    suggestionAuthor,
+    onActiveSuggestionChange,
+  },
   ref
 ) {
   const { settings } = useSettings();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [activeSuggestion, setActiveSuggestion] = useState<ActiveSuggestion | null>(null);
+  // Escape closes the card until the caret moves to a different suggestion.
+  const dismissedSuggestion = useRef<string | null>(null);
+  const onActiveSuggestionRef = useRef(onActiveSuggestionChange);
+  onActiveSuggestionRef.current = onActiveSuggestionChange;
   const insertPositions = useRef<Map<string, number>>(new Map());
   const restoredKey = useRef<string | null>(null);
   const onChangeRef = useRef(onChange);
@@ -100,6 +171,9 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     extensions: [
       StarterKit,
       BlockId,
+      SuggestionInsertion,
+      SuggestionDeletion,
+      TrackChanges,
       CharacterCount,
       Placeholder.configure({
         placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
@@ -120,20 +194,67 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         if (caret) onCaret(caret);
       }
     },
-    onTransaction: ({ transaction }) => {
+    onTransaction: ({ editor, transaction }) => {
+      if (transaction.docChanged || transaction.selectionSet) showSuggestionAt(editor);
       if (!transaction.docChanged) return;
       const map = insertPositions.current;
       for (const [key, pos] of map) {
         map.set(key, transaction.mapping.map(pos));
       }
     },
+    onFocus: ({ editor }) => showSuggestionAt(editor),
+    onBlur: () => showSuggestionAt(null),
     editorProps: {
+      handleKeyDown: (view, event) => {
+        if (event.key !== "Escape") return false;
+        const id = suggestionAt(view.state);
+        if (!id || dismissedSuggestion.current === id) return false;
+        dismissedSuggestion.current = id;
+        setActiveSuggestion(null);
+        return true;
+      },
       attributes: {
         class: "prose-body",
         spellcheck: settings.autoCorrect ? "true" : "false",
       },
     },
   });
+
+  // The card for the suggestion under the caret, placed just below it.
+  const showSuggestionAt = useCallback((ed: TiptapEditor | null) => {
+    const at = ed && ed.isFocused ? suggestionAt(ed.state) : null;
+    if (at !== dismissedSuggestion.current) dismissedSuggestion.current = null;
+    const id = at && at !== dismissedSuggestion.current ? at : null;
+    const range = id && ed ? suggestionRanges(ed.state.doc).get(id) : undefined;
+    const detail = id && ed ? suggestionDetail(ed, id) : null;
+    const shell = shellRef.current;
+    if (!ed || !id || !range || !detail || !shell) {
+      setActiveSuggestion(null);
+      onActiveSuggestionRef.current?.(null);
+      return;
+    }
+    const box = shell.getBoundingClientRect();
+    const start = ed.view.coordsAtPos(range.from);
+    const end = ed.view.coordsAtPos(range.to);
+    const sameLine = Math.abs(start.top - end.top) < 4;
+    const left = Math.max(0, Math.min((sameLine ? start.left : end.left - 160) - box.left, box.width - CARD_WIDTH));
+    setActiveSuggestion({ detail, top: end.bottom - box.top + 8, left });
+    onActiveSuggestionRef.current?.(id);
+  }, []);
+
+  useEffect(() => {
+    if (!editor) return;
+    const storage = editor.storage.trackChanges as { suggesting: boolean; author: SuggestionAuthor };
+    storage.suggesting = suggesting;
+    if (suggestionAuthor) storage.author = suggestionAuthor;
+  }, [editor, suggesting, suggestionAuthor]);
+
+  const applyResolved = useCallback(
+    (action: SuggestionAction, ids?: string[]) => {
+      if (editor) resolveInEditor(editor, action, ids);
+    },
+    [editor]
+  );
 
   // Swap content when the active chapter changes.
   useEffect(() => {
@@ -273,9 +394,31 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       if (target == null) return;
       editor.chain().focus().setTextSelection(target).run();
     },
+    resolveSuggestions(action: SuggestionAction, ids?: string[]) {
+      applyResolved(action, ids);
+    },
+    revealSuggestion(id: string) {
+      if (!editor) return;
+      const range = suggestionRanges(editor.state.doc).get(id);
+      if (!range) return;
+      editor.chain().focus().setTextSelection(range.from).scrollIntoView().run();
+    },
   }));
 
-  return <EditorContent editor={editor} />;
+  return (
+    <div ref={shellRef} className={`editor-shell${suggesting ? " is-suggesting" : ""}`}>
+      <EditorContent editor={editor} />
+      {activeSuggestion ? (
+        <SuggestionCard
+          detail={activeSuggestion.detail}
+          top={activeSuggestion.top}
+          left={activeSuggestion.left}
+          onAccept={() => applyResolved("accept", [activeSuggestion.detail.id])}
+          onReject={() => applyResolved("reject", [activeSuggestion.detail.id])}
+        />
+      ) : null}
+    </div>
+  );
 });
 
 export default Editor;

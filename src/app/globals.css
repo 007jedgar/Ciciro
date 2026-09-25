@@ -734,6 +734,127 @@ textarea {
 .history-body {
   max-height: 60vh;
   overflow-y: auto;
+
+/* ---------- Tracked changes ---------- */
+.editor-shell {
+  position: relative;
+}
+.ProseMirror ins[data-suggestion-id],
+.suggestion-quote:is(ins) {
+  color: var(--draft);
+  background: var(--draft-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--draft);
+  text-underline-offset: 3px;
+  border-radius: 2px;
+}
+.ProseMirror del[data-suggestion-id],
+.suggestion-quote:is(del) {
+  color: var(--del);
+  background: var(--del-soft);
+  text-decoration: line-through;
+  text-decoration-color: var(--del);
+  border-radius: 2px;
+}
+.editor-shell.is-suggesting .ProseMirror {
+  caret-color: var(--draft);
+}
+.suggest-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.suggest-toggle .suggest-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+.suggest-toggle.on {
+  background: var(--draft-soft);
+  border-color: var(--draft);
+  color: var(--draft);
+}
+.suggest-toggle.on:hover {
+  background: var(--draft-soft);
+  border-color: var(--draft);
+  filter: brightness(1.03);
+}
+.suggest-toggle.on .suggest-dot {
+  background: currentColor;
+}
+.suggestion-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -16px 0 20px;
+  padding: 6px 8px 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.suggestion-bar .spacer {
+  flex: 1;
+}
+.suggestion-bar-count {
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.suggestion-bar .btn.ghost[aria-label$="suggestion"] {
+  font-size: 17px;
+  line-height: 1;
+  padding: 1px 8px 3px;
+}
+.suggestion-bar-who {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+.suggestion-card {
+  position: absolute;
+  z-index: 4;
+  width: 320px;
+  max-width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  padding: 10px 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+}
+.suggestion-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.suggestion-card-who {
+  font-weight: 600;
+}
+.suggestion-card-when {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.suggestion-card-body {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.suggestion-quote {
+  font-family: var(--editor-font-family, var(--serif));
+  padding: 0 2px;
+}
+.suggestion-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 /* ---------- Chat panel ---------- */
