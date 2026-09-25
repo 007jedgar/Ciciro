@@ -84,6 +84,15 @@ describe("replaceInBlockHtml", () => {
   it("supports deleting with an empty replacement", () => {
     expect(replaceInBlockHtml("<p>very good</p>", "very ", "", loose).html).toBe("<p>good</p>");
   });
+
+  it("keeps non-breaking spaces in text it rewrites and matches them as spaces", () => {
+    expect(replaceInBlockHtml("<p>Jon&nbsp; said</p>", "Jon", "Joan", loose).html).toBe(
+      "<p>Joan&nbsp; said</p>"
+    );
+    expect(replaceInBlockHtml("<p>New&nbsp;York</p>", "new york", "Boston", loose).html).toBe(
+      "<p>Boston</p>"
+    );
+  });
 });
 
 describe("snippetAround", () => {

@@ -73,6 +73,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // the end so Auto-mode drafts continue rather than prepending.
   const [focusEndOnMount, setFocusEndOnMount] = useState(false);
   const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingContentRef = useRef<{ id: string; html: string } | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [resumePosition, setResumePosition] = useState<{
@@ -246,8 +247,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         content: html,
         wordCount: nextWords,
       });
+      const pending = pendingContentRef.current;
       if (contentTimer.current) clearTimeout(contentTimer.current);
+      if (pending && pending.id !== activeId) patchChapter(pending.id, { content: pending.html });
+      pendingContentRef.current = { id: activeId, html };
       contentTimer.current = setTimeout(() => {
+        contentTimer.current = null;
+        pendingContentRef.current = null;
         patchChapter(activeId, { content: html });
       }, 1000);
     },
@@ -355,12 +361,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // unsaved (a save failed), since the replace would overwrite it.
   const flushSaves = useCallback(
     async (chapterId?: string) => {
-      if (contentTimer.current && activeId) {
-        clearTimeout(contentTimer.current);
-        contentTimer.current = null;
-        const local = getLocalFields(activeId);
-        if (local) patchChapter(activeId, { content: local.content });
-      }
+      const pending = pendingContentRef.current;
+      if (contentTimer.current) clearTimeout(contentTimer.current);
+      contentTimer.current = null;
+      pendingContentRef.current = null;
+      if (pending) patchChapter(pending.id, { content: pending.html });
       let queue: Promise<void>;
       do {
         queue = saveQueueRef.current;
@@ -371,7 +376,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         (c) => unsaved.has(c.id) && (!chapterId || c.id === chapterId)
       );
     },
-    [activeId, getLocalFields, patchChapter]
+    [patchChapter]
   );
 
   const onSearchReplaced = useCallback(

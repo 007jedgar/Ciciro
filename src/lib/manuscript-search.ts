@@ -44,7 +44,7 @@ function decodeEntities(s: string): string {
 }
 
 function encodeText(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\u00a0/g, "&nbsp;");
 }
 
 type Flat = { parts: Part[]; text: string; cells: Cell[] };
@@ -99,11 +99,16 @@ function fold(s: string): string {
   return out;
 }
 
+// A non-breaking space matches a typed space, one code unit for one.
+function spaces(s: string): string {
+  return s.replace(/\u00a0/g, " ");
+}
+
 export function findMatches(text: string, query: string, options: SearchOptions): BlockMatch[] {
   const needle = normalizeQuery(query);
   if (!needle || !text) return [];
-  const haystack = options.matchCase ? text : fold(text);
-  const target = options.matchCase ? needle : fold(needle);
+  const haystack = spaces(options.matchCase ? text : fold(text));
+  const target = spaces(options.matchCase ? needle : fold(needle));
   const wordStart = isWordChar(target[0]);
   const wordEnd = isWordChar(target[target.length - 1]);
   const found: BlockMatch[] = [];
