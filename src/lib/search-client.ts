@@ -1,6 +1,6 @@
-import type { ReplacedChapter, SearchMatch, SearchResult } from "@/lib/project-search";
+import type { ReplacedChapter, ReplaceTarget, SearchMatch, SearchResult } from "@/lib/project-search";
 
-export type { ReplacedChapter, SearchMatch, SearchResult };
+export type { ReplacedChapter, ReplaceTarget, SearchMatch, SearchResult };
 
 export type SearchQuery = { query: string; matchCase: boolean; wholeWord: boolean };
 
@@ -29,7 +29,7 @@ export async function replaceInManuscript(
   projectId: string,
   q: SearchQuery,
   replacement: string,
-  target?: { chapterId: string; blockId: string; occurrence: number }
+  target?: ReplaceTarget
 ): Promise<{ replaced: number; chapters: ReplacedChapter[] }> {
   const res = await fetch(`/api/projects/${projectId}/replace`, {
     method: "POST",

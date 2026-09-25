@@ -26,6 +26,7 @@ const found = {
       blockId: "b1",
       occurrence: 0,
       offset: 4,
+      length: 3,
       before: "Meet ",
       match: "Jon",
       after: " today",
@@ -68,7 +69,7 @@ describe("ManuscriptSearch", () => {
     expect(replace.mock.calls[0][1]).toMatchObject({
       query: "jon",
       replacement: "Ann",
-      target: { chapterId: "c1", blockId: "b1", occurrence: 0 },
+      target: { chapterId: "c1", blockId: "b1", occurrence: 0, offset: 4 },
     });
     expect(mockFlushEdits).toHaveBeenCalled();
     await waitFor(() => expect(mockReload).toHaveBeenCalled());

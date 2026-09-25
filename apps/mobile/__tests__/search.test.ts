@@ -9,6 +9,7 @@ const match = (chapterId: string, blockId: string, occurrence = 0): SearchMatch 
   blockId,
   occurrence,
   offset: 0,
+  length: 3,
   before: "",
   match: "Jon",
   after: " met",
@@ -65,7 +66,7 @@ describe("manuscript search", () => {
       { matchCase: false, wholeWord: true },
       { target: match("c2", "b", 1) }
     );
-    expect(replace.mock.calls[0][1].target).toEqual({ chapterId: "c2", blockId: "b", occurrence: 1 });
+    expect(replace.mock.calls[0][1].target).toEqual({ chapterId: "c2", blockId: "b", occurrence: 1, offset: 0 });
   });
 
   it("refuses to replace while edits are unsynced", async () => {

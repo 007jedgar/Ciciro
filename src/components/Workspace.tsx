@@ -341,16 +341,27 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, []);
 
   // Push a pending edit out and wait for the save queue, so a replace starts
-  // from what the author has actually typed.
-  const flushSaves = useCallback(async () => {
-    if (contentTimer.current && activeId) {
-      clearTimeout(contentTimer.current);
-      contentTimer.current = null;
-      const local = getLocalFields(activeId);
-      if (local) patchChapter(activeId, { content: local.content });
-    }
-    await saveQueueRef.current.catch(() => {});
-  }, [activeId, getLocalFields, patchChapter]);
+  // from what the author has actually typed. False when text in scope is still
+  // unsaved (a save failed), since the replace would overwrite it.
+  const flushSaves = useCallback(
+    async (chapterId?: string) => {
+      if (contentTimer.current && activeId) {
+        clearTimeout(contentTimer.current);
+        contentTimer.current = null;
+        const local = getLocalFields(activeId);
+        if (local) patchChapter(activeId, { content: local.content });
+      }
+      await saveQueueRef.current.catch(() => {});
+      const store = optimisticStoreRef.current;
+      return projectRef.current.chapters
+        .filter((c) => !chapterId || c.id === chapterId)
+        .every((c) => {
+          const confirmed = store?.get(c.id);
+          return !confirmed || confirmed.content === c.content;
+        });
+    },
+    [activeId, getLocalFields, patchChapter]
+  );
 
   const onSearchReplaced = useCallback(
     (replaced: ReplacedChapter[]) => {

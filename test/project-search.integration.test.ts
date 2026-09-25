@@ -71,7 +71,12 @@ describe("manuscript search and replace", () => {
       wholeWord: true,
       query: "jon",
       replacement: "Joan",
-      target: { chapterId: second.chapterId, blockId: second.blockId, occurrence: second.occurrence },
+      target: {
+        chapterId: second.chapterId,
+        blockId: second.blockId,
+        occurrence: second.occurrence,
+        offset: second.offset,
+      },
     });
     expect(out.replaced).toBe(1);
     const after = await head(first.id);
@@ -105,16 +110,38 @@ describe("manuscript search and replace", () => {
       ...loose,
       query: "smiled",
       replacement: "frowned",
-      target: { chapterId: first.id, blockId: match.blockId, occurrence: 0 },
+      target: { chapterId: first.id, blockId: match.blockId, occurrence: 0, offset: match.offset },
     });
     await expect(
       replaceInProject(project.id, ada, {
         ...loose,
         query: "smiled",
         replacement: "frowned",
-        target: { chapterId: first.id, blockId: match.blockId, occurrence: 0 },
+        target: { chapterId: first.id, blockId: match.blockId, occurrence: 0, offset: match.offset },
       })
     ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("rejects a single replace when earlier text shifted its occurrence", async () => {
+    const { ada, project, first } = await seed();
+    const [, second] = (await searchProject(project.id, ada, "jon", { ...loose, wholeWord: true })).matches;
+    const row = await head(first.id);
+    await writeChapterHtml(row, row.content.replace("Jon met jon.", "Jon, Jon met jon."), { actor: "user" });
+    await expect(
+      replaceInProject(project.id, ada, {
+        ...loose,
+        wholeWord: true,
+        query: "jon",
+        replacement: "Joan",
+        target: {
+          chapterId: second.chapterId,
+          blockId: second.blockId,
+          occurrence: second.occurrence,
+          offset: second.offset,
+        },
+      })
+    ).rejects.toMatchObject({ status: 409 });
+    expect((await head(first.id)).content).toContain("Jon, Jon met jon.");
   });
 
   it("skips archived chapters", async () => {

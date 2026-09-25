@@ -14,8 +14,11 @@ type Props = {
   onClose: () => void;
   /** Open the chapter at the match. */
   onJump: (match: SearchMatch, length: number) => void;
-  /** Save what the author has typed so a replace starts from the server's copy. */
-  flushSaves: () => Promise<void>;
+  /**
+   * Save what the author has typed so a replace starts from the server's copy.
+   * Resolves false when edits in the given chapter (or any chapter) are unsaved.
+   */
+  flushSaves: (chapterId?: string) => Promise<boolean>;
   /** Chapters the server rewrote. */
   onReplaced: (chapters: ReplacedChapter[]) => void;
 };
@@ -89,7 +92,9 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
     setBusy(true);
     setError("");
     try {
-      await flushSaves();
+      if (!(await flushSaves(target?.chapterId))) {
+        throw new Error("Some edits haven't saved yet. Check your connection and try again.");
+      }
       const out = await replaceInManuscript(
         projectId,
         { query, matchCase, wholeWord },
@@ -98,6 +103,7 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
           chapterId: target.chapterId,
           blockId: target.blockId,
           occurrence: target.occurrence,
+          offset: target.offset,
         }
       );
       if (mine !== seq.current) return;
@@ -197,7 +203,7 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
                 <div className="search-hit" key={`${m.blockId}:${m.occurrence}`}>
                   <button
                     className="search-hit-text"
-                    onClick={() => onJump(m, m.match.length)}
+                    onClick={() => onJump(m, m.length)}
                     title="Jump to this match"
                   >
                     {m.before}

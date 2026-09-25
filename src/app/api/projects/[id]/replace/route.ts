@@ -14,7 +14,13 @@ function parseTarget(value: unknown): ReplaceRequest["target"] | null | undefine
   const t = value as Record<string, unknown>;
   if (typeof t.chapterId !== "string" || typeof t.blockId !== "string") return null;
   if (!Number.isInteger(t.occurrence) || (t.occurrence as number) < 0) return null;
-  return { chapterId: t.chapterId, blockId: t.blockId, occurrence: t.occurrence as number };
+  if (!Number.isInteger(t.offset) || (t.offset as number) < 0) return null;
+  return {
+    chapterId: t.chapterId,
+    blockId: t.blockId,
+    occurrence: t.occurrence as number,
+    offset: t.offset as number,
+  };
 }
 
 // POST /api/projects/:id/replace — replace one match (`target`) or every match

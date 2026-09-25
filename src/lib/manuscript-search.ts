@@ -135,21 +135,28 @@ export function searchBlockHtml(
   return { text, matches: findMatches(text, query, options) };
 }
 
+/** One match addressed by its index among the block's matches and its start offset. */
+export type OccurrenceTarget = { occurrence: number; offset: number };
+
 /**
- * Replace matches in a block's HTML. `only` limits it to one occurrence (its
- * index among the block's matches); without it every match is replaced.
- * An occurrence that does not exist is `count: 0` with the html untouched.
+ * Replace matches in a block's HTML. `only` limits it to one occurrence, which
+ * must still start at the offset the search reported; without it every match
+ * is replaced. An occurrence that does not exist or has moved is `count: 0`
+ * with the html untouched.
  */
 export function replaceInBlockHtml(
   html: string,
   query: string,
   replacement: string,
   options: SearchOptions,
-  only?: number
+  only?: OccurrenceTarget
 ): { html: string; count: number } {
   const flat = flatten(html);
   let matches = findMatches(flat.text, query, options);
-  if (only !== undefined) matches = matches[only] ? [matches[only]] : [];
+  if (only !== undefined) {
+    const hit = matches[only.occurrence];
+    matches = hit && hit.start === only.offset ? [hit] : [];
+  }
   if (matches.length === 0) return { html, count: 0 };
 
   const decoded = flat.parts.map((p) => p.text);

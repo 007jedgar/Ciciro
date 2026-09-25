@@ -55,7 +55,14 @@ export async function replaceInManuscript(
     replacement,
     ...options,
     ...(target
-      ? { target: { chapterId: target.chapterId, blockId: target.blockId, occurrence: target.occurrence } }
+      ? {
+          target: {
+            chapterId: target.chapterId,
+            blockId: target.blockId,
+            occurrence: target.occurrence,
+            offset: target.offset,
+          },
+        }
       : {}),
   });
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });

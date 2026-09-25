@@ -31,6 +31,8 @@ export type SearchMatch = {
   occurrence: number;
   /** Offset of the match in the block's visible text (the editor caret offset). */
   offset: number;
+  /** Length of the match in the block's visible text. */
+  length: number;
   before: string;
   match: string;
   after: string;
@@ -44,7 +46,7 @@ export type SearchResult = {
   chapters: number;
 };
 
-export type ReplaceTarget = { chapterId: string; blockId: string; occurrence: number };
+export type ReplaceTarget = { chapterId: string; blockId: string; occurrence: number; offset: number };
 
 export type ReplaceRequest = SearchOptions & {
   query: string;
@@ -98,6 +100,7 @@ export async function searchProject(
           blockId: block.id,
           occurrence,
           offset: m.start,
+          length: m.end - m.start,
           ...snippetAround(found.text, m),
         });
       });
@@ -122,7 +125,7 @@ function applyToChapter(
       req.query,
       req.replacement,
       req,
-      req.target?.occurrence
+      req.target && { occurrence: req.target.occurrence, offset: req.target.offset }
     );
     if (out.count === 0) continue;
     block.html = out.html;

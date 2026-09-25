@@ -736,6 +736,7 @@ export type SearchMatch = {
   blockId: string;
   occurrence: number;
   offset: number;
+  length: number;
   before: string;
   match: string;
   after: string;
@@ -751,7 +752,7 @@ export type SearchResult = {
 export type ReplaceRequest = SearchOptions & {
   query: string;
   replacement: string;
-  target?: { chapterId: string; blockId: string; occurrence: number };
+  target?: { chapterId: string; blockId: string; occurrence: number; offset: number };
 };
 
 export type ReplaceResult = {

@@ -50,9 +50,20 @@ describe("replaceInBlockHtml", () => {
   });
 
   it("replaces one occurrence by index", () => {
-    const out = replaceInBlockHtml("<p>x x x</p>", "x", "y", loose, 1);
+    const out = replaceInBlockHtml("<p>x x x</p>", "x", "y", loose, { occurrence: 1, offset: 2 });
     expect(out.html).toBe("<p>x y x</p>");
-    expect(replaceInBlockHtml("<p>x</p>", "x", "y", loose, 3)).toEqual({ html: "<p>x</p>", count: 0 });
+    expect(replaceInBlockHtml("<p>x</p>", "x", "y", loose, { occurrence: 3, offset: 0 })).toEqual({
+      html: "<p>x</p>",
+      count: 0,
+    });
+  });
+
+  it("leaves an occurrence alone when it no longer starts where it was found", () => {
+    const html = "<p>Jon, Jon met Jon</p>";
+    expect(replaceInBlockHtml(html, "Jon", "Ann", loose, { occurrence: 1, offset: 8 })).toEqual({
+      html,
+      count: 0,
+    });
   });
 
   it("replaces every occurrence, including adjacent ones", () => {
