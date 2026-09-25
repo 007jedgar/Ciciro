@@ -37,18 +37,12 @@ export default function ChapterHistoryScreen() {
         backAccessibilityLabel={t("history.backToChapters")}
       />
       {chapter ? (
-        <>
-          <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
-            <Text style={[layout.title, { marginBottom: 0 }]} numberOfLines={2}>
-              {custom ? `${numbered} · ${custom}` : numbered}
-            </Text>
-          </View>
-          <ChapterHistory
-            chapterId={chapter.id}
-            currentContent={chapter.content}
-            settle={syncChapters}
-          />
-        </>
+        <ChapterHistory
+          chapterId={chapter.id}
+          heading={custom ? `${numbered} · ${custom}` : numbered}
+          currentContent={chapter.content}
+          settle={syncChapters}
+        />
       ) : loading ? (
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
           <SkeletonList count={4} accessibilityLabel={t("common.loading")} />

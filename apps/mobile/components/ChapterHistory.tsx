@@ -36,11 +36,14 @@ export type ChapterHistoryHost = { alert: typeof Alert.alert };
 
 export function ChapterHistory({
   chapterId,
+  heading,
   currentContent,
   settle,
   host = Alert,
 }: {
   chapterId: string;
+  /** The chapter's name, scrolled with the list rather than pinned over it. */
+  heading?: string;
   /** The chapter as this device shows it now, for the comparison. */
   currentContent: string;
   /**
@@ -168,6 +171,11 @@ export function ChapterHistory({
         keyboardShouldPersistTaps="handled"
         bottomOffset={24}
       >
+        {heading ? (
+          <Text style={[layout.title, styles.heading]} numberOfLines={2}>
+            {heading}
+          </Text>
+        ) : null}
         <Text style={[layout.body, styles.blurb]}>{t("history.blurb")}</Text>
         <View style={styles.saveRow}>
           <TextInput
@@ -337,6 +345,7 @@ export function ChapterHistory({
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 120 },
+  heading: { marginBottom: 6 },
   blurb: { fontSize: 14, lineHeight: 21, marginBottom: 14 },
   saveRow: { flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 16 },
   input: {
