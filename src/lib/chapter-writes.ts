@@ -1,4 +1,5 @@
 import { appendSystemOps } from "@/lib/chapter-ops";
+import { snapshotBeforeAiWrite } from "@/lib/snapshots";
 import {
   diffHtmlToOps,
   htmlToDoc,
@@ -118,6 +119,9 @@ export async function writeChapterHtml(
   if (ops.length === 0) {
     return { ok: true, revision: chapter.revision, content: stampBlockIds(nextHtml) };
   }
+
+  // The editor is about to change prose the author may want back.
+  if (actor === "ai") await snapshotBeforeAiWrite(chapter);
 
   const result = await appendSystemOps(chapter.id, chapter.projectId, ops, { actor });
   return {

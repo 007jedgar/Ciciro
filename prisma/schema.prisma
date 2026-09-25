@@ -83,6 +83,7 @@ model Project {
   bibleFiles        BibleFile[]
   readingPositions  ReadingPosition[]
   manuscriptTarget  ManuscriptTarget?
+  chapterSnapshots  ChapterSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,6 +144,7 @@ model Chapter {
   manuscriptEdits   ManuscriptEdit[]
   ops               ChapterOp[]
   readingPositions  ReadingPosition[]
+  snapshots         ChapterSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -182,6 +184,31 @@ model ChapterOp {
   @@index([chapterId, seq])
   @@index([projectId, createdAt])
   @@index([chapterId, groupId])
+}
+
+// A saved copy of one chapter's prose the author can preview and restore.
+// Taken on demand ("manual") and automatically: before the editor's first
+// change to text the author last touched ("before_ai"), when the author picks
+// a chapter back up after a break ("session", stamped with the time the last
+// session ended), and before a restore replaces the text ("before_restore").
+// Retention is bounded per chapter; see src/lib/snapshots.ts.
+model ChapterSnapshot {
+  id        String  @id @default(cuid())
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  kind      String // manual | before_ai | session | before_restore
+  label     String @default("") // author's name for a manual snapshot
+  content   String // TipTap HTML, block ids included
+  wordCount Int    @default(0)
+  revision  Int    @default(0) // chapter revision the content was read at
+
+  createdAt DateTime @default(now())
+
+  @@index([chapterId, createdAt])
+  @@index([projectId])
 }
 
 // Story bible markdown, one row per path. Hosted Workers have no filesystem,
