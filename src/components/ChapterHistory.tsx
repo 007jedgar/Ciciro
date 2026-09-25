@@ -31,7 +31,9 @@ type RestoreResponse = {
   backup: ChapterSnapshotSummary | null;
 };
 
-type Notice = { kind: "restored"; title: string; undoId: string | null } | { kind: "undone" };
+type Notice =
+  | { kind: "restored"; title: string; backup: ChapterSnapshotSummary | null }
+  | { kind: "undone" };
 
 async function readError(res: Response, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -159,7 +161,7 @@ export default function ChapterHistory({
           : {
               kind: "restored",
               title: snapshotTitle(result.restored),
-              undoId: result.backup?.id ?? null,
+              backup: result.backup,
             }
       );
       setSelectedId(null);
@@ -180,7 +182,7 @@ export default function ChapterHistory({
       });
       if (!res.ok) throw new Error(await readError(res, "Couldn't delete that version."));
       setSelectedId(null);
-      if (notice?.kind === "restored" && notice.undoId === snapshot.id) setNotice(null);
+      if (notice?.kind === "restored" && notice.backup?.id === snapshot.id) setNotice(null);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -218,15 +220,14 @@ export default function ChapterHistory({
         <div className="history-notice" role="status">
           <span>
             Restored &ldquo;{notice.title}&rdquo;.
-            {notice.undoId ? " The text it replaced is saved in the list below." : ""}
+            {notice.backup ? " The text it replaced is saved in the list below." : ""}
           </span>
-          {notice.undoId && (
+          {notice.backup && (
             <button
               className="btn small"
               disabled={busy !== null}
               onClick={() => {
-                const backup = snapshots?.find((s) => s.id === notice.undoId);
-                if (backup) void restore(backup, true);
+                if (notice.backup) void restore(notice.backup, true);
               }}
             >
               Undo restore
