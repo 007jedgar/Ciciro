@@ -156,8 +156,12 @@ const es: Translations = {
     reduceMotion: "Reducir movimiento",
     reduceMotionHint: "Desactiva las animaciones en toda la app.",
     dailyGoal: "Palabras del día",
-    dailyGoalHint: "Cinco minutos son una sesión. No hay una racha que proteger.",
+    dailyGoalHint:
+      "Cinco minutos son una sesión. Apunta a {{count}} de los últimos 7 días: el resto son días de descanso, no una racha que proteger.",
     wordGoal: "Meta diaria",
+    weeklyTarget: "Días por semana",
+    weeklyTargetValue_one: "{{count}} día",
+    weeklyTargetValue_other: "{{count}} días",
     dailyGoalValue: "{{count}} palabras",
     meterA11y: "{{words}} de {{goal}} palabras hoy",
     meterTitle: "Meta diaria de escritura",

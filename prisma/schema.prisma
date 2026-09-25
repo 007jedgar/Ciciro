@@ -206,7 +206,8 @@ model ReadingPosition {
 }
 
 // Per-author daily writing: words added and active typing time. Desk and phone
-// heartbeats on the same YYYY-MM-DD merge. There is no streak.
+// heartbeats on the same YYYY-MM-DD merge. A kind weekly target counts days with
+// words > 0 in a rolling 7-day window; there is no stored streak to break.
 model WritingDay {
   id     String @id @default(cuid())
   userId String

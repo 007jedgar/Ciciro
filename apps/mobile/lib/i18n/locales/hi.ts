@@ -155,8 +155,12 @@ const hi: Translations = {
     reduceMotion: "गति कम करें",
     reduceMotionHint: "पूरे ऐप में एनिमेशन बंद करें।",
     dailyGoal: "दैनिक शब्द",
-    dailyGoalHint: "पाँच मिनट एक सत्र है। कोई स्ट्रीक नहीं बचानी।",
+    dailyGoalHint:
+      "पाँच मिनट एक सत्र है। पिछले 7 दिनों में से {{count}} दिन लिखें — बाकी आराम के दिन हैं, कोई स्ट्रीक नहीं टूटती।",
     wordGoal: "शब्द लक्ष्य",
+    weeklyTarget: "प्रति सप्ताह दिन",
+    weeklyTargetValue_one: "{{count}} दिन",
+    weeklyTargetValue_other: "{{count}} दिन",
     dailyGoalValue: "{{count}} शब्द",
     meterA11y: "आज {{goal}} में से {{words}} शब्द",
     meterTitle: "दैनिक लेखन लक्ष्य",

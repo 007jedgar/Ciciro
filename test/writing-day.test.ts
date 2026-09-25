@@ -7,7 +7,9 @@ import {
   averageActiveMsPerWritingDay,
   bestWritingDay,
   bucketWritingDays,
+  clampWeeklyDayTarget,
   countWritingDaysInWindow,
+  DEFAULT_WEEKLY_DAY_TARGET,
   formatActiveDuration,
   holdWritingDaySnapshot,
   mergeWritingDay,
@@ -121,6 +123,12 @@ describe("writing day history helpers", () => {
     expect(parseWritingDayRange("bad", "2026-09-10")).toEqual({
       error: "from must be YYYY-MM-DD.",
     });
+  });
+  it("clamps the weekly day target into 1–7", () => {
+    expect(clampWeeklyDayTarget(4)).toBe(4);
+    expect(clampWeeklyDayTarget(0)).toBe(1);
+    expect(clampWeeklyDayTarget(9)).toBe(7);
+    expect(clampWeeklyDayTarget(Number.NaN)).toBe(DEFAULT_WEEKLY_DAY_TARGET);
   });
 });
 

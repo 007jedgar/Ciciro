@@ -202,7 +202,10 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
           </div>
 
           <div className="theme-menu-label">Daily words</div>
-          <p className="settings-hint">Five minutes is a session. There is no streak to protect.</p>
+          <p className="settings-hint">
+            Five minutes is a session. Aim for {settings.weeklyDayTarget} of the last 7 days — the
+            rest are rest days, not a streak to protect.
+          </p>
           <div className="settings-row">
             <span>Show meter</span>
             <button
@@ -216,21 +219,38 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
             </button>
           </div>
           {settings.showDailyGoal ? (
-            <div className="settings-row">
-              <span>Goal</span>
-              <div className="settings-seg">
-                {([100, 250, 500] as const).map((goal) => (
-                  <button
-                    key={goal}
-                    type="button"
-                    className={settings.dailyWordGoal === goal ? "active" : ""}
-                    onClick={() => patch({ dailyWordGoal: goal })}
-                  >
-                    {goal}
-                  </button>
-                ))}
+            <>
+              <div className="settings-row">
+                <span>Goal</span>
+                <div className="settings-seg">
+                  {([100, 250, 500] as const).map((goal) => (
+                    <button
+                      key={goal}
+                      type="button"
+                      className={settings.dailyWordGoal === goal ? "active" : ""}
+                      onClick={() => patch({ dailyWordGoal: goal })}
+                    >
+                      {goal}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+              <div className="settings-row">
+                <span>Days / week</span>
+                <div className="settings-seg">
+                  {([3, 4, 5, 6, 7] as const).map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      className={settings.weeklyDayTarget === days ? "active" : ""}
+                      onClick={() => patch({ weeklyDayTarget: days })}
+                    >
+                      {days}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           ) : null}
         </div>
       )}

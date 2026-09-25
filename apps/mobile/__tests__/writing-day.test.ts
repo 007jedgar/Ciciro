@@ -4,7 +4,9 @@ import {
   averageActiveMsPerWritingDay,
   bestWritingDay,
   bucketWritingDays,
+  clampWeeklyDayTarget,
   countWritingDaysInWindow,
+  DEFAULT_WEEKLY_DAY_TARGET,
   formatActiveDuration,
   holdWritingDaySnapshot,
   mergeWritingDay,
@@ -80,5 +82,8 @@ describe("writing day history helpers", () => {
     expect(formatActiveDuration(125_000)).toBe("2 min");
     expect(countWritingDaysInWindow(sample, "2026-09-14", 7)).toBe(3);
     expect(summarizeWritingHistory(sample, "2026-09-14").daysInLast7).toBe(3);
+    expect(clampWeeklyDayTarget(9)).toBe(7);
+    expect(clampWeeklyDayTarget(0)).toBe(1);
+    expect(clampWeeklyDayTarget(Number.NaN)).toBe(DEFAULT_WEEKLY_DAY_TARGET);
   });
 });

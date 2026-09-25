@@ -155,8 +155,12 @@ const zh: Translations = {
     reduceMotion: "减少动态效果",
     reduceMotionHint: "关闭应用中的动画。",
     dailyGoal: "每日字数",
-    dailyGoalHint: "五分钟就是一次写作。没有连续天数要维持。",
+    dailyGoalHint:
+      "五分钟就是一次写作。目标是近 7 天里写 {{count}} 天——其余是休息日，不是要维持的连续天数。",
     wordGoal: "字数目标",
+    weeklyTarget: "每周几天",
+    weeklyTargetValue_one: "{{count}} 天",
+    weeklyTargetValue_other: "{{count}} 天",
     dailyGoalValue: "{{count}} 词",
     meterA11y: "今日 {{words}} / {{goal}} 词",
     meterTitle: "每日写作目标",

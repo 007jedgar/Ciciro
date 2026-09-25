@@ -117,8 +117,9 @@ export default function LaunchPage() {
             <span className="launch-how-index">01</span>
             <h3>A nudge, not a deadline</h3>
             <p>
-              Daily or weekly, Ciciro reminds you it&apos;s time to write. No streak to
-              protect, no guilt if you miss one - just a door left open.
+              Daily or weekly, Ciciro reminds you it&apos;s time to write. Aim for a few
+              days in the last seven — rest days are built in, so nothing resets to zero
+              when you miss one.
             </p>
           </div>
           <div className="launch-how-card">

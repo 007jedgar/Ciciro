@@ -154,8 +154,12 @@ const en = {
     reduceMotion: "Reduce motion",
     reduceMotionHint: "Turn off animations across the app.",
     dailyGoal: "Daily words",
-    dailyGoalHint: "Five minutes is a session. There is no streak to protect.",
+    dailyGoalHint:
+      "Five minutes is a session. Aim for {{count}} of the last 7 days — the rest are rest days, not a streak to protect.",
     wordGoal: "Word goal",
+    weeklyTarget: "Days per week",
+    weeklyTargetValue_one: "{{count}} day",
+    weeklyTargetValue_other: "{{count}} days",
     dailyGoalValue: "{{count}} words",
     meterA11y: "{{words}} of {{goal}} words today",
     meterTitle: "Daily writing goal",

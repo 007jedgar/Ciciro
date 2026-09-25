@@ -1,5 +1,10 @@
 import { isThemeId, type ThemeId } from "@/lib/theme";
-import { clampDailyWordGoal, DEFAULT_DAILY_WORD_GOAL } from "@/lib/writing-day";
+import {
+  clampDailyWordGoal,
+  clampWeeklyDayTarget,
+  DEFAULT_DAILY_WORD_GOAL,
+  DEFAULT_WEEKLY_DAY_TARGET,
+} from "@/lib/writing-day";
 
 export const SETTINGS_STORAGE_KEY = "ciciro-settings";
 export const SETTINGS_USER_KEY = "ciciro-settings-user";
@@ -30,6 +35,7 @@ export type AppSettings = {
   reduceMotion: boolean;
   chatWidth: number;
   dailyWordGoal: number;
+  weeklyDayTarget: number;
   showDailyGoal: boolean;
   updatedAt: string;
 };
@@ -48,6 +54,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     reduceMotion: false,
     chatWidth: DEFAULT_CHAT_WIDTH,
     dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
+    weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
     showDailyGoal: true,
     updatedAt: now.toISOString(),
   };
@@ -116,6 +123,10 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     typeof src.dailyWordGoal === "number" && Number.isFinite(src.dailyWordGoal)
       ? clampDailyWordGoal(src.dailyWordGoal)
       : defaults.dailyWordGoal;
+  const weeklyDayTarget =
+    typeof src.weeklyDayTarget === "number" && Number.isFinite(src.weeklyDayTarget)
+      ? clampWeeklyDayTarget(src.weeklyDayTarget)
+      : defaults.weeklyDayTarget;
   const showDailyGoal = typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal;
   return {
     theme,
@@ -126,6 +137,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     reduceMotion,
     chatWidth,
     dailyWordGoal,
+    weeklyDayTarget,
     showDailyGoal,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
@@ -201,6 +213,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.dailyWordGoal = clampDailyWordGoal(src.dailyWordGoal);
   }
+  if ("weeklyDayTarget" in src) {
+    if (typeof src.weeklyDayTarget !== "number" || !Number.isFinite(src.weeklyDayTarget)) {
+      return { error: "weeklyDayTarget must be a number." };
+    }
+    patch.weeklyDayTarget = clampWeeklyDayTarget(src.weeklyDayTarget);
+  }
   if ("showDailyGoal" in src) {
     if (typeof src.showDailyGoal !== "boolean") {
       return { error: "showDailyGoal must be a boolean." };
@@ -234,6 +252,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.reduceMotion === b.reduceMotion &&
     a.chatWidth === b.chatWidth &&
     a.dailyWordGoal === b.dailyWordGoal &&
+    a.weeklyDayTarget === b.weeklyDayTarget &&
     a.showDailyGoal === b.showDailyGoal
   );
 }

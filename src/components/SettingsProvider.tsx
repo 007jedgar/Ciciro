@@ -124,6 +124,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               reduceMotion: body.reduceMotion,
               chatWidth: body.chatWidth,
               dailyWordGoal: body.dailyWordGoal,
+              weeklyDayTarget: body.weeklyDayTarget,
               showDailyGoal: body.showDailyGoal,
             };
       void fetch("/api/settings", {
