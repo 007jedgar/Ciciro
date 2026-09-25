@@ -262,21 +262,37 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   /**
    * Send any debounced typing now and wait for every queued save to land.
-   * Resolves false when the active chapter still has text the server lacks.
+   * `chapterId` limits the check to one chapter (a single replace); omitted,
+   * every chapter is in scope. Resolves false when text in scope is still
+   * missing from the server, so a restore or replace cannot overwrite it.
    */
-  const flushSaves = useCallback(async (): Promise<boolean> => {
-    if (contentTimer.current && activeId) {
-      clearTimeout(contentTimer.current);
+  const flushSaves = useCallback(
+    async (chapterId?: string): Promise<boolean> => {
+      const pending = pendingContentRef.current;
+      if (contentTimer.current) clearTimeout(contentTimer.current);
       contentTimer.current = null;
-      const local = projectRef.current.chapters.find((c) => c.id === activeId);
-      if (local) patchChapter(activeId, { content: local.content });
-    }
-    await saveQueueRef.current.catch(() => {});
-    if (pendingSaveCountRef.current > 0) return false;
-    const local = activeId ? getLocalFields(activeId) : null;
-    const store = optimisticStoreRef.current;
-    return !(activeId && local && store?.hasLocalEdits(activeId, local));
-  }, [activeId, getLocalFields, patchChapter]);
+      pendingContentRef.current = null;
+      if (pending) patchChapter(pending.id, { content: pending.html });
+
+      let queue: Promise<void>;
+      do {
+        queue = saveQueueRef.current;
+        await queue.catch(() => {});
+      } while (queue !== saveQueueRef.current);
+
+      if (pendingSaveCountRef.current > 0) return false;
+
+      const unsaved = unsavedContentRef.current;
+      const store = optimisticStoreRef.current;
+      return !projectRef.current.chapters.some((chapter) => {
+        if (chapterId && chapter.id !== chapterId) return false;
+        if (unsaved.has(chapter.id)) return true;
+        const local = getLocalFields(chapter.id);
+        return Boolean(local && store?.hasLocalEdits(chapter.id, local));
+      });
+    },
+    [getLocalFields, patchChapter]
+  );
 
   /** A restore committed on the server; its result is the new confirmed head. */
   const onChapterRestored = useCallback(
@@ -355,29 +371,6 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  // Push a pending edit out and wait for the save queue, so a replace starts
-  // from what the author has actually typed. False when text in scope is still
-  // unsaved (a save failed), since the replace would overwrite it.
-  const flushSaves = useCallback(
-    async (chapterId?: string) => {
-      const pending = pendingContentRef.current;
-      if (contentTimer.current) clearTimeout(contentTimer.current);
-      contentTimer.current = null;
-      pendingContentRef.current = null;
-      if (pending) patchChapter(pending.id, { content: pending.html });
-      let queue: Promise<void>;
-      do {
-        queue = saveQueueRef.current;
-        await queue.catch(() => {});
-      } while (queue !== saveQueueRef.current);
-      const unsaved = unsavedContentRef.current;
-      return !projectRef.current.chapters.some(
-        (c) => unsaved.has(c.id) && (!chapterId || c.id === chapterId)
-      );
-    },
-    [patchChapter]
-  );
 
   const onSearchReplaced = useCallback(
     (replaced: ReplacedChapter[]) => {
