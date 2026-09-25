@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { ChapterListCard } from "../../../../components/ChapterListCard";
+import { ExportCard } from "../../../../components/ExportCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -25,7 +26,7 @@ import type { ChapterStatus } from "../../../../lib/chapter-status";
 export default function ChaptersScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { project, loading, error, selectedChapterId, setSelectedChapterId } = useProject();
+  const { project, loading, error, selectedChapterId, setSelectedChapterId, flushEdits } = useProject();
   const { t } = useTranslation();
   const { layout } = useAppTheme();
   const clearance = useTabBarClearance();
@@ -157,6 +158,7 @@ export default function ChaptersScreen() {
                 <Text style={layout.cardTitle}>{t("bible.title")}</Text>
                 <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
               </Pressable>
+              <ExportCard projectId={projectId} flushEdits={flushEdits} />
             </View>
           ) : null
         }

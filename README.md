@@ -7,7 +7,7 @@ editor with chapter navigation, and you talk to **one** partner - Ciciro, the ed
 (Claude Opus 5). It holds the story's canon, plans, critiques, tracks plot points and
 loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
-Manuscripts export to standard (Shunn-style) `.docx`.
+Manuscripts export to standard (Shunn-style) `.docx`, EPUB, and PDF.
 
 ## Contents
 
@@ -71,7 +71,7 @@ aligned: [Story bible](docs/story-bible.md).
   memory the editor reads and writes.
 - **@anthropic-ai/sdk** - the editor (Opus 5) runs an agentic tool loop; the drafter
   (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
-- **docx** - manuscript-format Word export.
+- **docx** - manuscript-format Word export; **JSZip** and **pdf-lib** for EPUB and PDF.
 
 ## The architecture
 
@@ -131,6 +131,14 @@ any editor; they are plain markdown you can version with git.
 Times New Roman 12pt, double-spaced, 1" margins, title page with word count, chapters
 on fresh pages, running header, `#` scene breaks.
 
+`?format=epub` and `?format=pdf` render the book for reading (`src/lib/export/`):
+EPUB 3 with title page, contents, and one XHTML file per chapter; PDF on a 6x9in
+page with Times 11pt, justified text, a contents page with page numbers, and folios.
+Both are pure JS (JSZip, pdf-lib), so they run on Cloudflare Workers. PDFs use the
+standard Latin fonts: characters outside that set fall back to `?`. The web top bar
+has an Export menu; the mobile Chapters tab has an Export card that opens the share
+sheet.
+
 ## Models
 
 Set in `.env` (all overridable):
@@ -156,7 +164,7 @@ src/
       bible/route.ts         # list/read/write bible files
       projects, chapters, export/[id]
   components/
-    Workspace.tsx  Editor.tsx  ChapterSidebar.tsx  ChatPanel.tsx  StoryBible.tsx
+    Workspace.tsx  Editor.tsx  ChapterSidebar.tsx  ChatPanel.tsx  StoryBible.tsx  ExportMenu.tsx
   lib/
     anthropic.ts   # editor + drafter model config
     prompts.ts     # editor & drafter system prompts, quick actions
@@ -165,6 +173,7 @@ src/
     editor-run.ts  # durable, bounded editor lifecycle + model/tool checkpoints
     tools.ts       # editor tool defs + executor (retrieval, capture, dispatch)
     docx.ts  text.ts  db.ts  types.ts
+    export/        # EPUB + PDF renderers (blocks, epub, pdf)
 prisma/schema.prisma
 docs/
   using-ciciro.md           # how to work with the editor
@@ -199,6 +208,5 @@ requests.
 - **Assistant-maintained chapter summaries** - auto-update `Chapter.summary` after
   edits so the index stays sharp on long books.
 - **Inline tracked-changes edits** in the editor (accept/reject line edits).
-- **EPUB / PDF export** alongside DOCX.
 - Retire the vestigial `Character`/`PlotPoint` DB tables (now only used to seed the
   bible on first run) once existing projects have migrated.

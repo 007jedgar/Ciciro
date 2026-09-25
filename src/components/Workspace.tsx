@@ -9,6 +9,7 @@ import StoryBible from "@/components/StoryBible";
 import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
+import ExportMenu from "@/components/ExportMenu";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import { useSettings } from "@/components/SettingsProvider";
@@ -472,9 +473,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <button className="btn small" onClick={() => setBibleOpen(true)}>
           Story bible
         </button>
-        <a className="btn small primary" href={`/api/export/${project.id}`}>
-          Export .docx
-        </a>
+        <ExportMenu projectId={project.id} />
       </div>
 
       <ChapterSidebar

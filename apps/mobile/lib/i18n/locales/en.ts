@@ -414,6 +414,18 @@ const en = {
     listA11y: "{{time}}, {{scope}}, {{goal}}",
     channel: "Writing reminders",
   },
+  export: {
+    title: "Export manuscript",
+    meta: "Share a finished copy as an ebook, a book-layout PDF, or a Word file.",
+    preparing: "Preparing {{format}}…",
+    error: "Could not export the manuscript.",
+    unavailable: "Sharing is not available on this device.",
+    unsynced: "Some edits have not synced yet. Connect to the internet and try again.",
+    a11y: "Export as {{format}}",
+    epub: "EPUB",
+    pdf: "PDF",
+    docx: "Word",
+  },
   manuscriptTabBar: {
     open: "Writing tools",
     close: "Close",

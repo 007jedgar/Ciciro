@@ -415,6 +415,18 @@ const hi: Translations = {
     listA11y: "{{time}}, {{scope}}, {{goal}}",
     channel: "लेखन अनुस्मारक",
   },
+  export: {
+    title: "पांडुलिपि निर्यात करें",
+    meta: "तैयार प्रति को ईबुक, पुस्तक-लेआउट PDF या Word फ़ाइल के रूप में साझा करें।",
+    preparing: "{{format}} तैयार हो रहा है…",
+    error: "पांडुलिपि निर्यात नहीं हो सकी।",
+    unavailable: "इस डिवाइस पर साझा करना उपलब्ध नहीं है।",
+    unsynced: "कुछ बदलाव अभी सिंक नहीं हुए हैं। इंटरनेट से जुड़ें और फिर से कोशिश करें।",
+    a11y: "{{format}} के रूप में निर्यात करें",
+    epub: "EPUB",
+    pdf: "PDF",
+    docx: "Word",
+  },
   manuscriptTabBar: {
     open: "लेखन उपकरण",
     close: "बंद करें",

@@ -260,16 +260,24 @@ export function useProjectSync(
     [position, projectId, store, user]
   );
 
+  /** Push queued chapter edits and report whether any are still unsent. */
+  const flushEdits = useCallback(async (): Promise<boolean> => {
+    if (!user || !projectId) return false;
+    await run("push");
+    return (await store.listPendingOps(projectId)).length === 0;
+  }, [projectId, run, store, user]);
+
   return useMemo(
     () => ({
       position,
       syncing: false,
       syncNow: () => run("auto"),
+      flushEdits,
       pullNow: () => run("pull"),
       recordOp,
       recordBible,
       recordPosition,
     }),
-    [position, recordBible, recordOp, recordPosition, run]
+    [flushEdits, position, recordBible, recordOp, recordPosition, run]
   );
 }

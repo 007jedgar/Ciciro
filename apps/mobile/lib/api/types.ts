@@ -608,6 +608,8 @@ export type AutowriteStreamEvent =
 
 export type NdjsonEvent = ChatStreamEvent | AutowriteStreamEvent | SyncStreamEvent;
 
+export type ExportFormat = "epub" | "pdf" | "docx";
+
 export type ExportFile = {
   bytes: ArrayBuffer;
   filename: string;
