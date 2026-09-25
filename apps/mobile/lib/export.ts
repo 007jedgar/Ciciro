@@ -4,7 +4,7 @@ import { ciciro, type ExportFormat } from "./api";
 
 export type { ExportFormat };
 
-export const EXPORT_FORMATS: readonly ExportFormat[] = ["epub", "pdf", "docx"];
+export const EXPORT_FORMATS: readonly ExportFormat[] = ["docx", "markdown", "epub", "pdf"];
 
 const SHARE_TYPES: Record<ExportFormat, { mimeType: string; UTI: string }> = {
   epub: { mimeType: "application/epub+zip", UTI: "org.idpf.epub-container" },
@@ -13,6 +13,7 @@ const SHARE_TYPES: Record<ExportFormat, { mimeType: string; UTI: string }> = {
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     UTI: "org.openxmlformats.wordprocessingml.document",
   },
+  markdown: { mimeType: "text/markdown", UTI: "net.daringfireball.markdown" },
 };
 
 export class ExportUnavailableError extends Error {

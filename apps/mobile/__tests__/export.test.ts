@@ -43,6 +43,20 @@ describe("exportManuscript", () => {
     );
   });
 
+  it("handles markdown format with correct MIME type", async () => {
+    (ciciro.export.download as jest.Mock).mockResolvedValue({
+      bytes: new Uint8Array([1, 2, 3]).buffer,
+      filename: "my_book.md",
+      contentType: "text/markdown",
+    });
+    await exportManuscript("p 1", "markdown");
+    expect(ciciro.export.download).toHaveBeenCalledWith("p 1", "markdown");
+    expect(Sharing.shareAsync).toHaveBeenCalledWith(
+      "file:///cache/my_book.md",
+      expect.objectContaining({ mimeType: "text/markdown", UTI: "net.daringfireball.markdown" })
+    );
+  });
+
   it("fails before downloading when sharing is unavailable", async () => {
     (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
     await expect(exportManuscript("p", "pdf")).rejects.toBeInstanceOf(ExportUnavailableError);
