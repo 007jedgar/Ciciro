@@ -23,6 +23,7 @@ import type {
   DraftInsertionCreateRequest,
   EditorRunInput,
   ExportFile,
+  ExportFormat,
   Folder,
   FolderCreateRequest,
   FolderPatchRequest,
@@ -308,8 +309,11 @@ export const ciciro = {
   },
 
   export: {
-    download: (id: string, opts?: RequestOpts) =>
-      apiBlob(`/api/export/${encodeURIComponent(id)}`, opts) as Promise<ExportFile>,
+    download: (id: string, format?: ExportFormat, opts?: RequestOpts) =>
+      apiBlob(
+        `/api/export/${encodeURIComponent(id)}${queryString({ format })}`,
+        opts
+      ) as Promise<ExportFile>,
   },
 
   correct: {

@@ -1,8 +1,8 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { apiBlob } from "./api";
+import { ciciro, type ExportFormat } from "./api";
 
-export type ExportFormat = "epub" | "pdf" | "docx";
+export type { ExportFormat };
 
 export const EXPORT_FORMATS: readonly ExportFormat[] = ["epub", "pdf", "docx"];
 
@@ -22,15 +22,27 @@ export class ExportUnavailableError extends Error {
   }
 }
 
+export class ExportUnsyncedError extends Error {
+  constructor() {
+    super("Edits are still waiting to sync");
+    this.name = "ExportUnsyncedError";
+  }
+}
+
 /**
  * Download the rendered manuscript from the hosted export route and hand it to
- * the OS share sheet (Save to Files, Books, AirDrop, mail, ...).
+ * the OS share sheet (Save to Files, Books, AirDrop, mail, ...). `flush` pushes
+ * edits still queued in the local replica so the server renders the latest text,
+ * and resolves false when some could not be sent.
  */
-export async function exportManuscript(projectId: string, format: ExportFormat): Promise<void> {
+export async function exportManuscript(
+  projectId: string,
+  format: ExportFormat,
+  opts?: { flush?: () => Promise<boolean> }
+): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) throw new ExportUnavailableError();
-  const { bytes, filename } = await apiBlob(
-    `/api/export/${encodeURIComponent(projectId)}?format=${format}`
-  );
+  if (opts?.flush && !(await opts.flush())) throw new ExportUnsyncedError();
+  const { bytes, filename } = await ciciro.export.download(projectId, format);
   const file = new File(Paths.cache, filename);
   file.create({ overwrite: true });
   file.write(new Uint8Array(bytes));

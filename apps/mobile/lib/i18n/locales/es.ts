@@ -422,6 +422,7 @@ const es: Translations = {
     preparing: "Preparando {{format}}…",
     error: "No se pudo exportar el manuscrito.",
     unavailable: "Compartir no está disponible en este dispositivo.",
+    unsynced: "Algunos cambios aún no se han sincronizado. Conéctate a internet e inténtalo de nuevo.",
     a11y: "Exportar como {{format}}",
     epub: "EPUB",
     pdf: "PDF",

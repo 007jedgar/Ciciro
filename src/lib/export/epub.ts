@@ -54,13 +54,17 @@ function blocksXhtml(blocks: Block[]): string {
   while (i < blocks.length) {
     const b = blocks[i];
     if (b.type === "list-item") {
-      const ordered = b.marker !== "•";
       const items: string[] = [];
-      while (i < blocks.length && blocks[i].type === "list-item") {
-        items.push(`<li>${runsXhtml((blocks[i] as Extract<Block, { type: "list-item" }>).runs)}</li>`);
+      while (i < blocks.length) {
+        const next = blocks[i];
+        if (next.type !== "list-item" || next.list !== b.list) break;
+        items.push(`<li>${runsXhtml(next.runs)}</li>`);
         i += 1;
       }
-      out.push(ordered ? `<ol>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
+      const start = parseInt(b.marker, 10);
+      if (!b.ordered) out.push(`<ul>${items.join("")}</ul>`);
+      else if (start > 1) out.push(`<ol start="${start}">${items.join("")}</ol>`);
+      else out.push(`<ol>${items.join("")}</ol>`);
       continue;
     }
     if (b.type === "quote") {

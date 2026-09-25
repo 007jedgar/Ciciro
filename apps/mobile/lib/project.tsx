@@ -20,6 +20,7 @@ type ProjectState = {
     offset: number;
   }) => Promise<void>;
   recordChapterOp: ReturnType<typeof useProjectSync>["recordOp"];
+  flushEdits: () => Promise<boolean>;
   setEditingBlockIds: (ids: string[]) => void;
 };
 
@@ -96,6 +97,7 @@ export function ProjectProvider({
       readingPosition: sync.position,
       recordReadingPosition: sync.recordPosition,
       recordChapterOp: sync.recordOp,
+      flushEdits: sync.flushEdits,
       setEditingBlockIds,
     }),
     [
@@ -106,6 +108,7 @@ export function ProjectProvider({
       query.refetch,
       selectedChapterId,
       setEditingBlockIds,
+      sync.flushEdits,
       sync.position,
       sync.recordOp,
       sync.recordPosition,

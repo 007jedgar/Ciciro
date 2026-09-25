@@ -2,10 +2,22 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "../lib/settings";
-import { EXPORT_FORMATS, ExportUnavailableError, exportManuscript, type ExportFormat } from "../lib/export";
+import {
+  EXPORT_FORMATS,
+  ExportUnavailableError,
+  ExportUnsyncedError,
+  exportManuscript,
+  type ExportFormat,
+} from "../lib/export";
 
 /** Export the manuscript as EPUB, PDF or Word through the share sheet. */
-export function ExportCard({ projectId }: { projectId: string }) {
+export function ExportCard({
+  projectId,
+  flushEdits,
+}: {
+  projectId: string;
+  flushEdits?: () => Promise<boolean>;
+}) {
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -16,9 +28,15 @@ export function ExportCard({ projectId }: { projectId: string }) {
     setError(null);
     setBusy(format);
     try {
-      await exportManuscript(projectId, format);
+      await exportManuscript(projectId, format, { flush: flushEdits });
     } catch (err) {
-      setError(err instanceof ExportUnavailableError ? t("export.unavailable") : t("export.error"));
+      setError(
+        err instanceof ExportUnavailableError
+          ? t("export.unavailable")
+          : err instanceof ExportUnsyncedError
+            ? t("export.unsynced")
+            : t("export.error")
+      );
     } finally {
       setBusy(null);
     }

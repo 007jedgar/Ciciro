@@ -420,6 +420,7 @@ const en = {
     preparing: "Preparing {{format}}…",
     error: "Could not export the manuscript.",
     unavailable: "Sharing is not available on this device.",
+    unsynced: "Some edits have not synced yet. Connect to the internet and try again.",
     a11y: "Export as {{format}}",
     epub: "EPUB",
     pdf: "PDF",

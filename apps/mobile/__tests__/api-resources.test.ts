@@ -484,4 +484,18 @@ describe("ciciro resource catalog", () => {
     expect(file.filename).toBe("book.docx");
     expect(new Uint8Array(file.bytes)).toEqual(bytes);
   });
+
+  it("requests the chosen export format", async () => {
+    mockFetch(async () =>
+      new Response(new Uint8Array([1]), {
+        headers: {
+          "content-type": "application/epub+zip",
+          "content-disposition": 'attachment; filename="book.epub"',
+        },
+      })
+    );
+    const file = await ciciro.export.download("p 1", "epub");
+    expect(lastFetchCall().url).toMatch(/\/api\/export\/p%201\?format=epub$/);
+    expect(file.filename).toBe("book.epub");
+  });
 });

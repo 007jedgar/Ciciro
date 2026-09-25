@@ -417,6 +417,7 @@ const zh: Translations = {
     preparing: "正在准备 {{format}}…",
     error: "无法导出手稿。",
     unavailable: "此设备不支持分享。",
+    unsynced: "部分修改尚未同步。请连接网络后重试。",
     a11y: "导出为 {{format}}",
     epub: "EPUB",
     pdf: "PDF",

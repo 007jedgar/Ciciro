@@ -82,6 +82,32 @@ describe("buildEpub", () => {
     expect(await zip.file("OEBPS/chapter-003.xhtml")!.async("string")).toContain("This chapter is empty.");
     expect(await zip.file("OEBPS/title.xhtml")!.async("string")).toContain("Ada Quill");
   });
+
+  it("keeps adjacent lists apart with their own type and numbering", async () => {
+    const bytes = await buildEpub({
+      title: "Lists",
+      author: "A",
+      chapters: [
+        {
+          title: "One",
+          order: 0,
+          content:
+            "<ul><li>a</li></ul><ol><li>b</li><li>c</li></ol><ol><li>d</li><li><p>e</p><ul><li>f</li></ul></li><li>g</li></ol>",
+        },
+      ],
+    });
+    const zip = await JSZip.loadAsync(bytes);
+    const ch = await zip.file("OEBPS/chapter-001.xhtml")!.async("string");
+    expect(ch).toContain(
+      [
+        "<ul><li>a</li></ul>",
+        "<ol><li>b</li><li>c</li></ol>",
+        "<ol><li>d</li><li>e</li></ol>",
+        "<ul><li>f</li></ul>",
+        '<ol start="3"><li>g</li></ol>',
+      ].join("\n")
+    );
+  });
 });
 
 describe("buildPdf", () => {

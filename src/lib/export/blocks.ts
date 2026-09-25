@@ -9,7 +9,7 @@ export type Block =
   | { type: "paragraph"; runs: Run[] }
   | { type: "heading"; level: 1 | 2 | 3; runs: Run[] }
   | { type: "quote"; runs: Run[] }
-  | { type: "list-item"; marker: string; runs: Run[] }
+  | { type: "list-item"; list: number; ordered: boolean; marker: string; runs: Run[] }
   | { type: "break" };
 
 const ENTITIES: Record<string, string> = {
@@ -89,8 +89,9 @@ export function htmlToBlocks(html: string): Block[] {
   let kind = "paragraph" as Kind;
   let level: 1 | 2 | 3 = 2;
   let inQuote = 0;
-  const lists: { ordered: boolean; count: number }[] = [];
-  let marker = "•";
+  const lists: { id: number; ordered: boolean; count: number }[] = [];
+  let listCount = 0;
+  let item = { list: 0, ordered: false, marker: "•" };
 
   function flush() {
     const trimmed = trimRuns(runs);
@@ -102,7 +103,7 @@ export function htmlToBlocks(html: string): Block[] {
       return;
     }
     if (kind === "heading") blocks.push({ type: "heading", level, runs: trimmed });
-    else if (kind === "list-item") blocks.push({ type: "list-item", marker, runs: trimmed });
+    else if (kind === "list-item") blocks.push({ type: "list-item", ...item, runs: trimmed });
     else if (kind === "quote") blocks.push({ type: "quote", runs: trimmed });
     else blocks.push({ type: "paragraph", runs: trimmed });
   }
@@ -170,7 +171,7 @@ export function htmlToBlocks(html: string): Block[] {
       case "ol":
         flush();
         if (isClose) lists.pop();
-        else lists.push({ ordered: tag === "ol", count: 0 });
+        else lists.push({ id: ++listCount, ordered: tag === "ol", count: 0 });
         kind = inQuote ? "quote" : "paragraph";
         break;
       case "li":
@@ -178,7 +179,11 @@ export function htmlToBlocks(html: string): Block[] {
         else {
           const list = lists[lists.length - 1];
           if (list) list.count += 1;
-          marker = list?.ordered ? `${list.count}.` : "•";
+          item = {
+            list: list?.id ?? 0,
+            ordered: !!list?.ordered,
+            marker: list?.ordered ? `${list.count}.` : "•",
+          };
           open("list-item");
         }
         break;
@@ -188,14 +193,4 @@ export function htmlToBlocks(html: string): Block[] {
   }
   flush();
   return blocks;
-}
-
-export function blocksWordCount(blocks: Block[]): number {
-  let total = 0;
-  for (const b of blocks) {
-    if (b.type === "break") continue;
-    const text = runsText(b.runs).trim();
-    if (text) total += text.split(/\s+/).length;
-  }
-  return total;
 }
