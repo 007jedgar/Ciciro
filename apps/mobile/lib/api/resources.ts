@@ -414,6 +414,11 @@ export const ciciro = {
         `/api/export/${encodeURIComponent(id)}${queryString({ format })}`,
         opts
       ) as Promise<ExportFile>,
+    downloadChapter: (id: string, chapterId: string, format?: ExportFormat, opts?: RequestOpts) =>
+      apiBlob(
+        `/api/export/${encodeURIComponent(id)}${queryString({ chapter: chapterId, format })}`,
+        opts
+      ) as Promise<ExportFile>,
   },
 
   correct: {

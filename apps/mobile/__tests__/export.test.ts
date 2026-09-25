@@ -1,7 +1,7 @@
 import { File } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { ciciro } from "../lib/api";
-import { ExportUnavailableError, ExportUnsyncedError, exportManuscript } from "../lib/export";
+import { ExportUnavailableError, ExportUnsyncedError, exportManuscript, exportChapter } from "../lib/export";
 
 jest.mock("expo-file-system", () => {
   const create = jest.fn();
@@ -17,7 +17,7 @@ jest.mock("expo-sharing", () => ({
   isAvailableAsync: jest.fn(async () => true),
   shareAsync: jest.fn(async () => {}),
 }));
-jest.mock("../lib/api", () => ({ ciciro: { export: { download: jest.fn() } } }));
+jest.mock("../lib/api", () => ({ ciciro: { export: { download: jest.fn(), downloadChapter: jest.fn() } } }));
 
 const fns = (jest.requireMock("expo-file-system") as { __fns: { create: jest.Mock; write: jest.Mock } }).__fns;
 
@@ -82,5 +82,48 @@ describe("exportManuscript", () => {
       exportManuscript("p", "pdf", { flush: async () => false })
     ).rejects.toBeInstanceOf(ExportUnsyncedError);
     expect(ciciro.export.download).not.toHaveBeenCalled();
+  });
+});
+
+describe("exportChapter", () => {
+  beforeEach(() => {
+    (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+    (ciciro.export.downloadChapter as jest.Mock).mockReset().mockResolvedValue({
+      bytes: new Uint8Array([1, 2, 3]).buffer,
+      filename: "chapter_one.md",
+      contentType: "text/markdown",
+    });
+  });
+
+  it("downloads the chapter and opens the share sheet", async () => {
+    await exportChapter("p1", "ch1", "markdown");
+    expect(ciciro.export.downloadChapter).toHaveBeenCalledWith("p1", "ch1", "markdown");
+    expect(File).toHaveBeenCalledWith("cache", "chapter_one.md");
+    expect(fns.create).toHaveBeenCalledWith({ overwrite: true });
+    expect(fns.write).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
+    expect(Sharing.shareAsync).toHaveBeenCalledWith(
+      "file:///cache/chapter_one.md",
+      expect.objectContaining({ mimeType: "text/markdown", UTI: "net.daringfireball.markdown" })
+    );
+  });
+
+  it("fails before downloading when sharing is unavailable", async () => {
+    (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
+    await expect(exportChapter("p", "ch", "markdown")).rejects.toBeInstanceOf(ExportUnavailableError);
+    expect(ciciro.export.downloadChapter).not.toHaveBeenCalled();
+  });
+
+  it("pushes queued edits before downloading", async () => {
+    const order: string[] = [];
+    const flush = jest.fn(async () => {
+      order.push("flush");
+      return true;
+    });
+    (ciciro.export.downloadChapter as jest.Mock).mockImplementation(async () => {
+      order.push("download");
+      return { bytes: new ArrayBuffer(0), filename: "chapter.md", contentType: "text/markdown" };
+    });
+    await exportChapter("p", "ch", "markdown", { flush });
+    expect(order).toEqual(["flush", "download"]);
   });
 });

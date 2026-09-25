@@ -52,3 +52,25 @@ export async function exportManuscript(
     dialogTitle: filename,
   });
 }
+
+/**
+ * Download a single chapter from the hosted export route and hand it to
+ * the OS share sheet. Only supports markdown and docx formats.
+ */
+export async function exportChapter(
+  projectId: string,
+  chapterId: string,
+  format: ExportFormat,
+  opts?: { flush?: () => Promise<boolean> }
+): Promise<void> {
+  if (!(await Sharing.isAvailableAsync())) throw new ExportUnavailableError();
+  if (opts?.flush && !(await opts.flush())) throw new ExportUnsyncedError();
+  const { bytes, filename } = await ciciro.export.downloadChapter(projectId, chapterId, format);
+  const file = new File(Paths.cache, filename);
+  file.create({ overwrite: true });
+  file.write(new Uint8Array(bytes));
+  await Sharing.shareAsync(file.uri, {
+    ...SHARE_TYPES[format],
+    dialogTitle: filename,
+  });
+}
