@@ -493,7 +493,7 @@ export default function ManuscriptScreen() {
               chapterId={chapter.id}
               html={content}
               editorStyle={editorStyle}
-              placeholder={t("manuscript.emptyChapter")}
+              placeholder=""
               focused={focused}
               resumeOffset={resume?.index ?? null}
               bottomInset={editorBottomInset}

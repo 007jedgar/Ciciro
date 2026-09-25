@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { FlatList, Platform, Pressable, RefreshControl, Text, View } from "react-native";
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
-import { BellIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
+import { BellIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
 import { SkeletonList } from "../components/Skeleton";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
@@ -196,20 +196,28 @@ export default function ManuscriptsScreen() {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
               return (
                 <Pressable
-                  style={layout.card}
+                  style={[layout.card, styles.folderCard]}
                   onPress={() => router.push(`/folder/${item.folder.id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={t("manuscripts.folderA11y", { name: item.folder.name })}
                 >
-                  <Text style={layout.cardTitle}>{item.folder.name}</Text>
-                  <Text style={layout.cardMeta}>
-                    {t("manuscripts.count", { count })}
-                  </Text>
-                  {item.folder.notes ? (
-                    <Text style={layout.cardMeta} numberOfLines={2}>
-                      {item.folder.notes}
+                  <View style={[styles.folderMark, { backgroundColor: colors.accentSoft }]}>
+                    <FolderIcon color={colors.accent} size={22} />
+                  </View>
+                  <View style={styles.folderCopy}>
+                    <Text style={layout.cardTitle}>{item.folder.name}</Text>
+                    <Text style={layout.cardMeta}>
+                      {t("manuscripts.folderKind")}
+                      {" · "}
+                      {t("manuscripts.count", { count })}
                     </Text>
-                  ) : null}
+                    {item.folder.notes ? (
+                      <Text style={layout.cardMeta} numberOfLines={2}>
+                        {item.folder.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <ChevronRightIcon color={colors.inkSoft} />
                 </Pressable>
               );
             }
@@ -246,3 +254,21 @@ export default function ManuscriptsScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  folderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  folderMark: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  folderCopy: {
+    flex: 1,
+  },
+});

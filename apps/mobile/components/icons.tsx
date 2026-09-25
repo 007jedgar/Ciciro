@@ -163,6 +163,22 @@ export function HistoryIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** A pencil, for a title the reader can open into an edit. */
+export function PencilIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M14.1 4.9l5 5L8.2 20.8H3.2v-5z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Line x1="12.2" y1="6.8" x2="17.2" y2="11.8" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export function PlusIcon({ color, size = 18 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -395,6 +411,21 @@ export function NewChapterIcon({ color, size = 24 }: IconProps) {
       />
       <Line x1="12.5" y1="11.5" x2="12.5" y2="16.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
       <Line x1="10" y1="14" x2="15" y2="14" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** A folder, used where a library group should not look like a manuscript. */
+export function FolderIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M3 7.4a1.5 1.5 0 0 1 1.5-1.5H9l2 2.1h8a1.5 1.5 0 0 1 1.5 1.5v7.6A1.5 1.5 0 0 1 19 18.6H4.5A1.5 1.5 0 0 1 3 17.1z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
