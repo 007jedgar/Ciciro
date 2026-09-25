@@ -18,6 +18,7 @@ import {
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
 import { confirmChapterDelete } from "../../../../lib/chapter-delete";
+import { importManuscriptFile, isImportable, pickImportFile } from "../../../../lib/import";
 import { useProject } from "../../../../lib/project";
 import { useAppTheme } from "../../../../lib/settings";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
@@ -37,6 +38,7 @@ export default function ChaptersScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   if (loading && !project) {
     return (
@@ -85,6 +87,25 @@ export default function ChaptersScreen() {
       setDeleteError(err instanceof ApiError ? err.message : t("chapters.deleteError"));
     } finally {
       setPendingId(null);
+    }
+  }
+
+  async function importChapters() {
+    if (!projectId || importing) return;
+    setDeleteError(null);
+    try {
+      const file = await pickImportFile();
+      if (!file) return;
+      if (!isImportable(file.name)) {
+        setDeleteError(t("importFile.unsupported"));
+        return;
+      }
+      setImporting(true);
+      await importManuscriptFile(file, { projectId });
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : t("importFile.error"));
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -157,6 +178,18 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("bible.title")}</Text>
                 <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
+                style={[layout.card, { marginBottom: 16, opacity: importing ? 0.6 : 1 }]}
+                onPress={() => void importChapters()}
+                disabled={importing}
+                accessibilityRole="button"
+                accessibilityLabel={t("importFile.chaptersCard")}
+              >
+                <Text style={layout.cardTitle}>
+                  {importing ? t("importFile.importing") : t("importFile.chaptersCard")}
+                </Text>
+                <Text style={layout.cardMeta}>{t("importFile.chaptersMeta")}</Text>
               </Pressable>
               <ExportCard projectId={projectId} flushEdits={flushEdits} />
             </View>
