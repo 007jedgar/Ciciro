@@ -726,3 +726,35 @@ export type ImportResult = {
   appended: boolean;
   chapters: { id: string; title: string; order: number; wordCount: number }[];
 };
+
+export type SearchOptions = { matchCase: boolean; wholeWord: boolean };
+
+export type SearchMatch = {
+  chapterId: string;
+  chapterTitle: string;
+  chapterNumber: number;
+  blockId: string;
+  occurrence: number;
+  offset: number;
+  before: string;
+  match: string;
+  after: string;
+};
+
+export type SearchResult = {
+  matches: SearchMatch[];
+  total: number;
+  truncated: boolean;
+  chapters: number;
+};
+
+export type ReplaceRequest = SearchOptions & {
+  query: string;
+  replacement: string;
+  target?: { chapterId: string; blockId: string; occurrence: number };
+};
+
+export type ReplaceResult = {
+  replaced: number;
+  chapters: { id: string; content: string; revision: number; wordCount: number; replaced: number }[];
+};

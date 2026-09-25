@@ -20,6 +20,7 @@ export default function ProjectStackLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="search" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen
         name="bible"
         // Over the tabs rather than in place of them, so going back shows the

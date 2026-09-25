@@ -8,7 +8,8 @@ editor with chapter navigation, and you talk to **one** partner - Ciciro, the ed
 loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
 Manuscripts import from Word, Google Docs, Markdown and Scrivener, and export to
-standard (Shunn-style) `.docx`, EPUB, and PDF.
+standard (Shunn-style) `.docx`, EPUB, and PDF. Search and find-and-replace work
+across every chapter.
 
 ## Contents
 

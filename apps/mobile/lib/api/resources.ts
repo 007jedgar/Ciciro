@@ -51,6 +51,10 @@ import type {
   ProjectListItem,
   ProjectPatchRequest,
   ProjectRecord,
+  ReplaceRequest,
+  ReplaceResult,
+  SearchOptions,
+  SearchResult,
   ChatClearResult,
   ChatRestoreResult,
   QuestionCreateRequest,
@@ -206,6 +210,25 @@ export const ciciro = {
           jsonInit("POST", {}, opts)
         ),
     },
+  },
+
+  search: {
+    /** Every match of `query` across the manuscript's chapters. */
+    find: (projectId: string, query: string, options: SearchOptions, opts?: RequestOpts) =>
+      api<SearchResult>(
+        `/api/projects/${encodeURIComponent(projectId)}/search${queryString({
+          q: query,
+          matchCase: options.matchCase ? "1" : null,
+          wholeWord: options.wholeWord ? "1" : null,
+        })}`,
+        opts
+      ),
+    /** Replace one match (`target`) or every match. Written through the chapter op log. */
+    replace: (projectId: string, body: ReplaceRequest, opts?: RequestOpts) =>
+      api<ReplaceResult>(
+        `/api/projects/${encodeURIComponent(projectId)}/replace`,
+        jsonInit("POST", body, opts)
+      ),
   },
 
   imports: {
