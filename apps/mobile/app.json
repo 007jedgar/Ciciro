@@ -47,7 +47,30 @@
         }
       ],
       "./plugins/with-ios-scene-lifecycle",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "app.ciciro.mobile.widgets",
+          "groupIdentifier": "group.app.ciciro.mobile",
+          "widgets": [
+            {
+              "name": "WritingDayWidget",
+              "displayName": "Writing day",
+              "description": "Today’s words, your daily goal, and days written in the last week",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium",
+                  "accessoryCircular",
+                  "accessoryRectangular",
+                  "accessoryInline"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
