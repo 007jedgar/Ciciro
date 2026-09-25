@@ -11,6 +11,7 @@ import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
 import ChapterHistory from "@/components/ChapterHistory";
+import SearchPanel from "@/components/SearchPanel";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -21,6 +22,7 @@ import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-c
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
+import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -40,6 +42,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [bibleOpen, setBibleOpen] = useState(false);
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Bumped to remount the editor when its chapter was rewritten from outside.
+  const [editorNonce, setEditorNonce] = useState(0);
   const [openCount, setOpenCount] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
@@ -72,6 +77,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     chapterId: string;
     blockId: string;
     offset: number;
+    length?: number;
   } | null>(null);
   const chatWidthRef = useRef(chatWidth);
   chatWidthRef.current = chatWidth;
@@ -322,6 +328,74 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     [activeId, project.id]
   );
 
+  // --- Manuscript search ---
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Push a pending edit out and wait for the save queue, so a replace starts
+  // from what the author has actually typed.
+  const flushSaves = useCallback(async () => {
+    if (contentTimer.current && activeId) {
+      clearTimeout(contentTimer.current);
+      contentTimer.current = null;
+      const local = getLocalFields(activeId);
+      if (local) patchChapter(activeId, { content: local.content });
+    }
+    await saveQueueRef.current.catch(() => {});
+  }, [activeId, getLocalFields, patchChapter]);
+
+  const onSearchReplaced = useCallback(
+    (replaced: ReplacedChapter[]) => {
+      const store = optimisticStoreRef.current;
+      for (const r of replaced) {
+        const local = projectRef.current.chapters.find((c) => c.id === r.id);
+        store?.setConfirmed(r.id, {
+          content: r.content,
+          title: local?.title ?? "",
+          status: local?.status ?? "draft",
+          revision: r.revision,
+          wordCount: r.wordCount,
+        });
+        updateChapterLocal(r.id, {
+          content: r.content,
+          wordCount: r.wordCount,
+          revision: r.revision,
+        });
+      }
+      if (activeId && replaced.some((r) => r.id === activeId)) {
+        setResumePosition(null);
+        setEditorNonce((n) => n + 1);
+      }
+    },
+    [activeId, updateChapterLocal]
+  );
+
+  const onSearchJump = useCallback(
+    (match: SearchMatch, length: number) => {
+      setSearchOpen(false);
+      setViewMode("prose");
+      setFocusEndOnMount(false);
+      setResumePosition({
+        chapterId: match.chapterId,
+        blockId: match.blockId,
+        offset: match.offset,
+        length,
+      });
+      setActiveId(match.chapterId);
+      // Same chapter: remount so the caret restore runs again.
+      if (match.chapterId === activeId) setEditorNonce((n) => n + 1);
+    },
+    [activeId]
+  );
+
   // --- Chapter operations ---
   async function addChapter() {
     const res = await fetch("/api/chapters", {
@@ -522,6 +596,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 : "All changes saved"}
         </span>
         <ThemePicker compact />
+        <button
+          className="btn small"
+          onClick={() => setSearchOpen(true)}
+          title="Find and replace across every chapter (Cmd/Ctrl+Shift+F)"
+        >
+          Search
+        </button>
         <button className="btn small" onClick={() => setQuestionsOpen(true)}>
           Questions{openCount ? ` (${openCount})` : ""}
         </button>
@@ -603,14 +684,18 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               </div>
               {viewMode === "prose" ? (
                 <Editor
-                  key={activeChapter.id}
+                  key={`${activeChapter.id}:${editorNonce}`}
                   ref={editorRef}
                   content={activeChapter.content}
                   onChange={onContentChange}
                   onCaretChange={onCaretChange}
                   restorePosition={
                     !focusEndOnMount && resumePosition?.chapterId === activeChapter.id
-                      ? { blockId: resumePosition.blockId, offset: resumePosition.offset }
+                      ? {
+                          blockId: resumePosition.blockId,
+                          offset: resumePosition.offset,
+                          length: resumePosition.length,
+                        }
                       : null
                   }
                   focusEndOnMount={focusEndOnMount}
@@ -670,6 +755,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       {bibleOpen && (
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
+      )}
+
+      {searchOpen && (
+        <SearchPanel
+          projectId={project.id}
+          onClose={() => setSearchOpen(false)}
+          onJump={onSearchJump}
+          flushSaves={flushSaves}
+          onReplaced={onSearchReplaced}
+        />
       )}
 
       {questionsOpen && (

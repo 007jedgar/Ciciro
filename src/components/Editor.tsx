@@ -28,7 +28,8 @@ type Props = {
   onChange: (html: string) => void;
   onSelectionChange?: (text: string) => void;
   onCaretChange?: (caret: ReadingCaret) => void;
-  restorePosition?: ReadingCaret | null;
+  /** `length` selects that many characters from the offset (a search hit). */
+  restorePosition?: (ReadingCaret & { length?: number }) | null;
   /** When true on mount, place the caret at the end (AI opened this chapter). */
   focusEndOnMount?: boolean;
 };
@@ -130,7 +131,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   useEffect(() => {
     if (!editor || focusEndOnMount) return;
     if (!restorePosition) return;
-    const key = `${restorePosition.blockId}:${restorePosition.offset}`;
+    const key = `${restorePosition.blockId}:${restorePosition.offset}:${restorePosition.length ?? 0}`;
     if (restoredKey.current === key) return;
     restoredKey.current = key;
     let target: number | null = null;
@@ -143,6 +144,11 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       return false;
     });
     if (target == null) return;
+    const length = restorePosition.length ?? 0;
+    if (length > 0) {
+      editor.chain().focus().setTextSelection({ from: target, to: target + length }).scrollIntoView().run();
+      return;
+    }
     editor.chain().focus().setTextSelection(target).run();
   }, [editor, restorePosition, focusEndOnMount]);
 
