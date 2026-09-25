@@ -66,6 +66,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   projectRef.current = project;
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingSaveCountRef = useRef(0);
+  // Chapters whose typed content the server has not accepted.
+  const unsavedContentRef = useRef(new Set<string>());
   const saveStateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the editor opens/creates a chapter, mount TipTap with the caret at
   // the end so Auto-mode drafts continue rather than prepending.
@@ -202,16 +204,24 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               outcome = await attemptSave(payload);
             }
           }
+          let settled = outcome !== "fail" && outcome !== "409-retry";
           if (outcome === "fail") {
             const confirmed = store.get(id);
             const local = getLocalFields(id);
             if (confirmed && local) {
               const failure = handleNetworkFailure(confirmed, local, payload);
-              if (failure.localPatch) updateChapterLocal(id, failure.localPatch);
+              if (failure.localPatch) {
+                updateChapterLocal(id, failure.localPatch);
+                settled = true;
+              }
               showTransientSaveState(failure.uiHint);
             } else {
               showTransientSaveState("error");
             }
+          }
+          if ("content" in payload) {
+            if (settled) unsavedContentRef.current.delete(id);
+            else unsavedContentRef.current.add(id);
           }
         })
         .finally(() => {
@@ -351,14 +361,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         const local = getLocalFields(activeId);
         if (local) patchChapter(activeId, { content: local.content });
       }
-      await saveQueueRef.current.catch(() => {});
-      const store = optimisticStoreRef.current;
-      return projectRef.current.chapters
-        .filter((c) => !chapterId || c.id === chapterId)
-        .every((c) => {
-          const confirmed = store?.get(c.id);
-          return !confirmed || confirmed.content === c.content;
-        });
+      let queue: Promise<void>;
+      do {
+        queue = saveQueueRef.current;
+        await queue.catch(() => {});
+      } while (queue !== saveQueueRef.current);
+      const unsaved = unsavedContentRef.current;
+      return !projectRef.current.chapters.some(
+        (c) => unsaved.has(c.id) && (!chapterId || c.id === chapterId)
+      );
     },
     [activeId, getLocalFields, patchChapter]
   );
