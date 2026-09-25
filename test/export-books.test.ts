@@ -4,6 +4,7 @@ import { PDFDocument } from "pdf-lib";
 import { htmlToBlocks } from "@/lib/export/blocks";
 import { buildEpub } from "@/lib/export/epub";
 import { buildPdf } from "@/lib/export/pdf";
+import { buildMarkdown, buildChapterMarkdown } from "@/lib/export/markdown";
 import { bookFilename } from "@/lib/export/types";
 
 const project = {
@@ -147,9 +148,70 @@ describe("buildPdf", () => {
   });
 });
 
+describe("buildMarkdown", () => {
+  it("produces valid markdown with title, author, and ordered chapters", () => {
+    const md = buildMarkdown(project);
+    expect(md).toContain("# The Salt & Sea");
+    expect(md).toContain("**By Ada Quill**");
+    const firstIdx = md.indexOf("## First");
+    const secondIdx = md.indexOf("## Second");
+    expect(firstIdx).toBeLessThan(secondIdx);
+    expect(md).toContain("**hello**");
+    expect(md).toContain("*on*");
+    expect(md).toContain("> Quoted");
+  });
+
+  it("preserves inline formatting in markdown", () => {
+    const md = buildMarkdown(project);
+    expect(md).toContain("She said **hello** & left.");
+    expect(md).toContain("Later *on*.");
+  });
+
+  it("marks empty chapters as empty", () => {
+    const md = buildMarkdown(project);
+    expect(md).toContain("## Chapter 3");
+    expect(md).toContain("*This chapter is empty.*");
+  });
+
+  it("includes lists and scene breaks", () => {
+    const md = buildMarkdown(project);
+    expect(md).toContain("- one");
+    expect(md).toContain("- two");
+    expect(md).toContain("---");
+  });
+
+  it("converts headings with correct markdown syntax", () => {
+    const md = buildMarkdown({
+      title: "Test",
+      author: "A",
+      chapters: [
+        {
+          title: "Chapter One",
+          order: 0,
+          content: "<h2>Part One</h2><p>Text</p><h3>Section</h3>",
+        },
+      ],
+    });
+    expect(md).toContain("## Chapter One");
+    expect(md).toContain("### Part One");
+    expect(md).toContain("#### Section");
+  });
+});
+
+describe("buildChapterMarkdown", () => {
+  it("exports a single chapter", () => {
+    const md = buildChapterMarkdown(project.chapters[1], 0);
+    expect(md).toContain("## First");
+    expect(md).toContain("She said **hello** & left.");
+    expect(md).toContain("> Quoted");
+    expect(md).toContain("- one");
+  });
+});
+
 describe("bookFilename", () => {
   it("slugs titles and falls back", () => {
     expect(bookFilename("The Salt & Sea!", "epub")).toBe("the_salt_sea.epub");
     expect(bookFilename("", "pdf")).toBe("manuscript.pdf");
+    expect(bookFilename("My Book", "md")).toBe("my_book.md");
   });
 });

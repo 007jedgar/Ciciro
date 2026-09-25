@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 export const EXPORT_FORMATS = [
   { format: "docx", label: "Word (.docx)", hint: "Standard manuscript format" },
+  { format: "markdown", label: "Markdown (.md)", hint: "Plain text with formatting" },
   { format: "epub", label: "EPUB (.epub)", hint: "For e-readers and Apple Books" },
   { format: "pdf", label: "PDF (.pdf)", hint: "Book layout with contents" },
 ] as const;

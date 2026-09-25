@@ -6,6 +6,7 @@ import { responseFromAuthError } from "@/lib/auth/http";
 import { buildManuscriptDocx } from "@/lib/docx";
 import { buildEpub } from "@/lib/export/epub";
 import { buildPdf } from "@/lib/export/pdf";
+import { buildMarkdown } from "@/lib/export/markdown";
 import { bookFilename } from "@/lib/export/types";
 
 export const runtime = "nodejs";
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   const format = req.nextUrl.searchParams.get("format") ?? "docx";
-  if (format !== "docx" && format !== "epub" && format !== "pdf") {
+  if (format !== "docx" && format !== "epub" && format !== "pdf" && format !== "markdown") {
     return new Response(JSON.stringify({ error: "Unsupported export format" }), {
       status: 400,
       headers: { "content-type": "application/json" },
@@ -62,6 +63,10 @@ export async function GET(req: NextRequest, { params }: Params) {
   } else if (format === "pdf") {
     bytes = await buildPdf(book);
     contentType = "application/pdf";
+  } else if (format === "markdown") {
+    const markdown = buildMarkdown(book);
+    bytes = new TextEncoder().encode(markdown);
+    contentType = "text/markdown";
   } else {
     bytes = new Uint8Array(await Packer.toBuffer(buildManuscriptDocx(book)));
     contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
