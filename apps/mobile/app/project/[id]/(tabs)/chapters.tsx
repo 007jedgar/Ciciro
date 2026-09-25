@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { ChapterListCard } from "../../../../components/ChapterListCard";
+import { ExportCard } from "../../../../components/ExportCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -157,6 +158,7 @@ export default function ChaptersScreen() {
                 <Text style={layout.cardTitle}>{t("bible.title")}</Text>
                 <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
               </Pressable>
+              <ExportCard projectId={projectId} />
             </View>
           ) : null
         }

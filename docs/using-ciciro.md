@@ -17,7 +17,7 @@ you only ever see the editor.
 - **Ciciro** (right) - the editor chat, quick-action chips, and composer.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
-- **Story bible**, **Questions**, and **Export .docx** sit in the top bar.
+- **Story bible**, **Questions**, and **Export** sit in the top bar.
 
 Start a project from the manuscript list, then fill the [story
 bible](story-bible.md) before asking for long passages. Empty canon produces
@@ -102,6 +102,10 @@ is the writing surface.
 **Export .docx** builds a Shunn-style manuscript: Times New Roman 12pt,
 double-spaced, 1" margins, title page with word count, chapters on fresh
 pages, running header, `#` scene breaks.
+
+**Export > EPUB** makes an ebook (title page, contents, chapters in order) and
+**Export > PDF** a book-layout PDF with a contents page and page numbers. On the
+phone, the Chapters tab has an Export card that hands the file to the share sheet.
 
 ## Habits that keep the book consistent
 

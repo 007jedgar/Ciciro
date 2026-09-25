@@ -131,6 +131,14 @@ any editor; they are plain markdown you can version with git.
 Times New Roman 12pt, double-spaced, 1" margins, title page with word count, chapters
 on fresh pages, running header, `#` scene breaks.
 
+`?format=epub` and `?format=pdf` render the book for reading (`src/lib/export/`):
+EPUB 3 with title page, contents, and one XHTML file per chapter; PDF on a 6x9in
+page with Times 11pt, justified text, a contents page with page numbers, and folios.
+Both are pure JS (JSZip, pdf-lib), so they run on Cloudflare Workers. PDFs use the
+standard Latin fonts: characters outside that set fall back to `?`. The web top bar
+has an Export menu; the mobile Chapters tab has an Export card that opens the share
+sheet.
+
 ## Models
 
 Set in `.env` (all overridable):
@@ -199,6 +207,5 @@ requests.
 - **Assistant-maintained chapter summaries** - auto-update `Chapter.summary` after
   edits so the index stays sharp on long books.
 - **Inline tracked-changes edits** in the editor (accept/reject line edits).
-- **EPUB / PDF export** alongside DOCX.
 - Retire the vestigial `Character`/`PlotPoint` DB tables (now only used to seed the
   bible on first run) once existing projects have migrated.

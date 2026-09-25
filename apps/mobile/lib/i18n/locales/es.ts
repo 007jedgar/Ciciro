@@ -416,6 +416,17 @@ const es: Translations = {
     listA11y: "{{time}}, {{scope}}, {{goal}}",
     channel: "Recordatorios de escritura",
   },
+  export: {
+    title: "Exportar manuscrito",
+    meta: "Comparte una copia terminada como libro electrónico, PDF con diseño de libro o archivo de Word.",
+    preparing: "Preparando {{format}}…",
+    error: "No se pudo exportar el manuscrito.",
+    unavailable: "Compartir no está disponible en este dispositivo.",
+    a11y: "Exportar como {{format}}",
+    epub: "EPUB",
+    pdf: "PDF",
+    docx: "Word",
+  },
   manuscriptTabBar: {
     open: "Herramientas de escritura",
     close: "Cerrar",

@@ -411,6 +411,17 @@ const zh: Translations = {
     listA11y: "{{time}}，{{scope}}，{{goal}}",
     channel: "写作提醒",
   },
+  export: {
+    title: "导出手稿",
+    meta: "将完成的稿件分享为电子书、书籍版式的 PDF 或 Word 文件。",
+    preparing: "正在准备 {{format}}…",
+    error: "无法导出手稿。",
+    unavailable: "此设备不支持分享。",
+    a11y: "导出为 {{format}}",
+    epub: "EPUB",
+    pdf: "PDF",
+    docx: "Word",
+  },
   manuscriptTabBar: {
     open: "写作工具",
     close: "关闭",
