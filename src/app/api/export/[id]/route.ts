@@ -4,12 +4,16 @@ import { prisma } from "@/lib/db";
 import { authorizeProject } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { buildManuscriptDocx } from "@/lib/docx";
+import { buildEpub } from "@/lib/export/epub";
+import { buildPdf } from "@/lib/export/pdf";
+import { bookFilename } from "@/lib/export/types";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-// GET /api/export/:id — download the manuscript as a standard-format .docx.
+// GET /api/export/:id?format=docx|epub|pdf — download the manuscript.
+// Defaults to the standard-format .docx.
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
   try {
@@ -30,27 +34,44 @@ export async function GET(req: NextRequest, { params }: Params) {
     });
   }
 
-  const doc = buildManuscriptDocx({
+  const format = req.nextUrl.searchParams.get("format") ?? "docx";
+  if (format !== "docx" && format !== "epub" && format !== "pdf") {
+    return new Response(JSON.stringify({ error: "Unsupported export format" }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  const book = {
+    id: project.id,
     title: project.title,
     author: project.author,
+    genre: project.genre,
     chapters: project.chapters.map((c) => ({
       title: c.title,
       content: c.content,
       order: c.order,
     })),
-  });
+  };
 
-  const buffer = await Packer.toBuffer(doc);
-  const safeTitle = (project.title || "manuscript")
-    .replace(/[^a-z0-9]+/gi, "_")
-    .replace(/^_+|_+$/g, "")
-    .toLowerCase();
+  let bytes: Uint8Array;
+  let contentType: string;
+  if (format === "epub") {
+    bytes = await buildEpub(book);
+    contentType = "application/epub+zip";
+  } else if (format === "pdf") {
+    bytes = await buildPdf(book);
+    contentType = "application/pdf";
+  } else {
+    bytes = new Uint8Array(await Packer.toBuffer(buildManuscriptDocx(book)));
+    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
 
-  return new Response(new Uint8Array(buffer), {
+  return new Response(bytes as BodyInit, {
     headers: {
-      "content-type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "content-disposition": `attachment; filename="${safeTitle || "manuscript"}.docx"`,
+      "content-type": contentType,
+      "content-disposition": `attachment; filename="${bookFilename(project.title, format)}"`,
+      "cache-control": "private, no-store",
     },
   });
 }

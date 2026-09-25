@@ -1364,3 +1364,41 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---------- Export menu ---------- */
+.export-menu-root {
+  position: relative;
+}
+.export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 250px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  z-index: 50;
+}
+.export-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.export-option:hover,
+.export-option:focus-visible {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.export-option-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.export-option-hint {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
