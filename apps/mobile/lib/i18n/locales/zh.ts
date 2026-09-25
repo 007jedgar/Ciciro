@@ -439,6 +439,9 @@ const zh: Translations = {
     enabledHint: "关掉后仍保留这条提醒，只是不再通知。",
     openSprint: "打开冲刺",
     openSprintHint: "通知会打开这部书稿的 15 或 25 分钟冲刺。",
+    suggestHour: "你通常在 {{time}} 左右写作。用这个时间？",
+    suggestHourAccept: "用这个时间",
+    suggestHourDismiss: "保持我的",
     paused: "现在关着。手机不会出声。",
     off: "关",
     notify: {

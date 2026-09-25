@@ -442,6 +442,9 @@ const en = {
     enabledHint: "Turn this off to keep the reminder without a notification.",
     openSprint: "Open a sprint",
     openSprintHint: "The notification takes you into a 15 or 25 minute sprint for this manuscript.",
+    suggestHour: "You usually write around {{time}}. Use that time?",
+    suggestHourAccept: "Use this time",
+    suggestHourDismiss: "Keep mine",
     paused: "Off for now. The phone will stay quiet.",
     off: "Off",
     notify: {

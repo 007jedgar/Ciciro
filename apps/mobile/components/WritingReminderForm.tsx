@@ -28,6 +28,7 @@ export function WritingReminderForm({
   notice = null,
   externalError = null,
   openSettingsLabel = null,
+  suggestedHour = null,
   onOpenSettings,
   onSave,
   onDelete,
@@ -42,6 +43,8 @@ export function WritingReminderForm({
   notice?: string | null;
   externalError?: string | null;
   openSettingsLabel?: string | null;
+  /** Median sitting start hour; offered once until accepted or dismissed. */
+  suggestedHour?: number | null;
   onOpenSettings?: () => void;
   onSave: (next: WritingReminder) => void;
   onDelete?: () => void;
@@ -61,6 +64,7 @@ export function WritingReminderForm({
   const [openSprint, setOpenSprint] = useState(reminder.openSprint);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
 
   const goals = useMemo(() => {
     const choices: number[] = [...REMINDER_WORD_GOALS];
@@ -85,6 +89,16 @@ export function WritingReminderForm({
         );
   const clock = formatReminderClock(hour, minute, i18n.language);
   const shownError = error ?? externalError;
+  const showHourSuggestion =
+    suggestedHour != null &&
+    !dismissedSuggestion &&
+    suggestedHour !== hour &&
+    Number.isInteger(suggestedHour) &&
+    suggestedHour >= 0 &&
+    suggestedHour <= 23;
+  const suggestedClock = showHourSuggestion
+    ? formatReminderClock(suggestedHour!, 0, i18n.language)
+    : null;
 
   function shift(deltaMinutes: number) {
     const next = shiftReminderTime(hour, minute, deltaMinutes);
@@ -216,6 +230,47 @@ export function WritingReminderForm({
           <Text style={{ color: colors.ink, fontSize: 20 }}>+</Text>
         </Pressable>
       </View>
+
+      {showHourSuggestion && suggestedClock ? (
+        <View
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            backgroundColor: colors.panel,
+            borderWidth: 1,
+            borderColor: colors.line,
+          }}
+        >
+          <Text style={{ fontSize: 15, color: colors.ink, lineHeight: 22 }}>
+            {t("reminders.suggestHour", { time: suggestedClock })}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("reminders.suggestHourAccept")}
+              onPress={() => {
+                setHour(suggestedHour!);
+                setMinute(0);
+                setDismissedSuggestion(true);
+              }}
+            >
+              <Text style={{ color: colors.accent, fontSize: 16 }}>
+                {t("reminders.suggestHourAccept")}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("reminders.suggestHourDismiss")}
+              onPress={() => setDismissedSuggestion(true)}
+            >
+              <Text style={{ color: colors.inkSoft, fontSize: 16 }}>
+                {t("reminders.suggestHourDismiss")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.days")}</Text>
       <View style={{ flexDirection: "row", gap: 6 }}>

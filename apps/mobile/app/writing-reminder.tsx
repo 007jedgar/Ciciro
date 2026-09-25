@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { WritingReminderForm, type ManuscriptChoice } from "../components/WritingReminderForm";
-import { useProjectsQuery } from "../lib/api";
+import { ciciro, useProjectsQuery } from "../lib/api";
 import i18n from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
@@ -27,6 +28,8 @@ import {
   type ReminderTranslate,
   type WritingReminder,
 } from "../lib/writing-reminders";
+import { getWritingDaySnapshot } from "../lib/writing-day-session";
+import { medianSittingStartHour } from "../lib/writing-session";
 
 function one(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -40,7 +43,7 @@ export default function WritingReminderScreen() {
   const { backOr } = useStackBack();
   const { t } = useTranslation();
   const { user, ready } = useSession();
-  const { layout } = useAppTheme();
+  const { layout, settings } = useAppTheme();
   const headerHeight = useAppHeaderHeight();
   const params = useLocalSearchParams<{
     id?: string | string[];
@@ -52,6 +55,21 @@ export default function WritingReminderScreen() {
   const routeProjectTitle = one(params.projectTitle);
   const createdId = useRef(createWritingReminderId()).current;
   const projectsQuery = useProjectsQuery({ enabled: Boolean(user) });
+  const sessionsQuery = useQuery({
+    queryKey: ["writing", "sessions", "reminder-hour"],
+    queryFn: () => ciciro.writing.sessions.list(40),
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  });
+  const suggestedHour = useMemo(
+    () =>
+      medianSittingStartHour(
+        (sessionsQuery.data?.sessions ?? []).map((session) => ({
+          startedAt: session.startedAt,
+        }))
+      ),
+    [sessionsQuery.data?.sessions]
+  );
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [externalError, setExternalError] = useState<string | null>(null);
@@ -137,6 +155,8 @@ export default function WritingReminderScreen() {
       titles,
       t: translate,
       requestPermission: false,
+      todayWords: getWritingDaySnapshot().words,
+      dailyWordGoal: settings.dailyWordGoal,
     });
     setBusy(false);
 
@@ -198,6 +218,7 @@ export default function WritingReminderScreen() {
           notice={notice}
           externalError={externalError}
           openSettingsLabel={showOpenSettings ? t("reminders.openSettings") : null}
+          suggestedHour={suggestedHour}
           onOpenSettings={showOpenSettings ? () => void Linking.openSettings() : undefined}
           onSave={(next) => void save(next)}
           onDelete={reminderId ? () => void remove() : undefined}

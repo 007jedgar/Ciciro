@@ -5,10 +5,10 @@ import {
   loadWritingReminders,
 } from "./writing-reminder-store";
 import {
-  expoWeekday,
   planReminderNotifications,
   REMINDER_NOTIFICATION_PREFIX,
   type PlannedReminderNotification,
+  type PlanReminderOptions,
   type ReminderTranslate,
   type WritingReminder,
 } from "./writing-reminders";
@@ -90,27 +90,12 @@ export async function createExpoReminderClient(
           },
         };
         const channelId = Platform.OS === "android" ? CHANNEL_ID : undefined;
-        if (item.trigger.kind === "daily") {
-          await Notifications.scheduleNotificationAsync({
-            identifier: item.identifier,
-            content,
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DAILY,
-              hour: item.trigger.hour,
-              minute: item.trigger.minute,
-              channelId,
-            },
-          });
-          return;
-        }
         await Notifications.scheduleNotificationAsync({
           identifier: item.identifier,
           content,
           trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-            weekday: expoWeekday(item.trigger.weekday),
-            hour: item.trigger.hour,
-            minute: item.trigger.minute,
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(item.trigger.at),
             channelId,
           },
         });
@@ -207,12 +192,22 @@ export function publishReminderNotifications(input: {
   titles: Readonly<Record<string, string>>;
   t: ReminderTranslate;
   requestPermission: boolean;
+  todayWords?: number;
+  dailyWordGoal?: number;
+  bodyOverrides?: Readonly<Record<string, string>>;
+  now?: number;
 }): Promise<"scheduled" | "skipped" | "unavailable" | "partial"> {
   return enqueue(async () => {
     const client = await createExpoReminderClient(input.t("reminders.channel"));
     if (!client) return "unavailable";
     const reminders = input.reminders ?? loadWritingReminders(input.userId);
-    const planned = planReminderNotifications(reminders, input.titles, input.t);
+    const planOpts: PlanReminderOptions = {
+      now: input.now,
+      todayWords: input.todayWords,
+      dailyWordGoal: input.dailyWordGoal,
+      bodyOverrides: input.bodyOverrides,
+    };
+    const planned = planReminderNotifications(reminders, input.titles, input.t, planOpts);
     const result = await syncScheduledReminders(
       planned,
       loadNotificationIds(input.userId),

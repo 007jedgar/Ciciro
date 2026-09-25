@@ -36,6 +36,7 @@ import type {
   NdjsonEvent,
   OkResponse,
   OpenQuestion,
+  ReminderNudgeResponse,
   PlotPoint,
   PlotPointCreateRequest,
   PlotPointPatchRequest,
@@ -191,6 +192,13 @@ export const ciciro = {
         api<OkResponse>(
           `/api/projects/${encodeURIComponent(id)}/target`,
           jsonInit("DELETE", undefined, opts)
+        ),
+    },
+    reminderNudge: {
+      post: (id: string, opts?: RequestOpts) =>
+        api<ReminderNudgeResponse>(
+          `/api/projects/${encodeURIComponent(id)}/reminder-nudge`,
+          jsonInit("POST", {}, opts)
         ),
     },
   },

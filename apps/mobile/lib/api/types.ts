@@ -487,6 +487,10 @@ export type ManuscriptTargetResponse = {
   target: ManuscriptTarget | null;
 };
 
+export type ReminderNudgeResponse = {
+  body: string | null;
+};
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

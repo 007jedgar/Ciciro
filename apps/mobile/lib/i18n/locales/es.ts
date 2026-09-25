@@ -444,6 +444,9 @@ const es: Translations = {
     enabledHint: "Desactívalo para guardar el recordatorio sin una notificación.",
     openSprint: "Abrir un sprint",
     openSprintHint: "La notificación te lleva a un sprint de 15 o 25 minutos de este manuscrito.",
+    suggestHour: "Sueles escribir hacia las {{time}}. ¿Usar esa hora?",
+    suggestHourAccept: "Usar esta hora",
+    suggestHourDismiss: "Dejar la mía",
     paused: "Apagado por ahora. El teléfono se queda en silencio.",
     off: "Apagado",
     notify: {

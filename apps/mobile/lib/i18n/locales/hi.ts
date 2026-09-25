@@ -443,6 +443,9 @@ const hi: Translations = {
     enabledHint: "सूचना के बिना अनुस्मारक रखने के लिए इसे बंद करें।",
     openSprint: "स्प्रिंट खोलें",
     openSprintHint: "सूचना इस पांडुलिपि के 15 या 25 मिनट के स्प्रिंट पर ले जाती है।",
+    suggestHour: "आप आमतौर पर {{time}} के आसपास लिखते हैं। वही समय रखें?",
+    suggestHourAccept: "यह समय रखें",
+    suggestHourDismiss: "मेरा ही रहने दें",
     paused: "अभी बंद है। फ़ोन चुप रहेगा।",
     off: "बंद",
     notify: {
