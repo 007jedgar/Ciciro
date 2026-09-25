@@ -62,11 +62,25 @@ function wrapBareListItems(html: string): string {
   return html.replace(/(?:<li\b[^>]*>[\s\S]*?<\/li>\s*)+/gi, (run) => `<ul>${run}</ul>`);
 }
 
+/**
+ * Enriched's iOS parser only treats a string as HTML once it is at least this
+ * long (or already wrapped in `<html>`). Shorter markup, including a new
+ * chapter's `<p></p>`, is inserted as plain text.
+ */
+const ENRICHED_MIN_PARSED_HTML = 13;
+
+function ensureEnrichedParses(html: string): string {
+  if (html.replace(/\s+/g, "").length >= ENRICHED_MIN_PARSED_HTML) return html;
+  return `<html>${html}</html>`;
+}
+
 /** Ciciro stamped HTML → what EnrichedTextInput will parse. */
 export function toEnrichedHtml(html: string): string {
   const stripped = stripBlockIds(html.trim());
-  if (!stripped) return "<p></p>";
-  return wrapBareListItems(hrToParagraph(canonicalizeInline(stripped)));
+  const body = !stripped
+    ? "<p></p>"
+    : wrapBareListItems(hrToParagraph(canonicalizeInline(stripped)));
+  return ensureEnrichedParses(body);
 }
 
 /** Enriched getHTML() → Ciciro-shaped blocks, still without durable ids. */

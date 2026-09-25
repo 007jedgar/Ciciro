@@ -21,6 +21,22 @@ jest.mock("../lib/writing-day-session", () => ({
   useWritingDay: jest.fn(() => ({ date: "2026-09-14", words: 40, activeMs: 0 })),
 }));
 
+jest.mock("../lib/api", () => ({
+  useWritingDaysQuery: jest.fn(() => ({
+    data: { days: [{ date: "2026-09-12", words: 100, activeMs: 1_000 }] },
+    isPending: false,
+    isError: false,
+  })),
+}));
+
+jest.mock("../lib/session", () => ({
+  useSession: () => ({ user: { id: "u1" }, ready: true }),
+}));
+
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 const useWritingDayMock = useWritingDay as jest.MockedFunction<typeof useWritingDay>;
 
 function wrap(ui: ReactNode, settings = defaultSettings()) {

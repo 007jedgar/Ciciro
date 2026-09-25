@@ -170,6 +170,18 @@ export function useSettingsQuery(options?: Enabled) {
   });
 }
 
+export function useWritingDaysQuery(
+  from: string,
+  to: string,
+  options?: Enabled
+) {
+  return useQuery({
+    queryKey: queryKeys.writing.days(from, to),
+    queryFn: () => ciciro.writing.days.get(from, to),
+    enabled: (options?.enabled ?? true) && Boolean(from && to),
+  });
+}
+
 export function useProjectsQuery(
   options?: Enabled & Pick<UseQueryOptions<ProjectListItem[]>, "staleTime">
 ) {

@@ -1098,6 +1098,89 @@ textarea {
   background: var(--accent);
   border-radius: inherit;
 }
+.writing-meter-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+}
+.writing-meter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.writing-meter-week {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.writing-history-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 280px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  z-index: 50;
+}
+.writing-heatmap {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin: 0 4px 10px;
+}
+.writing-heat-cell {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 3px;
+}
+.writing-history-stats {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.writing-history-stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+  font-size: 12.5px;
+}
+.writing-history-stats dt {
+  color: var(--ink-soft);
+}
+.writing-history-stats dd {
+  margin: 0;
+  text-align: right;
+  color: var(--ink);
+}
+
+.manuscript-pace {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  align-self: center;
+}
+.manuscript-pace-link {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  align-self: center;
+  white-space: nowrap;
+}
 
 .home-top {
   display: flex;

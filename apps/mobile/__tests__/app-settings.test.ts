@@ -24,6 +24,7 @@ describe("app settings", () => {
     expect(s.reduceMotion).toBe(true);
     expect(s.chatWidth).toBe(720);
     expect(s.dailyWordGoal).toBe(250);
+    expect(s.weeklyDayTarget).toBe(4);
     expect(s.showDailyGoal).toBe(true);
     expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);
@@ -38,10 +39,16 @@ describe("app settings", () => {
       autoCorrect: true,
       reduceMotion: false,
       dailyWordGoal: 250,
+      weeklyDayTarget: 4,
       showDailyGoal: true,
       formatChrome: "smart",
       updatedAt: SETTINGS_EPOCH,
     });
+  });
+
+  it("clamps weekly day targets into 1–7", () => {
+    expect(normalizeSettings({ weeklyDayTarget: 9 }).weeklyDayTarget).toBe(7);
+    expect(normalizeSettings({ weeklyDayTarget: 0 }).weeklyDayTarget).toBe(1);
   });
 
   it("applies patches without dropping other fields", () => {

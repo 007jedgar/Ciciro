@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react-native";
+import { render, waitFor } from "@testing-library/react-native";
 import { WritingReminderSync, resetWritingReminderLaunchGateForTests } from "../components/WritingReminderSync";
 import {
   claimLaunchNotificationResponse,
@@ -33,8 +33,26 @@ jest.mock("../lib/session", () => ({
   useSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
 }));
 
+jest.mock("../lib/settings", () => ({
+  useAppTheme: () => ({
+    settings: { dailyWordGoal: 250 },
+  }),
+}));
+
+jest.mock("../lib/writing-day-session", () => ({
+  useWritingDay: () => ({ date: "2026-01-05", words: 0, activeMs: 0 }),
+  getWritingDaySnapshot: () => ({ date: "2026-01-05", words: 0, activeMs: 0 }),
+}));
+
 jest.mock("../lib/api", () => ({
   useProjectsQuery: () => ({ data: mockProjectsData }),
+  ciciro: {
+    projects: {
+      reminderNudge: {
+        post: jest.fn(async () => ({ body: null })),
+      },
+    },
+  },
 }));
 
 jest.mock("../lib/writing-reminder-notifications", () => ({
@@ -212,7 +230,7 @@ describe("WritingReminderSync", () => {
     expect(mockCommitReminders).not.toHaveBeenCalled();
   });
 
-  it("prunes reminders for missing manuscripts then publishes with real titles", () => {
+  it("prunes reminders for missing manuscripts then publishes with real titles", async () => {
     const keep = newWritingReminder({ id: "alive", projectId: "p1" });
     const drop = newWritingReminder({ id: "dead", projectId: "gone" });
     mockLoadReminders.mockReturnValue([keep, drop]);
@@ -221,23 +239,27 @@ describe("WritingReminderSync", () => {
     render(<WritingReminderSync />);
 
     expect(mockCommitReminders).toHaveBeenCalledWith("u1", [keep]);
-    expect(mockPublish).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "u1",
-        titles: { p1: "Night Watch" },
-        requestPermission: false,
-      })
+    await waitFor(() =>
+      expect(mockPublish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "u1",
+          titles: { p1: "Night Watch" },
+          requestPermission: false,
+        })
+      )
     );
   });
 
-  it("publishes with an empty title map when the author has no manuscripts", () => {
+  it("publishes with an empty title map when the author has no manuscripts", async () => {
     mockProjectsData = [];
     render(<WritingReminderSync />);
 
-    expect(mockPublish).toHaveBeenCalledWith(
-      expect.objectContaining({
-        titles: {},
-      })
+    await waitFor(() =>
+      expect(mockPublish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          titles: {},
+        })
+      )
     );
     expect(mockCommitReminders).not.toHaveBeenCalled();
   });

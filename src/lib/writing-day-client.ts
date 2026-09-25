@@ -6,10 +6,17 @@ import {
   WritingDayAccumulator,
   type WritingDayTotals,
 } from "@/lib/writing-day";
+import {
+  SITTING_IDLE_MS,
+  WritingSessionTracker,
+  type WritingSessionTotals,
+} from "@/lib/writing-session";
 
 type ServerDay = WritingDayTotals & { updatedAt?: string };
 
 let acc = new WritingDayAccumulator();
+const sittings = new WritingSessionTracker();
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
 let cachedSnapshot: WritingDayTotals | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -38,6 +45,36 @@ async function sendHeartbeat(delta: WritingDayTotals): Promise<ServerDay | null>
   if (!res.ok) return null;
   const body = (await res.json()) as { day?: ServerDay };
   return body.day ?? null;
+}
+
+async function sendSitting(session: WritingSessionTotals): Promise<void> {
+  try {
+    await fetch("/api/writing/sessions", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(session),
+    });
+  } catch {
+    /* sitting is already closed locally */
+  }
+}
+
+function scheduleSittingIdle(): void {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    const closed = sittings.checkIdle(Date.now());
+    if (closed) void sendSitting(closed);
+  }, SITTING_IDLE_MS + 50);
+}
+
+function recordSitting(closed: WritingSessionTotals | null): void {
+  if (closed) void sendSitting(closed);
+  if (sittings.open) scheduleSittingIdle();
+  else if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
 }
 
 async function fetchDay(date: string): Promise<ServerDay | null> {
@@ -110,6 +147,7 @@ export function subscribeWritingDay(listener: () => void): () => void {
 export function noteWritingStroke(now = Date.now()): void {
   bindVisibility();
   const leftover = acc.noteStroke(now);
+  recordSitting(sittings.noteStroke(now));
   emit();
   void flushLeftover(leftover);
   scheduleFlush();
@@ -118,9 +156,21 @@ export function noteWritingStroke(now = Date.now()): void {
 export function noteWritingWords(delta: number, now = Date.now()): void {
   bindVisibility();
   const leftover = acc.noteWords(delta, now);
+  recordSitting(sittings.noteWords(delta, now));
   emit();
   void flushLeftover(leftover);
   scheduleFlush();
+}
+
+/** Close the open sitting (sprint end). Returns the closed row if any. */
+export function closeWritingSitting(now = Date.now()): WritingSessionTotals | null {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  const closed = sittings.close(now);
+  if (closed) void sendSitting(closed);
+  return closed;
 }
 
 export async function hydrateWritingDay(): Promise<void> {
@@ -148,8 +198,42 @@ export function resetWritingDayClient(now = Date.now()): void {
     clearTimeout(timer);
     timer = null;
   }
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+  const closed = sittings.close(now);
+  if (closed) void sendSitting(closed);
   acc.reset(now);
   emit();
+}
+
+export async function fetchWritingDays(
+  from: string,
+  to: string
+): Promise<WritingDayTotals[] | null> {
+  const res = await fetch(
+    `/api/writing/days?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    { credentials: "include" }
+  );
+  if (!res.ok) return null;
+  const body = (await res.json()) as { days?: WritingDayTotals[] };
+  return Array.isArray(body.days)
+    ? body.days.map((day) => ({
+        date: day.date,
+        words: day.words,
+        activeMs: day.activeMs,
+      }))
+    : null;
+}
+
+export async function fetchWritingSessions(limit = 50): Promise<WritingSessionTotals[] | null> {
+  const res = await fetch(`/api/writing/sessions?limit=${encodeURIComponent(String(limit))}`, {
+    credentials: "include",
+  });
+  if (!res.ok) return null;
+  const body = (await res.json()) as { sessions?: WritingSessionTotals[] };
+  return Array.isArray(body.sessions) ? body.sessions : null;
 }
 
 /** Test seam: swap the accumulator without exposing it to the UI. */

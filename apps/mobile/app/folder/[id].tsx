@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStackBack } from "../../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../../components/AppHeader";
+import { FolderTitleEditor } from "../../components/FolderTitleEditor";
+import { PlusIcon } from "../../components/icons";
 import { SkeletonList } from "../../components/Skeleton";
 import {
   ApiError,
@@ -35,7 +38,8 @@ export default function FolderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const folderId = typeof id === "string" ? id : "";
   const { user, ready } = useSession();
-  const { layout, colors, settings } = useAppTheme();
+  const { layout, colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const headerHeight = useAppHeaderHeight();
 
   const folderQuery = useFolderQuery(folderId, { enabled: Boolean(user) && Boolean(folderId) });
@@ -46,20 +50,7 @@ export default function FolderScreen() {
   const removeProjects = useRemoveProjectsFromFolderMutation();
 
   const folder = folderQuery.data ?? null;
-  const [name, setName] = useState("");
-  const [notes, setNotes] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
-
-  // Seed the inputs once per folder so a background refetch never clobbers an
-  // in-progress edit.
-  const seededRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (folder && seededRef.current !== folder.id) {
-      seededRef.current = folder.id;
-      setName(folder.name);
-      setNotes(folder.notes);
-    }
-  }, [folder]);
 
   const unfiled = useMemo(
     () => (projectsQuery.data ?? []).filter((project) => !project.folderId),
@@ -80,18 +71,6 @@ export default function FolderScreen() {
     ? errorText(folderQuery.error, t("folder.loadError"))
     : null;
   const error = actionError ?? loadError;
-
-  const dirty = folder ? name.trim() !== folder.name || notes.trim() !== folder.notes : false;
-  const saving = patchFolder.isPending;
-
-  function save() {
-    if (!folder || !dirty || saving) return;
-    setActionError(null);
-    patchFolder.mutate(
-      { id: folder.id, body: { name: name.trim(), notes: notes.trim() } },
-      { onError: (err) => setActionError(errorText(err, t("folder.saveError"))) }
-    );
-  }
 
   function confirmDelete() {
     if (!folder) return;
@@ -138,7 +117,11 @@ export default function FolderScreen() {
         floating
       />
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 20, paddingBottom: 48 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingTop: headerHeight + 20,
+          paddingBottom: insets.bottom + 96,
+        }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >
         {error ? (
@@ -150,49 +133,16 @@ export default function FolderScreen() {
           <SkeletonList count={5} accessibilityLabel={t("common.loading")} />
         ) : folder ? (
           <>
-            <TextInput
-              style={layout.input}
-              aria-label={t("newFolder.nameLabel")}
-              value={name}
-              onChangeText={setName}
-              placeholder={t("newFolder.nameLabel")}
-              placeholderTextColor={colors.inkSoft}
-              autoCorrect={settings.autoCorrect}
+            <FolderTitleEditor
+              name={folder.name}
+              notes={folder.notes}
+              onSave={async (nextName, nextNotes) => {
+                await patchFolder.mutateAsync({
+                  id: folder.id,
+                  body: { name: nextName, notes: nextNotes },
+                });
+              }}
             />
-            <TextInput
-              style={[layout.input, { minHeight: 88, textAlignVertical: "top" }]}
-              aria-label={t("newFolder.notesLabel")}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={t("newFolder.notesPlaceholder")}
-              placeholderTextColor={colors.inkSoft}
-              multiline
-              autoCorrect={settings.autoCorrect}
-            />
-            {dirty ? (
-              <Pressable
-                style={[layout.primaryBtn, { marginBottom: 16 }]}
-                onPress={save}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityLabel={t("folder.saveA11y")}
-              >
-                <Text style={layout.primaryBtnText}>
-                  {saving ? t("common.saving") : t("common.save")}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <Pressable
-              style={[layout.primaryBtn, { marginBottom: 16 }]}
-              onPress={() =>
-                router.push({ pathname: "/new-manuscript", params: { folderId: folder.id } })
-              }
-              accessibilityRole="button"
-              accessibilityLabel={t("folder.startNewA11y")}
-            >
-              <Text style={layout.primaryBtnText}>{t("folder.startNew")}</Text>
-            </Pressable>
 
             {folder.projects.length === 0 ? (
               <Text style={[layout.body, { marginBottom: 16 }]}>{t("folder.empty")}</Text>
@@ -257,6 +207,41 @@ export default function FolderScreen() {
           </>
         ) : null}
       </ScrollView>
+      {folder ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("folder.startNewA11y")}
+          onPress={() =>
+            router.push({ pathname: "/new-manuscript", params: { folderId: folder.id } })
+          }
+          style={[
+            styles.fab,
+            {
+              backgroundColor: colors.accent,
+              shadowColor: colors.accent,
+              bottom: insets.bottom + 16,
+            },
+          ]}
+        >
+          <PlusIcon color={colors.panel} size={22} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    right: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+});

@@ -56,6 +56,7 @@ describe("writing reminders", () => {
         minute: 0,
         days: [0, 1],
         enabled: true,
+        openSprint: false,
       },
       {
         id: "book",
@@ -65,8 +66,23 @@ describe("writing reminders", () => {
         minute: 30,
         days: [1, 3, 5],
         enabled: false,
+        openSprint: false,
       },
     ]);
+  });
+
+  it("points a manuscript reminder at a sprint when asked", () => {
+    const now = Date.UTC(2026, 0, 5, 12, 0, 0); // Monday noon UTC — local may vary; use fixed clock via local
+    const planned = planReminderNotifications(
+      [reminder({ id: "sprint", projectId: "p1", openSprint: true, days: [...WEEKDAYS], hour: 20 })],
+      { p1: "Night Watch" },
+      t,
+      { now: new Date(2026, 0, 5, 12, 0, 0).getTime() }
+    );
+    expect(planned).toHaveLength(1);
+    expect(planned[0]?.data.href).toBe("/project/p1/sprint");
+    expect(planned[0]?.identifier).toBe("ciciro.reminder.sprint.next");
+    expect(planned[0]?.trigger.kind).toBe("date");
   });
 
   it("refuses an 11th reminder and replaces an existing one", () => {
@@ -97,36 +113,62 @@ describe("writing reminders", () => {
     expect(book.body).not.toBe(general.body);
   });
 
-  it("schedules every day as one daily notification and chosen days as weekly ones", () => {
+  it("schedules only the next occurrence, and skips today when the daily goal is met", () => {
+    const mondayMorning = new Date(2026, 0, 5, 7, 0, 0).getTime(); // Mon 7am
     const planned = planReminderNotifications(
       [
-        reminder({ id: "daily", days: [...WEEKDAYS] }),
+        reminder({ id: "daily", days: [...WEEKDAYS], hour: 8, minute: 0 }),
         reminder({ id: "quiet", enabled: false, projectId: "p1" }),
         reminder({ id: "book", projectId: "p1", days: [0, 3], hour: 21, minute: 15, wordGoal: 500 }),
       ],
       { p1: "Night Watch" },
-      t
+      t,
+      { now: mondayMorning, todayWords: 0, dailyWordGoal: 250 }
     );
 
     expect(planned.map((item) => item.identifier)).toEqual([
-      "ciciro.reminder.daily.daily",
-      "ciciro.reminder.book.w0",
-      "ciciro.reminder.book.w3",
+      "ciciro.reminder.daily.next",
+      "ciciro.reminder.book.next",
     ]);
     expect(planned[0]).toMatchObject({
       title: "Time to write",
       body: "250 words today.",
-      trigger: { kind: "daily", hour: 8, minute: 0 },
+      trigger: { kind: "date", at: new Date(2026, 0, 5, 8, 0, 0).getTime() },
       data: { href: "/manuscripts", projectId: null },
     });
+    // Mon is not Sun(0) or Wed(3); next is Wed 21:15
     expect(planned[1]).toMatchObject({
       title: "Time to write Night Watch",
       body: "500 words on Night Watch.",
-      trigger: { kind: "weekly", weekday: 0, hour: 21, minute: 15 },
+      trigger: { kind: "date", at: new Date(2026, 0, 7, 21, 15, 0).getTime() },
       data: { href: "/project/p1/chapters", projectId: "p1" },
+    });
+
+    const afterGoal = planReminderNotifications(
+      [reminder({ id: "daily", days: [...WEEKDAYS], hour: 8, minute: 0 })],
+      {},
+      t,
+      { now: mondayMorning, todayWords: 250, dailyWordGoal: 250 }
+    );
+    expect(afterGoal[0]?.trigger).toEqual({
+      kind: "date",
+      at: new Date(2026, 0, 6, 8, 0, 0).getTime(),
     });
     expect(expoWeekday(0)).toBe(1);
     expect(expoWeekday(6)).toBe(7);
+  });
+
+  it("applies a scene body override when provided", () => {
+    const planned = planReminderNotifications(
+      [reminder({ id: "book", projectId: "p1", days: [...WEEKDAYS], hour: 21 })],
+      { p1: "Night Watch" },
+      t,
+      {
+        now: new Date(2026, 0, 5, 12, 0, 0).getTime(),
+        bodyOverrides: { book: "Mara found the letter.\n\nWhat does she do?" },
+      }
+    );
+    expect(planned[0]?.body).toBe("Mara found the letter.\n\nWhat does she do?");
   });
 
   it("wraps the clock and summarizes days", () => {
@@ -192,7 +234,9 @@ describe("syncScheduledReminders", () => {
     return api;
   }
 
-  const planned = planReminderNotifications([reminder()], {}, t);
+  const planned = planReminderNotifications([reminder({ hour: 20 })], {}, t, {
+    now: new Date(2026, 0, 5, 12, 0, 0).getTime(),
+  });
 
   it("replaces writing reminders and leaves other notifications in place", async () => {
     const api = client({
@@ -245,21 +289,25 @@ describe("syncScheduledReminders", () => {
   it("reports partial when some schedules fail", async () => {
     const api = client({});
     api.schedule = jest.fn(async (item: PlannedReminderNotification) => {
-      if (item.identifier.endsWith(".w3")) throw new Error("quota");
+      if (item.identifier.endsWith(".next") && item.data.reminderId === "book") {
+        // fail the only planned next-fire for the weekly-style reminder
+        throw new Error("quota");
+      }
       api.scheduled.push(item);
     });
     const weekly = planReminderNotifications(
-      [reminder({ id: "book", days: [0, 3], projectId: "p1" })],
+      [reminder({ id: "book", days: [0, 3], projectId: "p1", hour: 21 })],
       { p1: "Night Watch" },
-      t
+      t,
+      { now: new Date(2026, 0, 5, 12, 0, 0).getTime() }
     );
-    expect(weekly).toHaveLength(2);
+    expect(weekly).toHaveLength(1);
 
     const result = await syncScheduledReminders(weekly, [], api, { requestPermission: false });
 
     expect(result.status).toBe("partial");
-    expect(result.identifiers).toEqual(["ciciro.reminder.book.w0"]);
-    expect(api.scheduled).toHaveLength(1);
+    expect(result.identifiers).toEqual([]);
+    expect(api.scheduled).toHaveLength(0);
   });
 
   it("reports partial when every schedule fails", async () => {

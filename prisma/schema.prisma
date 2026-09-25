@@ -23,6 +23,7 @@ model User {
   folders           Folder[]
   readingPositions  ReadingPosition[]
   writingDays       WritingDay[]
+  writingSessions   WritingSession[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -81,12 +82,27 @@ model Project {
   chapterOps        ChapterOp[]
   bibleFiles        BibleFile[]
   readingPositions  ReadingPosition[]
+  manuscriptTarget  ManuscriptTarget?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, updatedAt])
   @@index([folderId])
+}
+
+// A word goal and deadline for one manuscript. Pace is derived from chapter
+// word counts (not WritingDay), so falling behind raises tomorrow's number.
+model ManuscriptTarget {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  wordGoal  Int
+  deadline  String // YYYY-MM-DD inclusive
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 // A named grouping for an author's manuscripts. Deleting a folder unfiles
@@ -206,7 +222,8 @@ model ReadingPosition {
 }
 
 // Per-author daily writing: words added and active typing time. Desk and phone
-// heartbeats on the same YYYY-MM-DD merge. There is no streak.
+// heartbeats on the same YYYY-MM-DD merge. A kind weekly target counts days with
+// words > 0 in a rolling 7-day window; there is no stored streak to break.
 model WritingDay {
   id     String @id @default(cuid())
   userId String
@@ -221,6 +238,26 @@ model WritingDay {
 
   @@unique([userId, date])
   @@index([userId])
+}
+
+// One continuous sitting at the keys. Starts on the first keystroke and ends
+// after five minutes without one (or when a sprint closes). History prefers
+// the mean duration of these rows once a few exist; until then it falls back
+// to average activeMs per writing day.
+model WritingSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  startedAt DateTime
+  endedAt   DateTime
+  words     Int @default(0)
+  activeMs  Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, startedAt])
 }
 
 // A correction the editor applied via edit_manuscript - the raw find/replace

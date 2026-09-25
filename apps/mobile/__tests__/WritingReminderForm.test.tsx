@@ -43,6 +43,7 @@ describe("WritingReminderForm", () => {
       minute: 0,
       days: [...WEEKDAYS],
       enabled: true,
+      openSprint: false,
     });
   });
 

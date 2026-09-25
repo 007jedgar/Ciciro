@@ -31,9 +31,12 @@ import type {
   ImportResult,
   LoginRequest,
   ManuscriptEdit,
+  ManuscriptTargetPutRequest,
+  ManuscriptTargetResponse,
   NdjsonEvent,
   OkResponse,
   OpenQuestion,
+  ReminderNudgeResponse,
   PlotPoint,
   PlotPointCreateRequest,
   PlotPointPatchRequest,
@@ -53,6 +56,10 @@ import type {
   SignupRequest,
   WritingDayPutRequest,
   WritingDayResponse,
+  WritingDaysResponse,
+  WritingSessionPostRequest,
+  WritingSessionResponse,
+  WritingSessionsResponse,
   SyncAfter,
   SyncPushRequest,
   SyncResult,
@@ -136,6 +143,19 @@ export const ciciro = {
       put: (body: WritingDayPutRequest, opts?: RequestOpts) =>
         api<WritingDayResponse>("/api/writing/day", jsonInit("PUT", body, opts)),
     },
+    days: {
+      get: (from: string, to: string, opts?: RequestOpts) =>
+        api<WritingDaysResponse>(`/api/writing/days${queryString({ from, to })}`, opts),
+    },
+    sessions: {
+      list: (limit = 50, opts?: RequestOpts) =>
+        api<WritingSessionsResponse>(
+          `/api/writing/sessions${queryString({ limit: String(limit) })}`,
+          opts
+        ),
+      post: (body: WritingSessionPostRequest, opts?: RequestOpts) =>
+        api<WritingSessionResponse>("/api/writing/sessions", jsonInit("POST", body, opts)),
+    },
   },
 
   projects: {
@@ -158,6 +178,27 @@ export const ciciro = {
         api<ReadingPositionResponse>(
           `/api/projects/${encodeURIComponent(id)}/position`,
           jsonInit("PUT", body, opts)
+        ),
+    },
+    target: {
+      get: (id: string, opts?: RequestOpts) =>
+        api<ManuscriptTargetResponse>(`/api/projects/${encodeURIComponent(id)}/target`, opts),
+      put: (id: string, body: ManuscriptTargetPutRequest, opts?: RequestOpts) =>
+        api<ManuscriptTargetResponse>(
+          `/api/projects/${encodeURIComponent(id)}/target`,
+          jsonInit("PUT", body, opts)
+        ),
+      delete: (id: string, opts?: RequestOpts) =>
+        api<OkResponse>(
+          `/api/projects/${encodeURIComponent(id)}/target`,
+          jsonInit("DELETE", undefined, opts)
+        ),
+    },
+    reminderNudge: {
+      post: (id: string, opts?: RequestOpts) =>
+        api<ReminderNudgeResponse>(
+          `/api/projects/${encodeURIComponent(id)}/reminder-nudge`,
+          jsonInit("POST", {}, opts)
         ),
     },
   },

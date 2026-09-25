@@ -15,9 +15,10 @@ import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
-type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal";
+type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
 
 const WORD_GOALS = [100, 250, 500] as const;
+const WEEKLY_TARGETS = [3, 4, 5, 6, 7] as const;
 
 function Group({ children, colors }: { children: ReactNode; colors: ColorTokens }) {
   return (
@@ -251,7 +252,9 @@ export default function SettingsScreen() {
               ? t("settings.formatting")
               : sheet === "goal"
                 ? t("settings.wordGoal")
-                : undefined;
+                : sheet === "weekly"
+                  ? t("settings.weeklyTarget")
+                  : undefined;
 
   return (
     <View style={layout.screen}>
@@ -317,20 +320,28 @@ export default function SettingsScreen() {
           />
           <ToggleRow
             label={t("settings.dailyGoal")}
-            hint={t("settings.dailyGoalHint")}
+            hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
             value={settings.showDailyGoal}
             onValueChange={(showDailyGoal) => patch({ showDailyGoal })}
             colors={colors}
             last={!settings.showDailyGoal}
           />
           {settings.showDailyGoal ? (
-            <SheetRow
-              label={t("settings.wordGoal")}
-              value={t("settings.dailyGoalValue", { count: settings.dailyWordGoal })}
-              onPress={() => setSheet("goal")}
-              colors={colors}
-              last
-            />
+            <>
+              <SheetRow
+                label={t("settings.wordGoal")}
+                value={t("settings.dailyGoalValue", { count: settings.dailyWordGoal })}
+                onPress={() => setSheet("goal")}
+                colors={colors}
+              />
+              <SheetRow
+                label={t("settings.weeklyTarget")}
+                value={t("settings.weeklyTargetValue", { count: settings.weeklyDayTarget })}
+                onPress={() => setSheet("weekly")}
+                colors={colors}
+                last
+              />
+            </>
           ) : null}
         </Group>
 
@@ -468,6 +479,20 @@ export default function SettingsScreen() {
                 colors={colors}
                 onPress={() => {
                   patch({ dailyWordGoal: goal });
+                  setSheet(null);
+                }}
+              />
+            ))
+          : null}
+        {sheet === "weekly"
+          ? WEEKLY_TARGETS.map((days) => (
+              <OptionRow
+                key={days}
+                label={t("settings.weeklyTargetValue", { count: days })}
+                selected={settings.weeklyDayTarget === days}
+                colors={colors}
+                onPress={() => {
+                  patch({ weeklyDayTarget: days });
                   setSheet(null);
                 }}
               />

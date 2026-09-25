@@ -12,6 +12,7 @@ import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
+import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
 import { useSettings } from "@/components/SettingsProvider";
 import { countWords, htmlToText } from "@/lib/text";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
@@ -471,6 +472,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         </Link>
         <span className="title">{project.title}</span>
         <WritingMeter />
+        <ManuscriptPaceMeter projectId={project.id} />
         <span className="spacer" />
         <span className="save-state">
           {saveState === "saving"

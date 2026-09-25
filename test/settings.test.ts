@@ -28,6 +28,7 @@ describe("app settings", () => {
     expect(s.reduceMotion).toBe(true);
     expect(s.chatWidth).toBe(720);
     expect(s.dailyWordGoal).toBe(250);
+    expect(s.weeklyDayTarget).toBe(4);
     expect(s.showDailyGoal).toBe(true);
     expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);
@@ -73,6 +74,8 @@ describe("app settings", () => {
       dailyWordGoal: 250,
       showDailyGoal: false,
     });
+    expect(parseSettingsPatch({ weeklyDayTarget: 9 })).toEqual({ weeklyDayTarget: 7 });
+    expect(parseSettingsPatch({ weeklyDayTarget: 0 })).toEqual({ weeklyDayTarget: 1 });
     expect(parseSettingsPatch({ theme: "sage" })).toEqual({ theme: "sage" });
   });
 

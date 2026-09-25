@@ -46,6 +46,7 @@ const RESOURCES: ResourceCase[] = [
         reduceMotion: true,
         chatWidth: 380,
         dailyWordGoal: 250,
+        weeklyDayTarget: 4,
         showDailyGoal: true,
         formatChrome: "smart",
         updatedAt: "2026-01-01T00:00:00.000Z",
@@ -60,6 +61,7 @@ const RESOURCES: ResourceCase[] = [
       reduceMotion: true,
       chatWidth: 380,
       dailyWordGoal: 250,
+      weeklyDayTarget: 4,
       showDailyGoal: true,
       formatChrome: "smart",
       updatedAt: "2026-01-01T00:00:00.000Z",
@@ -69,6 +71,36 @@ const RESOURCES: ResourceCase[] = [
     name: "writing.day.get",
     run: () => ciciro.writing.day.get("2026-09-12"),
     path: /\/api\/writing\/day\?date=2026-09-12$/,
+  },
+  {
+    name: "writing.days.get",
+    run: () => ciciro.writing.days.get("2026-09-01", "2026-09-14"),
+    path: /\/api\/writing\/days\?from=2026-09-01&to=2026-09-14$/,
+  },
+  {
+    name: "writing.sessions.list",
+    run: () => ciciro.writing.sessions.list(20),
+    path: /\/api\/writing\/sessions\?limit=20$/,
+  },
+  {
+    name: "writing.sessions.post",
+    run: () =>
+      ciciro.writing.sessions.post({
+        projectId: null,
+        startedAt: 1_000,
+        endedAt: 2_000,
+        words: 12,
+        activeMs: 500,
+      }),
+    method: "POST",
+    path: /\/api\/writing\/sessions$/,
+    body: {
+      projectId: null,
+      startedAt: 1_000,
+      endedAt: 2_000,
+      words: 12,
+      activeMs: 500,
+    },
   },
   {
     name: "writing.day.put",

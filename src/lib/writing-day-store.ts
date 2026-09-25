@@ -3,6 +3,7 @@ import { AuthError, type PublicUser } from "@/lib/auth/session";
 import {
   parseWritingDayDate,
   parseWritingDayPut,
+  parseWritingDayRange,
   type WritingDayTotals,
 } from "@/lib/writing-day";
 
@@ -34,6 +35,24 @@ export async function getWritingDay(
     where: { userId_date: { userId: user.id, date } },
   });
   return row ? toRecord(row) : emptyDay(date);
+}
+
+export async function getWritingDays(
+  user: PublicUser | null,
+  fromValue: unknown,
+  toValue: unknown
+): Promise<WritingDayRecord[]> {
+  if (!user) throw new AuthError("Authentication required.", 401);
+  const range = parseWritingDayRange(fromValue, toValue);
+  if ("error" in range) throw new AuthError(range.error, 400);
+  const rows = await prisma.writingDay.findMany({
+    where: {
+      userId: user.id,
+      date: { gte: range.from, lte: range.to },
+    },
+    orderBy: { date: "asc" },
+  });
+  return rows.map(toRecord);
 }
 
 export async function putWritingDay(

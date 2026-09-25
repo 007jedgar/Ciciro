@@ -79,6 +79,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 reduceMotion: next.reduceMotion,
                 chatWidth: next.chatWidth,
                 dailyWordGoal: next.dailyWordGoal,
+                weeklyDayTarget: next.weeklyDayTarget,
                 showDailyGoal: next.showDailyGoal,
               });
         void syncRequest.catch(() => {});

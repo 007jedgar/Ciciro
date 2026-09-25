@@ -8,6 +8,12 @@ import {
 import { htmlToDoc } from "../lib/manuscript";
 
 describe("enriched html adapter", () => {
+  it("wraps an empty chapter so the editor does not show the paragraph tags", () => {
+    expect(toEnrichedHtml("")).toBe("<html><p></p></html>");
+    expect(toEnrichedHtml('<p data-block-id="a"></p>')).toBe("<html><p></p></html>");
+    expect(toEnrichedHtml("<p>Hi</p>")).toBe("<html><p>Hi</p></html>");
+  });
+
   it("strips block ids and wraps lists for the native input", () => {
     const ciciro =
       '<p data-block-id="a">Hello <strong>there</strong>.</p><li data-block-id="b">Item</li><hr data-block-id="c" />';

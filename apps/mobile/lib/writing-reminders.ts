@@ -28,13 +28,13 @@ export type WritingReminder = {
   minute: number;
   days: Weekday[];
   enabled: boolean;
+  /** When set with a projectId, the notification opens a sprint. */
+  openSprint: boolean;
 };
 
 export type ReminderTranslate = (key: string, options?: Record<string, unknown>) => string;
 
-export type ReminderTrigger =
-  | { kind: "daily"; hour: number; minute: number }
-  | { kind: "weekly"; weekday: Weekday; hour: number; minute: number };
+export type ReminderTrigger = { kind: "date"; at: number };
 
 export type PlannedReminderNotification = {
   identifier: string;
@@ -47,6 +47,14 @@ export type PlannedReminderNotification = {
     projectId: string | null;
     href: string;
   };
+};
+
+export type PlanReminderOptions = {
+  now?: number;
+  todayWords?: number;
+  dailyWordGoal?: number;
+  /** Per-reminder body overrides (scene nudge). */
+  bodyOverrides?: Readonly<Record<string, string>>;
 };
 
 export function createWritingReminderId(
@@ -68,6 +76,7 @@ export function newWritingReminder(input: {
     minute: DEFAULT_REMINDER_MINUTE,
     days: [...WEEKDAYS],
     enabled: true,
+    openSprint: false,
   };
 }
 
@@ -113,6 +122,7 @@ export function parseWritingReminder(raw: unknown): WritingReminder | null {
     minute: src.minute,
     days,
     enabled: src.enabled === false ? false : true,
+    openSprint: src.openSprint === true && typeof src.projectId === "string",
   };
 }
 
@@ -181,7 +191,8 @@ export function reminderDaySummary(days: readonly Weekday[], t: ReminderTranslat
   return days.map((day) => t(`reminders.dayShort.${DAY_KEYS[day]}`)).join(" ");
 }
 
-export function reminderHref(projectId: string | null): string {
+export function reminderHref(projectId: string | null, openSprint = false): string {
+  if (projectId && openSprint) return `/project/${projectId}/sprint`;
   return projectId ? `/project/${projectId}/chapters` : "/manuscripts";
 }
 
@@ -205,42 +216,86 @@ export function reminderNotificationText(
   };
 }
 
+/**
+ * Next local fire time for a reminder. When `skipToday` is set (today’s word
+ * goal already met), today’s slot is skipped even if it is still in the future.
+ */
+export function nextReminderAtMs(
+  days: readonly Weekday[],
+  hour: number,
+  minute: number,
+  nowMs: number,
+  opts?: { skipToday?: boolean }
+): number | null {
+  if (days.length === 0) return null;
+  const selected = new Set<number>(days);
+  const skipToday = opts?.skipToday === true;
+  const now = new Date(nowMs);
+
+  for (let offset = 0; offset <= 8; offset++) {
+    if (skipToday && offset === 0) continue;
+    const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, hour, minute, 0, 0);
+    if (!selected.has(candidate.getDay())) continue;
+    if (candidate.getTime() > nowMs) return candidate.getTime();
+  }
+  return null;
+}
+
+export function todayWordGoalMet(todayWords: number, dailyWordGoal: number): boolean {
+  return dailyWordGoal > 0 && todayWords >= dailyWordGoal;
+}
+
+/** Scene nudge body: last sentences, then one short Ciciro line. */
+export function composeSceneReminderBody(excerpt: string, nudgeLine: string): string {
+  const excerptText = excerpt.trim();
+  const nudge = nudgeLine.trim();
+  if (!excerptText) return nudge;
+  if (!nudge) return excerptText;
+  return `${excerptText}\n\n${nudge}`;
+}
+
+/** Last 1–2 sentences ending at or before `offset` in plain text. */
+export function lastSentencesBefore(text: string, offset: number, max = 2): string {
+  if (!text.trim()) return "";
+  const end = Math.max(0, Math.min(Math.floor(offset), text.length));
+  const head = text.slice(0, end).trimEnd();
+  if (!head) return "";
+  const parts = head.split(/(?<=[.!?])\s+/).filter((part) => part.trim().length > 0);
+  if (parts.length === 0) return head.slice(-180).trim();
+  return parts.slice(-max).join(" ").trim();
+}
+
 export function planReminderNotifications(
   reminders: readonly WritingReminder[],
   titles: Readonly<Record<string, string>>,
-  t: ReminderTranslate
+  t: ReminderTranslate,
+  options: PlanReminderOptions = {}
 ): PlannedReminderNotification[] {
+  const now = options.now ?? Date.now();
+  const skipToday = todayWordGoalMet(options.todayWords ?? 0, options.dailyWordGoal ?? 0);
   const planned: PlannedReminderNotification[] = [];
   for (const reminder of reminders) {
     if (!reminder.enabled) continue;
+    const at = nextReminderAtMs(reminder.days, reminder.hour, reminder.minute, now, { skipToday });
+    if (at == null) continue;
     const text = reminderNotificationText(
       reminder,
       reminder.projectId ? titles[reminder.projectId] : null,
       t
     );
-    const data = {
-      kind: "writing-reminder" as const,
-      reminderId: reminder.id,
-      projectId: reminder.projectId,
-      href: reminderHref(reminder.projectId),
-    };
-    if (reminder.days.length === WEEKDAYS.length) {
-      planned.push({
-        identifier: `${REMINDER_NOTIFICATION_PREFIX}${reminder.id}.daily`,
-        ...text,
-        trigger: { kind: "daily", hour: reminder.hour, minute: reminder.minute },
-        data,
-      });
-      continue;
-    }
-    for (const weekday of reminder.days) {
-      planned.push({
-        identifier: `${REMINDER_NOTIFICATION_PREFIX}${reminder.id}.w${weekday}`,
-        ...text,
-        trigger: { kind: "weekly", weekday, hour: reminder.hour, minute: reminder.minute },
-        data,
-      });
-    }
+    const override = options.bodyOverrides?.[reminder.id]?.trim();
+    planned.push({
+      identifier: `${REMINDER_NOTIFICATION_PREFIX}${reminder.id}.next`,
+      title: text.title,
+      body: override || text.body,
+      trigger: { kind: "date", at },
+      data: {
+        kind: "writing-reminder",
+        reminderId: reminder.id,
+        projectId: reminder.projectId,
+        href: reminderHref(reminder.projectId, reminder.openSprint),
+      },
+    });
   }
   return planned;
 }

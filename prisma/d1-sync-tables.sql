@@ -70,3 +70,29 @@ CREATE TABLE IF NOT EXISTS "WritingDay" (
 
 CREATE INDEX IF NOT EXISTS "WritingDay_userId_idx" ON "WritingDay"("userId");
 CREATE UNIQUE INDEX IF NOT EXISTS "WritingDay_userId_date_key" ON "WritingDay"("userId", "date");
+
+CREATE TABLE IF NOT EXISTS "WritingSession" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "projectId" TEXT,
+    "startedAt" DATETIME NOT NULL,
+    "endedAt" DATETIME NOT NULL,
+    "words" INTEGER NOT NULL DEFAULT 0,
+    "activeMs" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "WritingSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "WritingSession_userId_startedAt_idx" ON "WritingSession"("userId", "startedAt");
+
+CREATE TABLE IF NOT EXISTS "ManuscriptTarget" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "projectId" TEXT NOT NULL,
+    "wordGoal" INTEGER NOT NULL,
+    "deadline" TEXT NOT NULL,
+    "updatedAt" DATETIME NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ManuscriptTarget_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "ManuscriptTarget_projectId_key" ON "ManuscriptTarget"("projectId");
