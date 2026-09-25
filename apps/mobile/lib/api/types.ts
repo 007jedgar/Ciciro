@@ -431,6 +431,12 @@ export type WritingDayResponse = {
   day: WritingDay;
 };
 
+export type WritingDaysResponse = {
+  from: string | null;
+  to: string | null;
+  days: WritingDay[];
+};
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

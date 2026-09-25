@@ -71,6 +71,11 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/writing\/day\?date=2026-09-12$/,
   },
   {
+    name: "writing.days.get",
+    run: () => ciciro.writing.days.get("2026-09-01", "2026-09-14"),
+    path: /\/api\/writing\/days\?from=2026-09-01&to=2026-09-14$/,
+  },
+  {
     name: "writing.day.put",
     run: () => ciciro.writing.day.put({ date: "2026-09-12", words: 12, activeMs: 4000 }),
     method: "PUT",

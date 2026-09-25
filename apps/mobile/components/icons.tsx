@@ -138,6 +138,31 @@ export function BellIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+export function HistoryIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect
+        x="4"
+        y="5"
+        width="16"
+        height="15"
+        rx="2"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+      />
+      <Line x1="8" y1="3" x2="8" y2="7" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Line x1="16" y1="3" x2="16" y2="7" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Line x1="4" y1="10" x2="20" y2="10" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx="9" cy="14" r="1.2" fill={color} />
+      <Circle cx="12" cy="14" r="1.2" fill={color} />
+      <Circle cx="15" cy="14" r="1.2" fill={color} />
+      <Circle cx="9" cy="17.5" r="1.2" fill={color} />
+      <Circle cx="12" cy="17.5" r="1.2" fill={color} />
+    </Svg>
+  );
+}
+
 export function PlusIcon({ color, size = 18 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">

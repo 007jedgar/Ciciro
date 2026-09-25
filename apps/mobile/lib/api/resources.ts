@@ -53,6 +53,7 @@ import type {
   SignupRequest,
   WritingDayPutRequest,
   WritingDayResponse,
+  WritingDaysResponse,
   SyncAfter,
   SyncPushRequest,
   SyncResult,
@@ -135,6 +136,10 @@ export const ciciro = {
         api<WritingDayResponse>(`/api/writing/day${queryString({ date })}`, opts),
       put: (body: WritingDayPutRequest, opts?: RequestOpts) =>
         api<WritingDayResponse>("/api/writing/day", jsonInit("PUT", body, opts)),
+    },
+    days: {
+      get: (from: string, to: string, opts?: RequestOpts) =>
+        api<WritingDaysResponse>(`/api/writing/days${queryString({ from, to })}`, opts),
     },
   },
 

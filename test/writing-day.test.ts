@@ -4,12 +4,21 @@ import { registerUser } from "@/lib/auth/session";
 import {
   WritingDayAccumulator,
   activeMsForStroke,
+  averageActiveMsPerWritingDay,
+  bestWritingDay,
+  bucketWritingDays,
+  countWritingDaysInWindow,
+  formatActiveDuration,
   holdWritingDaySnapshot,
   mergeWritingDay,
+  overlayWritingDay,
   parseWritingDayPut,
+  parseWritingDayRange,
+  summarizeWritingHistory,
+  wordsInRollingWindow,
   PAUSE_MS,
 } from "@/lib/writing-day";
-import { getWritingDay, putWritingDay } from "@/lib/writing-day-store";
+import { getWritingDay, getWritingDays, putWritingDay } from "@/lib/writing-day-store";
 
 describe("writing day", () => {
   it("merges two heartbeats on the same date", () => {
@@ -47,6 +56,74 @@ describe("writing day", () => {
   });
 });
 
+describe("writing day history helpers", () => {
+  const sample = [
+    { date: "2026-09-08", words: 100, activeMs: 60_000 },
+    { date: "2026-09-10", words: 250, activeMs: 120_000 },
+    { date: "2026-09-12", words: 40, activeMs: 30_000 },
+    { date: "2026-09-14", words: 0, activeMs: 5_000 },
+  ];
+
+  it("fills missing calendar days with zeros", () => {
+    expect(bucketWritingDays(sample, "2026-09-10", "2026-09-12")).toEqual([
+      { date: "2026-09-10", words: 250, activeMs: 120_000 },
+      { date: "2026-09-11", words: 0, activeMs: 0 },
+      { date: "2026-09-12", words: 40, activeMs: 30_000 },
+    ]);
+  });
+
+  it("overlays today's pending heartbeat onto the range", () => {
+    const overlaid = overlayWritingDay(sample, {
+      date: "2026-09-12",
+      words: 55,
+      activeMs: 45_000,
+    });
+    expect(overlaid.find((d) => d.date === "2026-09-12")).toEqual({
+      date: "2026-09-12",
+      words: 55,
+      activeMs: 45_000,
+    });
+    expect(overlayWritingDay(sample, { date: "2026-09-15", words: 10, activeMs: 1_000 }).at(-1)).toEqual({
+      date: "2026-09-15",
+      words: 10,
+      activeMs: 1_000,
+    });
+  });
+
+  it("sums week and month windows and finds the best day", () => {
+    expect(wordsInRollingWindow(sample, "2026-09-14", 7)).toBe(390);
+    expect(bestWritingDay(sample)).toEqual({ date: "2026-09-10", words: 250, activeMs: 120_000 });
+    expect(averageActiveMsPerWritingDay(sample)).toBe(70_000);
+    expect(formatActiveDuration(70_000)).toBe("1 min");
+  });
+
+  it("counts writing days in the last seven including today", () => {
+    // 8, 10, 12 have words; 14 has zero words; 9/11/13 missing.
+    expect(countWritingDaysInWindow(sample, "2026-09-14", 7)).toBe(3);
+    expect(countWritingDaysInWindow(sample, "2026-09-10", 7)).toBe(2);
+  });
+
+  it("summarizes history totals from the same rows", () => {
+    expect(summarizeWritingHistory(sample, "2026-09-14")).toEqual({
+      weekWords: 390,
+      monthWords: 390,
+      allTimeWords: 390,
+      bestDay: { date: "2026-09-10", words: 250, activeMs: 120_000 },
+      daysInLast7: 3,
+      avgActiveMs: 70_000,
+    });
+  });
+
+  it("rejects a backwards or oversized range", () => {
+    expect(parseWritingDayRange("2026-09-14", "2026-09-10")).toEqual({
+      error: "from must be on or before to.",
+    });
+    expect(parseWritingDayRange("bad", "2026-09-10")).toEqual({
+      error: "from must be YYYY-MM-DD.",
+    });
+  });
+});
+
 describe("writing day persistence", () => {
   beforeEach(async () => {
     await prisma.session.deleteMany();
@@ -73,5 +150,19 @@ describe("writing day persistence", () => {
       activeMs: 7_000,
     });
     expect(await prisma.writingDay.count({ where: { userId: ada.id } })).toBe(1);
+  });
+
+  it("reads a date range and skips empty days", async () => {
+    const ada = await registerUser({
+      email: "ada-range@example.com",
+      password: "long-enough-pw",
+    });
+    await putWritingDay(ada, { date: "2026-09-10", words: 20, activeMs: 1_000 });
+    await putWritingDay(ada, { date: "2026-09-12", words: 30, activeMs: 2_000 });
+    const days = await getWritingDays(ada, "2026-09-10", "2026-09-12");
+    expect(days.map((d) => ({ date: d.date, words: d.words }))).toEqual([
+      { date: "2026-09-10", words: 20 },
+      { date: "2026-09-12", words: 30 },
+    ]);
   });
 });

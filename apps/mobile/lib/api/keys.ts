@@ -2,6 +2,9 @@ export const queryKeys = {
   health: ["health"] as const,
   me: ["auth", "me"] as const,
   settings: ["settings"] as const,
+  writing: {
+    days: (from: string, to: string) => ["writing", "days", from, to] as const,
+  },
   projects: {
     all: ["projects"] as const,
     list: () => [...queryKeys.projects.all, "list"] as const,

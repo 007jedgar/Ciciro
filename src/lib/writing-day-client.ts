@@ -152,6 +152,25 @@ export function resetWritingDayClient(now = Date.now()): void {
   emit();
 }
 
+export async function fetchWritingDays(
+  from: string,
+  to: string
+): Promise<WritingDayTotals[] | null> {
+  const res = await fetch(
+    `/api/writing/days?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    { credentials: "include" }
+  );
+  if (!res.ok) return null;
+  const body = (await res.json()) as { days?: WritingDayTotals[] };
+  return Array.isArray(body.days)
+    ? body.days.map((day) => ({
+        date: day.date,
+        words: day.words,
+        activeMs: day.activeMs,
+      }))
+    : null;
+}
+
 /** Test seam: swap the accumulator without exposing it to the UI. */
 export function _setWritingDayAccumulatorForTests(next: WritingDayAccumulator): void {
   acc = next;

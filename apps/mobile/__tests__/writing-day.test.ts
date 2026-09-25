@@ -1,8 +1,16 @@
 import {
   WritingDayAccumulator,
   activeMsForStroke,
+  averageActiveMsPerWritingDay,
+  bestWritingDay,
+  bucketWritingDays,
+  countWritingDaysInWindow,
+  formatActiveDuration,
   holdWritingDaySnapshot,
   mergeWritingDay,
+  overlayWritingDay,
+  summarizeWritingHistory,
+  wordsInRollingWindow,
   PAUSE_MS,
 } from "../lib/writing-day";
 import { getWritingDaySnapshot, stopWritingDay } from "../lib/writing-day-session";
@@ -38,5 +46,39 @@ describe("writing day", () => {
     });
     stopWritingDay();
     expect(getWritingDaySnapshot()).toBe(getWritingDaySnapshot());
+  });
+});
+
+describe("writing day history helpers", () => {
+  const sample = [
+    { date: "2026-09-08", words: 100, activeMs: 60_000 },
+    { date: "2026-09-10", words: 250, activeMs: 120_000 },
+    { date: "2026-09-12", words: 40, activeMs: 30_000 },
+    { date: "2026-09-14", words: 0, activeMs: 5_000 },
+  ];
+
+  it("fills missing calendar days with zeros", () => {
+    expect(bucketWritingDays(sample, "2026-09-10", "2026-09-12")).toEqual([
+      { date: "2026-09-10", words: 250, activeMs: 120_000 },
+      { date: "2026-09-11", words: 0, activeMs: 0 },
+      { date: "2026-09-12", words: 40, activeMs: 30_000 },
+    ]);
+  });
+
+  it("overlays today's pending heartbeat onto the range", () => {
+    expect(
+      overlayWritingDay(sample, { date: "2026-09-12", words: 55, activeMs: 45_000 }).find(
+        (d) => d.date === "2026-09-12"
+      )
+    ).toEqual({ date: "2026-09-12", words: 55, activeMs: 45_000 });
+  });
+
+  it("sums windows, best day, average active time, and the 7-day count", () => {
+    expect(wordsInRollingWindow(sample, "2026-09-14", 7)).toBe(390);
+    expect(bestWritingDay(sample)).toEqual({ date: "2026-09-10", words: 250, activeMs: 120_000 });
+    expect(averageActiveMsPerWritingDay(sample)).toBe(70_000);
+    expect(formatActiveDuration(125_000)).toBe("2 min");
+    expect(countWritingDaysInWindow(sample, "2026-09-14", 7)).toBe(3);
+    expect(summarizeWritingHistory(sample, "2026-09-14").daysInLast7).toBe(3);
   });
 });
