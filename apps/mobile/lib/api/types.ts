@@ -632,3 +632,10 @@ export type CorrectRequest = {
 export type CorrectResponse = CorrectRequest & {
   spans: CorrectionSpan[];
 };
+
+export type ImportResult = {
+  projectId: string;
+  title: string;
+  appended: boolean;
+  chapters: { id: string; title: string; order: number; wordCount: number }[];
+};

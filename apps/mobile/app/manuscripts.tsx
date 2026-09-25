@@ -3,13 +3,14 @@ import { FlatList, Platform, Pressable, RefreshControl, Text, View } from "react
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useFoldersQuery, useProjectsQuery } from "../lib/api";
+import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { BellIcon, FolderPlusIcon, NewChapterIcon } from "../components/icons";
 import { SkeletonList } from "../components/Skeleton";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
+import { importManuscriptFile, isImportable, pickImportFile } from "../lib/import";
 import type { Folder, ProjectListItem } from "../lib/types";
 
 type Row =
@@ -30,15 +31,36 @@ export default function ManuscriptsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useAppHeaderHeight();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const enabled = Boolean(user);
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
   const projects = projectsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
-  const error = queryErrorMessage(
-    projectsQuery.error ?? foldersQuery.error,
-    t("errors.requestFailed")
-  );
+  const error =
+    importError ??
+    queryErrorMessage(projectsQuery.error ?? foldersQuery.error, t("errors.requestFailed"));
+
+  async function importManuscript() {
+    if (importing) return;
+    setImportError(null);
+    try {
+      const file = await pickImportFile();
+      if (!file) return;
+      if (!isImportable(file.name)) {
+        setImportError(t("importFile.unsupported"));
+        return;
+      }
+      setImporting(true);
+      const result = await importManuscriptFile(file, { author: user?.name });
+      router.push(`/project/${result.projectId}/chapters`);
+    } catch (err) {
+      setImportError(err instanceof ApiError ? err.message : t("importFile.error"));
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const rows = useMemo<Row[]>(() => {
     const items: Row[] = folders.map((folder) => ({
@@ -77,6 +99,12 @@ export default function ManuscriptsScreen() {
       label: t("manuscripts.newManuscript"),
       Icon: NewChapterIcon,
       onPress: () => router.push("/new-manuscript"),
+    },
+    {
+      key: "import",
+      label: importing ? t("importFile.importing") : t("importFile.menu"),
+      Icon: NewChapterIcon,
+      onPress: () => void importManuscript(),
     },
     {
       key: "folder",

@@ -337,6 +337,14 @@ const zh: Translations = {
     placeholder: "类型",
     saveError: "无法保存类型。",
   },
+  importFile: {
+    menu: "导入稿件",
+    chaptersCard: "导入章节",
+    chaptersMeta: "来自 Word、Google Docs、Markdown 或 Scrivener",
+    importing: "正在导入…",
+    error: "无法导入该文件。",
+    unsupported: "请选择 .docx、.md、.html 或压缩为 zip 的 .scriv 文件。",
+  },
   reminders: {
     menu: "写作提醒",
     title: "写作提醒",

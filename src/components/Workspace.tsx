@@ -18,6 +18,7 @@ import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
+import { uploadImport } from "@/lib/import-client";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -295,6 +296,20 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     setActiveId(chapter.id);
   }
 
+  async function importChapters(file: File) {
+    const result = await uploadImport(file, { projectId: project.id });
+    const res = await fetch(`/api/chapters?projectId=${encodeURIComponent(project.id)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Imported, but could not refresh the chapter list. Reload the page.");
+    const imported = new Set(result.chapters.map((c) => c.id));
+    const added = ((await res.json()) as Chapter[]).filter((c) => imported.has(c.id));
+    for (const chapter of added) optimisticStoreRef.current?.seed(chapter);
+    setProject((p) => ({ ...p, chapters: [...p.chapters, ...added] }));
+    const first = result.chapters[0];
+    if (first) setActiveId(first.id);
+  }
+
   async function deleteChapter(id: string) {
     const res = await fetch(`/api/chapters/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -485,6 +500,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         }}
         onAdd={addChapter}
         onDelete={deleteChapter}
+        onImport={importChapters}
       />
 
       <div className="editor-pane">

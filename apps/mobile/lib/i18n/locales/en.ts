@@ -339,6 +339,14 @@ const en = {
     placeholder: "Genre",
     saveError: "Couldn't save the genre.",
   },
+  importFile: {
+    menu: "Import manuscript",
+    chaptersCard: "Import chapters",
+    chaptersMeta: "From Word, Google Docs, Markdown or Scrivener",
+    importing: "Importing…",
+    error: "Could not import that file.",
+    unsupported: "Choose a .docx, .md, .html or zipped .scriv file.",
+  },
   reminders: {
     menu: "Writing reminder",
     title: "Writing reminder",

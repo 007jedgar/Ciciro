@@ -341,6 +341,14 @@ const es: Translations = {
     placeholder: "Género",
     saveError: "No se pudo guardar el género.",
   },
+  importFile: {
+    menu: "Importar manuscrito",
+    chaptersCard: "Importar capítulos",
+    chaptersMeta: "Desde Word, Google Docs, Markdown o Scrivener",
+    importing: "Importando…",
+    error: "No se pudo importar ese archivo.",
+    unsupported: "Elige un archivo .docx, .md, .html o .scriv comprimido en zip.",
+  },
   reminders: {
     menu: "Recordatorio de escritura",
     title: "Recordatorio de escritura",

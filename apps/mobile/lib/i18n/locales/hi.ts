@@ -340,6 +340,14 @@ const hi: Translations = {
     placeholder: "शैली",
     saveError: "शैली सहेजी नहीं जा सकी।",
   },
+  importFile: {
+    menu: "पांडुलिपि आयात करें",
+    chaptersCard: "अध्याय आयात करें",
+    chaptersMeta: "Word, Google Docs, Markdown या Scrivener से",
+    importing: "आयात हो रहा है…",
+    error: "वह फ़ाइल आयात नहीं की जा सकी।",
+    unsupported: ".docx, .md, .html या ज़िप की हुई .scriv फ़ाइल चुनें।",
+  },
   reminders: {
     menu: "लेखन अनुस्मारक",
     title: "लेखन अनुस्मारक",

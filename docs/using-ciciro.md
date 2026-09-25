@@ -97,6 +97,23 @@ untouched.
 **Diff** shows the editor's recent corrections to the open chapter. **Prose**
 is the writing surface.
 
+## Import
+
+Bring an existing manuscript in from Word (`.docx`, including Google Docs
+downloaded as Word or as a web page `.html`), Markdown (`.md`, `.txt`), or a
+Scrivener project (zip the whole `.scriv` folder first). Files are limited to
+20 MB.
+
+- **New manuscript**: use **Import a manuscript** on the manuscript list (on
+  mobile, **Import manuscript** in the menu). The title defaults to the file's.
+- **Add to a manuscript**: **Import** in the chapter list (on mobile, **Import
+  chapters** on the Chapters tab) appends the file's chapters to the end.
+
+Chapters split on headings. Without heading styles, lines such as "Chapter 3"
+start a new chapter. In Scrivener's Draft, a folder of documents becomes one
+chapter with each document as a scene, and a standalone document is its own
+chapter. Bold, italic, and scene breaks carry over; images do not.
+
 ## Export
 
 **Export > Word (.docx)** builds a Shunn-style manuscript: Times New Roman 12pt,

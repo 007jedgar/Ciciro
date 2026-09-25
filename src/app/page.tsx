@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
 import BrandMark from "@/components/BrandMark";
+import { IMPORT_ACCEPT, uploadImport } from "@/lib/import-client";
 
 type ProjectSummary = {
   id: string;
@@ -170,6 +171,10 @@ export default function Home() {
   const [folderName, setFolderName] = useState("");
   const [folderNotes, setFolderNotes] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importTitle, setImportTitle] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
   const [shelf, setShelf] = useState<"loading" | "ready" | "error">("loading");
 
   const load = useCallback(async () => {
@@ -213,6 +218,24 @@ export default function Home() {
     });
     const project = await res.json();
     router.push(`/project/${project.id}`);
+  }
+
+  async function importManuscript(e: React.FormEvent) {
+    e.preventDefault();
+    if (!importFile || importing) return;
+    setImporting(true);
+    setImportError("");
+    try {
+      const result = await uploadImport(importFile, {
+        title: importTitle.trim(),
+        author,
+        ...(folderId ? { folderId } : {}),
+      });
+      router.push(`/project/${result.projectId}`);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Import failed.");
+      setImporting(false);
+    }
   }
 
   async function createFolder(e: React.FormEvent) {
@@ -354,6 +377,29 @@ export default function Home() {
         ) : null}
         <button className="btn primary" type="submit" disabled={creating}>
           {creating ? "Creating..." : "Create manuscript"}
+        </button>
+      </form>
+
+      <form className="new-form" onSubmit={importManuscript}>
+        <strong>Import a manuscript</strong>
+        <p className="folder-notes">
+          Word (.docx, including Google Docs downloaded as Word), Markdown, or a zipped Scrivener
+          project. Chapters split on headings; bold, italic and scene breaks carry over.
+        </p>
+        <input
+          type="file"
+          accept={IMPORT_ACCEPT}
+          aria-label="Manuscript file"
+          onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+        />
+        <input
+          placeholder="Title (optional, defaults to the file's)"
+          value={importTitle}
+          onChange={(e) => setImportTitle(e.target.value)}
+        />
+        {importError ? <p role="alert">{importError}</p> : null}
+        <button className="btn" type="submit" disabled={importing || !importFile}>
+          {importing ? "Importing..." : "Import manuscript"}
         </button>
       </form>
 
