@@ -18,7 +18,7 @@ import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
 import { useSettings } from "@/components/SettingsProvider";
-import { countWords, htmlToText } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
@@ -252,7 +252,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (!activeId) return;
       const prevWords =
         projectRef.current.chapters.find((c) => c.id === activeId)?.wordCount ?? 0;
-      const nextWords = countWords(htmlToText(html));
+      const nextWords = chapterWordCount(html);
       noteWritingWords(positiveWordDelta(prevWords, nextWords));
       updateChapterLocal(activeId, {
         content: html,
@@ -972,7 +972,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onClose={() => setAutoWriteOpen(false)}
           onApplied={(applied) => {
             const wordCount =
-              applied.wordCount ?? countWords(htmlToText(applied.content));
+              applied.wordCount ?? chapterWordCount(applied.content);
             updateChapterLocal(activeChapter.id, {
               content: applied.content,
               wordCount,

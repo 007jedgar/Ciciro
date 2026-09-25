@@ -5,7 +5,7 @@ import {
   mergeReplaceHtml,
   type ManuscriptOp,
 } from "@/lib/manuscript";
-import { countWords, htmlToText } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
 
 export type ReplicaChapterHead = {
   id: string;
@@ -43,7 +43,7 @@ function withContent(chapter: ReplicaChapterHead, content: string, revision: num
     ...chapter,
     content,
     revision,
-    wordCount: countWords(htmlToText(content)),
+    wordCount: chapterWordCount(content),
   };
 }
 

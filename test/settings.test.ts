@@ -78,6 +78,18 @@ describe("app settings", () => {
     expect(parseSettingsPatch({ weeklyDayTarget: 9 })).toEqual({ weeklyDayTarget: 7 });
     expect(parseSettingsPatch({ weeklyDayTarget: 0 })).toEqual({ weeklyDayTarget: 1 });
     expect(parseSettingsPatch({ theme: "sage" })).toEqual({ theme: "sage" });
+    expect(parseSettingsPatch({ aiSuggestions: "no" })).toEqual({
+      error: "aiSuggestions must be a boolean.",
+    });
+    expect(parseSettingsPatch({ aiSuggestions: false })).toEqual({ aiSuggestions: false });
+  });
+
+  it("has Ciciro suggest line edits by default and keeps an explicit off", () => {
+    expect(defaultSettings().aiSuggestions).toBe(true);
+    expect(normalizeSettings({}).aiSuggestions).toBe(true);
+    expect(normalizeSettings({ aiSuggestions: false }).aiSuggestions).toBe(false);
+    expect(normalizeSettings({ aiSuggestions: "off" }).aiSuggestions).toBe(true);
+    expect(settingsEqual(defaultSettings(), { ...defaultSettings(), aiSuggestions: false })).toBe(false);
   });
 
   it("picks the newer document and applies patches", () => {

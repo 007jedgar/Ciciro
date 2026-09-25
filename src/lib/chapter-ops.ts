@@ -11,7 +11,7 @@ import {
   type ManuscriptActor,
   type ManuscriptOp,
 } from "@/lib/manuscript";
-import { countWords, htmlToText } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
 import { ensureBlockIds } from "@/lib/block-ids";
 import { snapshotSessionBoundary } from "@/lib/snapshots";
 
@@ -259,7 +259,7 @@ async function applyGroup(
   }
 
   const content = docToHtml(doc);
-  const wordCount = countWords(htmlToText(content));
+  const wordCount = chapterWordCount(content);
   const head = base + pending.length;
   const rows = pending.map((op, index) =>
     prisma.chapterOp.create({

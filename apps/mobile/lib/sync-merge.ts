@@ -2,6 +2,7 @@ import { htmlToPlainText } from "./html";
 import { applyOp, countWords, docToHtml, htmlToDoc, mergeReplaceHtml } from "./manuscript";
 import type { ManuscriptOp } from "./manuscript";
 import type { ChapterSnapshot } from "./db";
+import { htmlWithoutSuggestions } from "./suggestions";
 
 export type RemoteChapterOp = ManuscriptOp & {
   chapterId: string;
@@ -40,7 +41,8 @@ function withContent(chapter: ChapterSnapshot, content: string, revision: number
     ...chapter,
     content,
     revision,
-    wordCount: countWords(htmlToPlainText(content)),
+    // Pending suggestions are not part of the count until accepted.
+    wordCount: countWords(htmlToPlainText(htmlWithoutSuggestions(content))),
   };
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { htmlToText } from "@/lib/text";
+import { chapterHtmlForModel, pendingSuggestionsNote } from "@/lib/suggestion-edits";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
 import { visibleChaptersInclude } from "@/lib/chapters";
 import {
@@ -117,7 +118,7 @@ export async function buildEditorContext(
   const active = project.chapters.find((c) => c.id === activeChapterId);
   if (active) {
     const chapterNumber = project.chapters.indexOf(active) + 1;
-    const fullText = htmlToText(active.content) || "(empty)";
+    const fullText = htmlToText(chapterHtmlForModel(active.content)) || "(empty)";
     const passageIndex = compactOpenChapterIndex(active.content, chapterNumber);
     // Most tasks don't need the whole chapter. Always send the passage index
     // so the editor can move by id after compact without re-quoting prose.
@@ -127,7 +128,8 @@ export async function buildEditorContext(
         `\n# OPEN CHAPTER: ${active.title} (passages: ch${chapterNumber}.sK / ch${chapterNumber}.pA)`,
         passageIndex,
         "",
-        renderAnnotatedChapter(active.content, chapterNumber)
+        pendingSuggestionsNote(active.content) +
+          renderAnnotatedChapter(chapterHtmlForModel(active.content), chapterNumber)
       );
     } else {
       const openPlotPoints = await prisma.plotPoint.findMany({
@@ -150,7 +152,7 @@ export async function buildEditorContext(
       }
       block.push(
         `\nSummary so far: ${active.summary.trim() || "(none recorded yet)"}`,
-        `\n...${tail}`
+        `\n${pendingSuggestionsNote(active.content)}...${tail}`
       );
       parts.push(block.join("\n"));
     }

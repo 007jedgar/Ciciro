@@ -1,5 +1,7 @@
 // Small text helpers shared between server and client.
 
+import { htmlWithoutSuggestions } from "@/lib/suggestions";
+
 // Strip HTML tags to plain text. Block tags become newlines so paragraphs survive.
 export function htmlToText(html: string): string {
   if (!html) return "";
@@ -21,6 +23,14 @@ export function countWords(text: string): number {
   const t = text.trim();
   if (!t) return 0;
   return t.split(/\s+/).length;
+}
+
+/**
+ * Words in a chapter's HTML. Pending suggestions count as not yet applied:
+ * suggested deletions still count, suggested insertions do not.
+ */
+export function chapterWordCount(html: string): number {
+  return countWords(htmlToText(htmlWithoutSuggestions(html)));
 }
 
 /** True when TipTap HTML has no prose (empty `<p></p>` counts as empty). */
