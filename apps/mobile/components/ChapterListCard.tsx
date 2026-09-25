@@ -7,7 +7,7 @@ import type { ChapterStatus } from "../lib/chapter-status";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { Chapter } from "../lib/types";
-import { HistoryIcon, TrashIcon } from "./icons";
+import { TrashIcon, VersionHistoryIcon } from "./icons";
 
 export function ChapterListCard({
   chapter,
@@ -91,7 +91,7 @@ export function ChapterListCard({
             },
           ]}
         >
-          <HistoryIcon color={colors.inkSoft} />
+          <VersionHistoryIcon color={colors.inkSoft} />
         </Pressable>
       ) : null}
       <Pressable

@@ -395,7 +395,7 @@ const zh: Translations = {
     error: "无法导入该文件。",
     unsupported: "请选择 .docx、.md、.html 或压缩为 zip 的 .scriv 文件。",
   },
-  history: {
+  writingHistory: {
     menu: "写作记录",
     title: "写作记录",
     loadError: "无法加载写作记录。",

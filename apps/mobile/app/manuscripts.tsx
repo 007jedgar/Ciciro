@@ -114,7 +114,7 @@ export default function ManuscriptsScreen() {
     },
     {
       key: "history",
-      label: t("history.menu"),
+      label: t("writingHistory.menu"),
       Icon: HistoryIcon,
       onPress: () => router.push("/writing-history"),
     },

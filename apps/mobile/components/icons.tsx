@@ -515,7 +515,7 @@ export function QuestionIcon({ color, size = 24 }: IconProps) {
 }
 
 /** A clock with a turn-back arrow: a chapter's version history. */
-export function HistoryIcon({ color, size = 18 }: IconProps) {
+export function VersionHistoryIcon({ color, size = 18 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path

@@ -399,7 +399,7 @@ const hi: Translations = {
     error: "वह फ़ाइल आयात नहीं की जा सकी।",
     unsupported: ".docx, .md, .html या ज़िप की हुई .scriv फ़ाइल चुनें।",
   },
-  history: {
+  writingHistory: {
     menu: "लेखन इतिहास",
     title: "लेखन इतिहास",
     loadError: "लेखन इतिहास लोड नहीं हो सका।",

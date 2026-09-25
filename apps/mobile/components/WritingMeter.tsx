@@ -49,14 +49,14 @@ export function WritingMeter() {
   const status = met
     ? t("settings.meterDone")
     : t("settings.meterRemaining", { count: remaining });
-  const weekLabel = t("history.daysOfLast7", { count: daysInLast7 });
+  const weekLabel = t("writingHistory.daysOfLast7", { count: daysInLast7 });
 
   return (
     <View style={styles.wrap}>
       <Pressable
         onPress={() => router.push("/writing-history")}
         accessibilityRole="button"
-        accessibilityLabel={`${count}. ${weekLabel}. ${t("history.openA11y")}`}
+        accessibilityLabel={`${count}. ${weekLabel}. ${t("writingHistory.openA11y")}`}
         style={styles.barPress}
       >
         <View

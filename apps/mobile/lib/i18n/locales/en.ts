@@ -398,7 +398,7 @@ const en = {
     error: "Could not import that file.",
     unsupported: "Choose a .docx, .md, .html or zipped .scriv file.",
   },
-  history: {
+  writingHistory: {
     menu: "Writing history",
     title: "Writing history",
     loadError: "Could not load writing history.",

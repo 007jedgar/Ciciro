@@ -90,21 +90,21 @@ export default function WritingHistoryScreen() {
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
 
-  const weekLabel = t("history.daysOfLast7", { count: summary.daysInLast7 });
-  const error = range.isError ? t("history.loadError") : null;
+  const weekLabel = t("writingHistory.daysOfLast7", { count: summary.daysInLast7 });
+  const error = range.isError ? t("writingHistory.loadError") : null;
   const timeAtKeys =
     avgSittingMs != null
-      ? t("history.sittingAvgValue", { duration: formatActiveDuration(avgSittingMs) })
+      ? t("writingHistory.sittingAvgValue", { duration: formatActiveDuration(avgSittingMs) })
       : summary.avgActiveMs == null
-        ? t("history.emptyValue")
-        : t("history.timeAtKeysValue", {
+        ? t("writingHistory.emptyValue")
+        : t("writingHistory.timeAtKeysValue", {
             duration: formatActiveDuration(summary.avgActiveMs),
           });
 
   return (
     <View style={layout.screen}>
       <AppHeader
-        title={t("history.title")}
+        title={t("writingHistory.title")}
         onBack={() => backOr("/manuscripts")}
         floating
       />
@@ -127,7 +127,7 @@ export default function WritingHistoryScreen() {
             gap: 4,
             marginBottom: 20,
           }}
-          accessibilityLabel={t("history.heatmapA11y")}
+          accessibilityLabel={t("writingHistory.heatmapA11y")}
         >
           {buckets.map((row) => (
             <View
@@ -146,33 +146,33 @@ export default function WritingHistoryScreen() {
         </View>
 
         <StatRow
-          label={t("history.week")}
-          value={t("history.wordsValue", { count: summary.weekWords })}
+          label={t("writingHistory.week")}
+          value={t("writingHistory.wordsValue", { count: summary.weekWords })}
           colors={colors}
         />
         <StatRow
-          label={t("history.month")}
-          value={t("history.wordsValue", { count: summary.monthWords })}
+          label={t("writingHistory.month")}
+          value={t("writingHistory.wordsValue", { count: summary.monthWords })}
           colors={colors}
         />
         <StatRow
-          label={t("history.allTime")}
-          value={t("history.wordsValue", { count: summary.allTimeWords })}
+          label={t("writingHistory.allTime")}
+          value={t("writingHistory.wordsValue", { count: summary.allTimeWords })}
           colors={colors}
         />
         <StatRow
-          label={t("history.bestDay")}
+          label={t("writingHistory.bestDay")}
           value={
             summary.bestDay
-              ? t("history.bestDayValue", {
+              ? t("writingHistory.bestDayValue", {
                   count: summary.bestDay.words,
                   date: summary.bestDay.date,
                 })
-              : t("history.emptyValue")
+              : t("writingHistory.emptyValue")
           }
           colors={colors}
         />
-        <StatRow label={t("history.timeAtKeys")} value={timeAtKeys} colors={colors} last />
+        <StatRow label={t("writingHistory.timeAtKeys")} value={timeAtKeys} colors={colors} last />
 
         {range.isPending && !range.data ? (
           <Text style={[layout.body, { marginTop: 16 }]}>{t("common.loading")}</Text>
@@ -183,7 +183,7 @@ export default function WritingHistoryScreen() {
           accessibilityRole="button"
           style={{ marginTop: 24 }}
         >
-          <Text style={{ color: colors.accent, fontSize: 15 }}>{t("history.openSettings")}</Text>
+          <Text style={{ color: colors.accent, fontSize: 15 }}>{t("writingHistory.openSettings")}</Text>
         </Pressable>
       </ScrollView>
     </View>

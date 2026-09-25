@@ -400,7 +400,7 @@ const es: Translations = {
     error: "No se pudo importar ese archivo.",
     unsupported: "Elige un archivo .docx, .md, .html o .scriv comprimido en zip.",
   },
-  history: {
+  writingHistory: {
     menu: "Historial de escritura",
     title: "Historial de escritura",
     loadError: "No se pudo cargar el historial de escritura.",
