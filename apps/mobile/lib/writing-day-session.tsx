@@ -230,6 +230,27 @@ export function closeWritingSitting(now = Date.now()): WritingSessionTotals | nu
   return closed;
 }
 
+/**
+ * End a sprint: close any open sitting, or POST a session for the sprint window
+ * when no keystrokes opened one yet.
+ */
+export function closeSprintSitting(
+  projectId: string,
+  startedAt: number,
+  words: number,
+  now = Date.now()
+): void {
+  const closed = closeWritingSitting(now);
+  if (closed) return;
+  void sendSitting({
+    projectId,
+    startedAt,
+    endedAt: Math.max(now, startedAt),
+    words: Math.max(0, Math.floor(words)),
+    activeMs: 0,
+  });
+}
+
 function subscribe(listener: () => void): () => void {
   return subscribeWritingDay(listener);
 }

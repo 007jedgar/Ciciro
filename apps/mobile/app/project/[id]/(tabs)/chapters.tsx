@@ -172,6 +172,15 @@ export default function ChaptersScreen() {
               />
               <Pressable
                 style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(`/project/${projectId}/sprint` as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("sprint.title")}
+              >
+                <Text style={layout.cardTitle}>{t("sprint.title")}</Text>
+                <Text style={layout.cardMeta}>{t("sprint.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(bibleIndexHref(projectId) as never)}
                 accessibilityRole="button"
                 accessibilityLabel={t("bible.title")}

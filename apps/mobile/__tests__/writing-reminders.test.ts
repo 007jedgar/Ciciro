@@ -56,6 +56,7 @@ describe("writing reminders", () => {
         minute: 0,
         days: [0, 1],
         enabled: true,
+        openSprint: false,
       },
       {
         id: "book",
@@ -65,8 +66,18 @@ describe("writing reminders", () => {
         minute: 30,
         days: [1, 3, 5],
         enabled: false,
+        openSprint: false,
       },
     ]);
+  });
+
+  it("points a manuscript reminder at a sprint when asked", () => {
+    const planned = planReminderNotifications(
+      [reminder({ id: "sprint", projectId: "p1", openSprint: true, days: [...WEEKDAYS] })],
+      { p1: "Night Watch" },
+      t
+    );
+    expect(planned[0]?.data.href).toBe("/project/p1/sprint");
   });
 
   it("refuses an 11th reminder and replaces an existing one", () => {

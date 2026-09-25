@@ -28,6 +28,8 @@ export type WritingReminder = {
   minute: number;
   days: Weekday[];
   enabled: boolean;
+  /** When set with a projectId, the notification opens a sprint. */
+  openSprint: boolean;
 };
 
 export type ReminderTranslate = (key: string, options?: Record<string, unknown>) => string;
@@ -68,6 +70,7 @@ export function newWritingReminder(input: {
     minute: DEFAULT_REMINDER_MINUTE,
     days: [...WEEKDAYS],
     enabled: true,
+    openSprint: false,
   };
 }
 
@@ -113,6 +116,7 @@ export function parseWritingReminder(raw: unknown): WritingReminder | null {
     minute: src.minute,
     days,
     enabled: src.enabled === false ? false : true,
+    openSprint: src.openSprint === true && typeof src.projectId === "string",
   };
 }
 
@@ -181,7 +185,8 @@ export function reminderDaySummary(days: readonly Weekday[], t: ReminderTranslat
   return days.map((day) => t(`reminders.dayShort.${DAY_KEYS[day]}`)).join(" ");
 }
 
-export function reminderHref(projectId: string | null): string {
+export function reminderHref(projectId: string | null, openSprint = false): string {
+  if (projectId && openSprint) return `/project/${projectId}/sprint`;
   return projectId ? `/project/${projectId}/chapters` : "/manuscripts";
 }
 
@@ -222,7 +227,7 @@ export function planReminderNotifications(
       kind: "writing-reminder" as const,
       reminderId: reminder.id,
       projectId: reminder.projectId,
-      href: reminderHref(reminder.projectId),
+      href: reminderHref(reminder.projectId, reminder.openSprint),
     };
     if (reminder.days.length === WEEKDAYS.length) {
       planned.push({

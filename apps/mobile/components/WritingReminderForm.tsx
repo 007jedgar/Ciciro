@@ -58,6 +58,7 @@ export function WritingReminderForm({
   const [minute, setMinute] = useState(reminder.minute);
   const [days, setDays] = useState<Weekday[]>(reminder.days);
   const [enabled, setEnabled] = useState(reminder.enabled);
+  const [openSprint, setOpenSprint] = useState(reminder.openSprint);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -107,6 +108,7 @@ export function WritingReminderForm({
       minute,
       days,
       enabled,
+      openSprint: projectId != null && openSprint,
     });
   }
 
@@ -269,6 +271,32 @@ export function WritingReminderForm({
           accessibilityLabel={t("reminders.enabled")}
         />
       </View>
+
+      {projectId ? (
+        <View
+          style={{
+            marginTop: 12,
+            minHeight: 52,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, color: colors.ink }}>{t("reminders.openSprint")}</Text>
+            <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
+              {t("reminders.openSprintHint")}
+            </Text>
+          </View>
+          <Switch
+            value={openSprint}
+            onValueChange={setOpenSprint}
+            trackColor={{ false: colors.line, true: colors.accent }}
+            thumbColor={colors.panel}
+            accessibilityLabel={t("reminders.openSprint")}
+          />
+        </View>
+      ) : null}
 
       {shownError ? (
         <Text style={layout.error} role="alert">
