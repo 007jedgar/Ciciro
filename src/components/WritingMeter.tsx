@@ -57,13 +57,12 @@ export default function WritingMeter() {
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
     let cancelled = false;
     setLoading(true);
-    const today = writingDayKey();
+    const todayKey = writingDayKey();
     void (async () => {
       try {
-        const rows = await fetchWritingDays(ALL_TIME_FROM, today);
+        const rows = await fetchWritingDays(ALL_TIME_FROM, todayKey);
         if (cancelled) return;
         setRangeDays(rows ?? []);
       } finally {
@@ -73,7 +72,7 @@ export default function WritingMeter() {
     return () => {
       cancelled = true;
     };
-  }, [open, day.date, day.words, day.activeMs]);
+  }, [day.date]);
 
   const today = day.date || writingDayKey();
   const merged = useMemo(() => {
