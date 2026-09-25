@@ -32,6 +32,18 @@ describe("findMatches", () => {
     expect(findMatches("abc", "", loose)).toEqual([]);
   });
 
+  it("treats paragraphs inside a quote as separate for matching", () => {
+    const html = "<blockquote><p>He said</p><p>no</p></blockquote>";
+    expect(searchBlockHtml(html, "said", { ...loose, wholeWord: true }).matches).toEqual([
+      { start: 3, end: 7 },
+    ]);
+    expect(searchBlockHtml(html, "saidno", loose).matches).toHaveLength(0);
+    expect(replaceInBlockHtml(html, "saidno", "x", loose)).toEqual({ html, count: 0 });
+    expect(searchBlockHtml(html, "no", { ...loose, wholeWord: true }).matches).toEqual([
+      { start: 7, end: 9 },
+    ]);
+  });
+
   it("keeps offsets stable for characters that change length when lowercased", () => {
     expect(findMatches("İ needle", "needle", loose)).toEqual([{ start: 2, end: 8 }]);
   });

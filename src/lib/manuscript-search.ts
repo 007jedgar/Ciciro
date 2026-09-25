@@ -24,6 +24,7 @@ type Cell = { part: number; index: number } | null;
 
 const TAG_OR_TEXT = /<[^>]*>|[^<]+/g;
 const BR = /^<\s*br\b/i;
+const BLOCK_TAG = /^<\s*\/?\s*(p|li|ul|ol|blockquote|h[1-6]|pre|div)\b/i;
 const NAMED: Record<string, string> = {
   amp: "&",
   lt: "<",
@@ -47,12 +48,17 @@ function encodeText(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\u00a0/g, "&nbsp;");
 }
 
-type Flat = { parts: Part[]; text: string; cells: Cell[] };
+type Flat = { parts: Part[]; text: string; cells: Cell[]; boundaries: Set<number> };
 
-/** The visible text of a block plus, per character, the text node it came from. */
+/**
+ * The visible text of a block plus, per character, the text node it came from.
+ * `boundaries` are the offsets where one paragraph inside the block (a quote's
+ * or list item's) ends and the next begins; they add no character.
+ */
 function flatten(html: string): Flat {
   const parts: Part[] = [];
   const cells: Cell[] = [];
+  const boundaries = new Set<number>();
   let text = "";
   TAG_OR_TEXT.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -64,6 +70,8 @@ function flatten(html: string): Flat {
       if (BR.test(raw)) {
         text += "\n";
         cells.push(null);
+      } else if (BLOCK_TAG.test(raw)) {
+        boundaries.add(text.length);
       }
       continue;
     }
@@ -73,7 +81,7 @@ function flatten(html: string): Flat {
     for (let i = 0; i < decoded.length; i++) cells.push({ part, index: i });
     text += decoded;
   }
-  return { parts, text, cells };
+  return { parts, text, cells, boundaries };
 }
 
 const WORD_CHAR = /[\p{L}\p{N}_]/u;
@@ -104,7 +112,13 @@ function spaces(s: string): string {
   return s.replace(/\u00a0/g, " ");
 }
 
-export function findMatches(text: string, query: string, options: SearchOptions): BlockMatch[] {
+/** `boundaries` are paragraph breaks no match may cross; each counts as a non-word neighbour. */
+export function findMatches(
+  text: string,
+  query: string,
+  options: SearchOptions,
+  boundaries: ReadonlySet<number> = new Set()
+): BlockMatch[] {
   const needle = normalizeQuery(query);
   if (!needle || !text) return [];
   const haystack = spaces(options.matchCase ? text : fold(text));
@@ -117,9 +131,13 @@ export function findMatches(text: string, query: string, options: SearchOptions)
     const at = haystack.indexOf(target, from);
     if (at < 0) break;
     const end = at + target.length;
+    let crosses = false;
+    for (let b = at + 1; b < end && !crosses; b++) crosses = boundaries.has(b);
     const ok =
-      !options.wholeWord ||
-      ((!wordStart || !isWordChar(text[at - 1])) && (!wordEnd || !isWordChar(text[end])));
+      !crosses &&
+      (!options.wholeWord ||
+        ((!wordStart || boundaries.has(at) || !isWordChar(text[at - 1])) &&
+          (!wordEnd || boundaries.has(end) || !isWordChar(text[end]))));
     if (ok) {
       found.push({ start: at, end });
       from = end;
@@ -136,8 +154,8 @@ export function searchBlockHtml(
   query: string,
   options: SearchOptions
 ): { text: string; matches: BlockMatch[] } {
-  const { text } = flatten(html);
-  return { text, matches: findMatches(text, query, options) };
+  const { text, boundaries } = flatten(html);
+  return { text, matches: findMatches(text, query, options, boundaries) };
 }
 
 /** One match addressed by its index among the block's matches and its start offset. */
@@ -157,7 +175,7 @@ export function replaceInBlockHtml(
   only?: OccurrenceTarget
 ): { html: string; count: number } {
   const flat = flatten(html);
-  let matches = findMatches(flat.text, query, options);
+  let matches = findMatches(flat.text, query, options, flat.boundaries);
   if (only !== undefined) {
     const hit = matches[only.occurrence];
     matches = hit && hit.start === only.offset ? [hit] : [];
