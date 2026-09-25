@@ -116,4 +116,18 @@ describe("snippetAround", () => {
     expect(s.after.endsWith("…")).toBe(true);
     expect(snippetAround("short NEEDLE", { start: 6, end: 12 }).before).toBe("short ");
   });
+
+  it("separates the paragraphs of a quote in the preview", () => {
+    const html = "<blockquote><p>Keep the lamp lit, he said</p><p>no matter what.</p></blockquote>";
+    const found = searchBlockHtml(html, "said", loose);
+    expect(snippetAround(found.text, found.matches[0], undefined, found.boundaries)).toEqual({
+      before: "Keep the lamp lit, he ",
+      match: "said",
+      after: " no matter what.",
+    });
+    const next = searchBlockHtml(html, "no", loose);
+    expect(snippetAround(next.text, next.matches[0], undefined, next.boundaries).before).toBe(
+      "Keep the lamp lit, he said "
+    );
+  });
 });

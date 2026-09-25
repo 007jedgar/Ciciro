@@ -101,7 +101,7 @@ export async function searchProject(
           occurrence,
           offset: m.start,
           length: m.end - m.start,
-          ...snippetAround(found.text, m),
+          ...snippetAround(found.text, m, undefined, found.boundaries),
         });
       });
     }

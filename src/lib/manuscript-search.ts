@@ -153,9 +153,9 @@ export function searchBlockHtml(
   html: string,
   query: string,
   options: SearchOptions
-): { text: string; matches: BlockMatch[] } {
+): { text: string; matches: BlockMatch[]; boundaries: ReadonlySet<number> } {
   const { text, boundaries } = flatten(html);
-  return { text, matches: findMatches(text, query, options, boundaries) };
+  return { text, matches: findMatches(text, query, options, boundaries), boundaries };
 }
 
 /** One match addressed by its index among the block's matches and its start offset. */
@@ -212,18 +212,27 @@ export function replaceInBlockHtml(
 
 const SNIPPET_CONTEXT = 48;
 
-/** A trimmed slice of the block's text on each side of a match, for display. */
+/**
+ * A trimmed slice of the block's text on each side of a match, for display.
+ * `boundaries` (paragraph breaks inside the block) show as a space, since the
+ * flattened text has no character there.
+ */
 export function snippetAround(
   text: string,
   match: BlockMatch,
-  context = SNIPPET_CONTEXT
+  context = SNIPPET_CONTEXT,
+  boundaries: ReadonlySet<number> = new Set()
 ): { before: string; match: string; after: string } {
-  const flat = (s: string) => s.replace(/\s+/g, " ");
+  const slice = (lo: number, hi: number) => {
+    let out = "";
+    for (let at = lo; at < hi; at++) out += (at > lo && boundaries.has(at) ? " " : "") + text[at];
+    return out.replace(/\s+/g, " ");
+  };
   const from = Math.max(0, match.start - context);
   const to = Math.min(text.length, match.end + context);
   return {
-    before: (from > 0 ? "…" : "") + flat(text.slice(from, match.start)),
-    match: flat(text.slice(match.start, match.end)),
-    after: flat(text.slice(match.end, to)) + (to < text.length ? "…" : ""),
+    before: (from > 0 ? "…" : "") + slice(from, match.start) + (match.start > from && boundaries.has(match.start) ? " " : ""),
+    match: slice(match.start, match.end),
+    after: (to > match.end && boundaries.has(match.end) ? " " : "") + slice(match.end, to) + (to < text.length ? "…" : ""),
   };
 }
