@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { diffWords } from "diff";
+import type { SnapshotDiffPart } from "@/lib/snapshot-view";
 
 type Edit = { id: string; find: string; replace: string; createdAt: string };
 
@@ -20,6 +21,27 @@ function relativeTime(iso: string): string {
   const hr = Math.round(min / 60);
   if (hr < 24) return `${hr}h ago`;
   return `${Math.round(hr / 24)}d ago`;
+}
+
+/** Inline word diff: insertions highlighted, deletions struck through. */
+export function WordDiff({ parts }: { parts: SnapshotDiffPart[] }) {
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.kind === "added" ? (
+          <ins className="diff-add" key={i}>
+            {part.text}
+          </ins>
+        ) : part.kind === "removed" ? (
+          <del className="diff-del" key={i}>
+            {part.text}
+          </del>
+        ) : (
+          <span key={i}>{part.text}</span>
+        )
+      )}
+    </>
+  );
 }
 
 export default function DiffView({ chapterId, refreshToken }: Props) {
@@ -53,19 +75,12 @@ export default function DiffView({ chapterId, refreshToken }: Props) {
         <div className="diff-hunk" key={e.id}>
           <div className="diff-hunk-head">{relativeTime(e.createdAt)}</div>
           <div className="diff-hunk-body">
-            {diffWords(e.find, e.replace).map((part, i) =>
-              part.added ? (
-                <ins className="diff-add" key={i}>
-                  {part.value}
-                </ins>
-              ) : part.removed ? (
-                <del className="diff-del" key={i}>
-                  {part.value}
-                </del>
-              ) : (
-                <span key={i}>{part.value}</span>
-              )
-            )}
+            <WordDiff
+              parts={diffWords(e.find, e.replace).map((part) => ({
+                kind: part.added ? "added" : part.removed ? "removed" : "same",
+                text: part.value,
+              }))}
+            />
           </div>
         </div>
       ))}

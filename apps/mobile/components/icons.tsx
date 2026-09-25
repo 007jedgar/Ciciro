@@ -513,3 +513,34 @@ export function QuestionIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+/** A clock with a turn-back arrow: a chapter's version history. */
+export function VersionHistoryIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+      <Polyline
+        points="4,4.5 4.5,8 8,7.5"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Polyline
+        points="12,8 12,12 14.8,13.8"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

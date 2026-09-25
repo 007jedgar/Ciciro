@@ -105,6 +105,33 @@ export type OpenQuestion = {
   updatedAt: string;
 };
 
+/** How a chapter snapshot was taken. Mirrors src/lib/snapshot-view.ts. */
+export type ChapterSnapshotKind = "manual" | "before_ai" | "session" | "before_restore";
+
+/** One version in a chapter's history, without its prose. */
+export type ChapterSnapshotSummary = {
+  id: string;
+  chapterId: string;
+  kind: ChapterSnapshotKind;
+  label: string;
+  wordCount: number;
+  revision: number;
+  createdAt: string;
+};
+
+export type ChapterSnapshotDetail = ChapterSnapshotSummary & { content: string };
+
+export type ChapterSnapshotListResponse = { snapshots: ChapterSnapshotSummary[] };
+
+export type ChapterSnapshotCreateRequest = { label?: string };
+
+export type ChapterSnapshotRestoreResponse = {
+  chapter: Chapter;
+  restored: ChapterSnapshotSummary;
+  /** The text the restore replaced; restoring it undoes the restore. */
+  backup: ChapterSnapshotSummary | null;
+};
+
 export type ManuscriptEdit = {
   id: string;
   chapterId: string;

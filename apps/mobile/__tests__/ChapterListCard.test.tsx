@@ -56,6 +56,25 @@ describe("ChapterListCard", () => {
     expect(screen.getByText("The Docks")).toBeTruthy();
   });
 
+  it("opens version history from its own control", () => {
+    const onOpen = jest.fn();
+    const onOpenHistory = jest.fn();
+    render(
+      <ChapterListCard
+        chapter={chapter({ title: "The Docks", wordCount: 12 })}
+        number={3}
+        selected={false}
+        onOpen={onOpen}
+        onRequestDelete={jest.fn()}
+        onOpenHistory={onOpenHistory}
+      />
+    );
+
+    fireEvent.press(screen.getByLabelText("Version history for The Docks"));
+    expect(onOpenHistory).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("requests delete from the trash control without opening the chapter", () => {
     const onOpen = jest.fn();
     const onRequestDelete = jest.fn();

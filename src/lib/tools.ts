@@ -630,14 +630,15 @@ function insertHtmlAt(html: string, insertHtml: string, at: number): string {
 async function bumpChapterRevision(
   chapter: { id: string; projectId: string; content: string; revision: number },
   revision: number,
-  data: ChapterHtmlWrite
+  data: ChapterHtmlWrite,
+  runId: string | undefined
 ): Promise<ChapterWriteResult> {
   if (chapter.revision !== revision) {
     // The caller read this row and checked it against the revision the editor
     // was given, so a mismatch here means the head moved under it.
     return { ok: false, revision: chapter.revision, content: chapter.content };
   }
-  return writeChapterHtml(chapter, data.content, { actor: "ai" });
+  return writeChapterHtml(chapter, data.content, { actor: "ai", runId });
 }
 
 async function recordManuscriptEdits(
@@ -671,7 +672,7 @@ export function toolUiEvents(
 export async function executeEditorTool(
   name: string,
   input: Record<string, unknown>,
-  ctx: { projectId: string; activeChapterId?: string | null }
+  ctx: { projectId: string; activeChapterId?: string | null; runId?: string }
 ): Promise<ToolResult> {
   const { projectId } = ctx;
 
@@ -791,10 +792,15 @@ export async function executeEditorTool(
         return { status: "delete failed", content: deletion.error };
       }
       const wordCount = countWords(htmlToText(deletion.content));
-      const committed = await bumpChapterRevision(chapter, expectedRevision, {
-        content: deletion.content,
-        wordCount,
-      });
+      const committed = await bumpChapterRevision(
+        chapter,
+        expectedRevision,
+        {
+          content: deletion.content,
+          wordCount,
+        },
+        ctx.runId
+      );
       if (committed.ok) {
         await recordManuscriptEdits([
           { chapterId: chapter.id, find: deletion.passage.id, replace: "" },
@@ -1004,7 +1010,8 @@ export async function executeEditorTool(
         const sourceUpdate = await bumpChapterRevision(
           source,
           expectedSourceRevision,
-          { content: split.sourceContent, wordCount: sourceWordCount }
+          { content: split.sourceContent, wordCount: sourceWordCount },
+          ctx.runId
         );
         if (!sourceUpdate.ok) throw new Error("SOURCE_REVISION_CONFLICT");
         const sourceCommit = {
@@ -1033,7 +1040,8 @@ export async function executeEditorTool(
             const destinationUpdate = await bumpChapterRevision(
               destination,
               expectedDestinationRevision as number,
-              { content: destinationContent, wordCount: destinationWordCount }
+              { content: destinationContent, wordCount: destinationWordCount },
+              ctx.runId
             );
             if (!destinationUpdate.ok) throw new Error("DESTINATION_REVISION_CONFLICT");
             await recordManuscriptEdits([
@@ -1387,10 +1395,15 @@ export async function executeEditorTool(
       let revision = expectedRevision;
       let savedContent = content;
       if (changed) {
-        const committed = await bumpChapterRevision(ch, expectedRevision, {
-          content,
-          wordCount,
-        });
+        const committed = await bumpChapterRevision(
+          ch,
+          expectedRevision,
+          {
+            content,
+            wordCount,
+          },
+          ctx.runId
+        );
         if (committed.ok) {
           await recordManuscriptEdits(
             applied.map((a) => ({
@@ -1590,10 +1603,15 @@ export async function executeEditorTool(
       const label = `${source.id} (${source.wordCount}w)`;
 
       if (fromN === toN) {
-        const committed = await bumpChapterRevision(fromCh, expectedSourceRevision, {
-          content: destWith,
-          wordCount: toWordCount,
-        });
+        const committed = await bumpChapterRevision(
+          fromCh,
+          expectedSourceRevision,
+          {
+            content: destWith,
+            wordCount: toWordCount,
+          },
+          ctx.runId
+        );
         if (committed.ok) {
           await recordManuscriptEdits([
             {
@@ -1642,13 +1660,15 @@ export async function executeEditorTool(
         sourceCommit = await bumpChapterRevision(
           fromCh,
           expectedSourceRevision,
-          { content: sourceWithout, wordCount: fromWordCount }
+          { content: sourceWithout, wordCount: fromWordCount },
+          ctx.runId
         );
         if (!sourceCommit.ok) throw new Error("SOURCE_REVISION_CONFLICT");
         destinationCommit = await bumpChapterRevision(
           toCh,
           expectedDestinationRevision as number,
-          { content: destWith, wordCount: toWordCount }
+          { content: destWith, wordCount: toWordCount },
+          ctx.runId
         );
         if (!destinationCommit.ok) throw new Error("DESTINATION_REVISION_CONFLICT");
         await recordManuscriptEdits([
@@ -1738,10 +1758,15 @@ export async function executeEditorTool(
       const insertHtml = paragraphsToHtml(text);
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
       const wordCount = countWords(htmlToText(content));
-      const committed = await bumpChapterRevision(ch, expectedRevision, {
-        content,
-        wordCount,
-      });
+      const committed = await bumpChapterRevision(
+        ch,
+        expectedRevision,
+        {
+          content,
+          wordCount,
+        },
+        ctx.runId
+      );
       if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
       }

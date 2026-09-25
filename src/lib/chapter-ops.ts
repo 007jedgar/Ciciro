@@ -13,6 +13,7 @@ import {
 } from "@/lib/manuscript";
 import { countWords, htmlToText } from "@/lib/text";
 import { ensureBlockIds } from "@/lib/block-ids";
+import { snapshotSessionBoundary } from "@/lib/snapshots";
 
 export type ChapterOpRecord = ManuscriptOp & {
   chapterId: string;
@@ -387,6 +388,8 @@ export async function appendOps(
   opts: AppendOpsOptions
 ): Promise<AppendOpsResult> {
   const owned = await authorizeOwnedChapter(chapterId, user);
+  // The first keystroke after a break closes the previous session in history.
+  await snapshotSessionBoundary(chapterId);
   return appendGroups(chapterId, owned.projectId, ops, opts.actor);
 }
 

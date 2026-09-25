@@ -7,7 +7,7 @@ import type { ChapterStatus } from "../lib/chapter-status";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { Chapter } from "../lib/types";
-import { TrashIcon } from "./icons";
+import { TrashIcon, VersionHistoryIcon } from "./icons";
 
 export function ChapterListCard({
   chapter,
@@ -17,6 +17,7 @@ export function ChapterListCard({
   onOpen,
   onRequestDelete,
   onStatusChange,
+  onOpenHistory,
 }: {
   chapter: Chapter;
   /** 1-based index in the live chapter list. */
@@ -26,6 +27,8 @@ export function ChapterListCard({
   onOpen: () => void;
   onRequestDelete: () => void;
   onStatusChange?: (status: ChapterStatus) => void;
+  /** Browse and restore this chapter's snapshots. */
+  onOpenHistory?: () => void;
 }) {
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
@@ -71,6 +74,26 @@ export function ChapterListCard({
           </Text>
         ) : null}
       </Pressable>
+      {onOpenHistory ? (
+        <Pressable
+          onPress={onOpenHistory}
+          disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel={t("history.openA11y", { title: customTitle ?? numbered })}
+          hitSlop={8}
+          style={({ pressed }) => [
+            {
+              width: 38,
+              height: 38,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: deleting ? 0.4 : pressed ? 0.5 : 1,
+            },
+          ]}
+        >
+          <VersionHistoryIcon color={colors.inkSoft} />
+        </Pressable>
+      ) : null}
       <Pressable
         onPress={onRequestDelete}
         disabled={deleting}

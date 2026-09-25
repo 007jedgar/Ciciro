@@ -219,6 +219,11 @@ export default function ChaptersScreen() {
             onStatusChange={(status) => {
               void saveStatus(item, status);
             }}
+            onOpenHistory={
+              projectId
+                ? () => router.push(`/project/${projectId}/history/${item.id}` as never)
+                : undefined
+            }
           />
         )}
       />

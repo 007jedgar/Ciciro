@@ -14,6 +14,11 @@ import type {
   Chapter,
   ChapterCreateRequest,
   ChapterPatchRequest,
+  ChapterSnapshotCreateRequest,
+  ChapterSnapshotDetail,
+  ChapterSnapshotListResponse,
+  ChapterSnapshotRestoreResponse,
+  ChapterSnapshotSummary,
   Character,
   CharacterCreateRequest,
   CharacterPatchRequest,
@@ -254,6 +259,30 @@ export const ciciro = {
       ),
     edits: (id: string, opts?: RequestOpts) =>
       api<ManuscriptEdit[]>(`/api/chapters/${encodeURIComponent(id)}/edits`, opts),
+    snapshots: {
+      list: (id: string, opts?: RequestOpts) =>
+        api<ChapterSnapshotListResponse>(`/api/chapters/${encodeURIComponent(id)}/snapshots`, opts),
+      get: (id: string, snapshotId: string, opts?: RequestOpts) =>
+        api<ChapterSnapshotDetail>(
+          `/api/chapters/${encodeURIComponent(id)}/snapshots/${encodeURIComponent(snapshotId)}`,
+          opts
+        ),
+      create: (id: string, body: ChapterSnapshotCreateRequest, opts?: RequestOpts) =>
+        api<ChapterSnapshotSummary>(
+          `/api/chapters/${encodeURIComponent(id)}/snapshots`,
+          jsonInit("POST", body, opts)
+        ),
+      delete: (id: string, snapshotId: string, opts?: RequestOpts) =>
+        api<OkResponse>(
+          `/api/chapters/${encodeURIComponent(id)}/snapshots/${encodeURIComponent(snapshotId)}`,
+          jsonInit("DELETE", undefined, opts)
+        ),
+      restore: (id: string, snapshotId: string, opts?: RequestOpts) =>
+        api<ChapterSnapshotRestoreResponse>(
+          `/api/chapters/${encodeURIComponent(id)}/snapshots/${encodeURIComponent(snapshotId)}/restore`,
+          jsonInit("POST", undefined, opts)
+        ),
+    },
     ops: {
       list: (id: string, after?: number, opts?: RequestOpts) =>
         api<ChapterOpsListResponse>(

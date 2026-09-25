@@ -26,6 +26,7 @@ export default function ProjectStackLayout() {
         // manuscript straight away and the bible collapses away over it.
         options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS}
       />
+      <Stack.Screen name="history/[chapterId]" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
     </Stack>
   );
 

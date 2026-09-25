@@ -504,8 +504,13 @@ textarea {
   font-size: 12px;
   margin-bottom: 28px;
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
   align-items: center;
+}
+.editor-meta > span,
+.editor-meta .btn {
+  white-space: nowrap;
 }
 .ProseMirror {
   font-family: var(--editor-font-family, var(--serif));
@@ -574,6 +579,128 @@ textarea {
   background: var(--del-soft);
   color: var(--del);
   text-decoration: line-through;
+}
+
+/* ---------- Chapter history ---------- */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.history-save {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.history-save input {
+  flex: 1;
+  min-width: 0;
+}
+.history-save .btn {
+  flex: none;
+  padding: 8px 12px;
+}
+.history-hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.history-notice,
+.history-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.history-notice {
+  background: var(--draft-soft);
+  color: var(--draft);
+}
+.history-notice .btn {
+  flex: none;
+}
+.history-error {
+  background: var(--del-soft);
+  color: var(--del);
+}
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.history-item.open {
+  border-color: var(--ink-soft);
+}
+.history-row {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+.history-row:hover {
+  background: var(--panel-2);
+}
+.history-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.history-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-row-meta {
+  flex: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.history-preview {
+  border-top: 1px solid var(--line);
+}
+.history-preview .btn,
+.history-notice .btn {
+  white-space: nowrap;
+}
+.history-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+}
+.history-diff-summary {
+  color: var(--ink-soft);
+  font-size: 12px;
+  padding: 10px 16px 0;
+}
+.history-body {
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 /* ---------- Chat panel ---------- */

@@ -92,7 +92,7 @@ function ThemedStack() {
         <Stack.Screen
           name="writing-history"
           options={{
-            title: t("history.title"),
+            title: t("writingHistory.title"),
             headerShown: false,
             ...POP_OVER_STACK_SCREEN_OPTIONS,
           }}

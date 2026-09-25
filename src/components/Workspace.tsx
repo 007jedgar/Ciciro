@@ -10,6 +10,7 @@ import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
+import ChapterHistory from "@/components/ChapterHistory";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -41,7 +42,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [viewMode, setViewMode] = useState<"prose" | "diff">("prose");
+  const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
   const [diffRefreshToken, setDiffRefreshToken] = useState(0);
   const { settings, patch } = useSettings();
   const [dragChatWidth, setDragChatWidth] = useState<number | null>(null);
@@ -235,6 +236,43 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       }, 1000);
     },
     [activeId, patchChapter, updateChapterLocal]
+  );
+
+  /**
+   * Send any debounced typing now and wait for every queued save to land.
+   * Resolves false when the active chapter still has text the server lacks.
+   */
+  const flushSaves = useCallback(async (): Promise<boolean> => {
+    if (contentTimer.current && activeId) {
+      clearTimeout(contentTimer.current);
+      contentTimer.current = null;
+      const local = projectRef.current.chapters.find((c) => c.id === activeId);
+      if (local) patchChapter(activeId, { content: local.content });
+    }
+    await saveQueueRef.current.catch(() => {});
+    if (pendingSaveCountRef.current > 0) return false;
+    const local = activeId ? getLocalFields(activeId) : null;
+    const store = optimisticStoreRef.current;
+    return !(activeId && local && store?.hasLocalEdits(activeId, local));
+  }, [activeId, getLocalFields, patchChapter]);
+
+  /** A restore committed on the server; its result is the new confirmed head. */
+  const onChapterRestored = useCallback(
+    (chapter: Chapter) => {
+      optimisticStoreRef.current?.setConfirmed(chapter.id, {
+        content: chapter.content,
+        title: chapter.title,
+        status: chapter.status,
+        revision: chapter.revision,
+        wordCount: chapter.wordCount,
+      });
+      updateChapterLocal(chapter.id, {
+        content: chapter.content,
+        wordCount: chapter.wordCount,
+        revision: chapter.revision,
+      });
+    },
+    [updateChapterLocal]
   );
 
   const onTitleChange = useCallback(
@@ -554,6 +592,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   >
                     Diff
                   </button>
+                  <button
+                    className={`btn small ${viewMode === "history" ? "primary" : "ghost"}`}
+                    onClick={() => setViewMode("history")}
+                    title="Snapshots of this chapter you can compare and restore"
+                  >
+                    History
+                  </button>
                 </div>
               </div>
               {viewMode === "prose" ? (
@@ -570,8 +615,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   }
                   focusEndOnMount={focusEndOnMount}
                 />
-              ) : (
+              ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />
+              ) : (
+                <ChapterHistory
+                  chapterId={activeChapter.id}
+                  currentContent={activeChapter.content}
+                  refreshToken={diffRefreshToken}
+                  beforeWrite={flushSaves}
+                  onRestored={onChapterRestored}
+                />
               )}
             </>
           ) : (

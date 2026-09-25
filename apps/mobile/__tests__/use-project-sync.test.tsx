@@ -112,4 +112,52 @@ describe("useProjectSync cycle coalescing", () => {
     expect(await store.listPendingOps("p1")).toHaveLength(0);
     unmount();
   });
+
+  it("reports a chapter as unsettled while its edits fail to push", async () => {
+    const store = createMemoryReplica();
+    await store.upsertChapter({ ...chapter, projectId: "p1" });
+    queryClient.setQueryData(queryKeys.projects.detail("p1"), { id: "p1", chapters: [chapter] });
+    let failing = true;
+    let revision = 1;
+    const api: SyncApi = {
+      listChapters: async () => [chapter],
+      pull: async () => result({ chapters: [{ id: "c1", revision, wordCount: 1 }] }),
+      push: async (body) => {
+        if (failing) throw new Error("Server error");
+        const accepted = (body.ops ?? []).map((op) => ({ op, seq: ++revision }));
+        return result({ accepted, chapters: [{ id: "c1", revision, wordCount: 1 }] });
+      },
+    };
+
+    const { result: hook, unmount } = renderHook(() => useProjectSync("p1", { store, api }));
+    await act(async () => {
+      await hook.current.recordOp({
+        opId: "op-1",
+        chapterId: "c1",
+        baseRevision: 1,
+        actor: "user",
+        type: "replace_block",
+        blockId: "b1",
+        html: '<p data-block-id="b1">Hello there.</p>',
+      });
+    });
+
+    let settled: boolean | null = null;
+    await act(async () => {
+      settled = await hook.current.settleChapter("c1");
+    });
+    expect(settled).toBe(false);
+    await act(async () => {
+      settled = await hook.current.settleChapter("c2");
+    });
+    expect(settled).toBe(true);
+
+    failing = false;
+    await act(async () => {
+      settled = await hook.current.settleChapter("c1");
+    });
+    expect(settled).toBe(true);
+    expect(await store.listPendingOps("p1")).toHaveLength(0);
+    unmount();
+  });
 });
