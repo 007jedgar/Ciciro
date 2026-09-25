@@ -258,6 +258,24 @@ describe("manuscript block model", () => {
     );
   });
 
+  it("treats a repeated block id as a new block instead of losing prose", () => {
+    // What the desk editor saved after Return split a paragraph and copied its id.
+    const oldHtml = '<p data-block-id="p1">Lantern.</p><p data-block-id="p3">Nobody answered.</p>';
+    const newHtml =
+      '<p data-block-id="p1">Lantern.</p><p data-block-id="p3">No</p><p data-block-id="p3">body answered.</p>';
+    const ops = diffHtmlToOps(oldHtml, newHtml, 0, { createId });
+    let { doc } = htmlToDoc(oldHtml, 0);
+    for (const op of ops) {
+      const next = applyOp(doc, op);
+      expect(next.ok).toBe(true);
+      if (!next.ok) return;
+      doc = next.doc;
+    }
+    expect(doc.blocks.map((b) => b.text)).toEqual(["Lantern.", "No", "body answered."]);
+    expect(new Set(doc.blocks.map((b) => b.id)).size).toBe(3);
+    expect(doc.blocks[1].id).toBe("p3");
+  });
+
   it("inherits positional ids when the new html has no data-block-id", () => {
     const ops = diffHtmlToOps(
       '<p data-block-id="keep">Hello.</p>',

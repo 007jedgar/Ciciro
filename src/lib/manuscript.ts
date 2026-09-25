@@ -283,8 +283,13 @@ export function diffHtmlToOps(
   for (const raw of parseRawBlocks(newHtml)) {
     if (raw.id) claimed.add(raw.id);
   }
+  // A repeated id (a pasted paragraph, a split that copied its parent's id)
+  // names one block, not two. The first keeps it; later ones are new blocks.
+  // Left alone, the diff moves and deletes by that id and loses prose.
+  const seen = new Set<string>();
   const newBlocks: ManuscriptBlock[] = parseRawBlocks(newHtml).map((raw, i) => {
-    let id = raw.id;
+    let id = raw.id && !seen.has(raw.id) ? raw.id : null;
+    if (raw.id) seen.add(raw.id);
     if (!id) {
       const inherit = oldParsed.doc.blocks[i];
       if (inherit && !claimed.has(inherit.id)) {
