@@ -251,6 +251,31 @@ describe("chapter version history", () => {
     expect(MANUAL_SNAPSHOT_LIMIT).toBeGreaterThan(AUTO_SNAPSHOT_LIMIT);
   });
 
+  it("keeps the oldest automatic snapshot when that is the one being restored", async () => {
+    const { user, project, chapter } = await seed();
+    const base = Date.now() - 1_000_000;
+    for (let i = 0; i < AUTO_SNAPSHOT_LIMIT; i++) {
+      await captureSnapshot(
+        { id: chapter.id, projectId: project.id, content: `<p>Version ${i}.</p>`, revision: i },
+        "session",
+        { at: new Date(base + i * 1000) }
+      );
+    }
+    await authorWrites(chapter.id, user, "<p>Today's text.</p>");
+    const before = await listSnapshots(chapter.id, user);
+    const oldest = before[before.length - 1];
+    expect(oldest.revision).toBe(0);
+
+    const result = await restoreSnapshot(chapter.id, oldest.id, user);
+    expect(htmlToText(result.chapter.content)).toBe("Version 0.");
+    expect(result.backup?.kind).toBe("before_restore");
+
+    const after = await listSnapshots(chapter.id, user);
+    expect(after.some((s) => s.id === oldest.id)).toBe(true);
+    expect(after.some((s) => s.id === result.backup!.id)).toBe(true);
+    expect(await getSnapshot(chapter.id, oldest.id, user)).toMatchObject({ id: oldest.id });
+  });
+
   it("skips an automatic snapshot of text history already holds", async () => {
     const { project, chapter } = await seed();
     const text = { id: chapter.id, projectId: project.id, content: "<p>Same.</p>", revision: 1 };

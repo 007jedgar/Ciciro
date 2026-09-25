@@ -21,8 +21,11 @@ type ProjectState = {
   }) => Promise<void>;
   recordChapterOp: ReturnType<typeof useProjectSync>["recordOp"];
   flushEdits: () => Promise<boolean>;
-  /** Push queued edits and pull the server's, then settle. */
-  syncChapters: () => Promise<unknown>;
+  /**
+   * Push queued edits and pull the server's, then report whether every edit
+   * to `chapterId` made it to the server.
+   */
+  settleChapter: (chapterId: string) => Promise<boolean>;
   setEditingBlockIds: (ids: string[]) => void;
 };
 
@@ -100,7 +103,7 @@ export function ProjectProvider({
       recordReadingPosition: sync.recordPosition,
       recordChapterOp: sync.recordOp,
       flushEdits: sync.flushEdits,
-      syncChapters: sync.syncNow,
+      settleChapter: sync.settleChapter,
       setEditingBlockIds,
     }),
     [
@@ -115,6 +118,7 @@ export function ProjectProvider({
       sync.position,
       sync.recordOp,
       sync.recordPosition,
+      sync.settleChapter,
       sync.syncNow,
     ]
   );

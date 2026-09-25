@@ -47,11 +47,12 @@ export function ChapterHistory({
   /** The chapter as this device shows it now, for the comparison. */
   currentContent: string;
   /**
-   * Push this device's queued edits and pull the server's. Runs before a
-   * snapshot or restore so it sees the latest typing, and after a restore so
-   * the restored text arrives here as ops, the same way any other edit does.
+   * Push this device's queued edits and pull the server's, resolving true
+   * once none of this chapter's edits are left unsent. Runs before a snapshot
+   * or restore so it sees the latest typing, and after a restore so the
+   * restored text arrives here as ops, the same way any other edit does.
    */
-  settle: () => Promise<unknown>;
+  settle: () => Promise<boolean>;
   host?: ChapterHistoryHost;
 }) {
   const { t, i18n } = useTranslation();
@@ -91,7 +92,10 @@ export function ChapterHistory({
     if (busy) return;
     setError(null);
     try {
-      await settle();
+      if (!(await settle())) {
+        setError(t("history.unsyncedError"));
+        return;
+      }
       await save.mutateAsync({ chapterId, label: label.trim() || undefined });
       setLabel("");
     } catch (err) {
@@ -103,7 +107,10 @@ export function ChapterHistory({
     setError(null);
     setRestoring(true);
     try {
-      await settle();
+      if (!(await settle())) {
+        setError(t("history.unsyncedError"));
+        return;
+      }
       const result = await restoreMutation.mutateAsync({ chapterId, snapshotId: snapshot.id });
       setSelectedId(null);
       setNotice(undo ? { kind: "undone" } : { kind: "restored", backup: result.backup });

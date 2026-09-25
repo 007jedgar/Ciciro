@@ -84,7 +84,7 @@ function wrap(ui: ReactNode) {
   );
 }
 
-function setup(opts?: { restore?: jest.Mock; save?: jest.Mock }) {
+function setup(opts?: { restore?: jest.Mock; save?: jest.Mock; settle?: jest.Mock }) {
   listMock.mockReturnValue({ data: SNAPSHOTS, isPending: false, isError: false });
   detailMock.mockImplementation((_chapterId: string, snapshotId: string) => ({
     data: snapshotId
@@ -103,7 +103,7 @@ function setup(opts?: { restore?: jest.Mock; save?: jest.Mock }) {
   saveMock.mockReturnValue({ mutateAsync: save, isPending: false });
   restoreMock.mockReturnValue({ mutateAsync: restore, isPending: false });
   deleteMock.mockReturnValue({ mutateAsync: jest.fn(async () => ({ ok: true })), isPending: false });
-  const settle = jest.fn(async () => undefined);
+  const settle = opts?.settle ?? jest.fn(async () => true);
   // Press the confirming button of whatever the screen asks.
   const host = {
     alert: jest.fn((_title: string, _message?: string, buttons?: { onPress?: () => void }[]) => {
@@ -172,6 +172,26 @@ describe("ChapterHistory", () => {
     });
     expect(restore).toHaveBeenLastCalledWith({ chapterId: "c1", snapshotId: "backup" });
     await waitFor(() => expect(screen.getByText("Restore undone.")).toBeTruthy());
+  });
+
+  it("refuses to restore or save while this chapter's edits are still queued", async () => {
+    const settle = jest.fn(async () => false);
+    const { restore, save } = setup({ settle });
+    fireEvent.press(screen.getByLabelText(/First pass, Today/));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Restore"));
+    });
+    expect(settle).toHaveBeenCalledTimes(1);
+    expect(restore).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Some of your latest edits have not reached the server yet. Reconnect and try again.")
+    ).toBeTruthy();
+    expect(screen.queryByText("Version restored.")).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Save snapshot"));
+    });
+    expect(save).not.toHaveBeenCalled();
   });
 
   it("explains a failed restore", async () => {

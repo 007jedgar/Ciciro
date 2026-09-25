@@ -20,8 +20,11 @@ type Props = {
   currentContent: string;
   /** Bump to refetch, e.g. after an editor turn that may have left a snapshot. */
   refreshToken?: number;
-  /** Lands any unsaved typing, so a snapshot or restore sees the latest text. */
-  beforeWrite: () => Promise<void>;
+  /**
+   * Lands any unsaved typing, so a snapshot or restore sees the latest text.
+   * Resolves false when some of it could not be saved.
+   */
+  beforeWrite: () => Promise<boolean>;
   onRestored: (chapter: Chapter) => void;
 };
 
@@ -30,6 +33,8 @@ type RestoreResponse = {
   restored: ChapterSnapshotSummary;
   backup: ChapterSnapshotSummary | null;
 };
+
+const UNSAVED_ERROR = "Some of your latest edits haven't saved yet. Check your connection and try again.";
 
 type Notice =
   | { kind: "restored"; title: string; backup: ChapterSnapshotSummary | null }
@@ -127,7 +132,7 @@ export default function ChapterHistory({
     setBusy("save");
     setError(null);
     try {
-      await beforeWrite();
+      if (!(await beforeWrite())) throw new Error(UNSAVED_ERROR);
       const res = await fetch(`/api/chapters/${chapterId}/snapshots`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -148,7 +153,7 @@ export default function ChapterHistory({
     setBusy("restore");
     setError(null);
     try {
-      await beforeWrite();
+      if (!(await beforeWrite())) throw new Error(UNSAVED_ERROR);
       const res = await fetch(`/api/chapters/${chapterId}/snapshots/${snapshot.id}/restore`, {
         method: "POST",
       });

@@ -252,6 +252,7 @@ const es: Translations = {
     restoreTitle: "¿Restaurar esta versión?",
     restoreMessage: "Tu texto actual se guarda antes en el historial, así que puedes deshacerlo.",
     restoreError: "No se pudo restaurar esta versión.",
+    unsyncedError: "Algunos de tus últimos cambios aún no han llegado al servidor. Vuelve a conectarte e inténtalo de nuevo.",
     restored: "Versión restaurada.",
     undo: "Deshacer",
     undone: "Restauración deshecha.",

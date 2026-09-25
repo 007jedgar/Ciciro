@@ -267,17 +267,32 @@ export function useProjectSync(
     return (await store.listPendingOps(projectId)).length === 0;
   }, [projectId, run, store, user]);
 
+  /**
+   * Push queued edits and pull the server's, then report whether any of
+   * `chapterId`'s edits are still waiting to be sent.
+   */
+  const settleChapter = useCallback(
+    async (chapterId: string): Promise<boolean> => {
+      if (!user || !projectId) return false;
+      await run("auto");
+      const pending = await store.listPendingOps(projectId);
+      return !pending.some((op) => op.chapterId === chapterId);
+    },
+    [projectId, run, store, user]
+  );
+
   return useMemo(
     () => ({
       position,
       syncing: false,
       syncNow: () => run("auto"),
       flushEdits,
+      settleChapter,
       pullNow: () => run("pull"),
       recordOp,
       recordBible,
       recordPosition,
     }),
-    [flushEdits, position, recordBible, recordOp, recordPosition, run]
+    [flushEdits, position, recordBible, recordOp, recordPosition, run, settleChapter]
   );
 }

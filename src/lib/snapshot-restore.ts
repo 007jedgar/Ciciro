@@ -4,7 +4,7 @@ import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { ensureBlockIds } from "@/lib/block-ids";
 import { writeChapterHtml } from "@/lib/chapter-writes";
-import { captureSnapshot, toSnapshotSummary } from "@/lib/snapshots";
+import { captureSnapshot, SUMMARY_COLUMNS, toSnapshotSummary } from "@/lib/snapshots";
 import type { ChapterSnapshotSummary } from "@/lib/snapshot-view";
 
 export type RestoreResult = {
@@ -20,12 +20,16 @@ export type RestoreResult = {
  * already holds it: capture skips a copy of the newest snapshot, and the
  * author still needs something to undo to.
  */
-async function keepCurrentText(current: Chapter): Promise<ChapterSnapshotSummary | null> {
-  const saved = await captureSnapshot(current, "before_restore");
+async function keepCurrentText(
+  current: Chapter,
+  restoringId: string
+): Promise<ChapterSnapshotSummary | null> {
+  const saved = await captureSnapshot(current, "before_restore", { keep: restoringId });
   if (saved) return toSnapshotSummary(saved);
   const existing = await prisma.chapterSnapshot.findFirst({
     where: { chapterId: current.id, content: current.content },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: SUMMARY_COLUMNS,
   });
   return existing ? toSnapshotSummary(existing) : null;
 }
@@ -61,7 +65,7 @@ export async function restoreSnapshot(
     }
     // Unlike the automatic snapshots this one is not best effort: a restore
     // that cannot keep the text it replaces does not run.
-    const backup = await keepCurrentText(current);
+    const backup = await keepCurrentText(current, snapshot.id);
     const written = await writeChapterHtml(current, snapshot.content, { actor: "user" });
     if (written.ok) {
       const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });

@@ -30,7 +30,22 @@ export const AI_RUN_WINDOW_MS = 60 * 60 * 1000;
 
 type ChapterText = { id: string; projectId: string; content: string; revision: number };
 
-export function toSnapshotSummary(row: ChapterSnapshot): ChapterSnapshotSummary {
+export const SUMMARY_COLUMNS = {
+  id: true,
+  chapterId: true,
+  kind: true,
+  label: true,
+  wordCount: true,
+  revision: true,
+  createdAt: true,
+} as const;
+
+type SnapshotSummaryRow = Pick<
+  ChapterSnapshot,
+  "id" | "chapterId" | "kind" | "label" | "wordCount" | "revision" | "createdAt"
+>;
+
+export function toSnapshotSummary(row: SnapshotSummaryRow): ChapterSnapshotSummary {
   return {
     id: row.id,
     chapterId: row.chapterId,
@@ -51,9 +66,12 @@ function toSnapshotDetail(row: ChapterSnapshot): ChapterSnapshotDetail {
  * are counted separately, so a busy week of editor runs cannot push out a
  * version the author saved by hand.
  */
-export async function pruneSnapshots(chapterId: string): Promise<number> {
+export async function pruneSnapshots(
+  chapterId: string,
+  opts?: { keep?: string }
+): Promise<number> {
   const rows = await prisma.chapterSnapshot.findMany({
-    where: { chapterId },
+    where: { chapterId, ...(opts?.keep ? { id: { not: opts.keep } } : {}) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: { id: true, kind: true },
   });
@@ -78,7 +96,7 @@ export async function pruneSnapshots(chapterId: string): Promise<number> {
 export async function captureSnapshot(
   chapter: ChapterText,
   kind: SnapshotKind,
-  opts?: { label?: string; at?: Date }
+  opts?: { label?: string; at?: Date; keep?: string }
 ): Promise<ChapterSnapshot | null> {
   const wordCount = countWords(htmlToText(chapter.content));
   if (kind !== "manual") {
@@ -102,7 +120,7 @@ export async function captureSnapshot(
       ...(opts?.at ? { createdAt: opts.at } : {}),
     },
   });
-  await pruneSnapshots(chapter.id);
+  await pruneSnapshots(chapter.id, { keep: opts?.keep });
   return row;
 }
 
@@ -182,6 +200,7 @@ export async function listSnapshots(
   const rows = await prisma.chapterSnapshot.findMany({
     where: { chapterId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: SUMMARY_COLUMNS,
   });
   return rows.map(toSnapshotSummary);
 }

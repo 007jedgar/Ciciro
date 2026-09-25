@@ -238,8 +238,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     [activeId, patchChapter, updateChapterLocal]
   );
 
-  /** Send any debounced typing now and wait for every queued save to land. */
-  const flushSaves = useCallback(async () => {
+  /**
+   * Send any debounced typing now and wait for every queued save to land.
+   * Resolves false when the active chapter still has text the server lacks.
+   */
+  const flushSaves = useCallback(async (): Promise<boolean> => {
     if (contentTimer.current && activeId) {
       clearTimeout(contentTimer.current);
       contentTimer.current = null;
@@ -247,7 +250,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (local) patchChapter(activeId, { content: local.content });
     }
     await saveQueueRef.current.catch(() => {});
-  }, [activeId, patchChapter]);
+    if (pendingSaveCountRef.current > 0) return false;
+    const local = activeId ? getLocalFields(activeId) : null;
+    const store = optimisticStoreRef.current;
+    return !(activeId && local && store?.hasLocalEdits(activeId, local));
+  }, [activeId, getLocalFields, patchChapter]);
 
   /** A restore committed on the server; its result is the new confirmed head. */
   const onChapterRestored = useCallback(

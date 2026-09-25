@@ -16,7 +16,7 @@ export default function ChapterHistoryScreen() {
   const { id, chapterId } = useLocalSearchParams<{ id: string; chapterId: string }>();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
-  const { project, loading, syncChapters } = useProject();
+  const { project, loading, settleChapter } = useProject();
   const projectId = typeof id === "string" ? id : "";
   const targetId = typeof chapterId === "string" ? chapterId : "";
 
@@ -41,7 +41,7 @@ export default function ChapterHistoryScreen() {
           chapterId={chapter.id}
           heading={custom ? `${numbered} · ${custom}` : numbered}
           currentContent={chapter.content}
-          settle={syncChapters}
+          settle={() => settleChapter(chapter.id)}
         />
       ) : loading ? (
         <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
