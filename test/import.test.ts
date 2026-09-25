@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { detectFormat, importFile, ImportError } from "@/lib/import";
+import { parseHtml } from "@/lib/import/html";
 import { parseMarkdown } from "@/lib/import/markdown";
 import { parseRtf } from "@/lib/import/rtf";
 
@@ -45,6 +47,12 @@ describe("markdown import", () => {
     expect(md.chapters.map((c) => c.title)).toEqual(["One", "Two"]);
   });
 
+  it("keeps prose between an opening rule and a later scene break", () => {
+    const md = parseMarkdown("---\n\nThe first scene.\n\n---\n\nThe second scene.\n", "notes");
+    expect(md.title).toBe("");
+    expect(md.chapters[0].html).toBe("<p>The first scene.</p><hr><p>The second scene.</p>");
+  });
+
   it("does not turn a scene break after a blank line into a setext heading", () => {
     const md = parseMarkdown("# One\n\nA line.\n\n---\n\nAnother.\n");
     expect(md.chapters[0].html).toBe("<p>A line.</p><hr><p>Another.</p>");
@@ -70,6 +78,11 @@ describe("docx import", () => {
     expect(result.chapters[1].html).toBe("<p>Rain on the glass, still falling.</p>");
   });
 
+  it("refuses an archive that inflates past the size limit", () => {
+    const bomb = zipSync({ "word/document.xml": new Uint8Array(201 * 1024 * 1024) }, { level: 1 });
+    expect(() => importFile("bomb.docx", bomb)).toThrow(/too large to import/);
+  });
+
   it("rejects a zip that is not a Word document", () => {
     expect(() => importFile("bad.docx", fixture("sample.scriv.zip"))).toThrow(ImportError);
     expect(() => importFile("bad.docx", new Uint8Array([1, 2, 3]))).toThrow(/not a valid \.docx/);
@@ -92,6 +105,16 @@ describe("Google Docs HTML import", () => {
   });
 });
 
+describe("HTML lists", () => {
+  it("keeps the marker on items whose text sits in a paragraph", () => {
+    const html = parseHtml(
+      '<p>Intro.</p><ul><li><p role="presentation"><span>one</span></p></li><li><p>two</p></li></ul>' +
+        "<ol><li><p>first</p></li></ol>"
+    );
+    expect(html.chapters[0].html).toBe("<p>Intro.</p><p>• one</p><p>• two</p><p>1. first</p>");
+  });
+});
+
 describe("scrivener import", () => {
   const result = importFile("sample.scriv.zip", fixture("sample.scriv.zip"));
 
@@ -106,6 +129,27 @@ describe("scrivener import", () => {
         "<hr><p>Night fell over the “harbor”.</p>"
     );
     expect(result.chapters[1].html).toBe("<p>By morning it was quiet.</p>");
+  });
+
+  it("keeps every paragraph of a document that contains chapter-like lines", () => {
+    const scrivx =
+      '<?xml version="1.0"?><ScrivenerProject><Binder>' +
+      '<BinderItem UUID="A" Type="DraftFolder"><Title>Draft</Title><Children>' +
+      '<BinderItem UUID="B" Type="Text"><Title>Opening</Title></BinderItem>' +
+      "</Children></BinderItem></Binder></ScrivenerProject>";
+    const zip = zipSync({
+      "Book.scriv/Book.scrivx": strToU8(scrivx),
+      "Book.scriv/Files/Data/B/content.rtf": strToU8(
+        "{\\rtf1\\pard Dear reader.\\par Chapter 1\\par Text A\\par Chapter 2\\par Text B\\par}"
+      ),
+    });
+    const book = importFile("Book.scriv.zip", zip);
+    expect(book.chapters).toEqual([
+      {
+        title: "Opening",
+        html: "<p>Dear reader.</p><p>Chapter 1</p><p>Text A</p><p>Chapter 2</p><p>Text B</p>",
+      },
+    ]);
   });
 
   it("explains a zip that holds no project", () => {

@@ -43,8 +43,13 @@ function nextFmt(node: MarkupNode, fmt: Fmt): Fmt {
 function collectBlocks(root: MarkupNode): ImportBlock[] {
   const blocks: ImportBlock[] = [];
   let runs: Run[] = [];
+  let marker = "";
 
   const flush = (level?: number, quote?: boolean) => {
+    if (marker && !level && runs.some((r) => r.text.trim())) {
+      runs.unshift({ text: marker });
+      marker = "";
+    }
     const block = level ? headingBlock(level, runs) : paragraphBlock(runs);
     if (block) blocks.push(block.kind === "paragraph" && quote ? { ...block, kind: "quote" } : block);
     runs = [];
@@ -71,9 +76,10 @@ function collectBlocks(root: MarkupNode): ImportBlock[] {
       } else if (BLOCKS.has(child.name)) {
         flush();
         const isQuote = quote || child.name === "blockquote";
-        if (child.name === "li") runs.push({ text: listMarker(node, child) });
+        if (child.name === "li") marker = listMarker(node, child);
         walk(child, childFmt, isQuote);
         flush(undefined, isQuote);
+        if (child.name === "li") marker = "";
       } else if (child.name === "ul" || child.name === "ol") {
         flush();
         walk(child, childFmt, quote);

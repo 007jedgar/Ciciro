@@ -92,7 +92,7 @@ function renderBlock(block: ImportBlock, chapterLevel: number): string {
   }
 }
 
-function renderBlocks(blocks: ImportBlock[], chapterLevel: number): string {
+export function renderBlocks(blocks: ImportBlock[], chapterLevel = 1): string {
   // A break at either end of a chapter, or two in a row, is noise.
   const trimmed: ImportBlock[] = [];
   for (const block of blocks) {

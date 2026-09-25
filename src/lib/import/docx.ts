@@ -1,4 +1,4 @@
-import { unzipSync, strFromU8 } from "fflate";
+import { strFromU8 } from "fflate";
 import {
   chapterize,
   headingBlock,
@@ -8,6 +8,7 @@ import {
   type Run,
 } from "./blocks";
 import { elementChildren, findAll, findChild, parseMarkup, type MarkupNode } from "./markup";
+import { unzipEntries } from "./zip";
 
 type StyleInfo = { name: string; basedOn?: string; outline?: number; bold?: boolean; italic?: boolean };
 
@@ -110,14 +111,11 @@ function paragraphs(body: MarkupNode): MarkupNode[] {
 
 /** Word (.docx, including Google Docs downloads) to chapters. */
 export function parseDocx(data: Uint8Array, fallbackTitle = ""): ImportedManuscript {
-  let files: Record<string, Uint8Array>;
-  try {
-    files = unzipSync(data, {
-      filter: (f) => f.name === "word/document.xml" || f.name === "word/styles.xml",
-    });
-  } catch {
-    throw new Error("That file is not a valid .docx document.");
-  }
+  const files = unzipEntries(
+    data,
+    (name) => name === "word/document.xml" || name === "word/styles.xml",
+    "That file is not a valid .docx document."
+  );
   const documentXml = files["word/document.xml"];
   if (!documentXml) throw new Error("That file is not a valid .docx document.");
 

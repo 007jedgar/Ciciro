@@ -41,7 +41,10 @@ function frontMatterTitle(lines: string[]): { title: string; rest: string[] } {
   if (lines[0]?.trim() !== "---") return { title: "", rest: lines };
   const end = lines.findIndex((l, i) => i > 0 && /^(---|\.\.\.)\s*$/.test(l));
   if (end < 0) return { title: "", rest: lines };
-  const meta = lines.slice(1, end).join("\n");
+  const body = lines.slice(1, end);
+  const isMeta = (l: string) => !l.trim() || /^\s*#/.test(l) || /^[\w-]+\s*:(\s|$)/.test(l) || /^\s+\S/.test(l);
+  if (!body.some((l) => l.trim()) || !body.every(isMeta)) return { title: "", rest: lines };
+  const meta = body.join("\n");
   const m = meta.match(/^title:\s*(.+)$/im);
   const title = m ? m[1].trim().replace(/^(["'])(.*)\1$/, "$2") : "";
   return { title, rest: lines.slice(end + 1) };

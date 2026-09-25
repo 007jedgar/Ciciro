@@ -302,9 +302,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       cache: "no-store",
     });
     if (!res.ok) throw new Error("Imported, but could not refresh the chapter list. Reload the page.");
-    const chapters: Chapter[] = await res.json();
-    for (const chapter of chapters) optimisticStoreRef.current?.seed(chapter);
-    setProject((p) => ({ ...p, chapters }));
+    const imported = new Set(result.chapters.map((c) => c.id));
+    const added = ((await res.json()) as Chapter[]).filter((c) => imported.has(c.id));
+    for (const chapter of added) optimisticStoreRef.current?.seed(chapter);
+    setProject((p) => ({ ...p, chapters: [...p.chapters, ...added] }));
     const first = result.chapters[0];
     if (first) setActiveId(first.id);
   }

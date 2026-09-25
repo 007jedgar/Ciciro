@@ -1,7 +1,8 @@
-import { unzipSync, strFromU8 } from "fflate";
+import { strFromU8 } from "fflate";
 import { parseRtf } from "./rtf";
-import { chapterize, type ImportBlock, type ImportedChapter, type ImportedManuscript } from "./blocks";
+import { renderBlocks, type ImportBlock, type ImportedChapter, type ImportedManuscript } from "./blocks";
 import { elementChildren, findChild, parseMarkup, textOf, type MarkupNode } from "./markup";
+import { unzipEntries } from "./zip";
 
 type Item = {
   uuid: string;
@@ -37,14 +38,11 @@ function findByType(items: Item[], type: string): Item | undefined {
 
 /** Read a zipped .scriv package: binder order from the .scrivx, text from the RTF files. */
 export function parseScrivener(data: Uint8Array, fallbackTitle = ""): ImportedManuscript {
-  let files: Record<string, Uint8Array>;
-  try {
-    files = unzipSync(data, {
-      filter: (f) => !f.name.startsWith("__MACOSX/") && !/(^|\/)\._/.test(f.name) && !f.name.endsWith("/"),
-    });
-  } catch {
-    throw new Error("That file is not a valid zipped Scrivener project.");
-  }
+  const files = unzipEntries(
+    data,
+    (name) => !name.startsWith("__MACOSX/") && !/(^|\/)\._/.test(name) && /\.(scrivx|rtf)$/i.test(name),
+    "That file is not a valid zipped Scrivener project."
+  );
   const scrivxPath = Object.keys(files).find((p) => p.toLowerCase().endsWith(".scrivx"));
   if (!scrivxPath) {
     throw new Error("No Scrivener project found. Zip the whole .scriv folder and try again.");
@@ -88,9 +86,7 @@ export function parseScrivener(data: Uint8Array, fallbackTitle = ""): ImportedMa
 
   const chapters: ImportedChapter[] = [];
   const addChapter = (title: string, blocks: ImportBlock[]) => {
-    // chapterize renders blocks and trims stray scene breaks for us.
-    const rendered = chapterize(blocks, title).chapters[0];
-    chapters.push({ title: title || "Untitled Chapter", html: rendered?.html ?? "" });
+    chapters.push({ title: title || "Untitled Chapter", html: renderBlocks(blocks) });
   };
 
   const walk = (items: Item[]) => {
