@@ -112,6 +112,15 @@ to history first, and **Undo** puts it back. Ciciro will not restore or save a
 snapshot while your latest edits have not reached the server, so reconnect and
 try again if it says so.
 
+## Search and replace
+
+**Search** in the top bar (Cmd/Ctrl+Shift+F) finds text across every chapter and
+shows each match with the words around it; click one to jump to it in the editor.
+Turn on **Match case** or **Whole word** to narrow it, type a replacement, and use
+**Replace** on a single match or **Replace all**. Replacements are ordinary chapter
+edits, so they sync to the phone like anything you type. On the phone, the Chapters
+tab has a Find and replace card with the same options.
+
 ## Import
 
 Bring an existing manuscript in from Word (`.docx`, including Google Docs

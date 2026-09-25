@@ -10,6 +10,18 @@ type ResourceCase = {
 };
 
 const RESOURCES: ResourceCase[] = [
+  {
+    name: "search.find",
+    run: () => ciciro.search.find("p1", "jon", { matchCase: true, wholeWord: false }),
+    path: /\/api\/projects\/p1\/search\?q=jon&matchCase=1$/,
+  },
+  {
+    name: "search.replace",
+    run: () => ciciro.search.replace("p1", { query: "a", replacement: "b", matchCase: false, wholeWord: true }),
+    method: "POST",
+    path: /\/api\/projects\/p1\/replace$/,
+    body: { query: "a", replacement: "b", matchCase: false, wholeWord: true },
+  },
   { name: "health.get", run: () => ciciro.health.get(), path: /\/api\/health$/ },
   { name: "auth.me", run: () => ciciro.auth.me(), path: /\/api\/auth\/me$/ },
   {

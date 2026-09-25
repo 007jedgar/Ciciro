@@ -11,6 +11,7 @@ import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
 import ChapterHistory from "@/components/ChapterHistory";
+import SearchPanel from "@/components/SearchPanel";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -21,6 +22,7 @@ import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-c
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
+import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -40,6 +42,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [bibleOpen, setBibleOpen] = useState(false);
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Bumped to remount the editor when its chapter was rewritten from outside.
+  const [editorNonce, setEditorNonce] = useState(0);
   const [openCount, setOpenCount] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
@@ -61,17 +66,21 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   projectRef.current = project;
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingSaveCountRef = useRef(0);
+  // Chapters whose typed content the server has not accepted.
+  const unsavedContentRef = useRef(new Set<string>());
   const saveStateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the editor opens/creates a chapter, mount TipTap with the caret at
   // the end so Auto-mode drafts continue rather than prepending.
   const [focusEndOnMount, setFocusEndOnMount] = useState(false);
   const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingContentRef = useRef<{ id: string; html: string } | null>(null);
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const positionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [resumePosition, setResumePosition] = useState<{
     chapterId: string;
     blockId: string;
     offset: number;
+    length?: number;
   } | null>(null);
   const chatWidthRef = useRef(chatWidth);
   chatWidthRef.current = chatWidth;
@@ -196,16 +205,24 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               outcome = await attemptSave(payload);
             }
           }
+          let settled = outcome !== "fail" && outcome !== "409-retry";
           if (outcome === "fail") {
             const confirmed = store.get(id);
             const local = getLocalFields(id);
             if (confirmed && local) {
               const failure = handleNetworkFailure(confirmed, local, payload);
-              if (failure.localPatch) updateChapterLocal(id, failure.localPatch);
+              if (failure.localPatch) {
+                updateChapterLocal(id, failure.localPatch);
+                settled = true;
+              }
               showTransientSaveState(failure.uiHint);
             } else {
               showTransientSaveState("error");
             }
+          }
+          if ("content" in payload) {
+            if (settled) unsavedContentRef.current.delete(id);
+            else unsavedContentRef.current.add(id);
           }
         })
         .finally(() => {
@@ -230,8 +247,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         content: html,
         wordCount: nextWords,
       });
+      const pending = pendingContentRef.current;
       if (contentTimer.current) clearTimeout(contentTimer.current);
+      if (pending && pending.id !== activeId) patchChapter(pending.id, { content: pending.html });
+      pendingContentRef.current = { id: activeId, html };
       contentTimer.current = setTimeout(() => {
+        contentTimer.current = null;
+        pendingContentRef.current = null;
         patchChapter(activeId, { content: html });
       }, 1000);
     },
@@ -240,21 +262,37 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   /**
    * Send any debounced typing now and wait for every queued save to land.
-   * Resolves false when the active chapter still has text the server lacks.
+   * `chapterId` limits the check to one chapter (a single replace); omitted,
+   * every chapter is in scope. Resolves false when text in scope is still
+   * missing from the server, so a restore or replace cannot overwrite it.
    */
-  const flushSaves = useCallback(async (): Promise<boolean> => {
-    if (contentTimer.current && activeId) {
-      clearTimeout(contentTimer.current);
+  const flushSaves = useCallback(
+    async (chapterId?: string): Promise<boolean> => {
+      const pending = pendingContentRef.current;
+      if (contentTimer.current) clearTimeout(contentTimer.current);
       contentTimer.current = null;
-      const local = projectRef.current.chapters.find((c) => c.id === activeId);
-      if (local) patchChapter(activeId, { content: local.content });
-    }
-    await saveQueueRef.current.catch(() => {});
-    if (pendingSaveCountRef.current > 0) return false;
-    const local = activeId ? getLocalFields(activeId) : null;
-    const store = optimisticStoreRef.current;
-    return !(activeId && local && store?.hasLocalEdits(activeId, local));
-  }, [activeId, getLocalFields, patchChapter]);
+      pendingContentRef.current = null;
+      if (pending) patchChapter(pending.id, { content: pending.html });
+
+      let queue: Promise<void>;
+      do {
+        queue = saveQueueRef.current;
+        await queue.catch(() => {});
+      } while (queue !== saveQueueRef.current);
+
+      if (pendingSaveCountRef.current > 0) return false;
+
+      const unsaved = unsavedContentRef.current;
+      const store = optimisticStoreRef.current;
+      return !projectRef.current.chapters.some((chapter) => {
+        if (chapterId && chapter.id !== chapterId) return false;
+        if (unsaved.has(chapter.id)) return true;
+        const local = getLocalFields(chapter.id);
+        return Boolean(local && store?.hasLocalEdits(chapter.id, local));
+      });
+    },
+    [getLocalFields, patchChapter]
+  );
 
   /** A restore committed on the server; its result is the new confirmed head. */
   const onChapterRestored = useCallback(
@@ -320,6 +358,62 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       }, 600);
     },
     [activeId, project.id]
+  );
+
+  // --- Manuscript search ---
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const onSearchReplaced = useCallback(
+    (replaced: ReplacedChapter[]) => {
+      const store = optimisticStoreRef.current;
+      for (const r of replaced) {
+        const local = projectRef.current.chapters.find((c) => c.id === r.id);
+        store?.setConfirmed(r.id, {
+          content: r.content,
+          title: local?.title ?? "",
+          status: local?.status ?? "draft",
+          revision: r.revision,
+          wordCount: r.wordCount,
+        });
+        updateChapterLocal(r.id, {
+          content: r.content,
+          wordCount: r.wordCount,
+          revision: r.revision,
+        });
+      }
+      if (activeId && replaced.some((r) => r.id === activeId)) {
+        setResumePosition(null);
+        setEditorNonce((n) => n + 1);
+      }
+    },
+    [activeId, updateChapterLocal]
+  );
+
+  const onSearchJump = useCallback(
+    (match: SearchMatch, length: number) => {
+      setSearchOpen(false);
+      setViewMode("prose");
+      setFocusEndOnMount(false);
+      setResumePosition({
+        chapterId: match.chapterId,
+        blockId: match.blockId,
+        offset: match.offset,
+        length,
+      });
+      setActiveId(match.chapterId);
+      // Same chapter: remount so the caret restore runs again.
+      if (match.chapterId === activeId) setEditorNonce((n) => n + 1);
+    },
+    [activeId]
   );
 
   // --- Chapter operations ---
@@ -522,6 +616,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 : "All changes saved"}
         </span>
         <ThemePicker compact />
+        <button
+          className="btn small"
+          onClick={() => setSearchOpen(true)}
+          title="Find and replace across every chapter (Cmd/Ctrl+Shift+F)"
+        >
+          Search
+        </button>
         <button className="btn small" onClick={() => setQuestionsOpen(true)}>
           Questions{openCount ? ` (${openCount})` : ""}
         </button>
@@ -603,14 +704,18 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               </div>
               {viewMode === "prose" ? (
                 <Editor
-                  key={activeChapter.id}
+                  key={`${activeChapter.id}:${editorNonce}`}
                   ref={editorRef}
                   content={activeChapter.content}
                   onChange={onContentChange}
                   onCaretChange={onCaretChange}
                   restorePosition={
                     !focusEndOnMount && resumePosition?.chapterId === activeChapter.id
-                      ? { blockId: resumePosition.blockId, offset: resumePosition.offset }
+                      ? {
+                          blockId: resumePosition.blockId,
+                          offset: resumePosition.offset,
+                          length: resumePosition.length,
+                        }
                       : null
                   }
                   focusEndOnMount={focusEndOnMount}
@@ -670,6 +775,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       {bibleOpen && (
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
+      )}
+
+      {searchOpen && (
+        <SearchPanel
+          projectId={project.id}
+          onClose={() => setSearchOpen(false)}
+          onJump={onSearchJump}
+          flushSaves={flushSaves}
+          onReplaced={onSearchReplaced}
+        />
       )}
 
       {questionsOpen && (

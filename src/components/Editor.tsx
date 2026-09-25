@@ -5,6 +5,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
+import type { Node as PmNode } from "@tiptap/pm/model";
 import { BlockId } from "@/lib/tiptap-block-id";
 import { useSettings } from "@/components/SettingsProvider";
 
@@ -28,7 +29,8 @@ type Props = {
   onChange: (html: string) => void;
   onSelectionChange?: (text: string) => void;
   onCaretChange?: (caret: ReadingCaret) => void;
-  restorePosition?: ReadingCaret | null;
+  /** `length` selects that many characters from the offset (a search hit). */
+  restorePosition?: (ReadingCaret & { length?: number }) | null;
   /** When true on mount, place the caret at the end (AI opened this chapter). */
   focusEndOnMount?: boolean;
 };
@@ -45,6 +47,37 @@ function caretFromEditor(editor: {
     }
   }
   return null;
+}
+
+// Map an offset into a block's visible text (what search reports: text nodes
+// joined, a hard break as one character) to a document position, walking into
+// nested paragraphs of a quote or list item. `atEnd` keeps a boundary offset in
+// the node it ends rather than the one the next character starts.
+function textOffsetToPos(block: PmNode, blockPos: number, offset: number, atEnd: boolean): number {
+  let remaining = Math.max(0, offset);
+  let found: number | null = null;
+  let last = blockPos + 1;
+  block.descendants((child, pos) => {
+    if (found != null) return false;
+    const at = blockPos + 1 + pos;
+    if (child.isText) {
+      const len = child.text?.length ?? 0;
+      if (remaining < len || (atEnd && remaining === len)) {
+        found = at + remaining;
+        return false;
+      }
+      remaining -= len;
+      last = at + len;
+    } else if (child.type.name === "hardBreak") {
+      if (remaining === 0 && !atEnd) {
+        found = at;
+        return false;
+      }
+      remaining -= 1;
+      last = at + 1;
+    }
+  });
+  return found ?? last;
 }
 
 const Editor = forwardRef<EditorHandle, Props>(function Editor(
@@ -130,18 +163,31 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   useEffect(() => {
     if (!editor || focusEndOnMount) return;
     if (!restorePosition) return;
-    const key = `${restorePosition.blockId}:${restorePosition.offset}`;
+    const key = `${restorePosition.blockId}:${restorePosition.offset}:${restorePosition.length ?? 0}`;
     if (restoredKey.current === key) return;
     restoredKey.current = key;
+    const length = restorePosition.length ?? 0;
     let target: number | null = null;
+    let selection: { from: number; to: number } | null = null;
     editor.state.doc.descendants((node, pos) => {
-      if (target != null) return false;
+      if (target != null || selection != null) return false;
       if (node.attrs.blockId !== restorePosition.blockId) return;
+      if (length > 0) {
+        selection = {
+          from: textOffsetToPos(node, pos, restorePosition.offset, false),
+          to: textOffsetToPos(node, pos, restorePosition.offset + length, true),
+        };
+        return false;
+      }
       const start = pos + 1;
       const max = node.content.size;
       target = start + Math.min(Math.max(0, restorePosition.offset), max);
       return false;
     });
+    if (selection) {
+      editor.chain().focus().setTextSelection(selection).scrollIntoView().run();
+      return;
+    }
     if (target == null) return;
     editor.chain().focus().setTextSelection(target).run();
   }, [editor, restorePosition, focusEndOnMount]);

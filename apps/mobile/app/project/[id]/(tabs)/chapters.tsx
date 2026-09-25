@@ -189,6 +189,15 @@ export default function ChaptersScreen() {
                 <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
               </Pressable>
               <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(`/project/${projectId}/search` as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("search.title")}
+              >
+                <Text style={layout.cardTitle}>{t("search.title")}</Text>
+                <Text style={layout.cardMeta}>{t("search.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
                 style={[layout.card, { marginBottom: 16, opacity: importing ? 0.6 : 1 }]}
                 onPress={() => void importChapters()}
                 disabled={importing}
