@@ -553,15 +553,16 @@ const en = {
   },
   export: {
     title: "Export manuscript",
-    meta: "Share a finished copy as an ebook, a book-layout PDF, or a Word file.",
+    meta: "Share a finished copy as plain text, an ebook, a book-layout PDF, or a Word file.",
     preparing: "Preparing {{format}}…",
     error: "Could not export the manuscript.",
     unavailable: "Sharing is not available on this device.",
     unsynced: "Some edits have not synced yet. Connect to the internet and try again.",
     a11y: "Export as {{format}}",
+    docx: "Word",
+    markdown: "Markdown",
     epub: "EPUB",
     pdf: "PDF",
-    docx: "Word",
   },
   manuscriptTabBar: {
     open: "Writing tools",

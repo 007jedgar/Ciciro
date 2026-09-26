@@ -555,15 +555,16 @@ const es: Translations = {
   },
   export: {
     title: "Exportar manuscrito",
-    meta: "Comparte una copia terminada como libro electrónico, PDF con diseño de libro o archivo de Word.",
+    meta: "Comparte una copia terminada como texto sin formato, libro electrónico, PDF con diseño de libro o archivo de Word.",
     preparing: "Preparando {{format}}…",
     error: "No se pudo exportar el manuscrito.",
     unavailable: "Compartir no está disponible en este dispositivo.",
     unsynced: "Algunos cambios aún no se han sincronizado. Conéctate a internet e inténtalo de nuevo.",
     a11y: "Exportar como {{format}}",
+    docx: "Word",
+    markdown: "Markdown",
     epub: "EPUB",
     pdf: "PDF",
-    docx: "Word",
   },
   manuscriptTabBar: {
     open: "Herramientas de escritura",

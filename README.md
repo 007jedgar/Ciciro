@@ -8,7 +8,7 @@ editor with chapter navigation, and you talk to **one** partner - Ciciro, the ed
 loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
 Manuscripts import from Word, Google Docs, Markdown and Scrivener, and export to
-standard (Shunn-style) `.docx`, EPUB, and PDF. Search and find-and-replace work
+standard (Shunn-style) `.docx`, Markdown, EPUB, and PDF. Search and find-and-replace work
 across every chapter.
 
 ## Contents
@@ -133,6 +133,10 @@ any editor; they are plain markdown you can version with git.
 Times New Roman 12pt, double-spaced, 1" margins, title page with word count, chapters
 on fresh pages, running header, `#` scene breaks.
 
+`?format=markdown` renders a `.md` file: book title as `#`, chapters as `##`, with
+bold, italic, lists, quotes, and `---` scene breaks carried over.
+`?chapter=<id>` (Markdown and `.docx` only) exports a single chapter.
+
 `?format=epub` and `?format=pdf` render the book for reading (`src/lib/export/`):
 EPUB 3 with title page, contents, and one XHTML file per chapter; PDF on a 6x9in
 page with Times 11pt, justified text, a contents page with page numbers, and folios.
@@ -176,7 +180,7 @@ src/
     tools.ts       # editor tool defs + executor (retrieval, capture, dispatch)
     import/        # .docx, Markdown, HTML and Scrivener parsers -> chapters
     docx.ts  text.ts  db.ts  types.ts
-    export/        # EPUB + PDF renderers (blocks, epub, pdf)
+    export/        # Markdown, EPUB + PDF renderers (blocks, markdown, epub, pdf)
 prisma/schema.prisma
 docs/
   using-ciciro.md           # how to work with the editor
