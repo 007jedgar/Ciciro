@@ -156,6 +156,11 @@ const hi: Translations = {
     autocorrectHint: "लिखते समय वर्तनी सुझाव।",
     reduceMotion: "गति कम करें",
     reduceMotionHint: "पूरे ऐप में एनिमेशन बंद करें।",
+    focusMode: "फ़ोकस मोड",
+    focusModeHint: "लिखते समय पन्ने के अलावा सब कुछ छिपाएँ।",
+    typewriterMode: "टाइपराइटर मोड",
+    typewriterModeHint: "जिस पंक्ति पर लिख रहे हैं उसे स्क्रीन के बीच के पास रखें।",
+    exitFocus: "फ़ोकस से बाहर निकलें",
     dailyGoal: "दैनिक शब्द",
     dailyGoalHint:
       "पाँच मिनट एक सत्र है। पिछले 7 दिनों में से {{count}} दिन लिखें — बाकी आराम के दिन हैं, कोई स्ट्रीक नहीं टूटती।",

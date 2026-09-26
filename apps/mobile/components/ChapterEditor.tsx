@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,6 +10,7 @@ import type { FormatBlockKind } from "./FormatBar";
 import type { BlockMarks } from "../lib/block-editor";
 import { toEnrichedHtml } from "../lib/enriched-html";
 import { FORMAT_PRESS_MS } from "../lib/format-chrome";
+import { typewriterBottomInset } from "../lib/focus-mode";
 
 export type EditorStyle = {
   fontFamily: string;
@@ -42,6 +43,7 @@ export function ChapterEditor({
   focused,
   resumeOffset,
   bottomInset = 0,
+  typewriter = false,
   onFocused,
   onBlurred,
   onChangeText,
@@ -59,6 +61,7 @@ export function ChapterEditor({
   focused: boolean;
   resumeOffset: number | null;
   bottomInset?: number;
+  typewriter?: boolean;
   onFocused: () => void;
   onBlurred: () => void;
   onChangeText: (text: string) => void;
@@ -77,6 +80,8 @@ export function ChapterEditor({
     null
   );
   const { t } = useTranslation();
+  const [shellHeight, setShellHeight] = useState(0);
+  const typewriterPad = typewriterBottomInset(typewriter, shellHeight - bottomInset);
 
   useEffect(() => {
     registerEditor(inputRef.current);
@@ -114,6 +119,7 @@ export function ChapterEditor({
     <View
       testID={`${testID}-shell`}
       style={{ flex: 1 }}
+      onLayout={(event) => setShellHeight(event.nativeEvent.layout.height)}
       onTouchStart={
         onLongPress
           ? (event) => {
@@ -178,7 +184,7 @@ export function ChapterEditor({
         }}
         style={{
           flex: 1,
-          paddingBottom: bottomInset,
+          paddingBottom: bottomInset + typewriterPad,
           color: editorStyle.color,
           fontFamily: editorStyle.fontFamily,
           fontSize: editorStyle.fontSize,

@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, type Ref } from "react";
-import { TextInput } from "react-native";
+import { TextInput, type StyleProp, type TextStyle } from "react-native";
 
 function noop() {}
 
@@ -7,6 +7,7 @@ export const EnrichedTextInput = forwardRef(function EnrichedTextInput(
   props: {
     testID?: string;
     defaultValue?: string;
+    style?: StyleProp<TextStyle>;
     onFocus?: (e: unknown) => void;
     onBlur?: (e: unknown) => void;
     onChangeText?: (e: { nativeEvent: { value: string } }) => void;
@@ -52,6 +53,7 @@ export const EnrichedTextInput = forwardRef(function EnrichedTextInput(
     <TextInput
       testID={props.testID}
       defaultValue={props.defaultValue}
+      style={props.style}
       multiline
       onFocus={props.onFocus as never}
       onBlur={props.onBlur as never}

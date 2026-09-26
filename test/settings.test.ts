@@ -30,6 +30,7 @@ describe("app settings", () => {
     expect(s.dailyWordGoal).toBe(250);
     expect(s.weeklyDayTarget).toBe(4);
     expect(s.showDailyGoal).toBe(true);
+    expect(s.typewriterMode).toBe(false);
     expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);
     expect(clampChatWidth(100)).toBe(280);
@@ -90,5 +91,19 @@ describe("app settings", () => {
     expect(patched.theme).toBe("parchment");
     expect(patched.updatedAt).toBe("2026-03-01T00:00:00.000Z");
     expect(settingsEqual(older, patched)).toBe(false);
+  });
+
+  it("syncs typewriter mode but keeps focus mode out of synced settings", () => {
+    expect(parseSettingsPatch({ typewriterMode: "on" })).toEqual({
+      error: "typewriterMode must be a boolean.",
+    });
+    expect(parseSettingsPatch({ focusMode: true, typewriterMode: true })).toEqual({
+      typewriterMode: true,
+    });
+    const normalized = normalizeSettings({ focusMode: true, typewriterMode: true });
+    expect(normalized.typewriterMode).toBe(true);
+    expect(normalized).not.toHaveProperty("focusMode");
+    const base = defaultSettings();
+    expect(settingsEqual(base, { ...base, typewriterMode: true })).toBe(false);
   });
 });

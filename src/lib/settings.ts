@@ -37,6 +37,7 @@ export type AppSettings = {
   dailyWordGoal: number;
   weeklyDayTarget: number;
   showDailyGoal: boolean;
+  typewriterMode: boolean;
   updatedAt: string;
 };
 
@@ -56,6 +57,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
     showDailyGoal: true,
+    typewriterMode: false,
     updatedAt: now.toISOString(),
   };
 }
@@ -128,6 +130,8 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
       ? clampWeeklyDayTarget(src.weeklyDayTarget)
       : defaults.weeklyDayTarget;
   const showDailyGoal = typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal;
+  const typewriterMode =
+    typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode;
   return {
     theme,
     editorFont,
@@ -139,6 +143,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     dailyWordGoal,
     weeklyDayTarget,
     showDailyGoal,
+    typewriterMode,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
 }
@@ -225,6 +230,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.showDailyGoal = src.showDailyGoal;
   }
+  if ("typewriterMode" in src) {
+    if (typeof src.typewriterMode !== "boolean") {
+      return { error: "typewriterMode must be a boolean." };
+    }
+    patch.typewriterMode = src.typewriterMode;
+  }
 
   return patch;
 }
@@ -253,7 +264,8 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.chatWidth === b.chatWidth &&
     a.dailyWordGoal === b.dailyWordGoal &&
     a.weeklyDayTarget === b.weeklyDayTarget &&
-    a.showDailyGoal === b.showDailyGoal
+    a.showDailyGoal === b.showDailyGoal &&
+    a.typewriterMode === b.typewriterMode
   );
 }
 

@@ -157,6 +157,11 @@ const es: Translations = {
     autocorrectHint: "Sugerencias de ortografía mientras escribes.",
     reduceMotion: "Reducir movimiento",
     reduceMotionHint: "Desactiva las animaciones en toda la app.",
+    focusMode: "Modo enfoque",
+    focusModeHint: "Oculta todo menos la página mientras escribes.",
+    typewriterMode: "Modo máquina de escribir",
+    typewriterModeHint: "Mantén la línea que escribes cerca del centro de la pantalla.",
+    exitFocus: "Salir del enfoque",
     dailyGoal: "Palabras del día",
     dailyGoalHint:
       "Cinco minutos son una sesión. Apunta a {{count}} de los últimos 7 días: el resto son días de descanso, no una racha que proteger.",
