@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChapterStatusPicker } from "./ChapterStatusPicker";
 import { chapterNumberLabel, customChapterTitle, CHAPTER_PREVIEW_LINES } from "../lib/chapter-label";
 import { htmlToPlainText } from "../lib/html";
+import { htmlWithoutSuggestions } from "../lib/suggestions";
 import type { ChapterStatus } from "../lib/chapter-status";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
@@ -37,7 +38,8 @@ export function ChapterListCard({
   const numbered = chapterNumberLabel(number, (key, opts) => t(key, opts));
   const customTitle = customChapterTitle(chapter.title, numbered, t("chapters.newTitle"));
   const a11y = customTitle ? `${numbered}, ${customTitle}` : numbered;
-  const preview = (chapter.summary.trim() || htmlToPlainText(chapter.content)).trim();
+  // The prose as it stands: pending suggestions are not part of it yet.
+  const preview = (chapter.summary.trim() || htmlToPlainText(htmlWithoutSuggestions(chapter.content))).trim();
 
   return (
     <View

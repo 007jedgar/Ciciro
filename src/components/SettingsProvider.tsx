@@ -127,6 +127,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               weeklyDayTarget: body.weeklyDayTarget,
               showDailyGoal: body.showDailyGoal,
               typewriterMode: body.typewriterMode,
+              aiSuggestions: body.aiSuggestions,
             };
       void fetch("/api/settings", {
         method,

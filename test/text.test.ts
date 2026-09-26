@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countWords, extractDraft, htmlToText, isChapterEmpty } from "@/lib/text";
+import { chapterPlainText, countWords, extractDraft, htmlToText, isChapterEmpty } from "@/lib/text";
 
 describe("htmlToText", () => {
   it("returns empty string for empty input", () => {
@@ -62,5 +62,16 @@ describe("extractDraft", () => {
 
   it("returns null when there is no draft", () => {
     expect(extractDraft("just chatting")).toBeNull();
+  });
+});
+
+describe("chapterPlainText", () => {
+  const attrs = 'data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-25T10:00:00.000Z"';
+  const html =
+    `<p>She <del data-suggestion-id="s" ${attrs}>walked</del><ins data-suggestion-id="s" ${attrs}>sprinted</ins> home.</p>`;
+
+  it("reads a pending replacement as the prose that stands, not both halves", () => {
+    expect(htmlToText(html)).toBe("She walkedsprinted home.");
+    expect(chapterPlainText(html)).toBe("She walked home.");
   });
 });

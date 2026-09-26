@@ -203,6 +203,23 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               {settings.reduceMotion ? "On" : "Off"}
             </button>
           </div>
+          <div className="settings-row">
+            <span>Ciciro suggests edits</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.aiSuggestions}
+              className={`settings-switch ${settings.aiSuggestions ? "on" : ""}`}
+              onClick={() => patch({ aiSuggestions: !settings.aiSuggestions })}
+            >
+              {settings.aiSuggestions ? "On" : "Off"}
+            </button>
+          </div>
+          <p className="settings-hint">
+            {settings.aiSuggestions
+              ? "Line edits arrive as tracked changes you accept or reject."
+              : "Line edits change the prose directly."}
+          </p>
 
           <div className="theme-menu-label">Daily words</div>
           <p className="settings-hint">

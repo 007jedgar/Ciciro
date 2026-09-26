@@ -51,6 +51,13 @@ describe("app settings", () => {
     expect(normalizeSettings({ weeklyDayTarget: 0 }).weeklyDayTarget).toBe(1);
   });
 
+  it("has Ciciro suggest line edits unless the author turned it off", () => {
+    expect(defaultSettings().aiSuggestions).toBe(true);
+    expect(normalizeSettings({}).aiSuggestions).toBe(true);
+    expect(normalizeSettings({ aiSuggestions: false }).aiSuggestions).toBe(false);
+    expect(settingsEqual(defaultSettings(), { ...defaultSettings(), aiSuggestions: false })).toBe(false);
+  });
+
   it("applies patches without dropping other fields", () => {
     const older = defaultSettings();
     const patched = applyPatch(older, { editorFont: "sans", autoCorrect: false });

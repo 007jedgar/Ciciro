@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { htmlToText } from "@/lib/text";
+import { htmlWithSuggestionsApplied } from "@/lib/suggestions";
 import {
   countPassageOccurrences,
   normalizeWhitespace,
@@ -147,11 +148,15 @@ export async function verifyEditorCompletion(input: {
   const affected = [
     ...new Set([...intent.sourceChapters, ...intent.destinationChapters]),
   ];
-  const chapters = await prisma.chapter.findMany({
-    where: { projectId: input.projectId, archivedAt: null },
-    orderBy: { order: "asc" },
-    select: { content: true, revision: true },
-  });
+  // Judge the manuscript as it reads once pending suggestions are accepted:
+  // a correction Ciciro proposed as a suggestion is the turn's work done.
+  const chapters = (
+    await prisma.chapter.findMany({
+      where: { projectId: input.projectId, archivedAt: null },
+      orderBy: { order: "asc" },
+      select: { content: true, revision: true },
+    })
+  ).map((chapter) => ({ ...chapter, content: htmlWithSuggestionsApplied(chapter.content) }));
   for (const chapterNumber of affected) {
     const chapter = chapters[chapterNumber - 1];
     if (chapter) chapterRevisions[chapterNumber] = chapter.revision;

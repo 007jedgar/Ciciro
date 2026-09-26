@@ -38,6 +38,8 @@ export type AppSettings = {
   weeklyDayTarget: number;
   showDailyGoal: boolean;
   typewriterMode: boolean;
+  /** Ciciro's line edits arrive as tracked suggestions to accept or reject. */
+  aiSuggestions: boolean;
   updatedAt: string;
 };
 
@@ -58,6 +60,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
     showDailyGoal: true,
     typewriterMode: false,
+    aiSuggestions: true,
     updatedAt: now.toISOString(),
   };
 }
@@ -132,6 +135,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
   const showDailyGoal = typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal;
   const typewriterMode =
     typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode;
+  const aiSuggestions = typeof src.aiSuggestions === "boolean" ? src.aiSuggestions : defaults.aiSuggestions;
   return {
     theme,
     editorFont,
@@ -144,6 +148,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     weeklyDayTarget,
     showDailyGoal,
     typewriterMode,
+    aiSuggestions,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
 }
@@ -236,6 +241,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.typewriterMode = src.typewriterMode;
   }
+  if ("aiSuggestions" in src) {
+    if (typeof src.aiSuggestions !== "boolean") {
+      return { error: "aiSuggestions must be a boolean." };
+    }
+    patch.aiSuggestions = src.aiSuggestions;
+  }
 
   return patch;
 }
@@ -265,7 +276,8 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.dailyWordGoal === b.dailyWordGoal &&
     a.weeklyDayTarget === b.weeklyDayTarget &&
     a.showDailyGoal === b.showDailyGoal &&
-    a.typewriterMode === b.typewriterMode
+    a.typewriterMode === b.typewriterMode &&
+    a.aiSuggestions === b.aiSuggestions
   );
 }
 

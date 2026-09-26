@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Editor, { type EditorHandle } from "@/components/Editor";
 import ChapterSidebar from "@/components/ChapterSidebar";
@@ -17,8 +17,14 @@ import Scratchpad from "@/components/Scratchpad";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
+import {
+  SuggestModeToggle,
+  SuggestionBar,
+  useSuggestionAuthor,
+} from "@/components/TrackChanges";
 import { useSettings } from "@/components/SettingsProvider";
-import { countWords, htmlToText } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
+import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
@@ -30,6 +36,16 @@ import { applyChapterOrder } from "@/lib/outline";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
+
+const SUGGESTING_KEY = "ciciro-suggesting";
+
+function readSuggesting(): boolean {
+  try {
+    return window.localStorage.getItem(SUGGESTING_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 const CHAT_MIN = CHAT_WIDTH_MIN;
 const CHAT_MAX = CHAT_WIDTH_MAX;
@@ -61,6 +77,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [dragChatWidth, setDragChatWidth] = useState<number | null>(null);
   const chatWidth = dragChatWidth ?? settings.chatWidth;
   const [resizing, setResizing] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null);
+  const suggestionAuthor = useSuggestionAuthor(initialProject.author);
 
   const editorRef = useRef<EditorHandle>(null);
   const chatRef = useRef<ChatHandle>(null);
@@ -135,6 +154,21 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     () => project.chapters.find((c) => c.id === activeId) ?? null,
     [project.chapters, activeId]
   );
+
+  // Suggest mode is a per-device habit, like a text editor's track-changes switch.
+  useEffect(() => {
+    setSuggesting(readSuggesting());
+  }, []);
+  const changeSuggesting = useCallback((next: boolean) => {
+    setSuggesting(next);
+    try {
+      window.localStorage.setItem(SUGGESTING_KEY, next ? "1" : "0");
+    } catch {
+      /* private window */
+    }
+  }, []);
+  const reviewContent = useDeferredValue(activeChapter?.content ?? "");
+  const suggestions = useMemo(() => listSuggestions(reviewContent), [reviewContent]);
 
   const updateChapterLocal = useCallback((id: string, fields: Partial<Chapter>) => {
     setProject((p) => ({
@@ -252,7 +286,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (!activeId) return;
       const prevWords =
         projectRef.current.chapters.find((c) => c.id === activeId)?.wordCount ?? 0;
-      const nextWords = countWords(htmlToText(html));
+      const nextWords = chapterWordCount(html);
       noteWritingWords(positiveWordDelta(prevWords, nextWords));
       updateChapterLocal(activeId, {
         content: html,
@@ -826,6 +860,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 >
                   Auto-draft
                 </button>
+                {viewMode === "prose" ? (
+                  <SuggestModeToggle suggesting={suggesting} onChange={changeSuggesting} />
+                ) : null}
                 <span style={{ flex: 1 }} />
                 <div className="view-toggle">
                   <button
@@ -851,6 +888,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 </div>
               </div>
               {viewMode === "prose" ? (
+                <SuggestionBar
+                  suggestions={suggestions}
+                  activeId={activeSuggestionId}
+                  onReveal={(id) => editorRef.current?.revealSuggestion(id)}
+                  onAcceptAll={() => editorRef.current?.resolveSuggestions("accept")}
+                  onRejectAll={() => editorRef.current?.resolveSuggestions("reject")}
+                />
+              ) : null}
+              {viewMode === "prose" ? (
                 <Editor
                   key={`${activeChapter.id}:${editorNonce}`}
                   ref={editorRef}
@@ -867,6 +913,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                       : null
                   }
                   focusEndOnMount={focusEndOnMount}
+                  suggesting={suggesting}
+                  suggestionAuthor={suggestionAuthor}
+                  onActiveSuggestionChange={setActiveSuggestionId}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />
@@ -972,7 +1021,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onClose={() => setAutoWriteOpen(false)}
           onApplied={(applied) => {
             const wordCount =
-              applied.wordCount ?? countWords(htmlToText(applied.content));
+              applied.wordCount ?? chapterWordCount(applied.content);
             updateChapterLocal(activeChapter.id, {
               content: applied.content,
               wordCount,

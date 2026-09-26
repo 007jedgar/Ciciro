@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Chapter } from "@/lib/types";
 import { chapterBlurb, moveItem } from "@/lib/outline";
-import { htmlToText } from "@/lib/text";
+import { chapterPlainText } from "@/lib/text";
 
 type Props = {
   chapters: Chapter[];
@@ -130,7 +130,7 @@ export default function OutlineBoard({
                   </span>
                 </div>
                 <p className="outline-blurb">
-                  {chapterBlurb(ch.summary, htmlToText(ch.content)) || (
+                  {chapterBlurb(ch.summary, chapterPlainText(ch.content)) || (
                     <em>Nothing written yet.</em>
                   )}
                 </p>

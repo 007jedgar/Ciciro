@@ -349,7 +349,11 @@ export function GlassSheet({
                 <View
                   key={openSeq}
                   testID={`${testID}-measure`}
-                  style={styles.measure}
+                  // An auto sheet sizes itself to this box, so it must hug its
+                  // content. A sheet with fixed snap heights is the reverse: its
+                  // body fills the card, or a scrolling list inside collapses to
+                  // nothing and the sheet opens blank.
+                  style={autoSized ? styles.measure : styles.fill}
                   onLayout={(event) => {
                     const next = sheetHeightForContent(
                       event.nativeEvent.layout.height,
@@ -417,6 +421,7 @@ const styles = StyleSheet.create({
     paddingTop: GLASS_SHEET_BODY_PAD_TOP,
   },
   measure: { flexGrow: 0, flexShrink: 0 },
+  fill: { flex: 1 },
   handle: {
     alignSelf: "center",
     width: 36,

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { ensureBlockIds } from "@/lib/block-ids";
-import { countWords, htmlToText } from "@/lib/text";
+import { chapterWordCount, isChapterEmpty } from "@/lib/text";
 import {
   cleanSnapshotLabel,
   isSnapshotKind,
@@ -93,9 +93,10 @@ export async function captureSnapshot(
   kind: SnapshotKind,
   opts?: { label?: string; at?: Date; keep?: string; runId?: string }
 ): Promise<ChapterSnapshot | null> {
-  const wordCount = countWords(htmlToText(chapter.content));
+  const wordCount = chapterWordCount(chapter.content);
   if (kind !== "manual") {
-    if (wordCount === 0) return null;
+    // Empty means nothing on the page, pending suggestions included.
+    if (isChapterEmpty(chapter.content)) return null;
     const latest = await prisma.chapterSnapshot.findFirst({
       where: { chapterId: chapter.id },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],

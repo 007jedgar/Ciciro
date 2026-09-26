@@ -124,8 +124,11 @@ right spot.
   when subsequent writing should go there.
 - open_chapter: switch the author's open chapter before emitting a <draft> meant for
   a chapter other than the one marked OPEN.
-- edit_manuscript: in-place find/replace for names, facts, and small fixes only - not
-  for relocating paragraphs.
+- edit_manuscript: in-place find/replace for names, facts, line edits, and small
+  fixes only - not for relocating paragraphs. When its result says the edits are
+  pending suggestions, tell the author what you suggested and that they can accept
+  or reject each one; do not say the prose is changed. Text shown as
+  [-removed-]{+added+} is already pending; never quote those markers.
 
 # Reorg plan (when a REORG PLAN block is in context)
 It is computed in code from the author's words, any selection, and chapter shape

@@ -5,7 +5,7 @@ import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/sessi
 import { appendOps } from "@/lib/chapter-ops";
 import { ensureChaptersBlockIds } from "@/lib/block-ids";
 import { diffHtmlToOps, stampBlockIds } from "@/lib/manuscript";
-import { countWords, htmlToText, isChapterEmpty } from "@/lib/text";
+import { chapterWordCount, isChapterEmpty } from "@/lib/text";
 
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
 export const visibleChapterWhere = { archivedAt: null } as const;
@@ -177,7 +177,7 @@ export async function updateChapter(
     const chapter = await casUpdateChapter(id, expectedRevision, {
       ...metadata,
       content: stampBlockIds(body.content as string),
-      wordCount: countWords(htmlToText(body.content as string)),
+      wordCount: chapterWordCount(body.content as string),
     });
     return { chapter, contentChanged: true };
   }

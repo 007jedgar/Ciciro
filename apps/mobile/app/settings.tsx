@@ -335,6 +335,13 @@ export default function SettingsScreen() {
             colors={colors}
           />
           <ToggleRow
+            label={t("settings.aiSuggestions")}
+            hint={t("settings.aiSuggestionsHint")}
+            value={settings.aiSuggestions}
+            onValueChange={(aiSuggestions) => patch({ aiSuggestions })}
+            colors={colors}
+          />
+          <ToggleRow
             label={t("settings.dailyGoal")}
             hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
             value={settings.showDailyGoal}

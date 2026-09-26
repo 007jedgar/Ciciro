@@ -8,7 +8,7 @@ import {
   appendCanon,
 } from "@/lib/bible";
 import { DRAFTER_SYSTEM } from "@/lib/prompts";
-import { htmlToText, countWords } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
 import {
   writeChapterHtml,
   type ChapterHtmlWrite,
@@ -33,6 +33,12 @@ import {
   loadChapterShapes,
 } from "@/lib/reorg";
 import { backstageLine } from "@/lib/backstage";
+import {
+  aiEditsAsSuggestions,
+  chapterHtmlForModel,
+  pendingSuggestionsNote,
+  suggestChapterEdits,
+} from "@/lib/suggestion-edits";
 import { runRanker } from "@/lib/fast-lane";
 import type { ClientUiEvent } from "@/lib/types";
 
@@ -274,7 +280,7 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   {
     name: "edit_manuscript",
     description:
-      "Apply precise find/replace corrections to a chapter's text - use when reconciling an answered question or when the author asks for a direct fix (e.g. a changed name or fact). Do NOT use this to rearrange or relocate passages - use move_text. For large new rewrites, hand the author a <draft> or use insert_text.",
+      "Apply precise find/replace corrections to a chapter's text - use when reconciling an answered question or when the author asks for a direct fix (e.g. a changed name or fact). When the author has suggestions turned on (the result says so), each correction lands as a tracked suggestion they accept or reject; quote the new wording of your own pending suggestion to rework it. Do NOT use this to rearrange or relocate passages - use move_text. For large new rewrites, hand the author a <draft> or use insert_text.",
     input_schema: {
       type: "object",
       properties: {
@@ -710,7 +716,8 @@ export async function executeEditorTool(
         status: backstageLine("read_chapter", `ch. ${n}`),
         content:
           `Chapter revision: ${ch.revision}\n\n` +
-          renderAnnotatedChapter(ch.content, n, ch.title),
+          pendingSuggestionsNote(ch.content) +
+          renderAnnotatedChapter(chapterHtmlForModel(ch.content), n, ch.title),
       };
     }
 
@@ -791,7 +798,7 @@ export async function executeEditorTool(
       if ("error" in deletion) {
         return { status: "delete failed", content: deletion.error };
       }
-      const wordCount = countWords(htmlToText(deletion.content));
+      const wordCount = chapterWordCount(deletion.content);
       const committed = await bumpChapterRevision(
         chapter,
         expectedRevision,
@@ -960,8 +967,8 @@ export async function executeEditorTool(
         destinationAlreadyContainsSplit
           ? destination?.content || ""
           : split.destinationContent + (destination?.content || "");
-      const sourceWordCount = countWords(htmlToText(split.sourceContent));
-      const destinationWordCount = countWords(htmlToText(destinationContent));
+      const sourceWordCount = chapterWordCount(split.sourceContent);
+      const destinationWordCount = chapterWordCount(destinationContent);
       const sourceIndex = formatSceneIndex(split.sourceIndex, { paragraphs: true });
       const destinationIndex = formatSceneIndex(
         indexChapter(destinationContent, destinationNumber),
@@ -1362,6 +1369,9 @@ export async function executeEditorTool(
             `${expectedRevision}. No replacements were applied.`,
         };
       }
+      if (await aiEditsAsSuggestions(projectId)) {
+        return suggestChapterEdits(ch, n, replacements, ctx.runId);
+      }
 
       let content = ch.content;
       const report: string[] = [];
@@ -1390,7 +1400,7 @@ export async function executeEditorTool(
           );
         }
       }
-      const wordCount = countWords(htmlToText(content));
+      const wordCount = chapterWordCount(content);
       const changed = content !== ch.content;
       let revision = expectedRevision;
       let savedContent = content;
@@ -1598,8 +1608,8 @@ export async function executeEditorTool(
           ? destHtml
           : fromCh.content.slice(0, source.start) + fromCh.content.slice(source.end);
       const destWith = insertHtmlAt(destHtml, extractedHtml, destAt);
-      const fromWordCount = countWords(htmlToText(fromN === toN ? destWith : sourceWithout));
-      const toWordCount = countWords(htmlToText(destWith));
+      const fromWordCount = chapterWordCount(fromN === toN ? destWith : sourceWithout);
+      const toWordCount = chapterWordCount(destWith);
       const label = `${source.id} (${source.wordCount}w)`;
 
       if (fromN === toN) {
@@ -1757,7 +1767,7 @@ export async function executeEditorTool(
 
       const insertHtml = paragraphsToHtml(text);
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
-      const wordCount = countWords(htmlToText(content));
+      const wordCount = chapterWordCount(content);
       const committed = await bumpChapterRevision(
         ch,
         expectedRevision,

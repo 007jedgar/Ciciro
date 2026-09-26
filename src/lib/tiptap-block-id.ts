@@ -12,9 +12,16 @@ const BLOCK_TYPES = new Set([
 
 function assignMissingBlockIds(tr: Transaction, doc: PmNode): boolean {
   let modified = false;
+  const seen = new Set<string>();
   doc.descendants((node, pos) => {
     if (!node.isBlock || !BLOCK_TYPES.has(node.type.name)) return;
-    if (node.attrs.blockId) return;
+    // A block pasted from elsewhere in the chapter arrives with an id that is
+    // already taken; the first holder keeps it.
+    const id = node.attrs.blockId as string | null;
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      return;
+    }
     tr.setNodeMarkup(pos, undefined, {
       ...node.attrs,
       blockId: crypto.randomUUID(),
@@ -35,6 +42,9 @@ export const BlockId = Extension.create({
         attributes: {
           blockId: {
             default: null,
+            // Return splits a paragraph in two; only the first half is the
+            // block the id names. The second gets its own.
+            keepOnSplit: false,
             parseHTML: (element) => element.getAttribute("data-block-id"),
             renderHTML: (attributes) => {
               if (!attributes.blockId) return {};

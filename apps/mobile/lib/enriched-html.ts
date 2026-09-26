@@ -6,6 +6,7 @@ import {
   type ManuscriptBlock,
   type ManuscriptOp,
 } from "./manuscript";
+import { carrySuggestions, suggestionsAsDisplayMarks } from "./suggestions";
 
 const SCENE_BREAK_TEXT = "***";
 
@@ -74,9 +75,13 @@ function ensureEnrichedParses(html: string): string {
   return `<html>${html}</html>`;
 }
 
-/** Ciciro stamped HTML → what EnrichedTextInput will parse. */
+/**
+ * Ciciro stamped HTML → what EnrichedTextInput will parse. The native editor
+ * has no tracked-change marks, so pending suggestions show as underline
+ * (inserted) and strikethrough (deleted); opsFromEnrichedHtml puts them back.
+ */
 export function toEnrichedHtml(html: string): string {
-  const stripped = stripBlockIds(html.trim());
+  const stripped = stripBlockIds(suggestionsAsDisplayMarks(html.trim()));
   const body = !stripped
     ? "<p></p>"
     : wrapBareListItems(hrToParagraph(canonicalizeInline(stripped)));
@@ -177,7 +182,10 @@ export function opsFromEnrichedHtml(
   revision: number,
   opts?: DiffHtmlOptions
 ): ManuscriptOp[] {
-  const incoming = restampCiciroHtml(previousCiciroHtml, fromEnrichedHtml(enrichedHtml));
+  const incoming = carrySuggestions(
+    previousCiciroHtml,
+    restampCiciroHtml(previousCiciroHtml, fromEnrichedHtml(enrichedHtml))
+  );
   if (!incoming) return [];
   return diffHtmlToOps(previousCiciroHtml || "<p></p>", incoming, revision, opts);
 }

@@ -31,6 +31,8 @@ export type AppSettings = {
   weeklyDayTarget: number;
   showDailyGoal: boolean;
   typewriterMode: boolean;
+  /** Ciciro's line edits arrive as tracked suggestions to accept or reject. */
+  aiSuggestions: boolean;
   updatedAt: string;
 };
 
@@ -49,6 +51,7 @@ export function defaultSettings(): AppSettings {
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
     showDailyGoal: true,
     typewriterMode: false,
+    aiSuggestions: true,
     updatedAt: SETTINGS_EPOCH,
   };
 }
@@ -97,6 +100,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
     showDailyGoal: typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal,
     typewriterMode:
       typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode,
+    aiSuggestions: typeof src.aiSuggestions === "boolean" ? src.aiSuggestions : defaults.aiSuggestions,
     updatedAt:
       typeof src.updatedAt === "string" && Number.isFinite(Date.parse(src.updatedAt))
         ? new Date(src.updatedAt).toISOString()
@@ -120,6 +124,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.dailyWordGoal === b.dailyWordGoal &&
     a.weeklyDayTarget === b.weeklyDayTarget &&
     a.showDailyGoal === b.showDailyGoal &&
-    a.typewriterMode === b.typewriterMode
+    a.typewriterMode === b.typewriterMode &&
+    a.aiSuggestions === b.aiSuggestions
   );
 }
