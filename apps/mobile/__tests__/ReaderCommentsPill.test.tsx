@@ -29,7 +29,7 @@ describe("ReaderCommentsPill", () => {
     listMock.mockReturnValue({ data: [{ chapterId: "c1" }, { chapterId: "c2" }, { chapterId: "c1" }] });
     render(wrap(<ReaderCommentsPill projectId="p1" chapterId="c1" />));
     fireEvent.press(screen.getByLabelText("2 reader comments"));
-    expect(listMock).toHaveBeenCalledWith("p1", "open");
+    expect(listMock).toHaveBeenCalledWith("p1", "open", { enabled: true });
     expect(mockPush).toHaveBeenCalledWith("/project/p1/beta-readers?chapterId=c1");
   });
 
