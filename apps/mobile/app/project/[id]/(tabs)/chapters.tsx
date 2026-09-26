@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
@@ -40,7 +40,7 @@ export default function ChaptersScreen() {
   const { project, loading, error, selectedChapterId, setSelectedChapterId, flushEdits, addChapter } =
     useProject();
   const { t } = useTranslation();
-  const { layout } = useAppTheme();
+  const { layout, colors } = useAppTheme();
   const clearance = useTabBarClearance();
   const headerHeight = useAppHeaderHeight();
   const removeChapter = useDeleteChapterMutation();
@@ -107,6 +107,9 @@ export default function ChaptersScreen() {
   async function importChapters() {
     if (!projectId || importing) return;
     setDeleteError(null);
+    // Busy from the press, not from the upload: the system picker takes a beat
+    // to appear and the card has to say something is happening until it does.
+    setImporting(true);
     try {
       const file = await pickImportFile();
       if (!file) return;
@@ -114,7 +117,6 @@ export default function ChaptersScreen() {
         setDeleteError(t("importFile.unsupported"));
         return;
       }
-      setImporting(true);
       await importManuscriptFile(file, { projectId });
     } catch (err) {
       setDeleteError(err instanceof ApiError ? err.message : t("importFile.error"));
@@ -297,10 +299,14 @@ export default function ChaptersScreen() {
                 disabled={importing}
                 accessibilityRole="button"
                 accessibilityLabel={t("importFile.chaptersCard")}
+                accessibilityState={{ disabled: importing, busy: importing }}
               >
-                <Text style={layout.cardTitle}>
-                  {importing ? t("importFile.importing") : t("importFile.chaptersCard")}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={layout.cardTitle}>
+                    {importing ? t("importFile.importing") : t("importFile.chaptersCard")}
+                  </Text>
+                  {importing ? <ActivityIndicator size="small" color={colors.accent} /> : null}
+                </View>
                 <Text style={layout.cardMeta}>{t("importFile.chaptersMeta")}</Text>
               </PressableCard>
               <ExportCard projectId={projectId} flushEdits={flushEdits} />
