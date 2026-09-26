@@ -38,7 +38,7 @@ jest.mock("../lib/api", () => ({
 jest.mock("../lib/settings", () => ({
   useAppTheme: () => {
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
-    return { colors, layout: makeLayout(colors) };
+    return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
   },
 }));
 jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0 }));
