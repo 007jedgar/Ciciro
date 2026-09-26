@@ -43,8 +43,8 @@ function ListenBody() {
   const selection = readAloudSelectionFor(chapter.id, blocksPlainText(chapter.content));
   return (
     <View style={[layout.padded, { paddingTop: 8, flex: 1 }]}>
-      <Text style={[layout.cardTitle, { marginBottom: 8 }]}>{chapter.title}</Text>
       <ReadAloud
+        header={<Text style={[layout.cardTitle, { marginBottom: 8 }]}>{chapter.title}</Text>}
         chapterId={chapter.id}
         html={chapter.content}
         selection={selection}

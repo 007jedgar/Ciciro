@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { getLocales } from "expo-localization";
@@ -49,12 +49,15 @@ export function ReadAloud({
   selection,
   engine,
   loadVoiceList = loadVoices,
+  header,
 }: {
   chapterId: string;
   html: string;
   selection: { start: number; end: number } | null;
   engine?: SpeechEngine;
   loadVoiceList?: () => Promise<ReadAloudVoice[]>;
+  /** Scrolls away with the page, so the text never slides under a fixed title. */
+  header?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
@@ -144,6 +147,7 @@ export function ReadAloud({
       contentContainerStyle={{ paddingBottom: 32 }}
       showsVerticalScrollIndicator
     >
+      {header}
       <View style={[layout.card, { marginBottom: 12 }]}>
         <Text style={layout.cardMeta}>
           {state === "idle"
