@@ -10,6 +10,8 @@ import {
   type ScratchNote,
 } from "@/lib/scratch-view";
 import DrawerHead from "@/components/DrawerHead";
+import { useSnackbar } from "@/components/Snackbar";
+import { useLeavingIds } from "@/lib/motion";
 
 type Props = {
   projectId: string;
@@ -63,6 +65,8 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [remote, setRemote] = useState<ScratchNote | null>(null);
   const [unsaved, setUnsaved] = useState<Record<string, Unsaved>>({});
+  const rows = useLeavingIds();
+  const notify = useSnackbar();
 
   // Live copies for the debounced save and the refresh loop, which outlive renders.
   const draft = useRef({ title: "", content: "" });
@@ -340,29 +344,43 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     }
   }
 
+  // The note slides out and a snackbar offers Undo; the server only hears about
+  // the delete once that window closes (or the page is left).
   async function remove(note: ScratchNote) {
-    if (!confirm(`Delete "${scratchNoteTitle(note, "Untitled note")}"?`)) return;
-    try {
-      const res = await fetch(`${base}/${note.id}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 404) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Couldn't delete the note.");
-      }
-      writes.current += 1;
-      stash(note.id, null);
-      if (activeRef.current === note.id) {
-        dirty.current = false;
-        conflict.current = false;
-        setRemote(null);
-        setState("saved");
-        setActiveId(null);
-        activeRef.current = null;
-      }
-      setNotes((prev) => (prev ?? []).filter((n) => n.id !== note.id));
-      setError(null);
-    } catch (e) {
-      setError((e as Error).message);
+    const name = scratchNoteTitle(note, "Untitled note");
+    if (activeRef.current === note.id) {
+      // Keep what was typed, so Undo brings back the note as it was.
+      await flush();
+      setActiveId(null);
+      activeRef.current = null;
+      dirty.current = false;
+      conflict.current = false;
+      setRemote(null);
+      setState("saved");
     }
+    void rows.leave(note.id);
+    notify({
+      message: `Deleted "${name}"`,
+      actionLabel: "Undo",
+      onAction: () => rows.restore(note.id),
+      onCommit: async () => {
+        try {
+          const res = await fetch(`${base}/${note.id}`, { method: "DELETE", keepalive: true });
+          if (!res.ok && res.status !== 404) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Couldn't delete the note.");
+          }
+          writes.current += 1;
+          stash(note.id, null);
+          setNotes((prev) => (prev ?? []).filter((n) => n.id !== note.id));
+          rows.forget(note.id);
+          setError(null);
+        } catch (e) {
+          rows.restore(note.id);
+          setError((e as Error).message);
+        }
+      },
+    });
   }
 
   // Conflict: take the other device's version, or keep ours on top of it.
@@ -386,6 +404,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   const active = notes?.find((n) => n.id === activeId) ?? null;
+  const visibleNotes = notes?.filter((n) => !rows.hidden.has(n.id)) ?? null;
   const status =
     state === "saving"
       ? "Saving…"
@@ -418,14 +437,27 @@ export default function Scratchpad({ projectId, onClose }: Props) {
               New note
             </button>
             <div style={{ marginTop: 12 }}>
-              {notes === null && <div className="empty">Loading…</div>}
-              {notes?.length === 0 && (
+              {notes === null && (
+                <div role="status" aria-label="Loading notes">
+                  {[0, 1, 2].map((i) => (
+                    <div className="skeleton-block" key={i}>
+                      <span className="skeleton title" />
+                      <span className="skeleton" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {visibleNotes?.length === 0 && (
                 <div className="empty">
                   Nothing here yet. Jot down a name, a fact to check, a scene idea.
                 </div>
               )}
-              {notes?.map((note) => (
-                <div className="bible-item scratch-item" key={note.id}>
+              {visibleNotes?.map((note) => (
+                <div
+                  className={`bible-item scratch-item${rows.leaving.has(note.id) ? " is-leaving" : ""}`}
+                  key={note.id}
+                  data-row-id={note.id}
+                >
                   <div
                     role="button"
                     tabIndex={0}

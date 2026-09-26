@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "@/components/SettingsProvider";
+import { MOTION_MS, usePresence } from "@/lib/motion";
 import {
   fetchWritingDays,
   fetchWritingSessions,
@@ -37,6 +38,7 @@ export default function WritingMeter() {
   const { settings } = useSettings();
   const [day, setDay] = useState(getWritingDaySnapshot);
   const [open, setOpen] = useState(false);
+  const { mounted, state } = usePresence(open, MOTION_MS.popoverOut);
   const [rangeDays, setRangeDays] = useState<WritingDayTotals[] | null>(null);
   const [sessions, setSessions] = useState<WritingSessionTotals[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -146,8 +148,8 @@ export default function WritingMeter() {
         </span>
         <span className="writing-meter-week">{weekLabel}</span>
       </button>
-      {open ? (
-        <div className="writing-history-menu" role="dialog" aria-label="Writing history">
+      {mounted ? (
+        <div className="writing-history-menu" role="dialog" aria-label="Writing history" data-state={state}>
           {rangeDays != null && maxWords === 0 && (
             <p className="settings-hint">Write today to start your streak</p>
           )}

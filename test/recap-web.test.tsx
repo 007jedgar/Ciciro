@@ -118,7 +118,8 @@ describe("StuckPrompts", () => {
 
     await act(async () => button("Cut to the storm.").click());
     expect(onUse).toHaveBeenCalledWith("Cut to the storm.");
-    expect(host.textContent).not.toContain("Find the letter.");
+    // The popover plays its exit before it unmounts.
+    expect(host.querySelector(".stuck-pop")?.getAttribute("data-state") ?? "closed").toBe("closed");
   });
 
   it("keeps the newest ideas when an older request answers last", async () => {

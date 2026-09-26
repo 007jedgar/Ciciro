@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SuggestionAuthor, SuggestionSummary } from "@/lib/suggestions";
 
 // Review chrome for tracked changes: the bar above the prose (mode switch,
@@ -78,6 +78,20 @@ export function SuggestModeToggle({
   );
 }
 
+/** A number that rolls to its new value: up when it grows, down when it shrinks. */
+export function Ticker({ value }: { value: number }) {
+  const previous = useRef(value);
+  const direction = value >= previous.current ? "up" : "down";
+  useEffect(() => {
+    previous.current = value;
+  }, [value]);
+  return (
+    <span className="ticker" data-dir={direction}>
+      <span key={value}>{value}</span>
+    </span>
+  );
+}
+
 export function SuggestionBar({
   suggestions,
   activeId,
@@ -103,7 +117,15 @@ export function SuggestionBar({
   return (
     <div className="suggestion-bar" role="region" aria-label="Suggestions">
       <span className="suggestion-bar-count">
-        {index >= 0 ? `${index + 1} of ${count}` : `${count} ${count === 1 ? "suggestion" : "suggestions"}`}
+        {index >= 0 ? (
+          <>
+            <Ticker value={index + 1} /> of {count}
+          </>
+        ) : (
+          <>
+            <Ticker value={count} /> {count === 1 ? "suggestion" : "suggestions"}
+          </>
+        )}
         <span className="suggestion-bar-who"> from {authors.join(", ")}</span>
       </span>
       <button type="button" className="btn ghost small" aria-label="Previous suggestion" onClick={() => step(-1)}>

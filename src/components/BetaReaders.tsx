@@ -19,6 +19,23 @@ import {
   type ShareLinkSummary,
 } from "@/lib/share-view";
 import DrawerHead from "@/components/DrawerHead";
+import { useSnackbar } from "@/components/Snackbar";
+import { useLeavingIds } from "@/lib/motion";
+
+// Placeholder rows while the first fetch is in flight.
+function ListSkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-label={label}>
+      {[0, 1].map((i) => (
+        <div className="skeleton-block" key={i}>
+          <span className="skeleton title" />
+          <span className="skeleton" />
+          <span className="skeleton short" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export type BetaReadersTab = "comments" | "links";
 
@@ -143,6 +160,8 @@ function CommentsTab({
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const rows = useLeavingIds();
+  const notify = useSnackbar();
 
   const load = useCallback(async () => {
     try {
@@ -179,7 +198,32 @@ function CommentsTab({
     }
   }
 
-  const shown = (comments ?? []).filter((c) => !onlyThisChapter || c.chapterId === activeChapterId);
+  // The comment slides out and Undo stays on offer; the delete itself waits for
+  // the snackbar to settle.
+  function removeComment(comment: ShareCommentView) {
+    void rows.leave(comment.id);
+    notify({
+      message: "Comment deleted",
+      actionLabel: "Undo",
+      onAction: () => rows.restore(comment.id),
+      onCommit: async () => {
+        try {
+          await deleteShareComment(comment.id);
+          setComments((list) => list?.filter((c) => c.id !== comment.id) ?? null);
+          rows.forget(comment.id);
+          setError("");
+          onChanged();
+        } catch (e) {
+          rows.restore(comment.id);
+          setError((e as Error).message);
+        }
+      },
+    });
+  }
+
+  const shown = (comments ?? []).filter(
+    (c) => !rows.hidden.has(c.id) && (!onlyThisChapter || c.chapterId === activeChapterId)
+  );
   const groups: { chapterId: string; title: string; comments: ShareCommentView[] }[] = [];
   for (const c of shown) {
     let group = groups.find((g) => g.chapterId === c.chapterId);
@@ -222,7 +266,7 @@ function CommentsTab({
           {error}
         </div>
       ) : null}
-      {comments === null && !error ? <div className="empty">Loading...</div> : null}
+      {comments === null && !error ? <ListSkeleton label="Loading comments" /> : null}
       {comments !== null && shown.length === 0 ? (
         <div className="empty">
           {status === "open" ? (
@@ -245,7 +289,10 @@ function CommentsTab({
               <article
                 key={c.id}
                 data-comment-id={c.id}
-                className={`beta-comment${c.id === focusCommentId ? " focused" : ""}`}
+                data-row-id={c.id}
+                className={`beta-comment${c.id === focusCommentId ? " focused" : ""}${
+                  rows.leaving.has(c.id) ? " is-leaving" : ""
+                }`}
               >
                 <blockquote className="beta-quote">{c.quote}</blockquote>
                 <p className="beta-body">{c.body}</p>
@@ -275,11 +322,7 @@ function CommentsTab({
                   <button
                     className="btn ghost small"
                     disabled={busyId === c.id}
-                    onClick={() => {
-                      if (window.confirm("Delete this comment? It can't be brought back.")) {
-                        void act(c, () => deleteShareComment(c.id));
-                      }
-                    }}
+                    onClick={() => removeComment(c)}
                   >
                     Delete
                   </button>
@@ -311,6 +354,8 @@ function LinksTab({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const rows = useLeavingIds();
+  const notify = useSnackbar();
 
   useEffect(() => {
     let cancelled = false;
@@ -379,22 +424,32 @@ function LinksTab({
     }
   }
 
-  async function remove(link: ShareLinkSummary) {
+  // Deleting a link takes its comments too, so it is the one that most needs
+  // Undo: the link slides out and the delete waits for the snackbar to settle.
+  function remove(link: ShareLinkSummary) {
+    void rows.leave(link.id);
     const comments = link.commentCount
-      ? ` and its ${link.commentCount} ${link.commentCount === 1 ? "comment" : "comments"}`
+      ? ` and ${link.commentCount} ${link.commentCount === 1 ? "comment" : "comments"}`
       : "";
-    if (!window.confirm(`Delete this link${comments}? This can't be undone.`)) return;
-    setBusyId(link.id);
-    try {
-      await deleteShareLink(link.id);
-      setLinks((list) => list?.filter((l) => l.id !== link.id) ?? null);
-      setError("");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusyId(null);
-    }
+    notify({
+      message: `Link deleted${comments}`,
+      actionLabel: "Undo",
+      onAction: () => rows.restore(link.id),
+      onCommit: async () => {
+        try {
+          await deleteShareLink(link.id);
+          setLinks((list) => list?.filter((l) => l.id !== link.id) ?? null);
+          rows.forget(link.id);
+          setError("");
+        } catch (e) {
+          rows.restore(link.id);
+          setError((e as Error).message);
+        }
+      },
+    });
   }
+
+  const shownLinks = (links ?? []).filter((l) => !rows.hidden.has(l.id));
 
   return (
     <div className="beta-links">
@@ -473,10 +528,14 @@ function LinksTab({
       ) : null}
 
       <hr className="hr" />
-      {links === null && !error ? <div className="empty">Loading...</div> : null}
-      {links !== null && links.length === 0 ? <div className="empty">No links yet.</div> : null}
-      {(links ?? []).map((link) => (
-        <article key={link.id} className={`beta-link ${link.status}`}>
+      {links === null && !error ? <ListSkeleton label="Loading share links" /> : null}
+      {links !== null && shownLinks.length === 0 ? <div className="empty">No links yet.</div> : null}
+      {shownLinks.map((link) => (
+        <article
+          key={link.id}
+          data-row-id={link.id}
+          className={`beta-link ${link.status}${rows.leaving.has(link.id) ? " is-leaving" : ""}`}
+        >
           <div className="beta-link-head">
             <strong>{link.label || "Untitled link"}</strong>
             <span className={`pill ${link.status === "active" ? "resolved" : ""}`}>
@@ -523,7 +582,7 @@ function LinksTab({
                 Turn off
               </button>
             ) : null}
-            <button className="btn ghost small" disabled={busyId === link.id} onClick={() => void remove(link)}>
+            <button className="btn ghost small" disabled={busyId === link.id} onClick={() => remove(link)}>
               Delete
             </button>
           </div>

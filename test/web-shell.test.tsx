@@ -72,7 +72,8 @@ describe("TopbarMore", () => {
     expect(first.querySelector(".count-chip")?.textContent).toBe("2");
     await act(async () => first.click());
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(host.querySelector('[role="menu"]')).toBeNull();
+    // The menu plays a short exit before it unmounts.
+    expect(host.querySelector('[role="menu"]')?.getAttribute("data-state") ?? "closed").toBe("closed");
   });
 
   it("flags the trigger while something is waiting", async () => {

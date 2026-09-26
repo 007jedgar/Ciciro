@@ -363,6 +363,47 @@ export function suggestionAt(state: EditorState): string | null {
 }
 
 /**
+ * Where the text that survives resolving lands, in the document as it will be
+ * after: the inserted text of accepted suggestions, the restored text of
+ * rejected ones. Positions assume only that text goes away (a paragraph that
+ * empties out shifts what follows), so each range carries its text and the
+ * caller checks it against the resolved document before flashing.
+ */
+export function resolvedRanges(
+  doc: PmNode,
+  action: SuggestionAction,
+  ids?: readonly string[]
+): { from: number; to: number; text: string }[] {
+  const wanted = ids ? new Set(ids) : null;
+  const dropped = action === "accept" ? DELETION_MARK : INSERTION_MARK;
+  const ranges: { from: number; to: number; text: string }[] = [];
+  let removed = 0;
+  doc.descendants((node, pos) => {
+    if (!node.isText) return;
+    const mark = node.marks.find(
+      (m) =>
+        (m.type.name === INSERTION_MARK || m.type.name === DELETION_MARK) &&
+        (!wanted || wanted.has(m.attrs.suggestionId as string))
+    );
+    if (!mark) return;
+    if (mark.type.name === dropped) {
+      removed += node.nodeSize;
+      return;
+    }
+    const from = pos - removed;
+    const to = from + node.nodeSize;
+    const last = ranges[ranges.length - 1];
+    if (last && last.to === from) {
+      last.to = to;
+      last.text += node.text ?? "";
+    } else {
+      ranges.push({ from, to, text: node.text ?? "" });
+    }
+  });
+  return ranges;
+}
+
+/**
  * Accept or reject suggestions in a live editor. The rules are the shared
  * ones in src/lib/suggestions.ts (so the desk, the phone, and the server agree
  * on what "accept" leaves behind); the result goes in as the smallest replace

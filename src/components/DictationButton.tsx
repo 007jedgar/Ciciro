@@ -8,6 +8,10 @@ import {
   type SpeechRecognitionCtor,
   type SpeechRecognitionLike,
 } from "@/lib/dictation";
+import { MOTION_MS, usePresence } from "@/lib/motion";
+
+/** How long an error stays before it dismisses itself. */
+export const DICTATION_ERROR_MS = 5000;
 
 type Props = {
   /** Called with each finished phrase. */
@@ -25,6 +29,10 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // The last message stays on screen for the exit animation after `error` clears.
+  const shownError = useRef("");
+  if (error) shownError.current = error;
+  const errorPresence = usePresence(Boolean(error), MOTION_MS.popoverOut);
   const recognizer = useRef<SpeechRecognitionLike | null>(null);
   const wanted = useRef(false);
   const onPhraseRef = useRef(onPhrase);
@@ -97,6 +105,12 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
     }
   }, [Ctor, stop]);
 
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), DICTATION_ERROR_MS);
+    return () => clearTimeout(timer);
+  }, [error]);
+
   useEffect(() => stop, [stop]);
   useEffect(() => {
     stop();
@@ -108,7 +122,7 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
     <span className="dictation">
       <button
         type="button"
-        className={`btn small${listening ? " primary" : ""}`}
+        className={`btn small dictation-mic${listening ? " primary listening" : ""}`}
         aria-pressed={listening}
         // Keep the editor's caret while the button is pressed.
         onMouseDown={(e) => e.preventDefault()}
@@ -126,9 +140,13 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
           {interim}
         </span>
       )}
-      {error && (
-        <div className="dictation-error" role="alert">
-          <span>{error}</span>
+      {errorPresence.mounted && (
+        <div
+          className="dictation-error"
+          role="alert"
+          data-state={errorPresence.state}
+        >
+          <span>{shownError.current}</span>
           <button
             type="button"
             className="dictation-error-close"
@@ -137,6 +155,11 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
           >
             ×
           </button>
+          <span
+            className="dictation-error-bar"
+            aria-hidden="true"
+            style={{ animationDuration: `${DICTATION_ERROR_MS}ms` }}
+          />
         </div>
       )}
     </span>

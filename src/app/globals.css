@@ -133,12 +133,41 @@
   /* Smallest pointer target for an icon or stepper control. */
   --control-min: 32px;
   --drawer-width: 460px;
-  /* Motion tokens; pair every use with the reduce-motion guards. */
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 320ms;
+  /* Motion tokens. Every duration scales by --motion, which the reduce-motion
+     block below sets to 0, so anything built on a token stills itself. Loops
+     (shimmer, pulse) also need an explicit `animation: none` there. */
+  --motion: 1;
+  --duration-fast: calc(120ms * var(--motion));
+  --duration-base: calc(200ms * var(--motion));
+  --duration-slow: calc(320ms * var(--motion));
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Surfaces: drawers, dialogs, popovers, snackbars. src/lib/motion.ts mirrors
+     the exit times so a closing surface stays mounted until it has left. */
+  --ease-drawer: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* A slight overshoot: neighbours settling after a drag, a card dropping in. */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --duration-press: calc(90ms * var(--motion));
+  --duration-scrim: calc(160ms * var(--motion));
+  --duration-drawer-in: calc(240ms * var(--motion));
+  --duration-drawer-out: calc(180ms * var(--motion));
+  --duration-dialog-in: calc(200ms * var(--motion));
+  --duration-popover-in: calc(140ms * var(--motion));
+  --duration-popover-out: calc(100ms * var(--motion));
+  --duration-remove: calc(200ms * var(--motion));
+  --duration-collapse: calc(180ms * var(--motion));
+  --duration-flash: calc(400ms * var(--motion));
+  --duration-pulse: calc(700ms * var(--motion));
+  --duration-focus: calc(250ms * var(--motion));
+  --duration-shimmer: calc(1200ms * var(--motion));
+  --duration-reorder: calc(150ms * var(--motion));
+  --duration-drop: calc(120ms * var(--motion));
+  --duration-suggestion-fold: calc(160ms * var(--motion));
+  --press-scale: 0.98;
+  --hover-lift: -1px;
+  --enter-shift: 24px;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --lift-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 22%, transparent);
   --sans: var(--font-sans), "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   --serif: var(--font-serif), Literata, Georgia, "Times New Roman", serif;
   --mono: var(--font-mono), "JetBrains Mono", ui-monospace, Menlo, monospace;
@@ -210,18 +239,25 @@ button {
   padding: var(--space-2) var(--space-3);
   border-radius: 8px;
   font-size: 13px;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  transition: background 0.15s, border-color 0.15s, transform var(--duration-press) var(--ease-out);
 }
 .btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(var(--press-scale));
 }
+/* One switch for every token-driven animation and transition. */
 @media (prefers-reduced-motion: reduce) {
-  .btn:active:not(:disabled) {
-    transform: none;
+  :root {
+    --motion: 0;
+    --press-scale: 1;
+    --hover-lift: 0px;
+    --enter-shift: 0px;
   }
 }
-:root[data-reduce-motion="true"] .btn:active:not(:disabled) {
-  transform: none;
+:root[data-reduce-motion="true"] {
+  --motion: 0;
+  --press-scale: 1;
+  --hover-lift: 0px;
+  --enter-shift: 0px;
 }
 .btn:hover {
   background: var(--panel-2);
@@ -638,6 +674,8 @@ textarea {
 .topbar .dictation-interim {
   color: var(--ink-soft);
   font-style: italic;
+  /* Words still being recognised are provisional: they read as such until final. */
+  opacity: 0.6;
 }
 .topbar .dictation-error {
   background: var(--del-soft);
@@ -2002,17 +2040,41 @@ textarea {
 .export-option {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 2px;
+  width: 100%;
   padding: 8px 10px;
+  border: 0;
   border-radius: 8px;
+  background: transparent;
   color: var(--ink);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+}
+.export-option:disabled:not([aria-busy="true"]) {
+  opacity: 0.5;
+  cursor: default;
+}
+.export-option[aria-busy="true"] {
+  cursor: progress;
+}
+.export-error {
+  margin: 4px 4px 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--del-soft);
+  color: var(--del);
+  font-size: 12px;
 }
 .export-option:hover,
 .export-option:focus-visible {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .export-option-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: 13px;
   font-weight: 600;
 }
@@ -2894,4 +2956,566 @@ textarea {
   padding-left: 18px;
   font-size: 13px;
   line-height: 1.55;
+}
+
+/* ---------- Motion and feedback ----------
+   Durations, easings and the reduce-motion switch are tokens at the top of this
+   file. src/lib/motion.ts mirrors the exit times JS waits out. */
+
+/* Press, hover and focus. */
+:where(button, a, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chip,
+.more-item,
+.export-option,
+.history-row,
+.search-hit-text,
+.scratch-item-main,
+.stuck-prompt,
+.kind-option,
+.project-card,
+.outline-card {
+  transition:
+    transform var(--duration-press) var(--ease-out),
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow var(--duration-base) var(--ease-out);
+}
+.chip:active:not(:disabled),
+.more-item:active,
+.export-option:active,
+.history-row:active,
+.search-hit-text:active,
+.scratch-item-main:active,
+.stuck-prompt:active,
+.kind-option:active,
+.project-card:active,
+.outline-card:active:not(.dragging) {
+  transform: scale(var(--press-scale));
+}
+.project-card:hover,
+.outline-card:hover:not(.dragging),
+.kind-option:hover {
+  transform: translateY(var(--hover-lift));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.project-card:active,
+.outline-card:active:not(.dragging),
+.kind-option:active {
+  box-shadow: none;
+}
+
+/* Drawers and dialogs (Presence): the scrim fades, the panel slides in. */
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--enter-shift));
+  }
+}
+@keyframes drawer-out {
+  to {
+    opacity: 0;
+    transform: translateX(var(--enter-shift));
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+.presence {
+  display: contents;
+}
+.drawer-overlay {
+  animation: scrim-in var(--duration-scrim) linear both;
+}
+.drawer {
+  animation: drawer-in var(--duration-drawer-in) var(--ease-drawer) both;
+}
+.outline-panel {
+  animation: dialog-in var(--duration-dialog-in) var(--ease-drawer) both;
+}
+.presence[data-state="closed"] > .drawer-overlay {
+  animation: scrim-out var(--duration-drawer-out) linear both;
+}
+.presence[data-state="closed"] > .drawer {
+  animation: drawer-out var(--duration-drawer-out) ease-in both;
+}
+.presence[data-state="closed"] > .outline-panel {
+  animation: dialog-out var(--duration-drawer-out) ease-in both;
+}
+
+/* Popovers: fade and scale from the trigger's corner. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.export-menu,
+.more-menu,
+.stuck-pop,
+.writing-history-menu,
+.topbar .dictation-error,
+.topbar .dictation-interim {
+  transform-origin: var(--pop-origin, top right);
+  animation: pop-in var(--duration-popover-in) var(--ease-out) both;
+}
+.stuck-pop {
+  --pop-origin: top left;
+}
+.writing-history-menu {
+  --pop-origin: top left;
+}
+.export-menu[data-state="closed"],
+.more-menu[data-state="closed"],
+.stuck-pop[data-state="closed"],
+.writing-history-menu[data-state="closed"],
+.topbar .dictation-error[data-state="closed"] {
+  animation: pop-out var(--duration-popover-out) ease-in both;
+  pointer-events: none;
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+/* Ideas arrive one after another, 50ms apart. */
+.stuck-pop li {
+  animation: rise-in var(--duration-base) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 50ms * var(--motion));
+}
+
+/* Snackbar: one at a time, bottom centre. */
+@keyframes snackbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes snackbar-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.snackbar-region {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-6);
+  z-index: 60;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--space-4));
+  pointer-events: none;
+}
+.snackbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 13px;
+  box-shadow: var(--lift-shadow);
+  pointer-events: auto;
+  animation: snackbar-in var(--duration-base) var(--ease-out) both;
+}
+.snackbar[data-state="closed"] {
+  animation: snackbar-out var(--duration-popover-out) ease-in both;
+  pointer-events: none;
+}
+.snackbar-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.snackbar-action {
+  flex: none;
+  min-height: var(--control-min);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  /* The surface is --ink, so the page colour is the one pairing that reads in every theme. */
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.snackbar-action:hover {
+  background: color-mix(in srgb, var(--bg) 14%, transparent);
+}
+
+/* A row that is going away: it slides out, then collapses out of the flow. */
+@keyframes row-leave {
+  from {
+    max-height: var(--row-h, 240px);
+  }
+  to {
+    max-height: 0;
+    margin-block: 0;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
+    transform: translateX(var(--enter-shift));
+  }
+}
+.is-leaving {
+  overflow: hidden;
+  animation: row-leave var(--duration-remove) ease-in both;
+  pointer-events: none;
+}
+/* A row whose work is done folds away in place (a replaced search hit). */
+@keyframes row-collapse {
+  from {
+    max-height: var(--row-h, 120px);
+  }
+  to {
+    max-height: 0;
+    margin-block: 0;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
+  }
+}
+.is-collapsing {
+  overflow: hidden;
+  animation: row-collapse var(--duration-collapse) var(--ease-out) both;
+  pointer-events: none;
+}
+/* Loading: skeleton lines with a shimmer, replaced by content that rises in. */
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.skeleton {
+  display: block;
+  height: 12px;
+  margin: var(--space-2) 0;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 30%,
+    color-mix(in srgb, var(--ink) 9%, var(--panel-2)) 50%,
+    var(--panel-2) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer var(--duration-shimmer) linear infinite;
+}
+.skeleton.short {
+  width: 55%;
+}
+.skeleton.title {
+  height: 16px;
+  width: 40%;
+}
+.skeleton-block {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: var(--space-2);
+}
+.rise > * {
+  animation: rise-in var(--duration-base) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms * var(--motion));
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+:root[data-reduce-motion="true"] .skeleton {
+  animation: none;
+}
+
+/* A small spinner for work in flight (a menu item, a button). */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: var(--space-2);
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: spin 0.8s linear infinite;
+}
+.export-option-label .spinner {
+  margin-right: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+:root[data-reduce-motion="true"] .spinner {
+  animation-duration: 2.4s;
+}
+
+/* Dictation: a ring pulses on the mic while it listens; an error times itself out. */
+@keyframes mic-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+.dictation-mic {
+  position: relative;
+}
+.dictation-mic.listening::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  pointer-events: none;
+  animation: mic-pulse 1.2s var(--ease-out) infinite;
+}
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.topbar .dictation-error {
+  overflow: hidden;
+  cursor: pointer;
+}
+.dictation-error-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--danger, #b3261e);
+  transform-origin: left;
+  animation: drain 5s linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dictation-mic.listening::after {
+    animation: none;
+    opacity: 0.55;
+  }
+  .dictation-error-bar {
+    display: none;
+  }
+}
+:root[data-reduce-motion="true"] .dictation-mic.listening::after {
+  animation: none;
+  opacity: 0.55;
+}
+:root[data-reduce-motion="true"] .dictation-error-bar {
+  display: none;
+}
+
+/* Staggered rise: children arrive 60ms apart, in DOM order (up to 14). */
+.rise > :nth-child(1) {
+  --i: 0;
+}
+.rise > :nth-child(2) {
+  --i: 1;
+}
+.rise > :nth-child(3) {
+  --i: 2;
+}
+.rise > :nth-child(4) {
+  --i: 3;
+}
+.rise > :nth-child(5) {
+  --i: 4;
+}
+.rise > :nth-child(6) {
+  --i: 5;
+}
+.rise > :nth-child(7) {
+  --i: 6;
+}
+.rise > :nth-child(8) {
+  --i: 7;
+}
+.rise > :nth-child(9) {
+  --i: 8;
+}
+.rise > :nth-child(10) {
+  --i: 9;
+}
+.rise > :nth-child(11) {
+  --i: 10;
+}
+.rise > :nth-child(12) {
+  --i: 11;
+}
+.rise > :nth-child(13) {
+  --i: 12;
+}
+.rise > :nth-child(14) {
+  --i: 13;
+}
+
+/* Marks on the page that flash: a search hit or the next change pulses, an
+   accepted change flashes green, a rejected one red (src/lib/tiptap-flash.ts). */
+@keyframes flash-pulse {
+  from {
+    background-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@keyframes flash-accept {
+  from {
+    background-color: var(--draft-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@keyframes flash-reject {
+  from {
+    background-color: var(--del-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.ProseMirror .flash-pulse,
+.ProseMirror .flash-accept,
+.ProseMirror .flash-reject {
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.ProseMirror .flash-pulse {
+  animation: flash-pulse var(--duration-pulse) ease-out both;
+}
+.ProseMirror .flash-accept {
+  animation: flash-accept var(--duration-flash) ease-out both;
+}
+.ProseMirror .flash-reject {
+  animation: flash-reject var(--duration-flash) ease-out both;
+}
+/* With motion reduced the highlight holds still for the same time instead. */
+@media (prefers-reduced-motion: reduce) {
+  .ProseMirror .flash-pulse {
+    animation: none;
+    background-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .ProseMirror .flash-accept {
+    animation: none;
+    background-color: var(--draft-soft);
+  }
+  .ProseMirror .flash-reject {
+    animation: none;
+    background-color: var(--del-soft);
+  }
+}
+:root[data-reduce-motion="true"] .ProseMirror .flash-pulse {
+  animation: none;
+  background-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+:root[data-reduce-motion="true"] .ProseMirror .flash-accept {
+  animation: none;
+  background-color: var(--draft-soft);
+}
+:root[data-reduce-motion="true"] .ProseMirror .flash-reject {
+  animation: none;
+  background-color: var(--del-soft);
+}
+
+/* The half of a change that is about to go folds away sideways. */
+@keyframes fold-x {
+  from {
+    max-width: var(--w);
+    opacity: 1;
+  }
+  to {
+    max-width: 0;
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.ProseMirror .suggestion-folding {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  animation: fold-x var(--duration-suggestion-fold) ease-in both;
+}
+.ProseMirror .suggestion-fading {
+  animation: fade-out var(--duration-suggestion-fold) ease-in both;
+}
+
+/* A number that changes rolls in from below (or above) like a slot counter. */
+@keyframes tick-up {
+  from {
+    opacity: 0;
+    transform: translateY(70%);
+  }
+}
+@keyframes tick-down {
+  from {
+    opacity: 0;
+    transform: translateY(-70%);
+  }
+}
+.ticker {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.ticker > span {
+  display: inline-block;
+  animation: tick-up var(--duration-fast) var(--ease-out) both;
+}
+.ticker[data-dir="down"] > span {
+  animation-name: tick-down;
 }

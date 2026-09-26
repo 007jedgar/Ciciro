@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { StuckResponse } from "@/lib/recap-view";
+import { MOTION_MS, usePresence } from "@/lib/motion";
 
 type Props = {
   projectId: string;
@@ -17,6 +18,7 @@ export default function StuckPrompts({ projectId, chapterId, onUse }: Props) {
   const [prompts, setPrompts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const latest = useRef(0);
+  const { mounted, state } = usePresence(open, MOTION_MS.popoverOut);
 
   async function ask() {
     const request = ++latest.current;
@@ -54,16 +56,25 @@ export default function StuckPrompts({ projectId, chapterId, onUse }: Props) {
       >
         I&apos;m stuck
       </button>
-      {open && (
-        <div className="stuck-pop" role="region" aria-label="Ideas for what to write next">
+      {mounted && (
+        <div
+          className="stuck-pop"
+          role="region"
+          aria-label="Ideas for what to write next"
+          data-state={state}
+        >
           {busy ? (
-            <p className="stuck-note">Thinking of ways forward...</p>
+            <div role="status" aria-label="Thinking of ways forward">
+              <span className="skeleton" />
+              <span className="skeleton" />
+              <span className="skeleton short" />
+            </div>
           ) : error ? (
             <p className="stuck-note stuck-error">{error}</p>
           ) : (
             <ul>
-              {prompts.map((prompt) => (
-                <li key={prompt}>
+              {prompts.map((prompt, i) => (
+                <li key={prompt} style={{ "--i": i } as React.CSSProperties}>
                   <button
                     className="stuck-prompt"
                     onClick={() => {
