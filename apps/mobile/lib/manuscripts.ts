@@ -1,4 +1,5 @@
 import { ciciro, queryClient, queryKeys } from "./api";
+import { localYmd, type ManuscriptKind } from "./manuscript-kind";
 import type { Chapter, OkResponse, ProjectCreated, ProjectDetail, ProjectListItem } from "./api/types";
 
 export type NewManuscriptInput = {
@@ -7,6 +8,7 @@ export type NewManuscriptInput = {
   genre?: string;
   logline?: string;
   folderId?: string | null;
+  kind?: ManuscriptKind;
 };
 
 export async function listManuscripts(): Promise<ProjectListItem[]> {
@@ -19,6 +21,7 @@ export async function createManuscript(input: NewManuscriptInput): Promise<Proje
     author: input.author.trim(),
     genre: input.genre?.trim() ?? "",
     logline: input.logline?.trim() ?? "",
+    ...(input.kind && input.kind !== "novel" ? { kind: input.kind, today: localYmd() } : {}),
     ...(input.folderId !== undefined ? { folderId: input.folderId } : {}),
   });
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });

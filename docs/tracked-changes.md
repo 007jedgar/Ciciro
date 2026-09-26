@@ -63,6 +63,8 @@ Edit one, copy it over the other.
   occurrence becomes its own suggestion.
 - Only the words that changed are marked ("walked slowly" -> "ambled"), and a
   multi-paragraph find pairs paragraphs with the replacement's paragraphs.
+  In a screenplay the replacement splits one paragraph per line, each with its
+  screenplay element (`classifyScreenplayLines` in `src/lib/manuscript-kind.ts`).
 - Text under someone else's pending suggestion is left alone and reported, so
   the model can ask the author to resolve it first. Ciciro may rework its own
   pending suggestion by quoting either its old or new wording.

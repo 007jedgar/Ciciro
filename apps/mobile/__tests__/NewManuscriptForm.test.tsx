@@ -50,4 +50,46 @@ describe("NewManuscriptForm", () => {
     expect(onCreated).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Create manuscript")).toHaveTextContent("Create manuscript");
   });
+
+  it("creates a screenplay, and a blog post with a subtitle", async () => {
+    createManuscriptMock.mockResolvedValue({ id: "p2" } as never);
+    const onCreated = jest.fn();
+    const { unmount } = render(<NewManuscriptForm defaultAuthor="Ada" onCreated={onCreated} />);
+
+    fireEvent.press(screen.getByLabelText("Screenplay"));
+    fireEvent.changeText(screen.getByLabelText("Title"), "Heist");
+    fireEvent.press(screen.getByLabelText("Create screenplay"));
+    await waitFor(() =>
+      expect(createManuscriptMock).toHaveBeenLastCalledWith({
+        title: "Heist",
+        author: "Ada",
+        genre: "",
+        kind: "screenplay",
+      })
+    );
+    unmount();
+
+    render(<NewManuscriptForm defaultAuthor="Ada" onCreated={onCreated} />);
+    fireEvent.press(screen.getByLabelText("Blog post or newsletter"));
+    fireEvent.changeText(screen.getByLabelText("Title"), "Ten notes");
+    fireEvent.changeText(screen.getByLabelText("Subtitle"), "What I learned");
+    fireEvent.press(screen.getByLabelText("Create blog post or newsletter"));
+    await waitFor(() =>
+      expect(createManuscriptMock).toHaveBeenLastCalledWith({
+        title: "Ten notes",
+        author: "Ada",
+        genre: "",
+        kind: "blog",
+        logline: "What I learned",
+      })
+    );
+  });
+
+  it("hides genre for a journal", () => {
+    render(<NewManuscriptForm onCreated={jest.fn()} />);
+    expect(screen.getByLabelText("Genre")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Journal"));
+    expect(screen.queryByLabelText("Genre")).toBeNull();
+    expect(screen.getByLabelText("Create journal")).toBeTruthy();
+  });
 });

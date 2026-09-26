@@ -7,6 +7,7 @@ import {
   withVisibleChapterCount,
 } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
+import { defaultTitle, normalizeKind, openingChapter, parseYmd } from "@/lib/manuscript-kind";
 
 function readTrimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -18,6 +19,10 @@ export type ProjectCreateInput = {
   genre?: unknown;
   logline?: unknown;
   folderId?: unknown;
+  /** novel (default) | screenplay | blog | journal. Fixed once created. */
+  kind?: unknown;
+  /** The author's local date (YYYY-MM-DD), so a journal's first entry is today for them. */
+  today?: unknown;
 };
 
 const PROJECT_LIST_INCLUDE = {
@@ -59,16 +64,23 @@ export async function createProject(
 ) {
   requireUserIfHosted(user);
   const folderId = await resolveFolderId(user, input.folderId);
+  const kind = normalizeKind(input.kind);
+  const title = readTrimmed(input.title) || defaultTitle(kind);
+  const opening = openingChapter(kind, {
+    title: readTrimmed(input.title),
+    today: parseYmd(input.today) ?? undefined,
+  });
   return prisma.project.create({
     data: {
       userId: user?.id ?? null,
       folderId: folderId ?? null,
-      title: readTrimmed(input.title) || "Untitled Manuscript",
+      title,
+      kind,
       author: readTrimmed(input.author) || user?.name || "",
       genre: readTrimmed(input.genre),
       logline: readTrimmed(input.logline),
       chapters: {
-        create: [{ title: "Chapter 1", order: 0 }],
+        create: [{ title: opening.title, content: opening.content, order: 0 }],
       },
     },
     include: { chapters: { orderBy: { order: "asc" } } },

@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { getAnthropic, EDITOR_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { EDITOR_SYSTEM } from "@/lib/prompts";
+import { editorSystemFor } from "@/lib/prompts";
+import { normalizeKind } from "@/lib/manuscript-kind";
 import { EDITOR_TOOLS, executeEditorTool, toolUiEvents } from "@/lib/tools";
 import { ensureBible } from "@/lib/bible";
 import { maybeCompactChat } from "@/lib/compact";
@@ -453,6 +454,14 @@ async function checkpointIteration(input: Checkpoint) {
   });
 }
 
+async function projectKind(projectId: string) {
+  const row = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { kind: true },
+  });
+  return normalizeKind(row?.kind);
+}
+
 async function finalizeVerification(
   claim: ClaimedEditorRun,
   messages: Anthropic.MessageParam[]
@@ -567,6 +576,8 @@ export async function executeClaimedEditorRun(
       return finalizeVerification(claim, messages);
     }
 
+    const editorSystem = editorSystemFor(await projectKind(claim.projectId));
+
     for (let sliceIndex = 0; sliceIndex < MAX_ITERATIONS_PER_SLICE; sliceIndex++) {
       let msg: Anthropic.Message | undefined;
       let visibleDelta = "";
@@ -582,13 +593,7 @@ export async function executeClaimedEditorRun(
             max_tokens: requestProfile.maxTokens,
             thinking: { type: "adaptive" },
             output_config: { effort: requestProfile.effort },
-            system: [
-              {
-                type: "text",
-                text: EDITOR_SYSTEM,
-                cache_control: { type: "ephemeral" },
-              },
-            ],
+            system: editorSystem,
             tools: EDITOR_TOOLS,
             messages,
           });

@@ -2,7 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, EDITOR_MODEL, DRAFTER_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { EDITOR_SYSTEM, DRAFTER_SYSTEM, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
+import { editorSystemFor, drafterSystemFor, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
+import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
 
@@ -17,7 +18,14 @@ type PlanQuestion = { question: string; provisional: string; affects: string };
 type Emit = (event: Record<string, unknown>) => void;
 
 const MAX_BEATS = 8;
-const EDITOR_SYS = `${EDITOR_SYSTEM}\n\n${AUTONOMOUS_DIRECTIVE}`;
+function editorSys(kind: ManuscriptKind) {
+  return editorSystemFor(kind, AUTONOMOUS_DIRECTIVE);
+}
+
+async function kindOf(projectId: string): Promise<ManuscriptKind> {
+  const row = await prisma.project.findUnique({ where: { id: projectId }, select: { kind: true } });
+  return normalizeKind(row?.kind);
+}
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
@@ -29,23 +37,6 @@ function textBlocks(res: Anthropic.Message): string {
     .map((b) => b.text)
     .join("")
     .trim();
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-// Plain prose -> TipTap-friendly HTML paragraphs.
-function proseToHtml(text: string): string {
-  return text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
-    .join("");
 }
 
 function tailWords(text: string, n = 180): string {
@@ -120,7 +111,7 @@ later.`;
         },
       },
     },
-    system: [{ type: "text", text: EDITOR_SYS, cache_control: { type: "ephemeral" } }],
+    system: editorSys(await kindOf(projectId)),
     messages: [{ role: "user", content: `<context>\n${context}\n</context>\n\n${instruction}` }],
   } as Anthropic.MessageCreateParamsNonStreaming);
 
@@ -134,7 +125,12 @@ later.`;
   };
 }
 
-async function draftBeat(beat: Beat, tail: string, isOpening: boolean): Promise<string> {
+async function draftBeat(
+  kind: ManuscriptKind,
+  beat: Beat,
+  tail: string,
+  isOpening: boolean
+): Promise<string> {
   const anthropic = getAnthropic();
   const continuity = isOpening
     ? "This opens the chapter. Do not restate any heading."
@@ -142,7 +138,7 @@ async function draftBeat(beat: Beat, tail: string, isOpening: boolean): Promise<
   const res = await anthropic.messages.create({
     model: DRAFTER_MODEL,
     max_tokens: clamp(beat.wordTarget * 3, 800, 4000),
-    system: DRAFTER_SYSTEM,
+    system: drafterSystemFor(kind),
     messages: [{ role: "user", content: `${beat.brief}\n\n${continuity}\n\nTarget length: about ${beat.wordTarget} words.` }],
   });
   return textBlocks(res);
@@ -169,7 +165,7 @@ Return ONLY the final edited prose for this beat - no commentary, no headings, n
     max_tokens: clamp(beat.wordTarget * 4, 1000, 5000),
     thinking: { type: "adaptive" },
     output_config: { effort: "high" },
-    system: [{ type: "text", text: EDITOR_SYS, cache_control: { type: "ephemeral" } }],
+    system: editorSys(await kindOf(projectId)),
     messages: [{ role: "user", content: `<context>\n${context}\n</context>\n\n${instruction}` }],
   } as Anthropic.MessageCreateParamsNonStreaming);
   return textBlocks(res);
@@ -225,6 +221,8 @@ export async function runAutoWrite(opts: {
     return;
   }
 
+  const kind = await kindOf(projectId);
+
   emit({ type: "phase", v: "planning" });
   let beats: Beat[];
   let planQuestions: PlanQuestion[] = [];
@@ -274,7 +272,7 @@ export async function runAutoWrite(opts: {
     emit({ type: "beat", i: i + 1, n: beats.length, status: "drafting", goal: beat.goal });
     let prose: string;
     try {
-      prose = await draftBeat(beat, tail, isOpening);
+      prose = await draftBeat(kind, beat, tail, isOpening);
     } catch (e) {
       emit({ type: "note", v: `Beat ${i + 1} draft failed: ${(e as Error).message}` });
       continue;
@@ -290,7 +288,7 @@ export async function runAutoWrite(opts: {
 
     if (!prose.trim()) continue;
     running = `${running}\n\n${prose}`.trim();
-    newHtml += proseToHtml(prose);
+    newHtml += assistantTextToHtml(prose, kind);
     accepted++;
     emit({
       type: "beat",

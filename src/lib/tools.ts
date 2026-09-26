@@ -7,7 +7,17 @@ import {
   writeBibleFile,
   appendCanon,
 } from "@/lib/bible";
-import { DRAFTER_SYSTEM } from "@/lib/prompts";
+import { drafterSystemFor } from "@/lib/prompts";
+import {
+  assistantTextToHtml,
+  elementOfHtml,
+  normalizeKind,
+  replacementContext,
+  type ManuscriptKind,
+  type ScreenplayElement,
+} from "@/lib/manuscript-kind";
+import { AuthError } from "@/lib/auth/session";
+import { planNewChapters } from "@/lib/chapters";
 import { chapterWordCount } from "@/lib/text";
 import {
   writeChapterHtml,
@@ -19,6 +29,7 @@ import {
   deletePassageRange,
   findBlockRun,
   formatSceneIndex,
+  getBlocks,
   indexChapter,
   isPassageId,
   parsePassageId,
@@ -489,17 +500,19 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function elementBefore(html: string, at: number): ScreenplayElement | undefined {
+  const block = getBlocks(html)
+    .filter((b) => b.end <= at)
+    .pop();
+  return block ? elementOfHtml(html.slice(block.start, block.end)) : undefined;
 }
 
-function paragraphsToHtml(text: string): string {
-  return text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
-    .join("");
+async function projectKind(projectId: string): Promise<ManuscriptKind> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { kind: true },
+  });
+  return normalizeKind(project?.kind);
 }
 
 // Fallback for edit_manuscript when a literal substring match fails. The
@@ -511,12 +524,18 @@ function paragraphsToHtml(text: string): string {
 function blockReplace(
   html: string,
   find: string,
-  replace: string
+  replace: string,
+  kind: ManuscriptKind
 ): { html: string; count: number } {
   const run = findBlockRun(html, find);
   if (!run) return { html, count: 0 };
+  const placed = assistantTextToHtml(replace, kind, replacementContext(elementOfHtml(html.slice(run.start))));
+  const id = html.slice(run.start).match(/^<[a-z][\w-]*\b[^>]*?\bdata-block-id="([^"]*)"/i)?.[1];
   return {
-    html: html.slice(0, run.start) + paragraphsToHtml(replace) + html.slice(run.end),
+    html:
+      html.slice(0, run.start) +
+      (id ? placed.replace(/^<([a-z][\w-]*)/i, `<$1 data-block-id="${id}"`) : placed) +
+      html.slice(run.end),
     count: 1,
   };
 }
@@ -924,6 +943,17 @@ export async function executeEditorTool(
             `chapter ${chapters.length + 1} at the end.`,
         };
       }
+      let newChapter: Awaited<ReturnType<typeof planNewChapters>> | null = null;
+      if (!destination) {
+        try {
+          newChapter = await planNewChapters(projectId);
+        } catch (error) {
+          if (error instanceof AuthError) {
+            return { status: "split failed", content: error.message };
+          }
+          throw error;
+        }
+      }
       if (
         destination &&
         (!Number.isInteger(expectedDestinationRevision) ||
@@ -1073,14 +1103,15 @@ export async function executeEditorTool(
             };
           }
         } else {
+          const fields = newChapter!.fields(destinationNumber - 1, {
+            title: input.destinationTitle,
+            content: destinationContent,
+          });
           const chapter = await prisma.chapter.create({
             data: {
               projectId,
-              title:
-                String(input.destinationTitle || "").trim() ||
-                `Chapter ${destinationNumber}`,
+              ...fields,
               order: chapters.length,
-              content: destinationContent,
               wordCount: destinationWordCount,
             },
           });
@@ -1369,8 +1400,9 @@ export async function executeEditorTool(
             `${expectedRevision}. No replacements were applied.`,
         };
       }
+      const kind = await projectKind(projectId);
       if (await aiEditsAsSuggestions(projectId)) {
-        return suggestChapterEdits(ch, n, replacements, ctx.runId);
+        return suggestChapterEdits(ch, n, replacements, kind, ctx.runId);
       }
 
       let content = ch.content;
@@ -1378,14 +1410,16 @@ export async function executeEditorTool(
       const applied: { find: string; replace: string }[] = [];
       for (const r of replacements) {
         if (!r.find) continue;
-        const literalCount = content.split(r.find).length - 1;
+        const scriptBlocks =
+          kind === "screenplay" && /\n/.test(r.replace ?? "") && findBlockRun(content, r.find) !== null;
+        const literalCount = scriptBlocks ? 0 : content.split(r.find).length - 1;
         if (literalCount > 0) {
           content = content.split(r.find).join(r.replace ?? "");
           report.push(`replaced "${r.find}" -> "${r.replace}" (${literalCount}x)`);
           applied.push({ find: r.find, replace: r.replace ?? "" });
           continue;
         }
-        const { html: next, count } = blockReplace(content, r.find, r.replace ?? "");
+        const { html: next, count } = blockReplace(content, r.find, r.replace ?? "", kind);
         if (count > 0) {
           content = next;
           report.push(
@@ -1765,7 +1799,11 @@ export async function executeEditorTool(
         return { status: "insert failed", content: dest.error };
       }
 
-      const insertHtml = paragraphsToHtml(text);
+      const insertHtml = assistantTextToHtml(
+        text,
+        await projectKind(projectId),
+        elementBefore(ch.content, dest.at)
+      );
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
       const wordCount = chapterWordCount(content);
       const committed = await bumpChapterRevision(
@@ -1806,6 +1844,15 @@ export async function executeEditorTool(
     }
 
     case "create_chapter": {
+      let newChapter: Awaited<ReturnType<typeof planNewChapters>>;
+      try {
+        newChapter = await planNewChapters(projectId);
+      } catch (error) {
+        if (error instanceof AuthError) {
+          return { status: "create failed", content: error.message };
+        }
+        throw error;
+      }
       const chapters = await prisma.chapter.findMany({
         where: { projectId, archivedAt: null },
         orderBy: { order: "asc" },
@@ -1846,17 +1893,14 @@ export async function executeEditorTool(
         }
       }
 
-      const title =
-        String(input.title || "").trim() ||
-        `Chapter ${afterN != null ? afterN + 1 : chapters.length + 1}`;
+      const number = afterN != null ? afterN + 1 : chapters.length + 1;
       const chapter = await prisma.chapter.create({
         data: {
           projectId,
-          title,
+          ...newChapter.fields(number - 1, { title: input.title }),
           order,
         },
       });
-      const number = afterN != null ? afterN + 1 : chapters.length + 1;
       return {
         status: `creating chapter ${number}`,
         content: `Created chapter ${number}: "${chapter.title}"${
@@ -1921,10 +1965,14 @@ export async function executeEditorTool(
       const model = mode === "fast" ? DRAFTER_FAST_MODEL : DRAFTER_MODEL;
       try {
         const anthropic = getAnthropic();
+        const kindRow = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { kind: true },
+        });
         const res = await anthropic.messages.create({
           model,
           max_tokens: 3000,
-          system: DRAFTER_SYSTEM,
+          system: drafterSystemFor(normalizeKind(kindRow?.kind)),
           messages: [{ role: "user", content: brief }],
         });
         const prose = res.content

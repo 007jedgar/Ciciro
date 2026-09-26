@@ -146,6 +146,17 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-share-links.sql
 
 Until it runs, only sharing errors: the Beta readers panels and the reader page.
 
+Manuscript kinds (novel, screenplay, blog post, journal) add a `kind` column to
+`Project`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-manuscript-kind.sql
+```
+
+Run it before deploying the build that ships kinds, not after. Every project
+query reads `kind`, so until the column exists the whole app fails with
+`no such column: kind`. Existing manuscripts become novels.
+
 ## Authentication
 
 - `POST /api/auth/signup` — create an account and start a session.

@@ -2,6 +2,7 @@ import type { Chapter } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { writeChapterHtml } from "@/lib/chapter-writes";
 import { defaultSettings, parseSettingsJson } from "@/lib/settings";
+import { assistantReplacementSplitter, type ManuscriptKind } from "@/lib/manuscript-kind";
 import {
   CICIRO_AUTHOR,
   hasSuggestions,
@@ -61,6 +62,7 @@ export async function suggestChapterEdits(
   chapter: Chapter,
   chapterNumber: number,
   replacements: { find: string; replace?: string }[],
+  kind: ManuscriptKind,
   runId?: string
 ): Promise<ToolResult> {
   const edits: SuggestEdit[] = replacements
@@ -69,6 +71,7 @@ export async function suggestChapterEdits(
   const { html, outcomes } = suggestReplacements(chapter.content, edits, {
     author: CICIRO_AUTHOR,
     newBlockId: () => crypto.randomUUID(),
+    splitReplacement: assistantReplacementSplitter(kind),
   });
   const report = edits.map((edit, i) => describeOutcome(edit, outcomes[i]));
   const heading = `Chapter ${chapterNumber} (${chapter.title})`;

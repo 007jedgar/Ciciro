@@ -13,6 +13,8 @@ import {
 } from "../../../../components/ChapterEditor";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
+import { ScreenplayBar } from "../../../../components/ScreenplayBar";
+import { elementOfHtml, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
@@ -28,6 +30,7 @@ import {
   CARET_FLUSH_MS,
   REPLACE_FLUSH_MS,
   replaceBlockOps,
+  setBlockElementOps,
   emptyBlockMarks,
   type BlockMark,
 } from "../../../../lib/block-editor";
@@ -130,6 +133,7 @@ export default function ManuscriptScreen() {
   const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
+  const isScreenplay = normalizeKind(project?.kind) === "screenplay";
   const chapterRef = useRef<Chapter | null>(null);
   const previousBlocksRef = useRef<ManuscriptBlock[]>([]);
   const replaceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -238,8 +242,12 @@ export default function ManuscriptScreen() {
     const editor = editorRef.current;
     if (!current || !editor) return;
     const enriched = await editor.getHTML();
-    commitOps(opsFromEnrichedHtml(current.content, enriched, current.revision));
-  }, [commitOps]);
+    commitOps(
+      opsFromEnrichedHtml(current.content, enriched, current.revision, undefined, {
+        screenplay: isScreenplay,
+      })
+    );
+  }, [commitOps, isScreenplay]);
 
   const scheduleFlush = useCallback(() => {
     if (replaceTimer.current) clearTimeout(replaceTimer.current);
@@ -353,6 +361,7 @@ export default function ManuscriptScreen() {
     setEditingBlockIds(blocks.map((block) => block.id));
   }, [blocks, focused, setEditingBlockIds]);
 
+  const formatBlockId = blockAtPlainOffset(content, formatTarget.start)?.blockId ?? "";
   const barPlacement = formatBarPlacement(settings.formatChrome);
   const barHidden = hideFormatBarWhileTyping(settings.formatChrome, typing);
 
@@ -385,6 +394,19 @@ export default function ManuscriptScreen() {
       scheduleFlush();
     },
     [markTyping, scheduleFlush, targetKind]
+  );
+
+  const onSetElement = useCallback(
+    async (element: ScreenplayElement) => {
+      await flush();
+      const current = chapterRef.current;
+      if (!current) return;
+      const doc = htmlToDoc(current.content, current.revision).doc;
+      const target = caretRef.current.blockId || doc.blocks[doc.blocks.length - 1]?.id;
+      if (!target) return;
+      commitOps(setBlockElementOps(doc, target, element));
+    },
+    [commitOps, flush]
   );
 
   const openPressMenu = useCallback(() => {
@@ -583,6 +605,13 @@ export default function ManuscriptScreen() {
             />
           </Animated.View>
         </View>
+      ) : null}
+      {isScreenplay ? (
+        <ScreenplayBar
+          element={elementOfHtml(blocks.find((b) => b.id === formatBlockId)?.html ?? "")}
+          disabled={!focused}
+          onSetElement={(el) => void onSetElement(el)}
+        />
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>

@@ -4,6 +4,7 @@ import {
   newParagraphHtml,
   replaceBlockOps,
   serializeBlockHtml,
+  setBlockElementOps,
   tagOfHtml,
 } from "../lib/block-editor";
 
@@ -98,5 +99,25 @@ describe("htmlToDoc without a crypto global", () => {
     expect(doc.blocks).toHaveLength(3);
     for (const block of doc.blocks) expect(block.id).toBeTruthy();
     expect(new Set(doc.blocks.map((b) => b.id)).size).toBe(3);
+  });
+
+  it("sets a screenplay element with one replace_block, and keeps it across a text edit", () => {
+    const { doc } = htmlToDoc('<p data-block-id="a">MARA</p>', 2);
+    const ops = setBlockElementOps(doc, "a", "character", seqIds("e"));
+    expect(ops).toEqual([
+      {
+        opId: "e-op-1",
+        baseRevision: 2,
+        actor: "user",
+        type: "replace_block",
+        blockId: "a",
+        html: '<p data-block-id="a" data-sp="character">MARA</p>',
+      },
+    ]);
+    expect(setBlockElementOps(doc, "a", "action")).toEqual([]);
+
+    const { doc: cue } = htmlToDoc('<p data-block-id="a" data-sp="character">MARA</p>', 3);
+    const edit = replaceBlockOps(cue, "a", "MARA (V.O.)", seqIds("t"));
+    expect(edit[0]).toMatchObject({ html: '<p data-block-id="a" data-sp="character">MARA (V.O.)</p>' });
   });
 });

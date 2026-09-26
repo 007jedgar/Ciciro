@@ -41,6 +41,13 @@ import { applyChapterOrder } from "@/lib/outline";
 import { fetchShareComments } from "@/lib/share-client";
 import type { ShareCommentView } from "@/lib/share-view";
 import type { CommentHighlight } from "@/lib/tiptap-comment-highlights";
+import {
+  KIND_INFO,
+  findEntryForDate,
+  journalEntryTitle,
+  localYmd,
+  normalizeKind,
+} from "@/lib/manuscript-kind";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -64,6 +71,8 @@ function clampChatWidth(n: number) {
 
 export default function Workspace({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
+  const kind = normalizeKind(project.kind);
+  const kindInfo = KIND_INFO[kind];
   const [activeId, setActiveId] = useState<string | null>(
     initialProject.chapters[0]?.id ?? null
   );
@@ -371,6 +380,22 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     [updateChapterLocal]
   );
 
+  const subtitleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSubtitleChange = useCallback(
+    (logline: string) => {
+      setProject((p) => ({ ...p, logline }));
+      if (subtitleTimer.current) clearTimeout(subtitleTimer.current);
+      subtitleTimer.current = setTimeout(() => {
+        void fetch(`/api/projects/${project.id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ logline }),
+        });
+      }, 700);
+    },
+    [project.id]
+  );
+
   const onTitleChange = useCallback(
     (title: string) => {
       if (!activeId) return;
@@ -378,9 +403,18 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (titleTimer.current) clearTimeout(titleTimer.current);
       titleTimer.current = setTimeout(() => {
         patchChapter(activeId, { title });
+        // A blog post has one title: the piece's, shown on the shelf and in exports.
+        if (kind === "blog") {
+          setProject((p) => ({ ...p, title }));
+          void fetch(`/api/projects/${project.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ title }),
+          });
+        }
       }, 700);
     },
-    [activeId, patchChapter, updateChapterLocal]
+    [activeId, kind, patchChapter, project.id, updateChapterLocal]
   );
 
   useEffect(() => {
@@ -555,11 +589,25 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   // --- Chapter operations ---
   async function addChapter() {
+    // A journal's "new entry" is today's: open it if it is already there.
+    const today = localYmd();
+    if (kind === "journal") {
+      const existing = findEntryForDate(project.chapters, today);
+      if (existing) {
+        setFocusEndOnMount(true);
+        setActiveId(existing.id);
+        return;
+      }
+    }
     const res = await fetch("/api/chapters", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ projectId: project.id }),
+      body: JSON.stringify({
+        projectId: project.id,
+        ...(kind === "journal" ? { title: journalEntryTitle(today) } : {}),
+      }),
     });
+    if (!res.ok) return;
     const chapter: Chapter = await res.json();
     optimisticStoreRef.current?.seed(chapter);
     setProject((p) => ({ ...p, chapters: [...p.chapters, chapter] }));
@@ -892,6 +940,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onAdd={addChapter}
         onDelete={deleteChapter}
         onImport={importChapters}
+        kind={kind}
       />
 
       {focusMode && (
@@ -918,9 +967,25 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 className="editor-title"
                 value={activeChapter.title}
                 onChange={(e) => onTitleChange(e.target.value)}
-                placeholder="Chapter title"
+                placeholder={
+                  kind === "blog"
+                    ? "Title"
+                    : kind === "journal"
+                      ? "Entry date"
+                      : `${kindInfo.unit} title`
+                }
                 spellCheck={settings.autoCorrect}
               />
+              {kind === "blog" ? (
+                <input
+                  className="subtitle-input"
+                  aria-label="Subtitle"
+                  value={project.logline}
+                  onChange={(e) => onSubtitleChange(e.target.value)}
+                  placeholder="Subtitle"
+                  spellCheck={settings.autoCorrect}
+                />
+              ) : null}
               <div className="editor-meta">
                 <span>{activeChapter.wordCount.toLocaleString()} words</span>
                 <span>-</span>
@@ -937,14 +1002,18 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   <option value="final">final</option>
                 </select>
                 <span>-</span>
-                <button
-                  className="btn ghost small"
-                  onClick={() => setAutoWriteOpen(true)}
-                  title="Let Ciciro draft this chapter autonomously"
-                >
-                  Auto-draft
-                </button>
-                <span>-</span>
+                {kind !== "journal" ? (
+                  <>
+                    <button
+                      className="btn ghost small"
+                      onClick={() => setAutoWriteOpen(true)}
+                      title="Let Ciciro draft this chapter autonomously"
+                    >
+                      Auto-draft
+                    </button>
+                    <span>-</span>
+                  </>
+                ) : null}
                 <StuckPrompts
                   projectId={project.id}
                   chapterId={activeChapter.id}
@@ -1008,6 +1077,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   onActiveSuggestionChange={setActiveSuggestionId}
                   commentHighlights={commentHighlights}
                   onCommentClick={openReaderComment}
+                  kind={kind}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />
@@ -1058,6 +1128,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           order: c.order,
         }))}
         onInsertDraft={insertDraft}
+        kind={kind}
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}
       />

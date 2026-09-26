@@ -947,12 +947,25 @@ export type SuggestOutcome =
   | { status: "not_found" }
   | { status: "conflict"; authorName: string };
 
+/** One paragraph of a replacement, and how to mark its block's opening tag. */
+export type ReplacementParagraph = { text: string; mark?: (open: string) => string };
+
 export type SuggestOptions = {
   author: SuggestionAuthor;
   now?: () => string;
   newId?: () => string;
   newBlockId?: () => string;
+  /** How a replacement spanning paragraphs breaks into blocks. Default: blank lines. */
+  splitReplacement?: (replace: string, replacing: string | null) => ReplacementParagraph[];
 };
+
+function splitOnBlankLines(replace: string): ReplacementParagraph[] {
+  return replace
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((text) => ({ text }));
+}
 
 const BASE = (it: TextItem) => it.sugg?.kind !== "insert";
 const PROPOSED = (it: TextItem) => it.sugg?.kind !== "delete";
@@ -1083,6 +1096,8 @@ function suggestOne(
 ): { html: string; outcome: SuggestOutcome } {
   const needle = normalizeNeedle(edit.find);
   if (!needle.trim()) return { html, outcome: { status: "not_found" } };
+  const whole = suggestWholeBlocks(html, edit, opts);
+  if (whole) return whole;
   const replace = normalizeNeedle(edit.replace);
   const blocks = scanBlocks(html);
   const elsewhere = idsSpanningBlocks(blocks);
@@ -1136,6 +1151,56 @@ function suggestOne(
 }
 
 /**
+ * A find that is a whole paragraph, replaced by several: each match becomes a
+ * one-block run so the new paragraphs land as their own blocks.
+ */
+function suggestWholeBlocks(
+  html: string,
+  edit: SuggestEdit,
+  opts: Required<SuggestOptions>
+): { html: string; outcome: SuggestOutcome } | null {
+  if (opts.splitReplacement(edit.replace, null).filter((p) => p.text).length < 2) return null;
+  const needle = normalizeNeedle(edit.find).trim();
+  const matches = scanBlocks(html).flatMap((block, i) =>
+    block.items && project(block.items, BASE).text.trim() === needle ? [i] : []
+  );
+  let current = html;
+  let count = 0;
+  let conflicts = 0;
+  let conflict: Conflict | null = null;
+  for (const index of matches.reverse()) {
+    const blocks = scanBlocks(current);
+    const result = suggestBlockRun(current, [blocks[index]], blocks, edit, opts);
+    if (result.outcome.status === "conflict") {
+      conflict = conflict ?? { authorName: result.outcome.authorName };
+      conflicts += 1;
+      continue;
+    }
+    current = result.html;
+    count += 1;
+  }
+  if (count > 0) return { html: current, outcome: { status: "suggested", count, conflicts } };
+  if (conflict) return { html, outcome: { status: "conflict", authorName: conflict.authorName } };
+  return null;
+}
+
+function openTagAttrs(open: string): string[] {
+  const inner = open.replace(/^<\s*([a-z][\w-]*)/i, "").replace(/\/?>$/, "");
+  const tag = open.match(/^<\s*([a-z][\w-]*)/i)?.[1]?.toLowerCase() ?? "";
+  const attrs = [...inner.matchAll(/([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)].map(
+    (m) => `${m[1].toLowerCase()}=${m[2] ?? m[3] ?? m[4] ?? ""}`
+  );
+  return [tag, ...attrs.sort()];
+}
+
+function sameOpenTag(a: string, b: string): boolean {
+  if (a === b) return true;
+  const left = openTagAttrs(a);
+  const right = openTagAttrs(b);
+  return left.length === right.length && left.every((part, i) => part === right[i]);
+}
+
+/**
  * A find that spans whole paragraphs. Paragraphs pair up with the
  * replacement's paragraphs in order; spare old ones are marked deleted and
  * spare new ones arrive as inserted paragraphs, all under one suggestion.
@@ -1180,10 +1245,7 @@ function suggestBlockRun(
       }
     }
   }
-  const paragraphs = edit.replace
-    .split(/\n\s*\n/)
-    .map((p) => p.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
+  const paragraphs = opts.splitReplacement(edit.replace, run[0]?.open ?? null).filter((p) => p.text);
   const prose = run.filter((block) => block.items && project(block.items, BASE).text.trim());
   const id = opts.newId();
   const createdAt = opts.now();
@@ -1194,10 +1256,13 @@ function suggestBlockRun(
   prose.forEach((block, i) => {
     const items = block.items ?? [];
     const paragraph = paragraphs[i];
-    const pairable = paragraph !== undefined && items.every((it) => it.t === "text");
+    const pairable =
+      paragraph !== undefined &&
+      items.every((it) => it.t === "text") &&
+      sameOpenTag(paragraph.mark?.(block.open) ?? block.open, block.open);
     if (pairable) {
       const source = items.filter((it): it is TextItem => isText(it) && BASE(it));
-      next.set(block, blockHtml(block, trackedItems(source, codePoints(paragraph), opts.author, id, createdAt)));
+      next.set(block, blockHtml(block, trackedItems(source, codePoints(paragraph.text), opts.author, id, createdAt)));
       return;
     }
     const marked = items
@@ -1217,9 +1282,17 @@ function suggestBlockRun(
   return { html: spliceBlocks(html, blocks, next), outcome: { status: "suggested", count: 1, conflicts: 0 } };
 }
 
-function insertedParagraph(text: string, ins: SuggestionMark, blockId: string): string {
-  const items: TextItem[] = codePoints(text).map((ch) => ({ t: "text", ch, raw: null, fmt: 0, wraps: [], sugg: ins }));
-  return `<p data-block-id="${escapeAttr(blockId)}">${serializeInline(items)}</p>`;
+function insertedParagraph(paragraph: ReplacementParagraph, ins: SuggestionMark, blockId: string): string {
+  const items: TextItem[] = codePoints(paragraph.text).map((ch) => ({
+    t: "text",
+    ch,
+    raw: null,
+    fmt: 0,
+    wraps: [],
+    sugg: ins,
+  }));
+  const open = `<p data-block-id="${escapeAttr(blockId)}">`;
+  return `${paragraph.mark?.(open) ?? open}${serializeInline(items)}</p>`;
 }
 
 /**
@@ -1237,6 +1310,7 @@ export function suggestReplacements(
     now: options.now ?? (() => new Date().toISOString()),
     newId: options.newId ?? newSuggestionId,
     newBlockId: options.newBlockId ?? newSuggestionId,
+    splitReplacement: options.splitReplacement ?? splitOnBlankLines,
   };
   let current = html;
   const outcomes: SuggestOutcome[] = [];

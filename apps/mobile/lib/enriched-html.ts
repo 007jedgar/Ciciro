@@ -8,6 +8,8 @@ import {
 } from "./manuscript";
 import { carrySuggestions, suggestionsAsDisplayMarks } from "./suggestions";
 
+import { elementOfHtml, nextElementOnEnter, withElement } from "./manuscript-kind";
+
 export const SCENE_BREAK_TEXT = "***";
 
 /** Enriched's native view does not keep `data-block-id`. Strip it on the way in. */
@@ -75,13 +77,18 @@ function ensureEnrichedParses(html: string): string {
   return `<html>${html}</html>`;
 }
 
+/** Screenplay elements are Ciciro's own attribute; the native view has no use for it. */
+function stripElements(html: string): string {
+  return html.replace(/\s*data-sp\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+}
+
 /**
  * Ciciro stamped HTML → what EnrichedTextInput will parse. The native editor
  * has no tracked-change marks, so pending suggestions show as underline
  * (inserted) and strikethrough (deleted); opsFromEnrichedHtml puts them back.
  */
 export function toEnrichedHtml(html: string): string {
-  const stripped = stripBlockIds(suggestionsAsDisplayMarks(html.trim()));
+  const stripped = stripElements(stripBlockIds(suggestionsAsDisplayMarks(html.trim())));
   const body = !stripped
     ? "<p></p>"
     : wrapBareListItems(hrToParagraph(canonicalizeInline(stripped)));
@@ -172,24 +179,53 @@ function stampId(raw: string, id: string): string {
   });
 }
 
-/** Put previous block ids back onto freshly parsed Enriched HTML. */
-export function restampCiciroHtml(previous: string, incoming: string): string {
+export type RestampOptions = {
+  /**
+   * The manuscript is a screenplay: a block the native editor added (Return)
+   * takes the element that follows the block above it, as Enter does on the web.
+   */
+  screenplay?: boolean;
+};
+
+/**
+ * Put previous block ids back onto freshly parsed Enriched HTML, and with them
+ * the screenplay element the native view cannot carry.
+ */
+export function restampCiciroHtml(
+  previous: string,
+  incoming: string,
+  opts: RestampOptions = {}
+): string {
   const oldBlocks = htmlToDoc(previous || "<p></p>", 0).doc.blocks;
   const nextBlocks = htmlToDoc(incoming || "<p></p>", 0).doc.blocks;
   if (nextBlocks.length === 0) return previous;
   const ids = assignIds(oldBlocks, nextBlocks);
-  return nextBlocks.map((block, index) => stampId(stripBlockIds(block.html), ids[index])).join("");
+  const oldById = new Map(oldBlocks.map((block) => [block.id, block]));
+  let above: ReturnType<typeof elementOfHtml> = "action";
+  return nextBlocks
+    .map((block, index) => {
+      const old = oldById.get(ids[index]);
+      const element = old
+        ? elementOfHtml(old.html)
+        : opts.screenplay && index > 0
+          ? nextElementOnEnter(above)
+          : "action";
+      above = element;
+      return withElement(stampId(stripBlockIds(block.html), ids[index]), element);
+    })
+    .join("");
 }
 
 export function opsFromEnrichedHtml(
   previousCiciroHtml: string,
   enrichedHtml: string,
   revision: number,
-  opts?: DiffHtmlOptions
+  opts?: DiffHtmlOptions,
+  restamp?: RestampOptions
 ): ManuscriptOp[] {
   const incoming = carrySuggestions(
     previousCiciroHtml,
-    restampCiciroHtml(previousCiciroHtml, fromEnrichedHtml(enrichedHtml))
+    restampCiciroHtml(previousCiciroHtml, fromEnrichedHtml(enrichedHtml), restamp)
   );
   if (!incoming) return [];
   return diffHtmlToOps(previousCiciroHtml || "<p></p>", incoming, revision, opts);

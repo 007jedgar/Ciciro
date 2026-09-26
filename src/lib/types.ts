@@ -39,6 +39,8 @@ export type Project = {
   title: string;
   author: string;
   genre: string;
+  /** novel | screenplay | blog | journal; see src/lib/manuscript-kind.ts. */
+  kind?: string;
   logline: string;
   synopsis: string;
   theme: string;

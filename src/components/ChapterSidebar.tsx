@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { Chapter } from "@/lib/types";
 import { isChapterEmpty } from "@/lib/text";
 import { IMPORT_ACCEPT } from "@/lib/import-client";
+import { KIND_INFO, type ManuscriptKind } from "@/lib/manuscript-kind";
 
 type Props = {
   chapters: Chapter[];
@@ -13,6 +14,8 @@ type Props = {
   onDelete: (id: string) => void;
   /** Append a Word, Markdown or Scrivener file's chapters. Throws a reader-facing Error. */
   onImport?: (file: File) => Promise<void>;
+  /** What is being written; a journal adds today's entry, a blog post is one piece. */
+  kind?: ManuscriptKind;
 };
 
 export default function ChapterSidebar({
@@ -22,7 +25,9 @@ export default function ChapterSidebar({
   onAdd,
   onDelete,
   onImport,
+  kind = "novel",
 }: Props) {
+  const info = KIND_INFO[kind];
   const fileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
@@ -31,7 +36,7 @@ export default function ChapterSidebar({
   return (
     <div className="sidebar">
       <div className="section-head">
-        <span>Chapters</span>
+        <span>{kind === "blog" ? "Post" : info.unitPlural}</span>
         <span>
           {onImport ? (
             <button
@@ -43,9 +48,15 @@ export default function ChapterSidebar({
               {importing ? "Importing..." : "Import"}
             </button>
           ) : null}{" "}
-          <button className="btn ghost small" onClick={onAdd} title="Add chapter">
-            + Add
-          </button>
+          {kind === "blog" ? null : (
+            <button
+              className="btn ghost small"
+              onClick={onAdd}
+              title={kind === "journal" ? "Open today's entry, or start it" : `Add ${info.unit.toLowerCase()}`}
+            >
+              {kind === "journal" ? "+ Today" : "+ Add"}
+            </button>
+          )}
         </span>
       </div>
       {onImport ? (
@@ -86,7 +97,8 @@ export default function ChapterSidebar({
           onClick={() => onSelect(ch.id)}
         >
           <span className="ct">
-            {i + 1}. {ch.title || "Untitled"}
+            {kind === "journal" ? "" : `${i + 1}. `}
+            {ch.title || "Untitled"}
           </span>
           <span className="cm">
             {ch.wordCount.toLocaleString()} words - {ch.status}

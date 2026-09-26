@@ -18,6 +18,8 @@ import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { loadWritingReminders } from "../lib/writing-reminder-store";
 import { writingReminderEntryForProject } from "../lib/writing-reminder-sync";
+import { openTodayEntry } from "../lib/journal";
+import { normalizeKind } from "../lib/manuscript-kind";
 import { Glass, alpha } from "./Glass";
 import {
   BookIcon,
@@ -78,7 +80,8 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
-  const { addChapter, project } = useProject();
+  const { addChapter, project, setSelectedChapterId } = useProject();
+  const kind = normalizeKind(project?.kind);
   const { user } = useSession();
   const [open, setOpen] = useState(false);
 
@@ -162,6 +165,11 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
 
   async function newChapter() {
     try {
+      if (kind === "journal") {
+        await openTodayEntry(project?.chapters ?? [], (title) => addChapter(title), setSelectedChapterId);
+        router.navigate(`/project/${projectId}/manuscript` as never);
+        return;
+      }
       await addChapter();
       router.navigate(`/project/${projectId}/chapters` as never);
     } catch {
@@ -176,7 +184,23 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
     { key: "describe", Icon: QuoteIcon, labelKey: "manuscriptTabBar.describe", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?intent=describe` as never) },
     { key: "questions", Icon: QuestionIcon, labelKey: "manuscriptTabBar.questions", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?questions=1` as never) },
     { key: "bible", Icon: BookIcon, labelKey: "manuscriptTabBar.bible", tone: "tool", run: () => router.push(bibleIndexHref(projectId) as never) },
-    { key: "newChapter", Icon: NewChapterIcon, labelKey: "manuscriptTabBar.newChapter", tone: "tool", run: newChapter },
+    // A blog post is a single piece, so there is nothing to add.
+    ...(kind === "blog"
+      ? []
+      : [
+          {
+            key: "newChapter",
+            Icon: NewChapterIcon,
+            labelKey:
+              kind === "journal"
+                ? "manuscriptTabBar.todayEntry"
+                : kind === "screenplay"
+                  ? "manuscriptTabBar.newSequence"
+                  : "manuscriptTabBar.newChapter",
+            tone: "tool" as const,
+            run: newChapter,
+          },
+        ]),
     {
       key: "reminder",
       Icon: BellIcon,

@@ -271,6 +271,16 @@ headings and bold, italic, lists, quotes, and scene breaks preserved.
 **Export > PDF** a book-layout PDF with a contents page and page numbers. On the
 phone, the Chapters tab has an Export card that hands the file to the share sheet.
 
+## Other kinds of writing
+
+When you start a manuscript, on the web or the phone, choose what you are writing. The default is a novel, exactly as before.
+
+- **Screenplay.** Chapters become sequences and every line has an element: scene heading, action, character, dialogue, parenthetical or transition. On the web, Tab and Shift-Tab cycle the element of the line you are on, Enter starts the next one (character to dialogue, scene heading to action, transition to scene heading), and Enter on an empty cue drops back to action. The page uses standard script layout. On the phone, the bar above the page sets the element and its Tab button steps to the next one; Return starts the element that follows, but the phone editor does not indent lines, so open the script on the web to see the layout.
+- **Blog post or newsletter.** One piece with a title and a subtitle, and no chapter list. The subtitle is the manuscript's logline.
+- **Journal.** Each chapter is a dated entry. **+ Today** on the web, and **Today's entry** on the phone, opens today's entry, or starts it if it is not there yet, so it never makes two entries for one day.
+
+Ciciro reads the kind too: its critique, its drafter briefs and its quick actions change with it (a journal gets prompts and gentle questions and never invented events, a screenplay gets script pages and dialogue polish, a blog post gets hook and structure checks). The kind is fixed when the manuscript is created.
+
 ## Habits that keep the book consistent
 
 1. **Fill the bible before you ask for volume.** Names, POV, tense, voice, and
