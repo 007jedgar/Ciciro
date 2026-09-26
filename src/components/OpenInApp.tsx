@@ -19,14 +19,18 @@ export default function OpenInApp({ title }: { title: string }) {
   function waitForAppLaunch() {
     stopWaiting.current?.();
     setNotInstalled(false);
-    const left = () => stopWaiting.current?.();
+    let timer: number | undefined = window.setTimeout(() => {
+      timer = undefined;
+      setNotInstalled(true);
+    }, APP_LAUNCH_WAIT_MS);
+    const left = () => {
+      window.clearTimeout(timer);
+      timer = undefined;
+      setNotInstalled(false);
+    };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") left();
     };
-    const timer = window.setTimeout(() => {
-      stopWaiting.current?.();
-      setNotInstalled(true);
-    }, APP_LAUNCH_WAIT_MS);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", left);
     window.addEventListener("blur", left);

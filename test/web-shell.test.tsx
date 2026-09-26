@@ -12,13 +12,22 @@ import { PHONE_WIDTH_QUERY } from "@/lib/phone-width";
 import type { Project } from "@/lib/types";
 import { THEMES, applyTheme } from "@/lib/theme";
 
-const workspaceMounts = vi.hoisted(() => vi.fn());
-vi.mock("@/components/Workspace", () => ({
-  default: () => {
-    workspaceMounts();
-    return <div data-testid="workspace" />;
-  },
+const { workspaceMounts, workspaceUnmounts } = vi.hoisted(() => ({
+  workspaceMounts: vi.fn(),
+  workspaceUnmounts: vi.fn(),
 }));
+vi.mock("@/components/Workspace", async () => {
+  const { useEffect } = await import("react");
+  return {
+    default: function MockWorkspace() {
+      useEffect(() => {
+        workspaceMounts();
+        return () => workspaceUnmounts();
+      }, []);
+      return <div data-testid="workspace" />;
+    },
+  };
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -119,22 +128,46 @@ describe("OpenInApp", () => {
       vi.useRealTimers();
     }
   });
+  it("takes the not-installed line back when the app opens after the wait", async () => {
+    vi.useFakeTimers();
+    try {
+      await act(async () => root.render(<OpenInApp title="The Salt Road" />));
+      await act(async () => tapOpen());
+      await act(async () => vi.advanceTimersByTime(APP_LAUNCH_WAIT_MS));
+      expect(host.querySelector('[role="status"]')).not.toBeNull();
+      await act(async () => window.dispatchEvent(new Event("pagehide")));
+      expect(host.querySelector('[role="status"]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("WorkspaceGate", () => {
+  const width = { phone: false, listeners: new Set<() => void>() };
+
   function mockWidth(phone: boolean) {
+    width.phone = phone;
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({
-        matches: phone && query === PHONE_WIDTH_QUERY,
+        matches: width.phone && query === PHONE_WIDTH_QUERY,
         media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        addEventListener: (_: string, fn: () => void) => width.listeners.add(fn),
+        removeEventListener: (_: string, fn: () => void) => width.listeners.delete(fn),
       }))
     );
   }
 
-  afterEach(() => vi.unstubAllGlobals());
+  async function resizeTo(phone: boolean) {
+    width.phone = phone;
+    await act(async () => width.listeners.forEach((fn) => fn()));
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    width.listeners.clear();
+  });
 
   it("does not mount the workspace at phone widths", async () => {
     mockWidth(true);
@@ -147,6 +180,25 @@ describe("WorkspaceGate", () => {
     mockWidth(false);
     await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
     expect(workspaceMounts).toHaveBeenCalled();
+    expect(host.querySelector("[data-testid=workspace]")).not.toBeNull();
+  });
+
+  it("keeps the workspace mounted when a desktop window narrows and widens", async () => {
+    mockWidth(false);
+    await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
+    await resizeTo(true);
+    await resizeTo(false);
+    expect(workspaceMounts).toHaveBeenCalledTimes(1);
+    expect(workspaceUnmounts).not.toHaveBeenCalled();
+    expect(host.querySelector("[data-testid=workspace]")).not.toBeNull();
+  });
+
+  it("mounts the workspace once a phone-width window widens", async () => {
+    mockWidth(true);
+    await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
+    await resizeTo(false);
+    await resizeTo(true);
+    expect(workspaceMounts).toHaveBeenCalledTimes(1);
     expect(host.querySelector("[data-testid=workspace]")).not.toBeNull();
   });
 });
