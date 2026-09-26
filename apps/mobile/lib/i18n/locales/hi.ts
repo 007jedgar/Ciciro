@@ -361,6 +361,14 @@ const hi: Translations = {
     banner_other: "Ciciro के {{count}} खुले सवाल हैं",
     review: "देखें",
   },
+  outline: {
+    title: "रूपरेखा",
+    cardMeta: "खींचकर अध्यायों का क्रम बदलें। हर अध्याय का सार, लंबाई और चरण देखें।",
+    moveUp: "ऊपर ले जाएँ",
+    moveDown: "नीचे ले जाएँ",
+    dragHandleA11y: "{{title}} का क्रम बदलने के लिए खींचें",
+    reorderError: "अध्यायों का नया क्रम सहेजा नहीं जा सका।",
+  },
   bible: {
     title: "कथा बाइबल",
     blurb:

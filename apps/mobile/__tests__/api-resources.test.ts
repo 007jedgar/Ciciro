@@ -184,6 +184,13 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/chapters\/c1$/,
     body: { expectedRevision: 1, title: "Chapter 1" },
   },
+  {
+    name: "chapters.reorder",
+    run: () => ciciro.chapters.reorder({ projectId: "p1", chapterIds: ["c2", "c1"] }),
+    method: "POST",
+    path: /\/api\/chapters\/reorder$/,
+    body: { projectId: "p1", chapterIds: ["c2", "c1"] },
+  },
   { name: "chapters.delete", run: () => ciciro.chapters.delete("c1"), method: "DELETE", path: /\/api\/chapters\/c1$/ },
   {
     name: "chapters.archive",

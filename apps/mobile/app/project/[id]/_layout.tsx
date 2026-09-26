@@ -28,6 +28,7 @@ export default function ProjectStackLayout() {
         options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS}
       />
       <Stack.Screen name="history/[chapterId]" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
+      <Stack.Screen name="outline" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
     </Stack>
   );
 

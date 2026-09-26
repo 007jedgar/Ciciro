@@ -33,6 +33,7 @@ import type { AppSettings, SettingsPatch } from "../app-settings";
 import { stampChapterMetadata } from "../chapter-metadata";
 import { overlayReplicaChapters } from "../editor-session";
 import i18n from "../i18n";
+import { applyChapterOrder } from "../outline";
 import { sqliteReplica } from "../replica-sqlite";
 import { Platform } from "react-native";
 
@@ -653,6 +654,24 @@ export function usePatchChapterMutation() {
         /* replica is optional in tests and on web */
       }
     },
+  });
+}
+
+/** Persist a new chapter order; the list reorders at once and rolls back on failure. */
+export function useReorderChaptersMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, chapterIds }: { projectId: string; chapterIds: string[] }) =>
+      ciciro.chapters.reorder({ projectId, chapterIds }),
+    onMutate: async ({ projectId, chapterIds }) => {
+      const key = queryKeys.projects.detail(projectId);
+      const snapshot = await snapshotQueries([key]);
+      queryClient.setQueryData<ProjectDetail>(key, (current) =>
+        current ? { ...current, chapters: applyChapterOrder(current.chapters, chapterIds) } : current
+      );
+      return { snapshot };
+    },
+    onError: (_error, _vars, context) => restoreQueries(context?.snapshot),
+    onSettled: (_data, _error, { projectId }) => invalidateChapterLists(projectId),
   });
 }
 

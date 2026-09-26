@@ -17,6 +17,7 @@ import {
   usePatchProjectMutation,
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
+import { outlineHref } from "../../../../lib/outline";
 import { confirmChapterDelete } from "../../../../lib/chapter-delete";
 import { importManuscriptFile, isImportable, pickImportFile } from "../../../../lib/import";
 import { useProject } from "../../../../lib/project";
@@ -196,6 +197,15 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("search.title")}</Text>
                 <Text style={layout.cardMeta}>{t("search.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(outlineHref(projectId) as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("outline.title")}
+              >
+                <Text style={layout.cardTitle}>{t("outline.title")}</Text>
+                <Text style={layout.cardMeta}>{t("outline.cardMeta")}</Text>
               </Pressable>
               <Pressable
                 style={[layout.card, { marginBottom: 16, opacity: importing ? 0.6 : 1 }]}
