@@ -26,7 +26,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 // POST /api/projects/:id/weekly-reviews — write a review of the seven days
-// ending `to` (a YYYY-MM-DD local day, default today). Body: { to? }.
+// ending `to` (a YYYY-MM-DD local day, default today). Body: { to?, tzOffset? },
+// where tzOffset is the author's `Date#getTimezoneOffset()` in minutes.
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getSessionUser(req);

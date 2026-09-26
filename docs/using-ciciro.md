@@ -142,12 +142,13 @@ rather than overwriting either.
 ## Weekly review
 
 **Weekly review** in the top bar (on mobile, the Weekly review card in the
-Chapters tab) has Ciciro look back over your last seven days: the chapters of this manuscript
-you edited, the open questions and plot threads still dangling in the story, and
-a few suggestions for what to write next. The word count, days written, typing
-time and daily bars come from your writing-day records, so they cover all your
-writing this week across every manuscript, not just this one. Reviews are written on request, and the button
-shows a dot once a week has passed since the last one. Every review is kept, so
+Chapters tab) has Ciciro look back over your last seven days: the chapters of
+this manuscript you edited, the open questions and plot threads still dangling
+in the story, and a few suggestions for what to write next. The word count, days
+written, typing time and daily bars come from your writing-day records, so they
+cover all your writing this week across every manuscript, not just this one.
+Reviews are written on request, and the button shows a dot once a week has
+passed since the last one. Every review is kept, so
 you can reread past weeks or delete one. Reviews sync between the web and your
 phone, and need the Anthropic API key like the rest of Ciciro's AI features.
 
