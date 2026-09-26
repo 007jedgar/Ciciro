@@ -43,9 +43,14 @@ Edit one, copy it over the other.
   than left empty. Blocks without a matching suggestion come back
   byte-for-byte.
 - **Pending means not applied.** Word counts (`chapterWordCount` in
-  `src/lib/text.ts`, and the phone's replica) and the `.docx` export read the
-  chapter through `htmlWithoutSuggestions`: deleted text still counts, inserted
-  text does not, until the author decides.
+  `src/lib/text.ts`, and the phone's replica) and every export format
+  (`src/app/api/export/[id]/route.ts`) read the chapter through
+  `htmlWithoutSuggestions`: deleted text still counts, inserted text does not,
+  until the author decides.
+- Manuscript search and replace (`src/lib/manuscript-search.ts`) skip text
+  inside a pending suggestion, so a replace never edits a proposal the author
+  has not accepted or straddles one. Version snapshots keep the marks, so a
+  restore brings pending suggestions back exactly as they were.
 
 ## Ciciro's line edits
 

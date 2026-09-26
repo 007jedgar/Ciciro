@@ -131,3 +131,24 @@ describe("snippetAround", () => {
     );
   });
 });
+
+describe("pending suggestions", () => {
+  const attrs = 'data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-25T10:00:00.000Z"';
+  const block =
+    `<p data-block-id="a">She <del data-suggestion-id="s1" ${attrs}>walked slowly</del>` +
+    `<ins data-suggestion-id="s1" ${attrs}>crossed</ins> to the door. She walked on.</p>`;
+  const loose = { matchCase: false, wholeWord: false };
+
+  it("does not match inside or across a pending change", () => {
+    const { matches, text } = searchBlockHtml(block, "walked", loose);
+    expect(matches).toHaveLength(1);
+    expect(text.slice(matches[0].start, matches[0].end + 3)).toBe("walked on");
+    expect(searchBlockHtml(block, "slowlycrossed", loose).matches).toHaveLength(0);
+  });
+
+  it("replaces only outside pending changes and leaves the marks byte-for-byte", () => {
+    const out = replaceInBlockHtml(block, "walked", "strode", loose);
+    expect(out.count).toBe(1);
+    expect(out.html).toBe(block.replace("She walked on.", "She strode on."));
+  });
+});

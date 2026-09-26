@@ -11,8 +11,9 @@ import { pullSync, pushSync } from "@/lib/sync";
 import { listSuggestions, resolveSuggestions } from "@/lib/suggestions";
 import { executeEditorTool } from "@/lib/tools";
 import { updateUserSettings } from "@/lib/user-settings";
-import { applyRemoteOps } from "../apps/mobile/lib/sync-merge";
-import type { ChapterSnapshot } from "../apps/mobile/lib/db";
+// The replica merge the phone mirrors; importing the phone's own copy would
+// pull React Native's globals into this program. apps/mobile/__tests__ covers it.
+import { applyRemoteOps } from "@/lib/replica-merge";
 import { diffHtmlToOps } from "../apps/mobile/lib/manuscript";
 import { resolveSuggestions as phoneResolve } from "../apps/mobile/lib/suggestions";
 
@@ -119,22 +120,10 @@ describe("Ciciro's line edits as tracked suggestions", () => {
     await suggestEdit(projectId, revision, "Mara waited", "Marta waited");
 
     const pulled = await pullSync(projectId, user, { chapters: { [chapterId]: revision } });
-    const now = new Date().toISOString();
-    const replica: ChapterSnapshot = {
-      id: chapterId,
-      projectId,
-      title: "Chapter 1",
-      order: 0,
-      content: PROSE,
-      summary: "",
-      status: "draft",
-      wordCount: 11,
-      revision,
-      archivedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const phone = applyRemoteOps(replica, pulled.ops);
+    const phone = applyRemoteOps(
+      { id: chapterId, projectId, content: PROSE, revision, wordCount: 11 },
+      pulled.ops
+    );
     expect(phone.ok).toBe(true);
     if (!phone.ok) return;
     const server = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });

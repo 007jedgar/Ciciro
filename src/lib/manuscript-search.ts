@@ -48,7 +48,13 @@ function encodeText(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\u00a0/g, "&nbsp;");
 }
 
-type Flat = { parts: Part[]; text: string; cells: Cell[]; boundaries: Set<number> };
+type Flat = { parts: Part[]; text: string; cells: Cell[]; boundaries: Set<number>; locked: Set<number> };
+
+// A pending tracked change (see src/lib/suggestions.ts). Its text is shown but
+// not searchable: a replace written into it, or across its edge, would edit a
+// proposal the author has not accepted, or tear a replacement in half.
+const SUGGESTION_OPEN = /^<\s*(ins|del)\b[^>]*\bdata-suggestion-id\s*=/i;
+const INS_DEL = /^<\s*(\/?)\s*(ins|del)\b/i;
 
 /**
  * The visible text of a block plus, per character, the text node it came from.
@@ -59,6 +65,9 @@ function flatten(html: string): Flat {
   const parts: Part[] = [];
   const cells: Cell[] = [];
   const boundaries = new Set<number>();
+  const locked = new Set<number>();
+  // Open <ins>/<del> elements, true for a pending suggestion.
+  const open: boolean[] = [];
   let text = "";
   TAG_OR_TEXT.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -73,15 +82,24 @@ function flatten(html: string): Flat {
       } else if (BLOCK_TAG.test(raw)) {
         boundaries.add(text.length);
       }
+      const insDel = INS_DEL.exec(raw);
+      if (insDel) {
+        if (insDel[1]) open.pop();
+        else open.push(SUGGESTION_OPEN.test(raw));
+      }
       continue;
     }
     const decoded = decodeEntities(raw);
     const part = parts.length;
     parts.push({ tag: false, raw, text: decoded });
-    for (let i = 0; i < decoded.length; i++) cells.push({ part, index: i });
+    const pending = open.includes(true);
+    for (let i = 0; i < decoded.length; i++) {
+      if (pending) locked.add(text.length + i);
+      cells.push({ part, index: i });
+    }
     text += decoded;
   }
-  return { parts, text, cells, boundaries };
+  return { parts, text, cells, boundaries, locked };
 }
 
 const WORD_CHAR = /[\p{L}\p{N}_]/u;
@@ -112,12 +130,17 @@ function spaces(s: string): string {
   return s.replace(/\u00a0/g, " ");
 }
 
-/** `boundaries` are paragraph breaks no match may cross; each counts as a non-word neighbour. */
+/**
+ * `boundaries` are paragraph breaks no match may cross; each counts as a
+ * non-word neighbour. `locked` offsets (text inside a pending suggestion) may
+ * not be part of any match.
+ */
 export function findMatches(
   text: string,
   query: string,
   options: SearchOptions,
-  boundaries: ReadonlySet<number> = new Set()
+  boundaries: ReadonlySet<number> = new Set(),
+  locked: ReadonlySet<number> = new Set()
 ): BlockMatch[] {
   const needle = normalizeQuery(query);
   if (!needle || !text) return [];
@@ -133,6 +156,7 @@ export function findMatches(
     const end = at + target.length;
     let crosses = false;
     for (let b = at + 1; b < end && !crosses; b++) crosses = boundaries.has(b);
+    for (let c = at; c < end && !crosses; c++) crosses = locked.has(c);
     const ok =
       !crosses &&
       (!options.wholeWord ||
@@ -154,8 +178,8 @@ export function searchBlockHtml(
   query: string,
   options: SearchOptions
 ): { text: string; matches: BlockMatch[]; boundaries: ReadonlySet<number> } {
-  const { text, boundaries } = flatten(html);
-  return { text, matches: findMatches(text, query, options, boundaries), boundaries };
+  const { text, boundaries, locked } = flatten(html);
+  return { text, matches: findMatches(text, query, options, boundaries, locked), boundaries };
 }
 
 /** One match addressed by its index among the block's matches and its start offset. */
@@ -175,7 +199,7 @@ export function replaceInBlockHtml(
   only?: OccurrenceTarget
 ): { html: string; count: number } {
   const flat = flatten(html);
-  let matches = findMatches(flat.text, query, options, flat.boundaries);
+  let matches = findMatches(flat.text, query, options, flat.boundaries, flat.locked);
   if (only !== undefined) {
     const hit = matches[only.occurrence];
     matches = hit && hit.start === only.offset ? [hit] : [];

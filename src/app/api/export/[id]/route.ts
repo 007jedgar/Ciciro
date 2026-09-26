@@ -8,6 +8,7 @@ import { buildEpub } from "@/lib/export/epub";
 import { buildPdf } from "@/lib/export/pdf";
 import { buildMarkdown, buildChapterMarkdown } from "@/lib/export/markdown";
 import { bookFilename, chapterTitle } from "@/lib/export/types";
+import { htmlWithoutSuggestions } from "@/lib/suggestions";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     });
   }
 
+  // Pending suggestions are not part of the manuscript until the author
+  // accepts them, so every format exports the prose as it stands.
+  const chapters = project.chapters.map((c) => ({ ...c, content: htmlWithoutSuggestions(c.content) }));
+
   const format = req.nextUrl.searchParams.get("format") ?? "docx";
   if (format !== "docx" && format !== "epub" && format !== "pdf" && format !== "markdown") {
     return new Response(JSON.stringify({ error: "Unsupported export format" }), {
@@ -60,8 +65,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   let filename: string;
 
   if (chapterId) {
-    const chapterIndex = project.chapters.findIndex((c) => c.id === chapterId);
-    const chapter = project.chapters[chapterIndex];
+    const chapterIndex = chapters.findIndex((c) => c.id === chapterId);
+    const chapter = chapters[chapterIndex];
     if (!chapter) {
       return new Response(JSON.stringify({ error: "Chapter not found" }), {
         status: 404,
@@ -96,7 +101,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       title: project.title,
       author: project.author,
       genre: project.genre,
-      chapters: project.chapters.map((c) => ({
+      chapters: chapters.map((c) => ({
         title: c.title,
         content: c.content,
         order: c.order,

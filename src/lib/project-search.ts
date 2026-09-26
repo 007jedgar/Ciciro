@@ -11,7 +11,7 @@ import {
 import type { PublicUser } from "@/lib/auth/session";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError } from "@/lib/auth/session";
-import { countWords, htmlToText } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
 
 // Manuscript-wide search and find-and-replace. Replacements are chapter writes
 // like any other: block ops appended to the chapter's log under the caller as
@@ -175,7 +175,7 @@ export async function replaceInProject(
         id,
         content: written.content,
         revision: written.revision,
-        wordCount: countWords(htmlToText(written.content)),
+        wordCount: chapterWordCount(written.content),
         replaced: next.replaced,
       });
       break;
