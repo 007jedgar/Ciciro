@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { customChapterTitle, chapterNumberLabel } from "../lib/chapter-label";
 import { normalizeChapterStatus } from "../lib/chapter-status";
 import { htmlToPlainText } from "../lib/html";
+import { htmlWithoutSuggestions } from "../lib/suggestions";
 import { dropIndexFor, moveItem, OUTLINE_ROW_HEIGHT } from "../lib/outline";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
@@ -60,7 +61,7 @@ function OutlineRow({
   const numbered = chapterNumberLabel(index + 1, (key, opts) => t(key, opts));
   const custom = customChapterTitle(chapter.title, numbered, t("chapters.newTitle"));
   const heading = custom ? `${numbered} · ${custom}` : numbered;
-  const blurb = (chapter.summary.trim() || htmlToPlainText(chapter.content)).trim();
+  const blurb = (chapter.summary.trim() || htmlToPlainText(htmlWithoutSuggestions(chapter.content))).trim();
   const status = normalizeChapterStatus(chapter.status);
 
   const drag = Gesture.Pan()
