@@ -11,6 +11,7 @@ import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
 import ChapterHistory from "@/components/ChapterHistory";
+import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import Scratchpad from "@/components/Scratchpad";
@@ -771,6 +772,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         >
           Focus
         </button>
+        <ReadAloud
+          editorRef={editorRef}
+          resetKey={`${activeChapter?.id ?? ""}:${editorNonce}`}
+          disabled={viewMode !== "prose"}
+        />
         <button
           className="btn small"
           onClick={() => setSearchOpen(true)}

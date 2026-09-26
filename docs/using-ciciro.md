@@ -151,6 +151,15 @@ the phone the page gets extra room at the bottom so the last lines can scroll
 up to the middle, but the editor cannot re-center on every keystroke the way
 the web does.
 
+## Read aloud
+
+Hearing a chapter is a good way to catch clunky lines. On the web, choose **Listen** in the top bar; on the phone, tap **Listen** above the editor or open the **Read aloud** card in the Chapters tab.
+
+- It reads your selection if you have one, otherwise the whole chapter, one sentence at a time, with the sentence being read highlighted.
+- Use Play, Pause (Resume) and Stop, and pick a speed and a voice. Speed and voice are remembered on that device only, since each device has its own voices.
+- The web uses your browser's built-in speech, so the available voices depend on the browser and system. On the phone, the highlighted text is shown on the Read aloud screen because the editor itself cannot draw highlights.
+- Switching chapters stops the reading. Nothing is sent to Ciciro's servers or saved to your manuscript.
+
 ## Import
 
 Bring an existing manuscript in from Word (`.docx`, including Google Docs

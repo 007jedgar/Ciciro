@@ -53,6 +53,14 @@ function ProjectHeader({
             >
               <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.focusMode")}</Text>
             </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("readAloud.open")}
+              onPress={() => router.push(`/project/${project.id}/listen` as never)}
+              hitSlop={8}
+            >
+              <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("readAloud.open")}</Text>
+            </Pressable>
             <WritingMeter />
             <ManuscriptPaceLabel projectId={project.id} manuscriptWords={manuscriptWords} />
           </>

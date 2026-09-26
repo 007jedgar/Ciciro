@@ -22,6 +22,14 @@ import {
   suggestionAt,
   suggestionRanges,
 } from "@/lib/tiptap-suggestions";
+import {
+  docSentences,
+  highlightReadAloud as highlightDocSentence,
+  ReadAloudHighlight,
+  readAloudSentence as docSentenceAt,
+  trackReadAloud,
+  type DocSentence,
+} from "@/lib/tts-doc";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -38,6 +46,15 @@ export type EditorHandle = {
   resolveSuggestions: (action: SuggestionAction, ids?: string[]) => void;
   /** Put the caret on a suggestion and scroll it into view. */
   revealSuggestion: (id: string) => void;
+  /**
+   * Sentences to read aloud (the selection when there is one, else the whole
+   * chapter). They are tracked through edits until the reading ends.
+   */
+  beginReadAloud: () => { sentences: DocSentence[]; selection: boolean };
+  /** A tracked sentence as it reads now, or null if it was deleted. */
+  readAloudSentence: (index: number) => DocSentence | null;
+  /** Highlight (and scroll to) the tracked sentence at `index`; null ends the reading. */
+  highlightReadAloud: (index: number | null) => void;
 };
 
 type ReadingCaret = { blockId: string; offset: number };
@@ -174,6 +191,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       SuggestionInsertion,
       SuggestionDeletion,
       TrackChanges,
+      ReadAloudHighlight,
       CharacterCount,
       Placeholder.configure({
         placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
@@ -379,6 +397,38 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     },
     focusEnd() {
       editor?.commands.focus("end");
+    },
+    beginReadAloud() {
+      if (!editor) return { sentences: [], selection: false };
+      const { from, to, empty } = editor.state.selection;
+      let result = { sentences: docSentences(editor.state.doc), selection: false };
+      if (!empty) {
+        const sentences = docSentences(editor.state.doc, { from, to });
+        if (sentences.length > 0) result = { sentences, selection: true };
+      }
+      trackReadAloud(editor.view, result.sentences);
+      return result;
+    },
+    readAloudSentence(index) {
+      if (!editor || editor.isDestroyed) return null;
+      return docSentenceAt(editor.state, index);
+    },
+    highlightReadAloud(index) {
+      if (!editor || editor.isDestroyed) return;
+      highlightDocSentence(editor.view, index);
+      const range = index === null ? null : docSentenceAt(editor.state, index);
+      if (!range) return;
+      try {
+        const pane = editor.view.dom.closest<HTMLElement>(".editor-pane");
+        if (!pane) return;
+        const coords = editor.view.coordsAtPos(range.from);
+        const rect = pane.getBoundingClientRect();
+        if (coords.top < rect.top + 40 || coords.bottom > rect.bottom - 40) {
+          pane.scrollBy({ top: coords.top - (rect.top + rect.height / 3), behavior: "smooth" });
+        }
+      } catch {
+        /* position not renderable yet */
+      }
     },
     setReadingPosition(blockId: string, offset: number) {
       if (!editor) return;
