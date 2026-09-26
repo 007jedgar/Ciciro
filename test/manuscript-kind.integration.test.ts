@@ -247,6 +247,51 @@ describe("assistant tools respect the manuscript kind", () => {
     }
   );
 
+  const AFTER_DIALOGUE =
+    '<p data-block-id="c" data-sp="character">MARA</p><p data-block-id="d" data-sp="dialogue">Hi.</p>' +
+    '<p data-block-id="e">She leaves.</p>';
+
+  it.each([true, false])(
+    "keeps an edited action beat after dialogue as action (suggestions %s)",
+    async (aiSuggestions) => {
+      const owner = await registerUser({ email: "sp@example.com", password: "long-enough-pw", name: "Sam" });
+      await updateUserSettings(owner.id, { aiSuggestions });
+      const script = await createProject(owner, { title: "Heist", kind: "screenplay" });
+      const [chapter] = script.chapters;
+      const seeded = await prisma.chapter.update({ where: { id: chapter.id }, data: { content: AFTER_DIALOGUE } });
+      await executeEditorTool(
+        "edit_manuscript",
+        {
+          chapterNumber: 1,
+          expectedRevision: seeded.revision,
+          replacements: [{ find: "She leaves.", replace: "She leaves.\nJON\nWait." }],
+        },
+        { projectId: script.id }
+      );
+      const after = await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } });
+      expect(blocks(resolveSuggestions(after.content, "accept"))).toEqual([
+        ["character", "MARA"],
+        ["dialogue", "Hi."],
+        ["action", "She leaves."],
+        ["character", "JON"],
+        ["dialogue", "Wait."],
+      ]);
+    }
+  );
+
+  it("inserts an action line after dialogue as action", async () => {
+    const script = await createProject(null, { title: "Heist", kind: "screenplay" });
+    const [chapter] = script.chapters;
+    const seeded = await prisma.chapter.update({ where: { id: chapter.id }, data: { content: AFTER_DIALOGUE } });
+    await executeEditorTool(
+      "insert_text",
+      { chapterNumber: 1, expectedRevision: seeded.revision, position: "end", text: "The door slams." },
+      { projectId: script.id }
+    );
+    const after = await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } });
+    expect(blocks(after.content).at(-1)).toEqual(["action", "The door slams."]);
+  });
+
   it("pairs a script block with its element whatever the attribute order", () => {
     const { html } = suggestReplacements(
       '<p data-sp="character" data-block-id="a">MARA</p><p data-sp="dialogue" data-block-id="b">Hi there.</p>',

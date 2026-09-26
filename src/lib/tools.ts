@@ -12,6 +12,7 @@ import {
   assistantTextToHtml,
   elementOfHtml,
   normalizeKind,
+  replacementContext,
   type ManuscriptKind,
   type ScreenplayElement,
 } from "@/lib/manuscript-kind";
@@ -528,7 +529,7 @@ function blockReplace(
 ): { html: string; count: number } {
   const run = findBlockRun(html, find);
   if (!run) return { html, count: 0 };
-  const placed = assistantTextToHtml(replace, kind, elementBefore(html, run.start));
+  const placed = assistantTextToHtml(replace, kind, replacementContext(elementOfHtml(html.slice(run.start))));
   const id = html.slice(run.start).match(/^<[a-z][\w-]*\b[^>]*?\bdata-block-id="([^"]*)"/i)?.[1];
   return {
     html:

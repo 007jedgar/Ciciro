@@ -88,6 +88,7 @@ describe("manuscript kind", () => {
       "dialogue",
     ]);
     expect(classifyScreenplayLines("Hi there.", "action").map((l) => l.element)).toEqual(["action"]);
+    expect(classifyScreenplayLines("She leaves.", "dialogue").map((l) => l.element)).toEqual(["action"]);
   });
 
   it("gives the assistant kind-specific prompts and actions", () => {

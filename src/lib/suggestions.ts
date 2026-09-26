@@ -956,7 +956,7 @@ export type SuggestOptions = {
   newId?: () => string;
   newBlockId?: () => string;
   /** How a replacement spanning paragraphs breaks into blocks. Default: blank lines. */
-  splitReplacement?: (replace: string, before: string | null) => ReplacementParagraph[];
+  splitReplacement?: (replace: string, replacing: string | null) => ReplacementParagraph[];
 };
 
 function splitOnBlankLines(replace: string): ReplacementParagraph[] {
@@ -1245,8 +1245,7 @@ function suggestBlockRun(
       }
     }
   }
-  const before = blocks[blocks.indexOf(run[0]) - 1]?.open ?? null;
-  const paragraphs = opts.splitReplacement(edit.replace, before).filter((p) => p.text);
+  const paragraphs = opts.splitReplacement(edit.replace, run[0]?.open ?? null).filter((p) => p.text);
   const prose = run.filter((block) => block.items && project(block.items, BASE).text.trim());
   const id = opts.newId();
   const createdAt = opts.now();

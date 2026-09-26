@@ -307,7 +307,7 @@ export function classifyScreenplayLines(
 ): { element: ScreenplayElement; text: string }[] {
   const out: { element: ScreenplayElement; text: string }[] = [];
   const speaking = (el?: ScreenplayElement) => el === "character" || el === "parenthetical" || el === "dialogue";
-  let inDialogue = speaking(after);
+  let inDialogue = after === "character" || after === "parenthetical";
   let previous = after;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
@@ -336,18 +336,28 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * The element to read a replacement on from: a replaced line of speech keeps
+ * its speaker open, anything else starts fresh.
+ */
+export function replacementContext(replaced: ScreenplayElement | undefined): ScreenplayElement | undefined {
+  return replaced === "dialogue" || replaced === "parenthetical" ? "character" : undefined;
+}
+
+/**
  * A replacement the assistant proposes as tracked suggestions, split into
  * blocks the way assistantTextToHtml places it. Undefined keeps the default.
  */
 export function assistantReplacementSplitter(
   kind: ManuscriptKind
-): ((replace: string, before: string | null) => { text: string; mark: (open: string) => string }[]) | undefined {
+): ((replace: string, replacing: string | null) => { text: string; mark: (open: string) => string }[]) | undefined {
   if (kind !== "screenplay") return undefined;
-  return (replace, before) =>
-    classifyScreenplayLines(replace, before ? elementOfHtml(before) : undefined).map(({ element, text }) => ({
-      text,
-      mark: (open: string) => withElement(open, element),
-    }));
+  return (replace, replacing) =>
+    classifyScreenplayLines(replace, replacementContext(replacing ? elementOfHtml(replacing) : undefined)).map(
+      ({ element, text }) => ({
+        text,
+        mark: (open: string) => withElement(open, element),
+      })
+    );
 }
 
 /**
