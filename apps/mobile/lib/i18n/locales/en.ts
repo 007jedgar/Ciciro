@@ -760,7 +760,7 @@ const en = {
   },
   export: {
     title: "Export manuscript",
-    meta: "Share a finished copy as plain text, an ebook, a book-layout PDF, or a Word file.",
+    meta: "Share a finished copy as plain text, an ebook, a PDF laid out like a book, or a Word file.",
     preparing: "Preparing {{format}}…",
     error: "Could not export the manuscript.",
     unavailable: "Sharing is not available on this device.",

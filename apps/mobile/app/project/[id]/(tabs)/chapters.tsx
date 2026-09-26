@@ -1,10 +1,22 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { ChapterListCard } from "../../../../components/ChapterListCard";
 import { PressableCard } from "../../../../components/PressableCard";
+import { ProjectTools, type ProjectTool } from "../../../../components/ProjectTools";
+import {
+  BookIcon,
+  CommentIcon,
+  HeadphonesIcon,
+  HistoryIcon,
+  ImportIcon,
+  OutlineIcon,
+  PencilIcon,
+  SearchIcon,
+  TimerIcon,
+} from "../../../../components/icons";
 import { ExportCard } from "../../../../components/ExportCard";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
@@ -168,6 +180,71 @@ export default function ChaptersScreen() {
     }
   }
 
+  const tools: ProjectTool[] = [
+    {
+      key: "sprint",
+      label: t("sprint.title"),
+      icon: <TimerIcon color={colors.accent} />,
+      onPress: () => router.push(`/project/${projectId}/sprint` as never),
+    },
+    {
+      key: "bible",
+      label: t("bible.title"),
+      icon: <BookIcon color={colors.accent} />,
+      onPress: () => router.push(bibleIndexHref(projectId) as never),
+    },
+    {
+      key: "scratch",
+      label: t("scratch.title"),
+      icon: <PencilIcon color={colors.accent} size={24} />,
+      onPress: () => router.push(scratchListHref(projectId) as never),
+    },
+    {
+      key: "weekly",
+      label: t("weekly.title"),
+      icon: <HistoryIcon color={colors.accent} />,
+      badge: weeklyReviews.data?.due ? "" : null,
+      a11yLabel: weeklyReviews.data?.due ? `${t("weekly.title")}. ${t("weekly.cardDue")}` : undefined,
+      onPress: () => router.push(weeklyReviewHref(projectId) as never),
+    },
+    {
+      key: "beta",
+      label: t("beta.title"),
+      icon: <CommentIcon color={colors.accent} />,
+      badge: openReaderComments.data?.length ? String(openReaderComments.data.length) : null,
+      a11yLabel: openReaderComments.data?.length
+        ? `${t("beta.title")}. ${t("beta.cardOpen", { count: openReaderComments.data.length })}`
+        : undefined,
+      onPress: () => router.push(betaReadersHref(projectId) as never),
+    },
+    {
+      key: "search",
+      label: t("search.title"),
+      icon: <SearchIcon color={colors.accent} />,
+      onPress: () => router.push(`/project/${projectId}/search` as never),
+    },
+    {
+      key: "outline",
+      label: t("outline.title"),
+      icon: <OutlineIcon color={colors.accent} />,
+      onPress: () => router.push(outlineHref(projectId) as never),
+    },
+    {
+      key: "listen",
+      label: t("readAloud.title"),
+      icon: <HeadphonesIcon color={colors.accent} size={24} />,
+      onPress: () => router.push(`/project/${projectId}/listen` as never),
+    },
+    {
+      key: "import",
+      label: importing ? t("importFile.importing") : t("importFile.chaptersCard"),
+      a11yLabel: t("importFile.chaptersCard"),
+      icon: <ImportIcon color={colors.accent} />,
+      busy: importing,
+      onPress: () => void importChapters(),
+    },
+  ];
+
   return (
     <View style={[layout.padded, { paddingTop: 0 }]}>
       {deleteError ? (
@@ -215,104 +292,11 @@ export default function ChaptersScreen() {
                   <Text style={layout.cardMeta}>{t("kinds.todayEntryMeta")}</Text>
                 </PressableCard>
               ) : null}
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(`/project/${projectId}/sprint` as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("sprint.title")}
-              >
-                <Text style={layout.cardTitle}>{t("sprint.title")}</Text>
-                <Text style={layout.cardMeta}>{t("sprint.cardMeta")}</Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(bibleIndexHref(projectId) as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("bible.title")}
-              >
-                <Text style={layout.cardTitle}>{t("bible.title")}</Text>
-                <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(scratchListHref(projectId) as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("scratch.title")}
-              >
-                <Text style={layout.cardTitle}>{t("scratch.title")}</Text>
-                <Text style={layout.cardMeta}>{t("scratch.cardMeta")}</Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(weeklyReviewHref(projectId) as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("weekly.title")}
-              >
-                <Text style={layout.cardTitle}>{t("weekly.title")}</Text>
-                <Text style={layout.cardMeta}>
-                  {weeklyReviews.data?.due ? t("weekly.cardDue") : t("weekly.cardMeta")}
-                </Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(betaReadersHref(projectId) as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("beta.title")}
-              >
-                <Text style={layout.cardTitle}>{t("beta.title")}</Text>
-                <Text style={layout.cardMeta}>
-                  {openReaderComments.data?.length
-                    ? t("beta.cardOpen", { count: openReaderComments.data.length })
-                    : t("beta.cardMeta")}
-                </Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(`/project/${projectId}/search` as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("search.title")}
-              >
-                <Text style={layout.cardTitle}>{t("search.title")}</Text>
-                <Text style={layout.cardMeta}>{t("search.cardMeta")}</Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(outlineHref(projectId) as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("outline.title")}
-              >
-                <Text style={layout.cardTitle}>{t("outline.title")}</Text>
-                <Text style={layout.cardMeta}>{t("outline.cardMeta")}</Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16 }]}
-                onPress={() => router.push(`/project/${projectId}/listen` as never)}
-                accessibilityRole="button"
-                accessibilityLabel={t("readAloud.title")}
-              >
-                <Text style={layout.cardTitle}>{t("readAloud.title")}</Text>
-                <Text style={layout.cardMeta}>{t("readAloud.cardMeta")}</Text>
-              </PressableCard>
-              <PressableCard
-                style={[layout.card, { marginBottom: 16, opacity: importing ? 0.6 : 1 }]}
-                onPress={() => void importChapters()}
-                disabled={importing}
-                accessibilityRole="button"
-                accessibilityLabel={t("importFile.chaptersCard")}
-                accessibilityState={{ disabled: importing, busy: importing }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Text style={layout.cardTitle}>
-                    {importing ? t("importFile.importing") : t("importFile.chaptersCard")}
-                  </Text>
-                  {importing ? <ActivityIndicator size="small" color={colors.accent} /> : null}
-                </View>
-                <Text style={layout.cardMeta}>{t("importFile.chaptersMeta")}</Text>
-              </PressableCard>
-              <ExportCard projectId={projectId} flushEdits={flushEdits} />
+              <ProjectTools tools={tools} />
             </View>
           ) : null
         }
+        ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} /> : null}
         ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
         renderItem={({ item, index }) => (
           <ChapterListCard
