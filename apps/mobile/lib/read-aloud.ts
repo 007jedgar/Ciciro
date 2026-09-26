@@ -125,28 +125,21 @@ export function isNoveltyVoice(voice: VoiceOption): boolean {
 const QUALITY_RANK: Record<string, number> = { Premium: 0, Enhanced: 1, Default: 2 };
 
 /**
- * Voices to offer: natural voices in the device language, best quality first,
- * capped to keep the picker short. When nothing in the device language is left
- * the other natural voices stand in. The saved voice is always kept so it can be
- * seen and changed.
+ * Voices to offer: every natural voice, the device language first and the rest
+ * grouped by language, best quality first within each language. The saved voice
+ * is always kept so it can be seen and changed.
  */
-export function voiceChoices<V extends VoiceOption>(
-  voices: V[],
-  locale: string,
-  saved: string | null,
-  limit = 12
-): V[] {
-  const lang = locale.split(/[-_]/)[0].toLowerCase();
-  const sameLang = (v: V) => !!lang && v.language.toLowerCase().split(/[-_]/)[0] === lang;
-  const natural = voices.filter((v) => !isNoveltyVoice(v) || v.identifier === saved);
-  const local = natural.filter(sameLang);
-  const pool = local.length > 0 ? local : natural;
+export function voiceChoices<V extends VoiceOption>(voices: V[], locale: string, saved: string | null): V[] {
+  const baseLang = (tag: string) => tag.split(/[-_]/)[0].toLowerCase();
+  const lang = baseLang(locale);
+  const group = (v: V) => (lang && baseLang(v.language) === lang ? "" : baseLang(v.language));
   const quality = (v: V) => QUALITY_RANK[v.quality ?? "Default"] ?? 2;
-  const sorted = [...pool].sort((a, b) => quality(a) - quality(b) || a.name.localeCompare(b.name));
-  const shown = sorted.slice(0, limit);
-  const savedVoice = saved ? voices.find((v) => v.identifier === saved) : undefined;
-  if (savedVoice && !shown.includes(savedVoice)) shown.push(savedVoice);
-  return shown;
+  return voices
+    .filter((v) => !isNoveltyVoice(v) || v.identifier === saved)
+    .sort(
+      (a, b) =>
+        group(a).localeCompare(group(b)) || quality(a) - quality(b) || a.name.localeCompare(b.name)
+    );
 }
 
 /** Read-aloud speed and voice belong to this device, so they live in local prefs. */
