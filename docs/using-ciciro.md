@@ -112,6 +112,19 @@ to history first, and **Undo** puts it back. Ciciro will not restore or save a
 snapshot while your latest edits have not reached the server, so reconnect and
 try again if it says so.
 
+## Previously on, and "I'm stuck"
+
+Come back to a manuscript after half a day or more and a short **Previously on**
+card tells you where the story stands, written from the chapters you touched
+last. Dismiss it and it stays gone until your next absence. The recap is saved,
+so opening the manuscript again without new writing does not regenerate it. On
+the phone it sits at the top of the Chapters tab.
+
+**I'm stuck** (beside Auto-draft on the web, above the editor on the phone)
+offers a few concrete next steps drawn from the open chapter, your story bible and
+open questions. Pick one and it goes to Ciciro's chat: sent straight away on the
+web, dropped into the message box on the phone for you to edit first.
+
 ## Scratchpad
 
 **Scratchpad** in the top bar (on mobile, the Scratchpad card in the Chapters
