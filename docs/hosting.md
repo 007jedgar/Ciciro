@@ -130,6 +130,14 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-scratch-notes.sql
 Until it runs, everything else keeps working and only the Scratchpad reports an
 error.
 
+The "Previously on" recap needs `ProjectRecap`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-project-recap.sql
+```
+
+Until it runs, everything else keeps working and the recap simply does not appear.
+
 Beta reader links need `ShareLink` and `ShareComment`:
 
 ```bash

@@ -499,6 +499,18 @@ const en = {
     bodyLabel: "Note text",
     bodyPlaceholder: "Write anything...",
   },
+  recap: {
+    title: "Previously on",
+    dismiss: "Dismiss",
+  },
+  stuck: {
+    pill: "I'm stuck",
+    hint: "Get a few ideas for what to write next",
+    title: "Ways forward",
+    blurb: "A few next steps drawn from this chapter and your story bible. Pick one to talk it through with Ciciro.",
+    error: "Couldn't get ideas right now. Try again.",
+    more: "More ideas",
+  },
   beta: {
     title: "Beta readers",
     cardMeta: "Share read-only links and read what readers said",

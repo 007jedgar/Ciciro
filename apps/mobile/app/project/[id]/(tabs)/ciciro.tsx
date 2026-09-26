@@ -28,9 +28,10 @@ import { useCiciroChat } from "../../../../lib/use-ciciro-chat";
 
 export default function CiciroScreen() {
   const { project, loading, error, selectedChapterId, recordChapterOp } = useProject();
-  const { intent, questions: questionsParam } = useLocalSearchParams<{
+  const { intent, questions: questionsParam, prompt: promptParam } = useLocalSearchParams<{
     intent?: string;
     questions?: string;
+    prompt?: string;
   }>();
   const router = useRouter();
   const { t } = useTranslation();
@@ -127,6 +128,14 @@ export default function CiciroScreen() {
     setQuestionsOpen(true);
     router.setParams({ questions: undefined });
   }, [questionsParam, router]);
+
+  // A stuck prompt from the editor lands in the composer for the author to send.
+  useEffect(() => {
+    const prompt = Array.isArray(promptParam) ? promptParam[0] : promptParam;
+    if (!prompt) return;
+    setComposer(prompt);
+    router.setParams({ prompt: undefined });
+  }, [promptParam, router]);
 
   useEffect(() => {
     if (!requested) {

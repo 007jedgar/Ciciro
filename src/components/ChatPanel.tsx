@@ -46,6 +46,8 @@ type Scope = "selection" | "chapter" | "book";
 
 export type ChatHandle = {
   send: (message: string, kind?: string, scope?: Scope) => void;
+  /** Send now, or leave it in the composer while a reply is still streaming. */
+  offer: (message: string) => void;
 };
 
 type Props = {
@@ -214,6 +216,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const streamTurnIdRef = useRef<string | null>(null);
   const activeChapterRef = useRef(activeChapterId);
   activeChapterRef.current = activeChapterId;
@@ -823,6 +826,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     () => ({
       send: (message: string, kind?: string, scope?: Scope) =>
         sendRef.current(message, kind, scope),
+      offer: (message: string) => {
+        if (!streamingRef.current) {
+          void sendRef.current(message);
+          return;
+        }
+        setInput(message);
+        composerRef.current?.focus();
+      },
     }),
     []
   );
@@ -1122,6 +1133,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
 
       <div className="composer">
         <textarea
+          ref={composerRef}
           placeholder="Ask your editor, or describe what to write..."
           value={input}
           onChange={(e) => setInput(e.target.value)}

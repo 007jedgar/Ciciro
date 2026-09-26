@@ -495,6 +495,18 @@ const zh: Translations = {
     bodyLabel: "笔记内容",
     bodyPlaceholder: "随意书写...",
   },
+  recap: {
+    title: "前情提要",
+    dismiss: "关闭",
+  },
+  stuck: {
+    pill: "我卡住了",
+    hint: "获取一些接下来写什么的想法",
+    title: "继续写下去的方向",
+    blurb: "根据本章和你的故事设定给出的几个下一步。选一个,与 Ciciro 一起展开。",
+    error: "暂时无法获取想法,请重试。",
+    more: "更多想法",
+  },
   beta: {
     title: "试读读者",
     cardMeta: "分享只读链接，查看读者的意见",

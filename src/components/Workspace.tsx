@@ -16,6 +16,8 @@ import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import Scratchpad from "@/components/Scratchpad";
+import PreviouslyOn from "@/components/PreviouslyOn";
+import StuckPrompts from "@/components/StuckPrompts";
 import BetaReaders, { type BetaReadersTab } from "@/components/BetaReaders";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
@@ -909,6 +911,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       <div className="editor-pane">
         <div className="editor-inner">
+          <PreviouslyOn projectId={project.id} />
           {activeChapter ? (
             <>
               <input
@@ -941,6 +944,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 >
                   Auto-draft
                 </button>
+                <span>-</span>
+                <StuckPrompts
+                  projectId={project.id}
+                  chapterId={activeChapter.id}
+                  onUse={(prompt) => chatRef.current?.offer(prompt)}
+                />
                 {viewMode === "prose" ? (
                   <SuggestModeToggle suggesting={suggesting} onChange={changeSuggesting} />
                 ) : null}
