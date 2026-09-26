@@ -55,15 +55,13 @@ export function ChapterListCard({
         { flexDirection: "row", alignItems: "flex-start", gap: 8 },
       ]}
     >
-      <Pressable
-        style={{ flex: 1, minWidth: 0 }}
-        onPress={onOpen}
-        accessibilityRole="button"
-        accessibilityLabel={a11y}
-      >
-        <Text style={layout.cardTitle}>{numbered}</Text>
-        {customTitle ? <Text style={layout.cardMeta}>{customTitle}</Text> : null}
-        <Text style={layout.cardMeta}>{t("chapters.wordCount", { count: chapter.wordCount })}</Text>
+      {/* The status picker holds its own buttons, so it sits beside the open target, not inside it. */}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={a11y}>
+          <Text style={layout.cardTitle}>{numbered}</Text>
+          {customTitle ? <Text style={layout.cardMeta}>{customTitle}</Text> : null}
+          <Text style={layout.cardMeta}>{t("chapters.wordCount", { count: chapter.wordCount })}</Text>
+        </Pressable>
         {onStatusChange ? (
           <ChapterStatusPicker
             status={chapter.status}
@@ -72,16 +70,18 @@ export function ChapterListCard({
           />
         ) : null}
         {preview ? (
-          <Text
-            testID="chapter-preview"
-            style={layout.cardMeta}
-            numberOfLines={CHAPTER_PREVIEW_LINES}
-            ellipsizeMode="tail"
-          >
-            {preview}
-          </Text>
+          <Pressable onPress={onOpen} accessible={false}>
+            <Text
+              testID="chapter-preview"
+              style={layout.cardMeta}
+              numberOfLines={CHAPTER_PREVIEW_LINES}
+              ellipsizeMode="tail"
+            >
+              {preview}
+            </Text>
+          </Pressable>
         ) : null}
-      </Pressable>
+      </View>
       {onOpenHistory ? (
         <Pressable
           onPress={onOpenHistory}

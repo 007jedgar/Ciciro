@@ -12,6 +12,7 @@ import {
   type SearchResult,
 } from "../lib/search";
 import { useAppTheme } from "../lib/settings";
+import { switchColors } from "../lib/switch-theme";
 
 const DEBOUNCE_MS = 300;
 
@@ -146,16 +147,14 @@ export function ManuscriptSearch({
         <Switch
           value={matchCase}
           onValueChange={setMatchCase}
-          trackColor={{ false: colors.line, true: colors.accent }}
-          thumbColor={colors.panel}
+          {...switchColors(colors)}
           accessibilityLabel={t("search.matchCase")}
         />
         <Text style={[layout.cardMeta, { marginLeft: 8 }]}>{t("search.wholeWord")}</Text>
         <Switch
           value={wholeWord}
           onValueChange={setWholeWord}
-          trackColor={{ false: colors.line, true: colors.accent }}
-          thumbColor={colors.panel}
+          {...switchColors(colors)}
           accessibilityLabel={t("search.wholeWord")}
         />
       </View>
