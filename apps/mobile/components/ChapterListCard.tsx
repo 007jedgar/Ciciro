@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ChapterStatusPicker } from "./ChapterStatusPicker";
 import { chapterHeading, CHAPTER_PREVIEW_LINES } from "../lib/chapter-label";
@@ -52,74 +52,67 @@ export function ChapterListCard({
       style={[
         layout.card,
         selected ? { borderColor: colors.accent, backgroundColor: colors.accentSoft } : null,
-        { flexDirection: "row", alignItems: "flex-start", gap: 8 },
       ]}
     >
       {/* The status picker holds its own buttons, so it sits beside the open target, not inside it. */}
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={a11y}>
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={a11y}
+          style={{ flex: 1, minWidth: 0 }}
+        >
           <Text style={layout.cardTitle}>{numbered}</Text>
           {customTitle ? <Text style={layout.cardMeta}>{customTitle}</Text> : null}
           <Text style={layout.cardMeta}>{t("chapters.wordCount", { count: chapter.wordCount })}</Text>
         </Pressable>
-        {onStatusChange ? (
-          <ChapterStatusPicker
-            status={chapter.status}
+        {onOpenHistory ? (
+          <Pressable
+            onPress={onOpenHistory}
             disabled={deleting}
-            onChange={onStatusChange}
-          />
-        ) : null}
-        {preview ? (
-          <Pressable onPress={onOpen} accessible={false}>
-            <Text
-              testID="chapter-preview"
-              style={layout.cardMeta}
-              numberOfLines={CHAPTER_PREVIEW_LINES}
-              ellipsizeMode="tail"
-            >
-              {preview}
-            </Text>
+            accessibilityRole="button"
+            accessibilityLabel={t("history.openA11y", { title: customTitle ?? numbered })}
+            style={({ pressed }) => [styles.action, { opacity: deleting ? 0.4 : pressed ? 0.5 : 1 }]}
+          >
+            <VersionHistoryIcon color={colors.inkSoft} />
           </Pressable>
         ) : null}
-      </View>
-      {onOpenHistory ? (
         <Pressable
-          onPress={onOpenHistory}
+          onPress={onRequestDelete}
           disabled={deleting}
           accessibilityRole="button"
-          accessibilityLabel={t("history.openA11y", { title: customTitle ?? numbered })}
-          hitSlop={8}
-          style={({ pressed }) => [
-            {
-              width: 38,
-              height: 38,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: deleting ? 0.4 : pressed ? 0.5 : 1,
-            },
-          ]}
+          accessibilityLabel={t("chapters.deleteA11y", { title: customTitle ?? numbered })}
+          style={({ pressed }) => [styles.action, { opacity: deleting ? 0.4 : pressed ? 0.5 : 1 }]}
         >
-          <VersionHistoryIcon color={colors.inkSoft} />
+          <TrashIcon color={colors.danger} />
+        </Pressable>
+      </View>
+      {onStatusChange ? (
+        <ChapterStatusPicker status={chapter.status} disabled={deleting} onChange={onStatusChange} />
+      ) : null}
+      {preview ? (
+        <Pressable onPress={onOpen} accessible={false}>
+          <Text
+            testID="chapter-preview"
+            style={layout.cardMeta}
+            numberOfLines={CHAPTER_PREVIEW_LINES}
+            ellipsizeMode="tail"
+          >
+            {preview}
+          </Text>
         </Pressable>
       ) : null}
-      <Pressable
-        onPress={onRequestDelete}
-        disabled={deleting}
-        accessibilityRole="button"
-        accessibilityLabel={t("chapters.deleteA11y", { title: customTitle ?? numbered })}
-        hitSlop={8}
-        style={({ pressed }) => [
-          {
-            width: 38,
-            height: 38,
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: deleting ? 0.4 : pressed ? 0.5 : 1,
-          },
-        ]}
-      >
-        <TrashIcon color={colors.danger} />
-      </Pressable>
     </View>
   );
 }
+
+// Each icon is a full 44pt target; the row's 8pt gap leaves the two glyphs well apart.
+const styles = StyleSheet.create({
+  action: {
+    width: 44,
+    height: 44,
+    marginTop: -8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
