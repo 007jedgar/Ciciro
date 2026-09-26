@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { AppState, Pressable, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../../../components/AppHeader";
@@ -156,21 +156,29 @@ export default function SprintScreen() {
         onBack={() => backOr(`/project/${id}/manuscript`)}
         floating
       />
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: headerHeight + 24 }}>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: headerHeight + 8 }}>
         {phase.kind === "pick" ? (
           <>
             <Text style={[layout.body, { marginBottom: 16 }]}>{t("sprint.blurb")}</Text>
-            {SPRINT_DURATIONS_MIN.map((min) => (
-              <Pressable
-                key={min}
-                style={[layout.primaryBtn, { marginBottom: 12 }]}
-                onPress={() => void start(min)}
-                accessibilityRole="button"
-                accessibilityLabel={t("sprint.startA11y", { count: min })}
-              >
-                <Text style={layout.primaryBtnText}>{t("sprint.minutes", { count: min })}</Text>
-              </Pressable>
-            ))}
+            {SPRINT_DURATIONS_MIN.map((min, idx) => {
+              const isFirst = idx === 0;
+              return (
+                <Pressable
+                  key={min}
+                  style={[
+                    isFirst ? styles.filledBtn : styles.outlinedBtn,
+                    { marginBottom: 12, backgroundColor: isFirst ? colors.accent : undefined, borderColor: isFirst ? undefined : colors.line },
+                  ]}
+                  onPress={() => void start(min)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("sprint.startA11y", { count: min })}
+                >
+                  <Text style={[styles.btnText, { color: isFirst ? colors.panel : colors.ink }]}>
+                    {t("sprint.minutes", { count: min })}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </>
         ) : null}
 
@@ -236,3 +244,9 @@ export default function SprintScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  filledBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  outlinedBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
+  btnText: { fontSize: 15, fontWeight: "600", textAlign: "center" },
+});
