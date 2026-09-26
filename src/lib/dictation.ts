@@ -94,13 +94,15 @@ export function applyDictationCommands(text: string, lang: string): string {
 
 /**
  * Shape a final transcript for the spot it lands in. `before` is the text
- * just ahead of the caret in its paragraph (empty at a paragraph start).
- * Adds the joining space and capitalizes a sentence start.
+ * just ahead of the caret in its paragraph (empty at a paragraph start) and
+ * `after` the text just behind it. Adds the joining spaces and capitalizes a
+ * sentence start.
  */
 export function prepareDictation(
   raw: string,
   before: string,
   lang = "en",
+  after = "",
 ): string {
   let text = applyDictationCommands(raw.trim(), lang);
   if (!text) return "";
@@ -117,7 +119,9 @@ export function prepareDictation(
     !/\s$/.test(before) &&
     !text.startsWith("\n") &&
     !/^[.,;:!?)\]”’]/.test(text);
-  return needsSpace ? ` ${text}` : text;
+  const needsTrailingSpace =
+    /^[\p{L}\p{N}]/u.test(after) && !/\s$/.test(text);
+  return `${needsSpace ? " " : ""}${text}${needsTrailingSpace ? " " : ""}`;
 }
 
 export type DictationPart =

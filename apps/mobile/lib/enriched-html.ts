@@ -88,12 +88,17 @@ export function toEnrichedHtml(html: string): string {
   return ensureEnrichedParses(body);
 }
 
+/**
+ * Enriched getHTML() → Ciciro-shaped blocks as the editor shows them: scene
+ * breaks stay the paragraphs the writer sees, so text offsets still line up.
+ */
+export function fromEnrichedHtmlAsShown(html: string): string {
+  return unwrapQuoteInners(ciciroInline(brToEmptyParagraphs(unwrapShell(html)))).trim();
+}
+
 /** Enriched getHTML() → Ciciro-shaped blocks, still without durable ids. */
 export function fromEnrichedHtml(html: string): string {
-  const next = sceneBreaksToHr(
-    unwrapQuoteInners(ciciroInline(brToEmptyParagraphs(unwrapShell(html))))
-  );
-  return next.trim();
+  return sceneBreaksToHr(fromEnrichedHtmlAsShown(html)).trim();
 }
 
 function sameBlock(a: ManuscriptBlock, b: ManuscriptBlock): boolean {
@@ -190,9 +195,12 @@ export function opsFromEnrichedHtml(
   return diffHtmlToOps(previousCiciroHtml || "<p></p>", incoming, revision, opts);
 }
 
-/** How many characters the editor shows for a block: a scene break reads as "***". */
-function editorBlockLength(block: ManuscriptBlock): number {
-  return block.kind === "scene_break" ? SCENE_BREAK_TEXT.length : block.text.length;
+/**
+ * How many characters the editor shows for a block: an `<hr>` reads as "***";
+ * a scene break the writer typed ("#", "**") shows as typed.
+ */
+export function editorBlockLength(block: ManuscriptBlock): number {
+  return /^<hr\b/i.test(block.html) ? SCENE_BREAK_TEXT.length : block.text.length;
 }
 
 /**

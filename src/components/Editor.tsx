@@ -383,9 +383,12 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     },
     insertDictation(text: string, lang = "en") {
       if (!editor) return;
-      const { $from } = editor.state.selection;
+      const { $from, $to } = editor.state.selection;
       const before = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n").slice(-3);
-      const prepared = prepareDictation(text, before, lang);
+      const after = $to.parent
+        .textBetween($to.parentOffset, $to.parent.content.size, "\n", "\n")
+        .slice(0, 3);
+      const prepared = prepareDictation(text, before, lang, after);
       if (!prepared) return;
       const chain = editor.chain().focus();
       for (const part of dictationParts(prepared)) {

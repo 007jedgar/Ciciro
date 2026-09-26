@@ -84,6 +84,12 @@ describe("prepareDictation", () => {
     );
   });
 
+  it("adds a space after the phrase when a word follows the caret", () => {
+    expect(prepareDictation("hello", "", "en", "two")).toBe("Hello ");
+    expect(prepareDictation("hello", "One", "en", " two")).toBe(" hello");
+    expect(prepareDictation("new paragraph", "One", "en", "two")).toBe("\n\n");
+  });
+
   it("returns an empty string for silence", () => {
     expect(prepareDictation("   ", "abc")).toBe("");
   });

@@ -135,4 +135,22 @@ describe("insertDictation", () => {
     expect(texts(out!.html)).toEqual(["One", "#", "Two hello words"]);
     expect(out!.caret).toBe(11 + " hello".length);
   });
+
+  it("keeps a space before the next word when dictating right after a split", () => {
+    const split = insertDictation('<p data-block-id="a">One two</p>', 3, "new paragraph", "en");
+    const out = insertDictation(split!.html, split!.caret, "hello", "en");
+    expect(texts(out!.html)).toEqual(["One", "Hello two"]);
+    expect(out!.caret).toBe(4 + "Hello ".length);
+  });
+
+  it("counts a typed scene break as the characters the editor shows", () => {
+    const html = "<p>One</p><p>#</p><p>Two words</p>";
+    // Editor text is "One\n#\nTwo words"; offset 9 is just after "Two".
+    const out = insertDictation(html, 9, "hello", "en");
+    expect(texts(out!.html)).toEqual(["One", "#", "Two hello words"]);
+    const after = insertDictation(html, 5, "next", "en");
+    expect(texts(after!.html)).toEqual(["One", "#", "Next", "Two words"]);
+    expect(after!.caret).toBe(4 + 1 + 1 + "Next".length);
+  });
 });
+

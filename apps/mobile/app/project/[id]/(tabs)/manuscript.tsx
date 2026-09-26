@@ -37,7 +37,7 @@ import {
 } from "../../../../lib/editor-session";
 import {
   blockAtPlainOffset,
-  fromEnrichedHtml,
+  fromEnrichedHtmlAsShown,
   opsFromEnrichedHtml,
   restampCiciroHtml,
   toEnrichedHtml,
@@ -482,7 +482,7 @@ export default function ManuscriptScreen() {
         const current = chapterRef.current;
         const editor = editorRef.current;
         if (!current || !editor) return;
-        const live = restampCiciroHtml(current.content, fromEnrichedHtml(await editor.getHTML()));
+        const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(await editor.getHTML()));
         const result = insertDictation(live, caretRef.current.docOffset, text, lang);
         if (!result) return;
         editor.setValue(toEnrichedHtml(result.html));
