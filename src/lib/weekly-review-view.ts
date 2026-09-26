@@ -111,3 +111,21 @@ export function reviewDue(
   const newest = Math.max(...reviews.map((r) => Date.parse(r.createdAt) || 0));
   return now - newest >= REVIEW_DUE_MS;
 }
+
+/** "1h 20m", "45m", or "" when there was no typing time. */
+export function formatActiveTime(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes <= 0) return "";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+}
+
+/** "Sep 20 to Sep 26", from two YYYY-MM-DD keys. */
+export function formatWeekRange(start: string, end: string, locale?: string): string {
+  const fmt = (key: string) => {
+    const [y, m, d] = key.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(locale, { month: "short", day: "numeric" });
+  };
+  return `${fmt(start)} to ${fmt(end)}`;
+}
