@@ -64,13 +64,36 @@ describe("selection store", () => {
 });
 
 describe("voiceChoices", () => {
-  const voice = (identifier: string, language: string) => ({ identifier, name: identifier, language });
+  const voice = (identifier: string, language: string, name = identifier, quality?: string) => ({
+    identifier,
+    name,
+    language,
+    quality,
+  });
 
   it("puts the device language first and keeps the saved voice past the cap", () => {
     const voices = [voice("zed", "fr-FR"), voice("bob", "en-GB"), voice("amy", "de-DE"), voice("cat", "en-US")];
-    expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual(["bob", "cat", "amy", "zed"]);
-    expect(voiceChoices(voices, "en-US", "zed", 2).map((v) => v.identifier)).toEqual(["bob", "cat", "zed"]);
-    expect(voiceChoices(voices, "en-US", "gone", 2).map((v) => v.identifier)).toEqual(["bob", "cat"]);
+    expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual(["bob", "cat"]);
+    expect(voiceChoices(voices, "en-US", "zed", 1).map((v) => v.identifier)).toEqual(["bob", "zed"]);
+    expect(voiceChoices(voices, "en-US", "gone", 1).map((v) => v.identifier)).toEqual(["bob"]);
+  });
+
+  it("falls back to other languages when none match the device", () => {
+    const voices = [voice("zed", "fr-FR"), voice("amy", "de-DE")];
+    expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual(["amy", "zed"]);
+  });
+
+  it("drops sound-effect and robotic voices and ranks by quality", () => {
+    const voices = [
+      voice("com.apple.speech.synthesis.voice.BadNews", "en-US", "Bad News"),
+      voice("com.apple.voice.compact.en-US.Bells", "en-US", "Bells"),
+      voice("a", "en-US", "Zoe", "Default"),
+      voice("b", "en-US", "Ava", "Enhanced"),
+      voice("c", "en-US", "Fred (Enhanced)", "Enhanced"),
+      voice("d", "en-US", "Mia", "Premium"),
+    ];
+    expect(voiceChoices(voices, "en-US", null).map((v) => v.name)).toEqual(["Mia", "Ava", "Zoe"]);
+    expect(voiceChoices(voices, "en-US", "com.apple.speech.synthesis.voice.BadNews").map((v) => v.name)).toContain("Bad News");
   });
 });
 

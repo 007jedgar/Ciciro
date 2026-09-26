@@ -35,6 +35,23 @@ export function stackPopTransform(
   };
 }
 
+/**
+ * The pop for full-height utility screens (sprint, read aloud). It slides
+ * straight down, fully opaque, so the screen underneath is uncovered cleanly
+ * instead of two screens of text cross-fading over each other.
+ */
+export function stackSheetPopTransform(
+  progress: number,
+  height: number
+): { translateY: number; radius: number } {
+  "worklet";
+  const p = Math.max(0, Math.min(1, progress));
+  return { translateY: p * height, radius: Math.min(1, p * 4) * 24 };
+}
+
+/** Routes that leave by the sheet pop rather than the collapse. */
+export const SHEET_POP_ROUTES: ReadonlySet<string> = new Set(["sprint", "listen"]);
+
 export function shouldInterceptStackRemove(actionType: string): boolean {
   return (
     actionType === "GO_BACK" ||

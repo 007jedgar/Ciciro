@@ -4,7 +4,9 @@ import {
   POP_OVER_STACK_SCREEN_OPTIONS,
   shouldInterceptStackRemove,
   STACK_POP_FADE_START,
+  SHEET_POP_ROUTES,
   stackPopTransform,
+  stackSheetPopTransform,
 } from "../lib/stack-pop";
 
 const WIDTH = 390;
@@ -115,5 +117,17 @@ describe("which screen plays the pop", () => {
 describe("ownsStackRemove without a navigator state", () => {
   it("lets the action through untouched rather than guessing", () => {
     expect(ownsStackRemove({ type: "GO_BACK" }, undefined)).toBe(false);
+  });
+});
+
+describe("sheet pop", () => {
+  it("slides straight down and never becomes translucent", () => {
+    expect(stackSheetPopTransform(0, 800)).toEqual({ translateY: 0, radius: 0 });
+    expect(stackSheetPopTransform(1, 800).translateY).toBe(800);
+    expect(stackSheetPopTransform(0.5, 800)).not.toHaveProperty("opacity");
+  });
+
+  it("covers the utility screens", () => {
+    expect([...SHEET_POP_ROUTES].sort()).toEqual(["listen", "sprint"]);
   });
 });

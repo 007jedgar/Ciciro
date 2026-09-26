@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useLocalSearchParams } from "expo-router";
 import { StackPopTransition } from "../../../components/StackPopTransition";
-import { CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS } from "../../../lib/stack-pop";
+import { CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS, SHEET_POP_ROUTES } from "../../../lib/stack-pop";
 import { ProjectProvider } from "../../../lib/project";
 import { useReduceMotion } from "../../../lib/use-reduce-motion";
 
@@ -12,7 +12,11 @@ export default function ProjectStackLayout() {
 
   const stack = (
     <Stack
-      screenLayout={({ children }) => <StackPopTransition>{children}</StackPopTransition>}
+      screenLayout={({ children, route }) => (
+        <StackPopTransition variant={SHEET_POP_ROUTES.has(route.name) ? "sheet" : "collapse"}>
+          {children}
+        </StackPopTransition>
+      )}
       screenOptions={{
         headerShown: false,
         animation: reduceMotion ? "fade" : "none",
