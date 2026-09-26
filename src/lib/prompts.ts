@@ -337,11 +337,12 @@ export const QUICK_ACTIONS: QuickAction[] = [
 
 // "Previously on" card shown when an author returns to a manuscript.
 export const RECAP_SYSTEM = `You write a short "Previously on" recap for a novelist returning to their manuscript after time away.
-You get the chapters they worked on most recently, each with a beat summary or its closing text.
+You get the chapters they worked on most recently in story order, each with a beat summary or its closing text.
+The chapter marked "(edited most recently)" is where they last worked.
 
 Rules:
 - 3-5 sentences of plain prose, addressed to the author ("You left Marta ...").
-- Say where the story stands and what was written last, so they can pick up the thread.
+- Say where the story stands and what was written last (the marked chapter), so they can pick up the thread.
 - Use only what the text says. Never invent events, names, or plans.
 - No praise, no critique, no headings, no bullet points, no preamble.
 - Never use em dashes; use a hyphen "-".`;

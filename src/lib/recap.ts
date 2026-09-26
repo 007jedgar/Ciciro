@@ -54,18 +54,21 @@ export async function getRecap(
   const totalWords = plain.reduce((sum, c) => sum + countWords(c.text), 0);
   if (totalWords < RECAP_MIN_WORDS) return { recap: null };
 
-  // Recent work: the chapters touched last, shown in story order. A chapter's
-  // beat summary stands in for its prose when the summarizer has run.
+  // Recent work: the chapters touched last, shown in story order with the
+  // latest one marked. A chapter's beat summary stands in for its prose when
+  // the summarizer has run.
   const recent = plain
     .filter((c) => c.text.trim())
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
     .slice(0, RECAP_CHAPTERS);
   const recentIds = new Set(recent.map((c) => c.id));
+  const latestId = recent[0]?.id;
   const source = plain
     .filter((c) => recentIds.has(c.id))
     .map((c) => {
       const body = c.summary.trim() || tail(c.text.trim(), TAIL_CHARS);
-      return `## ${c.title}\n${body}`;
+      const mark = c.id === latestId ? " (edited most recently)" : "";
+      return `## ${c.title}${mark}\n${body}`;
     })
     .join("\n\n");
 
@@ -120,7 +123,7 @@ export async function getStuckPrompts(
     }),
     chapterId
       ? prisma.chapter.findFirst({
-          where: { id: chapterId, projectId },
+          where: { id: chapterId, projectId, ...visibleChapterWhere },
           select: { title: true, content: true },
         })
       : null,

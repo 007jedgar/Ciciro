@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { shouldShowRecap, type Recap, type RecapResponse } from "@/lib/recap-view";
 
 function lastOpenedKey(projectId: string) {
@@ -24,10 +24,16 @@ function touchLastOpened(projectId: string): number | null {
 // server caches the text, so re-opening without new writing costs nothing.
 export default function PreviouslyOn({ projectId }: { projectId: string }) {
   const [recap, setRecap] = useState<Recap | null>(null);
+  // Decide once per mount and project: Strict Mode re-runs effects, and a
+  // second read would see the stamp the first one just wrote.
+  const decision = useRef<{ projectId: string; due: boolean } | null>(null);
 
   useEffect(() => {
-    const lastOpened = touchLastOpened(projectId);
-    if (!shouldShowRecap(lastOpened, Date.now())) return;
+    if (decision.current?.projectId !== projectId) {
+      const lastOpened = touchLastOpened(projectId);
+      decision.current = { projectId, due: shouldShowRecap(lastOpened, Date.now()) };
+    }
+    if (!decision.current.due) return;
     let cancelled = false;
     fetch(`/api/projects/${projectId}/recap`)
       .then((res) => (res.ok ? (res.json() as Promise<RecapResponse>) : null))

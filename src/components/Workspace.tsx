@@ -943,7 +943,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 <StuckPrompts
                   projectId={project.id}
                   chapterId={activeChapter.id}
-                  onUse={(prompt) => chatRef.current?.send(prompt)}
+                  onUse={(prompt) => chatRef.current?.offer(prompt)}
                 />
                 {viewMode === "prose" ? (
                   <SuggestModeToggle suggesting={suggesting} onChange={changeSuggesting} />

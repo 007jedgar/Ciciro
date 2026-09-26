@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { StuckResponse } from "@/lib/recap-view";
 
 type Props = {
@@ -16,8 +16,10 @@ export default function StuckPrompts({ projectId, chapterId, onUse }: Props) {
   const [busy, setBusy] = useState(false);
   const [prompts, setPrompts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const latest = useRef(0);
 
   async function ask() {
+    const request = ++latest.current;
     setOpen(true);
     setBusy(true);
     setError(null);
@@ -31,12 +33,14 @@ export default function StuckPrompts({ projectId, chapterId, onUse }: Props) {
         error?: string;
       };
       if (!res.ok || !data.prompts) throw new Error(data.error || "Could not get ideas.");
+      if (request !== latest.current) return;
       setPrompts(data.prompts);
     } catch (e) {
+      if (request !== latest.current) return;
       setPrompts([]);
       setError(e instanceof Error ? e.message : "Could not get ideas.");
     } finally {
-      setBusy(false);
+      if (request === latest.current) setBusy(false);
     }
   }
 

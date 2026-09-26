@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { StrictMode, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PreviouslyOn from "@/components/PreviouslyOn";
@@ -79,6 +79,25 @@ describe("PreviouslyOn", () => {
     expect(host.textContent).toBe("");
   });
 
+  it("still shows the recap under Strict Mode's double effect run", async () => {
+    window.localStorage.setItem(
+      "ciciro:last-opened:p1",
+      String(Date.now() - RECAP_ABSENCE_MS - 1000)
+    );
+    fetchMock.mockImplementation(async () =>
+      json({ recap: { text: "You left Marta on the pier.", generatedAt: "" } })
+    );
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <PreviouslyOn projectId="p1" />
+        </StrictMode>
+      )
+    );
+    await settle();
+    expect(host.textContent).toContain("You left Marta on the pier.");
+  });
+
   it("shows nothing when there is no recap", async () => {
     window.localStorage.setItem("ciciro:last-opened:p1", "1");
     fetchMock.mockResolvedValue(json({ recap: null }));
@@ -100,6 +119,22 @@ describe("StuckPrompts", () => {
     await act(async () => button("Cut to the storm.").click());
     expect(onUse).toHaveBeenCalledWith("Cut to the storm.");
     expect(host.textContent).not.toContain("Find the letter.");
+  });
+
+  it("keeps the newest ideas when an older request answers last", async () => {
+    let resolveOld: (res: Response) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => (resolveOld = resolve)));
+    fetchMock.mockResolvedValueOnce(json({ prompts: ["New idea."] }));
+    await act(async () => root.render(<StuckPrompts projectId="p1" chapterId="c1" onUse={vi.fn()} />));
+    await act(async () => button("stuck").click());
+    await act(async () => button("stuck").click());
+    await settle();
+    expect(host.textContent).toContain("New idea.");
+
+    resolveOld(json({ prompts: ["Old idea."] }));
+    await settle();
+    expect(host.textContent).toContain("New idea.");
+    expect(host.textContent).not.toContain("Old idea.");
   });
 
   it("shows the server's error and lets the author retry", async () => {

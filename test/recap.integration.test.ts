@@ -81,6 +81,25 @@ describe("previously-on recap and stuck prompts", () => {
     expect((await getRecap(project.id, user)).recap?.text).toBe("Old recap.");
   });
 
+  it("marks the chapter edited last, even when it comes earlier in the story", async () => {
+    const { user, project, chapter } = await seed();
+    const later = await prisma.chapter.create({
+      data: { projectId: project.id, title: "The Storm", order: chapter.order + 1 },
+    });
+    await write(later.id, prose("storm"));
+    await prisma.chapter.update({
+      where: { id: chapter.id },
+      data: { title: "The Pier", content: prose("pier"), updatedAt: new Date(Date.now() + 60_000) },
+    });
+    mocks.create.mockResolvedValue(reply("You went back to the pier."));
+
+    await getRecap(project.id, user);
+    const source: string = mocks.create.mock.calls[0][0].messages[0].content;
+    expect(source).toContain("## The Pier (edited most recently)");
+    expect(source).toContain("## The Storm\n");
+    expect(source.indexOf("The Pier")).toBeLessThan(source.indexOf("The Storm"));
+  });
+
   it("refuses another author's manuscript", async () => {
     const { project } = await seed();
     const other = await registerUser({ email: "bob@example.com", password: "long-enough-pw" });
@@ -97,6 +116,18 @@ describe("previously-on recap and stuck prompts", () => {
     const sent = mocks.create.mock.calls[0][0];
     expect(sent.messages[0].content).toContain("harbor");
     expect(sent.messages[0].content).toContain("Tides");
+  });
+
+  it("leaves an archived chapter out of the stuck prompt context", async () => {
+    const { user, project, chapter } = await seed();
+    await prisma.chapter.update({
+      where: { id: chapter.id },
+      data: { content: prose("harbor"), archivedAt: new Date() },
+    });
+    mocks.create.mockResolvedValue(reply('["Start the next scene."]'));
+
+    await getStuckPrompts(project.id, user, { chapterId: chapter.id });
+    expect(mocks.create.mock.calls[0][0].messages[0].content).not.toContain("harbor");
   });
 
   it("reports a missing key or a bad reply as an error", async () => {
