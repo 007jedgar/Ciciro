@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Clipboard, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import {
@@ -223,20 +223,23 @@ export function ShareLinks({
       ) : null}
 
       <Text style={[layout.cardMeta, styles.label]}>{t("beta.links.expires")}</Text>
-      <View style={styles.chips}>
-        {SHARE_EXPIRY_PRESETS.map((days) => (
-          <Pressable
-            key={days ?? "never"}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: expiry === days }}
-            onPress={() => setExpiry(days)}
-            style={chip(expiry === days)}
-          >
-            <Text style={chipText(expiry === days)}>
-              {days === null ? t("beta.links.never") : t("beta.links.days", { count: days })}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={[styles.segment, { backgroundColor: colors.panel2 }]}>
+        {SHARE_EXPIRY_PRESETS.map((days) => {
+          const active = expiry === days;
+          return (
+            <Pressable
+              key={days ?? "never"}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+              onPress={() => setExpiry(days)}
+              style={[styles.segmentBtn, active ? { backgroundColor: colors.panel } : null]}
+            >
+              <Text style={[styles.segmentText, { color: active ? colors.ink : colors.inkSoft }]}>
+                {days === null ? t("beta.links.never") : t("beta.links.days", { count: days })}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Pressable
@@ -289,9 +292,19 @@ export function ShareLinks({
             </View>
             <Text style={layout.cardMeta}>{statusLine(link)}</Text>
             {active ? (
-              <Text style={[styles.url, { color: colors.inkSoft }]} numberOfLines={1} selectable>
-                {shareLinkUrl(link)}
-              </Text>
+              <Pressable
+                onPress={() => {
+                  const url = shareLinkUrl(link);
+                  Clipboard.setString(url);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t("beta.links.copyUrl")}
+                accessibilityHint={t("beta.links.copyUrlHint")}
+              >
+                <Text style={[styles.url, { color: colors.inkSoft }]} numberOfLines={1} selectable>
+                  {shareLinkUrl(link)}
+                </Text>
+              </Pressable>
             ) : null}
             <View style={styles.actions}>
               {active ? (
@@ -309,7 +322,7 @@ export function ShareLinks({
                   accessibilityRole="button"
                   onPress={() => confirmRevoke(link)}
                   disabled={busy}
-                  hitSlop={8}
+                  hitSlop={12}
                   style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
                 >
                   <Text style={[styles.ghostBtnText, { color: colors.inkSoft }]}>{t("beta.links.revoke")}</Text>
@@ -319,7 +332,7 @@ export function ShareLinks({
                 accessibilityRole="button"
                 onPress={() => confirmDelete(link)}
                 disabled={busy}
-                hitSlop={8}
+                hitSlop={12}
                 style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
               >
                 <Text style={[styles.ghostBtnText, { color: colors.danger }]}>{t("common.delete")}</Text>
@@ -339,12 +352,15 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
   chipText: { fontSize: 14, fontWeight: "500" },
+  segment: { flexDirection: "row", alignSelf: "flex-start", borderRadius: 8, padding: 3, marginBottom: 14 },
+  segmentBtn: { borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
+  segmentText: { fontSize: 13, fontWeight: "600" },
   picks: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, padding: 10, gap: 4, marginTop: -4, marginBottom: 14 },
   pick: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
   box: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   tick: { fontSize: 13, fontWeight: "700", lineHeight: 16 },
   pickText: { flex: 1, marginBottom: 0 },
-  primaryBtn: { alignSelf: "flex-start", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  primaryBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
   primaryBtnText: { fontSize: 15, fontWeight: "600" },
   error: { marginTop: 12, marginBottom: 0 },
   rule: { height: StyleSheet.hairlineWidth, marginVertical: 20 },
