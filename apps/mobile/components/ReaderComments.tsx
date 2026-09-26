@@ -128,6 +128,8 @@ export function ReaderComments({
             <Switch
               value={onlyChapter}
               onValueChange={setOnlyChapter}
+              trackColor={{ false: colors.line, true: colors.accent }}
+              thumbColor={colors.panel}
               accessibilityLabel={t("beta.thisChapter")}
             />
           </View>

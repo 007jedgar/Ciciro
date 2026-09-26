@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { PressableCard } from "./PressableCard";
 import { useAppTheme } from "../lib/settings";
 import {
   EXPORT_FORMATS,
@@ -52,7 +53,7 @@ export function ExportCard({
         {EXPORT_FORMATS.map((format) => {
           const label = t(`export.${format}`);
           return (
-            <Pressable
+            <PressableCard
               key={format}
               disabled={busy !== null}
               onPress={() => void run(format)}
@@ -67,9 +68,9 @@ export function ExportCard({
               {busy === format ? (
                 <ActivityIndicator size="small" color={colors.accent} />
               ) : (
-                <Text style={[styles.pillText, { color: colors.accent }]}>{label}</Text>
+                <Text numberOfLines={1} style={[styles.pillText, { color: colors.accent }]}>{label}</Text>
               )}
-            </Pressable>
+            </PressableCard>
           );
         })}
       </View>
@@ -83,9 +84,11 @@ export function ExportCard({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8, marginTop: 12 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   pill: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "40%",
+    paddingHorizontal: 8,
     minHeight: 40,
     borderRadius: 8,
     borderWidth: 1,

@@ -143,9 +143,21 @@ export function ManuscriptSearch({
       />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <Text style={layout.cardMeta}>{t("search.matchCase")}</Text>
-        <Switch value={matchCase} onValueChange={setMatchCase} accessibilityLabel={t("search.matchCase")} />
+        <Switch
+          value={matchCase}
+          onValueChange={setMatchCase}
+          trackColor={{ false: colors.line, true: colors.accent }}
+          thumbColor={colors.panel}
+          accessibilityLabel={t("search.matchCase")}
+        />
         <Text style={[layout.cardMeta, { marginLeft: 8 }]}>{t("search.wholeWord")}</Text>
-        <Switch value={wholeWord} onValueChange={setWholeWord} accessibilityLabel={t("search.wholeWord")} />
+        <Switch
+          value={wholeWord}
+          onValueChange={setWholeWord}
+          trackColor={{ false: colors.line, true: colors.accent }}
+          thumbColor={colors.panel}
+          accessibilityLabel={t("search.wholeWord")}
+        />
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 12 }}>
         <Text

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { ChapterListCard } from "../../../../components/ChapterListCard";
+import { PressableCard } from "../../../../components/PressableCard";
 import { ExportCard } from "../../../../components/ExportCard";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
@@ -202,7 +203,7 @@ export default function ChaptersScreen() {
                 />
               ) : null}
               {kind === "journal" ? (
-                <Pressable
+                <PressableCard
                   style={[layout.card, { marginBottom: 16 }]}
                   onPress={() => void startToday()}
                   accessibilityRole="button"
@@ -210,9 +211,9 @@ export default function ChaptersScreen() {
                 >
                   <Text style={layout.cardTitle}>{t("kinds.todayEntry")}</Text>
                   <Text style={layout.cardMeta}>{t("kinds.todayEntryMeta")}</Text>
-                </Pressable>
+                </PressableCard>
               ) : null}
-              <Pressable
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(`/project/${projectId}/sprint` as never)}
                 accessibilityRole="button"
@@ -220,8 +221,8 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("sprint.title")}</Text>
                 <Text style={layout.cardMeta}>{t("sprint.cardMeta")}</Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(bibleIndexHref(projectId) as never)}
                 accessibilityRole="button"
@@ -229,8 +230,8 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("bible.title")}</Text>
                 <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(scratchListHref(projectId) as never)}
                 accessibilityRole="button"
@@ -238,8 +239,8 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("scratch.title")}</Text>
                 <Text style={layout.cardMeta}>{t("scratch.cardMeta")}</Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(weeklyReviewHref(projectId) as never)}
                 accessibilityRole="button"
@@ -249,8 +250,8 @@ export default function ChaptersScreen() {
                 <Text style={layout.cardMeta}>
                   {weeklyReviews.data?.due ? t("weekly.cardDue") : t("weekly.cardMeta")}
                 </Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(betaReadersHref(projectId) as never)}
                 accessibilityRole="button"
@@ -262,8 +263,8 @@ export default function ChaptersScreen() {
                     ? t("beta.cardOpen", { count: openReaderComments.data.length })
                     : t("beta.cardMeta")}
                 </Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(`/project/${projectId}/search` as never)}
                 accessibilityRole="button"
@@ -271,8 +272,8 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("search.title")}</Text>
                 <Text style={layout.cardMeta}>{t("search.cardMeta")}</Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(outlineHref(projectId) as never)}
                 accessibilityRole="button"
@@ -280,8 +281,8 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("outline.title")}</Text>
                 <Text style={layout.cardMeta}>{t("outline.cardMeta")}</Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(`/project/${projectId}/listen` as never)}
                 accessibilityRole="button"
@@ -289,8 +290,8 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("readAloud.title")}</Text>
                 <Text style={layout.cardMeta}>{t("readAloud.cardMeta")}</Text>
-              </Pressable>
-              <Pressable
+              </PressableCard>
+              <PressableCard
                 style={[layout.card, { marginBottom: 16, opacity: importing ? 0.6 : 1 }]}
                 onPress={() => void importChapters()}
                 disabled={importing}
@@ -301,7 +302,7 @@ export default function ChaptersScreen() {
                   {importing ? t("importFile.importing") : t("importFile.chaptersCard")}
                 </Text>
                 <Text style={layout.cardMeta}>{t("importFile.chaptersMeta")}</Text>
-              </Pressable>
+              </PressableCard>
               <ExportCard projectId={projectId} flushEdits={flushEdits} />
             </View>
           ) : null
