@@ -38,10 +38,13 @@ import type {
   ManuscriptEdit,
   ManuscriptTargetPutRequest,
   ManuscriptTargetResponse,
+  RecapResponse,
   ScratchNote,
   ScratchNoteCreateRequest,
   ScratchNoteListResponse,
   ScratchNotePatchRequest,
+  StuckRequest,
+  StuckResponse,
   ShareCommentListResponse,
   ShareCommentStatus,
   ShareCommentStatusResponse,
@@ -230,6 +233,17 @@ export const ciciro = {
         api<OkResponse>(
           `/api/projects/${encodeURIComponent(id)}/scratch/${encodeURIComponent(noteId)}`,
           jsonInit("DELETE", undefined, opts)
+        ),
+    },
+    recap: {
+      get: (id: string, opts?: RequestOpts) =>
+        api<RecapResponse>(`/api/projects/${encodeURIComponent(id)}/recap`, opts),
+    },
+    stuck: {
+      ask: (id: string, body: StuckRequest, opts?: RequestOpts) =>
+        api<StuckResponse>(
+          `/api/projects/${encodeURIComponent(id)}/stuck`,
+          jsonInit("POST", body, opts)
         ),
     },
     shares: {

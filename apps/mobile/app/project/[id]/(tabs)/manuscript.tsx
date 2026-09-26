@@ -19,6 +19,7 @@ import { GrammarPopup } from "../../../../components/GrammarPopup";
 import { ReaderCommentsPill } from "../../../../components/ReaderCommentsPill";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
+import { StuckPill } from "../../../../components/StuckPill";
 import { SuggestionsPill, SuggestionsSheet } from "../../../../components/SuggestionsReview";
 import { ciciro } from "../../../../lib/api";
 import type { SyncOp } from "../../../../lib/api/types";
@@ -530,6 +531,7 @@ export default function ManuscriptScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
           <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
+          {project && !focusMode ? <StuckPill projectId={project.id} chapterId={chapter.id} /> : null}
           {project && !focusMode ? <ReaderCommentsPill projectId={project.id} chapterId={chapter.id} /> : null}
           {resume ? (
             <Text

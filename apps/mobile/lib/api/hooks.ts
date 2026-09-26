@@ -998,6 +998,24 @@ export function useSyncPushMutation() {
   });
 }
 
+/** The "Previously on" recap. The server caches it, so one ask per app run is plenty. */
+export function useRecapQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.recap(projectId),
+    queryFn: async () => (await ciciro.projects.recap.get(projectId)).recap,
+    staleTime: Infinity,
+    retry: false,
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useStuckPromptsMutation() {
+  return useMutation({
+    mutationFn: async ({ projectId, chapterId }: { projectId: string; chapterId?: string | null }) =>
+      (await ciciro.projects.stuck.ask(projectId, { chapterId })).prompts,
+  });
+}
+
 /** How often an open scratchpad checks for edits made on another device. */
 const SCRATCH_REFRESH_MS = 20_000;
 

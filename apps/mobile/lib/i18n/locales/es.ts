@@ -494,6 +494,18 @@ const es: Translations = {
     bodyLabel: "Texto de la nota",
     bodyPlaceholder: "Escribe lo que quieras...",
   },
+  recap: {
+    title: "Anteriormente",
+    dismiss: "Descartar",
+  },
+  stuck: {
+    pill: "Estoy atascado",
+    hint: "Obtén algunas ideas para seguir escribiendo",
+    title: "Caminos a seguir",
+    blurb: "Algunos próximos pasos a partir de este capítulo y tu biblia de la historia. Elige uno para comentarlo con Ciciro.",
+    error: "No se pudieron obtener ideas ahora. Inténtalo de nuevo.",
+    more: "Más ideas",
+  },
   beta: {
     title: "Lectores beta",
     cardMeta: "Comparte enlaces de solo lectura y lee lo que opinan",

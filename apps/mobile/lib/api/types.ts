@@ -785,6 +785,14 @@ export type ScratchNotePatchRequest = {
 /** The 409 body for a scratch note edited on another device. */
 export type ScratchNoteConflict = { error: string; currentRevision: number; note: ScratchNote };
 
+/** The cached "Previously on" recap. `recap` is null when there is nothing to say. */
+export type Recap = { text: string; generatedAt: string };
+export type RecapResponse = { recap: Recap | null };
+
+/** A few concrete next-step prompts for an author who is stuck. */
+export type StuckRequest = { chapterId?: string | null };
+export type StuckResponse = { prompts: string[] };
+
 /** Mirrors src/lib/share-view.ts. */
 export type ShareLinkStatus = "active" | "expired" | "revoked";
 
