@@ -5,8 +5,20 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DrawerHead from "@/components/DrawerHead";
-import OpenInApp from "@/components/OpenInApp";
+import OpenInApp, { APP_LAUNCH_WAIT_MS } from "@/components/OpenInApp";
 import TopbarMore from "@/components/TopbarMore";
+import WorkspaceGate from "@/components/WorkspaceGate";
+import { PHONE_WIDTH_QUERY } from "@/lib/phone-width";
+import type { Project } from "@/lib/types";
+import { THEMES, applyTheme } from "@/lib/theme";
+
+const workspaceMounts = vi.hoisted(() => vi.fn());
+vi.mock("@/components/Workspace", () => ({
+  default: () => {
+    workspaceMounts();
+    return <div data-testid="workspace" />;
+  },
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -70,21 +82,128 @@ describe("OpenInApp", () => {
     expect(host.querySelector("h1")?.textContent).toContain("The Salt Road");
     expect(host.querySelector<HTMLAnchorElement>('a[href="ciciro://"]')).not.toBeNull();
     expect(host.querySelector<HTMLAnchorElement>('a[href="/"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("iPhone");
   });
-});
 
-describe("theme tokens", () => {
-  const css = readFileSync("src/app/globals.css", "utf8");
+  function tapOpen() {
+    const link = host.querySelector<HTMLAnchorElement>('a[href="ciciro://"]')!;
+    link.addEventListener("click", (e) => e.preventDefault(), { once: true });
+    link.click();
+  }
 
-  it("defines --on-accent for every theme", () => {
-    for (const id of ["parchment", "sage", "ember", "walnut", "inkwell", "candle"]) {
-      const block = css.match(new RegExp(`\\[data-theme="${id}"\\] \\{[^}]*\\}`))?.[0] ?? "";
-      expect(block, id).toContain("--on-accent:");
+  it("says the app is missing when the page is still here after the wait", async () => {
+    vi.useFakeTimers();
+    try {
+      await act(async () => root.render(<OpenInApp title="The Salt Road" />));
+      await act(async () => tapOpen());
+      await act(async () => vi.advanceTimersByTime(APP_LAUNCH_WAIT_MS - 1));
+      expect(host.querySelector('[role="status"]')).toBeNull();
+      await act(async () => vi.advanceTimersByTime(1));
+      expect(host.querySelector('[role="status"]')?.textContent).toBe(
+        "The Ciciro app is not installed on this device."
+      );
+    } finally {
+      vi.useRealTimers();
     }
   });
 
-  it("paints primary buttons with --on-accent, not white", () => {
-    const rule = css.match(/\.btn\.primary \{[^}]*\}/)?.[0] ?? "";
-    expect(rule).toContain("color: var(--on-accent)");
+  it("stays quiet when the app takes the page away", async () => {
+    vi.useFakeTimers();
+    try {
+      await act(async () => root.render(<OpenInApp title="The Salt Road" />));
+      await act(async () => tapOpen());
+      await act(async () => window.dispatchEvent(new Event("pagehide")));
+      await act(async () => vi.advanceTimersByTime(APP_LAUNCH_WAIT_MS * 2));
+      expect(host.querySelector('[role="status"]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
+});
+
+describe("WorkspaceGate", () => {
+  function mockWidth(phone: boolean) {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: phone && query === PHONE_WIDTH_QUERY,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not mount the workspace at phone widths", async () => {
+    mockWidth(true);
+    await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
+    expect(workspaceMounts).not.toHaveBeenCalled();
+    expect(host.innerHTML).toBe("");
+  });
+
+  it("mounts the workspace on wider screens", async () => {
+    mockWidth(false);
+    await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
+    expect(workspaceMounts).toHaveBeenCalled();
+    expect(host.querySelector("[data-testid=workspace]")).not.toBeNull();
+  });
+});
+
+describe("theme contrast", () => {
+  let sheet: HTMLStyleElement;
+
+  beforeEach(() => {
+    sheet = document.createElement("style");
+    sheet.textContent = readFileSync("src/app/globals.css", "utf8");
+    document.head.appendChild(sheet);
+  });
+
+  afterEach(() => {
+    sheet.remove();
+    document.documentElement.removeAttribute("data-theme");
+  });
+
+  function resolve(el: Element, value: string, depth = 0): string {
+    const next = value.replace(/var\((--[\w-]+)\)/g, (_, name: string) =>
+      getComputedStyle(el).getPropertyValue(name).trim()
+    );
+    return next.includes("var(") && depth < 8 ? resolve(el, next, depth + 1) : next.trim();
+  }
+
+  function luminance(color: string): number {
+    const hex = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+    if (!hex) throw new Error(`unsupported color ${color}`);
+    const full = hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex;
+    const [r, g, b] = [0, 2, 4].map((i) => {
+      const c = parseInt(full.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function contrast(a: string, b: string): number {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  for (const className of ["btn primary", "count-chip"]) {
+    it(`keeps .${className.replace(" ", ".")} text at AA on the accent in every theme`, () => {
+      const el = document.createElement(className === "count-chip" ? "span" : "button");
+      el.className = className;
+      document.body.appendChild(el);
+      try {
+        for (const theme of THEMES) {
+          applyTheme(theme.id);
+          const style = getComputedStyle(el);
+          const fg = resolve(el, style.color);
+          const bg = resolve(el, style.getPropertyValue("background"));
+          expect(contrast(fg, bg), `${theme.id}: ${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+        }
+      } finally {
+        el.remove();
+      }
+    });
+  }
 });

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import Workspace from "@/components/Workspace";
+import WorkspaceGate from "@/components/WorkspaceGate";
 import OpenInApp from "@/components/OpenInApp";
 import type { Project } from "@/lib/types";
 
@@ -26,7 +26,7 @@ export default async function ProjectPage({
   return (
     <>
       <OpenInApp title={project.title} />
-      <Workspace initialProject={project as unknown as Project} />
+      <WorkspaceGate initialProject={project as unknown as Project} />
     </>
   );
 }
