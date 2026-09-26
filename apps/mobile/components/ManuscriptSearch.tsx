@@ -142,7 +142,13 @@ export function ManuscriptSearch({
         spellCheck={settings.autoCorrect}
         maxLength={2000}
       />
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <Text
+        style={[error ? layout.error : layout.cardMeta, { marginBottom: 12 }]}
+        accessibilityLiveRegion="polite"
+      >
+        {summary}
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}>
         <Text style={layout.cardMeta}>{t("search.matchCase")}</Text>
         <Switch
           value={matchCase}
@@ -158,30 +164,32 @@ export function ManuscriptSearch({
           accessibilityLabel={t("search.wholeWord")}
         />
       </View>
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 12 }}>
+      <Pressable
+        onPress={confirmReplaceAll}
+        disabled={busy || !result || result.total === 0}
+        accessibilityRole="button"
+        accessibilityLabel={t("search.replaceAll")}
+        style={{
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 8,
+          backgroundColor: busy || !result || result.total === 0 ? "transparent" : colors.accent,
+          borderWidth: busy || !result || result.total === 0 ? 1 : 0,
+          borderColor: busy || !result || result.total === 0 ? colors.inkSoft : undefined,
+          opacity: busy ? 0.4 : 1,
+          marginBottom: 12,
+        }}
+      >
         <Text
-          style={[error ? layout.error : layout.cardMeta, { flex: 1 }]}
-          accessibilityLiveRegion="polite"
-        >
-          {summary}
-        </Text>
-        {busy ? <ActivityIndicator color={colors.accent} /> : null}
-        <Pressable
-          onPress={confirmReplaceAll}
-          disabled={busy || !result || result.total === 0}
-          accessibilityRole="button"
-          accessibilityLabel={t("search.replaceAll")}
           style={{
-            paddingHorizontal: 14,
-            paddingVertical: 8,
-            borderRadius: 10,
-            backgroundColor: colors.accent,
-            opacity: busy || !result || result.total === 0 ? 0.4 : 1,
+            color: busy || !result || result.total === 0 ? colors.inkSoft : colors.bg,
+            fontWeight: "600",
+            textAlign: "center",
           }}
         >
-          <Text style={{ color: colors.bg, fontWeight: "600" }}>{t("search.replaceAll")}</Text>
-        </Pressable>
-      </View>
+          {t("search.replaceAll")}
+        </Text>
+      </Pressable>
       {groups.map((group) => (
         <View key={group.chapterId} style={{ marginBottom: 12 }}>
           <Text style={[layout.cardMeta, { marginBottom: 4, fontWeight: "600" }]}>
