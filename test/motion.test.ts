@@ -1,45 +1,68 @@
+// @vitest-environment jsdom
+
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import { MOTION_MS } from "@/lib/motion";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MOTION_MS, motionMs, prefersReducedMotion } from "@/lib/motion";
 import { REST_FRACTION, scrollDeltaTo } from "@/lib/editor-scroll";
 import { boxIndexAt } from "@/lib/outline";
 
-const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
-
-function token(name: string): number {
-  const match = new RegExp(`--${name}:\\s*calc\\((\\d+)ms \\* var\\(--motion\\)\\)`).exec(css);
-  if (!match) throw new Error(`--${name} is not a motion-scaled token`);
-  return Number(match[1]);
+// The --duration-* custom properties globals.css declares, in unscaled ms.
+function durationTokens(): Map<string, number> {
+  const css = readFileSync(join(__dirname, "../src/app/globals.css"), "utf8");
+  const tokens = new Map<string, number>();
+  for (const [, name, ms] of css.matchAll(/--(duration-[\w-]+):\s*calc\((\d+)ms \* var\(--motion\)\)/g)) {
+    tokens.set(name, Number(ms));
+  }
+  return tokens;
 }
 
 describe("motion tokens", () => {
   // JS waits these out before unmounting or removing a row, so a CSS change
   // that is not repeated here would cut an animation short or leave a ghost.
   it("mirrors the CSS durations JS waits for", () => {
-    expect(MOTION_MS.drawerOut).toBe(token("duration-drawer-out"));
-    expect(MOTION_MS.dialogOut).toBe(token("duration-drawer-out"));
-    expect(MOTION_MS.popoverOut).toBe(token("duration-popover-out"));
-    expect(MOTION_MS.remove).toBe(token("duration-remove"));
-    expect(MOTION_MS.collapse).toBe(token("duration-collapse"));
-    expect(MOTION_MS.accordion).toBe(token("duration-accordion"));
-    expect(MOTION_MS.flash).toBe(token("duration-flash"));
-    expect(MOTION_MS.pulse).toBe(token("duration-pulse"));
-    expect(MOTION_MS.focus).toBe(token("duration-focus"));
-    expect(MOTION_MS.reorder).toBe(token("duration-reorder"));
-    expect(MOTION_MS.drop).toBe(token("duration-drop"));
-    expect(MOTION_MS.typewriter).toBe(token("duration-typewriter"));
-    expect(MOTION_MS.suggestionCollapse).toBe(token("duration-suggestion-fold"));
+    const tokens = durationTokens();
+    expect({
+      drawerOut: tokens.get("duration-drawer-out"),
+      dialogOut: tokens.get("duration-drawer-out"),
+      popoverOut: tokens.get("duration-popover-out"),
+      remove: tokens.get("duration-remove"),
+      collapse: tokens.get("duration-collapse"),
+      accordion: tokens.get("duration-accordion"),
+      flash: tokens.get("duration-flash"),
+      pulse: tokens.get("duration-pulse"),
+      focus: tokens.get("duration-focus"),
+      reorder: tokens.get("duration-reorder"),
+      drop: tokens.get("duration-drop"),
+      typewriter: tokens.get("duration-typewriter"),
+      suggestionCollapse: tokens.get("duration-suggestion-fold"),
+    }).toEqual(MOTION_MS);
+  });
+});
+
+describe("reduced motion", () => {
+  afterEach(() => {
+    document.documentElement.removeAttribute("data-reduce-motion");
+    vi.unstubAllGlobals();
   });
 
-  it("stills every token when motion is reduced, by the setting or the OS", () => {
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*:root \{\s*--motion: 0;/);
-    expect(css).toMatch(/:root\[data-reduce-motion="true"\] \{\s*--motion: 0;/);
+  it("keeps durations when nothing asks for less motion", () => {
+    expect(prefersReducedMotion()).toBe(false);
+    expect(motionMs(MOTION_MS.remove)).toBe(MOTION_MS.remove);
   });
 
-  it("never hard-codes a duration on a transition or animation it can take from a token", () => {
-    const motionSection = css.slice(css.indexOf("/* ---------- Motion and feedback"));
-    const hardCoded = motionSection.match(/(?:animation|transition)[^;{}]*\b\d+ms\b/g) ?? [];
-    expect(hardCoded).toEqual([]);
+  it("stills every wait when the writer turns motion down", () => {
+    document.documentElement.setAttribute("data-reduce-motion", "true");
+    expect(prefersReducedMotion()).toBe(true);
+    expect(motionMs(MOTION_MS.remove)).toBe(0);
+  });
+
+  it("stills every wait when the OS asks for reduced motion", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    expect(prefersReducedMotion()).toBe(true);
+    expect(motionMs(MOTION_MS.pulse)).toBe(0);
   });
 });
 

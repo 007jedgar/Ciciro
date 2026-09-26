@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -45,10 +46,12 @@ export function useSnackbar(): Show {
 }
 
 // One snackbar at a time, bottom centre. Showing another settles the one on
-// screen: its deferred work commits rather than being dropped.
+// screen: its deferred work commits rather than being dropped. A plain message
+// never settles one that still offers Undo; it waits its turn instead.
 export function SnackbarProvider({ children }: { children: ReactNode }) {
   const [item, setItem] = useState<Item | null>(null);
   const live = useRef<Item | null>(null);
+  const waiting = useRef<SnackbarInput[]>([]);
   const settled = useRef(new Set<number>());
   const nextId = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,11 +70,18 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     void target.onCommit?.();
   }, []);
 
+  const open = useRef<(input: SnackbarInput) => void>(() => {});
+
   const dismiss = useCallback(() => {
     clearTimer();
     const current = live.current;
     if (!current) return;
     live.current = null;
+    const queued = waiting.current.shift();
+    if (queued) {
+      open.current(queued);
+      return;
+    }
     setItem({ ...current, state: "closed" });
     if (removeTimer.current) clearTimeout(removeTimer.current);
     removeTimer.current = setTimeout(
@@ -93,15 +103,33 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     [commit, dismiss]
   );
 
-  const show = useCallback<Show>(
-    (input) => {
-      commit(live.current);
+  const openItem = useCallback(
+    (input: SnackbarInput) => {
       const next: Item = { ...input, id: ++nextId.current, state: "open" };
       live.current = next;
       setItem(next);
       arm(input.duration ?? SNACKBAR_MS);
     },
-    [arm, commit]
+    [arm]
+  );
+  useLayoutEffect(() => {
+    open.current = openItem;
+  }, [openItem]);
+
+  const show = useCallback<Show>(
+    (input) => {
+      const current = live.current;
+      const plain = !input.onCommit && !input.onAction;
+      const pending =
+        current && !settled.current.has(current.id) && (current.onCommit || current.onAction);
+      if (plain && pending) {
+        waiting.current.push(input);
+        return;
+      }
+      commit(current);
+      openItem(input);
+    },
+    [commit, openItem]
   );
 
   // Leaving the page must not lose a delete the writer already saw go.

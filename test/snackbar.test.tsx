@@ -78,6 +78,30 @@ describe("snackbar", () => {
     expect(text()).toBe("Two");
   });
 
+  it("holds a plain message back rather than settle one that still offers Undo", async () => {
+    const onCommit = vi.fn();
+    const onAction = vi.fn();
+    await act(async () => show({ message: "Deleted", actionLabel: "Undo", onAction, onCommit }));
+    await act(async () => show({ message: "Couldn't delete" }));
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(text()).toBe("DeletedUndo");
+    await act(async () => host.querySelector<HTMLButtonElement>(".snackbar-action")!.click());
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(text()).toBe("Couldn't delete");
+    await act(async () => void vi.advanceTimersByTime(SNACKBAR_MS + 400));
+    expect(text()).toBeNull();
+  });
+
+  it("shows the held message once the one before it commits", async () => {
+    const onCommit = vi.fn();
+    await act(async () => show({ message: "Deleted", actionLabel: "Undo", onAction: vi.fn(), onCommit }));
+    await act(async () => show({ message: "Couldn't delete" }));
+    await act(async () => void vi.advanceTimersByTime(SNACKBAR_MS + 1));
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(text()).toBe("Couldn't delete");
+  });
+
   it("commits when the page is hidden, so a delete the writer saw go is not lost", async () => {
     const onCommit = vi.fn();
     await act(async () => show({ message: "Deleted", onCommit }));
