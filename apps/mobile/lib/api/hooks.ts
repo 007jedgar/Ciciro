@@ -1008,8 +1008,8 @@ export function useScratchNotesQuery(projectId: string, options?: Enabled) {
 }
 
 /** Newest edit first, matching the server's list order. */
-function putScratchNote(projectId: string, note: ScratchNote): void {
-  void queryClient.cancelQueries({ queryKey: queryKeys.scratch(projectId) });
+async function putScratchNote(projectId: string, note: ScratchNote): Promise<void> {
+  await queryClient.cancelQueries({ queryKey: queryKeys.scratch(projectId) });
   queryClient.setQueryData<ScratchNote[]>(queryKeys.scratch(projectId), (notes) => [
     note,
     ...(notes ?? []).filter((n) => n.id !== note.id),

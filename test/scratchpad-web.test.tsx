@@ -31,6 +31,7 @@ function json(body: unknown, status = 200) {
 let root: Root;
 let host: HTMLDivElement;
 let saveFails: boolean;
+let loseResponse: boolean;
 let server: ScratchNote;
 const patches: Array<Record<string, unknown>> = [];
 
@@ -69,6 +70,7 @@ beforeEach(() => {
   window.localStorage.clear();
   patches.length = 0;
   saveFails = true;
+  loseResponse = false;
   server = note();
   vi.stubGlobal(
     "fetch",
@@ -77,7 +79,9 @@ beforeEach(() => {
         const body = JSON.parse(String(init.body));
         patches.push(body);
         if (saveFails) return json({ error: "Server unavailable" }, 500);
+        if (body.expectedRevision !== server.revision) return json({ note: server }, 409);
         server = note({ ...body, revision: server.revision + 1 });
+        if (loseResponse) throw new TypeError("Network connection lost");
         return json(server);
       }
       return json({ notes: [server] });
@@ -125,5 +129,50 @@ describe("Scratchpad after a failed save", () => {
     expect(patches.at(-1)).toMatchObject({ content: "moon and tides", expectedRevision: 2 });
     expect(server.content).toBe("moon and tides");
     expect(host.textContent).not.toContain("Not saved yet");
+  });
+
+  it("keeps the typing in memory when browser storage is unavailable", async () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+    try {
+      await act(async () => root.render(<Scratchpad projectId="p1" onClose={() => {}} />));
+      await settle();
+
+      await click(button("Tides"));
+      await type("moon and tides");
+      await click(button("All notes"));
+      expect(host.textContent).toContain("Not saved yet, will retry");
+
+      await click(button("Tides"));
+      expect(host.querySelector("textarea")!.value).toBe("moon and tides");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("clears the waiting typing when a save landed but its answer was lost", async () => {
+    await act(async () => root.render(<Scratchpad projectId="p1" onClose={() => {}} />));
+    await settle();
+
+    saveFails = false;
+    loseResponse = true;
+    await click(button("Tides"));
+    await type("moon and tides");
+    await click(button("All notes"));
+    await settle();
+    loseResponse = false;
+    expect(server).toMatchObject({ content: "moon and tides", revision: 3 });
+    expect(host.textContent).not.toContain("Not saved yet");
+    const sent = patches.length;
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await settle();
+    expect(patches.length).toBe(sent);
+
+    await click(button("Tides"));
+    expect(host.querySelector("textarea")!.value).toBe("moon and tides");
+    expect(host.textContent).not.toContain("another device");
   });
 });

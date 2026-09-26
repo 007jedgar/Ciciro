@@ -72,12 +72,14 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRef = useRef<string | null>(null);
   activeRef.current = activeId;
+  const unsavedRef = useRef<Record<string, Unsaved>>({});
 
   const stash = useCallback(
     (id: string, value: Unsaved | null) => {
-      const all = readUnsaved(projectId);
+      const all = { ...unsavedRef.current };
       if (value) all[id] = value;
       else delete all[id];
+      unsavedRef.current = all;
       writeUnsaved(projectId, all);
       setUnsaved(all);
     },
@@ -97,7 +99,14 @@ export default function Scratchpad({ projectId, onClose }: Props) {
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.status === 409 && data.note) return { kind: "conflict", note: data.note };
+        if (res.status === 409 && data.note) {
+          const note = data.note as ScratchNote;
+          // An earlier save whose answer was lost already holds this exact text.
+          if (note.title === body.title && note.content === body.content) {
+            return { kind: "saved", note };
+          }
+          return { kind: "conflict", note };
+        }
         if (!res.ok) return { kind: "error", message: data.error || "Couldn't save the note." };
         return { kind: "saved", note: data as ScratchNote };
       } catch {
@@ -110,8 +119,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   // Retry notes whose typing is still waiting from an earlier failed save.
   const retryUnsaved = useCallback(
     async (list: ScratchNote[]) => {
-      const all = readUnsaved(projectId);
-      for (const [id, body] of Object.entries(all)) {
+      for (const [id, body] of Object.entries(unsavedRef.current)) {
         if (id === activeRef.current) continue;
         if (!list.some((n) => n.id === id)) {
           stash(id, null);
@@ -120,11 +128,21 @@ export default function Scratchpad({ projectId, onClose }: Props) {
         const result = await push(id, body);
         if (result.kind !== "saved") continue;
         writes.current += 1;
-        stash(id, null);
+        if (unsavedRef.current[id] === body) stash(id, null);
+        // The note may have been reopened from this same stash while the retry ran.
+        if (id === activeRef.current && revision.current === body.revision) {
+          revision.current = result.note.revision;
+          const same =
+            draft.current.title === body.title && draft.current.content === body.content;
+          if (same && !conflict.current) {
+            dirty.current = false;
+            setState("saved");
+          }
+        }
         setNotes((prev) => [result.note, ...(prev ?? []).filter((n) => n.id !== id)]);
       }
     },
-    [projectId, push, stash]
+    [push, stash]
   );
 
   const load = useCallback(async () => {
@@ -170,7 +188,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   // Reopening a note whose last save failed brings that typing back and retries it.
   function restore(note: ScratchNote) {
-    const pending = readUnsaved(projectId)[note.id];
+    const pending = unsavedRef.current[note.id];
     show(note);
     if (!pending) return;
     draft.current = { title: pending.title, content: pending.content };
@@ -183,7 +201,8 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   useEffect(() => {
-    setUnsaved(readUnsaved(projectId));
+    unsavedRef.current = readUnsaved(projectId);
+    setUnsaved(unsavedRef.current);
     void load();
     const interval = setInterval(() => void load(), REFRESH_MS);
     const onFocus = () => void load();
