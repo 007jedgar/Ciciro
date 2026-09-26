@@ -163,6 +163,11 @@
   --duration-reorder: calc(150ms * var(--motion));
   --duration-drop: calc(120ms * var(--motion));
   --duration-suggestion-fold: calc(160ms * var(--motion));
+  --duration-reading: calc(150ms * var(--motion));
+  --stagger-idea: calc(50ms * var(--motion));
+  --stagger-rise: calc(60ms * var(--motion));
+  --duration-typewriter: calc(120ms * var(--motion));
+  --duration-accordion: calc(200ms * var(--motion));
   --press-scale: 0.98;
   --hover-lift: -1px;
   --enter-shift: 24px;
@@ -3158,7 +3163,7 @@ textarea {
 /* Ideas arrive one after another, 50ms apart. */
 .stuck-pop li {
   animation: rise-in var(--duration-base) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 50ms * var(--motion));
+  animation-delay: calc(var(--i, 0) * var(--stagger-idea));
 }
 
 /* Snackbar: one at a time, bottom centre. */
@@ -3300,7 +3305,7 @@ textarea {
 }
 .rise > * {
   animation: rise-in var(--duration-base) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 60ms * var(--motion));
+  animation-delay: calc(var(--i, 0) * var(--stagger-rise));
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
@@ -3585,10 +3590,10 @@ textarea {
 .collapse {
   display: grid;
   grid-template-rows: 1fr;
-  animation: collapse-in var(--duration-base) var(--ease-out) both;
+  animation: collapse-in var(--duration-accordion) var(--ease-out) both;
 }
 .collapse[data-state="closed"] {
-  animation: collapse-out var(--duration-base) var(--ease-out) both;
+  animation: collapse-out var(--duration-accordion) var(--ease-out) both;
 }
 .collapse-inner {
   min-height: 0;
@@ -3615,5 +3620,5 @@ textarea {
   }
 }
 .ProseMirror .reading-aloud {
-  animation: reading-in var(--duration-reading, calc(150ms * var(--motion))) ease-out both;
+  animation: reading-in var(--duration-reading) ease-out both;
 }
