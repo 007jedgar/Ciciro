@@ -1390,7 +1390,9 @@ export async function executeEditorTool(
       const applied: { find: string; replace: string }[] = [];
       for (const r of replacements) {
         if (!r.find) continue;
-        const literalCount = content.split(r.find).length - 1;
+        const scriptBlocks =
+          kind === "screenplay" && /\n/.test(r.replace ?? "") && findBlockRun(content, r.find) !== null;
+        const literalCount = scriptBlocks ? 0 : content.split(r.find).length - 1;
         if (literalCount > 0) {
           content = content.split(r.find).join(r.replace ?? "");
           report.push(`replaced "${r.find}" -> "${r.replace}" (${literalCount}x)`);

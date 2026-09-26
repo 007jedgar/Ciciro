@@ -3,11 +3,13 @@ import { prisma } from "@/lib/db";
 import { createProject, getProject, updateProject } from "@/lib/projects";
 import { createChapter, archiveChapter, SINGLE_PIECE_ERROR } from "@/lib/chapters";
 import { registerUser } from "@/lib/auth/session";
-import { resolveSuggestions } from "@/lib/suggestions";
+import { CICIRO_AUTHOR, resolveSuggestions, suggestReplacements } from "@/lib/suggestions";
 import { executeEditorTool } from "@/lib/tools";
 import { updateUserSettings } from "@/lib/user-settings";
 import { buildEditorContext } from "@/lib/context";
-import { elementOfHtml } from "@/lib/manuscript-kind";
+import { assistantReplacementSplitter, elementOfHtml } from "@/lib/manuscript-kind";
+
+const scanIds = (html: string) => [...html.matchAll(/<p\b[^>]*data-block-id="([^"]+)"/g)].map((m) => m[1]);
 
 describe("manuscript kinds", () => {
   beforeEach(async () => {
@@ -176,6 +178,54 @@ describe("assistant tools respect the manuscript kind", () => {
     expect(blocks(resolveSuggestions(after.content, "reject"))).toEqual([
       ["scene-heading", "INT. HALL - DAY"],
       ["action", "Old action."],
+    ]);
+  });
+
+  it.each([true, false])(
+    "splits a one-block script edit into elements (suggestions %s)",
+    async (aiSuggestions) => {
+      const owner = await registerUser({ email: "sp@example.com", password: "long-enough-pw", name: "Sam" });
+      await updateUserSettings(owner.id, { aiSuggestions });
+      const script = await createProject(owner, { title: "Heist", kind: "screenplay" });
+      const [chapter] = script.chapters;
+      const seeded = await prisma.chapter.update({
+        where: { id: chapter.id },
+        data: { content: '<p data-sp="scene-heading">INT. HALL - DAY</p><p>Old action.</p>' },
+      });
+      const result = await executeEditorTool(
+        "edit_manuscript",
+        {
+          chapterNumber: 1,
+          expectedRevision: seeded.revision,
+          replacements: [{ find: "Old action.", replace: "Mara stares.\nMARA\nHello." }],
+        },
+        { projectId: script.id }
+      );
+      expect(result.mutationCount).toBe(1);
+      const after = await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } });
+      expect(blocks(resolveSuggestions(after.content, "accept"))).toEqual([
+        ["scene-heading", "INT. HALL - DAY"],
+        ["action", "Mara stares."],
+        ["character", "MARA"],
+        ["dialogue", "Hello."],
+      ]);
+    }
+  );
+
+  it("pairs a script block with its element whatever the attribute order", () => {
+    const { html } = suggestReplacements(
+      '<p data-sp="character" data-block-id="a">MARA</p><p data-sp="dialogue" data-block-id="b">Hi there.</p>',
+      [{ find: "MARA\n\nHi there.", replace: "MARA\nHello there." }],
+      {
+        author: CICIRO_AUTHOR,
+        newBlockId: () => "nb",
+        splitReplacement: assistantReplacementSplitter("screenplay"),
+      }
+    );
+    expect(scanIds(html)).toEqual(["a", "b"]);
+    expect(blocks(resolveSuggestions(html, "accept"))).toEqual([
+      ["character", "MARA"],
+      ["dialogue", "Hello there."],
     ]);
   });
 

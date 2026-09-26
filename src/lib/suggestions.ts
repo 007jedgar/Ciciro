@@ -1096,6 +1096,8 @@ function suggestOne(
 ): { html: string; outcome: SuggestOutcome } {
   const needle = normalizeNeedle(edit.find);
   if (!needle.trim()) return { html, outcome: { status: "not_found" } };
+  const whole = suggestWholeBlocks(html, edit, opts);
+  if (whole) return whole;
   const replace = normalizeNeedle(edit.replace);
   const blocks = scanBlocks(html);
   const elsewhere = idsSpanningBlocks(blocks);
@@ -1146,6 +1148,56 @@ function suggestOne(
   if (conflict) return { html, outcome: { status: "conflict", authorName: conflict.authorName } };
   if (unchanged > 0) return { html, outcome: { status: "unchanged" } };
   return suggestAcrossBlocks(html, edit, opts);
+}
+
+/**
+ * A find that is a whole paragraph, replaced by several: each match becomes a
+ * one-block run so the new paragraphs land as their own blocks.
+ */
+function suggestWholeBlocks(
+  html: string,
+  edit: SuggestEdit,
+  opts: Required<SuggestOptions>
+): { html: string; outcome: SuggestOutcome } | null {
+  if (opts.splitReplacement(edit.replace).filter((p) => p.text).length < 2) return null;
+  const needle = normalizeNeedle(edit.find).trim();
+  const matches = scanBlocks(html).flatMap((block, i) =>
+    block.items && project(block.items, BASE).text.trim() === needle ? [i] : []
+  );
+  let current = html;
+  let count = 0;
+  let conflicts = 0;
+  let conflict: Conflict | null = null;
+  for (const index of matches.reverse()) {
+    const blocks = scanBlocks(current);
+    const result = suggestBlockRun(current, [blocks[index]], blocks, edit, opts);
+    if (result.outcome.status === "conflict") {
+      conflict = conflict ?? { authorName: result.outcome.authorName };
+      conflicts += 1;
+      continue;
+    }
+    current = result.html;
+    count += 1;
+  }
+  if (count > 0) return { html: current, outcome: { status: "suggested", count, conflicts } };
+  if (conflict) return { html, outcome: { status: "conflict", authorName: conflict.authorName } };
+  return null;
+}
+
+function openTagAttrs(open: string): string[] {
+  const inner = open.replace(/^<\s*([a-z][\w-]*)/i, "").replace(/\/?>$/, "");
+  const tag = open.match(/^<\s*([a-z][\w-]*)/i)?.[1]?.toLowerCase() ?? "";
+  const attrs = [...inner.matchAll(/([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)].map(
+    (m) => `${m[1].toLowerCase()}=${m[2] ?? m[3] ?? m[4] ?? ""}`
+  );
+  return [tag, ...attrs.sort()];
+}
+
+function sameOpenTag(a: string, b: string): boolean {
+  if (a === b) return true;
+  const left = openTagAttrs(a);
+  const right = openTagAttrs(b);
+  return left.length === right.length && left.every((part, i) => part === right[i]);
 }
 
 /**
@@ -1207,7 +1259,7 @@ function suggestBlockRun(
     const pairable =
       paragraph !== undefined &&
       items.every((it) => it.t === "text") &&
-      (paragraph.mark?.(block.open) ?? block.open) === block.open;
+      sameOpenTag(paragraph.mark?.(block.open) ?? block.open, block.open);
     if (pairable) {
       const source = items.filter((it): it is TextItem => isText(it) && BASE(it));
       next.set(block, blockHtml(block, trackedItems(source, codePoints(paragraph.text), opts.author, id, createdAt)));
