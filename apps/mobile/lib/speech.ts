@@ -49,15 +49,22 @@ export function resetSpeechModule() {
 type ResultEvent = { isFinal: boolean; results: { transcript: string }[] };
 type ErrorEvent = { error: string; message?: string };
 
-export type DictationError = "denied" | "unavailable";
+export type DictationError = "denied" | "unavailable" | "language" | "network";
 
 /** Errors after which listening again would just fail again. */
-const FATAL = new Set([
-  "not-allowed",
-  "service-not-allowed",
-  "audio-capture",
-  "language-not-supported",
-]);
+const FATAL: Record<string, DictationError> = {
+  "not-allowed": "denied",
+  "service-not-allowed": "denied",
+  "audio-capture": "unavailable",
+  "language-not-supported": "language",
+  network: "network",
+};
+
+/** What the recognizer reports during an ordinary pause; listening carries on. */
+const ROUTINE = new Set(["no-speech", "aborted", "speech-timeout"]);
+
+/** Other errors in a row, with no words heard between them, before giving up. */
+const MAX_ERROR_RESTARTS = 3;
 
 export function useDictation({
   lang,
@@ -72,6 +79,7 @@ export function useDictation({
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const wanted = useRef(false);
+  const failures = useRef(0);
   const onPhraseRef = useRef(onPhrase);
   onPhraseRef.current = onPhrase;
   const onErrorRef = useRef(onError);
@@ -104,6 +112,7 @@ export function useDictation({
     if (!mod) return;
     const subs = [
       mod.addListener("result", ((event: ResultEvent) => {
+        failures.current = 0;
         const transcript = event.results[0]?.transcript ?? "";
         if (event.isFinal) {
           setInterim("");
@@ -113,13 +122,14 @@ export function useDictation({
         }
       }) as (event: never) => void),
       mod.addListener("error", ((event: ErrorEvent) => {
-        if (!FATAL.has(event.error)) return;
+        if (ROUTINE.has(event.error)) return;
+        const fatal = FATAL[event.error];
+        failures.current += 1;
+        if (!fatal && failures.current < MAX_ERROR_RESTARTS) return;
         wanted.current = false;
         setListening(false);
         setInterim("");
-        onErrorRef.current?.(
-          event.error === "audio-capture" ? "unavailable" : "denied",
-        );
+        onErrorRef.current?.(fatal ?? "unavailable");
       }) as (event: never) => void),
       mod.addListener("end", (() => {
         // The system ends a session after a stretch of silence. Keep listening
@@ -161,6 +171,7 @@ export function useDictation({
       return;
     }
     wanted.current = true;
+    failures.current = 0;
     setListening(true);
     try {
       begin();

@@ -289,6 +289,8 @@ const hi: Translations = {
     dictateListening: "सुन रहे हैं...",
     dictateDenied: "माइक्रोफ़ोन या वाक् पहचान की अनुमति बंद है। बोलकर लिखने के लिए इसे सेटिंग्स में चालू करें।",
     dictateUnavailable: "इस डिवाइस पर बोलकर लिखना उपलब्ध नहीं है।",
+    dictateLanguage: "इस डिवाइस पर इस भाषा के लिए बोलकर लिखना उपलब्ध नहीं है।",
+    dictateNetwork: "इस डिवाइस पर बोलकर लिखने के लिए इंटरनेट कनेक्शन चाहिए।",
   },
   ciciroTab: {
     title: "Ciciro",

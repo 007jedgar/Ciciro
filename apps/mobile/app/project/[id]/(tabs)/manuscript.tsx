@@ -94,6 +94,13 @@ function blockStyleFor(
   };
 }
 
+const DICTATION_NOTICES: Record<DictationError, string> = {
+  denied: "manuscript.dictateDenied",
+  unavailable: "manuscript.dictateUnavailable",
+  language: "manuscript.dictateLanguage",
+  network: "manuscript.dictateNetwork",
+};
+
 function paragraphAtOffset(text: string, offset: number): string {
   let remaining = Math.max(0, offset);
   const parts = text.split("\n");
@@ -651,11 +658,7 @@ export default function ManuscriptScreen() {
                   }}
                 >
                   {dictationNotice
-                    ? t(
-                        dictationNotice === "denied"
-                          ? "manuscript.dictateDenied"
-                          : "manuscript.dictateUnavailable"
-                      )
+                    ? t(DICTATION_NOTICES[dictationNotice])
                     : dictation.interim || t("manuscript.dictateListening")}
                 </Text>
               ) : null}

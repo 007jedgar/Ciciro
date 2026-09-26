@@ -193,8 +193,11 @@ Finished phrases are typed in as you pause, with the joining space and a
 capital at the start of a sentence added for you; the words still being
 recognized show beside the button until they settle. In English you can say
 "new paragraph" or "new line" to break, and "question mark", "exclamation
-mark", "full stop", "colon" or "semicolon" for that punctuation. Other
-languages get the recognizer's own punctuation.
+mark", "full stop", "colon" or "semicolon" for that punctuation. Say a command
+on its own, with a pause before and after: inside a longer phrase the words are
+typed as spoken, so "the car came to a full stop" stays as it is. On the phone
+"new line" starts a new paragraph, since the phone editor has no line break
+inside a paragraph. Other languages get the recognizer's own punctuation.
 
 On the web it uses the browser's speech recognition (Chrome, Edge and Safari);
 in browsers without it, such as Firefox, the button is not shown. Chrome sends

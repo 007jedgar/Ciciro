@@ -287,6 +287,8 @@ const zh: Translations = {
     dictateListening: "正在聆听...",
     dictateDenied: "麦克风或语音识别权限已关闭。请在设置中允许后再使用语音输入。",
     dictateUnavailable: "此设备不支持语音输入。",
+    dictateLanguage: "此设备不支持该语言的语音输入。",
+    dictateNetwork: "此设备上的语音输入需要网络连接。",
   },
   ciciroTab: {
     title: "Ciciro",

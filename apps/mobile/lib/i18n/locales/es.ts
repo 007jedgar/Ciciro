@@ -290,6 +290,8 @@ const es: Translations = {
     dictateListening: "Escuchando...",
     dictateDenied: "El acceso al micrófono o al reconocimiento de voz está desactivado. Actívalo en Ajustes para dictar.",
     dictateUnavailable: "El dictado no está disponible en este dispositivo.",
+    dictateLanguage: "El dictado no está disponible para este idioma en este dispositivo.",
+    dictateNetwork: "El dictado necesita conexión a internet en este dispositivo.",
   },
   ciciroTab: {
     title: "Ciciro",

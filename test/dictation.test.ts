@@ -38,14 +38,20 @@ describe("isFatalSpeechError", () => {
 });
 
 describe("applyDictationCommands", () => {
-  it("turns spoken layout words into breaks in English", () => {
-    expect(
-      applyDictationCommands("she left new paragraph he stayed", "en-US"),
-    ).toBe("she left\n\nhe stayed");
-    expect(applyDictationCommands("one new line two", "en")).toBe("one\ntwo");
-    expect(applyDictationCommands("is that so question mark", "en-GB")).toBe(
-      "is that so?",
-    );
+  it("acts on a command spoken on its own in English", () => {
+    expect(applyDictationCommands("new paragraph", "en-US")).toBe("\n\n");
+    expect(applyDictationCommands(" New line. ", "en")).toBe("\n");
+    expect(applyDictationCommands("Full stop", "en-GB")).toBe(".");
+    expect(applyDictationCommands("question mark", "en")).toBe("?");
+  });
+
+  it("keeps command words inside a longer phrase as spoken", () => {
+    for (const phrase of [
+      "The car came to a full stop",
+      "a new line of work",
+      "the colon",
+    ])
+      expect(applyDictationCommands(phrase, "en-US")).toBe(phrase);
   });
 
   it("leaves other languages alone", () => {
@@ -72,15 +78,9 @@ describe("prepareDictation", () => {
     expect(prepareDictation("? really", "Who", "en")).toBe("? really");
   });
 
-  it("capitalizes after a spoken paragraph break mid-phrase", () => {
-    expect(prepareDictation("done new paragraph next", "It was")).toBe(
-      " done\n\nNext",
-    );
-  });
-
-  it("capitalizes after a spoken paragraph break mid-phrase", () => {
-    expect(prepareDictation("done new paragraph next", "It was")).toBe(
-      " done\n\nNext",
+  it("keeps prose that contains a command word", () => {
+    expect(prepareDictation("came to a full stop", "The car", "en")).toBe(
+      " came to a full stop",
     );
   });
 
@@ -88,10 +88,9 @@ describe("prepareDictation", () => {
     expect(prepareDictation("   ", "abc")).toBe("");
   });
 
-  it("starts a spoken paragraph with a capital", () => {
-    expect(prepareDictation("new paragraph next morning", "It ended")).toBe(
-      "\n\nNext morning",
-    );
+  it("turns a lone paragraph command into a break without a joining space", () => {
+    expect(prepareDictation("new paragraph", "It ended", "en")).toBe("\n\n");
+    expect(prepareDictation("full stop", "It ended", "en")).toBe(".");
   });
 });
 

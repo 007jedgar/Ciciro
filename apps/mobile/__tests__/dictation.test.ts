@@ -1,6 +1,6 @@
+import { fromEnrichedHtml, toEnrichedHtml } from "../lib/enriched-html";
 import { htmlToDoc } from "../lib/manuscript";
 import {
-  dictatedLength,
   dictationLocale,
   insertDictation,
   prepareDictation,
@@ -22,26 +22,27 @@ describe("prepareDictation", () => {
     expect(prepareDictation("hello", "")).toBe("Hello");
   });
 
-  it("turns English voice commands into breaks and punctuation", () => {
-    expect(prepareDictation("done new paragraph next", "It was", "en-US")).toBe(
-      " done\n\nNext",
-    );
-    expect(prepareDictation("really question mark", "Is it", "en-US")).toBe(
-      " really?",
-    );
+  it("acts on an English voice command spoken on its own", () => {
+    expect(prepareDictation("new paragraph", "It was", "en-US")).toBe("\n\n");
+    expect(prepareDictation("New line.", "It was", "en-US")).toBe("\n");
+    expect(prepareDictation("full stop", "It was", "en-US")).toBe(".");
     expect(prepareDictation("new paragraph", "x", "es-ES")).toBe(
       " new paragraph",
     );
   });
 
+  it("keeps command words inside a longer phrase as spoken", () => {
+    expect(prepareDictation("The car came to a full stop", "", "en")).toBe(
+      "The car came to a full stop",
+    );
+    expect(prepareDictation("a new line of work", "", "en")).toBe(
+      "A new line of work",
+    );
+    expect(prepareDictation("the colon", "It hit", "en")).toBe(" the colon");
+  });
+
   it("drops silence", () => {
     expect(prepareDictation("  ", "x")).toBe("");
-  });
-});
-
-describe("dictatedLength", () => {
-  it("counts a paragraph break as one character", () => {
-    expect(dictatedLength("ab\n\ncd")).toBe(5);
   });
 });
 
@@ -91,23 +92,47 @@ describe("insertDictation", () => {
 
   it("splits a paragraph on a spoken paragraph break", () => {
     const html = '<p data-block-id="a">One two</p>';
-    const out = insertDictation(html, 3, "new paragraph three", "en");
-    expect(texts(out!.html)).toEqual(["One", "Three two"]);
+    const out = insertDictation(html, 3, "new paragraph", "en");
+    expect(texts(out!.html)).toEqual(["One", "two"]);
+    expect(out!.html).not.toContain("<br");
     const ids = htmlToDoc(out!.html, 0).doc.blocks.map((b) => b.id);
     expect(ids[0]).toBe("a");
     expect(new Set(ids).size).toBe(2);
+    expect(out!.caret).toBe(4);
   });
 
-  it("does not split a quote, keeping it one block", () => {
+  it("splits a paragraph on a spoken line break, since the phone has no in-block break", () => {
+    const html = '<p data-block-id="a">One two</p>';
+    const out = insertDictation(html, 3, "new line", "en");
+    expect(out!.html).not.toContain("<br");
+    const back = fromEnrichedHtml(toEnrichedHtml(out!.html));
+    expect(texts(back)).toEqual(["One", "two"]);
+    expect(out!.caret).toBe(4);
+  });
+
+  it("ignores a spoken break inside a quote, keeping it one block", () => {
     const html = '<blockquote data-block-id="q">Quoted</blockquote>';
-    const out = insertDictation(html, 6, "new paragraph more", "en");
-    expect(texts(out!.html)).toHaveLength(1);
+    expect(insertDictation(html, 6, "new paragraph", "en")).toBeNull();
+    const out = insertDictation(html, 6, "more", "en");
+    expect(texts(out!.html)).toEqual(["Quoted more"]);
   });
 
   it("puts text after a scene break in a new paragraph", () => {
     const html =
       '<p data-block-id="a">One</p><hr data-block-id="h" /><p data-block-id="b">Two</p>';
-    const out = insertDictation(html, 4, "next", "en");
-    expect(texts(out!.html)).toHaveLength(4);
+    // The editor shows the break as "***": caret at its end is 3 + 1 + 3.
+    const out = insertDictation(html, 7, "next", "en");
+    expect(texts(out!.html)).toEqual(["One", "#", "Next", "Two"]);
+    // "One\n***\nNext" puts the caret right after "Next".
+    expect(out!.caret).toBe(12);
+  });
+
+  it("counts a scene break as the editor shows it when finding the caret", () => {
+    const html =
+      '<p data-block-id="a">One</p><hr data-block-id="h" /><p data-block-id="b">Two words</p>';
+    // Editor text is "One\n***\nTwo words"; offset 11 is just after "Two".
+    const out = insertDictation(html, 11, "hello", "en");
+    expect(texts(out!.html)).toEqual(["One", "#", "Two hello words"]);
+    expect(out!.caret).toBe(11 + " hello".length);
   });
 });

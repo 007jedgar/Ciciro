@@ -125,4 +125,66 @@ describe("useDictation", () => {
     expect(mod.start).toHaveBeenCalledTimes(1);
     expect(result.current.listening).toBe(false);
   });
+
+  it("reports an unsupported language instead of blaming permissions", async () => {
+    const { mod, emit } = fakeModule();
+    jest.doMock("expo-speech-recognition", () => ({
+      ExpoSpeechRecognitionModule: mod,
+    }));
+    const onError = jest.fn();
+    const { result } = renderHook(() =>
+      useDictation({ lang: "hi-IN", onPhrase: jest.fn(), onError }),
+    );
+    await act(async () => result.current.toggle());
+    emit("error", { error: "language-not-supported" });
+    emit("end");
+    expect(onError).toHaveBeenCalledWith("language");
+    expect(mod.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops on a network error instead of restarting in a loop", async () => {
+    const { mod, emit } = fakeModule();
+    jest.doMock("expo-speech-recognition", () => ({
+      ExpoSpeechRecognitionModule: mod,
+    }));
+    const onError = jest.fn();
+    const { result } = renderHook(() =>
+      useDictation({ lang: "en-US", onPhrase: jest.fn(), onError }),
+    );
+    await act(async () => result.current.toggle());
+    emit("error", { error: "network" });
+    emit("end");
+    expect(onError).toHaveBeenCalledWith("network");
+    expect(mod.start).toHaveBeenCalledTimes(1);
+    expect(result.current.listening).toBe(false);
+  });
+
+  it("gives up after repeated unknown errors but not after routine silence", async () => {
+    const { mod, emit } = fakeModule();
+    jest.doMock("expo-speech-recognition", () => ({
+      ExpoSpeechRecognitionModule: mod,
+    }));
+    const onError = jest.fn();
+    const { result } = renderHook(() =>
+      useDictation({ lang: "en-US", onPhrase: jest.fn(), onError }),
+    );
+    await act(async () => result.current.toggle());
+    for (let i = 0; i < 5; i++) {
+      emit("error", { error: "no-speech" });
+      emit("end");
+    }
+    expect(result.current.listening).toBe(true);
+    expect(mod.start).toHaveBeenCalledTimes(6);
+
+    emit("error", { error: "busy" });
+    emit("end");
+    emit("error", { error: "busy" });
+    emit("end");
+    expect(result.current.listening).toBe(true);
+    emit("error", { error: "busy" });
+    emit("end");
+    expect(onError).toHaveBeenCalledWith("unavailable");
+    expect(result.current.listening).toBe(false);
+    expect(mod.start).toHaveBeenCalledTimes(8);
+  });
 });

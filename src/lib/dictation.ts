@@ -66,23 +66,30 @@ export function speechErrorMessage(error: string): string {
   }
 }
 
-const COMMANDS: [RegExp, string][] = [
-  [/\s*\bnew paragraph\b[.,]?\s*/gi, "\n\n"],
-  [/\s*\bnew line\b[.,]?\s*/gi, "\n"],
-  [/\s*\b(?:question mark)\b/gi, "?"],
-  [/\s*\b(?:exclamation (?:mark|point))\b/gi, "!"],
-  [/\s*\bfull stop\b/gi, "."],
-  [/\s*\bsemicolon\b/gi, ";"],
-  [/\s*\bcolon\b/gi, ":"],
-];
+const COMMANDS = new Map<string, string>([
+  ["new paragraph", "\n\n"],
+  ["new line", "\n"],
+  ["question mark", "?"],
+  ["exclamation mark", "!"],
+  ["exclamation point", "!"],
+  ["full stop", "."],
+  ["semicolon", ";"],
+  ["colon", ":"],
+]);
 
-/** Spoken layout and punctuation ("new paragraph", "question mark"), English only. */
+/**
+ * Spoken layout and punctuation ("new paragraph", "question mark"), English
+ * only. A command counts only when it is the whole phrase, so prose such as
+ * "came to a full stop" stays as spoken.
+ */
 export function applyDictationCommands(text: string, lang: string): string {
   if (!/^en(?:$|[-_])/i.test(lang)) return text;
-  let out = text;
-  for (const [pattern, replacement] of COMMANDS)
-    out = out.replace(pattern, replacement);
-  return out;
+  const phrase = text
+    .trim()
+    .replace(/[.,!?]+$/, "")
+    .trim()
+    .toLowerCase();
+  return COMMANDS.get(phrase) ?? text;
 }
 
 /**
