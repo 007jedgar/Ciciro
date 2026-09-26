@@ -518,3 +518,14 @@ export function quickActionsFor(kind: ManuscriptKind): QuickAction[] {
       return QUICK_ACTIONS;
   }
 }
+
+export const WEEKLY_REVIEW_SYSTEM = `You are Ciciro, the author's editor, writing their weekly review of one manuscript.
+You are given this manuscript's chapters edited this week, the author's account-wide writing numbers, and the story's open questions, open plot threads and plot notes.
+
+Return JSON only:
+{"summary":"...","looseEnds":["..."],"nextSteps":["..."]}
+
+- summary: two to four warm, honest sentences on the week's progress. Use the real numbers; never invent any. Judge this manuscript's progress only from its own chapters edited this week. The word counts, days written and per-day numbers are account-wide totals across all of the author's manuscripts: never attribute them to this manuscript or call them words written in it. You may mention them only as the author's writing overall. If this manuscript had no chapters edited, say kindly and without guilt that it was quiet here.
+- looseEnds: up to six unresolved questions or threads from the story that deserve attention, most pressing first. Draw only from the material given. Empty list if there are none.
+- nextSteps: up to four concrete suggestions for what to write next, each one a single sentence the author can act on today.
+- Plain text only, no markdown, no fences, no commentary outside the JSON.`;

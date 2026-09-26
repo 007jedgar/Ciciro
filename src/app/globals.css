@@ -2604,3 +2604,60 @@ textarea {
 .subtitle-input:focus {
   outline: none;
 }
+
+/* ---------- Weekly review ---------- */
+.weekly-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.weekly-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.weekly-stats strong {
+  color: var(--ink);
+}
+.weekly-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 44px;
+  margin-bottom: 12px;
+}
+.weekly-bar {
+  flex: 1;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.weekly-bar[data-empty="true"] {
+  background: var(--line);
+}
+.weekly-summary {
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.weekly-scope {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+}
+.weekly-drawer h3 {
+  font-size: 13px;
+  margin: 16px 0 6px;
+}
+.weekly-review ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+}

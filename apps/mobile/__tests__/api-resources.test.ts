@@ -313,6 +313,24 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/projects\/p1\/scratch\/n1$/,
   },
   {
+    name: "projects.weeklyReviews.list",
+    run: () => ciciro.projects.weeklyReviews.list("p1"),
+    path: /\/api\/projects\/p1\/weekly-reviews$/,
+  },
+  {
+    name: "projects.weeklyReviews.create",
+    run: () => ciciro.projects.weeklyReviews.create("p1", { to: "2026-09-26" }),
+    method: "POST",
+    path: /\/api\/projects\/p1\/weekly-reviews$/,
+    body: { to: "2026-09-26" },
+  },
+  {
+    name: "projects.weeklyReviews.delete",
+    run: () => ciciro.projects.weeklyReviews.delete("p1", "r1"),
+    method: "DELETE",
+    path: /\/api\/projects\/p1\/weekly-reviews\/r1$/,
+  },
+  {
     name: "chapters.ops.list",
     run: () => ciciro.chapters.ops.list("c1", 3),
     path: /\/api\/chapters\/c1\/ops\?after=3$/,
