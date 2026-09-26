@@ -191,9 +191,9 @@ Hearing a chapter is a good way to catch clunky lines. On the web, choose **List
 bar (phone) turns your voice into text at the caret. Tap it again to stop.
 Finished phrases are typed in as you pause, with the joining space and a
 capital at the start of a sentence added for you; the words still being
-recognized show beside the button until they settle. In English you can say
-"new paragraph" or "new line" to break, and "question mark", "exclamation
-mark", "full stop", "colon" or "semicolon" for that punctuation. Say a command
+recognized show in a small note by the button until they settle. In English
+you can say "new paragraph" or "new line" to break, and "question mark",
+"exclamation mark", "full stop", "colon" or "semicolon" for that punctuation. Say a command
 on its own, with a pause before and after: inside a longer phrase the words are
 typed as spoken, so "the car came to a full stop" stays as it is. On the phone
 "new line" starts a new paragraph, since the phone editor has no line break
