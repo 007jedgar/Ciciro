@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { WordDiff } from "@/components/DiffView";
+import Collapse from "@/components/Collapse";
+import { useSnackbar } from "@/components/Snackbar";
 import { htmlToText } from "@/lib/text";
 import {
   diffStats,
@@ -36,10 +38,6 @@ type RestoreResponse = {
 
 const UNSAVED_ERROR = "Some of your latest edits haven't saved yet. Check your connection and try again.";
 
-type Notice =
-  | { kind: "restored"; title: string; backup: ChapterSnapshotSummary | null }
-  | { kind: "undone" };
-
 async function readError(res: Response, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
   return body?.error || fallback;
@@ -72,7 +70,9 @@ export default function ChapterHistory({
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState<"save" | "restore" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const notify = useSnackbar();
+  // Bumped on a restore so the list and preview cross-fade to the new state.
+  const [fadeKey, setFadeKey] = useState(0);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/chapters/${chapterId}/snapshots`);
@@ -85,7 +85,6 @@ export default function ChapterHistory({
     setSnapshots(null);
     setDetails({});
     setSelectedId(null);
-    setNotice(null);
     setError(null);
   }, [chapterId]);
 
@@ -140,7 +139,6 @@ export default function ChapterHistory({
       });
       if (!res.ok) throw new Error(await readError(res, "Couldn't save a snapshot."));
       setLabel("");
-      setNotice(null);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -160,15 +158,19 @@ export default function ChapterHistory({
       if (!res.ok) throw new Error(await readError(res, "Couldn't restore that version."));
       const result = (await res.json()) as RestoreResponse;
       onRestored(result.chapter);
-      setNotice(
+      const backup = result.backup;
+      notify(
         undo
-          ? { kind: "undone" }
+          ? { message: "Restore undone. The chapter is back the way it was." }
           : {
-              kind: "restored",
-              title: snapshotTitle(result.restored),
-              backup: result.backup,
+              message: `Restored "${snapshotTitle(result.restored)}"`,
+              // The text it replaced was saved first, so taking it back is cheap.
+              ...(backup
+                ? { actionLabel: "Undo", onAction: () => void restore(backup, true) }
+                : {}),
             }
       );
+      setFadeKey((n) => n + 1);
       setSelectedId(null);
       await load();
     } catch (err) {
@@ -187,7 +189,6 @@ export default function ChapterHistory({
       });
       if (!res.ok) throw new Error(await readError(res, "Couldn't delete that version."));
       setSelectedId(null);
-      if (notice?.kind === "restored" && notice.backup?.id === snapshot.id) setNotice(null);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -197,7 +198,7 @@ export default function ChapterHistory({
   }
 
   return (
-    <div className="history">
+    <div className="history" key={fadeKey} data-fade={fadeKey > 0 ? "true" : undefined}>
       <form className="history-save" onSubmit={save}>
         <input
           value={label}
@@ -216,30 +217,6 @@ export default function ChapterHistory({
         break, and before every restore.
       </p>
 
-      {notice?.kind === "undone" && (
-        <div className="history-notice" role="status">
-          <span>Restore undone. The chapter is back the way it was.</span>
-        </div>
-      )}
-      {notice?.kind === "restored" && (
-        <div className="history-notice" role="status">
-          <span>
-            Restored &ldquo;{notice.title}&rdquo;.
-            {notice.backup ? " The text it replaced is saved in the list below." : ""}
-          </span>
-          {notice.backup && (
-            <button
-              className="btn small"
-              disabled={busy !== null}
-              onClick={() => {
-                if (notice.backup) void restore(notice.backup, true);
-              }}
-            >
-              Undo restore
-            </button>
-          )}
-        </div>
-      )}
       {error && (
         <div className="history-error" role="alert">
           {error}
@@ -272,7 +249,7 @@ export default function ChapterHistory({
                     {formatSnapshotTime(snapshot.createdAt)} - {wordsLabel(snapshot.wordCount)}
                   </span>
                 </button>
-                {open && (
+                <Collapse open={open}>
                   <div className="history-preview">
                     <div className="history-preview-bar">
                       <div className="view-toggle">
@@ -322,7 +299,7 @@ export default function ChapterHistory({
                       </div>
                     )}
                   </div>
-                )}
+                </Collapse>
               </li>
             );
           })}

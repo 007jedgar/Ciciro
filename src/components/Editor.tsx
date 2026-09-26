@@ -88,6 +88,8 @@ type Props = {
   restorePosition?: (ReadingCaret & { length?: number }) | null;
   /** When true on mount, place the caret at the end (AI opened this chapter). */
   focusEndOnMount?: boolean;
+  /** Cross-fade the page in (a version was just restored). */
+  fadeIn?: boolean;
   /** Track the author's edits as suggestions instead of applying them. */
   suggesting?: boolean;
   suggestionAuthor?: SuggestionAuthor;
@@ -177,6 +179,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     onCaretChange,
     restorePosition,
     focusEndOnMount,
+    fadeIn = false,
     suggesting = false,
     suggestionAuthor,
     onActiveSuggestionChange,
@@ -570,7 +573,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   }));
 
   return (
-    <div ref={shellRef} className={`editor-shell${suggesting ? " is-suggesting" : ""}`}>
+    <div
+      ref={shellRef}
+      className={`editor-shell${suggesting ? " is-suggesting" : ""}${fadeIn ? " fade-in" : ""}`}
+    >
       {kind === "screenplay" ? (
         <div className="screenplay-bar" role="toolbar" aria-label="Screenplay element">
           {SCREENPLAY_ELEMENTS.map((el) => (

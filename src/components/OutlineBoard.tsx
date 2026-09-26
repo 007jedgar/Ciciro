@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import type { Chapter } from "@/lib/types";
-import { chapterBlurb, moveItem } from "@/lib/outline";
+import { boxIndexAt, chapterBlurb, moveItem } from "@/lib/outline";
 import { chapterPlainText } from "@/lib/text";
+import { MOTION_MS, motionMs } from "@/lib/motion";
 
 type Props = {
   chapters: Chapter[];
@@ -17,6 +18,23 @@ type Props = {
 
 type Layout = "board" | "list";
 
+// A card being carried. It floats at the pointer (position: fixed) while a
+// dashed placeholder holds its place in the grid, so the others can shift
+// around the gap.
+type Drag = {
+  id: string;
+  from: number;
+  /** Where the placeholder sits among the other cards. */
+  over: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+const DRAG_THRESHOLD = 4;
+const SPRING = "cubic-bezier(0.34, 1.4, 0.64, 1)";
+
 export default function OutlineBoard({
   chapters,
   activeId,
@@ -26,8 +44,15 @@ export default function OutlineBoard({
   onClose,
 }: Props) {
   const [layout, setLayout] = useState<Layout>("board");
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const dragRef = useRef<Drag | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const cardEls = useRef(new Map<string, HTMLElement>());
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const lastPositions = useRef(new Map<string, { x: number; y: number }>());
+  const justDragged = useRef(false);
+  // The drop animation holds the card in place until React has put it back in the grid.
+  const settling = useRef<Animation | null>(null);
   const ids = chapters.map((c) => c.id);
 
   function move(id: string, to: number) {
@@ -36,10 +61,141 @@ export default function OutlineBoard({
     onReorder(moveItem(ids, from, to));
   }
 
-  function endDrag() {
-    setDragId(null);
-    setOverId(null);
+  // Neighbours glide to their new places instead of jumping (FLIP): note where
+  // every card was, and after the layout changes play the difference back.
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    if (!drag && settling.current) {
+      settling.current.cancel();
+      settling.current = null;
+    }
+    const next = new Map<string, { x: number; y: number }>();
+    for (const [id, el] of cardEls.current) {
+      if (!el.isConnected || el.dataset.floating === "true") continue;
+      next.set(id, { x: el.offsetLeft, y: el.offsetTop });
+    }
+    const wait = motionMs(MOTION_MS.reorder);
+    if (wait > 0 && typeof Element.prototype.animate === "function") {
+      for (const [id, at] of next) {
+        const was = lastPositions.current.get(id);
+        if (!was || (was.x === at.x && was.y === at.y)) continue;
+        cardEls.current.get(id)?.animate(
+          [{ transform: `translate(${was.x - at.x}px, ${was.y - at.y}px)` }, { transform: "none" }],
+          { duration: wait, easing: SPRING }
+        );
+      }
+    }
+    lastPositions.current = next;
+  });
+
+  function beginPointer(e: React.PointerEvent<HTMLDivElement>, id: string) {
+    // Touch scrolls the panel; the arrows move cards there. Controls keep their clicks.
+    if (e.button !== 0 || e.pointerType === "touch") return;
+    if ((e.target as HTMLElement).closest(".outline-move, select")) return;
+    const card = e.currentTarget;
+    const box = card.getBoundingClientRect();
+    const grabX = e.clientX - box.left;
+    const grabY = e.clientY - box.top;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const from = ids.indexOf(id);
+    let started = false;
+
+    // Hit-test the cards where the layout puts them, not where they are drawn:
+    // a neighbour mid-glide is transformed, and following it would make the gap
+    // chase the pointer.
+    const overAt = (clientX: number, clientY: number, current: number) => {
+      const grid = gridRef.current;
+      if (!grid) return current;
+      const origin = grid.getBoundingClientRect();
+      const laidOut = (el: HTMLElement | null | undefined) =>
+        el
+          ? {
+              left: el.offsetLeft,
+              top: el.offsetTop,
+              right: el.offsetLeft + el.offsetWidth,
+              bottom: el.offsetTop + el.offsetHeight,
+            }
+          : { left: 1, top: 1, right: 0, bottom: 0 };
+      const all = ids.filter((other) => other !== id).map((other) => laidOut(cardEls.current.get(other)));
+      // The gap counts as a card so the pointer over it changes nothing.
+      if (placeholderRef.current) all.splice(current, 0, laidOut(placeholderRef.current));
+      const hit = boxIndexAt(all, clientX - origin.left, clientY - origin.top);
+      return hit < 0 ? current : hit;
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      if (!started) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
+        started = true;
+        justDragged.current = true;
+        document.body.style.cursor = "grabbing";
+        document.body.style.userSelect = "none";
+      }
+      const prev = dragRef.current;
+      const next: Drag = {
+        id,
+        from,
+        over: prev ? overAt(ev.clientX, ev.clientY, prev.over) : from,
+        x: ev.clientX - grabX,
+        y: ev.clientY - grabY,
+        w: box.width,
+        h: box.height,
+      };
+      dragRef.current = next;
+      setDrag(next);
+    };
+
+    const finish = (commit: boolean) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      if (!started) return;
+      // Swallow the click that follows a drag so it cannot open the chapter.
+      setTimeout(() => {
+        justDragged.current = false;
+      }, 0);
+      const current = dragRef.current;
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        dragRef.current = null;
+        setDrag(null);
+        if (commit && current) move(id, current.over);
+      };
+      const el = cardEls.current.get(id);
+      const gap = placeholderRef.current?.getBoundingClientRect();
+      const wait = motionMs(MOTION_MS.drop);
+      if (!current || !el || !gap || wait === 0 || typeof el.animate !== "function") return settle();
+      // The card drops into the gap, easing down from its lifted size.
+      const at = el.getBoundingClientRect();
+      const target = commit ? gap : new DOMRect(box.left, box.top, box.width, box.height);
+      const animation = el.animate(
+        [
+          { transform: "scale(1.03)" },
+          { transform: `translate(${target.left - at.left}px, ${target.top - at.top}px) scale(1)` },
+        ],
+        { duration: wait, easing: SPRING, fill: "forwards" }
+      );
+      settling.current = animation;
+      animation.onfinish = settle;
+      animation.oncancel = settle;
+    };
+    const onUp = () => finish(true);
+    const onCancel = () => finish(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
   }
+
+  // Cards in DOM order. The carried card keeps its own slot (it is out of flow),
+  // and the placeholder is threaded in among the rest.
+  const others = drag ? chapters.filter((c) => c.id !== drag.id) : [];
+  const beforePlaceholder = drag ? others[drag.over]?.id ?? null : null;
 
   return (
     <>
@@ -71,84 +227,103 @@ export default function OutlineBoard({
         {chapters.length === 0 ? (
           <div className="empty">No chapters yet.</div>
         ) : (
-          <div className={`outline-grid ${layout}`}>
-            {chapters.map((ch, i) => (
-              <div
-                key={ch.id}
-                className={`outline-card${ch.id === activeId ? " active" : ""}${
-                  dragId === ch.id ? " dragging" : ""
-                }${overId === ch.id && dragId !== ch.id ? " drop-target" : ""}`}
-                draggable
-                data-testid="outline-card"
-                onDragStart={(e) => {
-                  setDragId(ch.id);
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", ch.id);
-                }}
-                onDragOver={(e) => {
-                  if (!dragId) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  if (overId !== ch.id) setOverId(ch.id);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragId) move(dragId, i);
-                  endDrag();
-                }}
-                onDragEnd={endDrag}
-              >
-                <div className="outline-card-top">
-                  <span className="outline-num">{i + 1}</span>
-                  <button
-                    className="outline-title"
-                    onClick={() => {
-                      onOpen(ch.id);
-                      onClose();
+          <div className={`outline-grid ${layout}`} ref={gridRef}>
+            {chapters.map((ch, i) => {
+              const floating = drag?.id === ch.id;
+              return (
+                <Fragment key={ch.id}>
+                  {drag && beforePlaceholder === ch.id ? (
+                    <div
+                      className="outline-card placeholder"
+                      ref={placeholderRef}
+                      style={{ height: drag.h }}
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  <div
+                    ref={(el) => {
+                      if (el) cardEls.current.set(ch.id, el);
+                      else cardEls.current.delete(ch.id);
                     }}
-                    title="Open this chapter"
+                    className={`outline-card${ch.id === activeId ? " active" : ""}${
+                      floating ? " dragging" : ""
+                    }`}
+                    data-testid="outline-card"
+                    data-floating={floating ? "true" : undefined}
+                    style={
+                      floating && drag
+                        ? { left: drag.x, top: drag.y, width: drag.w, height: drag.h }
+                        : undefined
+                    }
+                    onPointerDown={(e) => beginPointer(e, ch.id)}
+                    onClickCapture={(e) => {
+                      if (justDragged.current) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                      }
+                    }}
                   >
-                    {ch.title || "Untitled"}
-                  </button>
-                  <span className="outline-move">
-                    <button
-                      className="btn ghost small"
-                      aria-label={`Move ${ch.title || "Untitled"} earlier`}
-                      disabled={i === 0}
-                      onClick={() => move(ch.id, i - 1)}
-                    >
-                      &uarr;
-                    </button>
-                    <button
-                      className="btn ghost small"
-                      aria-label={`Move ${ch.title || "Untitled"} later`}
-                      disabled={i === chapters.length - 1}
-                      onClick={() => move(ch.id, i + 1)}
-                    >
-                      &darr;
-                    </button>
-                  </span>
-                </div>
-                <p className="outline-blurb">
-                  {chapterBlurb(ch.summary, chapterPlainText(ch.content)) || (
-                    <em>Nothing written yet.</em>
-                  )}
-                </p>
-                <div className="outline-meta">
-                  <span>{ch.wordCount.toLocaleString()} words</span>
-                  <select
-                    value={ch.status}
-                    aria-label={`Status of ${ch.title || "Untitled"}`}
-                    onChange={(e) => onStatusChange(ch.id, e.target.value)}
-                    style={{ width: "auto", padding: "2px 6px" }}
-                  >
-                    <option value="draft">draft</option>
-                    <option value="revised">revised</option>
-                    <option value="final">final</option>
-                  </select>
-                </div>
-              </div>
-            ))}
+                    <div className="outline-card-top">
+                      <span className="outline-num">{i + 1}</span>
+                      <button
+                        className="outline-title"
+                        onClick={() => {
+                          onOpen(ch.id);
+                          onClose();
+                        }}
+                        title="Open this chapter"
+                      >
+                        {ch.title || "Untitled"}
+                      </button>
+                      <span className="outline-move">
+                        <button
+                          className="btn ghost small"
+                          aria-label={`Move ${ch.title || "Untitled"} earlier`}
+                          disabled={i === 0}
+                          onClick={() => move(ch.id, i - 1)}
+                        >
+                          &uarr;
+                        </button>
+                        <button
+                          className="btn ghost small"
+                          aria-label={`Move ${ch.title || "Untitled"} later`}
+                          disabled={i === chapters.length - 1}
+                          onClick={() => move(ch.id, i + 1)}
+                        >
+                          &darr;
+                        </button>
+                      </span>
+                    </div>
+                    <p className="outline-blurb">
+                      {chapterBlurb(ch.summary, chapterPlainText(ch.content)) || (
+                        <em>Nothing written yet.</em>
+                      )}
+                    </p>
+                    <div className="outline-meta">
+                      <span>{ch.wordCount.toLocaleString()} words</span>
+                      <select
+                        value={ch.status}
+                        aria-label={`Status of ${ch.title || "Untitled"}`}
+                        onChange={(e) => onStatusChange(ch.id, e.target.value)}
+                        style={{ width: "auto", padding: "2px 6px" }}
+                      >
+                        <option value="draft">draft</option>
+                        <option value="revised">revised</option>
+                        <option value="final">final</option>
+                      </select>
+                    </div>
+                  </div>
+                </Fragment>
+              );
+            })}
+            {drag && beforePlaceholder === null ? (
+              <div
+                className="outline-card placeholder"
+                ref={placeholderRef}
+                style={{ height: drag.h }}
+                aria-hidden="true"
+              />
+            ) : null}
           </div>
         )}
       </div>

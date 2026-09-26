@@ -37,3 +37,10 @@ export function chapterBlurb(summary: string, plainText: string): string {
     ? `${text.slice(0, SUMMARY_FALLBACK_CHARS).trimEnd()}...`
     : text;
 }
+
+export type Box = { left: number; top: number; right: number; bottom: number };
+
+/** Index of the box the point is inside, or -1. Boxes are in the same coordinate space as the point. */
+export function boxIndexAt(boxes: readonly Box[], x: number, y: number): number {
+  return boxes.findIndex((b) => x >= b.left && x <= b.right && y >= b.top && y <= b.bottom);
+}

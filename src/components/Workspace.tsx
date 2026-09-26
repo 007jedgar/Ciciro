@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import TopbarMore from "@/components/TopbarMore";
 import Editor, { type EditorHandle } from "@/components/Editor";
@@ -35,13 +35,15 @@ import { chapterWordCount } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
-import { MOTION_MS, useLeavingIds } from "@/lib/motion";
+import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
+import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
+import type { ReplaceUndo } from "@/components/SearchPanel";
 import { applyChapterOrder } from "@/lib/outline";
 import { fetchShareComments } from "@/lib/share-client";
 import type { ShareCommentView } from "@/lib/share-view";
@@ -88,6 +90,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [scratchOpen, setScratchOpen] = useState(false);
   const [betaOpen, setBetaOpen] = useState(false);
   const chapterRows = useLeavingIds();
+  // A restored chapter's page cross-fades in the next time the editor shows it.
+  const [restoredId, setRestoredId] = useState<string | null>(null);
   const notify = useSnackbar();
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [weeklyDue, setWeeklyDue] = useState(false);
@@ -373,6 +377,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   /** A restore committed on the server; its result is the new confirmed head. */
   const onChapterRestored = useCallback(
     (chapter: Chapter) => {
+      setRestoredId(chapter.id);
       optimisticStoreRef.current?.setConfirmed(chapter.id, {
         content: chapter.content,
         title: chapter.title,
@@ -475,6 +480,42 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   // --- Focus and typewriter mode ---
   const focusMode = useFocusMode();
+  const focusPhase = useFocusPhase(focusMode);
+  const editorInnerRef = useRef<HTMLDivElement>(null);
+  const innerLeft = useRef<{ left: number; collapsed: boolean } | null>(null);
+  // The exit hint shows while the pointer moves, and fades 2s after it stops.
+  const [hintVisible, setHintVisible] = useState(true);
+  useEffect(() => {
+    if (focusPhase !== "on") return;
+    let timer: ReturnType<typeof setTimeout>;
+    const show = () => {
+      setHintVisible(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setHintVisible(false), 2000);
+    };
+    show();
+    window.addEventListener("pointermove", show);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointermove", show);
+    };
+  }, [focusPhase]);
+  // When the chrome goes, the page glides to the middle of the window (and
+  // back), rather than jumping the moment the columns collapse.
+  useLayoutEffect(() => {
+    const el = editorInnerRef.current;
+    if (!el) return;
+    const at = { left: el.getBoundingClientRect().left, collapsed: focusPhase === "on" };
+    const was = innerLeft.current;
+    innerLeft.current = at;
+    const wait = motionMs(MOTION_MS.focus);
+    if (!was || was.collapsed === at.collapsed || wait === 0) return;
+    if (Math.abs(was.left - at.left) < 1 || typeof el.animate !== "function") return;
+    el.animate(
+      [{ transform: `translateX(${was.left - at.left}px)` }, { transform: "none" }],
+      { duration: wait, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+    );
+  }, [focusPhase]);
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current = bibleOpen || searchOpen || questionsOpen || autoWriteOpen;
   useEffect(() => {
@@ -501,28 +542,60 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     return () => window.removeEventListener("keydown", onKey);
   }, [patch]);
 
+  useEffect(() => {
+    if (!restoredId || viewMode !== "prose") return;
+    const timer = setTimeout(() => setRestoredId(null), MOTION_MS.accordion + 100);
+    return () => clearTimeout(timer);
+  }, [restoredId, viewMode]);
+
   const onSearchReplaced = useCallback(
-    (replaced: ReplacedChapter[]) => {
+    (replaced: ReplacedChapter[]): ReplaceUndo => {
       const store = optimisticStoreRef.current;
-      for (const r of replaced) {
-        const local = projectRef.current.chapters.find((c) => c.id === r.id);
-        store?.setConfirmed(r.id, {
-          content: r.content,
+      const applyChapter = (
+        id: string,
+        next: { content: string; wordCount: number; revision: number }
+      ) => {
+        const local = projectRef.current.chapters.find((c) => c.id === id);
+        store?.setConfirmed(id, {
+          ...next,
           title: local?.title ?? "",
           status: local?.status ?? "draft",
-          revision: r.revision,
-          wordCount: r.wordCount,
         });
-        updateChapterLocal(r.id, {
-          content: r.content,
-          wordCount: r.wordCount,
-          revision: r.revision,
-        });
-      }
-      if (activeId && replaced.some((r) => r.id === activeId)) {
-        setResumePosition(null);
-        setEditorNonce((n) => n + 1);
-      }
+        updateChapterLocal(id, next);
+      };
+      // What each chapter said before, for Undo. The search saved every edit
+      // first, so this is what the server held.
+      const before = replaced.map((r) => ({
+        id: r.id,
+        content: projectRef.current.chapters.find((c) => c.id === r.id)?.content ?? null,
+        revision: r.revision,
+      }));
+      for (const r of replaced) applyChapter(r.id, r);
+      const remount = (ids: string[]) => {
+        if (activeId && ids.includes(activeId)) {
+          setResumePosition(null);
+          setEditorNonce((n) => n + 1);
+        }
+      };
+      remount(replaced.map((r) => r.id));
+      return async () => {
+        const undone: string[] = [];
+        for (const prior of before) {
+          if (prior.content === null) return false;
+          const res = await fetch(`/api/chapters/${prior.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ content: prior.content, expectedRevision: prior.revision }),
+          }).catch(() => null);
+          // A chapter edited since the replace is left as the writer has it.
+          if (!res?.ok) return false;
+          const chapter = (await res.json()) as Chapter;
+          applyChapter(chapter.id, chapter);
+          undone.push(chapter.id);
+        }
+        remount(undone);
+        return true;
+      };
     },
     [activeId, updateChapterLocal]
   );
@@ -875,7 +948,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   return (
     <div
-      className={`workspace${resizing ? " resizing" : ""}${focusMode ? " focus-mode" : ""}${
+      className={`workspace${resizing ? " resizing" : ""}${focusPhase === "on" ? " focus-mode" : ""}${
+        focusPhase === "entering" || focusPhase === "leaving" ? " focus-entering" : ""
+      }${
         settings.typewriterMode ? " typewriter" : ""
       }`}
       style={{ ["--chat-width" as string]: `${chatWidth}px` }}
@@ -990,8 +1065,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         kind={kind}
       />
 
-      {focusMode && (
-        <div className="focus-exit">
+      {focusPhase === "on" && (
+        <div className={`focus-exit${hintVisible ? " visible" : ""}`}>
           <button
             className={`btn ghost small${settings.typewriterMode ? " primary" : ""}`}
             aria-pressed={settings.typewriterMode}
@@ -1006,7 +1081,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       )}
 
       <div className="editor-pane">
-        <div className="editor-inner">
+        <div className="editor-inner" ref={editorInnerRef}>
           <PreviouslyOn projectId={project.id} />
           {activeChapter ? (
             <>
@@ -1119,6 +1194,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                       : null
                   }
                   focusEndOnMount={focusEndOnMount}
+                  fadeIn={restoredId === activeChapter.id}
                   suggesting={suggesting}
                   suggestionAuthor={suggestionAuthor}
                   onActiveSuggestionChange={setActiveSuggestionId}

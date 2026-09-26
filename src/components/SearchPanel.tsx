@@ -9,6 +9,15 @@ import {
   type SearchResult,
 } from "@/lib/search-client";
 import DrawerHead from "@/components/DrawerHead";
+import { useSnackbar } from "@/components/Snackbar";
+import { MOTION_MS, measureRow, motionMs } from "@/lib/motion";
+
+/** Puts back the text a replace overwrote. Resolves false if a chapter changed since. */
+export type ReplaceUndo = () => Promise<boolean>;
+
+function hitKey(m: SearchMatch): string {
+  return `${m.chapterId}:${m.blockId}:${m.occurrence}`;
+}
 
 type Props = {
   projectId: string;
@@ -20,8 +29,8 @@ type Props = {
    * Resolves false when edits in the given chapter (or any chapter) are unsaved.
    */
   flushSaves: (chapterId?: string) => Promise<boolean>;
-  /** Chapters the server rewrote. */
-  onReplaced: (chapters: ReplacedChapter[]) => void;
+  /** Chapters the server rewrote. Returns how to take the replace back, if it can be. */
+  onReplaced: (chapters: ReplacedChapter[]) => ReplaceUndo | void;
 };
 
 export default function SearchPanel({ projectId, onClose, onJump, flushSaves, onReplaced }: Props) {
@@ -32,7 +41,10 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
   const [result, setResult] = useState<SearchResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  // Hits that were just replaced fold away before the list refreshes.
+  const [folding, setFolding] = useState<ReadonlySet<string>>(new Set());
+  const notify = useSnackbar();
+  const mounted = useRef(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const seq = useRef(0);
 
@@ -55,14 +67,17 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
   );
 
   useEffect(() => {
+    mounted.current = true;
     inputRef.current?.focus();
     inputRef.current?.select();
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      setNotice("");
       void run(controller.signal);
     }, 250);
     return () => {
@@ -84,14 +99,6 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
 
   async function replace(target?: SearchMatch) {
     if (!query || busy) return;
-    if (!target && result) {
-      const ok = window.confirm(
-        `Replace ${result.total} ${result.total === 1 ? "match" : "matches"} in ${result.chapters} ${
-          result.chapters === 1 ? "chapter" : "chapters"
-        }?`
-      );
-      if (!ok) return;
-    }
     const mine = ++seq.current;
     setBusy(true);
     setError("");
@@ -111,9 +118,32 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
         }
       );
       if (mine !== seq.current) return;
-      onReplaced(out.chapters);
-      setNotice(`Replaced ${out.replaced} ${out.replaced === 1 ? "match" : "matches"}.`);
+      const undo = onReplaced(out.chapters);
+      notify({
+        message: `Replaced ${out.replaced} in ${out.chapters.length} ${
+          out.chapters.length === 1 ? "chapter" : "chapters"
+        }`,
+        ...(undo
+          ? {
+              actionLabel: "Undo",
+              onAction: () => {
+                void undo().then((ok) => {
+                  if (!ok) notify({ message: "Couldn't undo: a chapter changed since." });
+                  else if (mounted.current) void run();
+                });
+              },
+            }
+          : {}),
+      });
+      if (target && motionMs(MOTION_MS.collapse) > 0) {
+        const key = hitKey(target);
+        measureRow(key);
+        setFolding((s) => new Set(s).add(key));
+        await new Promise((resolve) => setTimeout(resolve, motionMs(MOTION_MS.collapse)));
+        if (!mounted.current) return;
+      }
       await run();
+      setFolding(new Set());
     } catch (e) {
       setError((e as Error).message);
       await run();
@@ -182,14 +212,13 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
         <div className="search-summary" aria-live="polite">
           {error
             ? error
-            : notice ||
-              (result
-                ? result.total === 0
-                  ? "No matches."
-                  : `${result.total} ${result.total === 1 ? "match" : "matches"} in ${result.chapters} ${
-                      result.chapters === 1 ? "chapter" : "chapters"
-                    }${result.truncated ? ` (showing the first ${result.matches.length})` : ""}`
-                : "Search every chapter of this manuscript.")}
+            : result
+              ? result.total === 0
+                ? "No matches."
+                : `${result.total} ${result.total === 1 ? "match" : "matches"} in ${result.chapters} ${
+                    result.chapters === 1 ? "chapter" : "chapters"
+                  }${result.truncated ? ` (showing the first ${result.matches.length})` : ""}`
+              : "Search every chapter of this manuscript."}
         </div>
 
         <div className="search-results">
@@ -199,7 +228,11 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
                 {g.number}. {g.title || "Untitled Chapter"}
               </div>
               {g.matches.map((m) => (
-                <div className="search-hit" key={`${m.blockId}:${m.occurrence}`}>
+                <div
+                  className={`search-hit${folding.has(hitKey(m)) ? " is-collapsing" : ""}`}
+                  key={hitKey(m)}
+                  data-row-id={hitKey(m)}
+                >
                   <button
                     className="search-hit-text"
                     onClick={() => onJump(m, m.length)}

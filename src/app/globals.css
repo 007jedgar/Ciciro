@@ -761,6 +761,35 @@ textarea {
 .workspace.focus-mode .editor-meta {
   display: none;
 }
+/* The chrome fades and slides away before it is removed (useFocusPhase). */
+.workspace > .topbar,
+.workspace > .sidebar,
+.workspace > .chat,
+.workspace > .resize-handle,
+.workspace .editor-meta {
+  transition:
+    opacity var(--duration-focus) var(--ease-out),
+    transform var(--duration-focus) var(--ease-out);
+}
+.workspace.focus-entering > .topbar,
+.workspace.focus-entering > .sidebar,
+.workspace.focus-entering > .chat,
+.workspace.focus-entering > .resize-handle,
+.workspace.focus-entering .editor-meta {
+  opacity: 0;
+  pointer-events: none;
+}
+.workspace.focus-entering > .topbar {
+  transform: translateY(calc(-0.5 * var(--enter-shift)));
+}
+.workspace.focus-entering > .sidebar {
+  transform: translateX(calc(-0.5 * var(--enter-shift)));
+}
+.workspace.focus-entering > .chat,
+.workspace.focus-entering > .resize-handle {
+  transform: translateX(calc(0.5 * var(--enter-shift)));
+}
+/* The way out appears when the pointer moves and fades 2s after it stops. */
 .focus-exit {
   position: fixed;
   top: 12px;
@@ -768,9 +797,10 @@ textarea {
   z-index: 5;
   display: flex;
   gap: 4px;
-  opacity: 0.55;
-  transition: opacity 0.2s;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
 }
+.focus-exit.visible,
 .focus-exit:hover,
 .focus-exit:focus-within {
   opacity: 1;
@@ -2211,12 +2241,31 @@ textarea {
 .outline-card.active {
   border-color: var(--accent);
 }
+/* Carried by the pointer (see OutlineBoard): lifted and out of flow while a
+   dashed placeholder keeps its place in the grid. */
 .outline-card.dragging {
-  opacity: 0.4;
+  position: fixed;
+  z-index: 45;
+  margin: 0;
+  pointer-events: none;
+  cursor: grabbing;
+  transform: scale(1.03);
+  box-shadow: var(--lift-shadow);
+  animation: card-lift var(--duration-drop) var(--ease-spring) both;
 }
-.outline-card.drop-target {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+@keyframes card-lift {
+  from {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+.outline-card.placeholder {
+  border: 1.5px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  cursor: default;
+}
+.outline-grid {
+  position: relative;
 }
 .outline-card-top {
   display: flex;
@@ -3518,4 +3567,53 @@ textarea {
 }
 .ticker[data-dir="down"] > span {
   animation-name: tick-down;
+}
+
+/* Accordion bodies (Collapse) and the cross-fade after a restore. */
+@keyframes collapse-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+@keyframes collapse-out {
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+.collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: collapse-in var(--duration-base) var(--ease-out) both;
+}
+.collapse[data-state="closed"] {
+  animation: collapse-out var(--duration-base) var(--ease-out) both;
+}
+.collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+  /* Room for a focus ring to be drawn without the fold clipping it. */
+  padding: 3px;
+  margin: -3px;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.editor-shell.fade-in,
+.history[data-fade="true"] {
+  animation: fade-in var(--duration-base) ease-out both;
+}
+
+/* Read aloud: the sentence being read fades its highlight in as the reader
+   arrives at it, so the eye follows the voice rather than snapping to it. */
+@keyframes reading-in {
+  from {
+    background-color: transparent;
+  }
+}
+.ProseMirror .reading-aloud {
+  animation: reading-in var(--duration-reading, calc(150ms * var(--motion))) ease-out both;
 }
