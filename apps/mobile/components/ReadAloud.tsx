@@ -66,6 +66,7 @@ export function ReadAloud({
   const readerRef = useRef<SentenceReader | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const lineY = useRef<Map<number, number>>(new Map());
+  const bodyY = useRef(0);
 
   const plain = useMemo(() => blocksPlainText(html), [html]);
   const [active, setActive] = useState<ReturnType<typeof readAloudSentences>>([]);
@@ -110,7 +111,7 @@ export function ReadAloud({
   useEffect(() => {
     if (!current) return;
     const y = lineY.current.get(current.line);
-    if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+    if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, bodyY.current + y - 80), animated: true });
   }, [current]);
 
   const sortedVoices = useMemo(() => voiceChoices(voices, deviceLocale(), prefs.voice), [voices, prefs.voice]);
@@ -134,8 +135,15 @@ export function ReadAloud({
     </Pressable>
   );
 
+  // The controls scroll with the text: with a long voice list they would
+  // otherwise fill a small phone and leave the chapter no room at all.
   return (
-    <View style={{ flex: 1 }}>
+    <ScrollView
+      ref={scrollRef}
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingBottom: 32 }}
+      showsVerticalScrollIndicator
+    >
       <View style={[layout.card, { marginBottom: 12 }]}>
         <Text style={layout.cardMeta}>
           {state === "idle"
@@ -223,7 +231,7 @@ export function ReadAloud({
           </>
         ) : null}
       </View>
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+      <View onLayout={(e) => (bodyY.current = e.nativeEvent.layout.y)}>
         {lines.map((line, lineIndex) => {
           const inLine = shown.filter((s) => s.line === lineIndex);
           const parts: { text: string; on: boolean }[] = [];
@@ -258,8 +266,8 @@ export function ReadAloud({
             </Text>
           );
         })}
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
