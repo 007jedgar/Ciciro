@@ -10,13 +10,14 @@ import {
 // Auth enforcement is opt-in so the local-first single-author experience keeps
 // working out of the box. Hosted deployments set CICIRO_REQUIRE_AUTH=true.
 
-// Paths that never require a session.
+// Paths that never require a session. Beta reader links (/read/:token and
+// /api/read/:token/...) carry their own credential, the share token.
 const PUBLIC_PATHS = ["/login", "/signup", "/launch"];
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health"];
+const PUBLIC_PREFIXES = ["/api/auth/", "/api/health", "/read/", "/api/read/"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 function nextWithSession(req: NextRequest): NextResponse {
