@@ -218,6 +218,15 @@ export default function ChaptersScreen() {
                 <Text style={layout.cardMeta}>{t("outline.cardMeta")}</Text>
               </Pressable>
               <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(`/project/${projectId}/listen` as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("readAloud.title")}
+              >
+                <Text style={layout.cardTitle}>{t("readAloud.title")}</Text>
+                <Text style={layout.cardMeta}>{t("readAloud.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
                 style={[layout.card, { marginBottom: 16, opacity: importing ? 0.6 : 1 }]}
                 onPress={() => void importChapters()}
                 disabled={importing}

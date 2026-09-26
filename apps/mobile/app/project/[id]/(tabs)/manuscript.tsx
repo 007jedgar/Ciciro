@@ -62,6 +62,7 @@ import {
   resolveSuggestions,
   type SuggestionAction,
 } from "../../../../lib/suggestions";
+import { setReadAloudSelection } from "../../../../lib/read-aloud";
 import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
@@ -292,6 +293,7 @@ export default function ManuscriptScreen() {
         docOffset: start,
       };
       setFormatTarget({ start, end });
+      setReadAloudSelection({ chapterId: current.id, start, end });
       if (caretTimer.current) clearTimeout(caretTimer.current);
       caretTimer.current = setTimeout(() => {
         void recordReadingPosition({

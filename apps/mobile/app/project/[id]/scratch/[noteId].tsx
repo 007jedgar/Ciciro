@@ -31,7 +31,7 @@ export default function ScratchNoteScreen() {
       const ok = await saveRef.current();
       if (!ok) return;
     }
-    backOr(scratchListHref(projectId));
+    backOr(scratchListHref(projectId) as never);
   }
 
   if (!ready) return null;
