@@ -112,6 +112,14 @@ under `data/<projectId>/bible/` — Workers have no durable filesystem. The
 
 Prisma `db push` does not reach the Worker's D1 binding, so tables added after
 the production database was created ship as re-runnable SQL under `prisma/`.
+
+Production builds refuse to deploy while D1 is behind. On Workers Builds,
+`npm run build` runs `scripts/check-d1-schema.mjs`, which compares the live D1
+with `prisma/schema.prisma` and lists the `prisma/d1-*.sql` scripts to apply.
+It fails `main` builds and only warns on preview branches. Run it yourself with
+`npm run db:check:d1` (`npm run cf:deploy` runs it first). It needs the build
+API token to have **Account > D1 > Read**; set `CICIRO_SKIP_D1_CHECK=1` as a
+build variable to bypass it in an emergency.
 Chapter version history needs `ChapterSnapshot`:
 
 ```bash

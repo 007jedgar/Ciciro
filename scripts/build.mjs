@@ -10,6 +10,8 @@ import { spawnSync } from "node:child_process";
  */
 const workersCi = process.env.WORKERS_CI === "1";
 const nested = process.env.CICIRO_OPENNEXT === "1";
+// The production trigger builds `main`; every other branch only uploads a preview.
+const production = process.env.WORKERS_CI_BRANCH === "main";
 
 function run(command, args, extraEnv = {}) {
   const result = spawnSync(command, args, {
@@ -21,6 +23,8 @@ function run(command, args, extraEnv = {}) {
 }
 
 if (workersCi && !nested) {
+  // Previews share the production D1 but serve no users, so drift only warns.
+  run("node", ["scripts/check-d1-schema.mjs", ...(production ? [] : ["--warn-only"])]);
   run("npx", ["opennextjs-cloudflare", "build"], { CICIRO_OPENNEXT: "1" });
 } else {
   run("npx", ["prisma", "generate"]);
