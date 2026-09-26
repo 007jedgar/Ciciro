@@ -144,6 +144,9 @@ chapter. Bold, italic, and scene breaks carry over; images do not.
 double-spaced, 1" margins, title page with word count, chapters on fresh
 pages, running header, `#` scene breaks.
 
+**Export > Markdown (.md)** makes a plain-text file with chapter titles as
+headings and bold, italic, lists, quotes, and scene breaks preserved.
+
 **Export > EPUB** makes an ebook (title page, contents, chapters in order) and
 **Export > PDF** a book-layout PDF with a contents page and page numbers. On the
 phone, the Chapters tab has an Export card that hands the file to the share sheet.
