@@ -17,9 +17,12 @@ import {
   STACK_POP_FADE_MS,
   STACK_POP_MS,
   stackPopTransform,
+  stackSheetPopTransform,
 } from "../lib/stack-pop";
 
 const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
+// A sheet has a long way to fall; the collapse curve would finish most of it in the first frames.
+const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);
 
 /**
  * Outgoing stack screens round off, shrink, and tuck away to the right on back.
@@ -29,9 +32,15 @@ const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
  * a route that pops this way is presented over the stack rather than replacing
  * it — see `presentation` in the root layout.
  */
-export function StackPopTransition({ children }: { children: ReactNode }) {
+export function StackPopTransition({
+  children,
+  variant = "collapse",
+}: {
+  children: ReactNode;
+  variant?: "collapse" | "sheet";
+}) {
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const theme = useOptionalAppTheme();
   const colors = theme?.colors ?? THEME_PALETTES.parchment;
   const osReduce = useReducedMotion();
@@ -59,12 +68,12 @@ export function StackPopTransition({ children }: { children: ReactNode }) {
       if (!ownsStackRemove(action, navigation.getState())) return;
       event.preventDefault();
       const duration = reduceMotion ? STACK_POP_FADE_MS : STACK_POP_MS;
-      progress.value = withTiming(1, { duration, easing: reduceMotion ? Easing.linear : EASE_OUT }, (finished) => {
+      progress.value = withTiming(1, { duration, easing: reduceMotion ? Easing.linear : variant === "sheet" ? EASE_SHEET : EASE_OUT }, (finished) => {
         if (finished) runOnJS(dispatchAction)(action);
       });
     });
     return unsub;
-  }, [dispatchAction, navigation, progress, reduceMotion]);
+  }, [dispatchAction, navigation, progress, reduceMotion, variant]);
 
   const style = useAnimatedStyle(() => {
     if (reduceMotion) {
@@ -75,6 +84,10 @@ export function StackPopTransition({ children }: { children: ReactNode }) {
         borderRadius: 0,
         transform: [],
       };
+    }
+    if (variant === "sheet") {
+      const sheet = stackSheetPopTransform(progress.value, height);
+      return { opacity: 1, borderRadius: sheet.radius, transform: [{ translateY: sheet.translateY }] };
     }
     const next = stackPopTransform(progress.value, width);
     return {

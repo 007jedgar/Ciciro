@@ -100,23 +100,51 @@ export function readAloudSelectionFor(chapterId: string, plain: string): { start
   return plain.slice(start, end) === text ? { start, end } : null;
 }
 
-export type VoiceOption = { identifier: string; name: string; language: string };
+export type VoiceOption = { identifier: string; name: string; language: string; quality?: string };
 
 /**
- * Voices to offer: the device language first, then by name, capped to keep the
- * list usable. The saved voice is always kept so it can be seen and changed.
+ * Apple ships sound-effect voices ("Bells", "Trinoids") and old robotic ones
+ * alongside the natural voices. None is any use for hearing a chapter back, so
+ * they are never offered (a saved one is still kept, see `voiceChoices`).
+ */
+const NOVELTY_VOICES = new Set(
+  [
+    "Albert", "Bad News", "Bahh", "Bells", "Boing", "Bubbles", "Cellos", "Deranged", "Fred",
+    "Good News", "Hysterical", "Jester", "Junior", "Kathy", "Organ", "Pipe Organ", "Princess",
+    "Ralph", "Superstar", "Trinoids", "Whisper", "Wobble", "Zarvox", "Agnes", "Bruce", "Vicki",
+    "Victoria",
+  ].map((n) => n.toLowerCase())
+);
+
+export function isNoveltyVoice(voice: VoiceOption): boolean {
+  // "Fred" and "Fred (Enhanced)" are the same voice.
+  const base = voice.name.replace(/\s*\(.*\)\s*$/, "").trim().toLowerCase();
+  return NOVELTY_VOICES.has(base) || /\.speech\.synthesis\.voice\./.test(voice.identifier);
+}
+
+const QUALITY_RANK: Record<string, number> = { Premium: 0, Enhanced: 1, Default: 2 };
+
+/**
+ * Voices to offer: natural voices in the device language, best quality first,
+ * capped to keep the picker short. When nothing in the device language is left
+ * the other natural voices stand in. The saved voice is always kept so it can be
+ * seen and changed.
  */
 export function voiceChoices<V extends VoiceOption>(
   voices: V[],
   locale: string,
   saved: string | null,
-  limit = 40
+  limit = 12
 ): V[] {
   const lang = locale.split(/[-_]/)[0].toLowerCase();
-  const rank = (v: V) => (lang && v.language.toLowerCase().split(/[-_]/)[0] === lang ? 0 : 1);
-  const sorted = [...voices].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  const sameLang = (v: V) => !!lang && v.language.toLowerCase().split(/[-_]/)[0] === lang;
+  const natural = voices.filter((v) => !isNoveltyVoice(v) || v.identifier === saved);
+  const local = natural.filter(sameLang);
+  const pool = local.length > 0 ? local : natural;
+  const quality = (v: V) => QUALITY_RANK[v.quality ?? "Default"] ?? 2;
+  const sorted = [...pool].sort((a, b) => quality(a) - quality(b) || a.name.localeCompare(b.name));
   const shown = sorted.slice(0, limit);
-  const savedVoice = saved ? sorted.find((v) => v.identifier === saved) : undefined;
+  const savedVoice = saved ? voices.find((v) => v.identifier === saved) : undefined;
   if (savedVoice && !shown.includes(savedVoice)) shown.push(savedVoice);
   return shown;
 }

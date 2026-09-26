@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { getLocales } from "expo-localization";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../lib/settings";
+import { GlassSheet } from "./GlassSheet";
 import { fonts } from "../lib/theme";
 import { blocksPlainText } from "../lib/read-aloud-text";
 import {
@@ -32,7 +34,12 @@ async function loadVoices(): Promise<ReadAloudVoice[]> {
   try {
     const Speech = require("expo-speech") as typeof import("expo-speech");
     const all = await Speech.getAvailableVoicesAsync();
-    return all.map((v) => ({ identifier: v.identifier, name: v.name, language: v.language }));
+    return all.map((v) => ({
+      identifier: v.identifier,
+      name: v.name,
+      language: v.language,
+      quality: String(v.quality),
+    }));
   } catch {
     return [];
   }
@@ -66,6 +73,8 @@ export function ReadAloud({
   const [index, setIndex] = useState(0);
   const [voices, setVoices] = useState<ReadAloudVoice[]>([]);
   const [readingSelection, setReadingSelection] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const readerRef = useRef<SentenceReader | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const lineY = useRef<Map<number, number>>(new Map());
@@ -119,37 +128,27 @@ export function ReadAloud({
 
   const sortedVoices = useMemo(() => voiceChoices(voices, deviceLocale(), prefs.voice), [voices, prefs.voice]);
 
-  const chip = (label: string, selected: boolean, onPress: () => void, key: string) => (
-    <Pressable
-      key={key}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      style={[
-        styles.chip,
-        {
-          borderColor: selected ? colors.accent : colors.line,
-          backgroundColor: selected ? colors.accentSoft : colors.bg,
-        },
-      ]}
-    >
-      <Text style={{ color: selected ? colors.accent : colors.ink, fontSize: 14 }}>{label}</Text>
-    </Pressable>
-  );
+  const voiceName =
+    sortedVoices.find((v) => v.identifier === prefs.voice)?.name ?? t("readAloud.defaultVoice");
+  const nextRate = RATE_STEPS[(RATE_STEPS.findIndex((r) => r === prefs.rate) + 1) % RATE_STEPS.length];
+  const pickVoice = (identifier: string | null) => {
+    setReadAloudPrefs({ voice: identifier });
+    readerRef.current?.setVoice(identifier);
+    setVoiceOpen(false);
+  };
 
-  // The controls scroll with the text: with a long voice list they would
-  // otherwise fill a small phone and leave the chapter no room at all.
+  // The page scrolls; Play, Stop and speed stay in a bar underneath so they are
+  // in reach however far into the chapter the reader has got.
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingBottom: 32 }}
-      showsVerticalScrollIndicator
-    >
-      {header}
-      <View style={[layout.card, { marginBottom: 12 }]}>
-        <Text style={layout.cardMeta}>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        showsVerticalScrollIndicator
+      >
+        {header}
+        <Text style={[layout.cardMeta, { marginBottom: 12 }]}>
           {state === "idle"
             ? selection
               ? t("readAloud.selectionReady")
@@ -160,82 +159,20 @@ export function ReadAloud({
                 total: shown.length,
               })}
         </Text>
-        <View style={styles.row}>
-          {state === "playing" ? (
-            <Pressable
-              onPress={() => readerRef.current?.pause()}
-              accessibilityRole="button"
-              accessibilityLabel={t("readAloud.pause")}
-              style={[styles.button, { backgroundColor: colors.accent }]}
-            >
-              <Text style={styles.buttonText}>{t("readAloud.pause")}</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={play}
-              disabled={shown.length === 0}
-              accessibilityRole="button"
-              accessibilityLabel={state === "paused" ? t("readAloud.resume") : t("readAloud.play")}
-              style={[styles.button, { backgroundColor: colors.accent, opacity: shown.length === 0 ? 0.5 : 1 }]}
-            >
-              <Text style={styles.buttonText}>
-                {state === "paused" ? t("readAloud.resume") : t("readAloud.play")}
-              </Text>
-            </Pressable>
-          )}
-          <Pressable
-            onPress={stop}
-            disabled={state === "idle"}
-            accessibilityRole="button"
-            accessibilityLabel={t("readAloud.stop")}
-            style={[styles.button, { borderWidth: 1, borderColor: colors.line, opacity: state === "idle" ? 0.5 : 1 }]}
-          >
-            <Text style={[styles.buttonText, { color: colors.ink }]}>{t("readAloud.stop")}</Text>
-          </Pressable>
-        </View>
-        <Text style={[layout.cardMeta, { marginTop: 12 }]}>{t("readAloud.speed")}</Text>
-        <View style={styles.chips}>
-          {RATE_STEPS.map((rate) =>
-            chip(
-              `${rate}x`,
-              prefs.rate === rate,
-              () => {
-                setReadAloudPrefs({ rate });
-                readerRef.current?.setRate(rate);
-              },
-              `rate-${rate}`
-            )
-          )}
-        </View>
         {sortedVoices.length > 0 ? (
-          <>
-            <Text style={[layout.cardMeta, { marginTop: 12 }]}>{t("readAloud.voice")}</Text>
-            <View style={styles.chips}>
-              {chip(
-                t("readAloud.defaultVoice"),
-                prefs.voice === null,
-                () => {
-                  setReadAloudPrefs({ voice: null });
-                  readerRef.current?.setVoice(null);
-                },
-                "voice-default"
-              )}
-              {sortedVoices.map((voice) =>
-                chip(
-                  `${voice.name} (${voice.language})`,
-                  prefs.voice === voice.identifier,
-                  () => {
-                    setReadAloudPrefs({ voice: voice.identifier });
-                    readerRef.current?.setVoice(voice.identifier);
-                  },
-                  voice.identifier
-                )
-              )}
-            </View>
-          </>
+          <Pressable
+            onPress={() => setVoiceOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("readAloud.voice")}: ${voiceName}`}
+            style={[styles.voiceRow, { borderColor: colors.line, backgroundColor: colors.bg }]}
+          >
+            <Text style={[layout.cardMeta, { marginTop: 0 }]}>{t("readAloud.voice")}</Text>
+            <Text style={{ color: colors.ink, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
+              {voiceName}  ›
+            </Text>
+          </Pressable>
         ) : null}
-      </View>
-      <View onLayout={(e) => (bodyY.current = e.nativeEvent.layout.y)}>
+        <View onLayout={(e) => (bodyY.current = e.nativeEvent.layout.y)}>
         {lines.map((line, lineIndex) => {
           const inLine = shown.filter((s) => s.line === lineIndex);
           const parts: { text: string; on: boolean }[] = [];
@@ -271,12 +208,95 @@ export function ReadAloud({
           );
         })}
       </View>
-    </ScrollView>
+      </ScrollView>
+      <View
+        style={[
+          styles.bar,
+          { borderTopColor: colors.line, backgroundColor: colors.bg, paddingBottom: Math.max(insets.bottom, 12) },
+        ]}
+      >
+        {state === "playing" ? (
+          <Pressable
+            onPress={() => readerRef.current?.pause()}
+            accessibilityRole="button"
+            accessibilityLabel={t("readAloud.pause")}
+            style={[styles.button, { backgroundColor: colors.accent }]}
+          >
+            <Text style={styles.buttonText}>{t("readAloud.pause")}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={play}
+            disabled={shown.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={state === "paused" ? t("readAloud.resume") : t("readAloud.play")}
+            style={[styles.button, { backgroundColor: colors.accent, opacity: shown.length === 0 ? 0.5 : 1 }]}
+          >
+            <Text style={styles.buttonText}>
+              {state === "paused" ? t("readAloud.resume") : t("readAloud.play")}
+            </Text>
+          </Pressable>
+        )}
+        <Pressable
+          onPress={stop}
+          disabled={state === "idle"}
+          accessibilityRole="button"
+          accessibilityLabel={t("readAloud.stop")}
+          style={[styles.button, { borderWidth: 1, borderColor: colors.line, opacity: state === "idle" ? 0.5 : 1 }]}
+        >
+          <Text style={[styles.buttonText, { color: colors.ink }]}>{t("readAloud.stop")}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            setReadAloudPrefs({ rate: nextRate });
+            readerRef.current?.setRate(nextRate);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`${t("readAloud.speed")}: ${prefs.rate}x`}
+          style={[styles.speed, { borderColor: colors.line, backgroundColor: colors.accentSoft }]}
+        >
+          <Text style={{ color: colors.accent, fontSize: 16, fontWeight: "600" }}>{prefs.rate}x</Text>
+        </Pressable>
+      </View>
+      <GlassSheet
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        title={t("readAloud.voice")}
+        snapPoints={[0.62]}
+        testID="voice-sheet"
+      >
+        <ScrollView>
+          {[{ identifier: null as string | null, label: t("readAloud.defaultVoice") }]
+            .concat(sortedVoices.map((v) => ({ identifier: v.identifier, label: `${v.name} (${v.language})` })))
+            .map((opt) => {
+              const selected = prefs.voice === opt.identifier;
+              return (
+                <Pressable
+                  key={opt.identifier ?? "default"}
+                  onPress={() => pickVoice(opt.identifier)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={opt.label}
+                  style={[styles.option, { backgroundColor: selected ? colors.accentSoft : "transparent" }]}
+                >
+                  <Text style={{ color: selected ? colors.accent : colors.ink, fontSize: 16 }}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+        </ScrollView>
+      </GlassSheet>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8, marginTop: 12 },
+  bar: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   button: {
     flex: 1,
     minHeight: 44,
@@ -285,6 +305,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  speed: {
+    minWidth: 64,
+    minHeight: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  voiceRow: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  option: { minHeight: 48, borderRadius: 14, paddingHorizontal: 14, justifyContent: "center" },
 });
