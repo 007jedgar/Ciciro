@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
@@ -46,6 +46,17 @@ function OutlineRow({
   const translateY = useSharedValue(0);
   const lifted = useSharedValue(0);
 
+  useLayoutEffect(() => {
+    translateY.value = 0;
+  }, [index, translateY]);
+
+  const drop = (to: number) => {
+    onMove(to);
+    setTimeout(() => {
+      if (!lifted.value) translateY.value = withTiming(0, { duration: 120 });
+    }, 400);
+  };
+
   const numbered = chapterNumberLabel(index + 1, (key, opts) => t(key, opts));
   const custom = customChapterTitle(chapter.title, numbered, t("chapters.newTitle"));
   const heading = custom ? `${numbered} · ${custom}` : numbered;
@@ -63,11 +74,11 @@ function OutlineRow({
     })
     .onEnd((e) => {
       const to = dropIndexFor(index, e.translationY, count);
-      translateY.value = to === index ? withTiming(0, { duration: 120 }) : 0;
       lifted.value = 0;
       runOnJS(onHover)(null);
       runOnJS(onDragging)(false);
-      if (to !== index) runOnJS(onMove)(to);
+      if (to === index) translateY.value = withTiming(0, { duration: 120 });
+      else runOnJS(drop)(to);
     });
 
   const liftedStyle = useAnimatedStyle(() => ({
