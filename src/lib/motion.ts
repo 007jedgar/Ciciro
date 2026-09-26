@@ -11,6 +11,7 @@ export const MOTION_MS = {
   popoverOut: 100,
   remove: 200,
   collapse: 180,
+  accordion: 200,
   flash: 400,
   pulse: 700,
   focus: 250,
