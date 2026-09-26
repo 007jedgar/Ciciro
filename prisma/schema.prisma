@@ -62,7 +62,10 @@ model Project {
   title    String @default("Untitled Manuscript")
   author   String @default("")
   genre    String @default("")
-  logline  String @default("") // one-sentence hook
+  // What kind of writing this is: novel | screenplay | blog | journal.
+  // See src/lib/manuscript-kind.ts. Old rows read as "novel".
+  kind     String @default("novel")
+  logline  String @default("") // one-sentence hook (the subtitle of a blog post)
   synopsis String @default("") // longer premise
   theme    String @default("") // the throughline the assistant aligns language to
   pov      String @default("") // e.g. "First person, past tense"

@@ -5,6 +5,7 @@ import { AuthError, authorizeProjectId, type PublicUser } from "@/lib/auth/sessi
 import { appendOps } from "@/lib/chapter-ops";
 import { ensureChaptersBlockIds } from "@/lib/block-ids";
 import { diffHtmlToOps, stampBlockIds } from "@/lib/manuscript";
+import { nextChapterTitle, normalizeKind, openingChapter } from "@/lib/manuscript-kind";
 import { chapterWordCount, isChapterEmpty } from "@/lib/text";
 
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
@@ -72,12 +73,21 @@ export async function createChapter(
   const visibleCount = await prisma.chapter.count({
     where: { projectId, ...visibleChapterWhere },
   });
+  const { kind } = (await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { kind: true },
+  })) ?? { kind: "novel" };
+  const manuscriptKind = normalizeKind(kind);
+  if (manuscriptKind === "blog" && visibleCount > 0) {
+    throw new AuthError("A blog post or newsletter is a single piece.", 409);
+  }
   const title =
     typeof input.title === "string" && input.title.trim()
       ? input.title.trim()
-      : `Chapter ${visibleCount + 1}`;
+      : nextChapterTitle(manuscriptKind, visibleCount);
+  const content = manuscriptKind === "screenplay" ? openingChapter("screenplay").content : "";
   return prisma.chapter.create({
-    data: { projectId, title, order: await nextChapterOrder(projectId) },
+    data: { projectId, title, content, order: await nextChapterOrder(projectId) },
   });
 }
 

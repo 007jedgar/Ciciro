@@ -7,7 +7,8 @@ import {
   writeBibleFile,
   appendCanon,
 } from "@/lib/bible";
-import { DRAFTER_SYSTEM } from "@/lib/prompts";
+import { drafterSystemFor } from "@/lib/prompts";
+import { normalizeKind } from "@/lib/manuscript-kind";
 import { chapterWordCount } from "@/lib/text";
 import {
   writeChapterHtml,
@@ -1921,10 +1922,14 @@ export async function executeEditorTool(
       const model = mode === "fast" ? DRAFTER_FAST_MODEL : DRAFTER_MODEL;
       try {
         const anthropic = getAnthropic();
+        const kindRow = await prisma.project.findUnique({
+          where: { id: projectId },
+          select: { kind: true },
+        });
         const res = await anthropic.messages.create({
           model,
           max_tokens: 3000,
-          system: DRAFTER_SYSTEM,
+          system: drafterSystemFor(normalizeKind(kindRow?.kind)),
           messages: [{ role: "user", content: brief }],
         });
         const prose = res.content

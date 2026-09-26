@@ -244,6 +244,24 @@ brief, decide and proceed - do not ask. Do not stop early or hedge about whether
 continue. Do the work, then report faithfully: state plainly what you drafted. Return
 exactly what each step asks for and nothing else - no preamble, no meta-commentary.`;
 
+import { drafterDirective, kindDirective, type ManuscriptKind } from "@/lib/manuscript-kind";
+
+/** The editor's system blocks: the shared prompt plus, for non-novels, what the manuscript is. */
+export function editorSystemFor(
+  kind: ManuscriptKind,
+  extra = ""
+): { type: "text"; text: string; cache_control: { type: "ephemeral" } }[] {
+  const directive = kindDirective(kind);
+  const text = [EDITOR_SYSTEM, directive, extra].filter(Boolean).join("\n\n");
+  return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
+}
+
+/** The drafter's system prompt for this kind of manuscript. */
+export function drafterSystemFor(kind: ManuscriptKind): string {
+  const directive = drafterDirective(kind);
+  return directive ? `${DRAFTER_SYSTEM}\n\n${directive}` : DRAFTER_SYSTEM;
+}
+
 export type QuickAction = {
   id: string;
   label: string;
@@ -357,3 +375,146 @@ complication, a quiet character beat). Do not write the prose itself and do not 
 Never use em dashes; use a hyphen "-".
 
 Reply with ONLY a JSON array of strings, e.g. ["First prompt.", "Second prompt."].`;
+
+const SCREENPLAY_ACTIONS: QuickAction[] = [
+  {
+    id: "sp-prioritize",
+    label: "What needs work most?",
+    hint: "Prioritize the current draft",
+    scope: "book",
+    prompt:
+      "Given the script so far, tell me the single highest-leverage thing to work on next, then the next two. Be specific about which scene and why.",
+  },
+  {
+    id: "sp-critique-sequence",
+    label: "Critique this sequence",
+    hint: "Read the open sequence as a script",
+    scope: "chapter",
+    prompt:
+      "Critique the open sequence as a screenplay: scene goals and turns, what plays on screen versus what is only on the page, subtext in the dialogue, and pacing. End with the 3 most important fixes, ranked.",
+  },
+  {
+    id: "sp-tighten-dialogue",
+    label: "Tighten dialogue",
+    hint: "Sharpen selected dialogue",
+    scope: "selection",
+    prompt:
+      "Tighten the selected dialogue: cut on-the-nose lines, sharpen subtext, make each voice distinct. Return the rewrite as script lines in a <draft> block, then a short note on what changed.",
+  },
+  {
+    id: "sp-trim-action",
+    label: "Trim action lines",
+    hint: "Make the selection lean and visual",
+    scope: "selection",
+    prompt:
+      "Trim the selected action lines: present tense, visual only, no camera directions or interior thoughts. Return the result in a <draft> block.",
+  },
+  {
+    id: "sp-continue",
+    label: "Continue the scene",
+    hint: "Draft the next script page",
+    scope: "chapter",
+    prompt:
+      "Continue the open sequence from where it stops. Brief the drafter for about one page of script in standard format, then edit the result and show it to me as a <draft> block with one element per line.",
+  },
+  {
+    id: "sp-questions",
+    label: "Ask me questions",
+    hint: "Craft questions to consider",
+    scope: "chapter",
+    prompt:
+      "Pose 5 sharp questions about the open sequence (what each character wants, what changes in the scene, what the audience knows) for me to sit with. Do not answer them.",
+  },
+];
+
+const BLOG_ACTIONS: QuickAction[] = [
+  {
+    id: "blog-hook",
+    label: "Critique the hook",
+    hint: "Does the opening earn the read?",
+    scope: "chapter",
+    prompt:
+      "Critique the opening of this piece: does the first line and first paragraph give a reader a reason to keep going? Rewrite the opening two ways in one <draft> block, labelled A and B.",
+  },
+  {
+    id: "blog-headline",
+    label: "Title and subtitle ideas",
+    hint: "Sharper headlines",
+    scope: "chapter",
+    prompt:
+      "Suggest five title and subtitle pairs for this piece, from plain to punchy. Note which you would pick and why. Do not change the piece itself.",
+  },
+  {
+    id: "blog-structure",
+    label: "Check the structure",
+    hint: "Argument, order and subheads",
+    scope: "chapter",
+    prompt:
+      "Read the piece for structure: is there one clear point, do the sections build in the right order, and where would a reader stop? Suggest subheads and any section to cut or move.",
+  },
+  {
+    id: "blog-line-edit",
+    label: "Line edit selection",
+    hint: "Prose-level edit of the selection",
+    scope: "selection",
+    prompt:
+      "Line edit the selected passage for clarity, rhythm, and a direct voice while keeping mine. Return the edited passage in a <draft> block, then bullet the notable changes.",
+  },
+  {
+    id: "blog-ending",
+    label: "Write the ending",
+    hint: "A closing and call to action",
+    scope: "chapter",
+    prompt:
+      "Draft two possible endings for this piece (a closing line or two and, if it fits, a call to action), labelled A and B, in one <draft> block.",
+  },
+];
+
+const JOURNAL_ACTIONS: QuickAction[] = [
+  {
+    id: "journal-prompt",
+    label: "Prompt for today",
+    hint: "A question to start writing",
+    scope: "book",
+    prompt:
+      "Give me one gentle reflective prompt to write about today, based on my recent entries if there are any. Just the prompt and, at most, one line of why.",
+  },
+  {
+    id: "journal-reflect",
+    label: "Reflect on this entry",
+    hint: "A few questions, no critique",
+    scope: "chapter",
+    prompt:
+      "Read this entry and ask me three open, kind questions that might help me see it more clearly. Do not critique the writing or tell me what I felt.",
+  },
+  {
+    id: "journal-patterns",
+    label: "Notice patterns",
+    hint: "Themes across entries",
+    scope: "book",
+    prompt:
+      "Look across my entries and tell me what themes, moods, or recurring people and worries you notice. Quote short phrases from my own words as evidence and do not guess beyond them.",
+  },
+  {
+    id: "journal-tidy",
+    label: "Tidy this entry",
+    hint: "Light edit, keep my voice",
+    scope: "selection",
+    prompt:
+      "Lightly tidy the selected text for spelling and flow, keeping my voice and every fact. Return it in a <draft> block.",
+  },
+];
+
+/** The quick actions that make sense for this kind of manuscript. */
+export function quickActionsFor(kind: ManuscriptKind): QuickAction[] {
+  switch (kind) {
+    case "screenplay":
+      return SCREENPLAY_ACTIONS;
+    case "blog":
+      return BLOG_ACTIONS;
+    case "journal":
+      return JOURNAL_ACTIONS;
+    default:
+      return QUICK_ACTIONS;
+  }
+}

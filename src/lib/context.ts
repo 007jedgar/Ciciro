@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { htmlToText } from "@/lib/text";
 import { chapterHtmlForModel, pendingSuggestionsNote } from "@/lib/suggestion-edits";
+import { KIND_INFO, normalizeKind } from "@/lib/manuscript-kind";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
 import { visibleChaptersInclude } from "@/lib/chapters";
 import {
@@ -45,6 +46,13 @@ export async function buildEditorContext(
 
   const parts: string[] = [];
   parts.push(`# ${project.title}${project.author ? ` - ${project.author}` : ""}`);
+  const kind = normalizeKind(project.kind);
+  if (kind !== "novel") {
+    parts.push(
+      `Type: ${KIND_INFO[kind].label} (each ${KIND_INFO[kind].unit.toLowerCase()} is one chapter in the tools)`
+    );
+    if (kind === "blog" && project.logline) parts.push(`Subtitle: ${project.logline}`);
+  }
   if (project.genre) parts.push(`Genre: ${project.genre}`);
 
   if (autoMode) {
