@@ -10,6 +10,8 @@ import Animated, {
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useAppTheme } from "../lib/settings";
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const PRESSED_SCALE = 0.98;
 const PRESS_IN_MS = 90;
 const PRESS_OUT_MS = 180;
@@ -38,7 +40,7 @@ export function PressableCard({ style, children, onPressIn, onPressOut, disabled
   }));
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
       disabled={disabled}
       onPressIn={(e) => {
@@ -49,8 +51,9 @@ export function PressableCard({ style, children, onPressIn, onPressOut, disabled
         pressed.value = withTiming(0, { duration: reduceMotion ? 0 : PRESS_OUT_MS, easing: Easing.out(Easing.quad) });
         onPressOut?.(e);
       }}
+      style={[style, animated]}
     >
-      <Animated.View style={[style, animated]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }
