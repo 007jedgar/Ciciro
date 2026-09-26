@@ -18,8 +18,8 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
     }
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      // Claim the key so focus mode does not also exit on the same press.
-      e.preventDefault();
+      // Claim the key so focus mode, which listens on window, does not also exit.
+      e.stopPropagation();
       setOpen(false);
     }
     document.addEventListener("mousedown", onPointerDown);

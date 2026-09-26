@@ -33,10 +33,10 @@ describe("overlay Escape", () => {
       );
     });
 
-    // Workspace's focus-mode handler listens on window and skips prevented events.
-    let seenByWindow: boolean | null = null;
-    const onWindowKey = (e: KeyboardEvent) => {
-      seenByWindow = e.defaultPrevented;
+    // Workspace's focus-mode handler listens on window, so the Escape must never reach it.
+    let seenByWindow = false;
+    const onWindowKey = () => {
+      seenByWindow = true;
     };
     window.addEventListener("keydown", onWindowKey);
     const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
@@ -46,7 +46,7 @@ describe("overlay Escape", () => {
     window.removeEventListener("keydown", onWindowKey);
 
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(seenByWindow).toBe(true);
+    expect(seenByWindow).toBe(false);
     await act(async () => root.unmount());
   });
 });

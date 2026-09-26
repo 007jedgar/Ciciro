@@ -395,9 +395,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         e.preventDefault();
         patch({ typewriterMode: !settingsRef.current.typewriterMode });
       } else if (
+        // Not gated on defaultPrevented: ProseMirror prevents every Escape typed in
+        // the editor. Overlays claim their Escape with stopPropagation instead.
         e.key === "Escape" &&
         getFocusMode() &&
-        !e.defaultPrevented &&
         !overlayOpenRef.current &&
         !document.querySelector('[role="dialog"], [aria-modal="true"]')
       ) {
