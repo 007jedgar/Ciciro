@@ -110,7 +110,7 @@ export default function WeeklyReview({ projectId }: Props) {
       const res = await fetch(base, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ to: writingDayKey() }),
+        body: JSON.stringify({ to: writingDayKey(), tzOffset: new Date().getTimezoneOffset() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Couldn't write the review.");

@@ -91,6 +91,7 @@ describe("WeeklyReview", () => {
     expect(create.mock.calls[0][0]).toMatchObject({
       projectId: "p1",
       to: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      tzOffset: new Date().getTimezoneOffset(),
     });
   });
 

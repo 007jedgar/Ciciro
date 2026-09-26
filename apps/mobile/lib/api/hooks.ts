@@ -1083,8 +1083,8 @@ export function useWeeklyReviewsQuery(projectId: string, options?: Enabled) {
 
 export function useCreateWeeklyReviewMutation() {
   return useMutation({
-    mutationFn: ({ projectId, to }: { projectId: string; to: string }) =>
-      ciciro.projects.weeklyReviews.create(projectId, { to }),
+    mutationFn: ({ projectId, to, tzOffset }: { projectId: string; to: string; tzOffset?: number }) =>
+      ciciro.projects.weeklyReviews.create(projectId, { to, tzOffset }),
     onSuccess: (review, vars) =>
       queryClient.setQueryData<WeeklyReviewListResponse>(
         queryKeys.weeklyReviews(vars.projectId),
