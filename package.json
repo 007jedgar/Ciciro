@@ -12,6 +12,7 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "db:check:d1": "node scripts/check-d1-schema.mjs",
     "setup": "prisma generate && prisma db push",
     "typecheck": "tsc --noEmit",
     "higgsfield:example": "node --env-file-if-exists=.env.local scripts/higgsfield/index.ts",
@@ -21,7 +22,7 @@
     "mobile:start": "npm run start --prefix apps/mobile",
     "cf:build": "prisma generate && opennextjs-cloudflare build",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
-    "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy"
+    "cf:deploy": "npm run db:check:d1 && npm run cf:build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
