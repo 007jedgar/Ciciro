@@ -25,7 +25,8 @@ const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
 const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);
 
 /**
- * Outgoing stack screens round off, shrink, and tuck away to the right on back.
+ * Outgoing stack screens round off, shrink, and tuck away to the right on back
+ * ("collapse"), or slide straight down ("sheet", see `SHEET_POP_ROUTES`).
  * Wired once via Stack `screenLayout` so every native-stack route inherits it.
  *
  * The screen being returned to has to be underneath for any of this to read, so
