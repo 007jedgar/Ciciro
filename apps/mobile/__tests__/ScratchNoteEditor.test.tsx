@@ -127,6 +127,30 @@ describe("ScratchNoteEditor", () => {
     expect(screen.getByDisplayValue("mine")).toBeTruthy();
   });
 
+  it("ignores a refresh that is older than its own last save", async () => {
+    const save = jest
+      .fn()
+      .mockResolvedValueOnce(note({ content: "moons", revision: 3 }))
+      .mockResolvedValue(note({ content: "moons!", revision: 4 }));
+    mockApi(note(), save);
+    const { rerender } = render(<ScratchNoteEditor projectId="p1" noteId="n1" />);
+    fireEvent.changeText(screen.getByLabelText("Note text"), "moons");
+    await act(async () => {
+      jest.advanceTimersByTime(SCRATCH_SAVE_DELAY_MS + 10);
+    });
+    rerender(<ScratchNoteEditor projectId="p1" noteId="n1" />);
+    expect(screen.getByDisplayValue("moons")).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText("Note text"), "moons!");
+    await act(async () => {
+      jest.advanceTimersByTime(SCRATCH_SAVE_DELAY_MS + 10);
+    });
+    expect(save).toHaveBeenLastCalledWith({
+      projectId: "p1",
+      noteId: "n1",
+      body: { title: "Tides", content: "moons!", expectedRevision: 3 },
+    });
+  });
+
   it("says so when the note is gone", () => {
     listMock.mockReturnValue({ data: [], isPending: false, isError: false });
     updateMock.mockReturnValue({ mutateAsync: jest.fn(), isPending: false });

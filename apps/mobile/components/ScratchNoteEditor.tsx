@@ -72,7 +72,7 @@ export function ScratchNoteEditor({
     if (loadedId.current !== stored.id) {
       loadedId.current = stored.id;
       adopt(stored);
-    } else if (!dirtyRef.current && !conflicted.current && stored.revision !== revision.current) {
+    } else if (!dirtyRef.current && !conflicted.current && stored.revision > revision.current) {
       adopt(stored);
     }
   }, [stored, adopt]);

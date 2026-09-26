@@ -36,22 +36,26 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   const revision = useRef(0);
   const dirty = useRef(false);
   const conflict = useRef(false);
-  const saving = useRef<Promise<void> | null>(null);
+  const saving = useRef<Promise<boolean> | null>(null);
+  const writes = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRef = useRef<string | null>(null);
   activeRef.current = activeId;
 
   const load = useCallback(async () => {
+    const startedAt = writes.current;
     try {
       const res = await fetch(base, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't load the scratchpad.");
+      // A save, add or delete since this request began makes its answer stale.
+      if (writes.current !== startedAt || saving.current) return;
       const list = data.notes as ScratchNote[];
       setNotes(list);
       setError(null);
       // Pick up another device's edit to the open note unless we have our own pending.
       const open = list.find((n) => n.id === activeRef.current);
-      if (open && !dirty.current && open.revision !== revision.current) show(open);
+      if (open && !dirty.current && open.revision > revision.current) show(open);
       if (activeRef.current && !open) {
         setActiveId(null);
         dirty.current = false;
@@ -86,7 +90,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     };
   }, [load]);
 
-  const flushRef = useRef<() => Promise<void>>(async () => {});
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void flushRef.current(), SAVE_DELAY_MS);
@@ -99,9 +103,10 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     }
     if (saving.current) await saving.current;
     const id = activeRef.current;
-    if (!id || !dirty.current) return;
+    if (!id || !dirty.current) return true;
+    if (conflict.current) return false;
     const sent = { ...draft.current };
-    const run = (async () => {
+    const run = (async (): Promise<boolean> => {
       setState("saving");
       try {
         const res = await fetch(`${base}/${id}`, {
@@ -114,10 +119,11 @@ export default function Scratchpad({ projectId, onClose }: Props) {
           conflict.current = true;
           setRemote(data.note as ScratchNote);
           setState("conflict");
-          return;
+          return false;
         }
         if (!res.ok) throw new Error(data.error || "Couldn't save the note.");
         const saved = data as ScratchNote;
+        writes.current += 1;
         revision.current = saved.revision;
         const same =
           draft.current.title === sent.title && draft.current.content === sent.content;
@@ -125,15 +131,18 @@ export default function Scratchpad({ projectId, onClose }: Props) {
         setNotes((prev) => [saved, ...(prev ?? []).filter((n) => n.id !== saved.id)]);
         setError(null);
         setState(same ? "saved" : "dirty");
+        return true;
       } catch (e) {
         setError((e as Error).message);
         setState("error");
+        return false;
       }
     })();
     saving.current = run;
-    await run;
+    const ok = await run;
     saving.current = null;
-    if (dirty.current && !conflict.current) schedule();
+    if (ok && dirty.current) schedule();
+    return ok && !dirty.current;
   }, [base, schedule]);
   flushRef.current = flush;
 
@@ -156,6 +165,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   async function open(note: ScratchNote) {
     await flush();
+    if (conflict.current) return;
     setActiveId(note.id);
     activeRef.current = note.id;
     show(notes?.find((n) => n.id === note.id) ?? note);
@@ -163,6 +173,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   async function back() {
     await flush();
+    if (conflict.current) return;
     setActiveId(null);
     activeRef.current = null;
     setRemote(null);
@@ -171,6 +182,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   async function add() {
     await flush();
+    if (conflict.current) return;
     try {
       const res = await fetch(base, {
         method: "POST",
@@ -180,6 +192,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't add a note.");
       const note = data as ScratchNote;
+      writes.current += 1;
       setNotes((prev) => [note, ...(prev ?? [])]);
       setActiveId(note.id);
       activeRef.current = note.id;
@@ -198,8 +211,12 @@ export default function Scratchpad({ projectId, onClose }: Props) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Couldn't delete the note.");
       }
+      writes.current += 1;
       if (activeRef.current === note.id) {
         dirty.current = false;
+        conflict.current = false;
+        setRemote(null);
+        setState("saved");
         setActiveId(null);
         activeRef.current = null;
       }
@@ -225,6 +242,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   async function close() {
     await flush();
+    if (conflict.current) return;
     onClose();
   }
 
