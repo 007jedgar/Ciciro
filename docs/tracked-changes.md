@@ -42,11 +42,12 @@ Edit one, copy it over the other.
   deletion accepted, a whole-paragraph insertion rejected) is dropped rather
   than left empty. Blocks without a matching suggestion come back
   byte-for-byte.
-- **Pending means not applied.** Word counts (`chapterWordCount` in
-  `src/lib/text.ts`, and the phone's replica) and every export format
-  (`src/app/api/export/[id]/route.ts`) read the chapter through
-  `htmlWithoutSuggestions`: deleted text still counts, inserted text does not,
-  until the author decides.
+- **Pending means not applied.** Word counts and plain-text reads
+  (`chapterWordCount` and `chapterPlainText` in `src/lib/text.ts`, used by
+  chapter summaries, auto-draft continuity, and the outline blurb; the phone's
+  replica) and every export format (`src/app/api/export/[id]/route.ts`) read
+  the chapter through `htmlWithoutSuggestions`: deleted text still counts,
+  inserted text does not, until the author decides.
 - Manuscript search and replace (`src/lib/manuscript-search.ts`) skip text
   inside a pending suggestion, so a replace never edits a proposal the author
   has not accepted or straddles one. Version snapshots keep the marks, so a
@@ -87,8 +88,11 @@ smallest replace, so the caret, scroll position, and undo history survive.
 The native editor has no tracked-change marks, so `toEnrichedHtml` shows
 pending changes as underline (added) and strikethrough (removed), and
 `opsFromEnrichedHtml` restores the real marks with `carrySuggestions`, which
-aligns characters against the previous document. An untouched chapter writes
-nothing on flush. The review sheet lists each change in context with Accept and
+aligns characters against the previous document. When one flush's edits are
+too far apart for a single bounded alignment, it aligns each stretch between
+paragraphs that kept their block id on its own, so marks survive a far-away
+paste plus a nearby split or join. An untouched chapter writes nothing on
+flush. The review sheet lists each change in context with Accept and
 Reject; resolving is an ordinary op commit. The grammar pass skips paragraphs
 with pending changes.
 
