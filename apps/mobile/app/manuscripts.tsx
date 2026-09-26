@@ -1,3 +1,4 @@
+import { ManuscriptMeta } from "../components/ManuscriptMeta";
 import { useMemo, useState } from "react";
 import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
@@ -227,16 +228,7 @@ export default function ManuscriptsScreen() {
                 onPress={() => router.push(`/project/${item.project.id}/chapters`)}
               >
                 <Text style={layout.cardTitle}>{item.project.title || t("manuscripts.untitled")}</Text>
-                <Text style={layout.cardMeta}>
-                  {[
-                    item.project.genre,
-                    item.project._count
-                      ? t("manuscripts.chapterCount", { count: item.project._count.chapters })
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || t("manuscripts.fallbackKind")}
-                </Text>
+                <ManuscriptMeta project={item.project} />
                 {item.project.logline ? (
                   <Text style={layout.cardMeta}>{item.project.logline}</Text>
                 ) : null}
