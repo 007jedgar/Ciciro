@@ -6,12 +6,20 @@ import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
 import BrandMark from "@/components/BrandMark";
 import { IMPORT_ACCEPT, uploadImport } from "@/lib/import-client";
+import {
+  KIND_INFO,
+  MANUSCRIPT_KINDS,
+  localYmd,
+  normalizeKind,
+  type ManuscriptKind,
+} from "@/lib/manuscript-kind";
 
 type ProjectSummary = {
   id: string;
   title: string;
   author: string;
   genre: string;
+  kind?: string;
   updatedAt: string;
   folderId?: string | null;
   _count: { chapters: number };
@@ -25,8 +33,10 @@ type FolderSummary = {
   _count: { projects: number };
 };
 
-function chapterLabel(count: number) {
-  return `${count} chapter${count === 1 ? "" : "s"}`;
+function chapterLabel(count: number, kind: ManuscriptKind) {
+  const { unit, unitPlural } = KIND_INFO[kind];
+  if (kind === "blog") return "1 post";
+  return `${count} ${(count === 1 ? unit : unitPlural).toLowerCase()}`;
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -52,7 +62,9 @@ function ProjectCard({
         <h3>{project.title}</h3>
         <div className="meta">
           {project.author || "Unknown author"}
-          {project.genre ? ` - ${project.genre}` : ""} - {chapterLabel(project._count.chapters)}
+          {normalizeKind(project.kind) !== "novel" ? ` - ${KIND_INFO[normalizeKind(project.kind)].label}` : ""}
+          {project.genre ? ` - ${project.genre}` : ""} -{" "}
+          {chapterLabel(project._count.chapters, normalizeKind(project.kind))}
         </div>
       </button>
       <div className="project-card-actions">
@@ -166,6 +178,8 @@ export default function Home() {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [genre, setGenre] = useState("");
+  const [kind, setKind] = useState<ManuscriptKind>("novel");
+  const [subtitle, setSubtitle] = useState("");
   const [folderId, setFolderId] = useState("");
   const [creating, setCreating] = useState(false);
   const [folderName, setFolderName] = useState("");
@@ -213,6 +227,9 @@ export default function Home() {
         title,
         author,
         genre,
+        kind,
+        today: localYmd(),
+        ...(kind === "blog" && subtitle.trim() ? { logline: subtitle } : {}),
         ...(folderId ? { folderId } : {}),
       }),
     });
@@ -345,22 +362,45 @@ export default function Home() {
       ) : null}
 
       <form className="new-form" onSubmit={create}>
-        <strong>Start a new manuscript</strong>
+        <strong>Start something new</strong>
+        <div className="kind-picker" role="group" aria-label="What are you writing?">
+          {MANUSCRIPT_KINDS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="kind-option"
+              aria-pressed={kind === option}
+              onClick={() => setKind(option)}
+            >
+              <strong>{KIND_INFO[option].label}</strong>
+              <span>{KIND_INFO[option].description}</span>
+            </button>
+          ))}
+        </div>
         <input
-          placeholder="Title"
+          placeholder={kind === "journal" ? "Journal name (optional)" : "Title"}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+        {kind === "blog" ? (
+          <input
+            placeholder="Subtitle (optional)"
+            value={subtitle}
+            onChange={(e) => setSubtitle(e.target.value)}
+          />
+        ) : null}
         <input
           placeholder="Author name"
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
         />
-        <input
-          placeholder="Genre (optional)"
-          value={genre}
-          onChange={(e) => setGenre(e.target.value)}
-        />
+        {kind !== "journal" ? (
+          <input
+            placeholder={kind === "blog" ? "Topic or newsletter name (optional)" : "Genre (optional)"}
+            value={genre}
+            onChange={(e) => setGenre(e.target.value)}
+          />
+        ) : null}
         {folders.length > 0 ? (
           <select
             aria-label="Folder"
@@ -376,7 +416,7 @@ export default function Home() {
           </select>
         ) : null}
         <button className="btn primary" type="submit" disabled={creating}>
-          {creating ? "Creating..." : "Create manuscript"}
+          {creating ? "Creating..." : `Create ${KIND_INFO[kind].label.toLowerCase()}`}
         </button>
       </form>
 

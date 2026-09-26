@@ -13,6 +13,14 @@ import {
   setCommentHighlights,
   type CommentHighlight,
 } from "@/lib/tiptap-comment-highlights";
+import { Screenplay, currentElement, setElement } from "@/lib/tiptap-screenplay";
+import {
+  SCREENPLAY_ELEMENTS,
+  SCREENPLAY_ELEMENT_LABELS,
+  classifyScreenplayLines,
+  type ManuscriptKind,
+  type ScreenplayElement,
+} from "@/lib/manuscript-kind";
 import { useSettings } from "@/components/SettingsProvider";
 import { typewriterScrollDelta } from "@/lib/typewriter";
 import { SuggestionCard, type SuggestionDetail } from "@/components/TrackChanges";
@@ -83,6 +91,15 @@ type Props = {
   /** Beta reader comments to mark in the text. */
   commentHighlights?: CommentHighlight[];
   onCommentClick?: (id: string) => void;
+  /** What is being written. Screenplays get elements; a novel is the default. */
+  kind?: ManuscriptKind;
+};
+
+const PLACEHOLDERS: Record<ManuscriptKind, string> = {
+  novel: "Begin your chapter. Ciciro is reading over your shoulder...",
+  screenplay: "INT. LOCATION - DAY",
+  blog: "Start writing your post...",
+  journal: "What is on your mind today?",
 };
 
 type ActiveSuggestion = { detail: SuggestionDetail; top: number; left: number };
@@ -146,6 +163,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     onActiveSuggestionChange,
     commentHighlights,
     onCommentClick,
+    kind = "novel",
   },
   ref
 ) {
@@ -169,6 +187,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   const commentHighlightsRef = useRef(commentHighlights);
   commentHighlightsRef.current = commentHighlights;
 
+  const [element, setCurrentElement] = useState<ScreenplayElement | null>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -179,14 +199,16 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       TrackChanges,
       ReadAloudHighlight,
       CommentHighlights.configure({ onClick: (id) => onCommentClickRef.current?.(id) }),
+      ...(kind === "screenplay" ? [Screenplay] : []),
       CharacterCount,
       Placeholder.configure({
-        placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
+        placeholder: PLACEHOLDERS[kind],
       }),
     ],
     content: content || "",
     onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
     onSelectionUpdate: ({ editor }) => {
+      if (kind === "screenplay") setCurrentElement(currentElement(editor));
       const onSel = onSelectionChangeRef.current;
       if (onSel) {
         const { from, to } = editor.state.selection;
@@ -219,7 +241,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         return true;
       },
       attributes: {
-        class: "prose-body",
+        class: kind === "screenplay" ? "prose-body screenplay" : "prose-body",
         spellcheck: settings.autoCorrect ? "true" : "false",
       },
     },
@@ -277,12 +299,12 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     editor.setOptions({
       editorProps: {
         attributes: {
-          class: "prose-body",
+          class: kind === "screenplay" ? "prose-body screenplay" : "prose-body",
           spellcheck: settings.autoCorrect ? "true" : "false",
         },
       },
     });
-  }, [editor, settings.autoCorrect]);
+  }, [editor, kind, settings.autoCorrect]);
 
   // Typewriter mode: keep the caret line vertically centered in the scroll pane.
   useEffect(() => {
@@ -360,6 +382,27 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   useImperativeHandle(ref, () => ({
     insertDraft(text: string, key = "default") {
       if (!editor) return;
+      if (kind === "screenplay") {
+        const lines = classifyScreenplayLines(text);
+        if (lines.length === 0) return;
+        const map = insertPositions.current;
+        const docSize = editor.state.doc.content.size;
+        const pos = Math.max(0, Math.min(map.get(key) ?? editor.state.selection.to, docSize));
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(pos)
+          .insertContent(
+            lines.map(({ element: el, text: line }) => ({
+              type: "paragraph",
+              attrs: { screenplay: el === "action" ? null : el },
+              content: [{ type: "text", text: line }],
+            }))
+          )
+          .run();
+        map.set(key, editor.state.selection.to);
+        return;
+      }
       const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
       if (paragraphs.length === 0) return;
 
@@ -468,6 +511,28 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
   return (
     <div ref={shellRef} className={`editor-shell${suggesting ? " is-suggesting" : ""}`}>
+      {kind === "screenplay" ? (
+        <div className="screenplay-bar" role="toolbar" aria-label="Screenplay element">
+          {SCREENPLAY_ELEMENTS.map((el) => (
+            <button
+              key={el}
+              type="button"
+              className={`btn small ${element === el ? "primary" : "ghost"}`}
+              aria-pressed={element === el}
+              // Keep the caret in the page while picking an element.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                if (!editor) return;
+                setElement(editor, el);
+                setCurrentElement(currentElement(editor));
+              }}
+            >
+              {SCREENPLAY_ELEMENT_LABELS[el]}
+            </button>
+          ))}
+          <span className="screenplay-hint">Tab cycles, Enter continues</span>
+        </div>
+      ) : null}
       <EditorContent editor={editor} />
       {activeSuggestion ? (
         <SuggestionCard

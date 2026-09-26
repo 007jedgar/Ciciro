@@ -10,7 +10,8 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { QUICK_ACTIONS, type QuickAction } from "@/lib/prompts";
+import { quickActionsFor, type QuickAction } from "@/lib/prompts";
+import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import type {
   ChatMessage,
   ChatSnapshot,
@@ -59,6 +60,8 @@ type Props = {
   // keep them in the right order (see EditorHandle.insertDraft).
   onInsertDraft: (text: string, key: string) => void;
   onTurnComplete?: () => void;
+  /** What is being written; picks the quick actions. Defaults to a novel. */
+  kind?: ManuscriptKind;
   /** Live chapter focus / content updates from editor tools mid-turn. */
   onUiEvent?: (evt: ClientUiEvent) => void;
 };
@@ -196,6 +199,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     onInsertDraft,
     onTurnComplete,
     onUiEvent,
+    kind = "novel",
   },
   ref
 ) {
@@ -951,7 +955,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       {banner && <div className="conn-banner">{banner}</div>}
 
       <div className="quick-actions">
-        {QUICK_ACTIONS.map((a) => (
+        {quickActionsFor(kind).map((a) => (
           <button
             key={a.id}
             className="chip"

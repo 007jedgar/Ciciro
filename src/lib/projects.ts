@@ -7,7 +7,7 @@ import {
   withVisibleChapterCount,
 } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
-import { normalizeKind, openingChapter, parseYmd } from "@/lib/manuscript-kind";
+import { defaultTitle, normalizeKind, openingChapter, parseYmd } from "@/lib/manuscript-kind";
 
 function readTrimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -65,7 +65,7 @@ export async function createProject(
   requireUserIfHosted(user);
   const folderId = await resolveFolderId(user, input.folderId);
   const kind = normalizeKind(input.kind);
-  const title = readTrimmed(input.title) || "Untitled Manuscript";
+  const title = readTrimmed(input.title) || defaultTitle(kind);
   const opening = openingChapter(kind, {
     title: readTrimmed(input.title),
     today: parseYmd(input.today) ?? undefined,

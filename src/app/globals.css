@@ -2503,3 +2503,104 @@ textarea {
   justify-content: flex-end;
   gap: 6px;
 }
+/* ---------- Screenplay ---------- */
+/* Standard script layout, measured against a 6in text column:
+   character at 3.7in, dialogue at 2.5in and 3.5in wide, parenthetical at 3.1in. */
+.ProseMirror.screenplay {
+  font-family: "Courier Prime", "Courier New", Courier, monospace;
+  font-size: var(--editor-size, 19px);
+  line-height: 1.5;
+}
+.ProseMirror.screenplay p {
+  margin: 0 0 1em;
+}
+.ProseMirror.screenplay p[data-sp="scene-heading"] {
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-top: 1.6em;
+}
+.ProseMirror.screenplay p[data-sp="character"] {
+  text-transform: uppercase;
+  margin: 0 0 0 37%;
+  break-after: avoid;
+}
+.ProseMirror.screenplay p[data-sp="dialogue"] {
+  margin: 0 12% 1em 17%;
+}
+.ProseMirror.screenplay p[data-sp="parenthetical"] {
+  margin: 0 20% 0 27%;
+  break-after: avoid;
+}
+.ProseMirror.screenplay p[data-sp="parenthetical"]::before {
+  content: "(";
+}
+.ProseMirror.screenplay p[data-sp="parenthetical"]::after {
+  content: ")";
+}
+.ProseMirror.screenplay p[data-sp="transition"] {
+  text-transform: uppercase;
+  text-align: right;
+}
+.screenplay-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.screenplay-hint {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin-left: 6px;
+}
+.kind-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.kind-option {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.kind-option strong {
+  display: block;
+  font-size: 14px;
+}
+.kind-option span {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.kind-option[aria-pressed="true"] {
+  border-color: var(--accent, var(--ink));
+  background: color-mix(in srgb, var(--accent, var(--ink)) 10%, transparent);
+}
+.kind-tag {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.subtitle-input {
+  font-family: var(--editor-font-family, var(--serif));
+  font-size: calc(var(--editor-size, 19px) * 1.05);
+  font-style: italic;
+  color: var(--ink-soft);
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: -2px 0 10px;
+  width: 100%;
+}
+.subtitle-input:focus {
+  outline: none;
+}

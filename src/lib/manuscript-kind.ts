@@ -59,6 +59,18 @@ export const KIND_INFO: Record<ManuscriptKind, KindInfo> = {
   },
 };
 
+const DEFAULT_TITLES: Record<ManuscriptKind, string> = {
+  novel: "Untitled Manuscript",
+  screenplay: "Untitled Screenplay",
+  blog: "Untitled Post",
+  journal: "Journal",
+};
+
+/** What a manuscript is called when its author does not name it. */
+export function defaultTitle(kind: ManuscriptKind): string {
+  return DEFAULT_TITLES[kind];
+}
+
 // --- Screenplay elements -----------------------------------------------------
 
 export const SCREENPLAY_ELEMENTS = [
