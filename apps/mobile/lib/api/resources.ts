@@ -42,6 +42,12 @@ import type {
   ScratchNoteCreateRequest,
   ScratchNoteListResponse,
   ScratchNotePatchRequest,
+  ShareCommentListResponse,
+  ShareCommentStatus,
+  ShareCommentStatusResponse,
+  ShareLinkCreateRequest,
+  ShareLinkListResponse,
+  ShareLinkSummary,
   NdjsonEvent,
   OkResponse,
   OpenQuestion,
@@ -226,6 +232,22 @@ export const ciciro = {
           jsonInit("DELETE", undefined, opts)
         ),
     },
+    shares: {
+      list: (id: string, opts?: RequestOpts) =>
+        api<ShareLinkListResponse>(`/api/projects/${encodeURIComponent(id)}/shares`, opts),
+      create: (id: string, body: ShareLinkCreateRequest, opts?: RequestOpts) =>
+        api<ShareLinkSummary>(
+          `/api/projects/${encodeURIComponent(id)}/shares`,
+          jsonInit("POST", body, opts)
+        ),
+    },
+    shareComments: {
+      list: (id: string, status?: ShareCommentStatus, opts?: RequestOpts) =>
+        api<ShareCommentListResponse>(
+          `/api/projects/${encodeURIComponent(id)}/share-comments${status ? `?status=${status}` : ""}`,
+          opts
+        ),
+    },
     reminderNudge: {
       post: (id: string, opts?: RequestOpts) =>
         api<ReminderNudgeResponse>(
@@ -233,6 +255,30 @@ export const ciciro = {
           jsonInit("POST", {}, opts)
         ),
     },
+  },
+
+  shares: {
+    /** Turn a link off for good. Comments already left stay. */
+    revoke: (id: string, opts?: RequestOpts) =>
+      api<ShareLinkSummary>(
+        `/api/shares/${encodeURIComponent(id)}`,
+        jsonInit("PATCH", { revoke: true }, opts)
+      ),
+    delete: (id: string, opts?: RequestOpts) =>
+      api<OkResponse>(`/api/shares/${encodeURIComponent(id)}`, jsonInit("DELETE", undefined, opts)),
+  },
+
+  shareComments: {
+    setStatus: (id: string, status: ShareCommentStatus, opts?: RequestOpts) =>
+      api<ShareCommentStatusResponse>(
+        `/api/share-comments/${encodeURIComponent(id)}`,
+        jsonInit("PATCH", { status }, opts)
+      ),
+    delete: (id: string, opts?: RequestOpts) =>
+      api<OkResponse>(
+        `/api/share-comments/${encodeURIComponent(id)}`,
+        jsonInit("DELETE", undefined, opts)
+      ),
   },
 
   search: {

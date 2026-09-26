@@ -24,6 +24,9 @@ import type {
   QuestionCreateRequest,
   ScratchNote,
   ScratchNotePatchRequest,
+  ShareCommentStatus,
+  ShareLinkCreateRequest,
+  ShareLinkSummary,
   SettingsResponse,
   SignupRequest,
   ChapterOpsPushRequest,
@@ -1047,5 +1050,84 @@ export function useDeleteScratchNoteMutation() {
       queryClient.setQueryData<ScratchNote[]>(queryKeys.scratch(vars.projectId), (notes) =>
         (notes ?? []).filter((n) => n.id !== vars.noteId)
       ),
+  });
+}
+
+/** How often an open comments list checks for new reader comments. */
+const SHARE_COMMENTS_REFRESH_MS = 60_000;
+
+export function useShareLinksQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.shares(projectId),
+    queryFn: async () => (await ciciro.projects.shares.list(projectId)).links,
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+function putShareLink(projectId: string, link: ShareLinkSummary): void {
+  queryClient.setQueryData<ShareLinkSummary[]>(queryKeys.shares(projectId), (links) => {
+    const list = links ?? [];
+    return list.some((l) => l.id === link.id)
+      ? list.map((l) => (l.id === link.id ? link : l))
+      : [link, ...list];
+  });
+}
+
+export function useCreateShareLinkMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, body }: { projectId: string; body: ShareLinkCreateRequest }) =>
+      ciciro.projects.shares.create(projectId, body),
+    onSuccess: (link, vars) => putShareLink(vars.projectId, link),
+  });
+}
+
+export function useRevokeShareLinkMutation() {
+  return useMutation({
+    mutationFn: ({ linkId }: { projectId: string; linkId: string }) => ciciro.shares.revoke(linkId),
+    onSuccess: (link, vars) => putShareLink(vars.projectId, link),
+  });
+}
+
+/** Deleting a link deletes the comments left through it, so both lists refresh. */
+export function useDeleteShareLinkMutation() {
+  return useMutation({
+    mutationFn: ({ linkId }: { projectId: string; linkId: string }) => ciciro.shares.delete(linkId),
+    onSuccess: (_ok, vars) => {
+      queryClient.setQueryData<ShareLinkSummary[]>(queryKeys.shares(vars.projectId), (links) =>
+        (links ?? []).filter((l) => l.id !== vars.linkId)
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shareComments.all(vars.projectId) });
+    },
+  });
+}
+
+export function useShareCommentsQuery(projectId: string, status: ShareCommentStatus, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.shareComments.list(projectId, status),
+    queryFn: async () => (await ciciro.projects.shareComments.list(projectId, status)).comments,
+    refetchInterval: SHARE_COMMENTS_REFRESH_MS,
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+function refreshShareComments(projectId: string): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.shareComments.all(projectId) });
+  // Link cards show how many comments are still open.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.shares(projectId) });
+}
+
+export function useSetShareCommentStatusMutation() {
+  return useMutation({
+    mutationFn: ({ commentId, status }: { projectId: string; commentId: string; status: ShareCommentStatus }) =>
+      ciciro.shareComments.setStatus(commentId, status),
+    onSettled: (_data, _err, vars) => refreshShareComments(vars.projectId),
+  });
+}
+
+export function useDeleteShareCommentMutation() {
+  return useMutation({
+    mutationFn: ({ commentId }: { projectId: string; commentId: string }) =>
+      ciciro.shareComments.delete(commentId),
+    onSettled: (_data, _err, vars) => refreshShareComments(vars.projectId),
   });
 }

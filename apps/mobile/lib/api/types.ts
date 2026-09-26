@@ -784,3 +784,61 @@ export type ScratchNotePatchRequest = {
 
 /** The 409 body for a scratch note edited on another device. */
 export type ScratchNoteConflict = { error: string; currentRevision: number; note: ScratchNote };
+
+/** Mirrors src/lib/share-view.ts. */
+export type ShareLinkStatus = "active" | "expired" | "revoked";
+
+/** A beta reader link. `path` is the reader page on the Ciciro server. */
+export type ShareLinkSummary = {
+  id: string;
+  projectId: string;
+  label: string;
+  path: string;
+  token: string;
+  /** Empty means the whole manuscript. */
+  chapterIds: string[];
+  expiresAt: string | null;
+  revokedAt: string | null;
+  status: ShareLinkStatus;
+  commentCount: number;
+  openCommentCount: number;
+  createdAt: string;
+};
+
+export type ShareLinkListResponse = { links: ShareLinkSummary[] };
+
+export type ShareLinkCreateRequest = {
+  label?: string;
+  chapterIds?: string[];
+  /** Days until the link stops working; null never expires. */
+  expiresInDays?: number | null;
+};
+
+export type ShareCommentStatus = "open" | "resolved";
+
+/** Where a comment's passage is in the chapter now. Length 0: only its paragraph is left. */
+export type CommentAnchor = { blockId: string; offset: number; length: number };
+
+/** A beta reader's comment on a passage. */
+export type ShareComment = {
+  id: string;
+  shareLinkId: string;
+  linkLabel: string;
+  chapterId: string;
+  chapterTitle: string;
+  readerName: string;
+  body: string;
+  quote: string;
+  status: ShareCommentStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+  anchor: CommentAnchor | null;
+};
+
+export type ShareCommentListResponse = { comments: ShareComment[] };
+
+export type ShareCommentStatusResponse = {
+  id: string;
+  status: ShareCommentStatus;
+  resolvedAt: string | null;
+};

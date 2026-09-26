@@ -28,6 +28,11 @@ export const queryKeys = {
     ops: (id: string, after = 0) => ["chapter-ops", id, after] as const,
   },
   scratch: (projectId: string) => ["scratch", projectId] as const,
+  shares: (projectId: string) => ["shares", projectId] as const,
+  shareComments: {
+    all: (projectId: string) => ["share-comments", projectId] as const,
+    list: (projectId: string, status: string) => ["share-comments", projectId, status] as const,
+  },
   characters: (projectId: string) => ["characters", projectId] as const,
   plotPoints: (projectId: string) => ["plotpoints", projectId] as const,
   questions: {
