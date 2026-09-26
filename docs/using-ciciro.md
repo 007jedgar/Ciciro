@@ -166,7 +166,7 @@ tab) is where you share the book and read what came back.
 Under **Share links**, name the link (who it is for), share the whole manuscript
 or only chosen chapters, and pick when it stops working: in 7, 30 or 90 days, or
 never. **Make link and copy** puts the link on your clipboard; on the phone it
-opens the share sheet. A whole-manuscript link includes chapters you add later;
+opens the share sheet, and tapping a link's address copies it. A whole-manuscript link includes chapters you add later;
 archived chapters are never shown. Anyone with the link can read those chapters
 in a browser without an account, and nothing else of yours: not your other
 chapters or manuscripts, the story bible, the chat, or other readers' comments.
