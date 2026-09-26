@@ -186,7 +186,18 @@ button {
   padding: 7px 12px;
   border-radius: 8px;
   font-size: 13px;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+:root[data-reduce-motion="true"] .btn:active:not(:disabled) {
+  transform: none;
 }
 .btn:hover {
   background: var(--panel-2);
@@ -1824,6 +1835,7 @@ textarea {
   cursor: pointer;
 }
 .search-options input[type="checkbox"] {
+  accent-color: var(--accent);
   width: auto;
   margin: 0;
 }

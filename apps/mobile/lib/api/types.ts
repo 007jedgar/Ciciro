@@ -214,6 +214,10 @@ export type DraftInsertion = {
 export type HealthStatus = {
   status: "ok" | "degraded";
   db: "ok" | "down";
+  /** "drift" when a model cannot be read with every column (see schemaFailures). */
+  schema: "ok" | "drift" | "unknown";
+  schemaFailures: string[];
+  anthropic: boolean;
   authRequired: boolean;
   latencyMs: number;
   time: string;

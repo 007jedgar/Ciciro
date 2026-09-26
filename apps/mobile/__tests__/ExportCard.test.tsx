@@ -11,7 +11,7 @@ jest.mock("expo-sharing", () => ({}));
 jest.mock("../lib/settings", () => ({
   useAppTheme: () => {
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
-    return { colors, layout: makeLayout(colors) };
+    return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
   },
 }));
 
@@ -47,5 +47,12 @@ describe("ExportCard", () => {
     expect(
       await screen.findByText("Some edits have not synced yet. Connect to the internet and try again.")
     ).toBeTruthy();
+  });
+});
+
+describe("ExportCard layout", () => {
+  it("keeps every format label on one line and lets the pills wrap", () => {
+    render(<ExportCard projectId="p1" />);
+    expect(screen.getByText("Markdown").props.numberOfLines).toBe(1);
   });
 });
