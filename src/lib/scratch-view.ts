@@ -49,19 +49,22 @@ export function scratchNoteExcerpt(note: Pick<ScratchNote, "title" | "content">)
   return rest.join(" ").slice(0, 140);
 }
 
-/** Format when the note was last updated as "updated Xh ago" or "updated today". */
-export function scratchNoteUpdated(updatedAt: string): string {
+/**
+ * Format when the note was last updated relative to `now`: "updated now",
+ * "updated 5m ago", "updated 3h ago", "updated yesterday" (the previous
+ * calendar day), "updated 4d ago", or a month and day beyond a week.
+ */
+export function scratchNoteUpdated(updatedAt: string, now: Date = new Date()): string {
   const updated = new Date(updatedAt);
-  const now = new Date();
-  const diffMs = now.getTime() - updated.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  const diffMins = Math.floor((now.getTime() - updated.getTime()) / 60000);
   const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(updated)) / 86400000);
 
   if (diffMins < 1) return "updated now";
   if (diffMins < 60) return `updated ${diffMins}m ago`;
-  if (diffHours < 24) return `updated ${diffHours}h ago`;
-  if (diffDays === 1) return "updated yesterday";
+  if (diffHours < 24 && diffDays === 0) return `updated ${diffHours}h ago`;
+  if (diffDays <= 1) return "updated yesterday";
   if (diffDays < 7) return `updated ${diffDays}d ago`;
 
   const monthDay = updated.toLocaleDateString(undefined, {

@@ -2264,6 +2264,11 @@ textarea {
   font-size: 11px;
   color: var(--accent);
 }
+.scratch-updated {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
 .scratch-title {
   width: 100%;
   margin-bottom: 8px;
@@ -2773,12 +2778,11 @@ textarea {
   align-items: center;
   gap: 6px;
   margin-bottom: 20px;
-  justify-content: space-between;
 }
 .screenplay-hint {
   color: var(--ink-soft);
   font-size: 12px;
-  margin-left: 6px;
+  margin-left: auto;
   text-align: right;
 }
 @media (pointer: coarse) {
