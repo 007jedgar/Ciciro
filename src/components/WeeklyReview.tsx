@@ -5,6 +5,7 @@ import { writingDayKey } from "@/lib/writing-day";
 import {
   formatActiveTime,
   formatWeekRange,
+  reviewDue,
   type WeeklyReview as Review,
 } from "@/lib/weekly-review-view";
 
@@ -16,6 +17,7 @@ function ReviewBody({ review }: { review: Review }) {
   const active = formatActiveTime(stats.activeMs);
   return (
     <div className="weekly-review">
+      <p className="weekly-scope">Across all your writing this week</p>
       <div className="weekly-stats">
         <div>
           <strong>{stats.words.toLocaleString()}</strong> words
@@ -29,7 +31,7 @@ function ReviewBody({ review }: { review: Review }) {
           </div>
         )}
       </div>
-      <div className="weekly-bars" role="img" aria-label="Words written each day">
+      <div className="weekly-bars" role="img" aria-label="Words written each day, across all your writing">
         {stats.days.map((d) => (
           <span
             key={d.date}
@@ -128,7 +130,9 @@ export default function WeeklyReview({ projectId }: Props) {
     try {
       const res = await fetch(`${base}/${review.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Couldn't delete the review.");
-      setReviews((prev) => (prev ?? []).filter((r) => r.id !== review.id));
+      const next = (reviews ?? []).filter((r) => r.id !== review.id);
+      setReviews(next);
+      setDue(reviewDue(next));
       setSelectedId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't delete the review.");
@@ -153,7 +157,7 @@ export default function WeeklyReview({ projectId }: Props) {
       {open && (
         <>
           <div className="drawer-overlay" onClick={() => setOpen(false)} />
-          <div className="drawer" role="dialog" aria-label="Weekly review">
+          <div className="drawer weekly-drawer" role="dialog" aria-label="Weekly review">
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <h2>Weekly review</h2>
               <button className="btn ghost small" onClick={() => setOpen(false)}>
@@ -206,7 +210,7 @@ export default function WeeklyReview({ projectId }: Props) {
                         {formatWeekRange(r.weekStart, r.weekEnd)}
                       </div>
                       <div className="scratch-excerpt">
-                        {r.stats.words.toLocaleString()} words
+                        {r.stats.words.toLocaleString()} words across all your writing
                       </div>
                     </div>
                   ))}

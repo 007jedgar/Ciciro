@@ -76,6 +76,7 @@ beforeEach(async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "DELETE") return json({ ok: true });
       if (init?.method === "POST") {
         posts.push(JSON.parse(String(init.body)));
         if (postStatus !== 201) return json({ error: "Weekly reviews need an ANTHROPIC_API_KEY." }, postStatus);
@@ -129,6 +130,24 @@ describe("WeeklyReview panel", () => {
     )!;
     await act(async () => past.click());
     expect(host.textContent).toContain("A steady week.");
+  });
+
+  it("labels the week's numbers as account-wide", async () => {
+    listed = { due: false, reviews: [review()] };
+    await click("Weekly review");
+    expect(host.querySelector(".weekly-scope")?.textContent).toBe(
+      "Across all your writing this week"
+    );
+  });
+
+  it("dots the button again after deleting the only review", async () => {
+    listed = { due: false, reviews: [review({ createdAt: new Date().toISOString() })] };
+    await click("Weekly review");
+    expect(host.querySelector(".weekly-dot")).toBeNull();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await click("Delete");
+    expect(host.querySelector(".weekly-dot")).not.toBeNull();
+    expect(button("Review this week")).toBeTruthy();
   });
 
   it("shows the server's message when the review can't be written", async () => {

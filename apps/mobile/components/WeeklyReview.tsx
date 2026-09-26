@@ -24,6 +24,7 @@ function ReviewBody({ review }: { review: Review }) {
   const active = stats.activeMs > 0 ? formatActiveDuration(stats.activeMs) : "";
   return (
     <View testID="weekly-review-body">
+      <Text style={[layout.cardMeta, { marginBottom: 4 }]}>{t("weekly.accountWide")}</Text>
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>
         {t("weekly.statsLine", { words: stats.words, count: stats.daysWritten })}
         {active ? ` · ${active}` : ""}
