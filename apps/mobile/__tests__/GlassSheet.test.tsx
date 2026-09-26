@@ -94,6 +94,36 @@ describe("GlassSheet", () => {
   });
 
   /**
+   * A sheet with fixed snap heights holds a scrolling list (open questions,
+   * suggestions). Its body used to hug its content like an auto sheet's, so a
+   * flex: 1 ScrollView inside had no height and the sheet opened blank.
+   */
+  it("lets a fixed-height sheet's body fill the card and an auto sheet's hug its content", () => {
+    const fixed = render(
+      wrap(
+        <GlassSheet visible onClose={jest.fn()} title="Questions" snapPoints={[0.62, 0.92]}>
+          <Text>List</Text>
+        </GlassSheet>
+      )
+    );
+    expect(StyleSheet.flatten(screen.getByTestId("glass-sheet-measure").props.style)).toMatchObject({ flex: 1 });
+    fixed.unmount();
+
+    const auto = render(
+      wrap(
+        <GlassSheet visible onClose={jest.fn()} title="Theme">
+          <Text>Ash</Text>
+        </GlassSheet>
+      )
+    );
+    expect(StyleSheet.flatten(screen.getByTestId("glass-sheet-measure").props.style)).toMatchObject({
+      flexGrow: 0,
+      flexShrink: 0,
+    });
+    auto.unmount();
+  });
+
+  /**
    * React Native 0.86 dropped `StyleSheet.absoluteFillObject`. Spreading it
    * left the backdrop with a background colour and no geometry, so it covered
    * nothing, tinted nothing, and swallowed no taps.
