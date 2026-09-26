@@ -6,7 +6,7 @@ decisions back so facts are not lost to chat scrollback.
 
 ![Story Bible drawer listing canon, character, plot, style, timeline, and world files](images/story-bible.png)
 
-Open it from **Story bible** in the manuscript header. Each row is a file you
+Open it from **Story bible** in the manuscript header's **More** menu. Each row is a file you
 can edit in the drawer or in any text editor. They live at
 `data/<projectId>/bible/` and are gitignored as author content.
 
