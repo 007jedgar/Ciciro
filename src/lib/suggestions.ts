@@ -1317,6 +1317,44 @@ function slideInsertionsLeft(ops: EditOp[], next: readonly string[]): EditOp[] {
 }
 
 /**
+ * Pairs of block indexes (previous, next) for ids found exactly once in each
+ * document, keeping the longest run of them that stays in the same order.
+ */
+function sharedBlockAnchors(before: readonly Block[], after: readonly Block[]): Array<[number, number]> {
+  const once = (blocks: readonly Block[]) => {
+    const seen = new Map<string, number>();
+    blocks.forEach((block, i) => {
+      if (block.id) seen.set(block.id, seen.has(block.id) ? -1 : i);
+    });
+    return seen;
+  };
+  const prevAt = once(before);
+  const pairs: Array<[number, number]> = [];
+  once(after).forEach((n, id) => {
+    const p = prevAt.get(id);
+    if (n >= 0 && p !== undefined && p >= 0) pairs.push([p, n]);
+  });
+  pairs.sort((x, y) => x[1] - y[1]);
+  // Longest increasing run of previous indexes (patience sorting).
+  const tails: number[] = [];
+  const back: number[] = [];
+  pairs.forEach(([p], i) => {
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (pairs[tails[mid]][0] < p) lo = mid + 1;
+      else hi = mid;
+    }
+    back[i] = lo > 0 ? tails[lo - 1] : -1;
+    tails[lo] = i;
+  });
+  const chain: Array<[number, number]> = [];
+  for (let i = tails.length ? tails[tails.length - 1] : -1; i >= 0; i = back[i]) chain.push(pairs[i]);
+  return chain.reverse();
+}
+
+/**
  * Put pending suggestions back onto HTML that came out of a plain editor.
  *
  * `previous` is the last document with its suggestion marks; `next` is what
@@ -1334,78 +1372,80 @@ export function carrySuggestions(previous: string, next: string): string {
   const after = scanBlocks(next);
   const SEP = "\u0001";
 
-  const prevChars: string[] = [];
-  const prevRefs: Array<TextItem | null> = [];
-  for (const block of before) {
-    for (const item of block.items ?? []) {
-      if (item.t !== "text") continue;
-      prevChars.push(item.ch);
-      prevRefs.push(item);
+  type NextRef = { block: number; index: number };
+  const prevRun = (from: number, to: number) => {
+    const chars: string[] = [];
+    const refs: Array<TextItem | null> = [];
+    for (let b = from; b < to; b++) {
+      if (b > from) {
+        chars.push(SEP);
+        refs.push(null);
+      }
+      for (const item of before[b].items ?? []) {
+        if (item.t !== "text") continue;
+        chars.push(item.ch);
+        refs.push(item);
+      }
     }
-    prevChars.push(SEP);
-    prevRefs.push(null);
-  }
-  const nextChars: string[] = [];
-  const nextRefs: Array<{ block: number; index: number } | null> = [];
-  after.forEach((block, b) => {
-    block.items?.forEach((item, i) => {
-      if (item.t !== "text") return;
-      nextChars.push(item.ch);
-      nextRefs.push({ block: b, index: i });
-    });
-    nextChars.push(SEP);
-    nextRefs.push(null);
-  });
+    return { chars, refs };
+  };
+  const nextRun = (from: number, to: number) => {
+    const chars: string[] = [];
+    const refs: Array<NextRef | null> = [];
+    for (let b = from; b < to; b++) {
+      if (b > from) {
+        chars.push(SEP);
+        refs.push(null);
+      }
+      after[b].items?.forEach((item, index) => {
+        if (item.t !== "text") return;
+        chars.push(item.ch);
+        refs.push({ block: b, index });
+      });
+    }
+    return { chars, refs };
+  };
 
   const source = new Map<string, TextItem>();
-  const record = (
-    ops: readonly EditOp[],
-    fromRefs: ReadonlyArray<TextItem | null>,
-    toRefs: ReadonlyArray<{ block: number; index: number } | null>
-  ) => {
+  // Align one run of previous blocks with one run of next blocks.
+  const align = (prevFrom: number, prevTo: number, nextFrom: number, nextTo: number) => {
+    const a = prevRun(prevFrom, prevTo);
+    const b = nextRun(nextFrom, nextTo);
+    const found = trimmedDiff(a.chars, b.chars, CARRY_BUDGET);
     let pi = 0;
     let ni = 0;
-    for (const op of ops) {
+    for (const op of slideInsertionsLeft(found.ops, b.chars)) {
       if (op === "=") {
-        const from = fromRefs[pi];
-        const to = toRefs[ni];
+        const from = a.refs[pi];
+        const to = b.refs[ni];
         if (from && to) source.set(`${to.block}:${to.index}`, from);
         pi++;
         ni++;
       } else if (op === "-") pi++;
       else ni++;
     }
+    return found.exact;
   };
 
   const byId = new Map<string, Block>();
   for (const block of before) if (block.id) byId.set(block.id, block);
 
-  const whole = trimmedDiff(prevChars, nextChars, CARRY_BUDGET);
-  if (whole.exact) {
-    record(slideInsertionsLeft(whole.ops, nextChars), prevRefs, nextRefs);
-  } else {
+  if (!align(0, before.length, 0, after.length)) {
     // Edits too far apart to align as one run (a big paste in one paragraph,
-    // a fix in another, a suggestion between them). Pair each paragraph with
-    // the one that kept its id instead, so a paragraph nobody rewrote keeps
-    // its marks rather than having the budget overflow wash them out.
-    after.forEach((block, b) => {
-      const was = block.id ? byId.get(block.id) : undefined;
-      if (!was?.items || !block.items) return;
-      const fromRefs = was.items.filter(isText);
-      const toRefs: Array<{ block: number; index: number }> = [];
-      const toChars: string[] = [];
-      block.items.forEach((item, index) => {
-        if (item.t !== "text") return;
-        toRefs.push({ block: b, index });
-        toChars.push(item.ch);
-      });
-      const ops = diffSequences(
-        fromRefs.map((item) => item.ch),
-        toChars,
-        CARRY_BUDGET
-      );
-      record(slideInsertionsLeft(ops, toChars), fromRefs, toRefs);
-    });
+    // a fix in another, a suggestion between them). Start over, cutting both
+    // documents at the paragraphs that kept their id, and align each stretch
+    // from one such paragraph up to the next on its own, so a paragraph
+    // nobody rewrote, or one split or joined nearby, keeps its marks rather
+    // than having the budget overflow wash them out.
+    source.clear();
+    const anchors = sharedBlockAnchors(before, after);
+    let prevFrom = 0;
+    let nextFrom = 0;
+    for (const [p, n] of [...anchors, [before.length, after.length]]) {
+      if (p > prevFrom || n > nextFrom) align(prevFrom, p, nextFrom, n);
+      prevFrom = p;
+      nextFrom = n;
+    }
   }
 
   const out = new Map<Block, string | null>();

@@ -284,6 +284,47 @@ describe("plain-editor round trip (the phone)", () => {
     expect(carried).not.toContain("<u>");
   });
 
+  it("keeps marks moved by a split while a far paste overflows the diff budget", () => {
+    const before =
+      `<p data-block-id="a">Start.</p>` +
+      `<p data-block-id="m">Middle.</p>` +
+      `<p data-block-id="b">First part. She ${del("s1", "walked")}${ins("s1", "ambled")} home.</p>` +
+      `<p data-block-id="c">End.</p>`;
+    const paste = "z".repeat(1500);
+    const edited =
+      `<p data-block-id="a">Start. ${paste}</p>` +
+      `<p data-block-id="m">Middle.</p>` +
+      `<p data-block-id="b">First part.</p>` +
+      `<p data-block-id="new1">She <s>walked</s><u>ambled</u> home.</p>` +
+      `<p data-block-id="c">End.</p>`;
+    const carried = carrySuggestions(before, edited);
+    expect(carried).toBe(
+      `<p data-block-id="a">Start. ${paste}</p>` +
+        `<p data-block-id="m">Middle.</p>` +
+        `<p data-block-id="b">First part.</p>` +
+        `<p data-block-id="new1">She ${del("s1", "walked")}${ins("s1", "ambled")} home.</p>` +
+        `<p data-block-id="c">End.</p>`
+    );
+  });
+
+  it("keeps marks moved by a join while a far paste overflows the diff budget", () => {
+    const before =
+      `<p data-block-id="a">Start.</p>` +
+      `<p data-block-id="b">First part.</p>` +
+      `<p data-block-id="d">She ${del("s1", "walked")}${ins("s1", "ambled")} home.</p>` +
+      `<p data-block-id="c">End.</p>`;
+    const paste = "z".repeat(1500);
+    const edited =
+      `<p data-block-id="a">Start. ${paste}</p>` +
+      `<p data-block-id="b">First part.She <s>walked</s><u>ambled</u> home.</p>` +
+      `<p data-block-id="c">End.</p>`;
+    expect(carrySuggestions(before, edited)).toBe(
+      `<p data-block-id="a">Start. ${paste}</p>` +
+        `<p data-block-id="b">First part.She ${del("s1", "walked")}${ins("s1", "ambled")} home.</p>` +
+        `<p data-block-id="c">End.</p>`
+    );
+  });
+
   it("is a no-op when the previous document had no suggestions", () => {
     const html = "<p>Just <u>underlined</u>.</p>";
     expect(carrySuggestions("<p>Before.</p>", html)).toBe(html);

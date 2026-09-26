@@ -8,8 +8,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
-import { chapterWordCount, htmlToText } from "@/lib/text";
-import { htmlWithoutSuggestions } from "@/lib/suggestions";
+import { chapterPlainText, chapterWordCount } from "@/lib/text";
 
 // Export a manuscript in standard (Shunn-style) manuscript format:
 // Times New Roman 12pt, double-spaced, 1" margins, 0.5" first-line indent,
@@ -125,7 +124,7 @@ export function buildManuscriptDocx(project: ExportProject): Document {
       body.push(centered(ch.title || `Chapter ${i + 1}`, { bold: true, spaceBefore: 1440 }));
       body.push(new Paragraph({ children: [new TextRun({ text: "", font: FONT, size: SIZE })] }));
       // Pending suggestions are not part of the manuscript until accepted.
-      const text = htmlToText(htmlWithoutSuggestions(ch.content));
+      const text = chapterPlainText(ch.content);
       const paras = paragraphsFromText(text);
       if (!paras.length) {
         body.push(bodyParagraph("[This chapter is empty.]"));
