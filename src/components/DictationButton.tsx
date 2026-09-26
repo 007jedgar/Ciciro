@@ -105,7 +105,7 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
   if (!Ctor) return null;
 
   return (
-    <>
+    <span className="dictation">
       <button
         type="button"
         className={`btn small${listening ? " primary" : ""}`}
@@ -131,6 +131,6 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
           {error}
         </span>
       )}
-    </>
+    </span>
   );
 }
