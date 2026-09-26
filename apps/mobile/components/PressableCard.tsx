@@ -19,6 +19,8 @@ const PRESS_OUT_MS = 180;
 type Props = Omit<PressableProps, "style" | "children"> & {
   /** Visual style of the surface; its backgroundColor is what the press highlight starts from. */
   style?: StyleProp<ViewStyle>;
+  /** Filled accent style for primary actions. When true, backgroundColor is overridden to accent. */
+  accent?: boolean;
   children?: ReactNode;
 };
 
@@ -27,15 +29,16 @@ type Props = Omit<PressableProps, "style" | "children"> & {
  * shifts to the theme's pressed tint while a finger is down. Reduce motion drops
  * the scale and keeps only the (instant) tint, so touch is still acknowledged.
  */
-export function PressableCard({ style, children, onPressIn, onPressOut, disabled, ...rest }: Props) {
+export function PressableCard({ style, accent, children, onPressIn, onPressOut, disabled, ...rest }: Props) {
   const { colors } = useAppTheme();
   const reduceMotion = useReduceMotion();
   const pressed = useSharedValue(0);
-  const base = StyleSheet.flatten(style)?.backgroundColor;
+  const base = accent ? colors.accent : StyleSheet.flatten(style)?.backgroundColor;
   const from = typeof base === "string" ? base : colors.panel;
+  const to = accent ? colors.accentSoft : colors.panel2;
 
   const animated = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(pressed.value, [0, 1], [from, colors.panel2]),
+    backgroundColor: interpolateColor(pressed.value, [0, 1], [from, to]),
     transform: [{ scale: reduceMotion ? 1 : 1 - (1 - PRESSED_SCALE) * pressed.value }],
   }));
 
@@ -51,7 +54,7 @@ export function PressableCard({ style, children, onPressIn, onPressOut, disabled
         pressed.value = withTiming(0, { duration: reduceMotion ? 0 : PRESS_OUT_MS, easing: Easing.out(Easing.quad) });
         onPressOut?.(e);
       }}
-      style={[style, animated]}
+      style={[!accent && style, animated]}
     >
       {children}
     </AnimatedPressable>
