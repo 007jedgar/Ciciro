@@ -12,6 +12,7 @@ import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
 import ChapterHistory from "@/components/ChapterHistory";
 import SearchPanel from "@/components/SearchPanel";
+import OutlineBoard from "@/components/OutlineBoard";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -23,6 +24,7 @@ import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
+import { applyChapterOrder } from "@/lib/outline";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -45,6 +47,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [searchOpen, setSearchOpen] = useState(false);
   // Bumped to remount the editor when its chapter was rewritten from outside.
   const [editorNonce, setEditorNonce] = useState(0);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
@@ -65,6 +68,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const projectRef = useRef(project);
   projectRef.current = project;
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const reorderQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const reorderPendingRef = useRef(0);
+  const reorderEpochRef = useRef(0);
   const pendingSaveCountRef = useRef(0);
   // Chapters whose typed content the server has not accepted.
   const unsavedContentRef = useRef(new Set<string>());
@@ -462,6 +468,71 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }
   }
 
+  // Fold the server's chapters in, keeping what the author is typing. The
+  // server's order only wins when no local reorder is pending or newer.
+  function mergeServerChapters(remote: Chapter[], takeOrder: boolean) {
+    setProject((p) => {
+      const remoteById = new Map(remote.map((c) => [c.id, c]));
+      const localIds = new Set(p.chapters.map((c) => c.id));
+      const merged = [
+        ...p.chapters.map((cur) => {
+          const nc = remoteById.get(cur.id);
+          return nc ? { ...cur, summary: nc.summary } : cur;
+        }),
+        ...remote.filter((nc) => !localIds.has(nc.id)),
+      ];
+      const ids = takeOrder ? remote.map((c) => c.id) : p.chapters.map((c) => c.id);
+      return { ...p, chapters: applyChapterOrder(merged, ids) };
+    });
+  }
+
+  // Pull the server's order and beat summaries so the outline is current.
+  async function refreshOutline() {
+    const epoch = reorderEpochRef.current;
+    try {
+      const res = await fetch(`/api/chapters?projectId=${encodeURIComponent(projectRef.current.id)}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const remote = (await res.json()) as Chapter[];
+      mergeServerChapters(
+        remote,
+        epoch === reorderEpochRef.current && reorderPendingRef.current === 0
+      );
+    } catch {
+      /* the outline still works from what we have */
+    }
+  }
+
+  // Reorders go out one at a time so the server ends on the latest order.
+  function reorderChapters(ids: string[]) {
+    reorderEpochRef.current += 1;
+    reorderPendingRef.current += 1;
+    setProject((p) => ({ ...p, chapters: applyChapterOrder(p.chapters, ids) }));
+    const projectId = projectRef.current.id;
+    reorderQueueRef.current = reorderQueueRef.current.then(async () => {
+      let saved: Chapter[] | null = null;
+      try {
+        const res = await fetch("/api/chapters/reorder", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ projectId, chapterIds: ids }),
+        });
+        if (res.ok) saved = (await res.json()) as Chapter[];
+      } catch {
+        saved = null;
+      }
+      reorderPendingRef.current -= 1;
+      const settled = reorderPendingRef.current === 0;
+      if (saved) {
+        if (settled) mergeServerChapters(saved, true);
+        return;
+      }
+      window.alert("Couldn't reorder the chapters. Try again.");
+      if (settled) await refreshOutline();
+    });
+  }
+
   function insertDraft(text: string, key?: string) {
     editorRef.current?.insertDraft(text, key);
   }
@@ -623,6 +694,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         >
           Search
         </button>
+        <button
+          className="btn small"
+          onClick={() => {
+            setOutlineOpen(true);
+            void refreshOutline();
+          }}
+        >
+          Outline
+        </button>
         <button className="btn small" onClick={() => setQuestionsOpen(true)}>
           Questions{openCount ? ` (${openCount})` : ""}
         </button>
@@ -772,6 +852,23 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}
       />
+
+      {outlineOpen && (
+        <OutlineBoard
+          chapters={project.chapters}
+          activeId={activeId}
+          onOpen={(id) => {
+            setFocusEndOnMount(false);
+            setActiveId(id);
+          }}
+          onReorder={reorderChapters}
+          onStatusChange={(id, status) => {
+            updateChapterLocal(id, { status });
+            patchChapter(id, { status });
+          }}
+          onClose={() => setOutlineOpen(false)}
+        />
+      )}
 
       {bibleOpen && (
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />

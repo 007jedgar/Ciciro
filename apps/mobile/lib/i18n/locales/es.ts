@@ -362,6 +362,14 @@ const es: Translations = {
     banner_other: "Ciciro tiene {{count}} preguntas abiertas",
     review: "Revisar",
   },
+  outline: {
+    title: "Esquema",
+    cardMeta: "Reordena los capítulos arrastrando. Mira el resumen, la extensión y la etapa de cada uno.",
+    moveUp: "Subir",
+    moveDown: "Bajar",
+    dragHandleA11y: "Arrastrar para reordenar {{title}}",
+    reorderError: "No se pudo guardar el nuevo orden de los capítulos.",
+  },
   bible: {
     title: "Biblia de la historia",
     blurb:

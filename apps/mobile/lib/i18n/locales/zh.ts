@@ -358,6 +358,14 @@ const zh: Translations = {
     banner_other: "Ciciro 有 {{count}} 个待答问题",
     review: "查看",
   },
+  outline: {
+    title: "大纲",
+    cardMeta: "拖动即可调整章节顺序，并查看每章的摘要、字数和阶段。",
+    moveUp: "上移",
+    moveDown: "下移",
+    dragHandleA11y: "拖动以重新排列 {{title}}",
+    reorderError: "无法保存新的章节顺序。",
+  },
   bible: {
     title: "故事圣经",
     blurb: "Ciciro 用来规划并写回决定的 Markdown 文件。包括正典、情节、文风、世界和人物。",

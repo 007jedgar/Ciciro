@@ -121,6 +121,10 @@ Turn on **Match case** or **Whole word** to narrow it, type a replacement, and u
 edits, so they sync to the phone like anything you type. On the phone, the Chapters
 tab has a Find and replace card with the same options.
 
+## Outline
+
+Open **Outline** in the top bar (web) or the Outline card on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices.
+
 ## Import
 
 Bring an existing manuscript in from Word (`.docx`, including Google Docs

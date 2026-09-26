@@ -360,6 +360,14 @@ const en = {
     banner_other: "Ciciro has {{count}} open questions",
     review: "Review",
   },
+  outline: {
+    title: "Outline",
+    cardMeta: "Reorder chapters by dragging. See each chapter's summary, length and stage.",
+    moveUp: "Move up",
+    moveDown: "Move down",
+    dragHandleA11y: "Drag to reorder {{title}}",
+    reorderError: "Couldn't save the new chapter order.",
+  },
   bible: {
     title: "Story bible",
     blurb:

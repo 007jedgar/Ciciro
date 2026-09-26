@@ -210,6 +210,59 @@ export async function deleteChapter(id: string, user: PublicUser | null) {
   return { ok: true as const };
 }
 
+/**
+ * Put the live chapters in the order the author dragged them into. Ids the
+ * client did not mention (a chapter another device just added) keep their
+ * relative order at the end; archived chapters stay behind every live one.
+ * Ids that are not live chapters of this manuscript (one another device just
+ * archived or deleted) are skipped, so a stale client can still reorder.
+ * Renumbers 0..n-1 the way deleteChapter does, and leaves revisions alone so
+ * a reorder never turns an open editor's next save into a conflict.
+ */
+export async function reorderChapters(
+  user: PublicUser | null,
+  input: { projectId?: unknown; chapterIds?: unknown }
+) {
+  const projectId = typeof input.projectId === "string" ? input.projectId : "";
+  if (!projectId) throw new AuthError("projectId required", 400);
+  if (
+    !Array.isArray(input.chapterIds) ||
+    input.chapterIds.some((id) => typeof id !== "string")
+  ) {
+    throw new AuthError("chapterIds must be a list of chapter ids", 400);
+  }
+  const requested = input.chapterIds as string[];
+  if (new Set(requested).size !== requested.length) {
+    throw new AuthError("chapterIds must not repeat", 400);
+  }
+  await requireProject(projectId, user);
+
+  const rows = await prisma.chapter.findMany({
+    where: { projectId },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true, archivedAt: true },
+  });
+  const live = rows.filter((row) => !row.archivedAt);
+  const liveIds = new Set(live.map((row) => row.id));
+  const ordered = requested.filter((id) => liveIds.has(id));
+
+  const requestedSet = new Set(ordered);
+  const sequence = [
+    ...ordered,
+    ...live.filter((row) => !requestedSet.has(row.id)).map((row) => row.id),
+    ...rows.filter((row) => row.archivedAt).map((row) => row.id),
+  ];
+  await prisma.$transaction(
+    sequence.map((id, i) =>
+      prisma.chapter.updateMany({
+        where: { id, projectId, order: { not: i } },
+        data: { order: i },
+      })
+    )
+  );
+  return listChapters(projectId, user);
+}
+
 export async function archiveChapter(id: string, user: PublicUser | null) {
   await authorizeOwnedChapter(id, user);
   const chapter = await prisma.chapter.findUnique({ where: { id } });
