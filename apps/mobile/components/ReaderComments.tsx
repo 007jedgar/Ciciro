@@ -177,7 +177,7 @@ export function ReaderComments({
                     accessibilityRole="button"
                     onPress={() => onJump(comment)}
                     hitSlop={8}
-                    style={({ pressed }) => [styles.ghostBtn, { opacity: pressed ? 0.6 : 1 }]}
+                    style={({ pressed }) => [styles.ghostBtn, styles.firstGhostBtn, { opacity: pressed ? 0.6 : 1 }]}
                   >
                     <Text style={[styles.ghostBtnText, { color: colors.accent }]}>
                       {t(comment.anchor.length > 0 ? "beta.showInText" : "beta.showParagraph")}
@@ -237,10 +237,11 @@ const styles = StyleSheet.create({
   quote: { borderLeftWidth: 3, paddingLeft: 10 },
   quoteText: { fontFamily: fonts.serif, fontSize: 15, lineHeight: 22 },
   body: { marginBottom: 0 },
-  actions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 4 },
   spacer: { flex: 1 },
   gone: { fontStyle: "italic" },
   ghostBtn: { paddingHorizontal: 6, paddingVertical: 8 },
+  firstGhostBtn: { marginLeft: -6 },
   ghostBtnText: { fontSize: 15, fontWeight: "500" },
   primaryBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   primaryBtnText: { fontSize: 15, fontWeight: "600" },
