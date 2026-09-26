@@ -24,6 +24,7 @@ import type {
   QuestionCreateRequest,
   ScratchNote,
   ScratchNotePatchRequest,
+  WeeklyReviewListResponse,
   ShareCommentStatus,
   ShareLinkCreateRequest,
   ShareLinkSummary,
@@ -1067,6 +1068,41 @@ export function useDeleteScratchNoteMutation() {
     onSuccess: (_ok, vars) =>
       queryClient.setQueryData<ScratchNote[]>(queryKeys.scratch(vars.projectId), (notes) =>
         (notes ?? []).filter((n) => n.id !== vars.noteId)
+      ),
+  });
+}
+
+export function useWeeklyReviewsQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.weeklyReviews(projectId),
+    queryFn: () => ciciro.projects.weeklyReviews.list(projectId),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useCreateWeeklyReviewMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, to }: { projectId: string; to: string }) =>
+      ciciro.projects.weeklyReviews.create(projectId, { to }),
+    onSuccess: (review, vars) =>
+      queryClient.setQueryData<WeeklyReviewListResponse>(
+        queryKeys.weeklyReviews(vars.projectId),
+        (data) => ({ due: false, reviews: [review, ...(data?.reviews ?? [])] })
+      ),
+  });
+}
+
+export function useDeleteWeeklyReviewMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, reviewId }: { projectId: string; reviewId: string }) =>
+      ciciro.projects.weeklyReviews.delete(projectId, reviewId),
+    onSuccess: (_ok, vars) =>
+      queryClient.setQueryData<WeeklyReviewListResponse>(
+        queryKeys.weeklyReviews(vars.projectId),
+        (data) => ({
+          due: data?.due ?? false,
+          reviews: (data?.reviews ?? []).filter((r) => r.id !== vars.reviewId),
+        })
       ),
   });
 }

@@ -17,6 +17,7 @@ import {
   usePatchChapterMutation,
   usePatchProjectMutation,
   useShareCommentsQuery,
+  useWeeklyReviewsQuery,
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
 import { outlineHref } from "../../../../lib/outline";
@@ -27,6 +28,7 @@ import { scratchListHref } from "../../../../lib/scratch";
 import { betaReadersHref } from "../../../../lib/shares";
 import { openTodayEntry } from "../../../../lib/journal";
 import { normalizeKind } from "../../../../lib/manuscript-kind";
+import { weeklyReviewHref } from "../../../../lib/weekly-review";
 import { useAppTheme } from "../../../../lib/settings";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
@@ -44,6 +46,7 @@ export default function ChaptersScreen() {
   const patchProject = usePatchProjectMutation();
   const patchChapter = usePatchChapterMutation();
   const openReaderComments = useShareCommentsQuery(typeof id === "string" ? id : "", "open");
+  const weeklyReviews = useWeeklyReviewsQuery(typeof id === "string" ? id : "");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -235,6 +238,17 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("scratch.title")}</Text>
                 <Text style={layout.cardMeta}>{t("scratch.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(weeklyReviewHref(projectId) as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("weekly.title")}
+              >
+                <Text style={layout.cardTitle}>{t("weekly.title")}</Text>
+                <Text style={layout.cardMeta}>
+                  {weeklyReviews.data?.due ? t("weekly.cardDue") : t("weekly.cardMeta")}
+                </Text>
               </Pressable>
               <Pressable
                 style={[layout.card, { marginBottom: 16 }]}

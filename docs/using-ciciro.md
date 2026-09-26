@@ -139,6 +139,17 @@ or in search. They sync between the web and your phone. If the same note is
 edited on two devices, Ciciro asks whether to keep your version or the other one
 rather than overwriting either.
 
+## Weekly review
+
+**Weekly review** in the top bar (on mobile, the Weekly review card in the
+Chapters tab) has Ciciro look back over your last seven days: the words you wrote
+and on which days (from your writing-day records), the chapters you touched, the
+open questions and plot threads still dangling in the story, and a few
+suggestions for what to write next. Reviews are written on request, and the button
+shows a dot once a week has passed since the last one. Every review is kept, so
+you can reread past weeks or delete one. Reviews sync between the web and your
+phone, and need the Anthropic API key like the rest of Ciciro's AI features.
+
 ## Beta readers
 
 **Beta readers** in the top bar (on mobile, the Beta readers card in the Chapters

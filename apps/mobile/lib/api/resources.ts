@@ -42,6 +42,9 @@ import type {
   ScratchNote,
   ScratchNoteCreateRequest,
   ScratchNoteListResponse,
+  WeeklyReview,
+  WeeklyReviewCreateRequest,
+  WeeklyReviewListResponse,
   ScratchNotePatchRequest,
   StuckRequest,
   StuckResponse,
@@ -244,6 +247,23 @@ export const ciciro = {
         api<StuckResponse>(
           `/api/projects/${encodeURIComponent(id)}/stuck`,
           jsonInit("POST", body, opts)
+        ),
+    },
+    weeklyReviews: {
+      list: (id: string, opts?: RequestOpts) =>
+        api<WeeklyReviewListResponse>(
+          `/api/projects/${encodeURIComponent(id)}/weekly-reviews`,
+          opts
+        ),
+      create: (id: string, body: WeeklyReviewCreateRequest, opts?: RequestOpts) =>
+        api<WeeklyReview>(
+          `/api/projects/${encodeURIComponent(id)}/weekly-reviews`,
+          jsonInit("POST", body, opts)
+        ),
+      delete: (id: string, reviewId: string, opts?: RequestOpts) =>
+        api<OkResponse>(
+          `/api/projects/${encodeURIComponent(id)}/weekly-reviews/${encodeURIComponent(reviewId)}`,
+          jsonInit("DELETE", undefined, opts)
         ),
     },
     shares: {
