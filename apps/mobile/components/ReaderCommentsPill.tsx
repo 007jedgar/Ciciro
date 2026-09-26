@@ -5,13 +5,19 @@ import { useShareCommentsQuery } from "../lib/api";
 import { betaReadersHref } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
 
+/** How many open reader comments sit on this chapter. */
+export function useChapterReaderCommentCount(projectId: string, chapterId: string, enabled = true): number {
+  const open = useShareCommentsQuery(projectId, "open", { enabled });
+  if (!enabled) return 0;
+  return (open.data ?? []).filter((c) => c.chapterId === chapterId).length;
+}
+
 /** "2 reader comments" over a chapter that has open ones; opens them. */
 export function ReaderCommentsPill({ projectId, chapterId }: { projectId: string; chapterId: string }) {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useAppTheme();
-  const open = useShareCommentsQuery(projectId, "open");
-  const count = (open.data ?? []).filter((c) => c.chapterId === chapterId).length;
+  const count = useChapterReaderCommentCount(projectId, chapterId);
   if (count === 0) return null;
   const label = t("beta.chapterComments", { count });
   return (

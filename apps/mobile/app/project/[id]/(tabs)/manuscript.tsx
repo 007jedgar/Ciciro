@@ -18,7 +18,7 @@ import { elementOfHtml, normalizeKind, type ScreenplayElement } from "../../../.
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
-import { ReaderCommentsPill } from "../../../../components/ReaderCommentsPill";
+import { ReaderCommentsPill, useChapterReaderCommentCount } from "../../../../components/ReaderCommentsPill";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { SuggestionsPill, SuggestionsSheet } from "../../../../components/SuggestionsReview";
@@ -204,6 +204,9 @@ export default function ManuscriptScreen() {
 
   const editorStyle = useMemo(() => blockStyleFor(settings, colors.ink), [settings, colors.ink]);
   const suggestions = useMemo(() => listSuggestions(content), [content]);
+  const showReaderComments =
+    useChapterReaderCommentCount(project?.id ?? "", chapter?.id ?? "", Boolean(project) && !focusMode) > 0;
+  const showPills = suggestions.length > 0 || showReaderComments;
 
   const markTyping = useCallback(() => {
     setTyping(true);
@@ -614,10 +617,12 @@ export default function ManuscriptScreen() {
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
-          <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
-          {project && !focusMode ? (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-              <ReaderCommentsPill projectId={project.id} chapterId={chapter.id} />
+          {showPills ? (
+            <View testID="editor-pills" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+              <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
+              {project && showReaderComments ? (
+                <ReaderCommentsPill projectId={project.id} chapterId={chapter.id} />
+              ) : null}
             </View>
           ) : null}
           {resume ? (

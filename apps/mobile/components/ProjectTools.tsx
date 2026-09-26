@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { alpha } from "./Glass";
 import { PressableCard } from "./PressableCard";
 import { useAppTheme } from "../lib/settings";
 
@@ -14,20 +16,27 @@ export type ProjectTool = {
   busy?: boolean;
 };
 
-const COLUMNS = 3;
+/** Matches the screen's side padding so the row runs edge to edge. */
+const BLEED = 20;
 const GAP = 10;
 
 /**
- * The project's tools as a compact grid of icon tiles, so the chapters start
- * on the first screen instead of two screens down.
+ * The project's tools as one sideways-scrolling row of icon tiles, so the
+ * chapters sit right under the recap card.
  */
 export function ProjectTools({ tools }: { tools: readonly ProjectTool[] }) {
   const { colors } = useAppTheme();
   return (
-    <View style={styles.grid} testID="project-tools">
-      {tools.map((tool) => (
-        <View key={tool.key} style={styles.cell}>
+    <View style={styles.row}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tiles}
+        testID="project-tools"
+      >
+        {tools.map((tool) => (
           <PressableCard
+            key={tool.key}
             testID={`tool-${tool.key}`}
             disabled={tool.busy}
             onPress={tool.onPress}
@@ -57,17 +66,26 @@ export function ProjectTools({ tools }: { tools: readonly ProjectTool[] }) {
               {tool.label}
             </Text>
           </PressableCard>
-        </View>
-      ))}
+        ))}
+      </ScrollView>
+      {/* Tiles run on past the edge; the fade says there are more. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={[alpha(colors.bg, 0), colors.bg]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.fade}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -GAP / 2, marginBottom: 8 },
-  cell: { width: `${100 / COLUMNS}%`, paddingHorizontal: GAP / 2, paddingBottom: GAP },
+  row: { marginHorizontal: -BLEED, marginBottom: 16 },
+  tiles: { gap: GAP, paddingHorizontal: BLEED },
+  fade: { position: "absolute", top: 0, bottom: 0, right: 0, width: 32 },
   tile: {
-    flex: 1,
+    width: 92,
     minHeight: 76,
     borderWidth: 1,
     borderRadius: 10,
