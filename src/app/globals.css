@@ -431,6 +431,21 @@ textarea {
   font-size: 12px;
   color: var(--ink-soft);
 }
+.topbar .dictation-interim,
+.topbar .dictation-error {
+  font-size: 12px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbar .dictation-interim {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.topbar .dictation-error {
+  color: var(--danger, #b3261e);
+}
 
 /* ---------- Chapter sidebar ---------- */
 .sidebar {
