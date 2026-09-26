@@ -299,7 +299,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
                       >
                         <action.Icon color={tint} size={24} />
                       </View>
-                      <Text numberOfLines={1} style={[styles.cellLabel, { color: colors.inkSoft }]}>
+                      <Text numberOfLines={2} style={[styles.cellLabel, { color: colors.inkSoft }]}>
                         {t(action.labelKey)}
                       </Text>
                     </>
@@ -427,9 +427,9 @@ const styles = StyleSheet.create({
   gridRows: {
     flexDirection: "row",
     flexWrap: "wrap",
-    width: 68 * 4,
+    width: 76 * 4,
   },
-  cell: { width: 68, alignItems: "center", marginVertical: 8 },
+  cell: { width: 76, alignItems: "center", marginVertical: 8 },
   tile: {
     width: 56,
     height: 56,
@@ -438,5 +438,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cellLabel: { marginTop: 7, fontSize: 11, fontWeight: "500", maxWidth: 66, textAlign: "center" },
+  cellLabel: {
+    marginTop: 7,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "500",
+    maxWidth: 72,
+    minHeight: 26,
+    textAlign: "center",
+  },
 });
