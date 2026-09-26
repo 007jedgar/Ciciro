@@ -24,6 +24,8 @@ function touchLastOpened(projectId: string): number | null {
 // server caches the text, so re-opening without new writing costs nothing.
 export default function PreviouslyOn({ projectId }: { projectId: string }) {
   const [recap, setRecap] = useState<Recap | null>(null);
+  // The recap is written by the AI, so the wait can be seconds: hold its place.
+  const [loading, setLoading] = useState(false);
   // Decide once per mount and project: Strict Mode re-runs effects, and a
   // second read would see the stamp the first one just wrote.
   const decision = useRef<{ projectId: string; due: boolean } | null>(null);
@@ -35,20 +37,35 @@ export default function PreviouslyOn({ projectId }: { projectId: string }) {
     }
     if (!decision.current.due) return;
     let cancelled = false;
+    setLoading(true);
     fetch(`/api/projects/${projectId}/recap`)
       .then((res) => (res.ok ? (res.json() as Promise<RecapResponse>) : null))
       .then((data) => {
         if (!cancelled && data?.recap) setRecap(data.recap);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [projectId]);
 
+  if (!recap && loading) {
+    return (
+      <aside className="previously-on" aria-label="Previously on" role="status" aria-busy="true">
+        <div className="previously-on-head">
+          <strong>Previously on</strong>
+        </div>
+        <span className="skeleton" />
+        <span className="skeleton short" />
+      </aside>
+    );
+  }
   if (!recap) return null;
   return (
-    <aside className="previously-on" aria-label="Previously on">
+    <aside className="previously-on rise" aria-label="Previously on">
       <div className="previously-on-head">
         <strong>Previously on</strong>
         <button

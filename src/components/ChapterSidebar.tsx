@@ -11,7 +11,10 @@ type Props = {
   activeId: string | null;
   onSelect: (id: string) => void;
   onAdd: () => void;
+  /** Remove an empty chapter. The caller offers Undo, so no confirmation here. */
   onDelete: (id: string) => void;
+  /** Chapters playing their exit before they are hidden. */
+  leavingIds?: ReadonlySet<string>;
   /** Append a Word, Markdown or Scrivener file's chapters. Throws a reader-facing Error. */
   onImport?: (file: File) => Promise<void>;
   /** What is being written; a journal adds today's entry, a blog post is one piece. */
@@ -24,6 +27,7 @@ export default function ChapterSidebar({
   onSelect,
   onAdd,
   onDelete,
+  leavingIds,
   onImport,
   kind = "novel",
 }: Props) {
@@ -93,7 +97,10 @@ export default function ChapterSidebar({
       {chapters.map((ch, i) => (
         <div
           key={ch.id}
-          className={`chapter-item ${ch.id === activeId ? "active" : ""}`}
+          data-row-id={ch.id}
+          className={`chapter-item ${ch.id === activeId ? "active" : ""}${
+            leavingIds?.has(ch.id) ? " is-leaving" : ""
+          }`}
           onClick={() => onSelect(ch.id)}
         >
           <span className="ct">
@@ -111,7 +118,7 @@ export default function ChapterSidebar({
                   style={{ cursor: "pointer" }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete "${ch.title}"?`)) onDelete(ch.id);
+                    onDelete(ch.id);
                   }}
                 >
                   delete

@@ -23,6 +23,9 @@ import {
 } from "@/lib/manuscript-kind";
 import { useSettings } from "@/components/SettingsProvider";
 import { typewriterScrollDelta } from "@/lib/typewriter";
+import { FlashHighlight, flashRanges } from "@/lib/tiptap-flash";
+import { scrollDeltaTo, scrollPaneBy, tweenScrollBy } from "@/lib/editor-scroll";
+import { MOTION_MS, motionMs } from "@/lib/motion";
 import { SuggestionCard, type SuggestionDetail } from "@/components/TrackChanges";
 import type { SuggestionAction, SuggestionAuthor } from "@/lib/suggestions";
 import {
@@ -32,6 +35,7 @@ import {
   SuggestionInsertion,
   TrackChanges,
   resolveInEditor,
+  resolvedRanges,
   suggestionAt,
   suggestionRanges,
 } from "@/lib/tiptap-suggestions";
@@ -103,6 +107,21 @@ const PLACEHOLDERS: Record<ManuscriptKind, string> = {
 };
 
 type ActiveSuggestion = { detail: SuggestionDetail; top: number; left: number };
+
+/** Scroll a range to rest at 40% of the pane and pulse it. */
+function revealRange(editor: TiptapEditor, from: number, to: number) {
+  try {
+    const pane = editor.view.dom.closest<HTMLElement>(".editor-pane");
+    if (pane) {
+      const coords = editor.view.coordsAtPos(from);
+      const rect = pane.getBoundingClientRect();
+      scrollPaneBy(pane, scrollDeltaTo(coords.top, coords.bottom, rect.top, rect.height));
+    }
+  } catch {
+    /* position not renderable yet */
+  }
+  flashRanges(editor, [{ from, to }], "pulse");
+}
 
 const CARD_WIDTH = 320;
 
@@ -197,6 +216,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       SuggestionInsertion,
       SuggestionDeletion,
       TrackChanges,
+      FlashHighlight,
       ReadAloudHighlight,
       CommentHighlights.configure({ onClick: (id) => onCommentClickRef.current?.(id) }),
       ...(kind === "screenplay" ? [Screenplay] : []),
@@ -276,9 +296,44 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (suggestionAuthor) storage.author = suggestionAuthor;
   }, [editor, suggesting, suggestionAuthor]);
 
+  // Accepting drops the struck text and rejecting drops the inserted text: fold
+  // that half away first, then apply the change and flash what stays.
+  const resolving = useRef(false);
   const applyResolved = useCallback(
-    (action: SuggestionAction, ids?: string[]) => {
-      if (editor) resolveInEditor(editor, action, ids);
+    async (action: SuggestionAction, ids?: string[]) => {
+      if (!editor || resolving.current) return;
+      const shell = shellRef.current;
+      const going = action === "accept" ? "del" : "ins";
+      const wait = motionMs(MOTION_MS.suggestionCollapse);
+      if (shell && wait > 0) {
+        const wanted = ids ? new Set(ids) : null;
+        const els = Array.from(
+          shell.querySelectorAll<HTMLElement>(`.ProseMirror ${going}[data-suggestion-id]`)
+        ).filter((el) => !wanted || wanted.has(el.getAttribute("data-suggestion-id") ?? ""));
+        if (els.length > 0) {
+          resolving.current = true;
+          for (const el of els) {
+            // A change that wraps lines just fades: it cannot fold sideways in one piece.
+            if (el.getClientRects().length === 1) {
+              el.style.setProperty("--w", `${el.getBoundingClientRect().width}px`);
+              el.classList.add("suggestion-folding");
+            } else {
+              el.classList.add("suggestion-fading");
+            }
+          }
+          await new Promise((resolve) => setTimeout(resolve, wait));
+          resolving.current = false;
+          if (editor.isDestroyed) return;
+        }
+      }
+      const kept = resolvedRanges(editor.state.doc, action, ids);
+      if (!resolveInEditor(editor, action, ids)) return;
+      const doc = editor.state.doc;
+      flashRanges(
+        editor,
+        kept.filter((r) => r.to <= doc.content.size && doc.textBetween(r.from, r.to, "\n") === r.text),
+        action === "accept" ? "accept" : "reject"
+      );
     },
     [editor]
   );
@@ -317,11 +372,9 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         const coords = editor.view.coordsAtPos(editor.state.selection.head);
         const rect = pane.getBoundingClientRect();
         const delta = typewriterScrollDelta(coords.top, coords.bottom, rect.top, rect.height);
-        if (delta !== 0) {
-          // Instant, because ProseMirror's own scroll-into-view on each keystroke
-          // cancels a smooth scroll before it moves the pane.
-          pane.scrollBy({ top: delta, behavior: "instant" });
-        }
+        // A short ease rather than a jump. Driven by hand: ProseMirror's own
+        // scroll-into-view on each keystroke would cancel the browser's smooth scroll.
+        tweenScrollBy(pane, delta, MOTION_MS.typewriter);
       } catch {
         /* position not renderable yet */
       }
@@ -372,7 +425,13 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       return false;
     });
     if (selection) {
-      editor.chain().focus().setTextSelection(selection).scrollIntoView().run();
+      const hit = selection as { from: number; to: number };
+      editor.chain().focus(undefined, { scrollIntoView: false }).setTextSelection(hit).run();
+      // Glide to the hit and pulse it, so it is clear where the search landed.
+      requestAnimationFrame(() => {
+        if (editor.isDestroyed) return;
+        revealRange(editor, hit.from, hit.to);
+      });
       return;
     }
     if (target == null) return;
@@ -477,9 +536,9 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         if (!pane) return;
         const coords = editor.view.coordsAtPos(range.from);
         const rect = pane.getBoundingClientRect();
-        if (coords.top < rect.top + 40 || coords.bottom > rect.bottom - 40) {
-          pane.scrollBy({ top: coords.top - (rect.top + rect.height / 3), behavior: "smooth" });
-        }
+        // Keep the sentence being read at 40% of the pane, so the eye stays put
+        // while the page moves under it.
+        scrollPaneBy(pane, scrollDeltaTo(coords.top, coords.bottom, rect.top, rect.height, 0.4, 24));
       } catch {
         /* position not renderable yet */
       }
@@ -505,7 +564,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       if (!editor) return;
       const range = suggestionRanges(editor.state.doc).get(id);
       if (!range) return;
-      editor.chain().focus().setTextSelection(range.from).scrollIntoView().run();
+      editor.chain().focus(undefined, { scrollIntoView: false }).setTextSelection(range.from).run();
+      revealRange(editor, range.from, range.to);
     },
   }));
 

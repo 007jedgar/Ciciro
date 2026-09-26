@@ -16,6 +16,7 @@ import ChapterHistory from "@/components/ChapterHistory";
 import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
 import OutlineBoard from "@/components/OutlineBoard";
+import Presence from "@/components/Presence";
 import Scratchpad from "@/components/Scratchpad";
 import PreviouslyOn from "@/components/PreviouslyOn";
 import StuckPrompts from "@/components/StuckPrompts";
@@ -34,6 +35,8 @@ import { chapterWordCount } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
+import { MOTION_MS, useLeavingIds } from "@/lib/motion";
+import { useSnackbar } from "@/components/Snackbar";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
@@ -84,6 +87,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [searchOpen, setSearchOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
   const [betaOpen, setBetaOpen] = useState(false);
+  const chapterRows = useLeavingIds();
+  const notify = useSnackbar();
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [weeklyDue, setWeeklyDue] = useState(false);
   const [betaTab, setBetaTab] = useState<BetaReadersTab>("comments");
@@ -632,23 +637,44 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     if (first) setActiveId(first.id);
   }
 
-  async function deleteChapter(id: string) {
-    const res = await fetch(`/api/chapters/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const err = (await res.json().catch(() => null)) as { error?: string } | null;
-      window.alert(err?.error || "Chapter must be empty to delete.");
-      return;
+  // Only empty chapters can be deleted, so nothing is at stake: the chapter
+  // slides out, a snackbar offers Undo, and the server hears about it after.
+  function deleteChapter(id: string) {
+    const chapter = projectRef.current.chapters.find((c) => c.id === id);
+    if (!chapter) return;
+    const name = chapter.title.trim() || "Untitled";
+    const wasActive = activeId === id;
+    if (wasActive) {
+      const next = projectRef.current.chapters.find((c) => c.id !== id && !chapterRows.hidden.has(c.id));
+      setActiveId(next?.id ?? null);
     }
-    setProject((p) => {
-      const chapters = p.chapters
-        .filter((c) => c.id !== id)
-        .map((c, i) => ({ ...c, order: i }));
-      return { ...p, chapters };
+    void chapterRows.leave(id);
+    notify({
+      message: `Deleted "${name}"`,
+      actionLabel: "Undo",
+      onAction: () => {
+        chapterRows.restore(id);
+        if (wasActive) setActiveId(id);
+      },
+      onCommit: async () => {
+        const res = await fetch(`/api/chapters/${id}`, { method: "DELETE", keepalive: true }).catch(
+          () => null
+        );
+        if (!res?.ok) {
+          const err = (await res?.json().catch(() => null)) as { error?: string } | null;
+          chapterRows.restore(id);
+          notify({ message: err?.error || "Couldn't delete that chapter." });
+          return;
+        }
+        setProject((p) => {
+          const chapters = p.chapters
+            .filter((c) => c.id !== id)
+            .map((c, i) => ({ ...c, order: i }));
+          return { ...p, chapters };
+        });
+        chapterRows.forget(id);
+      },
     });
-    if (activeId === id) {
-      const remaining = project.chapters.filter((c) => c.id !== id);
-      setActiveId(remaining[0]?.id ?? null);
-    }
   }
 
   // Fold the server's chapters in, keeping what the author is typing. The
@@ -951,7 +977,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       </div>
 
       <ChapterSidebar
-        chapters={project.chapters}
+        chapters={project.chapters.filter((c) => !chapterRows.hidden.has(c.id))}
+        leavingIds={chapterRows.leaving}
         activeId={activeId}
         onSelect={(id) => {
           setFocusEndOnMount(false);
@@ -1153,7 +1180,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onUiEvent={onUiEvent}
       />
 
-      {outlineOpen && (
+      <Presence open={outlineOpen} exitMs={MOTION_MS.dialogOut}>
         <OutlineBoard
           chapters={project.chapters}
           activeId={activeId}
@@ -1168,17 +1195,17 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           }}
           onClose={() => setOutlineOpen(false)}
         />
-      )}
+      </Presence>
 
-      {bibleOpen && (
+      <Presence open={bibleOpen}>
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
-      )}
+      </Presence>
 
-      {scratchOpen && (
+      <Presence open={scratchOpen}>
         <Scratchpad projectId={project.id} onClose={() => setScratchOpen(false)} />
-      )}
+      </Presence>
 
-      {betaOpen && (
+      <Presence open={betaOpen}>
         <BetaReaders
           projectId={project.id}
           chapters={project.chapters.filter((c) => !c.archivedAt)}
@@ -1190,9 +1217,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onCommentsChanged={refreshReaderComments}
           onClose={closeBetaReaders}
         />
-      )}
+      </Presence>
 
-      {searchOpen && (
+      <Presence open={searchOpen}>
         <SearchPanel
           projectId={project.id}
           onClose={() => setSearchOpen(false)}
@@ -1200,46 +1227,48 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           flushSaves={flushSaves}
           onReplaced={onSearchReplaced}
         />
-      )}
+      </Presence>
 
-      {questionsOpen && (
+      <Presence open={questionsOpen}>
         <OpenQuestions
           projectId={project.id}
           onClose={() => setQuestionsOpen(false)}
           onAnswer={answerQuestion}
         />
-      )}
+      </Presence>
 
-      {autoWriteOpen && activeChapter && (
-        <AutoWrite
-          projectId={project.id}
-          chapterId={activeChapter.id}
-          chapterTitle={activeChapter.title}
-          onClose={() => setAutoWriteOpen(false)}
-          onApplied={(applied) => {
-            const wordCount =
-              applied.wordCount ?? chapterWordCount(applied.content);
-            updateChapterLocal(activeChapter.id, {
-              content: applied.content,
-              wordCount,
-              ...(applied.revision != null ? { revision: applied.revision } : {}),
-            });
-            const store = optimisticStoreRef.current;
-            const local = projectRef.current.chapters.find(
-              (c) => c.id === activeChapter.id
-            );
-            if (store && applied.revision != null) {
-              store.setConfirmed(activeChapter.id, {
+      <Presence open={autoWriteOpen && Boolean(activeChapter)}>
+        {activeChapter ? (
+          <AutoWrite
+            projectId={project.id}
+            chapterId={activeChapter.id}
+            chapterTitle={activeChapter.title}
+            onClose={() => setAutoWriteOpen(false)}
+            onApplied={(applied) => {
+              const wordCount =
+                applied.wordCount ?? chapterWordCount(applied.content);
+              updateChapterLocal(activeChapter.id, {
                 content: applied.content,
-                title: local?.title ?? activeChapter.title,
-                status: local?.status ?? activeChapter.status,
-                revision: applied.revision,
                 wordCount,
+                ...(applied.revision != null ? { revision: applied.revision } : {}),
               });
-            }
-          }}
-        />
-      )}
+              const store = optimisticStoreRef.current;
+              const local = projectRef.current.chapters.find(
+                (c) => c.id === activeChapter.id
+              );
+              if (store && applied.revision != null) {
+                store.setConfirmed(activeChapter.id, {
+                  content: applied.content,
+                  title: local?.title ?? activeChapter.title,
+                  status: local?.status ?? activeChapter.status,
+                  revision: applied.revision,
+                  wordCount,
+                });
+              }
+            }}
+          />
+        ) : null}
+      </Presence>
     </div>
   );
 }

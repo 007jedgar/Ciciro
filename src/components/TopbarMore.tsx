@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MOTION_MS, usePresence } from "@/lib/motion";
 
 export type MoreItem = {
   key: string;
@@ -18,6 +19,7 @@ export type MoreItem = {
 export default function TopbarMore({ items }: { items: MoreItem[] }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const { mounted, state } = usePresence(open, MOTION_MS.popoverOut);
 
   useEffect(() => {
     if (!open) return;
@@ -52,8 +54,8 @@ export default function TopbarMore({ items }: { items: MoreItem[] }) {
         More
         {waiting && <span className="more-dot" aria-hidden="true" />}
       </button>
-      {open && (
-        <div className="more-menu" role="menu" aria-label="More tools">
+      {mounted && (
+        <div className="more-menu" role="menu" aria-label="More tools" data-state={state}>
           {items.map((item) => (
             <button
               key={item.key}

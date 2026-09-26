@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { writingDayKey } from "@/lib/writing-day";
 import DrawerHead from "@/components/DrawerHead";
+import Presence from "@/components/Presence";
 import {
   formatActiveTime,
   formatWeekRange,
@@ -24,7 +25,7 @@ function ReviewBody({ review }: { review: Review }) {
   const max = Math.max(1, ...stats.days.map((d) => d.words));
   const active = formatActiveTime(stats.activeMs);
   return (
-    <div className="weekly-review">
+    <div className="weekly-review rise">
       <p className="weekly-scope">Across all your writing this week</p>
       <div className="weekly-stats">
         <div>
@@ -181,7 +182,7 @@ export default function WeeklyReview({ projectId, open: openProp, onOpenChange, 
           {due && <span className="weekly-dot" aria-label="A new review is ready to write" />}
         </button>
       )}
-      {open && (
+      <Presence open={open}>
         <>
           <div className="drawer-overlay" onClick={() => setOpen(false)} />
           <div className="drawer weekly-drawer" role="dialog" aria-label="Weekly review">
@@ -199,11 +200,21 @@ export default function WeeklyReview({ projectId, open: openProp, onOpenChange, 
               {busy ? "Reviewing your week…" : due ? "Review this week" : "Write a new review"}
             </button>
             <div style={{ marginTop: 14 }}>
-              {reviews === null && <div className="empty">Loading…</div>}
-              {reviews?.length === 0 && (
+              {(reviews === null || busy) && (
+                <div role="status" aria-label={busy ? "Reviewing your week" : "Loading reviews"}>
+                  <span className="skeleton title" />
+                  <span className="skeleton" />
+                  <span className="skeleton" />
+                  <span className="skeleton short" />
+                  <span className="skeleton title" />
+                  <span className="skeleton" />
+                  <span className="skeleton short" />
+                </div>
+              )}
+              {!busy && reviews?.length === 0 && (
                 <div className="empty">No reviews yet. Write one when the week feels done.</div>
               )}
-              {selected && (
+              {!busy && selected && (
                 <>
                   <div className="scratch-bar">
                     <strong>{formatWeekRange(selected.weekStart, selected.weekEnd)}</strong>
@@ -241,7 +252,7 @@ export default function WeeklyReview({ projectId, open: openProp, onOpenChange, 
             </div>
           </div>
         </>
-      )}
+      </Presence>
     </>
   );
 }
