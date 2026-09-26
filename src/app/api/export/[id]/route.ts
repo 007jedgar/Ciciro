@@ -82,7 +82,9 @@ export async function GET(req: NextRequest, { params }: Params) {
           buildManuscriptDocx({
             title: project.title,
             author: project.author,
-            chapters: [{ title: chapter.title, content: chapter.content, order: 0 }],
+            chapters: [
+              { title: chapterTitle(chapter, chapterIndex), content: chapter.content, order: 0 },
+            ],
           })
         )
       );

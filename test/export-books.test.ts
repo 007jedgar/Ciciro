@@ -254,6 +254,23 @@ describe("buildMarkdown", () => {
     expect(md).toContain("a \\*star\\* and \\_under\\_ \\[link\\](x) \\&amp;");
   });
 
+  it("keeps trailing hashes in headings as text", () => {
+    const md = buildMarkdown({
+      title: "Book #",
+      author: "",
+      chapters: [{ title: "Take #2 #", order: 0, content: "<h2>Part ##</h2><p>x</p>" }],
+    });
+    expect(md).toBe("# Book \\#\n\n## Take #2 \\#\n\n### Part \\##\n\nx\n");
+  });
+
+  it("keeps paragraphs of one blockquote in a single quote", () => {
+    const md = buildChapterMarkdown(
+      { title: "Q", order: 0, content: "<blockquote><p>a</p><p>b</p></blockquote><p>c</p>" },
+      0
+    );
+    expect(md).toBe("## Q\n\n> a\n>\n> b\n\nc\n");
+  });
+
   it("turns line breaks into hard breaks", () => {
     const md = buildChapterMarkdown(
       {

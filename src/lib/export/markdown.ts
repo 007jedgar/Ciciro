@@ -7,6 +7,10 @@ function escapeInline(text: string): string {
   return text.replace(/[\\`*_[\]<]|&(?=#?[a-z0-9]+;)/gi, "\\$&");
 }
 
+function heading(level: number, text: string): string {
+  return `${"#".repeat(level)} ${text.replace(/(^|\s)(#+)(\s*)$/, "$1\\$2$3")}`;
+}
+
 function escapeLineStart(line: string): string {
   return line.replace(/^([#>+=~-])/, "\\$1").replace(/^(\d+)([.)])/, "$1\\$2");
 }
@@ -34,10 +38,8 @@ function textLines(runs: Run[]): string[] {
 
 function blockToMarkdown(block: Block, altList: boolean): string {
   switch (block.type) {
-    case "heading": {
-      const prefix = "#".repeat(Math.min(block.level + 1, 6));
-      return `${prefix} ${runsToMarkdown(block.runs, " ")}`;
-    }
+    case "heading":
+      return heading(Math.min(block.level + 1, 6), runsToMarkdown(block.runs, " "));
     case "paragraph":
       return textLines(block.runs).join(HARD_BREAK);
     case "quote":
@@ -72,7 +74,8 @@ function blocksToMarkdown(blocks: Block[]): string {
         prev.type === "list-item" && block.type === "list-item" && prev.ordered === block.ordered;
       if (!adjacentLists) altList = false;
       else if (!sameList) altList = !altList;
-      out += sameList ? "\n" : "\n\n";
+      const sameQuote = prev.type === "quote" && block.type === "quote";
+      out += sameList ? "\n" : sameQuote ? "\n>\n" : "\n\n";
     }
     out += blockToMarkdown(block, altList);
   });
@@ -80,14 +83,14 @@ function blocksToMarkdown(blocks: Block[]): string {
 }
 
 function chapterToMarkdown(chapter: BookChapter, chapterIndex: number): string {
-  const title = escapeInline(chapterTitle(chapter, chapterIndex));
+  const title = heading(2, escapeInline(chapterTitle(chapter, chapterIndex)));
   const blocks = htmlToBlocks(chapter.content);
   const body = blocks.length === 0 ? "*This chapter is empty.*" : blocksToMarkdown(blocks);
-  return `## ${title}\n\n${body}\n`;
+  return `${title}\n\n${body}\n`;
 }
 
 export function buildMarkdown(project: BookProject): string {
-  const sections: string[] = [`# ${escapeInline(project.title.trim())}`];
+  const sections: string[] = [heading(1, escapeInline(project.title.trim()))];
   const author = project.author?.trim();
   if (author) {
     sections.push(`**By ${escapeInline(author)}**`);

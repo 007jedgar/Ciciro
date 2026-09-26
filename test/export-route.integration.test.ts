@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
+import JSZip from "jszip";
 import { prisma } from "@/lib/db";
 import { GET } from "@/app/api/export/[id]/route";
 
@@ -54,5 +55,17 @@ describe("GET /api/export/:id markdown", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-disposition")).toBe('attachment; filename="chapter_2.md"');
     expect(await res.text()).toBe("## Chapter 2\n\nThree\n");
+  });
+
+  it("titles an untitled single-chapter Word export by its live position", async () => {
+    const project = await seed();
+    const untitled = project.chapters.find((c) => c.order === 5)!;
+    const res = await exportRequest(project.id, `format=docx&chapter=${untitled.id}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toBe('attachment; filename="chapter_2.docx"');
+    const zip = await JSZip.loadAsync(await res.arrayBuffer());
+    const xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain("Chapter 2");
+    expect(xml).not.toContain("Chapter 1");
   });
 });
