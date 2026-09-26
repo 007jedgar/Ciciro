@@ -168,10 +168,9 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         const rect = pane.getBoundingClientRect();
         const delta = typewriterScrollDelta(coords.top, coords.bottom, rect.top, rect.height);
         if (delta !== 0) {
-          pane.scrollBy({
-            top: delta,
-            behavior: document.documentElement.dataset.reduceMotion === "true" ? "auto" : "smooth",
-          });
+          // Instant, because ProseMirror's own scroll-into-view on each keystroke
+          // cancels a smooth scroll before it moves the pane.
+          pane.scrollBy({ top: delta, behavior: "instant" });
         }
       } catch {
         /* position not renderable yet */

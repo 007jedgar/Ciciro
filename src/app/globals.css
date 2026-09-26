@@ -501,6 +501,8 @@ textarea {
   opacity: 1;
 }
 .workspace.typewriter .editor-inner {
+  /* Size to content, not the flex-stretched pane height, so the padding adds scroll room. */
+  align-self: flex-start;
   padding-top: 40vh;
   padding-bottom: 50vh;
 }

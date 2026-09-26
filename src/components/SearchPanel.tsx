@@ -72,7 +72,10 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      // Claim the key so focus mode does not also exit on the same press.
+      e.preventDefault();
+      onClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
