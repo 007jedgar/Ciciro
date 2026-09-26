@@ -45,6 +45,19 @@ describe("chapter reorder", () => {
     expect((await listChapters(project.id, ada)).map((ch) => ch.id)).toEqual([c.id, b.id]);
   });
 
+  it("applies overlapping reorders whole, never leaving two chapters on one slot", async () => {
+    const { ada, project, a, b, c } = await seed();
+    const first = [c.id, a.id, b.id];
+    const second = [b.id, c.id, a.id];
+    await Promise.all([
+      reorderChapters(ada, { projectId: project.id, chapterIds: first }),
+      reorderChapters(ada, { projectId: project.id, chapterIds: second }),
+    ]);
+    const result = await listChapters(project.id, ada);
+    expect(result.map((ch) => ch.order)).toEqual([0, 1, 2]);
+    expect([first, second]).toContainEqual(result.map((ch) => ch.id));
+  });
+
   it("rejects bad input and other manuscripts' chapters", async () => {
     const { ada, project, a } = await seed();
     const other = await createProject(ada, { title: "Other" });

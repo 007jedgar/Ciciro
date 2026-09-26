@@ -252,12 +252,12 @@ export async function reorderChapters(
     ...live.filter((row) => !requestedSet.has(row.id)).map((row) => row.id),
     ...rows.filter((row) => row.archivedAt).map((row) => row.id),
   ];
-  const current = new Map(rows.map((row) => [row.id, row.order]));
-  await Promise.all(
-    sequence.flatMap((id, i) =>
-      current.get(id) === i
-        ? []
-        : [prisma.chapter.update({ where: { id }, data: { order: i } })]
+  await prisma.$transaction(
+    sequence.map((id, i) =>
+      prisma.chapter.updateMany({
+        where: { id, projectId, order: { not: i } },
+        data: { order: i },
+      })
     )
   );
   return listChapters(projectId, user);

@@ -68,6 +68,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const projectRef = useRef(project);
   projectRef.current = project;
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const reorderQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const reorderPendingRef = useRef(0);
+  const reorderEpochRef = useRef(0);
   const pendingSaveCountRef = useRef(0);
   // Chapters whose typed content the server has not accepted.
   const unsavedContentRef = useRef(new Set<string>());
@@ -465,42 +468,69 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }
   }
 
+  // Fold the server's chapters in, keeping what the author is typing. The
+  // server's order only wins when no local reorder is pending or newer.
+  function mergeServerChapters(remote: Chapter[], takeOrder: boolean) {
+    setProject((p) => {
+      const remoteById = new Map(remote.map((c) => [c.id, c]));
+      const localIds = new Set(p.chapters.map((c) => c.id));
+      const merged = [
+        ...p.chapters.map((cur) => {
+          const nc = remoteById.get(cur.id);
+          return nc ? { ...cur, summary: nc.summary } : cur;
+        }),
+        ...remote.filter((nc) => !localIds.has(nc.id)),
+      ];
+      const ids = takeOrder ? remote.map((c) => c.id) : p.chapters.map((c) => c.id);
+      return { ...p, chapters: applyChapterOrder(merged, ids) };
+    });
+  }
+
   // Pull the server's order and beat summaries so the outline is current.
   async function refreshOutline() {
+    const epoch = reorderEpochRef.current;
     try {
       const res = await fetch(`/api/chapters?projectId=${encodeURIComponent(projectRef.current.id)}`, {
         cache: "no-store",
       });
       if (!res.ok) return;
       const remote = (await res.json()) as Chapter[];
-      setProject((p) => {
-        const local = new Map(p.chapters.map((c) => [c.id, c]));
-        const merged = remote.map((nc) => {
-          const cur = local.get(nc.id);
-          // Keep what the author is typing; take the server's order and summary.
-          return cur ? { ...cur, order: nc.order, summary: nc.summary } : nc;
-        });
-        return { ...p, chapters: applyChapterOrder(merged, merged.map((c) => c.id)) };
-      });
+      mergeServerChapters(
+        remote,
+        epoch === reorderEpochRef.current && reorderPendingRef.current === 0
+      );
     } catch {
       /* the outline still works from what we have */
     }
   }
 
-  async function reorderChapters(ids: string[]) {
-    const before = projectRef.current.chapters;
+  // Reorders go out one at a time so the server ends on the latest order.
+  function reorderChapters(ids: string[]) {
+    reorderEpochRef.current += 1;
+    reorderPendingRef.current += 1;
     setProject((p) => ({ ...p, chapters: applyChapterOrder(p.chapters, ids) }));
-    try {
-      const res = await fetch("/api/chapters/reorder", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ projectId: project.id, chapterIds: ids }),
-      });
-      if (!res.ok) throw new Error("reorder failed");
-    } catch {
-      setProject((p) => ({ ...p, chapters: applyChapterOrder(p.chapters, before.map((c) => c.id)) }));
+    const projectId = projectRef.current.id;
+    reorderQueueRef.current = reorderQueueRef.current.then(async () => {
+      let saved: Chapter[] | null = null;
+      try {
+        const res = await fetch("/api/chapters/reorder", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ projectId, chapterIds: ids }),
+        });
+        if (res.ok) saved = (await res.json()) as Chapter[];
+      } catch {
+        saved = null;
+      }
+      reorderPendingRef.current -= 1;
+      const settled = reorderPendingRef.current === 0;
+      if (saved) {
+        if (settled) mergeServerChapters(saved, true);
+        return;
+      }
       window.alert("Couldn't reorder the chapters. Try again.");
-    }
+      if (settled) await refreshOutline();
+    });
   }
 
   function insertDraft(text: string, key?: string) {
