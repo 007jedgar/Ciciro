@@ -13,6 +13,7 @@ import ExportMenu from "@/components/ExportMenu";
 import ChapterHistory from "@/components/ChapterHistory";
 import SearchPanel from "@/components/SearchPanel";
 import OutlineBoard from "@/components/OutlineBoard";
+import Scratchpad from "@/components/Scratchpad";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -46,6 +47,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scratchOpen, setScratchOpen] = useState(false);
   // Bumped to remount the editor when its chapter was rewritten from outside.
   const [editorNonce, setEditorNonce] = useState(0);
   const [outlineOpen, setOutlineOpen] = useState(false);
@@ -757,6 +759,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <button className="btn small" onClick={() => setBibleOpen(true)}>
           Story bible
         </button>
+        <button className="btn small" onClick={() => setScratchOpen(true)}>
+          Scratchpad
+        </button>
         <ExportMenu projectId={project.id} />
       </div>
 
@@ -935,6 +940,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       {bibleOpen && (
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
+      )}
+
+      {scratchOpen && (
+        <Scratchpad projectId={project.id} onClose={() => setScratchOpen(false)} />
       )}
 
       {searchOpen && (

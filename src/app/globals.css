@@ -1826,3 +1826,74 @@ textarea {
   color: var(--ink-soft);
   margin-top: auto;
 }
+
+/* ---------- Scratchpad drawer ---------- */
+.scratch-hint {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.scratch-error,
+.scratch-conflict {
+  font-size: 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+.scratch-conflict-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.scratch-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.scratch-item-main {
+  cursor: pointer;
+  min-width: 0;
+  flex: 1;
+}
+.scratch-excerpt {
+  color: var(--ink-soft);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scratch-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 6px 0 10px;
+}
+.scratch-status {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.scratch-status[data-state="error"],
+.scratch-status[data-state="conflict"] {
+  color: var(--accent);
+}
+.scratch-unsaved {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--accent);
+}
+.scratch-title {
+  width: 100%;
+  margin-bottom: 8px;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+.scratch-body {
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.6;
+}

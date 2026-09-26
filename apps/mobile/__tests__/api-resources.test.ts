@@ -240,6 +240,31 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/chapters\/c1\/snapshots\/s1\/restore$/,
   },
   {
+    name: "projects.scratch.list",
+    run: () => ciciro.projects.scratch.list("p1"),
+    path: /\/api\/projects\/p1\/scratch$/,
+  },
+  {
+    name: "projects.scratch.create",
+    run: () => ciciro.projects.scratch.create("p1", {}),
+    method: "POST",
+    path: /\/api\/projects\/p1\/scratch$/,
+    body: {},
+  },
+  {
+    name: "projects.scratch.update",
+    run: () => ciciro.projects.scratch.update("p1", "n1", { content: "hi", expectedRevision: 2 }),
+    method: "PATCH",
+    path: /\/api\/projects\/p1\/scratch\/n1$/,
+    body: { content: "hi", expectedRevision: 2 },
+  },
+  {
+    name: "projects.scratch.delete",
+    run: () => ciciro.projects.scratch.delete("p1", "n1"),
+    method: "DELETE",
+    path: /\/api\/projects\/p1\/scratch\/n1$/,
+  },
+  {
     name: "chapters.ops.list",
     run: () => ciciro.chapters.ops.list("c1", 3),
     path: /\/api\/chapters\/c1\/ops\?after=3$/,

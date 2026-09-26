@@ -22,6 +22,8 @@ import type {
   ProjectDetail,
   ProjectListItem,
   QuestionCreateRequest,
+  ScratchNote,
+  ScratchNotePatchRequest,
   SettingsResponse,
   SignupRequest,
   ChapterOpsPushRequest,
@@ -990,5 +992,60 @@ export function useSyncPushMutation() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.sync.pull(vars.projectId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects.position(vars.projectId) });
     },
+  });
+}
+
+/** How often an open scratchpad checks for edits made on another device. */
+const SCRATCH_REFRESH_MS = 20_000;
+
+export function useScratchNotesQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.scratch(projectId),
+    queryFn: async () => (await ciciro.projects.scratch.list(projectId)).notes,
+    refetchInterval: SCRATCH_REFRESH_MS,
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+/** Newest edit first, matching the server's list order. */
+async function putScratchNote(projectId: string, note: ScratchNote): Promise<void> {
+  await queryClient.cancelQueries({ queryKey: queryKeys.scratch(projectId) });
+  queryClient.setQueryData<ScratchNote[]>(queryKeys.scratch(projectId), (notes) => [
+    note,
+    ...(notes ?? []).filter((n) => n.id !== note.id),
+  ]);
+}
+
+export function useCreateScratchNoteMutation() {
+  return useMutation({
+    mutationFn: ({ projectId }: { projectId: string }) =>
+      ciciro.projects.scratch.create(projectId, {}),
+    onSuccess: (note, vars) => putScratchNote(vars.projectId, note),
+  });
+}
+
+export function useUpdateScratchNoteMutation() {
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      noteId,
+      body,
+    }: {
+      projectId: string;
+      noteId: string;
+      body: ScratchNotePatchRequest;
+    }) => ciciro.projects.scratch.update(projectId, noteId, body),
+    onSuccess: (note, vars) => putScratchNote(vars.projectId, note),
+  });
+}
+
+export function useDeleteScratchNoteMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, noteId }: { projectId: string; noteId: string }) =>
+      ciciro.projects.scratch.delete(projectId, noteId),
+    onSuccess: (_ok, vars) =>
+      queryClient.setQueryData<ScratchNote[]>(queryKeys.scratch(vars.projectId), (notes) =>
+        (notes ?? []).filter((n) => n.id !== vars.noteId)
+      ),
   });
 }

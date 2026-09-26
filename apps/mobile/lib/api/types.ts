@@ -759,3 +759,28 @@ export type ReplaceResult = {
   replaced: number;
   chapters: { id: string; content: string; revision: number; wordCount: number; replaced: number }[];
 };
+
+/** A note on the manuscript's scratchpad. Not part of the manuscript itself. */
+export type ScratchNote = {
+  id: string;
+  projectId: string;
+  title: string;
+  content: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScratchNoteListResponse = { notes: ScratchNote[] };
+
+export type ScratchNoteCreateRequest = { title?: string; content?: string };
+
+export type ScratchNotePatchRequest = {
+  title?: string;
+  content?: string;
+  /** A stale revision is refused with 409 and the current note in the body. */
+  expectedRevision?: number;
+};
+
+/** The 409 body for a scratch note edited on another device. */
+export type ScratchNoteConflict = { error: string; currentRevision: number; note: ScratchNote };
