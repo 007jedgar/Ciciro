@@ -45,6 +45,7 @@ jest.mock("../lib/settings", () => {
       dark: false,
       settings: { reduceMotion: false, autoCorrect: true },
     }),
+    useOptionalAppTheme: () => ({ settings: { reduceMotion: false, autoCorrect: true } }),
   };
 });
 

@@ -14,18 +14,6 @@ jest.mock("../lib/api", () => ({
   useDeleteScratchNoteMutation: jest.fn(),
 }));
 
-jest.mock("../lib/settings", () => ({
-  useAppTheme: () => {
-    const { colors, makeLayout } = jest.requireActual("../lib/theme");
-    return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
-  },
-  useOptionalAppTheme: jest.fn(),
-}));
-
-jest.mock("../lib/use-reduce-motion", () => ({
-  useReduceMotion: () => false,
-}));
-
 const listMock = useScratchNotesQuery as jest.Mock;
 const createMock = useCreateScratchNoteMutation as jest.Mock;
 const deleteMock = useDeleteScratchNoteMutation as jest.Mock;

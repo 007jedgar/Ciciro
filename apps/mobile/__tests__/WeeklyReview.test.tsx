@@ -15,18 +15,6 @@ jest.mock("../lib/api", () => ({
 }));
 jest.mock("../lib/api/client", () => ({ ApiError: class ApiError extends Error {} }));
 
-jest.mock("../lib/settings", () => ({
-  useAppTheme: () => {
-    const { colors, makeLayout } = jest.requireActual("../lib/theme");
-    return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
-  },
-  useOptionalAppTheme: jest.fn(),
-}));
-
-jest.mock("../lib/use-reduce-motion", () => ({
-  useReduceMotion: () => false,
-}));
-
 const listMock = useWeeklyReviewsQuery as jest.Mock;
 const createMock = useCreateWeeklyReviewMutation as jest.Mock;
 const deleteMock = useDeleteWeeklyReviewMutation as jest.Mock;

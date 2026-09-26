@@ -163,6 +163,7 @@ export function ManuscriptSearch({
           {...switchColors(colors)}
           accessibilityLabel={t("search.wholeWord")}
         />
+        {busy ? <ActivityIndicator color={colors.accent} style={{ marginLeft: "auto" }} /> : null}
       </View>
       <Pressable
         onPress={confirmReplaceAll}

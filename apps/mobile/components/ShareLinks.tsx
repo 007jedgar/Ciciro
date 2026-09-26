@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Alert, Clipboard, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { AccessibilityInfo, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import {
@@ -49,6 +51,8 @@ export function ShareLinks({
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [expiry, setExpiry] = useState<ShareExpiryPreset>(30);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const busy = revoke.isPending || remove.isPending;
 
   function chapterName(index: number): string {
@@ -67,6 +71,22 @@ export function ShareLinks({
     } catch {
       // Dismissing the share sheet is not an error worth showing.
     }
+  }
+
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
+
+  async function copyUrl(link: ShareLinkSummary) {
+    await Clipboard.setStringAsync(shareLinkUrl(link));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    AccessibilityInfo.announceForAccessibility(t("beta.links.copied"));
+    setCopiedId(link.id);
+    if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    copiedTimer.current = setTimeout(() => setCopiedId(null), 2000);
   }
 
   async function make() {
@@ -293,17 +313,18 @@ export function ShareLinks({
             <Text style={layout.cardMeta}>{statusLine(link)}</Text>
             {active ? (
               <Pressable
-                onPress={() => {
-                  const url = shareLinkUrl(link);
-                  Clipboard.setString(url);
-                }}
+                onPress={() => void copyUrl(link)}
                 accessibilityRole="button"
                 accessibilityLabel={t("beta.links.copyUrl")}
                 accessibilityHint={t("beta.links.copyUrlHint")}
+                style={styles.urlRow}
               >
-                <Text style={[styles.url, { color: colors.inkSoft }]} numberOfLines={1} selectable>
+                <Text style={[styles.url, styles.urlText, { color: colors.inkSoft }]} numberOfLines={1}>
                   {shareLinkUrl(link)}
                 </Text>
+                {copiedId === link.id ? (
+                  <Text style={[styles.url, styles.copied, { color: colors.accent }]}>{t("beta.links.copied")}</Text>
+                ) : null}
               </Pressable>
             ) : null}
             <View style={styles.actions}>
@@ -360,7 +381,7 @@ const styles = StyleSheet.create({
   box: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   tick: { fontSize: 13, fontWeight: "700", lineHeight: 16 },
   pickText: { flex: 1, marginBottom: 0 },
-  primaryBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  primaryBtn: { alignItems: "center", borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
   primaryBtnText: { fontSize: 15, fontWeight: "600" },
   error: { marginTop: 12, marginBottom: 0 },
   rule: { height: StyleSheet.hairlineWidth, marginVertical: 20 },
@@ -370,6 +391,9 @@ const styles = StyleSheet.create({
   cardTitle: { flex: 1 },
   pill: { fontSize: 12, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, overflow: "hidden" },
   url: { fontSize: 12 },
+  urlRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  urlText: { flexShrink: 1 },
+  copied: { fontWeight: "600" },
   actions: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   spacer: { flex: 1 },
   ghostBtn: { paddingHorizontal: 6, paddingVertical: 8 },

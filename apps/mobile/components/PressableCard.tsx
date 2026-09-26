@@ -8,7 +8,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useReduceMotion } from "../lib/use-reduce-motion";
-import { useAppTheme } from "../lib/settings";
+import { useOptionalAppTheme } from "../lib/settings";
+import { colors as parchmentColors } from "../lib/theme";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -30,7 +31,7 @@ type Props = Omit<PressableProps, "style" | "children"> & {
  * the scale and keeps only the (instant) tint, so touch is still acknowledged.
  */
 export function PressableCard({ style, accent, children, onPressIn, onPressOut, disabled, ...rest }: Props) {
-  const { colors } = useAppTheme();
+  const colors = useOptionalAppTheme()?.colors ?? parchmentColors;
   const reduceMotion = useReduceMotion();
   const pressed = useSharedValue(0);
   const base = accent ? colors.accent : StyleSheet.flatten(style)?.backgroundColor;
@@ -54,7 +55,7 @@ export function PressableCard({ style, accent, children, onPressIn, onPressOut, 
         pressed.value = withTiming(0, { duration: reduceMotion ? 0 : PRESS_OUT_MS, easing: Easing.out(Easing.quad) });
         onPressOut?.(e);
       }}
-      style={[!accent && style, animated]}
+      style={[style, accent && { borderColor: colors.accent }, animated]}
     >
       {children}
     </AnimatedPressable>

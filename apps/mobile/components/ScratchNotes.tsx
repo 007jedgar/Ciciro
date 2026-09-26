@@ -10,7 +10,7 @@ import {
 import type { ScratchNote } from "../lib/api/types";
 import { scratchNoteExcerpt, scratchNoteTitle } from "../lib/scratch";
 import { useOptionalAppTheme } from "../lib/settings";
-import { layout as parchmentLayout } from "../lib/theme";
+import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 
@@ -25,6 +25,7 @@ export function ScratchNotes({
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
+  const colors = themed?.colors ?? parchmentColors;
   const notes = useScratchNotesQuery(projectId);
   const create = useCreateScratchNoteMutation();
   const remove = useDeleteScratchNoteMutation();
@@ -93,7 +94,7 @@ export function ScratchNotes({
         accessibilityRole="button"
         accessibilityLabel={t("scratch.new")}
       >
-        <Text style={[layout.cardTitle, { opacity: create.isPending ? 0.6 : 1 }]}>{t("scratch.new")}</Text>
+        <Text style={[layout.cardTitle, { color: colors.panel, opacity: create.isPending ? 0.6 : 1 }]}>{t("scratch.new")}</Text>
       </PressableCard>
       {list.length === 0 && !notes.isError ? (
         <Text style={layout.body}>{t("scratch.empty")}</Text>
