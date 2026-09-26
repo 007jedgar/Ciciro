@@ -67,6 +67,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -GAP / 2, marginBottom: 8 },
   cell: { width: `${100 / COLUMNS}%`, paddingHorizontal: GAP / 2, paddingBottom: GAP },
   tile: {
+    flex: 1,
     minHeight: 76,
     borderWidth: 1,
     borderRadius: 10,
