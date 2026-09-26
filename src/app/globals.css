@@ -617,10 +617,13 @@ textarea {
   position: relative;
   display: inline-flex;
 }
+.dictation {
+  position: relative;
+}
 .topbar .dictation-interim,
 .topbar .dictation-error {
   position: absolute;
-  top: calc(100% + 20px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: 30;
   width: max-content;
@@ -644,7 +647,29 @@ textarea {
   color: var(--del);
   border: none;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dictation-error-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--del);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.dictation-error-close:hover,
+.dictation-error-close:focus-visible {
+  opacity: 0.7;
 }
 
 /* ---------- Chapter sidebar ---------- */
