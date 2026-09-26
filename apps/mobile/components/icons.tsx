@@ -560,3 +560,53 @@ export function MicIcon({ color, size = 18 }: IconProps) {
     </Svg>
   );
 }
+
+/** Corner brackets framing a page: focus mode. */
+export function FocusIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/** Headphones: listen (read aloud). */
+export function HeadphonesIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M4 15v-3a8 8 0 0 1 16 0v3"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Rect x="3" y="14" width="4" height="7" rx="1.5" fill="none" stroke={color} strokeWidth={2} />
+      <Rect x="17" y="14" width="4" height="7" rx="1.5" fill="none" stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+/** A life ring: "I'm stuck". */
+export function LifebuoyIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth={2} />
+      <Circle cx="12" cy="12" r="3.5" fill="none" stroke={color} strokeWidth={2} />
+      <Path
+        d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}

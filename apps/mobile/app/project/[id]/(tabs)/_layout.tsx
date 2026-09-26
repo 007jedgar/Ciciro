@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
@@ -8,6 +8,7 @@ import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { WritingMeter } from "../../../../components/WritingMeter";
 import { ManuscriptPaceLabel } from "../../../../components/ManuscriptPaceLabel";
+import { FocusIcon, HeadphonesIcon } from "../../../../components/icons";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
 import { focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
@@ -16,6 +17,34 @@ import { useStackBack } from "../../../../lib/use-stack-back";
 
 /** Height of the slim row that holds the exit control while focus mode hides the header. */
 const FOCUS_BAR_HEIGHT = 36;
+
+/** A tappable pill (icon plus label) for the tools row under the project title. */
+function ToolButton({
+  label,
+  Icon,
+  onPress,
+}: {
+  label: string;
+  Icon: (p: { color: string; size?: number }) => ReactElement;
+  onPress: () => void;
+}) {
+  const { colors } = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.tool,
+        { borderColor: colors.line, backgroundColor: colors.panel, opacity: pressed ? 0.6 : 1 },
+      ]}
+    >
+      <Icon color={colors.accent} size={16} />
+      <Text style={[styles.toolText, { color: colors.ink }]}>{label}</Text>
+    </Pressable>
+  );
+}
 
 function ProjectHeader({
   showMeter,
@@ -45,22 +74,18 @@ function ProjectHeader({
       accessory={
         showMeter && project ? (
           <>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("settings.focusMode")}
-              onPress={() => setFocusMode(true)}
-              hitSlop={8}
-            >
-              <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.focusMode")}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("readAloud.open")}
-              onPress={() => router.push(`/project/${project.id}/listen` as never)}
-              hitSlop={8}
-            >
-              <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("readAloud.open")}</Text>
-            </Pressable>
+            <View style={styles.tools}>
+              <ToolButton
+                label={t("settings.focusMode")}
+                Icon={FocusIcon}
+                onPress={() => setFocusMode(true)}
+              />
+              <ToolButton
+                label={t("readAloud.open")}
+                Icon={HeadphonesIcon}
+                onPress={() => router.push(`/project/${project.id}/listen` as never)}
+              />
+            </View>
             <WritingMeter />
             <ManuscriptPaceLabel projectId={project.id} manuscriptWords={manuscriptWords} />
           </>
@@ -156,3 +181,17 @@ export default function ProjectTabsLayout() {
     </AppHeaderHeightContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  tools: { flexDirection: "row", gap: 8, paddingHorizontal: 20, paddingBottom: 10 },
+  tool: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  toolText: { fontSize: 13, fontWeight: "600" },
+});

@@ -465,7 +465,7 @@ const hi: Translations = {
     openA11y: "लेखन इतिहास खोलें",
   },
   target: {
-    setNano: "NaNo गति (30 नव तक 50हज़ार)",
+    setNano: "30 नवंबर तक 50,000 शब्दों का लक्ष्य तय करें",
     complete: "पांडुलिपि लक्ष्य पूरा",
     pastDeadline_one: "समयसीमा बाद {{count}} शब्द बाकी",
     pastDeadline_other: "समयसीमा बाद {{count}} शब्द बाकी",

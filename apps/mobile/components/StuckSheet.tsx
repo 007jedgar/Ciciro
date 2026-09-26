@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -8,14 +8,24 @@ import { useAppTheme } from "../lib/settings";
 import { GlassSheet } from "./GlassSheet";
 
 /**
- * "I'm stuck" above the editor. Opens a sheet with a few concrete next steps
- * drawn from this chapter and the story bible; picking one hands it to Ciciro.
+ * "I'm stuck" sheet, opened from the writing tools menu. Lists a few concrete
+ * next steps drawn from this chapter and the story bible; picking one hands it
+ * to Ciciro.
  */
-export function StuckPill({ projectId, chapterId }: { projectId: string; chapterId: string }) {
+export function StuckSheet({
+  open,
+  onClose,
+  projectId,
+  chapterId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  projectId: string;
+  chapterId: string;
+}) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const ask = useStuckPromptsMutation();
   const { mutate } = ask;
 
@@ -24,29 +34,15 @@ export function StuckPill({ projectId, chapterId }: { projectId: string; chapter
   }, [open, mutate, projectId, chapterId]);
 
   function use(prompt: string) {
-    setOpen(false);
+    onClose();
     router.navigate(stuckPromptHref(projectId, prompt) as never);
   }
 
   return (
     <>
-      <Pressable
-        testID="stuck-pill"
-        accessibilityRole="button"
-        accessibilityLabel={t("stuck.pill")}
-        accessibilityHint={t("stuck.hint")}
-        onPress={() => setOpen(true)}
-        hitSlop={6}
-        style={({ pressed }) => [
-          styles.pill,
-          { borderColor: colors.line, backgroundColor: colors.panel, opacity: pressed ? 0.7 : 1 },
-        ]}
-      >
-        <Text style={[styles.pillText, { color: colors.accent }]}>{t("stuck.pill")}</Text>
-      </Pressable>
       <GlassSheet
         visible={open}
-        onClose={() => setOpen(false)}
+        onClose={onClose}
         title={t("stuck.title")}
         snapPoints={[0.55, 0.9]}
         testID="stuck-sheet"
@@ -92,15 +88,6 @@ export function StuckPill({ projectId, chapterId }: { projectId: string; chapter
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    alignSelf: "flex-end",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 6,
-  },
-  pillText: { fontSize: 13, fontWeight: "600" },
   content: { padding: 20, gap: 10 },
   blurb: { fontSize: 14, lineHeight: 20 },
   prompt: { borderWidth: 1, borderRadius: 12, padding: 14 },

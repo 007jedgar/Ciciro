@@ -60,7 +60,7 @@ export default function ManuscriptPaceMeter({ projectId }: { projectId: string }
         disabled={busy}
         onClick={() => void applyNano()}
       >
-        Set NaNo pace
+        Set a 50,000-word goal by Nov 30
       </button>
     );
   }
