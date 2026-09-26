@@ -19,6 +19,36 @@ type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
 const SAVE_DELAY_MS = 800;
 const REFRESH_MS = 20_000;
 
+type Unsaved = { title: string; content: string; revision: number };
+type SaveResult =
+  | { kind: "saved"; note: ScratchNote }
+  | { kind: "conflict"; note: ScratchNote }
+  | { kind: "error"; message: string };
+
+// Typing that couldn't reach the server waits here, so it survives leaving the
+// note, closing the drawer or reloading, and is retried on the next refresh.
+function unsavedKey(projectId: string) {
+  return `ciciro:scratch-unsaved:${projectId}`;
+}
+
+function readUnsaved(projectId: string): Record<string, Unsaved> {
+  try {
+    const raw = window.localStorage.getItem(unsavedKey(projectId));
+    return raw ? (JSON.parse(raw) as Record<string, Unsaved>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeUnsaved(projectId: string, all: Record<string, Unsaved>) {
+  try {
+    if (Object.keys(all).length === 0) window.localStorage.removeItem(unsavedKey(projectId));
+    else window.localStorage.setItem(unsavedKey(projectId), JSON.stringify(all));
+  } catch {
+    // Storage full or blocked: the draft still lives in memory while the drawer is open.
+  }
+}
+
 // The scratchpad: notes and research beside the chapters. They are not part of
 // the manuscript, so they never count as words and never reach an export.
 export default function Scratchpad({ projectId, onClose }: Props) {
@@ -30,6 +60,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   const [state, setState] = useState<SaveState>("saved");
   const [error, setError] = useState<string | null>(null);
   const [remote, setRemote] = useState<ScratchNote | null>(null);
+  const [unsaved, setUnsaved] = useState<Record<string, Unsaved>>({});
 
   // Live copies for the debounced save and the refresh loop, which outlive renders.
   const draft = useRef({ title: "", content: "" });
@@ -42,6 +73,60 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   const activeRef = useRef<string | null>(null);
   activeRef.current = activeId;
 
+  const stash = useCallback(
+    (id: string, value: Unsaved | null) => {
+      const all = readUnsaved(projectId);
+      if (value) all[id] = value;
+      else delete all[id];
+      writeUnsaved(projectId, all);
+      setUnsaved(all);
+    },
+    [projectId]
+  );
+
+  const push = useCallback(
+    async (id: string, body: Unsaved): Promise<SaveResult> => {
+      try {
+        const res = await fetch(`${base}/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: body.title,
+            content: body.content,
+            expectedRevision: body.revision,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data.note) return { kind: "conflict", note: data.note };
+        if (!res.ok) return { kind: "error", message: data.error || "Couldn't save the note." };
+        return { kind: "saved", note: data as ScratchNote };
+      } catch {
+        return { kind: "error", message: "Couldn't save the note." };
+      }
+    },
+    [base]
+  );
+
+  // Retry notes whose typing is still waiting from an earlier failed save.
+  const retryUnsaved = useCallback(
+    async (list: ScratchNote[]) => {
+      const all = readUnsaved(projectId);
+      for (const [id, body] of Object.entries(all)) {
+        if (id === activeRef.current) continue;
+        if (!list.some((n) => n.id === id)) {
+          stash(id, null);
+          continue;
+        }
+        const result = await push(id, body);
+        if (result.kind !== "saved") continue;
+        writes.current += 1;
+        stash(id, null);
+        setNotes((prev) => [result.note, ...(prev ?? []).filter((n) => n.id !== id)]);
+      }
+    },
+    [projectId, push, stash]
+  );
+
   const load = useCallback(async () => {
     const startedAt = writes.current;
     try {
@@ -53,6 +138,10 @@ export default function Scratchpad({ projectId, onClose }: Props) {
       const list = data.notes as ScratchNote[];
       setNotes(list);
       setError(null);
+      void retryUnsaved(list);
+      if (activeRef.current && dirty.current && !conflict.current && !timer.current) {
+        void flushRef.current();
+      }
       // Pick up another device's edit to the open note unless we have our own pending.
       const open = list.find((n) => n.id === activeRef.current);
       if (open && !dirty.current && open.revision > revision.current) show(open);
@@ -66,7 +155,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
       setError((e as Error).message);
       setNotes((prev) => prev ?? []);
     }
-  }, [base]);
+  }, [base, retryUnsaved]);
 
   function show(note: ScratchNote) {
     draft.current = { title: note.title, content: note.content };
@@ -79,7 +168,22 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     setState("saved");
   }
 
+  // Reopening a note whose last save failed brings that typing back and retries it.
+  function restore(note: ScratchNote) {
+    const pending = readUnsaved(projectId)[note.id];
+    show(note);
+    if (!pending) return;
+    draft.current = { title: pending.title, content: pending.content };
+    revision.current = pending.revision;
+    dirty.current = true;
+    setTitle(pending.title);
+    setContent(pending.content);
+    setState("dirty");
+    schedule();
+  }
+
   useEffect(() => {
+    setUnsaved(readUnsaved(projectId));
     void load();
     const interval = setInterval(() => void load(), REFRESH_MS);
     const onFocus = () => void load();
@@ -88,12 +192,15 @@ export default function Scratchpad({ projectId, onClose }: Props) {
       clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [load]);
+  }, [load, projectId]);
 
   const flushRef = useRef<() => Promise<boolean>>(async () => true);
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void flushRef.current(), SAVE_DELAY_MS);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      void flushRef.current();
+    }, SAVE_DELAY_MS);
   }, []);
 
   const flush = useCallback(async () => {
@@ -105,45 +212,41 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     const id = activeRef.current;
     if (!id || !dirty.current) return true;
     if (conflict.current) return false;
-    const sent = { ...draft.current };
+    const sent = { ...draft.current, revision: revision.current };
     const run = (async (): Promise<boolean> => {
       setState("saving");
-      try {
-        const res = await fetch(`${base}/${id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...sent, expectedRevision: revision.current }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 409 && data.note) {
-          conflict.current = true;
-          setRemote(data.note as ScratchNote);
-          setState("conflict");
-          return false;
-        }
-        if (!res.ok) throw new Error(data.error || "Couldn't save the note.");
-        const saved = data as ScratchNote;
-        writes.current += 1;
-        revision.current = saved.revision;
-        const same =
-          draft.current.title === sent.title && draft.current.content === sent.content;
-        if (same) dirty.current = false;
-        setNotes((prev) => [saved, ...(prev ?? []).filter((n) => n.id !== saved.id)]);
-        setError(null);
-        setState(same ? "saved" : "dirty");
-        return true;
-      } catch (e) {
-        setError((e as Error).message);
+      const result = await push(id, sent);
+      if (result.kind === "conflict") {
+        conflict.current = true;
+        stash(id, { ...draft.current, revision: revision.current });
+        setRemote(result.note);
+        setState("conflict");
+        return false;
+      }
+      if (result.kind === "error") {
+        stash(id, { ...draft.current, revision: revision.current });
+        setError(result.message);
         setState("error");
         return false;
       }
+      const saved = result.note;
+      writes.current += 1;
+      revision.current = saved.revision;
+      const same =
+        draft.current.title === sent.title && draft.current.content === sent.content;
+      if (same) dirty.current = false;
+      stash(id, same ? null : { ...draft.current, revision: saved.revision });
+      setNotes((prev) => [saved, ...(prev ?? []).filter((n) => n.id !== saved.id)]);
+      setError(null);
+      setState(same ? "saved" : "dirty");
+      return true;
     })();
     saving.current = run;
     const ok = await run;
     saving.current = null;
     if (ok && dirty.current) schedule();
     return ok && !dirty.current;
-  }, [base, schedule]);
+  }, [push, schedule, stash]);
   flushRef.current = flush;
 
   // Leaving with unsaved typing (closing the drawer) saves it first.
@@ -163,15 +266,25 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     schedule();
   }
 
+  // Leaving a note is only held back by an open conflict, which has its own
+  // choice. A failed save keeps the typing aside and retries it later.
+  async function leave() {
+    await flush();
+    if (conflict.current) return false;
+    dirty.current = false;
+    setState("saved");
+    return true;
+  }
+
   async function open(note: ScratchNote) {
-    if (!(await flush())) return;
+    if (!(await leave())) return;
     setActiveId(note.id);
     activeRef.current = note.id;
-    show(notes?.find((n) => n.id === note.id) ?? note);
+    restore(notes?.find((n) => n.id === note.id) ?? note);
   }
 
   async function back() {
-    if (!(await flush())) return;
+    if (!(await leave())) return;
     setActiveId(null);
     activeRef.current = null;
     setRemote(null);
@@ -179,7 +292,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   async function add() {
-    if (!(await flush())) return;
+    if (!(await leave())) return;
     try {
       const res = await fetch(base, {
         method: "POST",
@@ -209,6 +322,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
         throw new Error(data.error || "Couldn't delete the note.");
       }
       writes.current += 1;
+      stash(note.id, null);
       if (activeRef.current === note.id) {
         dirty.current = false;
         conflict.current = false;
@@ -226,7 +340,9 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   // Conflict: take the other device's version, or keep ours on top of it.
   function takeTheirs() {
-    if (remote) show(remote);
+    if (!remote || !activeRef.current) return;
+    stash(activeRef.current, null);
+    show(remote);
   }
   function keepMine() {
     if (!remote) return;
@@ -238,7 +354,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   async function close() {
-    if (!(await flush())) return;
+    if (!(await leave())) return;
     onClose();
   }
 
@@ -249,7 +365,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
       : state === "dirty"
         ? "Unsaved changes"
         : state === "error"
-          ? "Couldn't save"
+          ? "Not saved yet"
           : state === "conflict"
             ? "Changed elsewhere"
             : "Saved";
@@ -298,7 +414,12 @@ export default function Scratchpad({ projectId, onClose }: Props) {
                     <div style={{ fontWeight: 600, fontSize: 13 }}>
                       {scratchNoteTitle(note, "Untitled note")}
                     </div>
-                    <div className="scratch-excerpt">{scratchNoteExcerpt(note)}</div>
+                    <div className="scratch-excerpt">
+                      {scratchNoteExcerpt(unsaved[note.id] ?? note)}
+                    </div>
+                    {unsaved[note.id] && (
+                      <div className="scratch-unsaved">Not saved yet, will retry</div>
+                    )}
                   </div>
                   <button
                     className="btn ghost small"
@@ -319,6 +440,11 @@ export default function Scratchpad({ projectId, onClose }: Props) {
               </button>
               <span className="scratch-status" data-state={state}>
                 {status}
+                {state === "error" && (
+                  <button className="btn ghost small" onClick={() => void flush()}>
+                    Retry
+                  </button>
+                )}
               </span>
               <button className="btn ghost small" onClick={() => void remove(active)}>
                 Delete

@@ -1847,6 +1847,11 @@ textarea {
 .scratch-status[data-state="conflict"] {
   color: var(--accent);
 }
+.scratch-unsaved {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--accent);
+}
 .scratch-title {
   width: 100%;
   margin-bottom: 8px;
