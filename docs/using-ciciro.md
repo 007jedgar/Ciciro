@@ -123,7 +123,7 @@ tab has a Find and replace card with the same options.
 
 ## Outline
 
-Open **Outline** in the top bar (web) or the Outline card on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices.
+Open **Outline** in the top bar (web) or the Outline card on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices.
 
 ## Import
 
