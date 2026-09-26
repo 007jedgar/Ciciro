@@ -10,7 +10,7 @@ import type { FormatBlockKind } from "./FormatBar";
 import type { BlockMarks } from "../lib/block-editor";
 import { toEnrichedHtml } from "../lib/enriched-html";
 import { FORMAT_PRESS_MS } from "../lib/format-chrome";
-import { typewriterInsets } from "../lib/focus-mode";
+import { typewriterBottomInset } from "../lib/focus-mode";
 
 export type EditorStyle = {
   fontFamily: string;
@@ -81,7 +81,7 @@ export function ChapterEditor({
   );
   const { t } = useTranslation();
   const [shellHeight, setShellHeight] = useState(0);
-  const typewriterPad = typewriterInsets(typewriter, shellHeight - bottomInset);
+  const typewriterPad = typewriterBottomInset(typewriter, shellHeight - bottomInset);
 
   useEffect(() => {
     registerEditor(inputRef.current);
@@ -184,8 +184,7 @@ export function ChapterEditor({
         }}
         style={{
           flex: 1,
-          paddingTop: typewriterPad.top,
-          paddingBottom: bottomInset + typewriterPad.bottom,
+          paddingBottom: bottomInset + typewriterPad,
           color: editorStyle.color,
           fontFamily: editorStyle.fontFamily,
           fontSize: editorStyle.fontSize,

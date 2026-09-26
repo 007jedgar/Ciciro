@@ -1,9 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-/** Share of the editor's height kept clear above and below the text in typewriter mode. */
-export const TYPEWRITER_INSET_RATIO = 0.4;
-
-/** Typewriter padding never squeezes the visible writing band below this height. */
+/** Typewriter padding never squeezes the visible writing area below this height. */
 export const TYPEWRITER_MIN_TEXT_HEIGHT = 160;
 
 /** Focus mode belongs to this device only, so it lives in local prefs, not synced settings. */
@@ -59,19 +56,18 @@ export function focusChromeHidden(focusMode: boolean, onEditor: boolean): boolea
 }
 
 /**
- * Typewriter mode pads the page so the line being written rests in a band near
- * the middle of the editor instead of sinking to the bottom edge. The band
- * never shrinks below `TYPEWRITER_MIN_TEXT_HEIGHT`, so a short editor (for
- * example with the keyboard open) still shows the line being written.
+ * Typewriter mode on mobile pads only the bottom of the page, by half the
+ * editor's height, so the last lines can scroll up to the middle of the screen
+ * instead of sinking to the bottom edge. There is no top inset, so no part of
+ * the page is permanently blank above the text.
+ *
+ * Limitation: the native EnrichedTextInput cannot report the caret's position
+ * or be scrolled programmatically, so mobile cannot re-center the caret line on
+ * every keystroke the way the web editor does. The native view keeps the caret
+ * visible, and this padding lets the writer scroll the working line to the middle.
  */
-export function typewriterInsets(
-  typewriterMode: boolean,
-  editorHeight: number
-): { top: number; bottom: number } {
-  if (!typewriterMode || !Number.isFinite(editorHeight) || editorHeight <= 0) {
-    return { top: 0, bottom: 0 };
-  }
-  const room = Math.max(0, Math.floor((editorHeight - TYPEWRITER_MIN_TEXT_HEIGHT) / 2));
-  const inset = Math.min(Math.round(editorHeight * TYPEWRITER_INSET_RATIO), room);
-  return { top: inset, bottom: inset };
+export function typewriterBottomInset(typewriterMode: boolean, editorHeight: number): number {
+  if (!typewriterMode || !Number.isFinite(editorHeight) || editorHeight <= 0) return 0;
+  const room = Math.max(0, Math.floor(editorHeight - TYPEWRITER_MIN_TEXT_HEIGHT));
+  return Math.min(Math.round(editorHeight / 2), room);
 }

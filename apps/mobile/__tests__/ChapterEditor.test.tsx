@@ -203,7 +203,7 @@ describe("ChapterEditor", () => {
     }
   });
 
-  it("keeps a writing band visible in typewriter mode when the editor is short", () => {
+  it("pads only the bottom in typewriter mode so no top of the page is blank", () => {
     render(
       <ChapterEditor
         chapterId="c1"
@@ -225,8 +225,7 @@ describe("ChapterEditor", () => {
       nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 396 } },
     });
     const { paddingTop, paddingBottom } = screen.getByTestId("chapter-editor").props.style;
-    expect(paddingTop).toBeGreaterThan(0);
-    expect(paddingBottom).toBe(16 + paddingTop);
-    expect(396 - paddingTop - paddingBottom).toBeGreaterThanOrEqual(160);
+    expect(paddingTop).toBeUndefined();
+    expect(paddingBottom).toBe(16 + 190);
   });
 });

@@ -49,24 +49,23 @@ describe("device focus mode", () => {
   });
 });
 
-describe("typewriterInsets", () => {
-  const { typewriterInsets, TYPEWRITER_MIN_TEXT_HEIGHT } = loadFocusMode();
+describe("typewriterBottomInset", () => {
+  const { typewriterBottomInset, TYPEWRITER_MIN_TEXT_HEIGHT } = loadFocusMode();
 
-  it("pads a tall editor by a share of its height", () => {
-    expect(typewriterInsets(true, 800)).toEqual({ top: 320, bottom: 320 });
+  it("pads a tall editor by half its height so the last line can reach the middle", () => {
+    expect(typewriterBottomInset(true, 800)).toBe(400);
   });
 
-  it("keeps a writing band visible when the keyboard shrinks the editor", () => {
-    const height = 380;
-    const { top, bottom } = typewriterInsets(true, height);
-    expect(height - top - bottom).toBeGreaterThanOrEqual(TYPEWRITER_MIN_TEXT_HEIGHT);
-    expect(top).toBe(bottom);
-    expect(top).toBeGreaterThan(0);
+  it("keeps a writing area visible when the keyboard shrinks the editor", () => {
+    const height = 300;
+    const pad = typewriterBottomInset(true, height);
+    expect(pad).toBeGreaterThan(0);
+    expect(height - pad).toBeGreaterThanOrEqual(TYPEWRITER_MIN_TEXT_HEIGHT);
   });
 
   it("adds nothing when off, unmeasured, or too short to pad", () => {
-    expect(typewriterInsets(false, 800)).toEqual({ top: 0, bottom: 0 });
-    expect(typewriterInsets(true, 0)).toEqual({ top: 0, bottom: 0 });
-    expect(typewriterInsets(true, TYPEWRITER_MIN_TEXT_HEIGHT - 20)).toEqual({ top: 0, bottom: 0 });
+    expect(typewriterBottomInset(false, 800)).toBe(0);
+    expect(typewriterBottomInset(true, 0)).toBe(0);
+    expect(typewriterBottomInset(true, TYPEWRITER_MIN_TEXT_HEIGHT - 20)).toBe(0);
   });
 });
