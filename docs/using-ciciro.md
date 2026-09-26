@@ -199,6 +199,28 @@ Hearing a chapter is a good way to catch clunky lines. On the web, choose **List
 - The web uses your browser's built-in speech, so the available voices depend on the browser and system. On the phone, the highlighted text is shown on the Read aloud screen because the editor itself cannot draw highlights.
 - Switching chapters stops the reading. Nothing is sent to Ciciro's servers or saved to your manuscript.
 
+## Dictation
+
+**Dictate** in the top bar (web) or the microphone at the end of the formatting
+bar (phone) turns your voice into text at the caret. Tap it again to stop.
+Finished phrases are typed in as you pause, with the joining space and a
+capital at the start of a sentence added for you; the words still being
+recognized show in a small note by the button until they settle. In English
+you can say "new paragraph" or "new line" to break, and "question mark",
+"exclamation mark", "full stop", "colon" or "semicolon" for that punctuation. Say a command
+on its own, with a pause before and after: inside a longer phrase the words are
+typed as spoken, so "the car came to a full stop" stays as it is. On the phone
+"new line" starts a new paragraph, since the phone editor has no line break
+inside a paragraph. Other languages get the recognizer's own punctuation.
+
+On the web it uses the browser's speech recognition (Chrome, Edge and Safari);
+in browsers without it, such as Firefox, the button is not shown. Chrome sends
+the audio to Google's speech service, so it needs a connection. On the phone it
+uses the system recognizer and asks for microphone and speech recognition
+access the first time. It needs a development build: the button is hidden in
+Expo Go, which does not include the speech module. Dictation stops when you
+change chapters.
+
 ## Import
 
 Bring an existing manuscript in from Word (`.docx`, including Google Docs

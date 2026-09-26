@@ -10,6 +10,7 @@ import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
+import DictationButton from "@/components/DictationButton";
 import ChapterHistory from "@/components/ChapterHistory";
 import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
@@ -838,6 +839,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           editorRef={editorRef}
           resetKey={`${activeChapter?.id ?? ""}:${editorNonce}`}
           disabled={viewMode !== "prose"}
+        />
+        <DictationButton
+          resetKey={`${activeChapter?.id ?? ""}:${viewMode}`}
+          onPhrase={(text, lang) => editorRef.current?.insertDictation(text, lang)}
         />
         <button
           className="btn small"

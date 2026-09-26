@@ -35,6 +35,7 @@ import {
   trackReadAloud,
   type DocSentence,
 } from "@/lib/tts-doc";
+import { dictationParts, prepareDictation } from "@/lib/dictation";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -42,6 +43,8 @@ export type EditorHandle = {
   // first instead of wherever the cursor happens to be. Omit it for a
   // one-off insert at the current cursor.
   insertDraft: (text: string, key?: string) => void;
+  /** Type a dictated phrase at the caret, replacing any selection. */
+  insertDictation: (text: string, lang?: string) => void;
   getSelection: () => string;
   focus: () => void;
   /** Put the caret at the end of the document (for Auto-mode chapter switches). */
@@ -377,6 +380,23 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       // Remember where this group left off so the next insert for the same
       // key (e.g. another option from the same message) continues here.
       map.set(key, editor.state.selection.to);
+    },
+    insertDictation(text: string, lang = "en") {
+      if (!editor) return;
+      const { $from, $to } = editor.state.selection;
+      const before = $from.parent.textBetween(0, $from.parentOffset, "\n", "\n").slice(-3);
+      const after = $to.parent
+        .textBetween($to.parentOffset, $to.parent.content.size, "\n", "\n")
+        .slice(0, 3);
+      const prepared = prepareDictation(text, before, lang, after);
+      if (!prepared) return;
+      const chain = editor.chain().focus();
+      for (const part of dictationParts(prepared)) {
+        if (part.type === "text") chain.insertContent({ type: "text", text: part.text });
+        else if (part.type === "paragraph") chain.splitBlock();
+        else chain.setHardBreak();
+      }
+      chain.scrollIntoView().run();
     },
     getSelection() {
       if (!editor) return "";

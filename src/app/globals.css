@@ -431,6 +431,37 @@ textarea {
   font-size: 12px;
   color: var(--ink-soft);
 }
+/* Dictation status floats under the Dictate button so it never crowds the
+   top bar and long messages wrap instead of being cut off. */
+.topbar .dictation {
+  position: relative;
+  display: inline-flex;
+}
+.topbar .dictation-interim,
+.topbar .dictation-error {
+  position: absolute;
+  top: calc(100% + 20px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.topbar .dictation-interim {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.topbar .dictation-error {
+  color: var(--danger, #b3261e);
+}
 
 /* ---------- Chapter sidebar ---------- */
 .sidebar {

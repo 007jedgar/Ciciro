@@ -67,4 +67,13 @@ describe("enriched html adapter", () => {
     expect(blockAtPlainOffset(html, 2)).toEqual({ blockId: "a", local: 2 });
     expect(blockAtPlainOffset(html, 3)).toEqual({ blockId: "b", local: 0 });
   });
+
+  it("counts scene breaks as the editor shows them when mapping a caret", () => {
+    const hr = '<p data-block-id="a">Hi</p><hr data-block-id="h" /><p data-block-id="b">There</p>';
+    // Shown as "Hi\n***\nThere".
+    expect(blockAtPlainOffset(hr, 7)).toEqual({ blockId: "b", local: 0 });
+    const typed = '<p data-block-id="a">Hi</p><p data-block-id="h">#</p><p data-block-id="b">There</p>';
+    // Shown as "Hi\n#\nThere".
+    expect(blockAtPlainOffset(typed, 5)).toEqual({ blockId: "b", local: 0 });
+  });
 });

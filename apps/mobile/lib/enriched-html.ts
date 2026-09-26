@@ -8,7 +8,7 @@ import {
 } from "./manuscript";
 import { carrySuggestions, suggestionsAsDisplayMarks } from "./suggestions";
 
-const SCENE_BREAK_TEXT = "***";
+export const SCENE_BREAK_TEXT = "***";
 
 /** Enriched's native view does not keep `data-block-id`. Strip it on the way in. */
 export function stripBlockIds(html: string): string {
@@ -88,12 +88,17 @@ export function toEnrichedHtml(html: string): string {
   return ensureEnrichedParses(body);
 }
 
+/**
+ * Enriched getHTML() → Ciciro-shaped blocks as the editor shows them: scene
+ * breaks stay the paragraphs the writer sees, so text offsets still line up.
+ */
+export function fromEnrichedHtmlAsShown(html: string): string {
+  return unwrapQuoteInners(ciciroInline(brToEmptyParagraphs(unwrapShell(html)))).trim();
+}
+
 /** Enriched getHTML() → Ciciro-shaped blocks, still without durable ids. */
 export function fromEnrichedHtml(html: string): string {
-  const next = sceneBreaksToHr(
-    unwrapQuoteInners(ciciroInline(brToEmptyParagraphs(unwrapShell(html))))
-  );
-  return next.trim();
+  return sceneBreaksToHr(fromEnrichedHtmlAsShown(html)).trim();
 }
 
 function sameBlock(a: ManuscriptBlock, b: ManuscriptBlock): boolean {
@@ -190,6 +195,37 @@ export function opsFromEnrichedHtml(
   return diffHtmlToOps(previousCiciroHtml || "<p></p>", incoming, revision, opts);
 }
 
+/**
+ * How many characters the editor shows for a block: an `<hr>` reads as "***";
+ * a scene break the writer typed ("#", "**") shows as typed.
+ */
+export function editorBlockLength(block: ManuscriptBlock): number {
+  return /^<hr\b/i.test(block.html) ? SCENE_BREAK_TEXT.length : block.text.length;
+}
+
+/**
+ * Find the block under an editor caret offset (paragraphs newline-separated,
+ * scene breaks counted as the editor displays them). `start` is the block's
+ * own offset in the editor.
+ */
+export function locateEditorOffset(
+  blocks: ManuscriptBlock[],
+  offset: number
+): { index: number; local: number; start: number } {
+  let remaining = Math.max(0, offset);
+  let start = 0;
+  for (let index = 0; index < blocks.length; index++) {
+    const len = editorBlockLength(blocks[index]);
+    if (remaining <= len) return { index, local: remaining, start };
+    remaining -= len + 1;
+    start += len + 1;
+  }
+  const index = blocks.length - 1;
+  const last = blocks[index];
+  const len = editorBlockLength(last);
+  return { index, local: len, start: start - len - 1 };
+}
+
 /** Map a document-level caret onto a Ciciro block, treating paragraphs as newline-separated. */
 export function blockAtPlainOffset(
   html: string,
@@ -197,12 +233,6 @@ export function blockAtPlainOffset(
 ): { blockId: string; local: number } | null {
   const blocks = htmlToDoc(html || "<p></p>", 0).doc.blocks;
   if (blocks.length === 0) return null;
-  let remaining = Math.max(0, offset);
-  for (const block of blocks) {
-    const len = block.text.length;
-    if (remaining <= len) return { blockId: block.id, local: remaining };
-    remaining -= len + 1;
-  }
-  const last = blocks[blocks.length - 1];
-  return { blockId: last.id, local: last.text.length };
+  const { index, local } = locateEditorOffset(blocks, offset);
+  return { blockId: blocks[index].id, local };
 }

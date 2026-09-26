@@ -282,6 +282,13 @@ const zh: Translations = {
     formatList: "列表",
     formatParagraph: "段落",
     formatPress: "段落格式",
+    dictate: "语音输入",
+    dictateStop: "停止语音输入",
+    dictateListening: "正在聆听...",
+    dictateDenied: "麦克风或语音识别权限已关闭。请在设置中允许后再使用语音输入。",
+    dictateUnavailable: "此设备不支持语音输入。",
+    dictateLanguage: "此设备不支持该语言的语音输入。",
+    dictateNetwork: "此设备上的语音输入需要网络连接。",
   },
   ciciroTab: {
     title: "Ciciro",

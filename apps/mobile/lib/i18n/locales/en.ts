@@ -283,6 +283,13 @@ const en = {
     formatList: "List",
     formatParagraph: "Paragraph",
     formatPress: "Paragraph format",
+    dictate: "Dictate",
+    dictateStop: "Stop dictating",
+    dictateListening: "Listening...",
+    dictateDenied: "Microphone or speech recognition access is off. Allow it in Settings to dictate.",
+    dictateUnavailable: "Dictation isn't available on this device.",
+    dictateLanguage: "Dictation isn't available for this language on this device.",
+    dictateNetwork: "Dictation needs a network connection on this device.",
   },
   ciciroTab: {
     title: "Ciciro",

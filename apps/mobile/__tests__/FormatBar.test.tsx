@@ -16,7 +16,7 @@ describe("FormatBar", () => {
         kind="paragraph"
         onToggleMark={onToggleMark}
         onSetKind={onSetKind}
-      />
+      />,
     );
     expect(screen.getByLabelText("Bold")).toHaveProp("accessibilityState", {
       selected: true,
@@ -27,5 +27,25 @@ describe("FormatBar", () => {
     fireEvent.press(screen.getByLabelText("Heading"));
     expect(onSetKind).toHaveBeenCalledWith("heading");
     unmount();
+  });
+
+  it("shows the microphone only when dictation is offered", () => {
+    const base = { onToggleMark: jest.fn(), onSetKind: jest.fn() };
+    const { rerender } = render(<FormatBar {...base} />);
+    expect(screen.queryByLabelText("Dictate")).toBeNull();
+    const onToggle = jest.fn();
+    rerender(<FormatBar {...base} dictation={{ active: false, onToggle }} />);
+    fireEvent.press(screen.getByLabelText("Dictate"));
+    expect(onToggle).toHaveBeenCalled();
+    rerender(
+      <FormatBar {...base} disabled dictation={{ active: true, onToggle }} />,
+    );
+    expect(screen.getByLabelText("Stop dictating")).toHaveProp(
+      "accessibilityState",
+      {
+        selected: true,
+        disabled: false,
+      },
+    );
   });
 });
