@@ -3,7 +3,7 @@ import { getAnthropic, EDITOR_MODEL, DRAFTER_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { editorSystemFor, drafterSystemFor, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
-import { classifyScreenplayLines, normalizeKind, withElement, type ManuscriptKind } from "@/lib/manuscript-kind";
+import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
 
@@ -37,29 +37,6 @@ function textBlocks(res: Anthropic.Message): string {
     .map((b) => b.text)
     .join("")
     .trim();
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-// Plain prose -> TipTap-friendly HTML paragraphs.
-function proseToHtml(text: string): string {
-  return text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
-    .join("");
-}
-
-function scriptToHtml(text: string): string {
-  return classifyScreenplayLines(text)
-    .map(({ element, text: line }) => withElement(`<p>${escapeHtml(line)}</p>`, element))
-    .join("");
 }
 
 function tailWords(text: string, n = 180): string {
@@ -311,7 +288,7 @@ export async function runAutoWrite(opts: {
 
     if (!prose.trim()) continue;
     running = `${running}\n\n${prose}`.trim();
-    newHtml += kind === "screenplay" ? scriptToHtml(prose) : proseToHtml(prose);
+    newHtml += assistantTextToHtml(prose, kind);
     accepted++;
     emit({
       type: "beat",

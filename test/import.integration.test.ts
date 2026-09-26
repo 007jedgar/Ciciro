@@ -4,7 +4,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { AuthError, registerUser } from "@/lib/auth/session";
 import { createProject } from "@/lib/projects";
-import { listChapters } from "@/lib/chapters";
+import { archiveChapter, listChapters, SINGLE_PIECE_ERROR } from "@/lib/chapters";
 import { importManuscript } from "@/lib/import-manuscript";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(join(__dirname, "fixtures/import", name)));
@@ -60,6 +60,29 @@ describe("importManuscript", () => {
       ["Chapter One: The Storm", 1],
       ["Chapter Two: After", 2],
     ]);
+  });
+
+  it("refuses to append a second chapter to a blog post and adds nothing", async () => {
+    const ada = await signUp("ada@example.com");
+    const post = await createProject(ada, { title: "Ten notes", kind: "blog" });
+    await expect(
+      importManuscript(ada, { filename: "more.md", data: fixture("sample.md"), projectId: post.id })
+    ).rejects.toMatchObject({ status: 409, message: SINGLE_PIECE_ERROR });
+    expect((await listChapters(post.id, ada)).map((c) => c.title)).toEqual(["Ten notes"]);
+  });
+
+  it("lets a single piece fill a blog post whose only chapter was archived", async () => {
+    const ada = await signUp("ada@example.com");
+    const post = await createProject(ada, { title: "Ten notes", kind: "blog" });
+    await archiveChapter(post.chapters[0].id, ada);
+    await importManuscript(ada, {
+      filename: "draft.md",
+      data: new TextEncoder().encode("A single draft.\n"),
+      projectId: post.id,
+    });
+    const chapters = await listChapters(post.id, ada);
+    expect(chapters.map((c) => c.title)).toEqual(["draft"]);
+    expect(chapters[0].content).toContain("A single draft.");
   });
 
   it("imports a zipped Scrivener project", async () => {

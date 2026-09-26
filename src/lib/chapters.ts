@@ -63,6 +63,40 @@ export async function listChapters(
   return ensureChaptersBlockIds(rows);
 }
 
+export const SINGLE_PIECE_ERROR = "A blog post or newsletter is a single piece.";
+
+export type NewChapterFields = { title: string; content: string };
+
+/**
+ * Every path that adds chapters to an existing manuscript goes through here: a
+ * blog post refuses a second chapter, and new chapters take the kind's naming
+ * and opening block. `fields(position, input)` fills in a chapter at that
+ * zero-based position among the visible chapters.
+ */
+export async function planNewChapters(projectId: string, adding = 1) {
+  const [visibleCount, project] = await Promise.all([
+    prisma.chapter.count({ where: { projectId, ...visibleChapterWhere } }),
+    prisma.project.findUnique({ where: { id: projectId }, select: { kind: true } }),
+  ]);
+  const kind = normalizeKind(project?.kind);
+  if (kind === "blog" && adding > 0 && visibleCount + adding > 1) {
+    throw new AuthError(SINGLE_PIECE_ERROR, 409);
+  }
+  return {
+    kind,
+    visibleCount,
+    fields(position: number, input: { title?: unknown; content?: string } = {}): NewChapterFields {
+      const title =
+        typeof input.title === "string" && input.title.trim()
+          ? input.title.trim()
+          : nextChapterTitle(kind, position);
+      const content =
+        input.content || (kind === "screenplay" ? openingChapter("screenplay").content : "");
+      return { title, content };
+    },
+  };
+}
+
 export async function createChapter(
   user: PublicUser | null,
   input: { projectId?: unknown; title?: unknown }
@@ -70,24 +104,10 @@ export async function createChapter(
   const projectId = typeof input.projectId === "string" ? input.projectId : "";
   if (!projectId) throw new AuthError("projectId required", 400);
   await requireProject(projectId, user);
-  const visibleCount = await prisma.chapter.count({
-    where: { projectId, ...visibleChapterWhere },
-  });
-  const { kind } = (await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { kind: true },
-  })) ?? { kind: "novel" };
-  const manuscriptKind = normalizeKind(kind);
-  if (manuscriptKind === "blog" && visibleCount > 0) {
-    throw new AuthError("A blog post or newsletter is a single piece.", 409);
-  }
-  const title =
-    typeof input.title === "string" && input.title.trim()
-      ? input.title.trim()
-      : nextChapterTitle(manuscriptKind, visibleCount);
-  const content = manuscriptKind === "screenplay" ? openingChapter("screenplay").content : "";
+  const plan = await planNewChapters(projectId);
+  const fields = plan.fields(plan.visibleCount, { title: input.title });
   return prisma.chapter.create({
-    data: { projectId, title, content, order: await nextChapterOrder(projectId) },
+    data: { projectId, ...fields, order: await nextChapterOrder(projectId) },
   });
 }
 

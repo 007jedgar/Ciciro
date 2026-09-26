@@ -322,3 +322,25 @@ export function classifyScreenplayLines(text: string): { element: ScreenplayElem
   }
   return out;
 }
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Plain text from the assistant as editor blocks. A screenplay gets one
+ * element per line; anything else gets a paragraph per blank-line break.
+ */
+export function assistantTextToHtml(text: string, kind: ManuscriptKind): string {
+  if (kind === "screenplay") {
+    return classifyScreenplayLines(text)
+      .map(({ element, text: line }) => withElement(`<p>${escapeHtml(line)}</p>`, element))
+      .join("");
+  }
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}

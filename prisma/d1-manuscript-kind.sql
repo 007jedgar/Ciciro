@@ -4,7 +4,9 @@
 --
 -- Apply with: wrangler d1 execute ciciro --remote --file=prisma/d1-manuscript-kind.sql
 --
--- Until this runs, every manuscript reads as a novel and creating one with another
--- kind errors; existing manuscripts are unaffected.
+-- Run it before (or together with) deploying the build that adds manuscript kinds.
+-- `kind` is a required column on Project and Prisma selects it on every project
+-- query, so without it the shelf, opening a manuscript and the assistant all fail
+-- with "no such column: kind". Existing manuscripts become novels.
 
 ALTER TABLE "Project" ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'novel';

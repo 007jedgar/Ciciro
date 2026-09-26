@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } from "@/lib/auth/session";
+import { planNewChapters, type NewChapterFields } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
 import { importFile, ImportError, type ImportedManuscript } from "@/lib/import";
 import { stampBlockIds } from "@/lib/manuscript";
@@ -48,6 +49,10 @@ export async function importManuscript(
   let projectId = input.projectId;
   let title: string;
   let firstOrder = 0;
+  let fields = (position: number, input: { title: string; content: string }): NewChapterFields => ({
+    title: input.title || `Chapter ${position + 1}`,
+    content: input.content,
+  });
   if (projectId) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -55,6 +60,8 @@ export async function importManuscript(
     });
     if (!project) throw new AuthError("Not found.", 404);
     title = project.title;
+    const plan = await planNewChapters(projectId, parsed.chapters.length);
+    fields = (position, input) => plan.fields(plan.visibleCount + position, input);
     const agg = await prisma.chapter.aggregate({ where: { projectId }, _max: { order: true } });
     firstOrder = (agg._max.order ?? -1) + 1;
   } else {
@@ -75,11 +82,14 @@ export async function importManuscript(
 
   const created: ImportResult["chapters"] = [];
   for (const [i, chapter] of parsed.chapters.entries()) {
-    const content = chapter.html ? stampBlockIds(chapter.html) : "";
+    const { title: chapterTitle, content } = fields(i, {
+      title: chapter.title.trim().slice(0, 200),
+      content: chapter.html ? stampBlockIds(chapter.html) : "",
+    });
     const row = await prisma.chapter.create({
       data: {
         projectId,
-        title: chapter.title.trim().slice(0, 200) || `Chapter ${firstOrder + i + 1}`,
+        title: chapterTitle,
         order: firstOrder + i,
         content,
         wordCount: countWords(htmlToText(content)),
