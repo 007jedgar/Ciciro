@@ -79,6 +79,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
+  const colors = themed?.colors ?? parchmentColors;
   const reviews = useWeeklyReviewsQuery(projectId);
   const create = useCreateWeeklyReviewMutation();
   const remove = useDeleteWeeklyReviewMutation();
@@ -153,7 +154,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
         accessibilityRole="button"
         accessibilityLabel={due ? t("weekly.reviewNow") : t("weekly.writeNew")}
       >
-        <Text style={[layout.cardTitle, { opacity: create.isPending ? 0.6 : 1 }]}>
+        <Text style={[layout.cardTitle, { color: colors.panel, opacity: create.isPending ? 0.6 : 1 }]}>
           {create.isPending ? t("weekly.working") : due ? t("weekly.reviewNow") : t("weekly.writeNew")}
         </Text>
       </PressableCard>

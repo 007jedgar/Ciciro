@@ -13,6 +13,7 @@ jest.mock("../lib/settings", () => ({
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
     return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
   },
+  useOptionalAppTheme: () => ({ settings: { reduceMotion: false } }),
 }));
 
 describe("ExportCard", () => {

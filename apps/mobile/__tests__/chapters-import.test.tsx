@@ -40,6 +40,7 @@ jest.mock("../lib/settings", () => ({
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
     return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
   },
+  useOptionalAppTheme: () => ({ settings: { reduceMotion: false } }),
 }));
 jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0 }));
 jest.mock("../components/ManuscriptTabBar", () => ({ useTabBarClearance: () => 0 }));

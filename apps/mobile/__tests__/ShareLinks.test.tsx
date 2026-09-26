@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import * as Clipboard from "expo-clipboard";
 import type { ReactNode } from "react";
+import { AccessibilityInfo } from "react-native";
 import { ShareLinks } from "../components/ShareLinks";
 import {
   useCreateShareLinkMutation,
@@ -11,6 +13,12 @@ import type { ShareLinkSummary } from "../lib/api/types";
 import { defaultSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
 import { colors, makeLayout } from "../lib/theme";
+
+jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(async () => true) }));
+jest.mock("expo-haptics", () => ({
+  impactAsync: jest.fn(async () => {}),
+  ImpactFeedbackStyle: { Light: "light" },
+}));
 
 jest.mock("../lib/api/client", () => ({ API_URL: "https://ciciro.example" }));
 
@@ -135,6 +143,17 @@ describe("ShareLinks", () => {
     // Only the active link can be shared or turned off.
     expect(screen.getAllByText("Share link")).toHaveLength(1);
     expect(screen.getAllByText("Turn off")).toHaveLength(1);
+  });
+
+  it("copies an active link's URL when tapped and confirms it", async () => {
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    setup();
+    expect(screen.queryByText("Copied")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Copy link"));
+    await waitFor(() => expect(screen.getByText("Copied")).toBeTruthy());
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith("https://ciciro.example/read/tok1");
+    expect(announce).toHaveBeenCalledWith("Copied");
+    announce.mockRestore();
   });
 
   it("turns a link off and deletes one after confirming", async () => {
