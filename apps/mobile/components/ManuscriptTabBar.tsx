@@ -21,6 +21,7 @@ import { writingReminderEntryForProject } from "../lib/writing-reminder-sync";
 import { openTodayEntry } from "../lib/journal";
 import { normalizeKind } from "../lib/manuscript-kind";
 import { Glass, alpha } from "./Glass";
+import { StuckSheet } from "./StuckSheet";
 import {
   BookIcon,
   ChaptersIcon,
@@ -29,6 +30,7 @@ import {
   EditorIcon,
   NewChapterIcon,
   BellIcon,
+  LifebuoyIcon,
   PlusIcon,
   QuestionIcon,
   QuoteIcon,
@@ -80,10 +82,13 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
-  const { addChapter, project, setSelectedChapterId } = useProject();
+  const { addChapter, project, selectedChapterId, setSelectedChapterId } = useProject();
+  const chapters = project?.chapters ?? [];
+  const stuckChapterId = (chapters.find((c) => c.id === selectedChapterId) ?? chapters[0])?.id;
   const kind = normalizeKind(project?.kind);
   const { user } = useSession();
   const [open, setOpen] = useState(false);
+  const [stuckOpen, setStuckOpen] = useState(false);
 
   const openReminder = () => {
     const entry = writingReminderEntryForProject(
@@ -183,6 +188,17 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
     { key: "rewrite", Icon: RewriteIcon, labelKey: "manuscriptTabBar.rewrite", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?intent=rewrite` as never) },
     { key: "describe", Icon: QuoteIcon, labelKey: "manuscriptTabBar.describe", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?intent=describe` as never) },
     { key: "questions", Icon: QuestionIcon, labelKey: "manuscriptTabBar.questions", tone: "ai", run: () => router.navigate(`/project/${projectId}/ciciro?questions=1` as never) },
+    ...(stuckChapterId
+      ? [
+          {
+            key: "stuck",
+            Icon: LifebuoyIcon,
+            labelKey: "stuck.pill",
+            tone: "ai" as const,
+            run: () => setStuckOpen(true),
+          },
+        ]
+      : []),
     { key: "bible", Icon: BookIcon, labelKey: "manuscriptTabBar.bible", tone: "tool", run: () => router.push(bibleIndexHref(projectId) as never) },
     // A blog post is a single piece, so there is nothing to add.
     ...(kind === "blog"
@@ -283,7 +299,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
                       >
                         <action.Icon color={tint} size={24} />
                       </View>
-                      <Text numberOfLines={1} style={[styles.cellLabel, { color: colors.inkSoft }]}>
+                      <Text numberOfLines={2} style={[styles.cellLabel, { color: colors.inkSoft }]}>
                         {t(action.labelKey)}
                       </Text>
                     </>
@@ -347,6 +363,14 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
           </Animated.View>
         </Pressable>
       </View>
+      {stuckChapterId ? (
+        <StuckSheet
+          open={stuckOpen}
+          onClose={() => setStuckOpen(false)}
+          projectId={projectId}
+          chapterId={stuckChapterId}
+        />
+      ) : null}
     </View>
   );
 }
@@ -403,9 +427,9 @@ const styles = StyleSheet.create({
   gridRows: {
     flexDirection: "row",
     flexWrap: "wrap",
-    width: 68 * 4,
+    width: 76 * 4,
   },
-  cell: { width: 68, alignItems: "center", marginVertical: 8 },
+  cell: { width: 76, alignItems: "center", marginVertical: 8 },
   tile: {
     width: 56,
     height: 56,
@@ -414,5 +438,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cellLabel: { marginTop: 7, fontSize: 11, fontWeight: "500", maxWidth: 66, textAlign: "center" },
+  cellLabel: {
+    marginTop: 7,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "500",
+    maxWidth: 72,
+    minHeight: 26,
+    textAlign: "center",
+  },
 });

@@ -464,7 +464,7 @@ const en = {
     openA11y: "Open writing history",
   },
   target: {
-    setNano: "Set NaNo pace (50k by Nov 30)",
+    setNano: "Set a 50,000-word goal by Nov 30",
     complete: "Manuscript goal met",
     pastDeadline_one: "{{count}} word left past the deadline",
     pastDeadline_other: "{{count}} words left past the deadline",

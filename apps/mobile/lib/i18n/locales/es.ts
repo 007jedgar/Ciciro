@@ -466,7 +466,7 @@ const es: Translations = {
     openA11y: "Abrir historial de escritura",
   },
   target: {
-    setNano: "Ritmo NaNo (50k para el 30 nov)",
+    setNano: "Fija una meta de 50.000 palabras para el 30 de nov",
     complete: "Meta del manuscrito cumplida",
     pastDeadline_one: "{{count}} palabra restante tras la fecha",
     pastDeadline_other: "{{count}} palabras restantes tras la fecha",

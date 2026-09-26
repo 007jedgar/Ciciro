@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { PreviouslyOnCard } from "../components/PreviouslyOnCard";
-import { StuckPill } from "../components/StuckPill";
+import { StuckSheet } from "../components/StuckSheet";
 import { useRecapQuery, useStuckPromptsMutation } from "../lib/api";
 import { recapDue } from "../lib/recap";
 import { defaultSettings } from "../lib/app-settings";
@@ -60,20 +60,24 @@ describe("PreviouslyOnCard", () => {
   });
 });
 
-describe("StuckPill", () => {
-  it("asks on open and sends the chosen prompt to the Ciciro tab", () => {
+describe("StuckSheet", () => {
+  const data = ["Find the letter.", "Cut to the storm."];
+
+  it("asks when opened and sends the chosen prompt to the Ciciro tab", () => {
     const mutate = jest.fn();
-    stuckMock.mockReturnValue({
-      mutate,
-      isPending: false,
-      isError: false,
-      data: ["Find the letter.", "Cut to the storm."],
-    });
-    render(wrap(<StuckPill projectId="p1" chapterId="c1" />));
-    expect(mutate).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByTestId("stuck-pill"));
+    const onClose = jest.fn();
+    stuckMock.mockReturnValue({ mutate, isPending: false, isError: false, data });
+    render(wrap(<StuckSheet open onClose={onClose} projectId="p1" chapterId="c1" />));
     expect(mutate).toHaveBeenCalledWith({ projectId: "p1", chapterId: "c1" });
     fireEvent.press(screen.getByText("Cut to the storm."));
+    expect(onClose).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith("/project/p1/ciciro?prompt=Cut%20to%20the%20storm.");
+  });
+
+  it("does not ask while closed", () => {
+    const mutate = jest.fn();
+    stuckMock.mockReturnValue({ mutate, isPending: false, isError: false, data });
+    render(wrap(<StuckSheet open={false} onClose={() => {}} projectId="p1" chapterId="c1" />));
+    expect(mutate).not.toHaveBeenCalled();
   });
 });

@@ -460,7 +460,7 @@ const zh: Translations = {
     openA11y: "打开写作记录",
   },
   target: {
-    setNano: "设定 NaNo 节奏（11/30 前 5 万字）",
+    setNano: "设定 11 月 30 日前 5 万字的目标",
     complete: "书稿目标已达成",
     pastDeadline_one: "已过截止日期，还差 {{count}} 字",
     pastDeadline_other: "已过截止日期，还差 {{count}} 字",
