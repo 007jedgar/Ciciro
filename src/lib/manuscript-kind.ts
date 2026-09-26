@@ -301,23 +301,31 @@ const CHARACTER_CUE = /^[A-Z][A-Z0-9 .'-]{0,38}(?:\s*\((?:V\.O\.|O\.S\.|O\.C\.|C
  * screenplay elements. A line under a character cue is dialogue until a blank
  * line; anything unrecognized is action.
  */
-export function classifyScreenplayLines(text: string): { element: ScreenplayElement; text: string }[] {
+export function classifyScreenplayLines(
+  text: string,
+  after?: ScreenplayElement
+): { element: ScreenplayElement; text: string }[] {
   const out: { element: ScreenplayElement; text: string }[] = [];
-  let inDialogue = false;
+  const speaking = (el?: ScreenplayElement) => el === "character" || el === "parenthetical" || el === "dialogue";
+  let inDialogue = speaking(after);
+  let previous = after;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) {
       inDialogue = false;
+      previous = undefined;
       continue;
     }
+    const cue = CHARACTER_CUE.test(line) && line === line.toUpperCase();
     let element: ScreenplayElement;
     if (SCENE_HEADING.test(line)) element = "scene-heading";
     else if (TRANSITION.test(line)) element = "transition";
     else if (inDialogue && /^\(.*\)$/.test(line)) element = "parenthetical";
-    else if (inDialogue) element = "dialogue";
-    else if (CHARACTER_CUE.test(line) && line === line.toUpperCase()) element = "character";
+    else if (inDialogue && !(cue && previous === "dialogue")) element = "dialogue";
+    else if (cue) element = "character";
     else element = "action";
-    inDialogue = element === "character" || element === "parenthetical" || element === "dialogue";
+    inDialogue = speaking(element);
+    previous = element;
     out.push({ element, text: line });
   }
   return out;
@@ -333,10 +341,10 @@ function escapeHtml(s: string): string {
  */
 export function assistantReplacementSplitter(
   kind: ManuscriptKind
-): ((replace: string) => { text: string; mark: (open: string) => string }[]) | undefined {
+): ((replace: string, before: string | null) => { text: string; mark: (open: string) => string }[]) | undefined {
   if (kind !== "screenplay") return undefined;
-  return (replace) =>
-    classifyScreenplayLines(replace).map(({ element, text }) => ({
+  return (replace, before) =>
+    classifyScreenplayLines(replace, before ? elementOfHtml(before) : undefined).map(({ element, text }) => ({
       text,
       mark: (open: string) => withElement(open, element),
     }));
@@ -344,11 +352,12 @@ export function assistantReplacementSplitter(
 
 /**
  * Plain text from the assistant as editor blocks. A screenplay gets one
- * element per line; anything else gets a paragraph per blank-line break.
+ * element per line, read on from the element of the block before (`after`);
+ * anything else gets a paragraph per blank-line break.
  */
-export function assistantTextToHtml(text: string, kind: ManuscriptKind): string {
+export function assistantTextToHtml(text: string, kind: ManuscriptKind, after?: ScreenplayElement): string {
   if (kind === "screenplay") {
-    return classifyScreenplayLines(text)
+    return classifyScreenplayLines(text, after)
       .map(({ element, text: line }) => withElement(`<p>${escapeHtml(line)}</p>`, element))
       .join("");
   }

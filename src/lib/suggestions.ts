@@ -956,7 +956,7 @@ export type SuggestOptions = {
   newId?: () => string;
   newBlockId?: () => string;
   /** How a replacement spanning paragraphs breaks into blocks. Default: blank lines. */
-  splitReplacement?: (replace: string) => ReplacementParagraph[];
+  splitReplacement?: (replace: string, before: string | null) => ReplacementParagraph[];
 };
 
 function splitOnBlankLines(replace: string): ReplacementParagraph[] {
@@ -1159,7 +1159,7 @@ function suggestWholeBlocks(
   edit: SuggestEdit,
   opts: Required<SuggestOptions>
 ): { html: string; outcome: SuggestOutcome } | null {
-  if (opts.splitReplacement(edit.replace).filter((p) => p.text).length < 2) return null;
+  if (opts.splitReplacement(edit.replace, null).filter((p) => p.text).length < 2) return null;
   const needle = normalizeNeedle(edit.find).trim();
   const matches = scanBlocks(html).flatMap((block, i) =>
     block.items && project(block.items, BASE).text.trim() === needle ? [i] : []
@@ -1245,7 +1245,8 @@ function suggestBlockRun(
       }
     }
   }
-  const paragraphs = opts.splitReplacement(edit.replace).filter((p) => p.text);
+  const before = blocks[blocks.indexOf(run[0]) - 1]?.open ?? null;
+  const paragraphs = opts.splitReplacement(edit.replace, before).filter((p) => p.text);
   const prose = run.filter((block) => block.items && project(block.items, BASE).text.trim());
   const id = opts.newId();
   const createdAt = opts.now();

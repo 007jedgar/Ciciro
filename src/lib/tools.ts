@@ -8,7 +8,13 @@ import {
   appendCanon,
 } from "@/lib/bible";
 import { drafterSystemFor } from "@/lib/prompts";
-import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
+import {
+  assistantTextToHtml,
+  elementOfHtml,
+  normalizeKind,
+  type ManuscriptKind,
+  type ScreenplayElement,
+} from "@/lib/manuscript-kind";
 import { AuthError } from "@/lib/auth/session";
 import { planNewChapters } from "@/lib/chapters";
 import { chapterWordCount } from "@/lib/text";
@@ -22,6 +28,7 @@ import {
   deletePassageRange,
   findBlockRun,
   formatSceneIndex,
+  getBlocks,
   indexChapter,
   isPassageId,
   parsePassageId,
@@ -492,6 +499,13 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+function elementBefore(html: string, at: number): ScreenplayElement | undefined {
+  const block = getBlocks(html)
+    .filter((b) => b.end <= at)
+    .pop();
+  return block ? elementOfHtml(html.slice(block.start, block.end)) : undefined;
+}
+
 async function projectKind(projectId: string): Promise<ManuscriptKind> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -514,8 +528,13 @@ function blockReplace(
 ): { html: string; count: number } {
   const run = findBlockRun(html, find);
   if (!run) return { html, count: 0 };
+  const placed = assistantTextToHtml(replace, kind, elementBefore(html, run.start));
+  const id = html.slice(run.start).match(/^<[a-z][\w-]*\b[^>]*?\bdata-block-id="([^"]*)"/i)?.[1];
   return {
-    html: html.slice(0, run.start) + assistantTextToHtml(replace, kind) + html.slice(run.end),
+    html:
+      html.slice(0, run.start) +
+      (id ? placed.replace(/^<([a-z][\w-]*)/i, `<$1 data-block-id="${id}"`) : placed) +
+      html.slice(run.end),
     count: 1,
   };
 }
@@ -1779,7 +1798,11 @@ export async function executeEditorTool(
         return { status: "insert failed", content: dest.error };
       }
 
-      const insertHtml = assistantTextToHtml(text, await projectKind(projectId));
+      const insertHtml = assistantTextToHtml(
+        text,
+        await projectKind(projectId),
+        elementBefore(ch.content, dest.at)
+      );
       const content = insertHtmlAt(ch.content, insertHtml, dest.at);
       const wordCount = chapterWordCount(content);
       const committed = await bumpChapterRevision(

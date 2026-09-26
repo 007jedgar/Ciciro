@@ -81,6 +81,15 @@ describe("manuscript kind", () => {
     ]);
   });
 
+  it("reads assistant script lines on from the element before them", () => {
+    expect(classifyScreenplayLines("Hi there.\nJON\nHey.", "character").map((l) => l.element)).toEqual([
+      "dialogue",
+      "character",
+      "dialogue",
+    ]);
+    expect(classifyScreenplayLines("Hi there.", "action").map((l) => l.element)).toEqual(["action"]);
+  });
+
   it("gives the assistant kind-specific prompts and actions", () => {
     expect(kindDirective("novel")).toBe("");
     expect(editorSystemFor("novel")[0].text).toBe(EDITOR_SYSTEM);
