@@ -85,6 +85,7 @@ model Project {
   manuscriptTarget  ManuscriptTarget?
   chapterSnapshots  ChapterSnapshot[]
   scratchNotes      ScratchNote[]
+  recap             ProjectRecap?
   shareLinks        ShareLink[]
   shareComments     ShareComment[]
 
@@ -365,6 +366,19 @@ model WritingSession {
   createdAt DateTime @default(now())
 
   @@index([userId, startedAt])
+}
+
+// The cached "Previously on" recap for one manuscript. `fingerprint` hashes the
+// text the recap was written from, so opening the manuscript again without new
+// writing reuses the row instead of calling the model.
+model ProjectRecap {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  content     String
+  fingerprint String
+  generatedAt DateTime @default(now())
 }
 
 // A correction the editor applied via edit_manuscript - the raw find/replace
