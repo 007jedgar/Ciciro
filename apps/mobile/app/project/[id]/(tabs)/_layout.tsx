@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -9,9 +10,12 @@ import { WritingMeter } from "../../../../components/WritingMeter";
 import { ManuscriptPaceLabel } from "../../../../components/ManuscriptPaceLabel";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
-import { focusChromeHidden } from "../../../../lib/focus-mode";
+import { focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
 import { useAppTheme } from "../../../../lib/settings";
 import { useStackBack } from "../../../../lib/use-stack-back";
+
+/** Height of the slim row that holds the exit control while focus mode hides the header. */
+const FOCUS_BAR_HEIGHT = 36;
 
 function ProjectHeader({
   showMeter,
@@ -20,7 +24,7 @@ function ProjectHeader({
   showMeter: boolean;
   onHeightChange: (height: number) => void;
 }) {
-  const { patch, colors } = useAppTheme();
+  const { colors } = useAppTheme();
   const router = useRouter();
   const { backTo } = useStackBack();
   const { t } = useTranslation();
@@ -44,7 +48,7 @@ function ProjectHeader({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("settings.focusMode")}
-              onPress={() => patch({ focusMode: true })}
+              onPress={() => setFocusMode(true)}
               hitSlop={8}
             >
               <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.focusMode")}</Text>
@@ -63,13 +67,14 @@ export default function ProjectTabsLayout() {
   const { backTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready } = useSession();
-  const { layout, colors, settings, patch } = useAppTheme();
+  const { layout, colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const segments = useSegments();
   const onEditor = segments[segments.length - 1] === "manuscript";
   // Tabs scroll under the floating header, so they need its measured height.
   const [headerHeight, setHeaderHeight] = useState<number | null>(null);
-  const focused = focusChromeHidden(settings, onEditor);
+  const focused = focusChromeHidden(useFocusMode(), onEditor);
 
   if (!ready) {
     return (
@@ -95,18 +100,34 @@ export default function ProjectTabsLayout() {
   }
 
   return (
-    <AppHeaderHeightContext.Provider value={focused ? 0 : headerHeight}>
+    <AppHeaderHeightContext.Provider value={focused ? insets.top + FOCUS_BAR_HEIGHT : headerHeight}>
       <View style={layout.screen}>
         {focused ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("settings.exitFocus")}
-            onPress={() => patch({ focusMode: false })}
-            hitSlop={12}
-            style={{ position: "absolute", top: 52, right: 16, zIndex: 10, opacity: 0.45 }}
+          <View
+            style={{
+              position: "absolute",
+              top: insets.top,
+              left: 0,
+              right: 0,
+              height: FOCUS_BAR_HEIGHT,
+              zIndex: 10,
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              paddingHorizontal: 16,
+            }}
+            pointerEvents="box-none"
           >
-            <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("settings.exitFocus")}
+              onPress={() => setFocusMode(false)}
+              hitSlop={12}
+              style={{ opacity: 0.45 }}
+            >
+              <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
+            </Pressable>
+          </View>
         ) : (
           <ProjectHeader showMeter={onEditor} onHeightChange={setHeaderHeight} />
         )}

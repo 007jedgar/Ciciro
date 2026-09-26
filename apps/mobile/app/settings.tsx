@@ -10,6 +10,7 @@ import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize,
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
+import { setFocusMode, useFocusMode } from "../lib/focus-mode";
 import { getReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
@@ -199,6 +200,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
+  const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
   const reminders = useWritingReminderList(user?.id ?? null);
@@ -321,8 +323,8 @@ export default function SettingsScreen() {
           <ToggleRow
             label={t("settings.focusMode")}
             hint={t("settings.focusModeHint")}
-            value={settings.focusMode}
-            onValueChange={(focusMode) => patch({ focusMode })}
+            value={focusMode}
+            onValueChange={setFocusMode}
             colors={colors}
           />
           <ToggleRow

@@ -19,6 +19,7 @@ import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
 import { useSettings } from "@/components/SettingsProvider";
 import { countWords, htmlToText } from "@/lib/text";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
+import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
@@ -381,18 +382,26 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, []);
 
   // --- Focus and typewriter mode ---
-  const focusMode = settings.focusMode;
+  const focusMode = useFocusMode();
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current = bibleOpen || searchOpen || questionsOpen || autoWriteOpen;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.shiftKey && e.key === "Enter") {
         e.preventDefault();
-        patch({ focusMode: !settingsRef.current.focusMode });
+        setFocusMode(!getFocusMode());
       } else if (mod && e.altKey && e.code === "KeyT") {
         e.preventDefault();
         patch({ typewriterMode: !settingsRef.current.typewriterMode });
-      } else if (e.key === "Escape" && settingsRef.current.focusMode) {
-        patch({ focusMode: false });
+      } else if (
+        e.key === "Escape" &&
+        getFocusMode() &&
+        !e.defaultPrevented &&
+        !overlayOpenRef.current &&
+        !document.querySelector('[role="dialog"], [aria-modal="true"]')
+      ) {
+        setFocusMode(false);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -720,7 +729,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         </button>
         <button
           className="btn small"
-          onClick={() => patch({ focusMode: true })}
+          onClick={() => setFocusMode(true)}
           title="Hide everything but the page (Cmd/Ctrl+Shift+Enter, Esc to leave)"
         >
           Focus
@@ -771,7 +780,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           >
             Typewriter
           </button>
-          <button className="btn ghost small" onClick={() => patch({ focusMode: false })}>
+          <button className="btn ghost small" onClick={() => setFocusMode(false)}>
             Exit focus (Esc)
           </button>
         </div>

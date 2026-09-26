@@ -202,4 +202,31 @@ describe("ChapterEditor", () => {
       jest.useRealTimers();
     }
   });
+
+  it("keeps a writing band visible in typewriter mode when the editor is short", () => {
+    render(
+      <ChapterEditor
+        chapterId="c1"
+        html={html}
+        editorStyle={editorStyle}
+        focused={false}
+        resumeOffset={null}
+        bottomInset={16}
+        typewriter
+        onFocused={jest.fn()}
+        onBlurred={jest.fn()}
+        onChangeText={jest.fn()}
+        onChangeState={jest.fn()}
+        onChangeSelection={jest.fn()}
+        registerEditor={jest.fn()}
+      />
+    );
+    fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", {
+      nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 396 } },
+    });
+    const { paddingTop, paddingBottom } = screen.getByTestId("chapter-editor").props.style;
+    expect(paddingTop).toBeGreaterThan(0);
+    expect(paddingBottom).toBe(16 + paddingTop);
+    expect(396 - paddingTop - paddingBottom).toBeGreaterThanOrEqual(160);
+  });
 });

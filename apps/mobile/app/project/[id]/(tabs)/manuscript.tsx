@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, useWindowDimensions, View } from "react-native";
+import { Text, View } from "react-native";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
@@ -53,7 +53,7 @@ import {
   type GrammarSuggestion,
 } from "../../../../lib/grammar";
 import { useProject } from "../../../../lib/project";
-import { typewriterInsets } from "../../../../lib/focus-mode";
+import { useFocusMode } from "../../../../lib/focus-mode";
 import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
@@ -104,8 +104,7 @@ export default function ManuscriptScreen() {
   const { layout, colors, settings } = useAppTheme();
   const reduceMotion = useReduceMotion();
   const clearance = useTabBarClearance();
-  const { height: windowHeight } = useWindowDimensions();
-  const focusMode = settings.focusMode;
+  const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const chapterRef = useRef<Chapter | null>(null);
@@ -426,15 +425,13 @@ export default function ManuscriptScreen() {
     pressOpen: pressMenuOpen,
     grammarOpen,
   });
-  const baseBottomInset = keyboardVisible
+  const editorBottomInset = keyboardVisible
     ? 16
     : barPlacement === "accessory"
       ? 8
       : focusMode
         ? 16
         : clearance;
-  const typewriter = typewriterInsets(settings.typewriterMode, windowHeight);
-  const editorBottomInset = baseBottomInset + typewriter.bottom;
 
   if (loading && !project) {
     return (
@@ -504,7 +501,7 @@ export default function ManuscriptScreen() {
               focused={focused}
               resumeOffset={resume?.index ?? null}
               bottomInset={editorBottomInset}
-              topInset={typewriter.top}
+              typewriter={settings.typewriterMode}
               onFocused={onFocused}
               onBlurred={onBlurred}
               onChangeText={onChangeText}
