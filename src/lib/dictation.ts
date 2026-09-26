@@ -29,10 +29,14 @@ export type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 /** The browser's recognizer, or null where dictation is not available. */
 export function getSpeechRecognition(
-  win: { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown } | undefined
+  win: object | undefined,
 ): SpeechRecognitionCtor | null {
   if (!win) return null;
-  const ctor = win.SpeechRecognition ?? win.webkitSpeechRecognition;
+  const w = win as {
+    SpeechRecognition?: unknown;
+    webkitSpeechRecognition?: unknown;
+  };
+  const ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
   return typeof ctor === "function" ? (ctor as SpeechRecognitionCtor) : null;
 }
 
@@ -76,7 +80,8 @@ const COMMANDS: [RegExp, string][] = [
 export function applyDictationCommands(text: string, lang: string): string {
   if (!/^en(?:$|[-_])/i.test(lang)) return text;
   let out = text;
-  for (const [pattern, replacement] of COMMANDS) out = out.replace(pattern, replacement);
+  for (const [pattern, replacement] of COMMANDS)
+    out = out.replace(pattern, replacement);
   return out;
 }
 
@@ -85,15 +90,23 @@ export function applyDictationCommands(text: string, lang: string): string {
  * just ahead of the caret in its paragraph (empty at a paragraph start).
  * Adds the joining space and capitalizes a sentence start.
  */
-export function prepareDictation(raw: string, before: string, lang = "en"): string {
+export function prepareDictation(
+  raw: string,
+  before: string,
+  lang = "en",
+): string {
   let text = applyDictationCommands(raw.trim(), lang);
   if (!text) return "";
-  const startsSentence = before.trim() === "" || /[.!?…]["'”’)]*\s*$/.test(before);
+  const startsSentence =
+    before.trim() === "" || /[.!?…]["'”’)]*\s*$/.test(before);
   const afterBreak = text.startsWith("\n");
   if ((startsSentence || afterBreak) && /^[a-z]/.test(text)) {
     text = text[0].toUpperCase() + text.slice(1);
   } else if (/^\n+[a-z]/.test(text)) {
-    text = text.replace(/^(\n+)([a-z])/, (_m, nl: string, c: string) => nl + c.toUpperCase());
+    text = text.replace(
+      /^(\n+)([a-z])/,
+      (_m, nl: string, c: string) => nl + c.toUpperCase(),
+    );
   }
   const needsSpace =
     before !== "" &&
@@ -103,14 +116,16 @@ export function prepareDictation(raw: string, before: string, lang = "en"): stri
   return needsSpace ? ` ${text}` : text;
 }
 
-export type DictationPart = { type: "text"; text: string } | { type: "paragraph" } | { type: "break" };
+export type DictationPart =
+  { type: "text"; text: string } | { type: "paragraph" } | { type: "break" };
 
 /** Break dictated text into text runs, paragraph breaks (blank line) and line breaks. */
 export function dictationParts(text: string): DictationPart[] {
   const parts: DictationPart[] = [];
   for (const piece of text.split(/(\n{2,}|\n)/)) {
     if (piece === "") continue;
-    if (piece.startsWith("\n")) parts.push(piece.length > 1 ? { type: "paragraph" } : { type: "break" });
+    if (piece.startsWith("\n"))
+      parts.push(piece.length > 1 ? { type: "paragraph" } : { type: "break" });
     else parts.push({ type: "text", text: piece });
   }
   return parts;
