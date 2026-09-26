@@ -112,6 +112,12 @@ describe("SpeechReader", () => {
     expect(heard).toEqual(["A.", "A.", "C."]);
   });
 
+  it("reports the start once, on the first sentence actually spoken", () => {
+    reader.start(["A.", "B."], { textAt: (i) => (i === 0 ? null : "B.") });
+    expect(events).toEqual([["playing", 1]]);
+    expect(last().text).toBe("B.");
+  });
+
   it("reports each sentence advance once", () => {
     reader.start(["A.", "B."]);
     events.length = 0;

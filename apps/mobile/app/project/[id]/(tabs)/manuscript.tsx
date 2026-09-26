@@ -133,6 +133,7 @@ export default function ManuscriptScreen() {
   const grammarRef = useRef<GrammarLoop | null>(null);
   const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0, end: 0, docOffset: 0 });
+  const liveTextRef = useRef<{ chapterId: string; text: string } | null>(null);
   const [formatTarget, setFormatTarget] = useState({ start: 0, end: 0 });
   const [targetMarks, setTargetMarks] = useState(emptyBlockMarks());
   const [targetKind, setTargetKind] = useState<FormatBlockKind>("paragraph");
@@ -266,6 +267,7 @@ export default function ManuscriptScreen() {
       markTyping();
       const current = chapterRef.current;
       if (!current) return;
+      liveTextRef.current = { chapterId: current.id, text };
       const at = blockAtPlainOffset(current.content, caretRef.current.docOffset);
       if (at && settings.autoCorrect && !blockHasSuggestions(current.content, at.blockId)) {
         const live = paragraphAtOffset(text, caretRef.current.docOffset);
@@ -281,6 +283,11 @@ export default function ManuscriptScreen() {
     },
     [markTyping, scheduleFlush, settings.autoCorrect]
   );
+
+  const liveChapterText = useCallback((current: Chapter) => {
+    const live = liveTextRef.current;
+    return live && live.chapterId === current.id ? live.text : blocksPlainText(current.content);
+  }, []);
 
   const onCaret = useCallback(
     (start: number, end: number) => {
@@ -298,7 +305,7 @@ export default function ManuscriptScreen() {
         chapterId: current.id,
         start,
         end,
-        text: start === end ? "" : blocksPlainText(current.content).slice(start, end),
+        text: start === end ? "" : liveChapterText(current).slice(start, end),
       });
       if (caretTimer.current) clearTimeout(caretTimer.current);
       caretTimer.current = setTimeout(() => {
@@ -309,7 +316,7 @@ export default function ManuscriptScreen() {
         });
       }, CARET_FLUSH_MS);
     },
-    [recordReadingPosition]
+    [liveChapterText, recordReadingPosition]
   );
 
   const onFocused = useCallback(() => {

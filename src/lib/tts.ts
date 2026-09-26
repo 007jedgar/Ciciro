@@ -119,7 +119,7 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
       this.setState("idle");
       return;
     }
-    this.setState("playing");
+    this.state = "playing";
     this.speakCurrent();
   }
 
