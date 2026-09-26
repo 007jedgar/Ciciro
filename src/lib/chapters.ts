@@ -214,6 +214,8 @@ export async function deleteChapter(id: string, user: PublicUser | null) {
  * Put the live chapters in the order the author dragged them into. Ids the
  * client did not mention (a chapter another device just added) keep their
  * relative order at the end; archived chapters stay behind every live one.
+ * Ids that are not live chapters of this manuscript (one another device just
+ * archived or deleted) are skipped, so a stale client can still reorder.
  * Renumbers 0..n-1 the way deleteChapter does, and leaves revisions alone so
  * a reorder never turns an open editor's next save into a conflict.
  */
@@ -242,13 +244,11 @@ export async function reorderChapters(
   });
   const live = rows.filter((row) => !row.archivedAt);
   const liveIds = new Set(live.map((row) => row.id));
-  if (requested.some((id) => !liveIds.has(id))) {
-    throw new AuthError("chapterIds must belong to this manuscript", 400);
-  }
+  const ordered = requested.filter((id) => liveIds.has(id));
 
-  const requestedSet = new Set(requested);
+  const requestedSet = new Set(ordered);
   const sequence = [
-    ...requested,
+    ...ordered,
     ...live.filter((row) => !requestedSet.has(row.id)).map((row) => row.id),
     ...rows.filter((row) => row.archivedAt).map((row) => row.id),
   ];

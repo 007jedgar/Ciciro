@@ -58,17 +58,40 @@ describe("chapter reorder", () => {
     expect([first, second]).toContainEqual(result.map((ch) => ch.id));
   });
 
-  it("rejects bad input and other manuscripts' chapters", async () => {
-    const { ada, project, a } = await seed();
+  it("skips ids another device archived or deleted instead of failing", async () => {
+    const { ada, project, a, b, c } = await seed();
+    await archiveChapter(b.id, ada);
+    const result = await reorderChapters(ada, {
+      projectId: project.id,
+      chapterIds: [c.id, b.id, "deleted-elsewhere", a.id],
+    });
+    expect(result.map((ch) => ch.id)).toEqual([c.id, a.id]);
+    expect(result.map((ch) => ch.order)).toEqual([0, 1]);
+    const archived = await prisma.chapter.findUniqueOrThrow({ where: { id: b.id } });
+    expect(archived.order).toBe(2);
+  });
+
+  it("never writes another manuscript's chapters", async () => {
+    const { ada, project, a, b, c } = await seed();
     const other = await createProject(ada, { title: "Other" });
+    const foreign = other.chapters[0];
+    const result = await reorderChapters(ada, {
+      projectId: project.id,
+      chapterIds: [foreign.id, c.id],
+    });
+    expect(result.map((ch) => ch.id)).toEqual([c.id, a.id, b.id]);
+    const untouched = await prisma.chapter.findUniqueOrThrow({ where: { id: foreign.id } });
+    expect(untouched.projectId).toBe(other.id);
+    expect(untouched.order).toBe(foreign.order);
+  });
+
+  it("rejects bad input", async () => {
+    const { ada, project, a } = await seed();
     await expect(
       reorderChapters(ada, { projectId: project.id, chapterIds: "nope" })
     ).rejects.toMatchObject({ status: 400 });
     await expect(
       reorderChapters(ada, { projectId: project.id, chapterIds: [a.id, a.id] })
-    ).rejects.toMatchObject({ status: 400 });
-    await expect(
-      reorderChapters(ada, { projectId: project.id, chapterIds: [other.chapters[0].id] })
     ).rejects.toMatchObject({ status: 400 });
     await expect(reorderChapters(ada, { chapterIds: [] })).rejects.toMatchObject({ status: 400 });
   });
