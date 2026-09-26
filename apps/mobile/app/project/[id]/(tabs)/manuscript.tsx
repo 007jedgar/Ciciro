@@ -636,7 +636,7 @@ export default function ManuscriptScreen() {
               chapterId={chapter.id}
               html={content}
               editorStyle={editorStyle}
-              placeholder=""
+              placeholder={isScreenplay ? t("screenplay.placeholder") : ""}
               focused={focused}
               resumeOffset={resume?.index ?? null}
               bottomInset={editorBottomInset}

@@ -791,6 +791,8 @@ const zh: Translations = {
     blurb: "选择你要写的内容，再取个标题。Ciciro 会为你打开第一页。",
   },
   screenplay: {
+    // The screenplay format itself, so it reads the same in every language.
+    placeholder: "INT. LOCATION - DAY",
     bar: "剧本元素",
     next: "下一个元素",
     sceneHeading: "场景标题",
