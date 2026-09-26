@@ -35,6 +35,15 @@ describe("OutlineList", () => {
     expect(screen.getByText(/10 words · Final/)).toBeTruthy();
   });
 
+  it("shows the opening as written, without a pending suggestion's text", () => {
+    const content =
+      '<p>Mara <del data-suggestion-id="sg-1" data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-14T00:00:00.000Z">walked slowly</del>' +
+      '<ins data-suggestion-id="sg-1" data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-14T00:00:00.000Z">ambled</ins> to the door.</p>';
+    render(<OutlineList chapters={[chapter("s", 0, { content })]} onOpen={jest.fn()} onReorder={jest.fn()} />);
+    expect(screen.getByText("Mara walked slowly to the door.")).toBeTruthy();
+    expect(screen.queryByText(/ambled/)).toBeNull();
+  });
+
   it("opens a chapter from its title", () => {
     const onOpen = jest.fn();
     render(<OutlineList chapters={chapters} onOpen={onOpen} onReorder={jest.fn()} />);

@@ -147,7 +147,7 @@ rather than overwriting either.
 
 ## Weekly review
 
-**Weekly review** in the top bar's **More** menu (on mobile, the Weekly review card in the
+**Weekly review** in the top bar's **More** menu (on mobile, the Weekly review tile in the
 Chapters tab) has Ciciro look back over your last seven days: the chapters of
 this manuscript you edited, the open questions and plot threads still dangling
 in the story, and a few suggestions for what to write next. The word count, days
@@ -194,7 +194,7 @@ tab has a Find and replace card with the same options.
 
 ## Outline
 
-Open **Outline** in the top bar (web) or the Outline card on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices.
+Open **Outline** in the top bar (web) or the Outline tile on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices.
 
 ## Focus and typewriter mode
 
@@ -211,7 +211,7 @@ the web does.
 
 ## Read aloud
 
-Hearing a chapter is a good way to catch clunky lines. On the web, choose **Listen** in the top bar; on the phone, tap **Listen** above the editor or open the **Read aloud** card in the Chapters tab.
+Hearing a chapter is a good way to catch clunky lines. On the web, choose **Listen** in the top bar; on the phone, tap **Listen** above the editor or open the **Read aloud** tile in the Chapters tab.
 
 - It reads your selection if you have one, otherwise the whole chapter, one sentence at a time, with the sentence being read highlighted.
 - Use Play, Pause (Resume) and Stop, and pick a speed and a voice. Speed and voice are remembered on that device only, since each device has its own voices.
@@ -288,7 +288,7 @@ headings and bold, italic, lists, quotes, and scene breaks preserved.
 
 **Export > EPUB** makes an ebook (title page, contents, chapters in order) and
 **Export > PDF** a book-layout PDF with a contents page and page numbers. On the
-phone, the Chapters tab has an Export card that hands the file to the share sheet.
+phone, the foot of the Chapters tab has an Export card that hands the file to the share sheet.
 
 ## Other kinds of writing
 
