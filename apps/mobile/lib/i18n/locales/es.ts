@@ -798,6 +798,8 @@ const es: Translations = {
     blurb: "Elige qué estás escribiendo y un título. Ciciro abre la primera página por ti.",
   },
   screenplay: {
+    // The screenplay format itself, so it reads the same in every language.
+    placeholder: "INT. LOCATION - DAY",
     bar: "Elemento del guion",
     next: "Siguiente elemento",
     sceneHeading: "Encabezado de escena",

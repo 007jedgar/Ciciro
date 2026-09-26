@@ -797,6 +797,8 @@ const hi: Translations = {
     blurb: "चुनें कि आप क्या लिख रहे हैं, फिर एक शीर्षक। Ciciro पहला पन्ना खोल देता है।",
   },
   screenplay: {
+    // The screenplay format itself, so it reads the same in every language.
+    placeholder: "INT. LOCATION - DAY",
     bar: "पटकथा तत्व",
     next: "अगला तत्व",
     sceneHeading: "दृश्य शीर्षक",

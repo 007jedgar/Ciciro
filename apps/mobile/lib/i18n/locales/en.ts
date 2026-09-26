@@ -796,6 +796,8 @@ const en = {
     blurb: "Pick what you are writing, then a title. Ciciro opens the first page for you.",
   },
   screenplay: {
+    // The screenplay format itself, so it reads the same in every language.
+    placeholder: "INT. LOCATION - DAY",
     bar: "Screenplay element",
     next: "Next element",
     sceneHeading: "Scene heading",
