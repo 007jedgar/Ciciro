@@ -38,6 +38,10 @@ import type {
   ManuscriptEdit,
   ManuscriptTargetPutRequest,
   ManuscriptTargetResponse,
+  ScratchNote,
+  ScratchNoteCreateRequest,
+  ScratchNoteListResponse,
+  ScratchNotePatchRequest,
   NdjsonEvent,
   OkResponse,
   OpenQuestion,
@@ -200,6 +204,25 @@ export const ciciro = {
       delete: (id: string, opts?: RequestOpts) =>
         api<OkResponse>(
           `/api/projects/${encodeURIComponent(id)}/target`,
+          jsonInit("DELETE", undefined, opts)
+        ),
+    },
+    scratch: {
+      list: (id: string, opts?: RequestOpts) =>
+        api<ScratchNoteListResponse>(`/api/projects/${encodeURIComponent(id)}/scratch`, opts),
+      create: (id: string, body: ScratchNoteCreateRequest, opts?: RequestOpts) =>
+        api<ScratchNote>(
+          `/api/projects/${encodeURIComponent(id)}/scratch`,
+          jsonInit("POST", body, opts)
+        ),
+      update: (id: string, noteId: string, body: ScratchNotePatchRequest, opts?: RequestOpts) =>
+        api<ScratchNote>(
+          `/api/projects/${encodeURIComponent(id)}/scratch/${encodeURIComponent(noteId)}`,
+          jsonInit("PATCH", body, opts)
+        ),
+      delete: (id: string, noteId: string, opts?: RequestOpts) =>
+        api<OkResponse>(
+          `/api/projects/${encodeURIComponent(id)}/scratch/${encodeURIComponent(noteId)}`,
           jsonInit("DELETE", undefined, opts)
         ),
     },

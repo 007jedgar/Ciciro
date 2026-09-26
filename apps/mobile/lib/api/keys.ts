@@ -27,6 +27,7 @@ export const queryKeys = {
     snapshot: (id: string, snapshotId: string) => ["chapter-snapshots", id, snapshotId] as const,
     ops: (id: string, after = 0) => ["chapter-ops", id, after] as const,
   },
+  scratch: (projectId: string) => ["scratch", projectId] as const,
   characters: (projectId: string) => ["characters", projectId] as const,
   plotPoints: (projectId: string) => ["plotpoints", projectId] as const,
   questions: {

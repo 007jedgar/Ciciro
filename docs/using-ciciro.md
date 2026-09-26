@@ -112,6 +112,17 @@ to history first, and **Undo** puts it back. Ciciro will not restore or save a
 snapshot while your latest edits have not reached the server, so reconnect and
 try again if it says so.
 
+## Scratchpad
+
+**Scratchpad** in the top bar (on mobile, the Scratchpad card in the Chapters
+tab) keeps loose notes and research for the manuscript: a name to remember, a
+fact to check, a scene idea. Add as many notes as you like (up to 200), each with
+a title and free text; they save as you type. Notes are not chapters, so they are
+never counted in your words or writing-day stats and never appear in an export
+or in search. They sync between the web and your phone. If the same note is
+edited on two devices, Ciciro asks whether to keep your version or the other one
+rather than overwriting either.
+
 ## Search and replace
 
 **Search** in the top bar (Cmd/Ctrl+Shift+F) finds text across every chapter and

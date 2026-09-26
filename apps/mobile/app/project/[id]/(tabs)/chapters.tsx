@@ -21,6 +21,7 @@ import { outlineHref } from "../../../../lib/outline";
 import { confirmChapterDelete } from "../../../../lib/chapter-delete";
 import { importManuscriptFile, isImportable, pickImportFile } from "../../../../lib/import";
 import { useProject } from "../../../../lib/project";
+import { scratchListHref } from "../../../../lib/scratch";
 import { useAppTheme } from "../../../../lib/settings";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
@@ -188,6 +189,15 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("bible.title")}</Text>
                 <Text style={layout.cardMeta}>{t("bible.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(scratchListHref(projectId) as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("scratch.title")}
+              >
+                <Text style={layout.cardTitle}>{t("scratch.title")}</Text>
+                <Text style={layout.cardMeta}>{t("scratch.cardMeta")}</Text>
               </Pressable>
               <Pressable
                 style={[layout.card, { marginBottom: 16 }]}
