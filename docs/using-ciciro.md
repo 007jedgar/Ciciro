@@ -179,7 +179,9 @@ comments show under **Comments**, grouped by chapter, with the quoted passage.
 Open comments are underlined in the editor; click one to open its comment.
 **Show in text** jumps to the passage even after you have edited around it,
 **Resolve** files a comment under Resolved (and **Reopen** brings it back), and
-**Delete** removes it. On the phone, a chapter with open comments shows a pill
+**Delete** removes it. On the web, deleting a link or comment (or a chapter or
+scratchpad note) shows **Undo** for a few seconds before anything is removed for
+good. On the phone, a chapter with open comments shows a pill
 over the page that opens them. A reader can leave a few comments a minute, and
 a link takes at most a couple of hundred an hour.
 
@@ -188,7 +190,8 @@ a link takes at most a couple of hundred an hour.
 **Search** in the top bar (Cmd/Ctrl+Shift+F) finds text across every chapter and
 shows each match with the words around it; click one to jump to it in the editor.
 Turn on **Match case** or **Whole word** to narrow it, type a replacement, and use
-**Replace** on a single match or **Replace all**. Replacements are ordinary chapter
+**Replace** on a single match or **Replace all**. On the web, Replace all says how
+many it changed and offers **Undo** for a few seconds. Replacements are ordinary chapter
 edits, so they sync to the phone like anything you type. On the phone, the Chapters
 tab has a Find and replace card with the same options.
 
