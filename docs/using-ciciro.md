@@ -17,7 +17,13 @@ you only ever see the editor.
 - **Ciciro** (right) - the editor chat, quick-action chips, and composer.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
-- **Story bible**, **Questions**, and **Export** sit in the top bar.
+- **Export** sits in the top bar. **More** in the top bar holds **Questions**,
+  **Story bible**, **Scratchpad**, **Weekly review**, and **Beta readers**; a dot
+  on **More** means one of them has something waiting.
+
+The workspace needs a wide window. In a browser narrower than about 700px (a
+phone), a manuscript opens to an **Open in the app** screen that hands you to the
+Ciciro app instead.
 
 Start a project from the manuscript list, then fill the [story
 bible](story-bible.md) before asking for long passages. Empty canon produces
@@ -128,7 +134,7 @@ message box on the phone for you to edit first.
 
 ## Scratchpad
 
-**Scratchpad** in the top bar (on mobile, the Scratchpad card in the Chapters
+**Scratchpad** in the top bar's **More** menu (on mobile, the Scratchpad card in the Chapters
 tab) keeps loose notes and research for the manuscript: a name to remember, a
 fact to check, a scene idea. Add as many notes as you like (up to 200), each with
 a title and free text; they save as you type. On the web, if a save fails you
@@ -141,20 +147,20 @@ rather than overwriting either.
 
 ## Weekly review
 
-**Weekly review** in the top bar (on mobile, the Weekly review card in the
+**Weekly review** in the top bar's **More** menu (on mobile, the Weekly review card in the
 Chapters tab) has Ciciro look back over your last seven days: the chapters of
 this manuscript you edited, the open questions and plot threads still dangling
 in the story, and a few suggestions for what to write next. The word count, days
 written, typing time and daily bars come from your writing-day records, so they
 cover all your writing this week across every manuscript, not just this one.
-Reviews are written on request, and the button shows a dot once a week has
+Reviews are written on request, and the menu item shows a dot once a week has
 passed since the last one. Every review is kept, so
 you can reread past weeks or delete one. Reviews sync between the web and your
 phone, and need the Anthropic API key like the rest of Ciciro's AI features.
 
 ## Beta readers
 
-**Beta readers** in the top bar (on mobile, the Beta readers card in the Chapters
+**Beta readers** in the top bar's **More** menu (on mobile, the Beta readers card in the Chapters
 tab) is where you share the book and read what came back.
 
 Under **Share links**, name the link (who it is for), share the whole manuscript
