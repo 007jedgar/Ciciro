@@ -22,6 +22,7 @@ import {
   suggestionAt,
   suggestionRanges,
 } from "@/lib/tiptap-suggestions";
+import { docSentences, ReadAloudHighlight, setReadAloudRange, type DocSentence } from "@/lib/tts-doc";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -38,6 +39,10 @@ export type EditorHandle = {
   resolveSuggestions: (action: SuggestionAction, ids?: string[]) => void;
   /** Put the caret on a suggestion and scroll it into view. */
   revealSuggestion: (id: string) => void;
+  /** Sentences to read aloud: the selection when there is one, else the whole chapter. */
+  getReadAloud: () => { sentences: DocSentence[]; selection: boolean };
+  /** Highlight (and scroll to) the sentence being read; null clears it. */
+  highlightReadAloud: (range: { from: number; to: number } | null) => void;
 };
 
 type ReadingCaret = { blockId: string; offset: number };
@@ -174,6 +179,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       SuggestionInsertion,
       SuggestionDeletion,
       TrackChanges,
+      ReadAloudHighlight,
       CharacterCount,
       Placeholder.configure({
         placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
@@ -379,6 +385,31 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     },
     focusEnd() {
       editor?.commands.focus("end");
+    },
+    getReadAloud() {
+      if (!editor) return { sentences: [], selection: false };
+      const { from, to, empty } = editor.state.selection;
+      if (!empty) {
+        const sentences = docSentences(editor.state.doc, { from, to });
+        if (sentences.length > 0) return { sentences, selection: true };
+      }
+      return { sentences: docSentences(editor.state.doc), selection: false };
+    },
+    highlightReadAloud(range) {
+      if (!editor || editor.isDestroyed) return;
+      setReadAloudRange(editor.view, range);
+      if (!range) return;
+      try {
+        const pane = editor.view.dom.closest<HTMLElement>(".editor-pane");
+        if (!pane) return;
+        const coords = editor.view.coordsAtPos(range.from);
+        const rect = pane.getBoundingClientRect();
+        if (coords.top < rect.top + 40 || coords.bottom > rect.bottom - 40) {
+          pane.scrollBy({ top: coords.top - (rect.top + rect.height / 3), behavior: "smooth" });
+        }
+      } catch {
+        /* position not renderable yet */
+      }
     },
     setReadingPosition(blockId: string, offset: number) {
       if (!editor) return;

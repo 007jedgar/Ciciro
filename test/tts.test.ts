@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clampRate, splitSentences, SpeechReader, type UtteranceLike } from "@/lib/tts";
+import { clampRate, splitSentences, SpeechReader, type SynthLike, type UtteranceLike } from "@/lib/tts";
 
 function texts(input: string) {
   return splitSentences(input).map((r) => input.slice(r.start, r.end));
@@ -7,7 +7,7 @@ function texts(input: string) {
 
 describe("splitSentences", () => {
   it("splits on terminators and keeps closing quotes", () => {
-    expect(texts('She ran. "Stop!" he cried. Why?')).toEqual(['She ran.', '"Stop!" he cried.', "Why?"]);
+    expect(texts('She ran. "Stop!" he cried. Why?')).toEqual(["She ran.", '"Stop!"', "he cried.", "Why?"]);
   });
 
   it("does not split on common abbreviations or decimals", () => {
@@ -53,7 +53,7 @@ describe("SpeechReader", () => {
       resume: vi.fn(),
     };
     reader = new SpeechReader(
-      synth,
+      synth as unknown as SynthLike,
       (text) => ({ text, rate: 1, voice: null, onend: null, onerror: null }),
       (state, index) => events.push([state, index])
     );
@@ -66,16 +66,16 @@ describe("SpeechReader", () => {
     expect(last().text).toBe("A.");
     expect(last().rate).toBe(1.5);
     expect(last().voice).toBe("v");
-    last().onend!();
+    last().onend!({});
     expect(last().text).toBe("B.");
     expect(reader.current).toEqual({ state: "playing", index: 1 });
-    last().onend!();
+    last().onend!({});
     expect(reader.current.state).toBe("idle");
   });
 
   it("pauses, resumes the same sentence, and stops", () => {
     reader.start(["A.", "B."]);
-    last().onend!();
+    last().onend!({});
     reader.pause();
     expect(synth.pause).toHaveBeenCalled();
     expect(reader.current.state).toBe("paused");
@@ -90,7 +90,7 @@ describe("SpeechReader", () => {
     reader.start(["A.", "B."]);
     const first = last();
     reader.stop();
-    first.onend!();
+    first.onend!({});
     expect(spoken).toHaveLength(1);
   });
 
@@ -116,5 +116,21 @@ describe("SpeechReader", () => {
     reader.start(["  ", ""]);
     expect(reader.current.state).toBe("idle");
     expect(synth.speak).not.toHaveBeenCalled();
+  });
+});
+
+describe("docSentences", () => {
+  it("maps sentences to document positions across paragraphs and slices", async () => {
+    const { getSchema } = await import("@tiptap/core");
+    const { default: StarterKit } = await import("@tiptap/starter-kit");
+    const { docSentences } = await import("@/lib/tts-doc");
+    const schema = getSchema([StarterKit]);
+    const p = (t: string) => schema.nodes.paragraph.create(null, schema.text(t));
+    const doc = schema.nodes.doc.create(null, [p("One. Two."), p("Three")]);
+    const all = docSentences(doc);
+    expect(all.map((s) => s.text)).toEqual(["One.", "Two.", "Three"]);
+    for (const s of all) expect(doc.textBetween(s.from, s.to)).toBe(s.text);
+    const slice = docSentences(doc, { from: all[1].from, to: all[2].to });
+    expect(slice.map((s) => s.text)).toEqual(["Two.", "Three"]);
   });
 });

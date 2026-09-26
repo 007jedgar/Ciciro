@@ -58,8 +58,8 @@ export function clampRate(value: unknown): number {
 
 export type ReaderState = "idle" | "playing" | "paused";
 
-export type SynthLike = {
-  speak(utterance: UtteranceLike): void;
+export type SynthLike<U extends UtteranceLike = UtteranceLike> = {
+  speak(utterance: U): void;
   cancel(): void;
   pause(): void;
   resume(): void;
@@ -69,8 +69,11 @@ export type UtteranceLike = {
   text: string;
   rate: number;
   voice: unknown;
-  onend: (() => void) | null;
-  onerror: ((event: { error?: string }) => void) | null;
+  // Browser event types differ per engine; only `error` is read.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onend: ((event: any) => void) | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onerror: ((event: any) => void) | null;
 };
 
 export type ReaderListener = (state: ReaderState, index: number) => void;
@@ -79,7 +82,7 @@ export type ReaderListener = (state: ReaderState, index: number) => void;
  * Reads segments one utterance at a time. Sentence-sized utterances avoid the
  * browser cut-off on long text and give a natural hook for highlighting.
  */
-export class SpeechReader {
+export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
   private segments: string[] = [];
   private index = 0;
   private state: ReaderState = "idle";
@@ -88,8 +91,8 @@ export class SpeechReader {
   private voice: unknown = null;
 
   constructor(
-    private synth: SynthLike,
-    private makeUtterance: (text: string) => UtteranceLike,
+    private synth: SynthLike<U>,
+    private makeUtterance: (text: string) => U,
     private listener: ReaderListener
   ) {}
 
