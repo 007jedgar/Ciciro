@@ -148,6 +148,9 @@ export default function WritingMeter() {
       </button>
       {open ? (
         <div className="writing-history-menu" role="dialog" aria-label="Writing history">
+          {maxWords === 0 && (
+            <p className="settings-hint">Write today to start your streak</p>
+          )}
           <div className="theme-menu-label">Last 28 days</div>
           <div className="writing-heatmap" aria-hidden={loading}>
             {buckets.map((row) => (

@@ -48,3 +48,25 @@ export function scratchNoteExcerpt(note: Pick<ScratchNote, "title" | "content">)
   const rest = note.title.trim() ? lines : lines.slice(1);
   return rest.join(" ").slice(0, 140);
 }
+
+/** Format when the note was last updated as "updated Xh ago" or "updated today". */
+export function scratchNoteUpdated(updatedAt: string): string {
+  const updated = new Date(updatedAt);
+  const now = new Date();
+  const diffMs = now.getTime() - updated.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "updated now";
+  if (diffMins < 60) return `updated ${diffMins}m ago`;
+  if (diffHours < 24) return `updated ${diffHours}h ago`;
+  if (diffDays === 1) return "updated yesterday";
+  if (diffDays < 7) return `updated ${diffDays}d ago`;
+
+  const monthDay = updated.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `updated ${monthDay}`;
+}

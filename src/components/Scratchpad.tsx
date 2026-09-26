@@ -6,6 +6,7 @@ import {
   SCRATCH_TITLE_MAX,
   scratchNoteExcerpt,
   scratchNoteTitle,
+  scratchNoteUpdated,
   type ScratchNote,
 } from "@/lib/scratch-view";
 import DrawerHead from "@/components/DrawerHead";
@@ -438,8 +439,10 @@ export default function Scratchpad({ projectId, onClose }: Props) {
                     <div className="scratch-excerpt">
                       {scratchNoteExcerpt(unsaved[note.id] ?? note)}
                     </div>
-                    {unsaved[note.id] && (
+                    {unsaved[note.id] ? (
                       <div className="scratch-unsaved">Not saved yet, will retry</div>
+                    ) : (
+                      <div className="scratch-unsaved">{scratchNoteUpdated(note.updatedAt)}</div>
                     )}
                   </div>
                   <button
