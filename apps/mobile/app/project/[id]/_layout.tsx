@@ -32,6 +32,7 @@ export default function ProjectStackLayout() {
       <Stack.Screen name="outline" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="listen" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="beta-readers" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
+      <Stack.Screen name="weekly-review" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="share-links" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
     </Stack>
   );

@@ -29,6 +29,7 @@ export const queryKeys = {
   },
   scratch: (projectId: string) => ["scratch", projectId] as const,
   recap: (projectId: string) => ["recap", projectId] as const,
+  weeklyReviews: (projectId: string) => ["weekly-reviews", projectId] as const,
   shares: (projectId: string) => ["shares", projectId] as const,
   shareComments: {
     all: (projectId: string) => ["share-comments", projectId] as const,

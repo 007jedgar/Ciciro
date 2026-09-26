@@ -798,6 +798,40 @@ export type RecapResponse = { recap: Recap | null };
 export type StuckRequest = { chapterId?: string | null };
 export type StuckResponse = { prompts: string[] };
 
+/** Mirrors src/lib/weekly-review-view.ts. */
+export type WeeklyReviewStats = {
+  words: number;
+  daysWritten: number;
+  activeMs: number;
+  days: { date: string; words: number }[];
+  chaptersTouched: { id: string; title: string; wordCount: number }[];
+  totalWords: number;
+  chapterCount: number;
+  openQuestions: number;
+  openThreads: number;
+};
+
+export type WeeklyReviewContent = {
+  summary: string;
+  looseEnds: string[];
+  nextSteps: string[];
+};
+
+export type WeeklyReview = {
+  id: string;
+  projectId: string;
+  weekStart: string;
+  weekEnd: string;
+  stats: WeeklyReviewStats;
+  content: WeeklyReviewContent;
+  createdAt: string;
+};
+
+export type WeeklyReviewListResponse = { reviews: WeeklyReview[]; due: boolean };
+
+/** `to` is the author's local day (YYYY-MM-DD) the seven-day window ends on. */
+export type WeeklyReviewCreateRequest = { to?: string };
+
 /** Mirrors src/lib/share-view.ts. */
 export type ShareLinkStatus = "active" | "expired" | "revoked";
 
