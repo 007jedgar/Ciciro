@@ -18,6 +18,7 @@ import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
+import { SuggestionsPill, SuggestionsSheet } from "../../../../components/SuggestionsReview";
 import { ciciro } from "../../../../lib/api";
 import type { SyncOp } from "../../../../lib/api/types";
 import {
@@ -39,6 +40,7 @@ import {
   toEnrichedHtml,
 } from "../../../../lib/enriched-html";
 import {
+  diffHtmlToOps,
   docToHtml,
   htmlToDoc,
   resumePlainTextIndex,
@@ -54,6 +56,12 @@ import {
 } from "../../../../lib/grammar";
 import { useProject } from "../../../../lib/project";
 import { useFocusMode } from "../../../../lib/focus-mode";
+import { blockHasSuggestions } from "../../../../lib/suggestion-review";
+import {
+  listSuggestions,
+  resolveSuggestions,
+  type SuggestionAction,
+} from "../../../../lib/suggestions";
 import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
@@ -129,6 +137,7 @@ export default function ManuscriptScreen() {
   const [grammarSuggestion, setGrammarSuggestion] = useState<GrammarSuggestion | null>(null);
   const [typing, setTyping] = useState(false);
   const [pressMenuOpen, setPressMenuOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideBar = useSharedValue(0);
   const keyboardVisible = useKeyboardState((state) => state.isVisible);
@@ -175,6 +184,7 @@ export default function ManuscriptScreen() {
   previousBlocksRef.current = blocks;
 
   const editorStyle = useMemo(() => blockStyleFor(settings, colors.ink), [settings, colors.ink]);
+  const suggestions = useMemo(() => listSuggestions(content), [content]);
 
   const markTyping = useCallback(() => {
     setTyping(true);
@@ -255,7 +265,7 @@ export default function ManuscriptScreen() {
       const current = chapterRef.current;
       if (!current) return;
       const at = blockAtPlainOffset(current.content, caretRef.current.docOffset);
-      if (at && settings.autoCorrect) {
+      if (at && settings.autoCorrect && !blockHasSuggestions(current.content, at.blockId)) {
         const live = paragraphAtOffset(text, caretRef.current.docOffset);
         grammarRef.current?.onKeystroke({
           chapterId: current.id,
@@ -376,6 +386,10 @@ export default function ManuscriptScreen() {
     const current = chapterRef.current;
     const loop = grammarRef.current;
     if (!suggestion || !current || !loop) return;
+    if (blockHasSuggestions(current.content, suggestion.blockId)) {
+      loop.setSuggestion(null);
+      return;
+    }
     const doc = htmlToDoc(current.content, current.revision).doc;
     const live =
       loop.draftOf(suggestion.blockId) ??
@@ -393,6 +407,24 @@ export default function ManuscriptScreen() {
     loop.setSuggestion(null);
   }, [commitOps, grammarSuggestion]);
   acceptGrammarRef.current = acceptGrammar;
+
+  // Accepting or rejecting is an ordinary edit: flush what was typed, apply the
+  // shared rules, and commit the difference as ops like any keystroke.
+  const resolveOnPhone = useCallback(
+    async (action: SuggestionAction, ids?: string[]) => {
+      await flush();
+      const current = chapterRef.current;
+      if (!current) return;
+      const next = resolveSuggestions(current.content, action, ids ?? null);
+      if (next === current.content) return;
+      commitOps(diffHtmlToOps(current.content, next, current.revision));
+      const updated = chapterRef.current;
+      if (updated) editorRef.current?.setValue(toEnrichedHtml(updated.content));
+      Haptics.selectionAsync().catch(() => {});
+    },
+    [commitOps, flush]
+  );
+  const closeReview = useCallback(() => setReviewOpen(false), []);
 
   const ignoreGrammar = useCallback(() => {
     grammarRef.current?.setSuggestion(null);
@@ -481,6 +513,7 @@ export default function ManuscriptScreen() {
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
+          <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
           {resume ? (
             <Text
               testID="reading-caret"
@@ -557,6 +590,12 @@ export default function ManuscriptScreen() {
           </View>
         ) : null}
       </KeyboardAvoidingView>
+      <SuggestionsSheet
+        visible={reviewOpen}
+        suggestions={suggestions}
+        onClose={closeReview}
+        onResolve={(action, ids) => void resolveOnPhone(action, ids)}
+      />
     </View>
   );
 }

@@ -21,6 +21,22 @@ function chapter(overrides: Partial<Chapter> = {}): Chapter {
 }
 
 describe("ChapterListCard", () => {
+  it("previews the prose as it stands, without pending suggestions", () => {
+    const attrs = 'data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-25T10:00:00.000Z"';
+    render(
+      <ChapterListCard
+        chapter={chapter({
+          content: `<p data-block-id="a">She <del data-suggestion-id="s" ${attrs}>walked</del><ins data-suggestion-id="s" ${attrs}>ambled</ins> home.</p>`,
+        })}
+        number={1}
+        selected={false}
+        onOpen={jest.fn()}
+        onRequestDelete={jest.fn()}
+      />
+    );
+    expect(screen.getByText("She walked home.")).toBeTruthy();
+  });
+
   it("opens the chapter from the title and does not request delete", () => {
     const onOpen = jest.fn();
     const onRequestDelete = jest.fn();
