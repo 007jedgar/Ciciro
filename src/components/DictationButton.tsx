@@ -127,9 +127,17 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
         </span>
       )}
       {error && (
-        <span className="dictation-error" role="alert">
-          {error}
-        </span>
+        <div className="dictation-error" role="alert">
+          <span>{error}</span>
+          <button
+            type="button"
+            className="dictation-error-close"
+            aria-label="Dismiss error"
+            onClick={() => setError(null)}
+          >
+            ×
+          </button>
+        </div>
       )}
     </span>
   );
