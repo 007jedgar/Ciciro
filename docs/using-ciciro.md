@@ -125,6 +125,31 @@ or in search. They sync between the web and your phone. If the same note is
 edited on two devices, Ciciro asks whether to keep your version or the other one
 rather than overwriting either.
 
+## Beta readers
+
+**Beta readers** in the top bar (on mobile, the Beta readers card in the Chapters
+tab) is where you share the book and read what came back.
+
+Under **Share links**, name the link (who it is for), share the whole manuscript
+or only chosen chapters, and pick when it stops working: in 7, 30 or 90 days, or
+never. **Make link and copy** puts the link on your clipboard; on the phone it
+opens the share sheet. A whole-manuscript link includes chapters you add later;
+archived chapters are never shown. Anyone with the link can read those chapters
+in a browser without an account, and nothing else of yours: not your other
+chapters or manuscripts, the story bible, the chat, or other readers' comments.
+**Turn off** stops a link for good (readers see "This link is not available")
+and keeps the comments it collected; **Delete** removes the link and its
+comments.
+
+Readers select a passage, press **Comment**, sign with a name, and send. Their
+comments show under **Comments**, grouped by chapter, with the quoted passage.
+Open comments are underlined in the editor; click one to open its comment.
+**Show in text** jumps to the passage even after you have edited around it,
+**Resolve** files a comment under Resolved (and **Reopen** brings it back), and
+**Delete** removes it. On the phone, a chapter with open comments shows a pill
+over the page that opens them. A reader can leave a few comments a minute, and
+a link takes at most a couple of hundred an hour.
+
 ## Search and replace
 
 **Search** in the top bar (Cmd/Ctrl+Shift+F) finds text across every chapter and

@@ -51,7 +51,7 @@ accept or reject, on the desk and on the phone. **Auto** inserts accepted drafts
 writes an unattended pass of the open chapter.
 
 A fuller walkthrough - workspace, prompting, quick actions, questions, compact, version
-history, and export - is in [Using Ciciro](docs/using-ciciro.md).
+history, beta reader links, and export - is in [Using Ciciro](docs/using-ciciro.md).
 
 ## Story bible
 
