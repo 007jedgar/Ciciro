@@ -46,7 +46,8 @@ is set up; the assistant needs the key.
 You write in the center pane and talk to Ciciro on the right. Fill the story bible
 before asking for long passages; name the chapter, the beat, and what not to do.
 Quick-action chips cover critique, loose ends, misplaced passages, and continuing
-from the open chapter. **Auto** inserts accepted drafts as they finish; **Auto-draft**
+from the open chapter. Ciciro's line edits arrive as tracked suggestions you
+accept or reject, on the desk and on the phone. **Auto** inserts accepted drafts as they finish; **Auto-draft**
 writes an unattended pass of the open chapter.
 
 A fuller walkthrough - workspace, prompting, quick actions, questions, compact, version
@@ -196,6 +197,7 @@ data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 - [Using Ciciro](docs/using-ciciro.md) - workspace, prompting, quick actions, auto-draft, import.
 - [Story bible](docs/story-bible.md) - files on disk and how to keep the model consistent.
 - [Durable editor runs](docs/editor-agent-runs.md) - run lifecycle, streaming, verification.
+- [Tracked changes](docs/tracked-changes.md) - suggestions: storage, accept/reject rules, desk and phone.
 - [Hosting](docs/hosting.md) - Cloudflare Workers, Docker, auth gate, and serverless databases.
 - [Accounts and secrets](docs/setup-accounts.md) - operator checklist for Anthropic, databases, Wrangler, and the mobile API URL.
 
@@ -214,6 +216,5 @@ requests.
   dispatch/critique/revise cycles unattended (the `kind: "autowrite"` type exists).
 - **Assistant-maintained chapter summaries** - auto-update `Chapter.summary` after
   edits so the index stays sharp on long books.
-- **Inline tracked-changes edits** in the editor (accept/reject line edits).
 - Retire the vestigial `Character`/`PlotPoint` DB tables (now only used to seed the
   bible on first run) once existing projects have migrated.

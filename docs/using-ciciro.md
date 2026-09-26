@@ -168,6 +168,26 @@ start a new chapter. In Scrivener's Draft, a folder of documents becomes one
 chapter with each document as a scene, and a standalone document is its own
 chapter. Bold, italic, and scene breaks carry over; images do not.
 
+## Suggestions (tracked changes)
+
+With **Ciciro suggests edits** on (the default, in the appearance and writing
+settings), Ciciro's line edits do not change your prose. They arrive as
+suggestions: removed words struck through in red, added words underlined in
+green. A bar above the chapter counts them and steps through them; click a
+change for a card with who proposed it, when, and **Accept** / **Reject**, or
+use **Accept all** / **Reject all**. Escape closes the card.
+
+Turn on **Suggest** in the chapter bar to track your own edits the same way:
+typing is marked as an addition, deleting strikes the text through, and
+deleting your own pending addition simply removes it. Paragraph breaks and
+formatting apply directly.
+
+Pending suggestions are not part of the book yet: word counts and every
+export leave them out until you accept them. On the phone they show inline
+(underlined or struck through), and the banner above the chapter opens a
+review sheet with the same Accept and Reject. How it works:
+[Tracked changes](tracked-changes.md).
+
 ## Export
 
 **Export > Word (.docx)** builds a Shunn-style manuscript: Times New Roman 12pt,

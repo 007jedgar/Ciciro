@@ -157,14 +157,14 @@ const NAMED_ENTITIES: Record<string, string> = {
   gt: ">",
   quot: '"',
   apos: "'",
-  nbsp: " ",
-  mdash: "—",
-  ndash: "–",
-  hellip: "…",
-  lsquo: "‘",
-  rsquo: "’",
-  ldquo: "“",
-  rdquo: "”",
+  nbsp: "\u00a0",
+  mdash: "\u2014",
+  ndash: "\u2013",
+  hellip: "\u2026",
+  lsquo: "\u2018",
+  rsquo: "\u2019",
+  ldquo: "\u201c",
+  rdquo: "\u201d",
 };
 
 function decodeEntity(entity: string): string | null {
@@ -189,11 +189,11 @@ function escapeText(text: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/ /g, "&nbsp;");
+    .replace(/\u00a0/g, "&nbsp;");
 }
 
 function escapeAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/ /g, "&nbsp;");
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/\u00a0/g, "&nbsp;");
 }
 
 /** Index of the `>` that closes the tag opening at `from`, honoring quotes. */
@@ -345,7 +345,7 @@ function parseInline(inner: string): Item[] {
       continue;
     }
     if (VOID_TAGS.has(name) || /\/\s*>$/.test(raw)) {
-      pushChar("￼", raw);
+      pushChar("\ufffc", raw);
       continue;
     }
     if (name === "ins" || name === "del") {
@@ -641,7 +641,7 @@ function leadingContext(items: readonly Item[]): string {
   if (text.length <= CONTEXT_CHARS) return text;
   const cut = text.slice(-CONTEXT_CHARS);
   const space = cut.indexOf(" ");
-  return `…${space >= 0 && space < CONTEXT_CHARS - 8 ? cut.slice(space) : cut}`;
+  return `\u2026${space >= 0 && space < CONTEXT_CHARS - 8 ? cut.slice(space) : cut}`;
 }
 
 function trailingContext(items: readonly Item[]): string {
@@ -649,7 +649,7 @@ function trailingContext(items: readonly Item[]): string {
   if (text.length <= CONTEXT_CHARS) return text;
   const cut = text.slice(0, CONTEXT_CHARS);
   const space = cut.lastIndexOf(" ");
-  return `${space > 8 ? cut.slice(0, space) : cut}…`;
+  return `${space > 8 ? cut.slice(0, space) : cut}\u2026`;
 }
 
 function pushPiece(pieces: SuggestionPiece[], kind: SuggestionPiece["kind"], text: string) {
@@ -689,7 +689,7 @@ export function listSuggestions(html: string): SuggestionSummary[] {
       const items = blocks[spot.block].items ?? [];
       if (s === 0) pushPiece(preview, "context", leadingContext(items.slice(0, spot.first)));
       else {
-        pushPiece(preview, "context", " ¶ ");
+        pushPiece(preview, "context", " \u00b6 ");
         inserted += inserted ? " " : "";
         deleted += deleted ? " " : "";
       }
