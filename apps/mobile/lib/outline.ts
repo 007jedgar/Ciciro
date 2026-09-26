@@ -20,6 +20,7 @@ export function dropIndexFor(
   count: number,
   rowHeight: number = OUTLINE_ROW_HEIGHT
 ): number {
+  "worklet";
   if (count <= 0) return 0;
   return Math.max(0, Math.min(count - 1, from + Math.round(translationY / rowHeight)));
 }

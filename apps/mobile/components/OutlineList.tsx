@@ -63,7 +63,7 @@ function OutlineRow({
     })
     .onEnd((e) => {
       const to = dropIndexFor(index, e.translationY, count);
-      translateY.value = withTiming(0, { duration: 120 });
+      translateY.value = to === index ? withTiming(0, { duration: 120 }) : 0;
       lifted.value = 0;
       runOnJS(onHover)(null);
       runOnJS(onDragging)(false);
