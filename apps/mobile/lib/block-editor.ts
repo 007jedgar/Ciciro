@@ -8,6 +8,7 @@ import {
   type ManuscriptOp,
 } from "./manuscript";
 import { applyPlainEdit, innerHtmlOf, wrapBlockHtml } from "./inline-html";
+import { elementOfHtml, withElement, type ScreenplayElement } from "./manuscript-kind";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -52,7 +53,11 @@ export function serializeBlockHtml(
   if (tag === "hr") {
     return `<hr data-block-id="${block.id}" />`;
   }
-  return wrapBlockHtml(block.id, tag, applyPlainEdit(innerHtmlOf(block.html), text));
+  // The screenplay element lives on the opening tag; an edit to the text keeps it.
+  return withElement(
+    wrapBlockHtml(block.id, tag, applyPlainEdit(innerHtmlOf(block.html), text)),
+    elementOfHtml(block.html)
+  );
 }
 
 export function newParagraphHtml(blockId: string, text: string): string {
@@ -103,6 +108,29 @@ export function replaceBlockOps(
     type: "replace_block",
     blockId,
     html: serializeBlockHtml(found.block, text),
+  });
+  return [op];
+}
+
+/** Set the screenplay element of one block (Tab on the web, the element bar here). */
+export function setBlockElementOps(
+  doc: ManuscriptDoc,
+  blockId: string,
+  element: ScreenplayElement,
+  opts?: BlockEditorIds
+): ManuscriptOp[] {
+  const found = findBlock(doc, blockId);
+  if (!found || found.block.kind !== "paragraph") return [];
+  const html = withElement(found.block.html, element);
+  if (html === found.block.html) return [];
+  const ids = idsOf(opts);
+  const { op } = emit(doc, {
+    opId: ids.createOpId(),
+    baseRevision: doc.revision,
+    actor: ids.actor,
+    type: "replace_block",
+    blockId,
+    html,
   });
   return [op];
 }

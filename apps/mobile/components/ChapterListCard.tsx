@@ -1,7 +1,8 @@
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ChapterStatusPicker } from "./ChapterStatusPicker";
-import { chapterNumberLabel, customChapterTitle, CHAPTER_PREVIEW_LINES } from "../lib/chapter-label";
+import { chapterHeading, CHAPTER_PREVIEW_LINES } from "../lib/chapter-label";
+import type { ManuscriptKind } from "../lib/manuscript-kind";
 import { htmlToPlainText } from "../lib/html";
 import { htmlWithoutSuggestions } from "../lib/suggestions";
 import type { ChapterStatus } from "../lib/chapter-status";
@@ -19,6 +20,7 @@ export function ChapterListCard({
   onRequestDelete,
   onStatusChange,
   onOpenHistory,
+  kind = "novel",
 }: {
   chapter: Chapter;
   /** 1-based index in the live chapter list. */
@@ -30,14 +32,18 @@ export function ChapterListCard({
   onStatusChange?: (status: ChapterStatus) => void;
   /** Browse and restore this chapter's snapshots. */
   onOpenHistory?: () => void;
+  /** What is being written; sets how the row is named. Defaults to a novel. */
+  kind?: ManuscriptKind;
 }) {
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
   const colors = themed?.colors ?? parchmentColors;
-  const numbered = chapterNumberLabel(number, (key, opts) => t(key, opts));
-  const customTitle = customChapterTitle(chapter.title, numbered, t("chapters.newTitle"));
-  const a11y = customTitle ? `${numbered}, ${customTitle}` : numbered;
+  const {
+    heading: numbered,
+    custom: customTitle,
+    label: a11y,
+  } = chapterHeading(kind, number, chapter.title, (key, opts) => t(key, opts));
   // The prose as it stands: pending suggestions are not part of it yet.
   const preview = (chapter.summary.trim() || htmlToPlainText(htmlWithoutSuggestions(chapter.content))).trim();
 

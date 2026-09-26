@@ -17,6 +17,8 @@ export type ProjectRecord = {
   title: string;
   author: string;
   genre: string;
+  /** novel | screenplay | blog | journal. Absent on responses from an older server. */
+  kind?: string;
   logline: string;
   synopsis: string;
   theme: string;
@@ -248,6 +250,9 @@ export type ProjectCreateRequest = {
   title?: string;
   author?: string;
   genre?: string;
+  kind?: string;
+  /** The author's local date (YYYY-MM-DD), for a journal's first entry. */
+  today?: string;
   logline?: string;
   folderId?: string | null;
 };

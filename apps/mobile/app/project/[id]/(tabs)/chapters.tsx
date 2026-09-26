@@ -25,6 +25,8 @@ import { importManuscriptFile, isImportable, pickImportFile } from "../../../../
 import { useProject } from "../../../../lib/project";
 import { scratchListHref } from "../../../../lib/scratch";
 import { betaReadersHref } from "../../../../lib/shares";
+import { openTodayEntry } from "../../../../lib/journal";
+import { normalizeKind } from "../../../../lib/manuscript-kind";
 import { useAppTheme } from "../../../../lib/settings";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
@@ -32,7 +34,8 @@ import type { ChapterStatus } from "../../../../lib/chapter-status";
 export default function ChaptersScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { project, loading, error, selectedChapterId, setSelectedChapterId, flushEdits } = useProject();
+  const { project, loading, error, selectedChapterId, setSelectedChapterId, flushEdits, addChapter } =
+    useProject();
   const { t } = useTranslation();
   const { layout } = useAppTheme();
   const clearance = useTabBarClearance();
@@ -63,6 +66,7 @@ export default function ChaptersScreen() {
   }
 
   const chapters = project?.chapters ?? [];
+  const kind = normalizeKind(project?.kind);
   const projectId = typeof id === "string" ? id : "";
 
   function requestDelete(chapter: Chapter) {
@@ -112,6 +116,16 @@ export default function ChaptersScreen() {
       setDeleteError(err instanceof ApiError ? err.message : t("importFile.error"));
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function startToday() {
+    setDeleteError(null);
+    try {
+      await openTodayEntry(chapters, (title) => addChapter(title), setSelectedChapterId);
+      if (projectId) router.navigate(`/project/${projectId}/manuscript`);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : t("chapters.addError"));
     }
   }
 
@@ -171,12 +185,30 @@ export default function ChaptersScreen() {
           project ? (
             <View>
               <PreviouslyOnCard projectId={projectId} />
-              <ManuscriptTag
-                genre={project.genre}
-                busy={patchProject.isPending}
-                error={tagError}
-                onSave={saveGenre}
-              />
+              {kind === "blog" && project.logline ? (
+                <Text style={[layout.body, { fontStyle: "italic", marginBottom: 12 }]}>
+                  {project.logline}
+                </Text>
+              ) : null}
+              {kind !== "journal" ? (
+                <ManuscriptTag
+                  genre={project.genre}
+                  busy={patchProject.isPending}
+                  error={tagError}
+                  onSave={saveGenre}
+                />
+              ) : null}
+              {kind === "journal" ? (
+                <Pressable
+                  style={[layout.card, { marginBottom: 16 }]}
+                  onPress={() => void startToday()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("kinds.todayEntry")}
+                >
+                  <Text style={layout.cardTitle}>{t("kinds.todayEntry")}</Text>
+                  <Text style={layout.cardMeta}>{t("kinds.todayEntryMeta")}</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={[layout.card, { marginBottom: 16 }]}
                 onPress={() => router.push(`/project/${projectId}/sprint` as never)}
@@ -265,6 +297,7 @@ export default function ChaptersScreen() {
           <ChapterListCard
             chapter={item}
             number={index + 1}
+            kind={kind}
             selected={item.id === selectedChapterId}
             deleting={pendingId === item.id}
             onOpen={() => {
