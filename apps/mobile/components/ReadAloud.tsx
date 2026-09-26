@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { getLocales } from "expo-localization";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
 import { blocksPlainText } from "../lib/read-aloud-text";
@@ -11,11 +12,21 @@ import {
   SentenceReader,
   setReadAloudPrefs,
   useReadAloudPrefs,
+  voiceChoices,
   type ReaderState,
   type SpeechEngine,
+  type VoiceOption,
 } from "../lib/read-aloud";
 
-export type ReadAloudVoice = { identifier: string; name: string; language: string };
+export type ReadAloudVoice = VoiceOption;
+
+function deviceLocale(): string {
+  try {
+    return getLocales()[0]?.languageTag ?? "";
+  } catch {
+    return "";
+  }
+}
 
 async function loadVoices(): Promise<ReadAloudVoice[]> {
   try {
@@ -102,7 +113,7 @@ export function ReadAloud({
     if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
   }, [current]);
 
-  const sortedVoices = useMemo(() => voices.slice(0, 40), [voices]);
+  const sortedVoices = useMemo(() => voiceChoices(voices, deviceLocale(), prefs.voice), [voices, prefs.voice]);
 
   const chip = (label: string, selected: boolean, onPress: () => void, key: string) => (
     <Pressable

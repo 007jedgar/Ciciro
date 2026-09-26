@@ -22,7 +22,14 @@ import {
   suggestionAt,
   suggestionRanges,
 } from "@/lib/tiptap-suggestions";
-import { docSentences, ReadAloudHighlight, setReadAloudRange, type DocSentence } from "@/lib/tts-doc";
+import {
+  docSentences,
+  highlightReadAloud as highlightDocSentence,
+  ReadAloudHighlight,
+  readAloudSentence as docSentenceAt,
+  trackReadAloud,
+  type DocSentence,
+} from "@/lib/tts-doc";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -39,10 +46,15 @@ export type EditorHandle = {
   resolveSuggestions: (action: SuggestionAction, ids?: string[]) => void;
   /** Put the caret on a suggestion and scroll it into view. */
   revealSuggestion: (id: string) => void;
-  /** Sentences to read aloud: the selection when there is one, else the whole chapter. */
-  getReadAloud: () => { sentences: DocSentence[]; selection: boolean };
-  /** Highlight (and scroll to) the sentence being read; null clears it. */
-  highlightReadAloud: (range: { from: number; to: number } | null) => void;
+  /**
+   * Sentences to read aloud (the selection when there is one, else the whole
+   * chapter). They are tracked through edits until the reading ends.
+   */
+  beginReadAloud: () => { sentences: DocSentence[]; selection: boolean };
+  /** A tracked sentence as it reads now, or null if it was deleted. */
+  readAloudSentence: (index: number) => DocSentence | null;
+  /** Highlight (and scroll to) the tracked sentence at `index`; null ends the reading. */
+  highlightReadAloud: (index: number | null) => void;
 };
 
 type ReadingCaret = { blockId: string; offset: number };
@@ -386,18 +398,25 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     focusEnd() {
       editor?.commands.focus("end");
     },
-    getReadAloud() {
+    beginReadAloud() {
       if (!editor) return { sentences: [], selection: false };
       const { from, to, empty } = editor.state.selection;
+      let result = { sentences: docSentences(editor.state.doc), selection: false };
       if (!empty) {
         const sentences = docSentences(editor.state.doc, { from, to });
-        if (sentences.length > 0) return { sentences, selection: true };
+        if (sentences.length > 0) result = { sentences, selection: true };
       }
-      return { sentences: docSentences(editor.state.doc), selection: false };
+      trackReadAloud(editor.view, result.sentences);
+      return result;
     },
-    highlightReadAloud(range) {
+    readAloudSentence(index) {
+      if (!editor || editor.isDestroyed) return null;
+      return docSentenceAt(editor.state, index);
+    },
+    highlightReadAloud(index) {
       if (!editor || editor.isDestroyed) return;
-      setReadAloudRange(editor.view, range);
+      highlightDocSentence(editor.view, index);
+      const range = index === null ? null : docSentenceAt(editor.state, index);
       if (!range) return;
       try {
         const pane = editor.view.dom.closest<HTMLElement>(".editor-pane");

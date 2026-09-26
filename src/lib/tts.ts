@@ -84,6 +84,7 @@ export type ReaderListener = (state: ReaderState, index: number) => void;
  */
 export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
   private segments: string[] = [];
+  private resolve: ((index: number) => string | null) | null = null;
   private index = 0;
   private state: ReaderState = "idle";
   private token = 0;
@@ -100,13 +101,21 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
     return { state: this.state, index: this.index };
   }
 
-  start(segments: string[], options: { rate?: number; voice?: unknown } = {}) {
+  /**
+   * `textAt` returns the live text of a segment right before it is spoken, so
+   * edits made while reading are heard; null or blank skips the segment.
+   */
+  start(
+    segments: string[],
+    options: { rate?: number; voice?: unknown; textAt?: (index: number) => string | null } = {}
+  ) {
     this.cancelSpeech();
-    this.segments = segments.filter((s) => s.trim().length > 0);
+    this.segments = segments;
+    this.resolve = options.textAt ?? null;
     this.rate = clampRate(options.rate ?? this.rate);
     this.voice = options.voice ?? null;
     this.index = 0;
-    if (this.segments.length === 0) {
+    if (!segments.some((s) => s.trim().length > 0)) {
       this.setState("idle");
       return;
     }
@@ -153,11 +162,26 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
   private cancelSpeech() {
     this.token++;
     this.synth.cancel();
+    this.synth.resume();
+  }
+
+  private textAt(index: number): string {
+    return (this.resolve ? this.resolve(index) : this.segments[index]) ?? "";
   }
 
   private speakCurrent() {
+    let text = this.textAt(this.index);
+    while (!text.trim()) {
+      if (this.index + 1 >= this.segments.length) {
+        this.index = 0;
+        this.setState("idle");
+        return;
+      }
+      this.index++;
+      text = this.textAt(this.index);
+    }
     const token = ++this.token;
-    const utterance = this.makeUtterance(this.segments[this.index]);
+    const utterance = this.makeUtterance(text);
     utterance.rate = this.rate;
     utterance.voice = this.voice;
     utterance.onend = () => {
@@ -168,7 +192,6 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
         return;
       }
       this.index++;
-      this.listener(this.state, this.index);
       this.speakCurrent();
     };
     utterance.onerror = (event) => {

@@ -84,14 +84,41 @@ export function clampRate(value: unknown): number {
   return Math.min(MAX_RATE, Math.max(MIN_RATE, n));
 }
 
-/** Selection to read, published by the editor when the writer selects text. */
-export type ReadAloudSelection = { chapterId: string; start: number; end: number };
+/**
+ * Selection to read, published by the editor when the writer selects text.
+ * `text` is what the offsets covered then, so later edits invalidate it.
+ */
+export type ReadAloudSelection = { chapterId: string; start: number; end: number; text: string };
 let selection: ReadAloudSelection | null = null;
 export function setReadAloudSelection(next: ReadAloudSelection | null) {
-  selection = next && next.start !== next.end ? next : null;
+  selection = next && next.start !== next.end && next.text ? next : null;
 }
-export function getReadAloudSelection(): ReadAloudSelection | null {
-  return selection;
+/** The saved selection for this chapter, if the offsets still cover the same text in `plain`. */
+export function readAloudSelectionFor(chapterId: string, plain: string): { start: number; end: number } | null {
+  if (!selection || selection.chapterId !== chapterId) return null;
+  const { start, end, text } = selection;
+  return plain.slice(start, end) === text ? { start, end } : null;
+}
+
+export type VoiceOption = { identifier: string; name: string; language: string };
+
+/**
+ * Voices to offer: the device language first, then by name, capped to keep the
+ * list usable. The saved voice is always kept so it can be seen and changed.
+ */
+export function voiceChoices<V extends VoiceOption>(
+  voices: V[],
+  locale: string,
+  saved: string | null,
+  limit = 40
+): V[] {
+  const lang = locale.split(/[-_]/)[0].toLowerCase();
+  const rank = (v: V) => (lang && v.language.toLowerCase().split(/[-_]/)[0] === lang ? 0 : 1);
+  const sorted = [...voices].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  const shown = sorted.slice(0, limit);
+  const savedVoice = saved ? sorted.find((v) => v.identifier === saved) : undefined;
+  if (savedVoice && !shown.includes(savedVoice)) shown.push(savedVoice);
+  return shown;
 }
 
 /** Read-aloud speed and voice belong to this device, so they live in local prefs. */

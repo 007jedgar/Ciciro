@@ -86,6 +86,53 @@ describe("SpeechReader", () => {
     expect(reader.current).toEqual({ state: "idle", index: 0 });
   });
 
+  it("unpauses the engine before speaking again after a pause", () => {
+    let paused = false;
+    const heard: string[] = [];
+    const engine: SynthLike = {
+      speak: (u) => {
+        if (!paused) heard.push(u.text);
+      },
+      cancel: () => {},
+      pause: () => {
+        paused = true;
+      },
+      resume: () => {
+        paused = false;
+      },
+    };
+    const r = new SpeechReader(engine, (text) => ({ text, rate: 1, voice: null, onend: null, onerror: null }), () => {});
+    r.start(["A.", "B."]);
+    r.pause();
+    r.resume();
+    expect(heard).toEqual(["A.", "A."]);
+    r.pause();
+    r.stop();
+    r.start(["C."]);
+    expect(heard).toEqual(["A.", "A.", "C."]);
+  });
+
+  it("reports each sentence advance once", () => {
+    reader.start(["A.", "B."]);
+    events.length = 0;
+    last().onend!({});
+    expect(events).toEqual([["playing", 1]]);
+  });
+
+  it("speaks the live text of each segment and skips deleted ones", () => {
+    const live: Array<string | null> = ["A.", "B.", "C."];
+    reader.start(["A.", "B.", "C."], { textAt: (i) => live[i] });
+    live[1] = null;
+    live[2] = "C edited.";
+    last().onend!({});
+    expect(last().text).toBe("C edited.");
+    expect(reader.current).toEqual({ state: "playing", index: 2 });
+    live[0] = "";
+    reader.stop();
+    reader.start(["A.", "B."], { textAt: () => null });
+    expect(reader.current.state).toBe("idle");
+  });
+
   it("ignores stale end events after stop", () => {
     reader.start(["A.", "B."]);
     const first = last();
@@ -132,5 +179,49 @@ describe("docSentences", () => {
     for (const s of all) expect(doc.textBetween(s.from, s.to)).toBe(s.text);
     const slice = docSentences(doc, { from: all[1].from, to: all[2].to });
     expect(slice.map((s) => s.text)).toEqual(["Two.", "Three"]);
+  });
+
+  it("tracks read-aloud sentences through edits and never highlights past the doc", async () => {
+    const { getSchema } = await import("@tiptap/core");
+    const { default: StarterKit } = await import("@tiptap/starter-kit");
+    const { EditorState } = await import("@tiptap/pm/state");
+    const { docSentences, highlightReadAloud, readAloudPlugin, readAloudSentence, trackReadAloud } =
+      await import("@/lib/tts-doc");
+    const schema = getSchema([StarterKit]);
+    const p = (t: string) => schema.nodes.paragraph.create(null, schema.text(t));
+    const doc = schema.nodes.doc.create(null, [p("One. Two."), p("Three")]);
+    let state = EditorState.create({ doc, plugins: [readAloudPlugin()] });
+    const view = {
+      get state() {
+        return state;
+      },
+      dispatch: (tr: import("@tiptap/pm/state").Transaction) => {
+        state = state.apply(tr);
+      },
+    };
+    const decorations = () =>
+      (state.plugins[0].props.decorations!.call(state.plugins[0], state) as unknown as {
+        find: () => Array<{ from: number; to: number }>;
+      }).find();
+
+    const sentences = docSentences(state.doc);
+    trackReadAloud(view, sentences);
+    highlightReadAloud(view, 2);
+
+    view.dispatch(state.tr.insertText("Uno.", sentences[0].from, sentences[0].to));
+    expect(readAloudSentence(state, 0)?.text).toBe("Uno.");
+    expect(readAloudSentence(state, 2)?.text).toBe("Three");
+    const [mark] = decorations();
+    expect(state.doc.textBetween(mark.from, mark.to)).toBe("Three");
+
+    view.dispatch(state.tr.delete(readAloudSentence(state, 1)!.from, state.doc.content.size - 1));
+    expect(readAloudSentence(state, 1)).toBeNull();
+    expect(readAloudSentence(state, 2)).toBeNull();
+    expect(decorations()).toEqual([]);
+
+    highlightReadAloud(view, 2);
+    expect(decorations()).toEqual([]);
+    highlightReadAloud(view, null);
+    expect(readAloudSentence(state, 0)).toBeNull();
   });
 });

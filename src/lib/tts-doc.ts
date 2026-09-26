@@ -1,6 +1,6 @@
 import type { Node as PmNode } from "@tiptap/pm/model";
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey, type Transaction } from "@tiptap/pm/state";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { splitSentences } from "@/lib/tts";
 
@@ -43,39 +43,83 @@ export function docSentences(doc: PmNode, range?: { from: number; to: number }):
   return out;
 }
 
-const key = new PluginKey<DecorationSet>("readAloud");
+type Range = { from: number; to: number };
+type ReadAloudState = { ranges: Range[]; current: number | null; decorations: DecorationSet };
+type ReadAloudMeta = { track: Range[] } | { highlight: number | null };
+type ViewLike = { state: EditorState; dispatch: (tr: Transaction) => void };
 
-/** Highlights the sentence being read. Drive it with a transaction meta of {from,to} or null. */
+const key = new PluginKey<ReadAloudState>("readAloud");
+
+function liveRange(doc: PmNode, range: Range | undefined): Range | null {
+  if (!range) return null;
+  const from = Math.max(0, Math.min(range.from, doc.content.size));
+  const to = Math.max(0, Math.min(range.to, doc.content.size));
+  return to > from ? { from, to } : null;
+}
+
+function decorate(doc: PmNode, ranges: Range[], current: number | null): DecorationSet {
+  const range = current === null ? null : liveRange(doc, ranges[current]);
+  if (!range) return DecorationSet.empty;
+  return DecorationSet.create(doc, [Decoration.inline(range.from, range.to, { class: "reading-aloud" })]);
+}
+
+/**
+ * Tracks the sentences being read through edits (so a line edit made while
+ * listening is heard and highlighted in place) and highlights the current one.
+ */
+export function readAloudPlugin() {
+  return new Plugin<ReadAloudState>({
+    key,
+    state: {
+      init: () => ({ ranges: [], current: null, decorations: DecorationSet.empty }),
+      apply(tr, prev) {
+        const meta = tr.getMeta(key) as ReadAloudMeta | undefined;
+        if (!meta && !tr.docChanged) return prev;
+        let { ranges, current } = prev;
+        if (tr.docChanged) {
+          ranges = ranges.map((r) => ({ from: tr.mapping.map(r.from, -1), to: tr.mapping.map(r.to, 1) }));
+        }
+        if (meta && "track" in meta) {
+          ranges = meta.track;
+          current = null;
+        } else if (meta && "highlight" in meta) {
+          current = meta.highlight;
+          if (current === null) ranges = [];
+        }
+        return { ranges, current, decorations: decorate(tr.doc, ranges, current) };
+      },
+    },
+    props: {
+      decorations: (state) => key.getState(state)?.decorations,
+    },
+  });
+}
+
 export const ReadAloudHighlight = Extension.create({
   name: "readAloudHighlight",
   addProseMirrorPlugins() {
-    return [
-      new Plugin<DecorationSet>({
-        key,
-        state: {
-          init: () => DecorationSet.empty,
-          apply(tr, set) {
-            const meta = tr.getMeta(key) as { from: number; to: number } | null | undefined;
-            if (meta === null) return DecorationSet.empty;
-            if (meta) {
-              return DecorationSet.create(tr.doc, [
-                Decoration.inline(meta.from, meta.to, { class: "reading-aloud" }),
-              ]);
-            }
-            return set.map(tr.mapping, tr.doc);
-          },
-        },
-        props: {
-          decorations: (state) => key.getState(state),
-        },
-      }),
-    ];
+    return [readAloudPlugin()];
   },
 });
 
-export function setReadAloudRange(
-  view: { state: { tr: Transaction }; dispatch: (tr: Transaction) => void },
-  range: { from: number; to: number } | null
-) {
-  view.dispatch(view.state.tr.setMeta(key, range).setMeta("addToHistory", false));
+function dispatchMeta(view: ViewLike, meta: ReadAloudMeta) {
+  view.dispatch(view.state.tr.setMeta(key, meta).setMeta("addToHistory", false));
+}
+
+/** Start tracking these sentences; indices passed to the other helpers refer to this list. */
+export function trackReadAloud(view: ViewLike, sentences: Range[]) {
+  dispatchMeta(view, { track: sentences.map(({ from, to }) => ({ from, to })) });
+}
+
+/** Highlight the tracked sentence at `index`; null ends the reading and clears it. */
+export function highlightReadAloud(view: ViewLike, index: number | null) {
+  dispatchMeta(view, { highlight: index });
+}
+
+/** The tracked sentence at `index` as it reads now, or null if it was deleted. */
+export function readAloudSentence(state: EditorState, index: number): DocSentence | null {
+  const range = liveRange(state.doc, key.getState(state)?.ranges[index]);
+  if (!range) return null;
+  const text = state.doc.textBetween(range.from, range.to, " ").trim();
+  return text ? { text, ...range } : null;
 }

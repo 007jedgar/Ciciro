@@ -1,10 +1,11 @@
 import {
   clampRate,
-  getReadAloudSelection,
+  readAloudSelectionFor,
   readAloudSentences,
   SentenceReader,
   setReadAloudSelection,
   splitSentences,
+  voiceChoices,
   type SpeechEngine,
 } from "../lib/read-aloud";
 import { blocksPlainText } from "../lib/read-aloud-text";
@@ -46,11 +47,30 @@ describe("readAloudSentences", () => {
 });
 
 describe("selection store", () => {
+  const plain = "One. Two.\nThree.";
+
   it("ignores a collapsed caret", () => {
-    setReadAloudSelection({ chapterId: "c", start: 3, end: 9 });
-    expect(getReadAloudSelection()).toEqual({ chapterId: "c", start: 3, end: 9 });
-    setReadAloudSelection({ chapterId: "c", start: 4, end: 4 });
-    expect(getReadAloudSelection()).toBeNull();
+    setReadAloudSelection({ chapterId: "c", start: 5, end: 9, text: "Two." });
+    expect(readAloudSelectionFor("c", plain)).toEqual({ start: 5, end: 9 });
+    expect(readAloudSelectionFor("other", plain)).toBeNull();
+    setReadAloudSelection({ chapterId: "c", start: 4, end: 4, text: "" });
+    expect(readAloudSelectionFor("c", plain)).toBeNull();
+  });
+
+  it("drops the selection once the chapter text under it changes", () => {
+    setReadAloudSelection({ chapterId: "c", start: 5, end: 9, text: "Two." });
+    expect(readAloudSelectionFor("c", "Uno. One. Two.\nThree.")).toBeNull();
+  });
+});
+
+describe("voiceChoices", () => {
+  const voice = (identifier: string, language: string) => ({ identifier, name: identifier, language });
+
+  it("puts the device language first and keeps the saved voice past the cap", () => {
+    const voices = [voice("zed", "fr-FR"), voice("bob", "en-GB"), voice("amy", "de-DE"), voice("cat", "en-US")];
+    expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual(["bob", "cat", "amy", "zed"]);
+    expect(voiceChoices(voices, "en-US", "zed", 2).map((v) => v.identifier)).toEqual(["bob", "cat", "zed"]);
+    expect(voiceChoices(voices, "en-US", "gone", 2).map((v) => v.identifier)).toEqual(["bob", "cat"]);
   });
 });
 

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { EditorHandle } from "@/components/Editor";
-import type { DocSentence } from "@/lib/tts-doc";
 import { RATE_STEPS, SpeechReader, type ReaderState } from "@/lib/tts";
 import { setTtsPrefs, useTtsPrefs } from "@/lib/tts-prefs";
 
@@ -34,7 +33,6 @@ export default function ReadAloud({
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [progress, setProgress] = useState({ index: 0, total: 0, selection: false });
   const readerRef = useRef<SpeechReader<SpeechSynthesisUtterance> | null>(null);
-  const sentencesRef = useRef<DocSentence[]>([]);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   voicesRef.current = voices;
 
@@ -56,8 +54,7 @@ export default function ReadAloud({
       (next, index) => {
         setState(next);
         setProgress((p) => ({ ...p, index }));
-        const sentence = sentencesRef.current[index];
-        editorRef.current?.highlightReadAloud(next === "idle" || !sentence ? null : sentence);
+        editorRef.current?.highlightReadAloud(next === "idle" ? null : index);
       }
     );
     readerRef.current = reader;
@@ -81,12 +78,15 @@ export default function ReadAloud({
       reader.resume();
       return;
     }
-    const { sentences, selection } = handle.getReadAloud();
-    sentencesRef.current = sentences;
+    const { sentences, selection } = handle.beginReadAloud();
     setProgress({ index: 0, total: sentences.length, selection });
     reader.start(
       sentences.map((s) => s.text),
-      { rate: prefs.rate, voice: voiceFor(prefs.voiceURI) }
+      {
+        rate: prefs.rate,
+        voice: voiceFor(prefs.voiceURI),
+        textAt: (index) => editorRef.current?.readAloudSentence(index)?.text ?? null,
+      }
     );
   }, [editorRef, prefs.rate, prefs.voiceURI, voiceFor]);
 

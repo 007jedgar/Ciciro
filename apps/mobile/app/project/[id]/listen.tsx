@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
 import { ReadAloud } from "../../../components/ReadAloud";
 import { SkeletonList } from "../../../components/Skeleton";
-import { getReadAloudSelection } from "../../../lib/read-aloud";
+import { readAloudSelectionFor } from "../../../lib/read-aloud";
+import { blocksPlainText } from "../../../lib/read-aloud-text";
 import { useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
@@ -37,15 +38,14 @@ function ListenBody() {
       </View>
     );
   }
-  const saved = getReadAloudSelection();
-  const selection = saved && saved.chapterId === chapter.id ? saved : null;
+  const selection = readAloudSelectionFor(chapter.id, blocksPlainText(chapter.content));
   return (
     <View style={[layout.padded, { paddingTop: 8, flex: 1 }]}>
       <Text style={[layout.cardTitle, { marginBottom: 8 }]}>{chapter.title}</Text>
       <ReadAloud
         chapterId={chapter.id}
         html={chapter.content}
-        selection={selection ? { start: selection.start, end: selection.end } : null}
+        selection={selection}
       />
     </View>
   );
