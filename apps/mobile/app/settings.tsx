@@ -319,6 +319,20 @@ export default function SettingsScreen() {
             colors={colors}
           />
           <ToggleRow
+            label={t("settings.focusMode")}
+            hint={t("settings.focusModeHint")}
+            value={settings.focusMode}
+            onValueChange={(focusMode) => patch({ focusMode })}
+            colors={colors}
+          />
+          <ToggleRow
+            label={t("settings.typewriterMode")}
+            hint={t("settings.typewriterModeHint")}
+            value={settings.typewriterMode}
+            onValueChange={(typewriterMode) => patch({ typewriterMode })}
+            colors={colors}
+          />
+          <ToggleRow
             label={t("settings.dailyGoal")}
             hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
             value={settings.showDailyGoal}

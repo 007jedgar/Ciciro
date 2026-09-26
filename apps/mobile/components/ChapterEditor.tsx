@@ -42,6 +42,7 @@ export function ChapterEditor({
   focused,
   resumeOffset,
   bottomInset = 0,
+  topInset = 0,
   onFocused,
   onBlurred,
   onChangeText,
@@ -59,6 +60,7 @@ export function ChapterEditor({
   focused: boolean;
   resumeOffset: number | null;
   bottomInset?: number;
+  topInset?: number;
   onFocused: () => void;
   onBlurred: () => void;
   onChangeText: (text: string) => void;
@@ -178,6 +180,7 @@ export function ChapterEditor({
         }}
         style={{
           flex: 1,
+          paddingTop: topInset,
           paddingBottom: bottomInset,
           color: editorStyle.color,
           fontFamily: editorStyle.fontFamily,

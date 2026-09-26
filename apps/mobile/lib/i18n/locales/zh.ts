@@ -156,6 +156,11 @@ const zh: Translations = {
     autocorrectHint: "输入时提供拼写建议。",
     reduceMotion: "减少动态效果",
     reduceMotionHint: "关闭应用中的动画。",
+    focusMode: "专注模式",
+    focusModeHint: "写作时隐藏页面以外的所有内容。",
+    typewriterMode: "打字机模式",
+    typewriterModeHint: "让正在书写的那一行保持在屏幕中间附近。",
+    exitFocus: "退出专注",
     dailyGoal: "每日字数",
     dailyGoalHint:
       "五分钟就是一次写作。目标是近 7 天里写 {{count}} 天——其余是休息日，不是要维持的连续天数。",

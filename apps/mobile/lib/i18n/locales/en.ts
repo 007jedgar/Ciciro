@@ -155,6 +155,11 @@ const en = {
     autocorrectHint: "Spelling suggestions while you type.",
     reduceMotion: "Reduce motion",
     reduceMotionHint: "Turn off animations across the app.",
+    focusMode: "Focus mode",
+    focusModeHint: "Hide everything but the page while you write.",
+    typewriterMode: "Typewriter mode",
+    typewriterModeHint: "Keep the line you are writing near the middle of the screen.",
+    exitFocus: "Exit focus",
     dailyGoal: "Daily words",
     dailyGoalHint:
       "Five minutes is a session. Aim for {{count}} of the last 7 days — the rest are rest days, not a streak to protect.",
