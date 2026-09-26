@@ -164,16 +164,14 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   async function open(note: ScratchNote) {
-    await flush();
-    if (conflict.current) return;
+    if (!(await flush())) return;
     setActiveId(note.id);
     activeRef.current = note.id;
     show(notes?.find((n) => n.id === note.id) ?? note);
   }
 
   async function back() {
-    await flush();
-    if (conflict.current) return;
+    if (!(await flush())) return;
     setActiveId(null);
     activeRef.current = null;
     setRemote(null);
@@ -181,8 +179,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   async function add() {
-    await flush();
-    if (conflict.current) return;
+    if (!(await flush())) return;
     try {
       const res = await fetch(base, {
         method: "POST",
@@ -241,8 +238,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
   }
 
   async function close() {
-    await flush();
-    if (conflict.current) return;
+    if (!(await flush())) return;
     onClose();
   }
 
