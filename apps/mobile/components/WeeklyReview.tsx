@@ -12,6 +12,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { barShare, formatWeekRange } from "../lib/weekly-review";
 import { writingDayKey, formatActiveDuration } from "../lib/writing-day";
+import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 
 function ReviewBody({ review }: { review: Review }) {
@@ -144,17 +145,18 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
           {t("weekly.loadError")}
         </Text>
       ) : null}
-      <Pressable
-        style={[layout.card, { marginBottom: 16, opacity: create.isPending ? 0.6 : 1 }]}
+      <PressableCard
+        style={[layout.card, { marginBottom: 16 }]}
+        accent
         onPress={() => void generate()}
         disabled={create.isPending}
         accessibilityRole="button"
         accessibilityLabel={due ? t("weekly.reviewNow") : t("weekly.writeNew")}
       >
-        <Text style={layout.cardTitle}>
+        <Text style={[layout.cardTitle, { opacity: create.isPending ? 0.6 : 1 }]}>
           {create.isPending ? t("weekly.working") : due ? t("weekly.reviewNow") : t("weekly.writeNew")}
         </Text>
-      </Pressable>
+      </PressableCard>
       {list.length === 0 && !reviews.isError ? (
         <Text style={layout.body}>{t("weekly.empty")}</Text>
       ) : null}

@@ -11,6 +11,7 @@ import type { ScratchNote } from "../lib/api/types";
 import { scratchNoteExcerpt, scratchNoteTitle } from "../lib/scratch";
 import { useOptionalAppTheme } from "../lib/settings";
 import { layout as parchmentLayout } from "../lib/theme";
+import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 
 /** The scratchpad's list: every note for the manuscript, newest edit first. */
@@ -84,15 +85,16 @@ export function ScratchNotes({
           {t("scratch.loadError")}
         </Text>
       ) : null}
-      <Pressable
-        style={[layout.card, { marginBottom: 16, opacity: create.isPending ? 0.6 : 1 }]}
+      <PressableCard
+        style={[layout.card, { marginBottom: 16 }]}
+        accent
         onPress={() => void add()}
         disabled={create.isPending}
         accessibilityRole="button"
         accessibilityLabel={t("scratch.new")}
       >
-        <Text style={layout.cardTitle}>{t("scratch.new")}</Text>
-      </Pressable>
+        <Text style={[layout.cardTitle, { opacity: create.isPending ? 0.6 : 1 }]}>{t("scratch.new")}</Text>
+      </PressableCard>
       {list.length === 0 && !notes.isError ? (
         <Text style={layout.body}>{t("scratch.empty")}</Text>
       ) : null}
