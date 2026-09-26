@@ -1,0 +1,52 @@
+// @vitest-environment jsdom
+
+import { createElement } from "react";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import SearchPanel from "@/components/SearchPanel";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+describe("overlay Escape", () => {
+  let container: HTMLDivElement | null = null;
+
+  afterEach(() => {
+    container?.remove();
+    container = null;
+  });
+
+  it("closing the search panel claims Escape so focus mode stays on", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onClose = vi.fn();
+    await act(async () => {
+      root.render(
+        createElement(SearchPanel, {
+          projectId: "p1",
+          onClose,
+          onJump: () => {},
+          flushSaves: async () => true,
+          onReplaced: () => {},
+        })
+      );
+    });
+
+    // Workspace's focus-mode handler listens on window, so the Escape must never reach it.
+    let seenByWindow = false;
+    const onWindowKey = () => {
+      seenByWindow = true;
+    };
+    window.addEventListener("keydown", onWindowKey);
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    await act(async () => {
+      document.body.dispatchEvent(event);
+    });
+    window.removeEventListener("keydown", onWindowKey);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(seenByWindow).toBe(false);
+    await act(async () => root.unmount());
+  });
+});

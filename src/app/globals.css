@@ -474,6 +474,39 @@ textarea {
   color: var(--ink-soft);
 }
 
+/* ---------- Focus and typewriter mode ---------- */
+.workspace.focus-mode {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.workspace.focus-mode > .topbar,
+.workspace.focus-mode > .sidebar,
+.workspace.focus-mode > .resize-handle,
+.workspace.focus-mode > .chat,
+.workspace.focus-mode .editor-meta {
+  display: none;
+}
+.focus-exit {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  opacity: 0.25;
+  transition: opacity 0.2s;
+}
+.focus-exit:hover,
+.focus-exit:focus-within {
+  opacity: 1;
+}
+.workspace.typewriter .editor-inner {
+  /* Size to content, not the flex-stretched pane height, so the padding adds scroll room. */
+  align-self: flex-start;
+  padding-top: 40vh;
+  padding-bottom: 50vh;
+}
+
 /* ---------- Editor ---------- */
 .editor-pane {
   overflow-y: auto;

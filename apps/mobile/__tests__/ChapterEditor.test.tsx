@@ -202,4 +202,30 @@ describe("ChapterEditor", () => {
       jest.useRealTimers();
     }
   });
+
+  it("pads only the bottom in typewriter mode so no top of the page is blank", () => {
+    render(
+      <ChapterEditor
+        chapterId="c1"
+        html={html}
+        editorStyle={editorStyle}
+        focused={false}
+        resumeOffset={null}
+        bottomInset={16}
+        typewriter
+        onFocused={jest.fn()}
+        onBlurred={jest.fn()}
+        onChangeText={jest.fn()}
+        onChangeState={jest.fn()}
+        onChangeSelection={jest.fn()}
+        registerEditor={jest.fn()}
+      />
+    );
+    fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", {
+      nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 396 } },
+    });
+    const { paddingTop, paddingBottom } = screen.getByTestId("chapter-editor").props.style;
+    expect(paddingTop).toBeUndefined();
+    expect(paddingBottom).toBe(16 + 190);
+  });
 });

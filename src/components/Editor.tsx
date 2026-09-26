@@ -8,6 +8,7 @@ import CharacterCount from "@tiptap/extension-character-count";
 import type { Node as PmNode } from "@tiptap/pm/model";
 import { BlockId } from "@/lib/tiptap-block-id";
 import { useSettings } from "@/components/SettingsProvider";
+import { typewriterScrollDelta } from "@/lib/typewriter";
 
 export type EditorHandle = {
   // `key` groups related inserts (e.g. one per chat message) so that
@@ -154,6 +155,37 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       },
     });
   }, [editor, settings.autoCorrect]);
+
+  // Typewriter mode: keep the caret line vertically centered in the scroll pane.
+  useEffect(() => {
+    if (!editor || !settings.typewriterMode) return;
+    const center = () => {
+      if (!editor.isFocused) return;
+      const pane = editor.view.dom.closest<HTMLElement>(".editor-pane");
+      if (!pane) return;
+      try {
+        const coords = editor.view.coordsAtPos(editor.state.selection.head);
+        const rect = pane.getBoundingClientRect();
+        const delta = typewriterScrollDelta(coords.top, coords.bottom, rect.top, rect.height);
+        if (delta !== 0) {
+          // Instant, because ProseMirror's own scroll-into-view on each keystroke
+          // cancels a smooth scroll before it moves the pane.
+          pane.scrollBy({ top: delta, behavior: "instant" });
+        }
+      } catch {
+        /* position not renderable yet */
+      }
+    };
+    editor.on("selectionUpdate", center);
+    editor.on("update", center);
+    editor.on("focus", center);
+    center();
+    return () => {
+      editor.off("selectionUpdate", center);
+      editor.off("update", center);
+      editor.off("focus", center);
+    };
+  }, [editor, settings.typewriterMode]);
 
   useEffect(() => {
     if (!editor || !focusEndOnMount) return;

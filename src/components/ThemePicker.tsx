@@ -17,7 +17,10 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      // Claim the key so focus mode, which listens on window, does not also exit.
+      e.stopPropagation();
+      setOpen(false);
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKey);

@@ -30,6 +30,7 @@ export type AppSettings = {
   dailyWordGoal: number;
   weeklyDayTarget: number;
   showDailyGoal: boolean;
+  typewriterMode: boolean;
   updatedAt: string;
 };
 
@@ -47,6 +48,7 @@ export function defaultSettings(): AppSettings {
     dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
     showDailyGoal: true,
+    typewriterMode: false,
     updatedAt: SETTINGS_EPOCH,
   };
 }
@@ -93,6 +95,8 @@ export function normalizeSettings(raw: unknown): AppSettings {
         ? clampWeeklyDayTarget(src.weeklyDayTarget)
         : defaults.weeklyDayTarget,
     showDailyGoal: typeof src.showDailyGoal === "boolean" ? src.showDailyGoal : defaults.showDailyGoal,
+    typewriterMode:
+      typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode,
     updatedAt:
       typeof src.updatedAt === "string" && Number.isFinite(Date.parse(src.updatedAt))
         ? new Date(src.updatedAt).toISOString()
@@ -115,6 +119,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.chatWidth === b.chatWidth &&
     a.dailyWordGoal === b.dailyWordGoal &&
     a.weeklyDayTarget === b.weeklyDayTarget &&
-    a.showDailyGoal === b.showDailyGoal
+    a.showDailyGoal === b.showDailyGoal &&
+    a.typewriterMode === b.typewriterMode
   );
 }

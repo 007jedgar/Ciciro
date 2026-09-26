@@ -81,6 +81,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 dailyWordGoal: next.dailyWordGoal,
                 weeklyDayTarget: next.weeklyDayTarget,
                 showDailyGoal: next.showDailyGoal,
+                typewriterMode: next.typewriterMode,
               });
         void syncRequest.catch(() => {});
       }, 350);

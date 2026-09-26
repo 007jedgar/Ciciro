@@ -7,6 +7,10 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // tsconfig keeps JSX for Next.js; compile it here so tests can render components.
+  oxc: {
+    jsx: { runtime: "automatic" },
+  },
   test: {
     environment: "node",
     exclude: ["**/node_modules/**", "**/apps/**", "**/dist/**", "**/.worktrees/**"],
