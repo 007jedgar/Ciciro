@@ -53,6 +53,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
   const [diffRefreshToken, setDiffRefreshToken] = useState(0);
   const { settings, patch } = useSettings();
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const [dragChatWidth, setDragChatWidth] = useState<number | null>(null);
   const chatWidth = dragChatWidth ?? settings.chatWidth;
   const [resizing, setResizing] = useState(false);
@@ -378,6 +380,25 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // --- Focus and typewriter mode ---
+  const focusMode = settings.focusMode;
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.shiftKey && e.key === "Enter") {
+        e.preventDefault();
+        patch({ focusMode: !settingsRef.current.focusMode });
+      } else if (mod && e.altKey && e.code === "KeyT") {
+        e.preventDefault();
+        patch({ typewriterMode: !settingsRef.current.typewriterMode });
+      } else if (e.key === "Escape" && settingsRef.current.focusMode) {
+        patch({ focusMode: false });
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [patch]);
+
   const onSearchReplaced = useCallback(
     (replaced: ReplacedChapter[]) => {
       const store = optimisticStoreRef.current;
@@ -666,7 +687,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   return (
     <div
-      className={`workspace${resizing ? " resizing" : ""}`}
+      className={`workspace${resizing ? " resizing" : ""}${focusMode ? " focus-mode" : ""}${
+        settings.typewriterMode ? " typewriter" : ""
+      }`}
       style={{ ["--chat-width" as string]: `${chatWidth}px` }}
     >
       <div className="topbar">
@@ -687,6 +710,21 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 : "All changes saved"}
         </span>
         <ThemePicker compact />
+        <button
+          className={`btn small${settings.typewriterMode ? " primary" : ""}`}
+          aria-pressed={settings.typewriterMode}
+          onClick={() => patch({ typewriterMode: !settings.typewriterMode })}
+          title="Keep the line you are writing centered (Cmd/Ctrl+Alt+T)"
+        >
+          Typewriter
+        </button>
+        <button
+          className="btn small"
+          onClick={() => patch({ focusMode: true })}
+          title="Hide everything but the page (Cmd/Ctrl+Shift+Enter, Esc to leave)"
+        >
+          Focus
+        </button>
         <button
           className="btn small"
           onClick={() => setSearchOpen(true)}
@@ -723,6 +761,21 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onDelete={deleteChapter}
         onImport={importChapters}
       />
+
+      {focusMode && (
+        <div className="focus-exit">
+          <button
+            className={`btn ghost small${settings.typewriterMode ? " primary" : ""}`}
+            aria-pressed={settings.typewriterMode}
+            onClick={() => patch({ typewriterMode: !settings.typewriterMode })}
+          >
+            Typewriter
+          </button>
+          <button className="btn ghost small" onClick={() => patch({ focusMode: false })}>
+            Exit focus (Esc)
+          </button>
+        </div>
+      )}
 
       <div className="editor-pane">
         <div className="editor-inner">
