@@ -71,16 +71,33 @@ describe("voiceChoices", () => {
     quality,
   });
 
-  it("puts the device language first and keeps the saved voice past the cap", () => {
-    const voices = [voice("zed", "fr-FR"), voice("bob", "en-GB"), voice("amy", "de-DE"), voice("cat", "en-US")];
-    expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual(["bob", "cat"]);
-    expect(voiceChoices(voices, "en-US", "zed", 1).map((v) => v.identifier)).toEqual(["bob", "zed"]);
-    expect(voiceChoices(voices, "en-US", "gone", 1).map((v) => v.identifier)).toEqual(["bob"]);
+  it("puts the device language first, then groups the other languages", () => {
+    const voices = [
+      voice("zed", "fr-FR"),
+      voice("bob", "en-GB"),
+      voice("amy", "de-DE"),
+      voice("cat", "en-US"),
+      voice("eva", "fr-CA"),
+      voice("ben", "de-AT"),
+    ];
+    expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual([
+      "bob",
+      "cat",
+      "amy",
+      "ben",
+      "eva",
+      "zed",
+    ]);
   });
 
-  it("falls back to other languages when none match the device", () => {
+  it("lists other languages when none match the device", () => {
     const voices = [voice("zed", "fr-FR"), voice("amy", "de-DE")];
     expect(voiceChoices(voices, "en-US", null).map((v) => v.identifier)).toEqual(["amy", "zed"]);
+  });
+
+  it("offers every natural voice without a cap", () => {
+    const voices = Array.from({ length: 30 }, (_, i) => voice(`v${i}`, i % 2 ? "fr-FR" : "en-US"));
+    expect(voiceChoices(voices, "en-US", null)).toHaveLength(30);
   });
 
   it("drops sound-effect and robotic voices and ranks by quality", () => {
