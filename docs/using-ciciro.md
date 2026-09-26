@@ -123,7 +123,8 @@ the phone it sits at the top of the Chapters tab.
 **I'm stuck** (beside Auto-draft on the web, above the editor on the phone)
 offers a few concrete next steps drawn from the open chapter, your story bible and
 open questions. Pick one and it goes to Ciciro's chat: sent straight away on the
-web, dropped into the message box on the phone for you to edit first.
+web (or left in the message box if Ciciro is still replying), dropped into the
+message box on the phone for you to edit first.
 
 ## Scratchpad
 

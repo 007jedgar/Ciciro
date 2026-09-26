@@ -2428,6 +2428,8 @@ textarea {
   z-index: 6;
   width: min(360px, 80vw);
   margin-top: 6px;
+  /* The chapter meta row is nowrap; prompts and notes must wrap inside the card. */
+  white-space: normal;
   padding: 10px;
   background: var(--panel);
   border: 1px solid var(--line);
