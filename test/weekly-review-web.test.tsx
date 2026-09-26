@@ -108,6 +108,7 @@ describe("WeeklyReview panel", () => {
     await click("Review this week");
     expect(posts).toHaveLength(1);
     expect(posts[0].to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(posts[0].tzOffset).toBe(new Date().getTimezoneOffset());
     expect(host.textContent).toContain("A steady week.");
     expect(host.textContent).toContain("The Ferry");
     expect(host.textContent).toContain("Who sent the letter?");

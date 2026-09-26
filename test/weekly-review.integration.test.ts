@@ -40,7 +40,7 @@ async function chapterOf(projectId: string, title = "The Ferry") {
 }
 
 let opSeq = 0;
-async function editAt(chapter: { id: string; projectId: string }, at: Date) {
+async function editAt(chapter: { id: string; projectId: string }, at: Date, actor = "user") {
   opSeq += 1;
   await prisma.chapterOp.create({
     data: {
@@ -49,7 +49,7 @@ async function editAt(chapter: { id: string; projectId: string }, at: Date) {
       opId: `op-${opSeq}`,
       seq: opSeq,
       baseRevision: opSeq - 1,
-      actor: "user",
+      actor,
       type: "replace_block",
       payload: "{}",
       createdAt: at,
@@ -149,6 +149,39 @@ describe("weekly review", () => {
 
     const review = await generateWeeklyReview(project.id, user, { to: "2026-09-19" });
     expect(review.stats.chaptersTouched.map((c) => c.title)).toEqual(["Inside"]);
+  });
+
+  it("bounds the week by the author's timezone, not the server's", async () => {
+    const { user, project } = await seed();
+    const evening = await chapterOf(project.id, "Evening");
+    const early = await chapterOf(project.id, "Too early");
+    await editAt(evening, new Date("2026-09-27T03:00:00.000Z"));
+    await editAt(early, new Date("2026-09-20T05:00:00.000Z"));
+    reply(REPLY);
+
+    const review = await generateWeeklyReview(project.id, user, { to: "2026-09-26", tzOffset: 420 });
+    expect(review.stats.chaptersTouched.map((c) => c.title)).toEqual(["Evening"]);
+    await expect(
+      generateWeeklyReview(project.id, user, { to: "2026-09-26", tzOffset: "-7" })
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      generateWeeklyReview(project.id, user, { to: "2026-09-26", tzOffset: 5000 })
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("lists only chapters the author edited, not ones only Ciciro changed", async () => {
+    const { user, project } = await seed();
+    const mine = await chapterOf(project.id, "Mine");
+    const aiOnly = await chapterOf(project.id, "AI only");
+    const corrected = await chapterOf(project.id, "Corrected");
+    await editAt(mine, new Date(2026, 8, 22, 10));
+    await editAt(aiOnly, new Date(2026, 8, 23, 10), "ai");
+    await editAt(corrected, new Date(2026, 8, 24, 10), "correction");
+    reply(REPLY);
+
+    const review = await generateWeeklyReview(project.id, user, { to: "2026-09-26" });
+    expect(review.stats.chaptersTouched.map((c) => c.title)).toEqual(["Mine"]);
+    expect(prompt()).toContain("Chapters edited in this manuscript this week: Mine (1200 words)");
   });
 
   it("maps editor outages to a retryable error without storing a review", async () => {

@@ -88,7 +88,11 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
     if (create.isPending) return;
     setError(null);
     try {
-      const review = await create.mutateAsync({ projectId, to: writingDayKey() });
+      const review = await create.mutateAsync({
+        projectId,
+        to: writingDayKey(),
+        tzOffset: new Date().getTimezoneOffset(),
+      });
       setSelectedId(review.id);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("weekly.createError"));

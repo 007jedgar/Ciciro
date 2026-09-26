@@ -90,25 +90,47 @@ export async function deleteWeeklyReview(
   await prisma.weeklyReview.deleteMany({ where: { id: reviewId, projectId } });
 }
 
+export type ReviewWindow = {
+  from: string;
+  to: string;
+  /** The author's `Date#getTimezoneOffset()` in minutes; absent means the server's zone. */
+  tzOffset?: number;
+};
+
+const MAX_TZ_OFFSET_MINUTES = 14 * 60;
+
 /** The window is the seven days ending `to` (the author's local today). */
-export function parseWindow(body: unknown): { from: string; to: string } {
+export function parseWindow(body: unknown): ReviewWindow {
   const src = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
   const to = src.to === undefined ? writingDayKey() : src.to;
   if (typeof to !== "string" || !WRITING_DAY_RE.test(to)) {
     throw new AuthError("to must be a YYYY-MM-DD date.", 400);
   }
-  return { from: shiftWritingDayKey(to, -(REVIEW_DAYS - 1)), to };
+  const tzOffset = src.tzOffset;
+  if (
+    tzOffset !== undefined &&
+    (typeof tzOffset !== "number" ||
+      !Number.isInteger(tzOffset) ||
+      Math.abs(tzOffset) > MAX_TZ_OFFSET_MINUTES)
+  ) {
+    throw new AuthError("tzOffset must be a whole number of minutes.", 400);
+  }
+  const window: ReviewWindow = { from: shiftWritingDayKey(to, -(REVIEW_DAYS - 1)), to };
+  if (tzOffset !== undefined) window.tzOffset = tzOffset;
+  return window;
 }
 
-function localDayStart(key: string): Date {
+/** The instant the author's day `key` begins, in their zone when known. */
+function authorDayStart(key: string, tzOffset?: number): Date {
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  if (tzOffset === undefined) return new Date(y, m - 1, d);
+  return new Date(Date.UTC(y, m - 1, d) + tzOffset * 60_000);
 }
 
 export async function gatherStats(
   projectId: string,
   user: PublicUser | null,
-  window: { from: string; to: string }
+  window: ReviewWindow
 ): Promise<WeeklyReviewStats> {
   const [dayRows, chapters, edits, openQuestions, openThreads] = await Promise.all([
     user
@@ -125,9 +147,10 @@ export async function gatherStats(
       by: ["chapterId"],
       where: {
         projectId,
+        actor: "user",
         createdAt: {
-          gte: localDayStart(window.from),
-          lt: localDayStart(shiftWritingDayKey(window.to, 1)),
+          gte: authorDayStart(window.from, window.tzOffset),
+          lt: authorDayStart(shiftWritingDayKey(window.to, 1), window.tzOffset),
         },
       },
       _max: { createdAt: true },

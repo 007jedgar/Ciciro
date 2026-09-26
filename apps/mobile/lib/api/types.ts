@@ -830,7 +830,8 @@ export type WeeklyReview = {
 export type WeeklyReviewListResponse = { reviews: WeeklyReview[]; due: boolean };
 
 /** `to` is the author's local day (YYYY-MM-DD) the seven-day window ends on. */
-export type WeeklyReviewCreateRequest = { to?: string };
+/** `tzOffset` is the device's `Date#getTimezoneOffset()`, so the week's edges are local. */
+export type WeeklyReviewCreateRequest = { to?: string; tzOffset?: number };
 
 /** Mirrors src/lib/share-view.ts. */
 export type ShareLinkStatus = "active" | "expired" | "revoked";
