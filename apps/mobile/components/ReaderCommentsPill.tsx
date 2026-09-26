@@ -34,11 +34,9 @@ export function ReaderCommentsPill({ projectId, chapterId }: { projectId: string
 
 const styles = StyleSheet.create({
   pill: {
-    alignSelf: "flex-end",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    marginBottom: 6,
   },
   text: { fontSize: 13, fontWeight: "600" },
 });

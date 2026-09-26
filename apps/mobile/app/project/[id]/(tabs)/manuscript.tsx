@@ -615,7 +615,11 @@ export default function ManuscriptScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
           <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
-          {project && !focusMode ? <ReaderCommentsPill projectId={project.id} chapterId={chapter.id} /> : null}
+          {project && !focusMode ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+              <ReaderCommentsPill projectId={project.id} chapterId={chapter.id} />
+            </View>
+          ) : null}
           {resume ? (
             <Text
               testID="reading-caret"
