@@ -442,7 +442,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
                     {unsaved[note.id] ? (
                       <div className="scratch-unsaved">Not saved yet, will retry</div>
                     ) : (
-                      <div className="scratch-unsaved">{scratchNoteUpdated(note.updatedAt)}</div>
+                      <div className="scratch-updated">{scratchNoteUpdated(note.updatedAt)}</div>
                     )}
                   </div>
                   <button
