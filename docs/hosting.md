@@ -138,6 +138,15 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-project-recap.sql
 
 Until it runs, everything else keeps working and the recap simply does not appear.
 
+The weekly review needs `WeeklyReview`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-weekly-reviews.sql
+```
+
+Until it runs, everything else keeps working and only the weekly review reports
+an error. Writing a review also needs `ANTHROPIC_API_KEY`.
+
 Beta reader links need `ShareLink` and `ShareComment`:
 
 ```bash

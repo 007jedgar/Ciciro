@@ -89,6 +89,7 @@ model Project {
   chapterSnapshots  ChapterSnapshot[]
   scratchNotes      ScratchNote[]
   recap             ProjectRecap?
+  weeklyReviews     WeeklyReview[]
   shareLinks        ShareLink[]
   shareComments     ShareComment[]
 
@@ -236,6 +237,24 @@ model ScratchNote {
   updatedAt DateTime @updatedAt
 
   @@index([projectId, updatedAt])
+}
+
+// One weekly review of a manuscript: the week's numbers (`stats`, JSON) and
+// Ciciro's read on them (`content`, JSON: summary, looseEnds, nextSteps).
+// Stored so past reviews can be reread. See src/lib/weekly-review.ts.
+model WeeklyReview {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  weekStart String // YYYY-MM-DD, first day covered (device-timezone)
+  weekEnd   String // YYYY-MM-DD, last day covered
+  stats     String @default("{}")
+  content   String @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }
 
 // A beta reader link: an unguessable token that opens a read-only view of the

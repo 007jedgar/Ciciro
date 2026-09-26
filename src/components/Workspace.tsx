@@ -18,6 +18,7 @@ import OutlineBoard from "@/components/OutlineBoard";
 import Scratchpad from "@/components/Scratchpad";
 import PreviouslyOn from "@/components/PreviouslyOn";
 import StuckPrompts from "@/components/StuckPrompts";
+import WeeklyReview from "@/components/WeeklyReview";
 import BetaReaders, { type BetaReadersTab } from "@/components/BetaReaders";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
@@ -917,6 +918,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <button className="btn small" onClick={() => setScratchOpen(true)}>
           Scratchpad
         </button>
+        <WeeklyReview projectId={project.id} />
         <button
           className="btn small"
           onClick={() => {

@@ -2,6 +2,7 @@ import { useMutation, useQuery, type UseQueryOptions } from "@tanstack/react-que
 import { queryKeys } from "./keys";
 import { queryClient } from "./query";
 import { ciciro } from "./resources";
+import { reviewDue } from "../weekly-review";
 import type {
   BibleFile,
   BibleNewCharacterRequest,
@@ -24,6 +25,7 @@ import type {
   QuestionCreateRequest,
   ScratchNote,
   ScratchNotePatchRequest,
+  WeeklyReviewListResponse,
   ShareCommentStatus,
   ShareLinkCreateRequest,
   ShareLinkSummary,
@@ -1067,6 +1069,41 @@ export function useDeleteScratchNoteMutation() {
     onSuccess: (_ok, vars) =>
       queryClient.setQueryData<ScratchNote[]>(queryKeys.scratch(vars.projectId), (notes) =>
         (notes ?? []).filter((n) => n.id !== vars.noteId)
+      ),
+  });
+}
+
+export function useWeeklyReviewsQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.weeklyReviews(projectId),
+    queryFn: () => ciciro.projects.weeklyReviews.list(projectId),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useCreateWeeklyReviewMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, to, tzOffset }: { projectId: string; to: string; tzOffset?: number }) =>
+      ciciro.projects.weeklyReviews.create(projectId, { to, tzOffset }),
+    onSuccess: (review, vars) =>
+      queryClient.setQueryData<WeeklyReviewListResponse>(
+        queryKeys.weeklyReviews(vars.projectId),
+        (data) => ({ due: false, reviews: [review, ...(data?.reviews ?? [])] })
+      ),
+  });
+}
+
+export function useDeleteWeeklyReviewMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, reviewId }: { projectId: string; reviewId: string }) =>
+      ciciro.projects.weeklyReviews.delete(projectId, reviewId),
+    onSuccess: (_ok, vars) =>
+      queryClient.setQueryData<WeeklyReviewListResponse>(
+        queryKeys.weeklyReviews(vars.projectId),
+        (data) => {
+          const reviews = (data?.reviews ?? []).filter((r) => r.id !== vars.reviewId);
+          return { due: reviewDue(reviews), reviews };
+        }
       ),
   });
 }
