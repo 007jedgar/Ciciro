@@ -11,6 +11,7 @@ import type { ShareComment, ShareCommentStatus } from "../lib/api/types";
 import { chapterNumberLabel, customChapterTitle } from "../lib/chapter-label";
 import { groupCommentsByChapter } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
+import { switchColors } from "../lib/switch-theme";
 import { fonts } from "../lib/theme";
 import { SkeletonList } from "./Skeleton";
 
@@ -128,8 +129,7 @@ export function ReaderComments({
             <Switch
               value={onlyChapter}
               onValueChange={setOnlyChapter}
-              trackColor={{ false: colors.line, true: colors.accent }}
-              thumbColor={colors.panel}
+              {...switchColors(colors)}
               accessibilityLabel={t("beta.thisChapter")}
             />
           </View>

@@ -10,6 +10,7 @@ import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize,
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
+import { switchColors } from "../lib/switch-theme";
 import { setFocusMode, useFocusMode } from "../lib/focus-mode";
 import { getReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
@@ -116,8 +117,7 @@ function ToggleRow({
         <Switch
           value={value}
           onValueChange={onValueChange}
-          trackColor={{ false: colors.line, true: colors.accent }}
-          thumbColor={colors.panel}
+          {...switchColors(colors)}
           accessibilityLabel={label}
         />
       </View>

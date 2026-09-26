@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
+import { switchColors } from "../lib/switch-theme";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import {
   REMINDER_WORD_GOALS,
@@ -321,8 +322,7 @@ export function WritingReminderForm({
         <Switch
           value={enabled}
           onValueChange={setEnabled}
-          trackColor={{ false: colors.line, true: colors.accent }}
-          thumbColor={colors.panel}
+          {...switchColors(colors)}
           accessibilityLabel={t("reminders.enabled")}
         />
       </View>
@@ -346,8 +346,7 @@ export function WritingReminderForm({
           <Switch
             value={openSprint}
             onValueChange={setOpenSprint}
-            trackColor={{ false: colors.line, true: colors.accent }}
-            thumbColor={colors.panel}
+            {...switchColors(colors)}
             accessibilityLabel={t("reminders.openSprint")}
           />
         </View>
