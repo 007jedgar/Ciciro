@@ -1380,11 +1380,11 @@ export async function executeEditorTool(
             `${expectedRevision}. No replacements were applied.`,
         };
       }
+      const kind = await projectKind(projectId);
       if (await aiEditsAsSuggestions(projectId)) {
-        return suggestChapterEdits(ch, n, replacements, ctx.runId);
+        return suggestChapterEdits(ch, n, replacements, kind, ctx.runId);
       }
 
-      const kind = await projectKind(projectId);
       let content = ch.content;
       const report: string[] = [];
       const applied: { find: string; replace: string }[] = [];

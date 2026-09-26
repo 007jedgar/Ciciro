@@ -947,12 +947,25 @@ export type SuggestOutcome =
   | { status: "not_found" }
   | { status: "conflict"; authorName: string };
 
+/** One paragraph of a replacement, and how to mark its block's opening tag. */
+export type ReplacementParagraph = { text: string; mark?: (open: string) => string };
+
 export type SuggestOptions = {
   author: SuggestionAuthor;
   now?: () => string;
   newId?: () => string;
   newBlockId?: () => string;
+  /** How a replacement spanning paragraphs breaks into blocks. Default: blank lines. */
+  splitReplacement?: (replace: string) => ReplacementParagraph[];
 };
+
+function splitOnBlankLines(replace: string): ReplacementParagraph[] {
+  return replace
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((text) => ({ text }));
+}
 
 const BASE = (it: TextItem) => it.sugg?.kind !== "insert";
 const PROPOSED = (it: TextItem) => it.sugg?.kind !== "delete";
@@ -1180,10 +1193,7 @@ function suggestBlockRun(
       }
     }
   }
-  const paragraphs = edit.replace
-    .split(/\n\s*\n/)
-    .map((p) => p.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
+  const paragraphs = opts.splitReplacement(edit.replace).filter((p) => p.text);
   const prose = run.filter((block) => block.items && project(block.items, BASE).text.trim());
   const id = opts.newId();
   const createdAt = opts.now();
@@ -1194,10 +1204,13 @@ function suggestBlockRun(
   prose.forEach((block, i) => {
     const items = block.items ?? [];
     const paragraph = paragraphs[i];
-    const pairable = paragraph !== undefined && items.every((it) => it.t === "text");
+    const pairable =
+      paragraph !== undefined &&
+      items.every((it) => it.t === "text") &&
+      (paragraph.mark?.(block.open) ?? block.open) === block.open;
     if (pairable) {
       const source = items.filter((it): it is TextItem => isText(it) && BASE(it));
-      next.set(block, blockHtml(block, trackedItems(source, codePoints(paragraph), opts.author, id, createdAt)));
+      next.set(block, blockHtml(block, trackedItems(source, codePoints(paragraph.text), opts.author, id, createdAt)));
       return;
     }
     const marked = items
@@ -1217,9 +1230,17 @@ function suggestBlockRun(
   return { html: spliceBlocks(html, blocks, next), outcome: { status: "suggested", count: 1, conflicts: 0 } };
 }
 
-function insertedParagraph(text: string, ins: SuggestionMark, blockId: string): string {
-  const items: TextItem[] = codePoints(text).map((ch) => ({ t: "text", ch, raw: null, fmt: 0, wraps: [], sugg: ins }));
-  return `<p data-block-id="${escapeAttr(blockId)}">${serializeInline(items)}</p>`;
+function insertedParagraph(paragraph: ReplacementParagraph, ins: SuggestionMark, blockId: string): string {
+  const items: TextItem[] = codePoints(paragraph.text).map((ch) => ({
+    t: "text",
+    ch,
+    raw: null,
+    fmt: 0,
+    wraps: [],
+    sugg: ins,
+  }));
+  const open = `<p data-block-id="${escapeAttr(blockId)}">`;
+  return `${paragraph.mark?.(open) ?? open}${serializeInline(items)}</p>`;
 }
 
 /**
@@ -1237,6 +1258,7 @@ export function suggestReplacements(
     now: options.now ?? (() => new Date().toISOString()),
     newId: options.newId ?? newSuggestionId,
     newBlockId: options.newBlockId ?? newSuggestionId,
+    splitReplacement: options.splitReplacement ?? splitOnBlankLines,
   };
   let current = html;
   const outcomes: SuggestOutcome[] = [];

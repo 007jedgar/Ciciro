@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { createProject, getProject, updateProject } from "@/lib/projects";
 import { createChapter, archiveChapter, SINGLE_PIECE_ERROR } from "@/lib/chapters";
 import { registerUser } from "@/lib/auth/session";
+import { resolveSuggestions } from "@/lib/suggestions";
 import { executeEditorTool } from "@/lib/tools";
 import { updateUserSettings } from "@/lib/user-settings";
 import { buildEditorContext } from "@/lib/context";
@@ -138,6 +139,43 @@ describe("assistant tools respect the manuscript kind", () => {
       ["action", "Mara stares."],
       ["character", "MARA"],
       ["dialogue", "Hello."],
+    ]);
+  });
+
+  it("suggests screenplay elements when an edit replaces whole blocks with default settings", async () => {
+    const owner = await registerUser({ email: "sp@example.com", password: "long-enough-pw", name: "Sam" });
+    const script = await createProject(owner, { title: "Heist", kind: "screenplay" });
+    const [chapter] = script.chapters;
+    const seeded = await prisma.chapter.update({
+      where: { id: chapter.id },
+      data: { content: '<p data-sp="scene-heading">INT. HALL - DAY</p><p>Old action.</p>' },
+    });
+    const result = await executeEditorTool(
+      "edit_manuscript",
+      {
+        chapterNumber: 1,
+        expectedRevision: seeded.revision,
+        replacements: [
+          {
+            find: "INT. HALL - DAY\n\nOld action.",
+            replace: "INT. KITCHEN - NIGHT\nMara stares.\nMARA\nHello.",
+          },
+        ],
+      },
+      { projectId: script.id }
+    );
+    expect(result.status).toBe("suggesting edits in chapter 1");
+    const after = await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } });
+    expect(after.content).toContain("data-suggestion-id");
+    expect(blocks(resolveSuggestions(after.content, "accept"))).toEqual([
+      ["scene-heading", "INT. KITCHEN - NIGHT"],
+      ["action", "Mara stares."],
+      ["character", "MARA"],
+      ["dialogue", "Hello."],
+    ]);
+    expect(blocks(resolveSuggestions(after.content, "reject"))).toEqual([
+      ["scene-heading", "INT. HALL - DAY"],
+      ["action", "Old action."],
     ]);
   });
 

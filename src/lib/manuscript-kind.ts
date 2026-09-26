@@ -328,6 +328,21 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * A replacement the assistant proposes as tracked suggestions, split into
+ * blocks the way assistantTextToHtml places it. Undefined keeps the default.
+ */
+export function assistantReplacementSplitter(
+  kind: ManuscriptKind
+): ((replace: string) => { text: string; mark: (open: string) => string }[]) | undefined {
+  if (kind !== "screenplay") return undefined;
+  return (replace) =>
+    classifyScreenplayLines(replace).map(({ element, text }) => ({
+      text,
+      mark: (open: string) => withElement(open, element),
+    }));
+}
+
+/**
  * Plain text from the assistant as editor blocks. A screenplay gets one
  * element per line; anything else gets a paragraph per blank-line break.
  */
