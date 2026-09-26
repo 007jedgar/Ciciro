@@ -579,16 +579,20 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       };
       remount(replaced.map((r) => r.id));
       return async () => {
+        if (before.some((prior) => prior.content === null)) return false;
+        if (!(await flushSaves())) return false;
         const undone: string[] = [];
         for (const prior of before) {
-          if (prior.content === null) return false;
           const res = await fetch(`/api/chapters/${prior.id}`, {
             method: "PATCH",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ content: prior.content, expectedRevision: prior.revision }),
           }).catch(() => null);
           // A chapter edited since the replace is left as the writer has it.
-          if (!res?.ok) return false;
+          if (!res?.ok) {
+            remount(undone);
+            return false;
+          }
           const chapter = (await res.json()) as Chapter;
           applyChapter(chapter.id, chapter);
           undone.push(chapter.id);
@@ -597,7 +601,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         return true;
       };
     },
-    [activeId, updateChapterLocal]
+    [activeId, flushSaves, updateChapterLocal]
   );
 
   const onSearchJump = useCallback(
