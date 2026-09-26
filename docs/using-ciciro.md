@@ -137,9 +137,9 @@ message box on the phone for you to edit first.
 **Scratchpad** in the top bar's **More** menu (on mobile, the Scratchpad card in the Chapters
 tab) keeps loose notes and research for the manuscript: a name to remember, a
 fact to check, a scene idea. Add as many notes as you like (up to 200), each with
-a title and free text; they save as you type. On the web, if a save fails you
-can still close the note: your text stays in the browser, the list marks it
-"Not saved yet, will retry", and Ciciro keeps retrying until it saves. Notes are not chapters, so they are
+a title and free text; they save as you type. On the web, the list shows when
+each note was last updated. If a save fails you can still close the note: your
+text stays in the browser, the list marks it "Not saved yet, will retry", and Ciciro keeps retrying until it saves. Notes are not chapters, so they are
 never counted in your words or writing-day stats and never appear in an export
 or in search. They sync between the web and your phone. If the same note is
 edited on two devices, Ciciro asks whether to keep your version or the other one
