@@ -16,6 +16,7 @@ import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBa
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
+import { ReaderCommentsPill } from "../../../../components/ReaderCommentsPill";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { SuggestionsPill, SuggestionsSheet } from "../../../../components/SuggestionsReview";
@@ -529,6 +530,7 @@ export default function ManuscriptScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
           <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
+          {project && !focusMode ? <ReaderCommentsPill projectId={project.id} chapterId={chapter.id} /> : null}
           {resume ? (
             <Text
               testID="reading-caret"

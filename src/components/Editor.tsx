@@ -6,8 +6,13 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
-import type { Node as PmNode } from "@tiptap/pm/model";
 import { BlockId } from "@/lib/tiptap-block-id";
+import { textOffsetToPos } from "@/lib/tiptap-text-offset";
+import {
+  CommentHighlights,
+  setCommentHighlights,
+  type CommentHighlight,
+} from "@/lib/tiptap-comment-highlights";
 import { useSettings } from "@/components/SettingsProvider";
 import { typewriterScrollDelta } from "@/lib/typewriter";
 import { SuggestionCard, type SuggestionDetail } from "@/components/TrackChanges";
@@ -72,6 +77,9 @@ type Props = {
   suggesting?: boolean;
   suggestionAuthor?: SuggestionAuthor;
   onActiveSuggestionChange?: (id: string | null) => void;
+  /** Beta reader comments to mark in the text. */
+  commentHighlights?: CommentHighlight[];
+  onCommentClick?: (id: string) => void;
 };
 
 type ActiveSuggestion = { detail: SuggestionDetail; top: number; left: number };
@@ -122,37 +130,6 @@ function caretFromEditor(editor: {
   return null;
 }
 
-// Map an offset into a block's visible text (what search reports: text nodes
-// joined, a hard break as one character) to a document position, walking into
-// nested paragraphs of a quote or list item. `atEnd` keeps a boundary offset in
-// the node it ends rather than the one the next character starts.
-function textOffsetToPos(block: PmNode, blockPos: number, offset: number, atEnd: boolean): number {
-  let remaining = Math.max(0, offset);
-  let found: number | null = null;
-  let last = blockPos + 1;
-  block.descendants((child, pos) => {
-    if (found != null) return false;
-    const at = blockPos + 1 + pos;
-    if (child.isText) {
-      const len = child.text?.length ?? 0;
-      if (remaining < len || (atEnd && remaining === len)) {
-        found = at + remaining;
-        return false;
-      }
-      remaining -= len;
-      last = at + len;
-    } else if (child.type.name === "hardBreak") {
-      if (remaining === 0 && !atEnd) {
-        found = at;
-        return false;
-      }
-      remaining -= 1;
-      last = at + 1;
-    }
-  });
-  return found ?? last;
-}
-
 const Editor = forwardRef<EditorHandle, Props>(function Editor(
   {
     content,
@@ -164,6 +141,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     suggesting = false,
     suggestionAuthor,
     onActiveSuggestionChange,
+    commentHighlights,
+    onCommentClick,
   },
   ref
 ) {
@@ -182,6 +161,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   onChangeRef.current = onChange;
   onSelectionChangeRef.current = onSelectionChange;
   onCaretChangeRef.current = onCaretChange;
+  const onCommentClickRef = useRef(onCommentClick);
+  onCommentClickRef.current = onCommentClick;
+  const commentHighlightsRef = useRef(commentHighlights);
+  commentHighlightsRef.current = commentHighlights;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -192,6 +175,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       SuggestionDeletion,
       TrackChanges,
       ReadAloudHighlight,
+      CommentHighlights.configure({ onClick: (id) => onCommentClickRef.current?.(id) }),
       CharacterCount,
       Placeholder.configure({
         placeholder: "Begin your chapter. Ciciro is reading over your shoulder...",
@@ -280,6 +264,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     const current = editor.getHTML();
     if (content !== current) {
       editor.commands.setContent(content || "", false);
+      // Replacing the whole document drops the marks; place them again.
+      setCommentHighlights(editor, commentHighlightsRef.current ?? []);
     }
   }, [content, editor]);
 
@@ -325,6 +311,11 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       editor.off("focus", center);
     };
   }, [editor, settings.typewriterMode]);
+
+  useEffect(() => {
+    if (!editor) return;
+    setCommentHighlights(editor, commentHighlights ?? []);
+  }, [editor, commentHighlights]);
 
   useEffect(() => {
     if (!editor || !focusEndOnMount) return;

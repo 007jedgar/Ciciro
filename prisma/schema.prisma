@@ -85,6 +85,8 @@ model Project {
   manuscriptTarget  ManuscriptTarget?
   chapterSnapshots  ChapterSnapshot[]
   scratchNotes      ScratchNote[]
+  shareLinks        ShareLink[]
+  shareComments     ShareComment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -146,6 +148,7 @@ model Chapter {
   ops               ChapterOp[]
   readingPositions  ReadingPosition[]
   snapshots         ChapterSnapshot[]
+  shareComments     ShareComment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -229,6 +232,63 @@ model ScratchNote {
   updatedAt DateTime @updatedAt
 
   @@index([projectId, updatedAt])
+}
+
+// A beta reader link: an unguessable token that opens a read-only view of the
+// manuscript (every live chapter) or of the chapters picked in `chapterIds`.
+// Revoking is permanent; an expired or revoked link reads exactly like one
+// that never existed. See src/lib/shares.ts.
+model ShareLink {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 256 random bits, base64url. Kept (not hashed) so the author can copy the
+  // link again; it grants no more than the prose already in this database.
+  token      String    @unique
+  label      String    @default("") // who it is for, e.g. "Sam's read"
+  // JSON array of chapter ids. Empty means the whole manuscript, including
+  // chapters written after the link was made.
+  chapterIds String    @default("[]")
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+
+  comments ShareComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, createdAt])
+}
+
+// A beta reader's note on a passage of a shared chapter. The passage is the
+// quoted text plus where it started (block id and offset into the block's
+// visible text), so it can be found again after the author edits around it.
+model ShareComment {
+  id          String    @id @default(cuid())
+  shareLinkId String
+  shareLink   ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapterId   String
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  readerName String
+  body       String
+  blockId    String
+  quote      String
+  offset     Int    @default(0)
+  // SHA-256 of the link id and the reader's IP, for rate limiting only.
+  clientHash String @default("")
+  status     String @default("open") // open | resolved
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, status, createdAt])
+  @@index([shareLinkId, createdAt])
+  @@index([shareLinkId, clientHash, createdAt])
+  @@index([chapterId])
 }
 
 // Story bible markdown, one row per path. Hosted Workers have no filesystem,

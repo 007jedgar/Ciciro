@@ -15,6 +15,7 @@ import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import Scratchpad from "@/components/Scratchpad";
+import BetaReaders, { type BetaReadersTab } from "@/components/BetaReaders";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -34,6 +35,9 @@ import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import { applyChapterOrder } from "@/lib/outline";
+import { fetchShareComments } from "@/lib/share-client";
+import type { ShareCommentView } from "@/lib/share-view";
+import type { CommentHighlight } from "@/lib/tiptap-comment-highlights";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -65,6 +69,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
+  const [betaOpen, setBetaOpen] = useState(false);
+  const [betaTab, setBetaTab] = useState<BetaReadersTab>("comments");
+  const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
+  // Open beta reader comments: the topbar count and the marks in the editor.
+  const [readerComments, setReaderComments] = useState<ShareCommentView[]>([]);
   // Bumped to remount the editor when its chapter was rewritten from outside.
   const [editorNonce, setEditorNonce] = useState(0);
   const [outlineOpen, setOutlineOpen] = useState(false);
@@ -490,6 +499,57 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     [activeId]
   );
 
+  // --- Beta reader comments ---
+  const refreshReaderComments = useCallback(() => {
+    fetchShareComments(project.id, "open")
+      .then(setReaderComments)
+      .catch(() => {});
+  }, [project.id]);
+
+  useEffect(() => {
+    refreshReaderComments();
+    window.addEventListener("focus", refreshReaderComments);
+    return () => window.removeEventListener("focus", refreshReaderComments);
+  }, [refreshReaderComments]);
+
+  const commentHighlights = useMemo<CommentHighlight[]>(
+    () =>
+      readerComments
+        .filter((c) => c.chapterId === activeId && c.anchor && c.anchor.length > 0)
+        .map((c) => ({
+          id: c.id,
+          blockId: c.anchor!.blockId,
+          quote: c.quote,
+          offset: c.anchor!.offset,
+          title: `${c.readerName}: ${c.body}`,
+        })),
+    [readerComments, activeId]
+  );
+
+  const openReaderComment = useCallback((id: string) => {
+    setFocusCommentId(id);
+    setBetaTab("comments");
+    setBetaOpen(true);
+  }, []);
+
+  const closeBetaReaders = useCallback(() => {
+    setBetaOpen(false);
+    refreshReaderComments();
+  }, [refreshReaderComments]);
+
+  const onCommentJump = useCallback(
+    (comment: ShareCommentView) => {
+      if (!comment.anchor) return;
+      setBetaOpen(false);
+      setViewMode("prose");
+      setFocusEndOnMount(false);
+      setResumePosition({ chapterId: comment.chapterId, ...comment.anchor });
+      setActiveId(comment.chapterId);
+      if (comment.chapterId === activeId) setEditorNonce((n) => n + 1);
+    },
+    [activeId]
+  );
+
   // --- Chapter operations ---
   async function addChapter() {
     const res = await fetch("/api/chapters", {
@@ -802,6 +862,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <button className="btn small" onClick={() => setScratchOpen(true)}>
           Scratchpad
         </button>
+        <button
+          className="btn small"
+          onClick={() => {
+            setFocusCommentId(null);
+            setBetaOpen(true);
+          }}
+          title="Share read-only links and see what beta readers said"
+        >
+          Beta readers{readerComments.length ? ` (${readerComments.length})` : ""}
+        </button>
         <ExportMenu projectId={project.id} />
       </div>
 
@@ -922,6 +992,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   suggesting={suggesting}
                   suggestionAuthor={suggestionAuthor}
                   onActiveSuggestionChange={setActiveSuggestionId}
+                  commentHighlights={commentHighlights}
+                  onCommentClick={openReaderComment}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />
@@ -999,6 +1071,20 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       {scratchOpen && (
         <Scratchpad projectId={project.id} onClose={() => setScratchOpen(false)} />
+      )}
+
+      {betaOpen && (
+        <BetaReaders
+          projectId={project.id}
+          chapters={project.chapters.filter((c) => !c.archivedAt)}
+          activeChapterId={activeId}
+          tab={betaTab}
+          onTabChange={setBetaTab}
+          focusCommentId={focusCommentId}
+          onJump={onCommentJump}
+          onCommentsChanged={refreshReaderComments}
+          onClose={closeBetaReaders}
+        />
       )}
 
       {searchOpen && (

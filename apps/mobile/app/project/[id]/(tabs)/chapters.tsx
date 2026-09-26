@@ -15,6 +15,7 @@ import {
   useDeleteChapterMutation,
   usePatchChapterMutation,
   usePatchProjectMutation,
+  useShareCommentsQuery,
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
 import { outlineHref } from "../../../../lib/outline";
@@ -22,6 +23,7 @@ import { confirmChapterDelete } from "../../../../lib/chapter-delete";
 import { importManuscriptFile, isImportable, pickImportFile } from "../../../../lib/import";
 import { useProject } from "../../../../lib/project";
 import { scratchListHref } from "../../../../lib/scratch";
+import { betaReadersHref } from "../../../../lib/shares";
 import { useAppTheme } from "../../../../lib/settings";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
@@ -37,6 +39,7 @@ export default function ChaptersScreen() {
   const removeChapter = useDeleteChapterMutation();
   const patchProject = usePatchProjectMutation();
   const patchChapter = usePatchChapterMutation();
+  const openReaderComments = useShareCommentsQuery(typeof id === "string" ? id : "", "open");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -198,6 +201,19 @@ export default function ChaptersScreen() {
               >
                 <Text style={layout.cardTitle}>{t("scratch.title")}</Text>
                 <Text style={layout.cardMeta}>{t("scratch.cardMeta")}</Text>
+              </Pressable>
+              <Pressable
+                style={[layout.card, { marginBottom: 16 }]}
+                onPress={() => router.push(betaReadersHref(projectId) as never)}
+                accessibilityRole="button"
+                accessibilityLabel={t("beta.title")}
+              >
+                <Text style={layout.cardTitle}>{t("beta.title")}</Text>
+                <Text style={layout.cardMeta}>
+                  {openReaderComments.data?.length
+                    ? t("beta.cardOpen", { count: openReaderComments.data.length })
+                    : t("beta.cardMeta")}
+                </Text>
               </Pressable>
               <Pressable
                 style={[layout.card, { marginBottom: 16 }]}

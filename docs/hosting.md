@@ -130,6 +130,14 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-scratch-notes.sql
 Until it runs, everything else keeps working and only the Scratchpad reports an
 error.
 
+Beta reader links need `ShareLink` and `ShareComment`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-share-links.sql
+```
+
+Until it runs, only sharing errors: the Beta readers panels and the reader page.
+
 ## Authentication
 
 - `POST /api/auth/signup` — create an account and start a session.
@@ -145,6 +153,14 @@ When `CICIRO_REQUIRE_AUTH=true`, `src/middleware.ts` redirects anonymous browser
 traffic to `/login` and returns `401` for anonymous API calls. Route handlers
 still verify the session with `getSessionUser`, since middleware only performs a
 cheap cookie-presence check at the edge.
+
+Beta reader links are the exception: `/read/:token` and `/api/read/:token/...`
+pass the gate without a session, because the share token is their credential.
+It opens only the chapters that link shares, and an unknown, revoked or expired
+token gets a plain 404. Reader comments are rate-limited per reader address
+using `cf-connecting-ip` on Cloudflare; other hosts need a proxy that sets
+`x-real-ip` or `x-forwarded-for`, or every reader shares one budget (the
+per-link limits hold either way).
 
 ## Run coordination on Cloudflare
 

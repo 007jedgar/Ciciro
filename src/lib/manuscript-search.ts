@@ -102,6 +102,11 @@ function flatten(html: string): Flat {
   return { parts, text, cells, boundaries, locked };
 }
 
+/** A block's visible text: what caret and match offsets index into. */
+export function blockVisibleText(html: string): string {
+  return flatten(html).text;
+}
+
 const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 function isWordChar(ch: string | undefined): boolean {
