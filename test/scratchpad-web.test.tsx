@@ -175,4 +175,21 @@ describe("Scratchpad after a failed save", () => {
     expect(host.querySelector("textarea")!.value).toBe("moon and tides");
     expect(host.textContent).not.toContain("another device");
   });
+
+  it("leaves another tab's waiting typing in storage when this tab saves", async () => {
+    await act(async () => root.render(<Scratchpad projectId="p1" onClose={() => {}} />));
+    await settle();
+
+    const otherTab = { other: { title: "Kept", content: "from tab A", revision: 1 } };
+    window.localStorage.setItem("ciciro:scratch-unsaved:p1", JSON.stringify(otherTab));
+
+    saveFails = false;
+    await click(button("Tides"));
+    await type("moon and tides");
+    await click(button("All notes"));
+    expect(server.content).toBe("moon and tides");
+
+    const stored = JSON.parse(window.localStorage.getItem("ciciro:scratch-unsaved:p1") ?? "{}");
+    expect(stored).toEqual(otherTab);
+  });
 });

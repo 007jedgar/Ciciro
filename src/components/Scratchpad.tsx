@@ -76,11 +76,17 @@ export default function Scratchpad({ projectId, onClose }: Props) {
 
   const stash = useCallback(
     (id: string, value: Unsaved | null) => {
+      const stored = readUnsaved(projectId);
       const all = { ...unsavedRef.current };
-      if (value) all[id] = value;
-      else delete all[id];
+      if (value) {
+        stored[id] = value;
+        all[id] = value;
+      } else {
+        delete stored[id];
+        delete all[id];
+      }
+      writeUnsaved(projectId, stored);
       unsavedRef.current = all;
-      writeUnsaved(projectId, all);
       setUnsaved(all);
     },
     [projectId]
