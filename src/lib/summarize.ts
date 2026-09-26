@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { getAnthropic, DRAFTER_FAST_MODEL } from "@/lib/anthropic";
-import { htmlToText } from "@/lib/text";
+import { chapterPlainText } from "@/lib/text";
 import { SUMMARIZER_SYSTEM } from "@/lib/prompts";
 
 const MIN_CHARS = 200; // not worth summarizing a near-empty chapter
@@ -21,7 +21,7 @@ export async function summarizeChapter(chapterId: string): Promise<void> {
   const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });
   if (!chapter) return;
 
-  const text = htmlToText(chapter.content).trim();
+  const text = chapterPlainText(chapter.content).trim();
   if (text.length < MIN_CHARS) {
     if (chapter.summary) {
       await prisma.chapter.update({ where: { id: chapterId }, data: { summary: "" } });

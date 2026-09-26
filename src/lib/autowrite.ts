@@ -3,7 +3,7 @@ import { getAnthropic, EDITOR_MODEL, DRAFTER_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { EDITOR_SYSTEM, DRAFTER_SYSTEM, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
-import { chapterWordCount, countWords, htmlToText } from "@/lib/text";
+import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
 
 // The autonomous drafting loop. The editor (Opus) plans a chapter into beats;
@@ -257,7 +257,7 @@ export async function runAutoWrite(opts: {
     emit({ type: "note", v: `Open question: ${q.question} (went with: ${q.provisional || "n/a"})` });
   }
 
-  const existingText = htmlToText(chapter.content);
+  const existingText = chapterPlainText(chapter.content);
   let running = existingText; // accumulated plain text for continuity
   let newHtml = ""; // html to append to the chapter
   let accepted = 0;

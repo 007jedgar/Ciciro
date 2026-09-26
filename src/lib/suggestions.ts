@@ -732,21 +732,24 @@ type EditOp = "=" | "-" | "+";
  * treated as one wholesale replacement, which is always correct, just coarse.
  */
 function diffSequences<T>(a: readonly T[], b: readonly T[], maxD: number): EditOp[] {
+  return trimmedDiff(a, b, maxD).ops;
+}
+
+/** diffSequences, also saying whether the middle fit the budget (`exact`). */
+function trimmedDiff<T>(a: readonly T[], b: readonly T[], maxD: number): { ops: EditOp[]; exact: boolean } {
   let pre = 0;
   while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
   let suf = 0;
   while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
   const midA = a.slice(pre, a.length - suf);
   const midB = b.slice(pre, b.length - suf);
-  const core = myers(midA, midB, maxD) ?? [
-    ...midA.map((): EditOp => "-"),
-    ...midB.map((): EditOp => "+"),
-  ];
+  const exact = myers(midA, midB, maxD);
+  const core = exact ?? [...midA.map((): EditOp => "-"), ...midB.map((): EditOp => "+")];
   const ops: EditOp[] = [];
   for (let i = 0; i < pre; i++) ops.push("=");
   ops.push(...core);
   for (let i = 0; i < suf; i++) ops.push("=");
-  return ops;
+  return { ops, exact: exact !== null };
 }
 
 function myers<T>(a: readonly T[], b: readonly T[], maxD: number): EditOp[] | null {
@@ -1277,6 +1280,9 @@ export function suggestionsAsDisplayMarks(html: string): string {
 
 const DISPLAY_BIT: Record<SuggestionKind, number> = { insert: FMT_UNDERLINE, delete: FMT_STRIKE };
 
+/** Most character edits carrySuggestions aligns exactly before falling back. */
+const CARRY_BUDGET = 1000;
+
 /**
  * An insertion after a character equal to its own last character can sit on
  * either side of that character ("ambled| far home" or "ambled |far home").
@@ -1352,21 +1358,56 @@ export function carrySuggestions(previous: string, next: string): string {
   });
 
   const source = new Map<string, TextItem>();
-  let pi = 0;
-  let ni = 0;
-  for (const op of slideInsertionsLeft(diffSequences(prevChars, nextChars, 1000), nextChars)) {
-    if (op === "=") {
-      const from = prevRefs[pi];
-      const to = nextRefs[ni];
-      if (from && to) source.set(`${to.block}:${to.index}`, from);
-      pi++;
-      ni++;
-    } else if (op === "-") pi++;
-    else ni++;
-  }
+  const record = (
+    ops: readonly EditOp[],
+    fromRefs: ReadonlyArray<TextItem | null>,
+    toRefs: ReadonlyArray<{ block: number; index: number } | null>
+  ) => {
+    let pi = 0;
+    let ni = 0;
+    for (const op of ops) {
+      if (op === "=") {
+        const from = fromRefs[pi];
+        const to = toRefs[ni];
+        if (from && to) source.set(`${to.block}:${to.index}`, from);
+        pi++;
+        ni++;
+      } else if (op === "-") pi++;
+      else ni++;
+    }
+  };
 
   const byId = new Map<string, Block>();
   for (const block of before) if (block.id) byId.set(block.id, block);
+
+  const whole = trimmedDiff(prevChars, nextChars, CARRY_BUDGET);
+  if (whole.exact) {
+    record(slideInsertionsLeft(whole.ops, nextChars), prevRefs, nextRefs);
+  } else {
+    // Edits too far apart to align as one run (a big paste in one paragraph,
+    // a fix in another, a suggestion between them). Pair each paragraph with
+    // the one that kept its id instead, so a paragraph nobody rewrote keeps
+    // its marks rather than having the budget overflow wash them out.
+    after.forEach((block, b) => {
+      const was = block.id ? byId.get(block.id) : undefined;
+      if (!was?.items || !block.items) return;
+      const fromRefs = was.items.filter(isText);
+      const toRefs: Array<{ block: number; index: number }> = [];
+      const toChars: string[] = [];
+      block.items.forEach((item, index) => {
+        if (item.t !== "text") return;
+        toRefs.push({ block: b, index });
+        toChars.push(item.ch);
+      });
+      const ops = diffSequences(
+        fromRefs.map((item) => item.ch),
+        toChars,
+        CARRY_BUDGET
+      );
+      record(slideInsertionsLeft(ops, toChars), fromRefs, toRefs);
+    });
+  }
+
   const out = new Map<Block, string | null>();
 
   after.forEach((block, b) => {

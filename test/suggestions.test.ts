@@ -266,6 +266,24 @@ describe("plain-editor round trip (the phone)", () => {
     );
   });
 
+  it("keeps marks between two far-apart edits even past the diff budget", () => {
+    const before =
+      `<p data-block-id="a">Start.</p>` +
+      `<p data-block-id="b">She ${del("s1", "walked")}${ins("s1", "ambled")} home.</p>` +
+      `<p data-block-id="c">End.</p>`;
+    const paste = "z".repeat(1500);
+    const edited =
+      `<p data-block-id="a">Start. ${paste}</p>` +
+      `<p data-block-id="b">She <s>walked</s><u>ambled</u> home.</p>` +
+      `<p data-block-id="c">End!</p>`;
+    const carried = carrySuggestions(before, edited);
+    expect(carried).toContain(`<p data-block-id="b">She ${del("s1", "walked")}${ins("s1", "ambled")} home.</p>`);
+    expect(carried).toContain(`Start. ${paste}`);
+    expect(carried).toContain("End!");
+    expect(carried).not.toContain("<s>");
+    expect(carried).not.toContain("<u>");
+  });
+
   it("is a no-op when the previous document had no suggestions", () => {
     const html = "<p>Just <u>underlined</u>.</p>";
     expect(carrySuggestions("<p>Before.</p>", html)).toBe(html);

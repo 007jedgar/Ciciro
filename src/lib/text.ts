@@ -26,11 +26,17 @@ export function countWords(text: string): number {
 }
 
 /**
- * Words in a chapter's HTML. Pending suggestions count as not yet applied:
- * suggested deletions still count, suggested insertions do not.
+ * A chapter's prose as it stands, as plain text. Pending suggestions are not
+ * applied: suggested deletions are still there, suggested insertions are not,
+ * so a replacement never reads as both halves run together.
  */
+export function chapterPlainText(html: string): string {
+  return htmlToText(htmlWithoutSuggestions(html));
+}
+
+/** Words in a chapter's HTML, with pending suggestions left unapplied. */
 export function chapterWordCount(html: string): number {
-  return countWords(htmlToText(htmlWithoutSuggestions(html)));
+  return countWords(chapterPlainText(html));
 }
 
 /** True when TipTap HTML has no prose (empty `<p></p>` counts as empty). */
