@@ -2050,9 +2050,16 @@ textarea {
   min-width: 0;
   color: var(--ink-soft);
 }
+.read-aloud label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .read-aloud select {
+  width: auto;
   max-width: 220px;
   font-size: 12px;
+  padding: 4px 8px;
 }
 .ProseMirror .reading-aloud {
   background: var(--accent-soft);
