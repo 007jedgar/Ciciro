@@ -610,3 +610,64 @@ export function LifebuoyIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+/** A magnifying glass: find and replace. */
+export function SearchIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="11" cy="11" r="6.5" fill="none" stroke={color} strokeWidth={2} />
+      <Line x1="16" y1="16" x2="20.5" y2="20.5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** Three indented lines: the outline. */
+export function OutlineIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Line x1="5" y1="6" x2="19" y2="6" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="9" y1="12" x2="19" y2="12" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="9" y1="18" x2="19" y2="18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** A stopwatch: the writing sprint. */
+export function TimerIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="12" cy="13.5" r="7" fill="none" stroke={color} strokeWidth={2} />
+      <Line x1="12" y1="13.5" x2="12" y2="9.5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="9.5" y1="3.5" x2="14.5" y2="3.5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** An arrow into a tray: bring a file in. */
+export function ImportIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M12 4v11M7.5 10.5L12 15l4.5-4.5" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 19h14" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** An arrow out of a tray: send a copy out. */
+export function ExportIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 19h14" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** A speech bubble: reader comments. */
+export function CommentIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+    </Svg>
+  );
+}
