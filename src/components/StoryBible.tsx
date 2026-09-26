@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import DrawerHead from "@/components/DrawerHead";
 
 type Entry = { path: string; summary: string };
 
@@ -67,12 +68,7 @@ export default function StoryBible({ projectId, onClose }: Props) {
     <>
       <div className="drawer-overlay" onClick={onClose} />
       <div className="drawer">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>Story Bible</h2>
-          <button className="btn ghost small" onClick={onClose}>
-            Close
-          </button>
-        </div>
+        <DrawerHead title="Story Bible" onClose={onClose} />
         <p style={{ color: "var(--ink-soft)", fontSize: 12, marginTop: 0 }}>
           Markdown files on disk. The editor reads these to plan and writes decisions
           back to them.

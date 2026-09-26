@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { writingDayKey } from "@/lib/writing-day";
+import DrawerHead from "@/components/DrawerHead";
 import {
   formatActiveTime,
   formatWeekRange,
@@ -9,7 +10,14 @@ import {
   type WeeklyReview as Review,
 } from "@/lib/weekly-review-view";
 
-type Props = { projectId: string };
+type Props = {
+  projectId: string;
+  // Controlled mode: the parent owns the open state and renders the trigger
+  // itself (the top bar's More menu), so only the drawer is rendered here.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onDueChange?: (due: boolean) => void;
+};
 
 function ReviewBody({ review }: { review: Review }) {
   const { stats, content } = review;
@@ -78,9 +86,18 @@ function ReviewBody({ review }: { review: Review }) {
 // The weekly review: how the week went, what is still dangling in the story and
 // what to write next. The button carries a dot once a new review is due; opening
 // the panel shows the newest review and the past ones to reread.
-export default function WeeklyReview({ projectId }: Props) {
+export default function WeeklyReview({ projectId, open: openProp, onOpenChange, onDueChange }: Props) {
   const base = `/api/projects/${projectId}/weekly-reviews`;
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!controlled) setOpenState(next);
+      onOpenChange?.(next);
+    },
+    [controlled, onOpenChange]
+  );
   const [reviews, setReviews] = useState<Review[] | null>(null);
   const [due, setDue] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -102,6 +119,14 @@ export default function WeeklyReview({ projectId }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (controlled && open) void load();
+  }, [controlled, open, load]);
+
+  useEffect(() => {
+    onDueChange?.(due);
+  }, [due, onDueChange]);
 
   async function generate() {
     setBusy(true);
@@ -143,27 +168,24 @@ export default function WeeklyReview({ projectId }: Props) {
 
   return (
     <>
-      <button
-        className="btn small"
-        onClick={() => {
-          setOpen(true);
-          void load();
-        }}
-        title="How your week went, loose ends, and what to write next"
-      >
-        Weekly review
-        {due && <span className="weekly-dot" aria-label="A new review is ready to write" />}
-      </button>
+      {!controlled && (
+        <button
+          className="btn small"
+          onClick={() => {
+            setOpen(true);
+            void load();
+          }}
+          title="How your week went, loose ends, and what to write next"
+        >
+          Weekly review
+          {due && <span className="weekly-dot" aria-label="A new review is ready to write" />}
+        </button>
+      )}
       {open && (
         <>
           <div className="drawer-overlay" onClick={() => setOpen(false)} />
           <div className="drawer weekly-drawer" role="dialog" aria-label="Weekly review">
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <h2>Weekly review</h2>
-              <button className="btn ghost small" onClick={() => setOpen(false)}>
-                Close
-              </button>
-            </div>
+            <DrawerHead title="Weekly review" onClose={() => setOpen(false)} />
             <p className="scratch-hint">
               Ciciro looks back over your week: what you wrote, what is still open in the story,
               and what to write next. Past reviews are kept here.

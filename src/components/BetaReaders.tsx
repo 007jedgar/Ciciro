@@ -18,6 +18,7 @@ import {
   type ShareCommentView,
   type ShareLinkSummary,
 } from "@/lib/share-view";
+import DrawerHead from "@/components/DrawerHead";
 
 export type BetaReadersTab = "comments" | "links";
 
@@ -82,12 +83,7 @@ export default function BetaReaders({
     <>
       <div className="drawer-overlay" onClick={onClose} />
       <div className="drawer beta-readers" role="dialog" aria-label="Beta readers">
-        <div className="beta-head">
-          <h2>Beta readers</h2>
-          <button className="btn ghost small" onClick={onClose}>
-            Close
-          </button>
-        </div>
+        <DrawerHead title="Beta readers" onClose={onClose} />
         <div className="beta-tabs" role="tablist">
           <button
             role="tab"

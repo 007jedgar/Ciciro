@@ -8,6 +8,7 @@ import {
   readNdjsonStream,
   waitForOnline,
 } from "@/lib/ndjson-stream";
+import DrawerHead from "@/components/DrawerHead";
 
 type Props = {
   projectId: string;
@@ -170,13 +171,8 @@ export default function AutoWrite({
   return (
     <>
       <div className="drawer-overlay" onClick={running ? undefined : onClose} />
-      <div className="drawer" style={{ width: 560 }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>Auto-draft</h2>
-          <button className="btn ghost small" onClick={onClose} disabled={running}>
-            Close
-          </button>
-        </div>
+      <div className="drawer">
+        <DrawerHead title="Auto-draft" onClose={onClose} closeDisabled={running} />
         <p style={{ color: "var(--ink-soft)", fontSize: 12, marginTop: 0 }}>
           Ciciro plans <strong>{chapterTitle}</strong> into beats, drafts each with the
           writer, edits it to final against canon, and appends it. You can stop anytime.

@@ -8,6 +8,7 @@ import {
   scratchNoteTitle,
   type ScratchNote,
 } from "@/lib/scratch-view";
+import DrawerHead from "@/components/DrawerHead";
 
 type Props = {
   projectId: string;
@@ -399,12 +400,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
     <>
       <div className="drawer-overlay" onClick={close} />
       <div className="drawer scratchpad" role="dialog" aria-label="Scratchpad">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>Scratchpad</h2>
-          <button className="btn ghost small" onClick={close}>
-            Close
-          </button>
-        </div>
+        <DrawerHead title="Scratchpad" onClose={close} />
         <p className="scratch-hint">
           Notes and research for this manuscript. They stay out of your word counts and
           exports, and sync to your phone.

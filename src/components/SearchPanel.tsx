@@ -8,6 +8,7 @@ import {
   type SearchMatch,
   type SearchResult,
 } from "@/lib/search-client";
+import DrawerHead from "@/components/DrawerHead";
 
 type Props = {
   projectId: string;
@@ -131,13 +132,8 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
   return (
     <>
       <div className="drawer-overlay" onClick={onClose} />
-      <div className="drawer search-panel" style={{ width: 460 }} role="dialog" aria-label="Search manuscript">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>Find and replace</h2>
-          <button className="btn ghost small" onClick={onClose}>
-            Close
-          </button>
-        </div>
+      <div className="drawer search-panel" role="dialog" aria-label="Search manuscript">
+        <DrawerHead title="Find and replace" onClose={onClose} />
 
         <div className="search-fields">
           <input

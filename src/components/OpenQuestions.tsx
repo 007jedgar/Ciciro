@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { OpenQuestion } from "@/lib/types";
+import DrawerHead from "@/components/DrawerHead";
 
 type Props = {
   projectId: string;
@@ -36,13 +37,8 @@ export default function OpenQuestions({ projectId, onClose, onAnswer }: Props) {
   return (
     <>
       <div className="drawer-overlay" onClick={onClose} />
-      <div className="drawer" style={{ width: 500 }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <h2>Open questions</h2>
-          <button className="btn ghost small" onClick={onClose}>
-            Close
-          </button>
-        </div>
+      <div className="drawer">
+        <DrawerHead title="Open questions" onClose={onClose} />
         <p style={{ color: "var(--ink-soft)", fontSize: 12, marginTop: 0 }}>
           Forks the editor answered provisionally so it could keep writing. Answer one
           and it reconciles the manuscript - correcting the prose only if your answer
