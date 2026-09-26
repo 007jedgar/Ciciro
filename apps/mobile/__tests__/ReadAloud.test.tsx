@@ -76,4 +76,17 @@ describe("ReadAloud", () => {
     fireEvent.press(screen.getByLabelText("Ava (en-US)"));
     expect(calls[calls.length - 1]).toMatchObject({ voice: "v1" });
   });
+
+  it("keeps the controls and the text in one scrolling page", async () => {
+    const { engine } = fakeEngine();
+    const { UNSAFE_getAllByType } = render(
+      <ReadAloud chapterId="c1" html={html} selection={null} engine={engine} loadVoiceList={async () => []} />
+    );
+    await act(async () => {});
+    const { ScrollView } = require("react-native");
+    const scrolls = UNSAFE_getAllByType(ScrollView);
+    expect(scrolls).toHaveLength(1);
+    expect(scrolls[0].findByProps({ accessibilityLabel: "Play" })).toBeTruthy();
+    expect(scrolls[0].findByProps({ children: "Three." })).toBeTruthy();
+  });
 });

@@ -1,5 +1,6 @@
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { Text, View } from "react-native";
+import Animated, { Easing, FadeInDown, FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../components/AppHeader";
 import { ReadAloud } from "../../../components/ReadAloud";
@@ -9,6 +10,7 @@ import { blocksPlainText } from "../../../lib/read-aloud-text";
 import { useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
+import { useReduceMotion } from "../../../lib/use-reduce-motion";
 import { useStackBack } from "../../../lib/use-stack-back";
 
 function ListenBody() {
@@ -57,6 +59,7 @@ export default function ListenScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
+  const reduceMotion = useReduceMotion();
   const projectId = typeof id === "string" ? id : "";
 
   if (!ready) return null;
@@ -64,13 +67,25 @@ export default function ListenScreen() {
   if (!projectId) return <Redirect href="/manuscripts" />;
 
   return (
-    <View style={layout.screen}>
+    // The route is presented without a native transition, so the screen rises
+    // in itself; a plain fade when motion is reduced.
+    <Animated.View
+      style={layout.screen}
+      entering={
+        reduceMotion
+          ? FadeIn.duration(140)
+          : FadeInDown.duration(320).easing(Easing.bezier(0.16, 1, 0.3, 1)).withInitialValues({
+              opacity: 0,
+              transform: [{ translateY: 32 }],
+            })
+      }
+    >
       <AppHeader
         title={t("readAloud.title")}
         onBack={() => backOr(`/project/${projectId}/manuscript`)}
         backAccessibilityLabel={t("bible.backToManuscript")}
       />
       <ListenBody />
-    </View>
+    </Animated.View>
   );
 }
