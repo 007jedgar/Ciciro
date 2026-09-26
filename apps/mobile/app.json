@@ -46,6 +46,13 @@
           "color": "#b4552d"
         }
       ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Ciciro uses the microphone so you can dictate your writing.",
+          "speechRecognitionPermission": "Ciciro uses speech recognition to turn what you say into text in your chapter."
+        }
+      ],
       "./plugins/with-ios-scene-lifecycle",
       "expo-sharing",
       [

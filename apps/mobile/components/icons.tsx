@@ -544,3 +544,19 @@ export function VersionHistoryIcon({ color, size = 18 }: IconProps) {
     </Svg>
   );
 }
+
+export function MicIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke={color} strokeWidth={2} />
+      <Path
+        d="M5 11a7 7 0 0 0 14 0M12 18v3"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

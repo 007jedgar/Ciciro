@@ -284,6 +284,11 @@ const hi: Translations = {
     formatList: "सूची",
     formatParagraph: "अनुच्छेद",
     formatPress: "अनुच्छेद फ़ॉर्मैट",
+    dictate: "बोलकर लिखें",
+    dictateStop: "बोलकर लिखना रोकें",
+    dictateListening: "सुन रहे हैं...",
+    dictateDenied: "माइक्रोफ़ोन या वाक् पहचान की अनुमति बंद है। बोलकर लिखने के लिए इसे सेटिंग्स में चालू करें।",
+    dictateUnavailable: "इस डिवाइस पर बोलकर लिखना उपलब्ध नहीं है।",
   },
   ciciroTab: {
     title: "Ciciro",

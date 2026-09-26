@@ -16,8 +16,15 @@ describe("getSpeechRecognition", () => {
   it("prefers the standard name and falls back to the webkit prefix", () => {
     class Std {}
     class Webkit {}
-    expect(getSpeechRecognition({ SpeechRecognition: Std, webkitSpeechRecognition: Webkit })).toBe(Std);
-    expect(getSpeechRecognition({ webkitSpeechRecognition: Webkit })).toBe(Webkit);
+    expect(
+      getSpeechRecognition({
+        SpeechRecognition: Std,
+        webkitSpeechRecognition: Webkit,
+      }),
+    ).toBe(Std);
+    expect(getSpeechRecognition({ webkitSpeechRecognition: Webkit })).toBe(
+      Webkit,
+    );
   });
 });
 
@@ -32,22 +39,28 @@ describe("isFatalSpeechError", () => {
 
 describe("applyDictationCommands", () => {
   it("turns spoken layout words into breaks in English", () => {
-    expect(applyDictationCommands("she left new paragraph he stayed", "en-US")).toBe(
-      "she left\n\nhe stayed"
-    );
+    expect(
+      applyDictationCommands("she left new paragraph he stayed", "en-US"),
+    ).toBe("she left\n\nhe stayed");
     expect(applyDictationCommands("one new line two", "en")).toBe("one\ntwo");
-    expect(applyDictationCommands("is that so question mark", "en-GB")).toBe("is that so?");
+    expect(applyDictationCommands("is that so question mark", "en-GB")).toBe(
+      "is that so?",
+    );
   });
 
   it("leaves other languages alone", () => {
-    expect(applyDictationCommands("new paragraph", "fr-FR")).toBe("new paragraph");
+    expect(applyDictationCommands("new paragraph", "fr-FR")).toBe(
+      "new paragraph",
+    );
   });
 });
 
 describe("prepareDictation", () => {
   it("capitalizes at the start of a paragraph and after a sentence end", () => {
     expect(prepareDictation("the door opened", "")).toBe("The door opened");
-    expect(prepareDictation("then it closed", "It opened.")).toBe(" Then it closed");
+    expect(prepareDictation("then it closed", "It opened.")).toBe(
+      " Then it closed",
+    );
   });
 
   it("joins mid-sentence with a single space and no capital", () => {
@@ -59,12 +72,26 @@ describe("prepareDictation", () => {
     expect(prepareDictation("? really", "Who", "en")).toBe("? really");
   });
 
+  it("capitalizes after a spoken paragraph break mid-phrase", () => {
+    expect(prepareDictation("done new paragraph next", "It was")).toBe(
+      " done\n\nNext",
+    );
+  });
+
+  it("capitalizes after a spoken paragraph break mid-phrase", () => {
+    expect(prepareDictation("done new paragraph next", "It was")).toBe(
+      " done\n\nNext",
+    );
+  });
+
   it("returns an empty string for silence", () => {
     expect(prepareDictation("   ", "abc")).toBe("");
   });
 
   it("starts a spoken paragraph with a capital", () => {
-    expect(prepareDictation("new paragraph next morning", "It ended")).toBe("\n\nNext morning");
+    expect(prepareDictation("new paragraph next morning", "It ended")).toBe(
+      "\n\nNext morning",
+    );
   });
 });
 

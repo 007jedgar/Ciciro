@@ -37,7 +37,9 @@ import {
 } from "../../../../lib/editor-session";
 import {
   blockAtPlainOffset,
+  fromEnrichedHtml,
   opsFromEnrichedHtml,
+  restampCiciroHtml,
   toEnrichedHtml,
 } from "../../../../lib/enriched-html";
 import {
@@ -55,6 +57,8 @@ import {
   selectPopupSpan,
   type GrammarSuggestion,
 } from "../../../../lib/grammar";
+import { dictationLocale, insertDictation } from "../../../../lib/dictation";
+import { useDictation, type DictationError } from "../../../../lib/speech";
 import { useProject } from "../../../../lib/project";
 import { useFocusMode } from "../../../../lib/focus-mode";
 import { blockHasSuggestions } from "../../../../lib/suggestion-review";
@@ -111,7 +115,7 @@ export default function ManuscriptScreen() {
     recordReadingPosition,
     setEditingBlockIds,
   } = useProject();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
   const reduceMotion = useReduceMotion();
   const clearance = useTabBarClearance();
@@ -459,6 +463,50 @@ export default function ManuscriptScreen() {
     editorRef.current = ref;
   }, []);
 
+  // Dictated phrases land one at a time: each one reads the editor's live HTML,
+  // splices the phrase in at the caret and writes it back, so a second phrase
+  // arriving mid-write waits its turn instead of overwriting the first.
+  const dictationQueue = useRef<Promise<void>>(Promise.resolve());
+  const [dictationNotice, setDictationNotice] = useState<DictationError | null>(null);
+  const onDictationPhrase = useCallback(
+    (text: string) => {
+      const lang = dictationLocale(i18n.language);
+      dictationQueue.current = dictationQueue.current.then(async () => {
+        const current = chapterRef.current;
+        const editor = editorRef.current;
+        if (!current || !editor) return;
+        const live = restampCiciroHtml(current.content, fromEnrichedHtml(await editor.getHTML()));
+        const result = insertDictation(live, caretRef.current.docOffset, text, lang);
+        if (!result) return;
+        editor.setValue(toEnrichedHtml(result.html));
+        editor.setSelection(result.caret, result.caret);
+        caretRef.current = { ...caretRef.current, docOffset: result.caret };
+        markTyping();
+        scheduleFlush();
+      });
+    },
+    [i18n.language, markTyping, scheduleFlush]
+  );
+  const dictation = useDictation({
+    lang: dictationLocale(i18n.language),
+    onPhrase: onDictationPhrase,
+    onError: setDictationNotice,
+  });
+  const stopDictation = dictation.stop;
+  useEffect(() => {
+    stopDictation();
+    setDictationNotice(null);
+  }, [chapter?.id, stopDictation]);
+  const dictationBar = dictation.available
+    ? {
+        active: dictation.listening,
+        onToggle: () => {
+          setDictationNotice(null);
+          dictation.toggle();
+        },
+      }
+    : undefined;
+
   const popupSpan = grammarSuggestion
     ? selectPopupSpan(
         grammarRef.current?.draftOf(grammarSuggestion.blockId) ?? grammarSuggestion.text,
@@ -523,6 +571,7 @@ export default function ManuscriptScreen() {
               disabled={!focused}
               onToggleMark={onToggleMark}
               onSetKind={onSetKind}
+              dictation={dictationBar}
             />
           </Animated.View>
         </View>
@@ -585,6 +634,31 @@ export default function ManuscriptScreen() {
                   />
                 </View>
               ) : null}
+              {dictation.listening || dictationNotice ? (
+                <Text
+                  testID="dictation-status"
+                  accessibilityLiveRegion="polite"
+                  numberOfLines={2}
+                  style={{
+                    fontFamily: fonts.sans,
+                    fontSize: 13,
+                    color: dictationNotice ? colors.danger : colors.inkSoft,
+                    backgroundColor: colors.bg,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 10,
+                    overflow: "hidden",
+                  }}
+                >
+                  {dictationNotice
+                    ? t(
+                        dictationNotice === "denied"
+                          ? "manuscript.dictateDenied"
+                          : "manuscript.dictateUnavailable"
+                      )
+                    : dictation.interim || t("manuscript.dictateListening")}
+                </Text>
+              ) : null}
               {formatOverlay.press ? (
                 <FormatPressMenu kind={targetKind} onSetKind={onSetKind} />
               ) : null}
@@ -603,6 +677,7 @@ export default function ManuscriptScreen() {
               disabled={!focused}
               onToggleMark={onToggleMark}
               onSetKind={onSetKind}
+              dictation={dictationBar}
             />
           </View>
         ) : null}

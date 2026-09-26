@@ -10,7 +10,9 @@ cp .env.example .env    # set EXPO_PUBLIC_API_URL to your hosted origin
 npx expo run:ios        # or: npx expo run:android
 ```
 
-From the repo root: `npm run mobile:start` still starts Metro. Native modules (op-sqlite, MMKV, the native editor) need a development build, not Expo Go: `npx expo run:ios` / `npx expo run:android`, or `npx expo start --dev-client` against an existing binary.
+From the repo root: `npm run mobile:start` still starts Metro. Native modules (op-sqlite, MMKV, the native editor, `expo-speech-recognition` for dictation) need a development build, not Expo Go: `npx expo run:ios` / `npx expo run:android`, or `npx expo start --dev-client` against an existing binary.
+
+Dictation uses `expo-speech-recognition`, configured by its plugin in `app.json` (iOS microphone and speech recognition usage strings, Android `RECORD_AUDIO`). After pulling this change, rebuild the dev client (`npx expo prebuild` or `npx expo run:ios`); an existing binary will not have the module and simply hides the microphone button.
 
 Point `EXPO_PUBLIC_API_URL` at the deployed app, not at Anthropic. Account and secret setup is in [docs/setup-accounts.md](../../docs/setup-accounts.md).
 

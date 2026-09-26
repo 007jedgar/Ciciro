@@ -8,8 +8,12 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { alpha } from "./Glass";
 import { FORMAT_BAR_HEIGHT } from "../lib/format-chrome";
+import { MicIcon } from "./icons";
 
-export type FormatBlockKind = Extract<BlockKind, "paragraph" | "heading" | "quote" | "list_item">;
+export type FormatBlockKind = Extract<
+  BlockKind,
+  "paragraph" | "heading" | "quote" | "list_item"
+>;
 
 type MarkBtn = {
   id: BlockMark;
@@ -30,6 +34,7 @@ export function FormatBar({
   disabled = false,
   onToggleMark,
   onSetKind,
+  dictation,
   testID = "format-bar",
 }: {
   marks?: BlockMarks;
@@ -38,6 +43,8 @@ export function FormatBar({
   disabled?: boolean;
   onToggleMark: (mark: BlockMark) => void;
   onSetKind: (kind: FormatBlockKind) => void;
+  /** Shows a microphone button when set. Omit where dictation is unavailable. */
+  dictation?: { active: boolean; onToggle: () => void };
   testID?: string;
 }) {
   const { t } = useTranslation();
@@ -70,8 +77,14 @@ export function FormatBar({
       style={[
         styles.row,
         placement === "header"
-          ? { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth }
-          : { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth },
+          ? {
+              borderBottomColor: colors.line,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+            }
+          : {
+              borderTopColor: colors.line,
+              borderTopWidth: StyleSheet.hairlineWidth,
+            },
         { backgroundColor: alpha(colors.bg, 0.92) },
       ]}
     >
@@ -98,9 +111,48 @@ export function FormatBar({
           active={kind === btn.id}
           disabled={disabled}
           colors={colors}
-          onPress={() => press(() => onSetKind(kind === btn.id ? "paragraph" : btn.id))}
+          onPress={() =>
+            press(() => onSetKind(kind === btn.id ? "paragraph" : btn.id))
+          }
         />
       ))}
+      {dictation ? (
+        <>
+          <View style={[styles.gap, { backgroundColor: colors.line }]} />
+          <Pressable
+            testID="dictate-button"
+            accessibilityRole="button"
+            accessibilityLabel={
+              dictation.active
+                ? t("manuscript.dictateStop")
+                : t("manuscript.dictate")
+            }
+            accessibilityState={{
+              selected: dictation.active,
+              disabled: disabled && !dictation.active,
+            }}
+            disabled={disabled && !dictation.active}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+                () => {},
+              );
+              dictation.onToggle();
+            }}
+            style={({ pressed }) => [
+              styles.mark,
+              {
+                backgroundColor: dictation.active
+                  ? colors.accentSoft
+                  : "transparent",
+                opacity:
+                  disabled && !dictation.active ? 0.4 : pressed ? 0.65 : 1,
+              },
+            ]}
+          >
+            <MicIcon color={dictation.active ? colors.accent : colors.ink} />
+          </Pressable>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -152,7 +204,11 @@ export function FormatMark({
           fontSize: compact ? 14 : 16,
           fontWeight: "600",
           fontStyle: italic ? "italic" : "normal",
-          textDecorationLine: strike ? "line-through" : underline ? "underline" : "none",
+          textDecorationLine: strike
+            ? "line-through"
+            : underline
+              ? "underline"
+              : "none",
           color: active ? colors.accent : colors.ink,
         }}
       >

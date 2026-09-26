@@ -285,6 +285,11 @@ const es: Translations = {
     formatList: "Lista",
     formatParagraph: "Párrafo",
     formatPress: "Formato del párrafo",
+    dictate: "Dictar",
+    dictateStop: "Dejar de dictar",
+    dictateListening: "Escuchando...",
+    dictateDenied: "El acceso al micrófono o al reconocimiento de voz está desactivado. Actívalo en Ajustes para dictar.",
+    dictateUnavailable: "El dictado no está disponible en este dispositivo.",
   },
   ciciroTab: {
     title: "Ciciro",

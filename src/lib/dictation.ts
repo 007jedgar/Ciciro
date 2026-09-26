@@ -99,15 +99,12 @@ export function prepareDictation(
   if (!text) return "";
   const startsSentence =
     before.trim() === "" || /[.!?…]["'”’)]*\s*$/.test(before);
-  const afterBreak = text.startsWith("\n");
-  if ((startsSentence || afterBreak) && /^[a-z]/.test(text)) {
+  if (startsSentence && /^[a-z]/.test(text))
     text = text[0].toUpperCase() + text.slice(1);
-  } else if (/^\n+[a-z]/.test(text)) {
-    text = text.replace(
-      /^(\n+)([a-z])/,
-      (_m, nl: string, c: string) => nl + c.toUpperCase(),
-    );
-  }
+  text = text.replace(
+    /(\n+)([a-z])/g,
+    (_m, nl: string, c: string) => nl + c.toUpperCase(),
+  );
   const needsSpace =
     before !== "" &&
     !/\s$/.test(before) &&
