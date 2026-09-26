@@ -17,12 +17,12 @@ export type WeeklyReviewChapter = {
 };
 
 export type WeeklyReviewStats = {
-  /** Words written across the author's writing days in the window. */
+  /** Account-wide: words written across all the author's manuscripts in the window. */
   words: number;
   daysWritten: number;
   activeMs: number;
   days: { date: string; words: number }[];
-  /** Chapters edited during the window, most recent first. */
+  /** This manuscript's chapters with content edits in the window, most recent first. */
   chaptersTouched: WeeklyReviewChapter[];
   totalWords: number;
   chapterCount: number;

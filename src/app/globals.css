@@ -2646,8 +2646,12 @@ textarea {
   font-size: 15px;
   line-height: 1.6;
 }
-.weekly-review h3,
-.drawer h3 {
+.weekly-scope {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+}
+.weekly-drawer h3 {
   font-size: 13px;
   margin: 16px 0 6px;
 }

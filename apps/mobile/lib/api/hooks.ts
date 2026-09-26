@@ -2,6 +2,7 @@ import { useMutation, useQuery, type UseQueryOptions } from "@tanstack/react-que
 import { queryKeys } from "./keys";
 import { queryClient } from "./query";
 import { ciciro } from "./resources";
+import { reviewDue } from "../weekly-review";
 import type {
   BibleFile,
   BibleNewCharacterRequest,
@@ -1099,10 +1100,10 @@ export function useDeleteWeeklyReviewMutation() {
     onSuccess: (_ok, vars) =>
       queryClient.setQueryData<WeeklyReviewListResponse>(
         queryKeys.weeklyReviews(vars.projectId),
-        (data) => ({
-          due: data?.due ?? false,
-          reviews: (data?.reviews ?? []).filter((r) => r.id !== vars.reviewId),
-        })
+        (data) => {
+          const reviews = (data?.reviews ?? []).filter((r) => r.id !== vars.reviewId);
+          return { due: reviewDue(reviews), reviews };
+        }
       ),
   });
 }

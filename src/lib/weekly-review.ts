@@ -24,8 +24,9 @@ import {
   writingDayKeysInRange,
 } from "@/lib/writing-day";
 
-// A weekly review is one row per generation: the numbers (from writing-day
-// records, chapter edits and the story bible) plus Ciciro's read on them.
+// A weekly review is one row per generation: the numbers (account-wide
+// writing-day records, this manuscript's chapter edits and story bible) plus
+// Ciciro's read on them.
 // Reviews are only ever generated on request; the apps surface the newest
 // once a week and keep the rest to reread.
 
@@ -99,13 +100,17 @@ export function parseWindow(body: unknown): { from: string; to: string } {
   return { from: shiftWritingDayKey(to, -(REVIEW_DAYS - 1)), to };
 }
 
+function localDayStart(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export async function gatherStats(
   projectId: string,
   user: PublicUser | null,
   window: { from: string; to: string }
 ): Promise<WeeklyReviewStats> {
-  const since = new Date(Date.now() - REVIEW_DAYS * 24 * 60 * 60 * 1000);
-  const [dayRows, chapters, openQuestions, openThreads] = await Promise.all([
+  const [dayRows, chapters, edits, openQuestions, openThreads] = await Promise.all([
     user
       ? prisma.writingDay.findMany({
           where: { userId: user.id, date: { gte: window.from, lte: window.to } },
@@ -114,7 +119,18 @@ export async function gatherStats(
     prisma.chapter.findMany({
       where: { projectId, ...visibleChapterWhere },
       orderBy: { order: "asc" },
-      select: { id: true, title: true, wordCount: true, updatedAt: true },
+      select: { id: true, title: true, wordCount: true },
+    }),
+    prisma.chapterOp.groupBy({
+      by: ["chapterId"],
+      where: {
+        projectId,
+        createdAt: {
+          gte: localDayStart(window.from),
+          lt: localDayStart(shiftWritingDayKey(window.to, 1)),
+        },
+      },
+      _max: { createdAt: true },
     }),
     prisma.openQuestion.count({ where: { projectId, status: "open" } }),
     prisma.plotPoint.count({ where: { projectId, status: "open" } }),
@@ -124,9 +140,10 @@ export async function gatherStats(
     date,
     words: byDate.get(date)?.words ?? 0,
   }));
+  const lastEdit = new Map(edits.map((e) => [e.chapterId, e._max.createdAt?.getTime() ?? 0]));
   const touched = chapters
-    .filter((c) => c.updatedAt >= since)
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    .filter((c) => lastEdit.has(c.id))
+    .sort((a, b) => (lastEdit.get(b.id) ?? 0) - (lastEdit.get(a.id) ?? 0));
   return {
     words: days.reduce((sum, d) => sum + d.words, 0),
     daysWritten: days.filter((d) => d.words > 0).length,
@@ -168,12 +185,16 @@ async function reviewInput(
     `Manuscript: ${project?.title ?? "Untitled"}${project?.genre ? ` (${project.genre})` : ""}`,
     project?.logline ? `Logline: ${project.logline}` : "",
     `Week: ${window.from} to ${window.to}`,
-    `Words written this week: ${stats.words} across ${stats.daysWritten} of ${REVIEW_DAYS} days`,
-    `Per day: ${stats.days.map((d) => `${d.date}=${d.words}`).join(", ")}`,
+    "",
+    "This manuscript:",
     `Manuscript total: ${stats.totalWords} words in ${stats.chapterCount} chapters`,
-    `Chapters touched: ${
+    `Chapters edited in this manuscript this week: ${
       stats.chaptersTouched.map((c) => `${c.title} (${c.wordCount} words)`).join("; ") || "none"
     }`,
+    "",
+    "Account-wide writing (all of the author's manuscripts together, not this manuscript's own):",
+    `Account-wide words written this week: ${stats.words} across ${stats.daysWritten} of ${REVIEW_DAYS} days`,
+    `Account-wide words per day: ${stats.days.map((d) => `${d.date}=${d.words}`).join(", ")}`,
     "",
     "Open questions:",
     ...(questions.length
@@ -196,12 +217,21 @@ async function reviewInput(
 
 async function askEditor(input: string): Promise<WeeklyReviewContent> {
   const anthropic = getAnthropic();
-  const res = await anthropic.messages.create({
-    model: DRAFTER_MODEL,
-    max_tokens: 1200,
-    system: WEEKLY_REVIEW_SYSTEM,
-    messages: [{ role: "user", content: input }],
-  });
+  let res: Anthropic.Message;
+  try {
+    res = await anthropic.messages.create({
+      model: DRAFTER_MODEL,
+      max_tokens: 1200,
+      system: WEEKLY_REVIEW_SYSTEM,
+      messages: [{ role: "user", content: input }],
+    });
+  } catch (err) {
+    const status = (err as { status?: unknown } | null)?.status;
+    if (status === 429 || status === 529 || (typeof status === "number" && status >= 500)) {
+      throw new AuthError("Ciciro is busy right now. Try the review again in a minute.", 503);
+    }
+    throw new AuthError("Ciciro couldn't reach its editor. Try the review again.", 502);
+  }
   const text = res.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
     .map((block) => block.text)

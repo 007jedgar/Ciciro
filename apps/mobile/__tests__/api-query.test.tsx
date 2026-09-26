@@ -11,6 +11,7 @@ import {
   useCreateChapterMutation,
   useCreateProjectMutation,
   useDeleteChapterMutation,
+  useDeleteWeeklyReviewMutation,
   useProjectQuery,
   useProjectsQuery,
   useReorderChaptersMutation,
@@ -100,6 +101,24 @@ describe("query hooks", () => {
 
     expect(queryClient.getQueryData(queryKeys.projects.detail("p1"))).toMatchObject({
       chapters: [{ id: "c1", title: "Chapter 1" }, { id: "c2", title: "Chapter 2", projectId: "p1" }],
+    });
+    unmount();
+  });
+
+  it("marks a weekly review due again after deleting the only recent one", async () => {
+    mockFetch(async () => jsonResponse({ ok: true }));
+    const old = { id: "r0", createdAt: "2020-01-01T00:00:00.000Z" };
+    const fresh = { id: "r1", createdAt: new Date().toISOString() };
+    queryClient.setQueryData(queryKeys.weeklyReviews("p1"), { due: false, reviews: [fresh, old] });
+
+    const { result, unmount } = renderHook(() => useDeleteWeeklyReviewMutation(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ projectId: "p1", reviewId: "r1" });
+    });
+
+    expect(queryClient.getQueryData(queryKeys.weeklyReviews("p1"))).toEqual({
+      due: true,
+      reviews: [old],
     });
     unmount();
   });
