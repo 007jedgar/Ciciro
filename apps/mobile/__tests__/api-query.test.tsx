@@ -13,6 +13,7 @@ import {
   useDeleteChapterMutation,
   useProjectQuery,
   useProjectsQuery,
+  useReorderChaptersMutation,
   useUnarchiveChapterMutation,
 } from "../lib/api";
 import { jsonResponse, mockFetch } from "./http";
@@ -226,6 +227,55 @@ describe("query hooks", () => {
       { id: "p1", title: "One", folderId: null },
     ]);
     expect(queryClient.getQueryData(queryKeys.folders.detail("f1"))).toMatchObject({ projects: [] });
+    unmount();
+  });
+
+  it("sends overlapping chapter reorders one at a time and keeps the latest order", async () => {
+    const pending: Array<{ ids: string[]; resolve: (res: Response) => void }> = [];
+    const fetchMock = mockFetch((_url, init) => {
+      const url = String(_url);
+      if (!url.includes("/api/chapters/reorder")) {
+        return Promise.resolve(jsonResponse({ id: "p1", title: "Book", chapters: [] }));
+      }
+      const { chapterIds } = JSON.parse(String(init?.body)) as { chapterIds: string[] };
+      return new Promise<Response>((resolve) => pending.push({ ids: chapterIds, resolve }));
+    });
+    const chapter = (id: string, order: number) => ({ id, title: id, order });
+    queryClient.setQueryData(queryKeys.projects.detail("p1"), {
+      id: "p1",
+      title: "Book",
+      chapters: [chapter("a", 0), chapter("b", 1), chapter("c", 2)],
+    });
+    const order = () =>
+      (queryClient.getQueryData(queryKeys.projects.detail("p1")) as { chapters: { id: string }[] })
+        .chapters.map((c) => c.id);
+
+    const { result, unmount } = renderHook(() => useReorderChaptersMutation(), { wrapper });
+    let first!: Promise<unknown>;
+    let second!: Promise<unknown>;
+    await act(async () => {
+      first = result.current.mutateAsync({ projectId: "p1", chapterIds: ["a", "c", "b"] });
+      second = result.current.mutateAsync({ projectId: "p1", chapterIds: ["c", "a", "b"] });
+    });
+    expect(order()).toEqual(["c", "a", "b"]);
+    await waitFor(() => expect(pending).toHaveLength(1));
+    expect(pending[0].ids).toEqual(["a", "c", "b"]);
+
+    await act(async () => {
+      pending[0].resolve(jsonResponse({ error: "nope" }, { status: 500 }));
+      await first.catch(() => undefined);
+    });
+    expect(order()).toEqual(["c", "a", "b"]);
+    await waitFor(() => expect(pending).toHaveLength(2));
+    expect(pending[1].ids).toEqual(["c", "a", "b"]);
+    const refetchesBefore = fetchMock.mock.calls.filter(([u]) => !String(u).includes("reorder")).length;
+    expect(refetchesBefore).toBe(0);
+
+    await act(async () => {
+      pending[1].resolve(jsonResponse([chapter("c", 0), chapter("a", 1), chapter("b", 2)]));
+      await second;
+    });
+    expect(order()).toEqual(["c", "a", "b"]);
     unmount();
   });
 

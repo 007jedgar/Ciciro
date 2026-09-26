@@ -657,21 +657,54 @@ export function usePatchChapterMutation() {
   });
 }
 
-/** Persist a new chapter order; the list reorders at once and rolls back on failure. */
+const reorderQueues = new Map<string, Promise<unknown>>();
+const reorderPending = new Map<string, number>();
+
+function enqueueReorder(projectId: string, chapterIds: string[]): Promise<Chapter[]> {
+  const previous = reorderQueues.get(projectId) ?? Promise.resolve();
+  const request = previous.then(() => ciciro.chapters.reorder({ projectId, chapterIds }));
+  const tail = request.catch(() => undefined);
+  reorderQueues.set(projectId, tail);
+  void tail.then(() => {
+    if (reorderQueues.get(projectId) === tail) reorderQueues.delete(projectId);
+  });
+  return request;
+}
+
+/**
+ * Persist a new chapter order. The list reorders at once; requests for one
+ * manuscript go out in order, and the last to settle syncs with the server.
+ */
 export function useReorderChaptersMutation() {
   return useMutation({
     mutationFn: ({ projectId, chapterIds }: { projectId: string; chapterIds: string[] }) =>
-      ciciro.chapters.reorder({ projectId, chapterIds }),
-    onMutate: async ({ projectId, chapterIds }) => {
+      enqueueReorder(projectId, chapterIds),
+    onMutate: ({ projectId, chapterIds }) => {
+      reorderPending.set(projectId, (reorderPending.get(projectId) ?? 0) + 1);
       const key = queryKeys.projects.detail(projectId);
-      const snapshot = await snapshotQueries([key]);
+      void queryClient.cancelQueries({ queryKey: key });
       queryClient.setQueryData<ProjectDetail>(key, (current) =>
         current ? { ...current, chapters: applyChapterOrder(current.chapters, chapterIds) } : current
       );
-      return { snapshot };
     },
-    onError: (_error, _vars, context) => restoreQueries(context?.snapshot),
-    onSettled: (_data, _error, { projectId }) => invalidateChapterLists(projectId),
+    onSuccess: (saved, { projectId }) => {
+      if (reorderPending.get(projectId) !== 1) return;
+      queryClient.setQueryData<ProjectDetail>(queryKeys.projects.detail(projectId), (current) =>
+        current
+          ? { ...current, chapters: applyChapterOrder(current.chapters, saved.map((c) => c.id)) }
+          : current
+      );
+    },
+    onSettled: (_data, _error, { projectId }) => {
+      const left = (reorderPending.get(projectId) ?? 1) - 1;
+      if (left > 0) {
+        reorderPending.set(projectId, left);
+        return;
+      }
+      reorderPending.delete(projectId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+      invalidateChapterLists(projectId);
+    },
   });
 }
 
