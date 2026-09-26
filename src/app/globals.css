@@ -734,6 +734,7 @@ textarea {
 .history-body {
   max-height: 60vh;
   overflow-y: auto;
+}
 
 /* ---------- Tracked changes ---------- */
 .editor-shell {
