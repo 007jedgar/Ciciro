@@ -1,3 +1,4 @@
+import { ManuscriptMeta } from "../../components/ManuscriptMeta";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -151,16 +152,7 @@ export default function FolderScreen() {
                 <View key={item.id} style={layout.card}>
                   <Pressable onPress={() => router.push(`/project/${item.id}/chapters`)}>
                     <Text style={layout.cardTitle}>{item.title || t("manuscripts.untitled")}</Text>
-                    <Text style={layout.cardMeta}>
-                      {[
-                        item.genre,
-                        item._count
-                          ? t("manuscripts.chapterCount", { count: item._count.chapters })
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || t("manuscripts.fallbackKind")}
-                    </Text>
+                    <ManuscriptMeta project={item} />
                   </Pressable>
                   <Pressable
                     onPress={() => remove(item.id)}
