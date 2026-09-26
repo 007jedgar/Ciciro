@@ -10,6 +10,7 @@
   --line: #d9cfbd;
   --accent: #b4552d;
   --accent-soft: #ecd9cc;
+  --on-accent: #fff;
   --draft: #2f6b4f;
   --draft-soft: #dcebe2;
   --del: #a83b3b;
@@ -29,6 +30,7 @@
   --line: #c5d0c4;
   --accent: #6b7a4e;
   --accent-soft: #d7e0c8;
+  --on-accent: #fff;
   --draft: #3a6e58;
   --draft-soft: #d5e8de;
   --del: #a54a42;
@@ -48,6 +50,7 @@
   --line: #3a332b;
   --accent: #d9754a;
   --accent-soft: #3a2a20;
+  --on-accent: var(--bg);
   --draft: #6fbf95;
   --draft-soft: #223229;
   --del: #e08080;
@@ -67,6 +70,7 @@
   --line: #463528;
   --accent: #c4a574;
   --accent-soft: #3a2e22;
+  --on-accent: var(--bg);
   --draft: #8fbf8a;
   --draft-soft: #243028;
   --del: #d08a7a;
@@ -86,6 +90,7 @@
   --line: #2f3b4a;
   --accent: #c9a27a;
   --accent-soft: #2f2a24;
+  --on-accent: var(--bg);
   --draft: #6db8a0;
   --draft-soft: #1c2e2a;
   --del: #d48888;
@@ -105,6 +110,7 @@
   --line: #3d3226;
   --accent: #e0a85c;
   --accent-soft: #3a2c18;
+  --on-accent: var(--bg);
   --draft: #9bc47a;
   --draft-soft: #24301c;
   --del: #e09078;
@@ -115,6 +121,24 @@
 }
 
 :root {
+  /* Spacing scale: use these instead of ad hoc pixel values. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  /* Smallest pointer target for an icon or stepper control. */
+  --control-min: 32px;
+  --drawer-width: 460px;
+  /* Motion tokens; pair every use with the reduce-motion guards. */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --sans: var(--font-sans), "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
   --serif: var(--font-serif), Literata, Georgia, "Times New Roman", serif;
   --mono: var(--font-mono), "JetBrains Mono", ui-monospace, Menlo, monospace;
@@ -183,7 +207,7 @@ button {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
-  padding: 7px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
   font-size: 13px;
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
@@ -206,7 +230,7 @@ button {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn.primary:hover {
   filter: brightness(1.05);
@@ -430,10 +454,155 @@ textarea {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
+.topbar .btn,
+.topbar .save-state {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .topbar .title {
   font-family: var(--serif);
   font-size: 16px;
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.more-menu-root {
+  position: relative;
+}
+.more-trigger {
+  position: relative;
+}
+.more-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.more-trigger .more-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+.more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: var(--space-1);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  z-index: 50;
+}
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-min);
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.more-item:hover,
+.more-item:focus-visible {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.count-chip {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--space-1);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-min);
+  height: var(--control-min);
+  padding: 0;
+  flex-shrink: 0;
+}
+.open-in-app {
+  display: none;
+}
+@media (max-width: 799px) {
+  .topbar .writing-meter-wrap {
+    display: none;
+  }
+}
+/* Trim the top bar's status text before its buttons run out of room. */
+@media (max-width: 1199px) {
+  .topbar .manuscript-pace,
+  .topbar .manuscript-pace-link {
+    display: none;
+  }
+}
+@media (max-width: 999px) {
+  .topbar {
+    gap: var(--space-2);
+  }
+  .topbar .writing-meter-week,
+  .topbar .save-state {
+    display: none;
+  }
+}
+/* Narrow desktop windows and tablets: give the page back the width the side
+   panels take. Below 700px the whole workspace gives way to .open-in-app. */
+@media (min-width: 700px) and (max-width: 999px) {
+  .workspace {
+    grid-template-columns: 200px minmax(0, 1fr) 0px min(var(--chat-width), 280px);
+  }
+}
+@media (max-width: 699px) {
+  .workspace {
+    display: none;
+  }
+  .open-in-app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    min-height: 100vh;
+    padding: var(--space-7) var(--space-4);
+    text-align: center;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .open-in-app h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 620;
+    text-wrap: balance;
+  }
+  .open-in-app p {
+    max-width: 320px;
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .open-in-app .btn {
+    min-width: 220px;
+    padding: var(--space-3) var(--space-4);
+    font-size: 15px;
+    text-decoration: none;
+  }
 }
 .topbar .spacer {
   flex: 1;
@@ -832,9 +1001,9 @@ textarea {
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   margin: -16px 0 20px;
-  padding: 6px 8px 6px 12px;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -850,9 +1019,14 @@ textarea {
   white-space: nowrap;
 }
 .suggestion-bar .btn.ghost[aria-label$="suggestion"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-min);
+  min-height: var(--control-min);
   font-size: 17px;
   line-height: 1;
-  padding: 1px 8px 3px;
+  padding: 0 var(--space-2);
 }
 .suggestion-bar-who {
   color: var(--ink-soft);
@@ -956,7 +1130,7 @@ textarea {
   background: var(--panel-2);
   color: var(--ink);
   font-size: 11.5px;
-  padding: 4px 9px;
+  padding: var(--space-1) var(--space-2);
   border-radius: 999px;
 }
 .chip:hover {
@@ -1212,13 +1386,24 @@ textarea {
   top: 0;
   right: 0;
   height: 100vh;
-  width: 460px;
+  width: var(--drawer-width);
   max-width: 92vw;
   background: var(--panel);
   border-left: 1px solid var(--line);
   z-index: 41;
   overflow-y: auto;
   padding: 20px;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.drawer-head h2 {
+  margin: 0;
+  font-family: var(--serif);
 }
 .drawer h2 {
   font-family: var(--serif);
@@ -1281,7 +1466,7 @@ textarea {
 .theme-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
 }
 .theme-swatch {
   width: 14px;
@@ -1331,7 +1516,7 @@ textarea {
   background: transparent;
   color: var(--ink);
   border-radius: 8px;
-  padding: 7px 8px;
+  padding: var(--space-2);
   font-size: 12.5px;
   text-align: left;
 }
@@ -2301,14 +2486,6 @@ textarea {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border-bottom: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
   cursor: pointer;
-}
-.beta-readers {
-  width: 480px;
-}
-.beta-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
 }
 .beta-tabs {
   display: flex;

@@ -44,7 +44,7 @@ async function settle() {
 
 function button(label: string): HTMLElement {
   const found = Array.from(host.querySelectorAll<HTMLElement>("button, [role=button]")).find(
-    (el) => el.textContent?.includes(label)
+    (el) => el.textContent?.includes(label) || el.getAttribute("aria-label") === label
   );
   if (!found) throw new Error(`No button "${label}"`);
   return found;

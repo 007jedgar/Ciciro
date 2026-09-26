@@ -2,6 +2,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import TopbarMore from "@/components/TopbarMore";
 import Editor, { type EditorHandle } from "@/components/Editor";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import ChatPanel, { type ChatHandle } from "@/components/ChatPanel";
@@ -83,6 +84,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [searchOpen, setSearchOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
   const [betaOpen, setBetaOpen] = useState(false);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [weeklyDue, setWeeklyDue] = useState(false);
   const [betaTab, setBetaTab] = useState<BetaReadersTab>("comments");
   const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
   // Open beta reader comments: the topbar count and the marks in the editor.
@@ -909,26 +912,41 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         >
           Outline
         </button>
-        <button className="btn small" onClick={() => setQuestionsOpen(true)}>
-          Questions{openCount ? ` (${openCount})` : ""}
-        </button>
-        <button className="btn small" onClick={() => setBibleOpen(true)}>
-          Story bible
-        </button>
-        <button className="btn small" onClick={() => setScratchOpen(true)}>
-          Scratchpad
-        </button>
-        <WeeklyReview projectId={project.id} />
-        <button
-          className="btn small"
-          onClick={() => {
-            setFocusCommentId(null);
-            setBetaOpen(true);
-          }}
-          title="Share read-only links and see what beta readers said"
-        >
-          Beta readers{readerComments.length ? ` (${readerComments.length})` : ""}
-        </button>
+        <TopbarMore
+          items={[
+            {
+              key: "questions",
+              label: "Questions",
+              count: openCount,
+              onSelect: () => setQuestionsOpen(true),
+            },
+            { key: "bible", label: "Story bible", onSelect: () => setBibleOpen(true) },
+            { key: "scratchpad", label: "Scratchpad", onSelect: () => setScratchOpen(true) },
+            {
+              key: "weekly",
+              label: "Weekly review",
+              title: "How your week went, loose ends, and what to write next",
+              dot: weeklyDue,
+              onSelect: () => setWeeklyOpen(true),
+            },
+            {
+              key: "beta",
+              label: "Beta readers",
+              title: "Share read-only links and see what beta readers said",
+              count: readerComments.length,
+              onSelect: () => {
+                setFocusCommentId(null);
+                setBetaOpen(true);
+              },
+            },
+          ]}
+        />
+        <WeeklyReview
+          projectId={project.id}
+          open={weeklyOpen}
+          onOpenChange={setWeeklyOpen}
+          onDueChange={setWeeklyDue}
+        />
         <ExportMenu projectId={project.id} />
       </div>
 

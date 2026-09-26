@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Workspace from "@/components/Workspace";
+import OpenInApp from "@/components/OpenInApp";
 import type { Project } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,5 +23,10 @@ export default async function ProjectPage({
 
   if (!project) notFound();
 
-  return <Workspace initialProject={project as unknown as Project} />;
+  return (
+    <>
+      <OpenInApp title={project.title} />
+      <Workspace initialProject={project as unknown as Project} />
+    </>
+  );
 }
