@@ -16,6 +16,12 @@ run coordinator.
 - **Owner-scoped projects**. `Project.userId` links a manuscript to its owner;
   listing and project access are filtered per user.
 - **Health probe** at `GET /api/health` for load balancers and uptime checks.
+  It returns 503 `degraded` unless the database answers, every Prisma model
+  reads with every column (so a missed `prisma/d1-*.sql` upgrade shows up).
+  `anthropic` reports whether `ANTHROPIC_API_KEY` is set without failing the
+  probe. `.github/workflows/uptime.yml` checks ciciro.app every 5 minutes,
+  also requires `anthropic: true`, and opens an `outage` issue when either
+  fails, closing it on recovery.
 - **Fleet-wide run serialization** through a Cloudflare Durable Object
   (`src/worker/run-do.ts`) fronting the existing database lease. Falls back to
   an in-process coordinator when no DO binding is present.

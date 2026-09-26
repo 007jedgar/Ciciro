@@ -1,0 +1,86 @@
+name: uptime
+
+# Outside monitor for the hosted app. Every 5 minutes (GitHub may run it late)
+# it checks GET /api/health, which reads every Prisma model and fails on a
+# missing table or column or a down database. The hosted app also needs its
+# Anthropic key, which /api/health reports but does not require.
+#
+# A failure opens one `outage` issue (GitHub notifies the repo's watchers) and
+# fails the run; the next healthy check comments and closes it.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  HEALTH_URL: https://ciciro.app/api/health
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check /api/health
+        id: health
+        run: |
+          # Three tries 20s apart, so one dropped request does not page anyone.
+          for attempt in 1 2 3; do
+            status=$(curl -sS -o body.json -w '%{http_code}' -m 20 "$HEALTH_URL" || echo 000)
+            if [ "$status" = "200" ] && ! jq -e '.anthropic == true' body.json > /dev/null; then
+              status="200 without an Anthropic key"
+            fi
+            if [ "$status" = "200" ]; then
+              echo "healthy=true" >> "$GITHUB_OUTPUT"
+              cat body.json
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $status"
+            [ "$attempt" -lt 3 ] && sleep 20
+          done
+          echo "healthy=false" >> "$GITHUB_OUTPUT"
+          delimiter="body_$(openssl rand -hex 8)"
+          {
+            echo "status=$status"
+            echo "body<<$delimiter"
+            head -c 2000 body.json 2>/dev/null || true
+            echo
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the outage issue
+        if: steps.health.outputs.healthy == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUS: ${{ steps.health.outputs.status }}
+          BODY: ${{ steps.health.outputs.body }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          report=$(printf 'HTTP %s from %s\n\n```json\n%s\n```\n\nRun: %s' "$STATUS" "$HEALTH_URL" "$BODY" "$RUN_URL")
+          open=$(gh issue list --label outage --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "Still failing. $report"
+          else
+            gh label create outage --color B60205 --description "Opened by the uptime monitor" 2>/dev/null || true
+            gh issue create --label outage --title "ciciro.app health check failing" --body "$report"
+          fi
+          exit 1
+
+      - name: Close the outage issue
+        if: steps.health.outputs.healthy == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for number in $(gh issue list --label outage --state open --json number --jq '.[].number'); do
+            gh issue close "$number" --comment "Recovered: /api/health is healthy again."
+          done
