@@ -7,11 +7,14 @@ import { buildManuscriptDocx } from "@/lib/docx";
 import { buildEpub } from "@/lib/export/epub";
 import { buildPdf } from "@/lib/export/pdf";
 import { buildMarkdown, buildChapterMarkdown } from "@/lib/export/markdown";
-import { bookFilename } from "@/lib/export/types";
+import { bookFilename, chapterTitle } from "@/lib/export/types";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
+
+const EXTENSIONS = { docx: "docx", epub: "epub", pdf: "pdf", markdown: "md" } as const;
+const MARKDOWN_TYPE = "text/markdown; charset=utf-8";
 
 // GET /api/export/:id?format=docx|epub|pdf|markdown[&chapter=<id>] — download the manuscript or chapter.
 // Defaults to the standard-format .docx.
@@ -57,21 +60,22 @@ export async function GET(req: NextRequest, { params }: Params) {
   let filename: string;
 
   if (chapterId) {
-    const chapter = project.chapters.find((c) => c.id === chapterId);
+    const chapterIndex = project.chapters.findIndex((c) => c.id === chapterId);
+    const chapter = project.chapters[chapterIndex];
     if (!chapter) {
       return new Response(JSON.stringify({ error: "Chapter not found" }), {
         status: 404,
         headers: { "content-type": "application/json" },
       });
     }
-    filename = bookFilename(chapter.title || `Chapter ${chapter.order + 1}`, format);
+    filename = bookFilename(chapterTitle(chapter, chapterIndex), EXTENSIONS[format]);
     if (format === "markdown") {
       const markdown = buildChapterMarkdown(
         { title: chapter.title, content: chapter.content, order: chapter.order },
-        chapter.order
+        chapterIndex
       );
       bytes = new TextEncoder().encode(markdown);
-      contentType = "text/markdown";
+      contentType = MARKDOWN_TYPE;
     } else {
       bytes = new Uint8Array(
         await Packer.toBuffer(
@@ -96,7 +100,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         order: c.order,
       })),
     };
-    filename = bookFilename(project.title, format);
+    filename = bookFilename(project.title, EXTENSIONS[format]);
     if (format === "epub") {
       bytes = await buildEpub(book);
       contentType = "application/epub+zip";
@@ -106,7 +110,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     } else if (format === "markdown") {
       const markdown = buildMarkdown(book);
       bytes = new TextEncoder().encode(markdown);
-      contentType = "text/markdown";
+      contentType = MARKDOWN_TYPE;
     } else {
       bytes = new Uint8Array(await Packer.toBuffer(buildManuscriptDocx(book)));
       contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

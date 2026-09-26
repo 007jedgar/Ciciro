@@ -196,6 +196,79 @@ describe("buildMarkdown", () => {
     expect(md).toContain("### Part One");
     expect(md).toContain("#### Section");
   });
+  it("separates blocks with blank lines so they stay distinct", () => {
+    const md = buildMarkdown({
+      title: "T",
+      author: "",
+      chapters: [
+        {
+          title: "One",
+          order: 0,
+          content:
+            "<p>First.</p><p>Second.</p><hr><blockquote><p>Q</p></blockquote><p>After quote.</p><ul><li><p>a</p></li><li><p>b</p></li></ul><p>After list.</p>",
+        },
+      ],
+    });
+    expect(md).toBe(
+      "# T\n\n## One\n\nFirst.\n\nSecond.\n\n---\n\n> Q\n\nAfter quote.\n\n- a\n- b\n\nAfter list.\n"
+    );
+  });
+
+  it("keeps adjacent separate lists from merging", () => {
+    const md = buildChapterMarkdown(
+      {
+        title: "L",
+        order: 0,
+        content: "<ul><li>a</li></ul><ul><li>b</li></ul><ol><li>c</li></ol><ol><li>d</li></ol>",
+      },
+      0
+    );
+    expect(md).toBe("## L\n\n- a\n\n* b\n\n1. c\n\n1) d\n");
+  });
+
+  it("moves edge whitespace outside emphasis markers", () => {
+    const md = buildChapterMarkdown(
+      {
+        title: "E",
+        order: 0,
+        content: "<p><strong>hello </strong>world <em> soft</em> and <strong><em>both</em></strong><strong> </strong>end</p>",
+      },
+      0
+    );
+    expect(md).toContain("**hello** world  *soft* and ***both*** end");
+  });
+
+  it("escapes markdown syntax typed as prose", () => {
+    const md = buildChapterMarkdown(
+      {
+        title: "Esc_ape",
+        order: 0,
+        content: "<p># not a heading</p><p>1. not a list</p><p>- nor this</p><p>a *star* and _under_ [link](x) &amp;amp;</p>",
+      },
+      0
+    );
+    expect(md).toContain("## Esc\\_ape");
+    expect(md).toContain("\\# not a heading");
+    expect(md).toContain("1\\. not a list");
+    expect(md).toContain("\\- nor this");
+    expect(md).toContain("a \\*star\\* and \\_under\\_ \\[link\\](x) \\&amp;");
+  });
+
+  it("turns line breaks into hard breaks", () => {
+    const md = buildChapterMarkdown(
+      {
+        title: "Verse",
+        order: 0,
+        content:
+          "<p>Roses <strong>red<br>violets</strong></p><blockquote><p>one<br>two</p></blockquote><ol><li><p>x<br>y</p></li></ol><h2>Top<br>line</h2>",
+      },
+      0
+    );
+    expect(md).toContain("Roses **red\\\nviolets**");
+    expect(md).toContain("> one\\\n> two");
+    expect(md).toContain("1. x\\\n   y");
+    expect(md).toContain("### Top line");
+  });
 });
 
 describe("buildChapterMarkdown", () => {

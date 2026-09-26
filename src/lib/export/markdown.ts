@@ -1,72 +1,101 @@
-import { htmlToBlocks, runsText, type Run } from "@/lib/export/blocks";
+import { htmlToBlocks, type Block, type Run } from "@/lib/export/blocks";
 import { BookChapter, BookProject, chapterTitle, sortedChapters } from "@/lib/export/types";
 
-function runsToMarkdown(runs: Run[]): string {
-  return runs
-    .map((r) => {
-      let text = r.text;
-      if (r.bold) text = `**${text}**`;
-      if (r.italic) text = `*${text}*`;
-      return text;
-    })
-    .join("");
+const HARD_BREAK = "\\\n";
+
+function escapeInline(text: string): string {
+  return text.replace(/[\\`*_[\]<]|&(?=#?[a-z0-9]+;)/gi, "\\$&");
 }
 
-function blockToMarkdown(block: ReturnType<typeof htmlToBlocks>[number], index: number): string[] {
-  const lines: string[] = [];
+function escapeLineStart(line: string): string {
+  return line.replace(/^([#>+=~-])/, "\\$1").replace(/^(\d+)([.)])/, "$1\\$2");
+}
+
+function runsToMarkdown(runs: Run[], lineBreak: string): string {
+  return runs
+    .map((r) => {
+      const [, lead, core, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(r.text)!;
+      const marker = (r.bold ? "**" : "") + (r.italic ? "*" : "");
+      const body = core ? `${marker}${escapeInline(core)}${marker}` : "";
+      return `${lead}${body}${trail}`;
+    })
+    .join("")
+    .split("\n")
+    .map((line, i, lines) => (i < lines.length - 1 ? line.trimEnd() : line))
+    .map((line, i) => (i > 0 ? line.trimStart() : line))
+    .join(lineBreak);
+}
+
+function textLines(runs: Run[]): string[] {
+  return runsToMarkdown(runs, "\n")
+    .split("\n")
+    .map(escapeLineStart);
+}
+
+function blockToMarkdown(block: Block, altList: boolean): string {
   switch (block.type) {
-    case "heading":
+    case "heading": {
       const prefix = "#".repeat(Math.min(block.level + 1, 6));
-      lines.push(`${prefix} ${runsToMarkdown(block.runs)}`);
-      break;
+      return `${prefix} ${runsToMarkdown(block.runs, " ")}`;
+    }
     case "paragraph":
-      lines.push(runsToMarkdown(block.runs));
-      break;
+      return textLines(block.runs).join(HARD_BREAK);
     case "quote":
-      runsToMarkdown(block.runs)
-        .split("\n")
-        .forEach((line) => lines.push(`> ${line}`));
-      break;
-    case "list-item":
-      const marker = block.ordered ? block.marker : "-";
-      lines.push(`${marker} ${runsToMarkdown(block.runs)}`);
-      break;
+      return textLines(block.runs)
+        .map((line) => `> ${line}`)
+        .join(HARD_BREAK);
+    case "list-item": {
+      const marker = block.ordered
+        ? altList
+          ? block.marker.replace(/\.$/, ")")
+          : block.marker
+        : altList
+          ? "*"
+          : "-";
+      const indent = " ".repeat(marker.length + 1);
+      return `${marker} ${textLines(block.runs).join(HARD_BREAK + indent)}`;
+    }
     case "break":
-      lines.push("---");
-      break;
+      return "---";
   }
-  return lines;
+}
+
+function blocksToMarkdown(blocks: Block[]): string {
+  let out = "";
+  let altList = false;
+  blocks.forEach((block, i) => {
+    const prev = blocks[i - 1];
+    if (prev) {
+      const sameList =
+        prev.type === "list-item" && block.type === "list-item" && prev.list === block.list;
+      const adjacentLists =
+        prev.type === "list-item" && block.type === "list-item" && prev.ordered === block.ordered;
+      if (!adjacentLists) altList = false;
+      else if (!sameList) altList = !altList;
+      out += sameList ? "\n" : "\n\n";
+    }
+    out += blockToMarkdown(block, altList);
+  });
+  return out;
 }
 
 function chapterToMarkdown(chapter: BookChapter, chapterIndex: number): string {
-  const title = chapterTitle(chapter, chapterIndex);
+  const title = escapeInline(chapterTitle(chapter, chapterIndex));
   const blocks = htmlToBlocks(chapter.content);
-  const lines: string[] = [`## ${title}`];
-  if (blocks.length === 0) {
-    lines.push("*This chapter is empty.*");
-  } else {
-    blocks.forEach((block, i) => {
-      lines.push(...blockToMarkdown(block, i));
-    });
-  }
-  return lines.join("\n");
+  const body = blocks.length === 0 ? "*This chapter is empty.*" : blocksToMarkdown(blocks);
+  return `## ${title}\n\n${body}\n`;
 }
 
 export function buildMarkdown(project: BookProject): string {
-  const lines: string[] = [];
-  lines.push(`# ${project.title}`);
-  if (project.author) {
-    lines.push(`**By ${project.author}**`);
+  const sections: string[] = [`# ${escapeInline(project.title.trim())}`];
+  const author = project.author?.trim();
+  if (author) {
+    sections.push(`**By ${escapeInline(author)}**`);
   }
-  lines.push("");
-
-  const chapters = sortedChapters(project);
-  chapters.forEach((chapter, i) => {
-    lines.push(chapterToMarkdown(chapter, i));
-    lines.push("");
+  sortedChapters(project).forEach((chapter, i) => {
+    sections.push(chapterToMarkdown(chapter, i).trimEnd());
   });
-
-  return lines.join("\n");
+  return `${sections.join("\n\n")}\n`;
 }
 
 export function buildChapterMarkdown(chapter: BookChapter, chapterIndex: number): string {
