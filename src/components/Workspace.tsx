@@ -12,6 +12,7 @@ import DiffView from "@/components/DiffView";
 import ExportMenu from "@/components/ExportMenu";
 import ChapterHistory from "@/components/ChapterHistory";
 import SearchPanel from "@/components/SearchPanel";
+import OutlineBoard from "@/components/OutlineBoard";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
 import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
@@ -23,6 +24,7 @@ import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
+import { applyChapterOrder } from "@/lib/outline";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
 type SaveState = "saved" | "saving" | "error" | "restored";
@@ -45,6 +47,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [searchOpen, setSearchOpen] = useState(false);
   // Bumped to remount the editor when its chapter was rewritten from outside.
   const [editorNonce, setEditorNonce] = useState(0);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
@@ -462,6 +465,44 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }
   }
 
+  // Pull the server's order and beat summaries so the outline is current.
+  async function refreshOutline() {
+    try {
+      const res = await fetch(`/api/chapters?projectId=${encodeURIComponent(projectRef.current.id)}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const remote = (await res.json()) as Chapter[];
+      setProject((p) => {
+        const local = new Map(p.chapters.map((c) => [c.id, c]));
+        const merged = remote.map((nc) => {
+          const cur = local.get(nc.id);
+          // Keep what the author is typing; take the server's order and summary.
+          return cur ? { ...cur, order: nc.order, summary: nc.summary } : nc;
+        });
+        return { ...p, chapters: applyChapterOrder(merged, merged.map((c) => c.id)) };
+      });
+    } catch {
+      /* the outline still works from what we have */
+    }
+  }
+
+  async function reorderChapters(ids: string[]) {
+    const before = projectRef.current.chapters;
+    setProject((p) => ({ ...p, chapters: applyChapterOrder(p.chapters, ids) }));
+    try {
+      const res = await fetch("/api/chapters/reorder", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId: project.id, chapterIds: ids }),
+      });
+      if (!res.ok) throw new Error("reorder failed");
+    } catch {
+      setProject((p) => ({ ...p, chapters: applyChapterOrder(p.chapters, before.map((c) => c.id)) }));
+      window.alert("Couldn't reorder the chapters. Try again.");
+    }
+  }
+
   function insertDraft(text: string, key?: string) {
     editorRef.current?.insertDraft(text, key);
   }
@@ -623,6 +664,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         >
           Search
         </button>
+        <button
+          className="btn small"
+          onClick={() => {
+            setOutlineOpen(true);
+            void refreshOutline();
+          }}
+        >
+          Outline
+        </button>
         <button className="btn small" onClick={() => setQuestionsOpen(true)}>
           Questions{openCount ? ` (${openCount})` : ""}
         </button>
@@ -772,6 +822,23 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}
       />
+
+      {outlineOpen && (
+        <OutlineBoard
+          chapters={project.chapters}
+          activeId={activeId}
+          onOpen={(id) => {
+            setFocusEndOnMount(false);
+            setActiveId(id);
+          }}
+          onReorder={reorderChapters}
+          onStatusChange={(id, status) => {
+            updateChapterLocal(id, { status });
+            patchChapter(id, { status });
+          }}
+          onClose={() => setOutlineOpen(false)}
+        />
+      )}
 
       {bibleOpen && (
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
