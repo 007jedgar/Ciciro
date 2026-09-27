@@ -13,6 +13,7 @@ import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 import { importManuscriptFile, isImportable, pickImportFile } from "../lib/import";
 import type { Folder, ProjectListItem } from "../lib/types";
+import { PressableCard } from "../components/PressableCard";
 
 type Row =
   | { key: string; kind: "folder"; folder: Folder }
@@ -196,7 +197,7 @@ export default function ManuscriptsScreen() {
             if (item.kind === "folder") {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
               return (
-                <Pressable
+                <PressableCard
                   style={[layout.card, styles.folderCard]}
                   onPress={() => router.push(`/folder/${item.folder.id}`)}
                   accessibilityRole="button"
@@ -219,11 +220,11 @@ export default function ManuscriptsScreen() {
                     ) : null}
                   </View>
                   <ChevronRightIcon color={colors.inkSoft} />
-                </Pressable>
+                </PressableCard>
               );
             }
             return (
-              <Pressable
+              <PressableCard
                 style={layout.card}
                 onPress={() => router.push(`/project/${item.project.id}/chapters`)}
               >
@@ -232,7 +233,7 @@ export default function ManuscriptsScreen() {
                 {item.project.logline ? (
                   <Text style={layout.cardMeta}>{item.project.logline}</Text>
                 ) : null}
-              </Pressable>
+              </PressableCard>
             );
           }}
         />

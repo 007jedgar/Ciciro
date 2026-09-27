@@ -7,6 +7,7 @@ import { MANUSCRIPT_KINDS, type ManuscriptKind } from "../lib/manuscript-kind";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { ProjectDetail } from "../lib/types";
+import { PressableCard } from "./PressableCard";
 
 type Props = {
   defaultAuthor?: string;
@@ -64,7 +65,7 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
         {MANUSCRIPT_KINDS.map((option) => {
           const selected = kind === option;
           return (
-            <Pressable
+            <PressableCard
               key={option}
               onPress={() => setKind(option)}
               accessibilityRole="radio"
@@ -83,7 +84,7 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
             >
               <Text style={layout.cardTitle}>{t(`kinds.${option}.label`)}</Text>
               <Text style={layout.cardMeta}>{t(`kinds.${option}.description`)}</Text>
-            </Pressable>
+            </PressableCard>
           );
         })}
       </View>

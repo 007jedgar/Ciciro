@@ -610,6 +610,7 @@ const zh: Translations = {
       copyUrl: "复制链接",
       copyUrlHint: "将链接复制到剪贴板",
       copied: "已复制",
+      copyError: "无法复制链接。请改用分享。",
       revokeTitle: "关闭这个链接？",
       revokeMessage: "拿到链接的人将无法再阅读。他们的评论会保留。",
       deleteTitle: "删除这个链接？",

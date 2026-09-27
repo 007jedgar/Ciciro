@@ -614,6 +614,7 @@ const en = {
       copyUrl: "Copy link",
       copyUrlHint: "Copies the link to the clipboard",
       copied: "Copied",
+      copyError: "Could not copy the link. Try Share instead.",
       revokeTitle: "Turn off this link?",
       revokeMessage: "Anyone who has it will no longer be able to read. Their comments stay.",
       deleteTitle: "Delete this link?",

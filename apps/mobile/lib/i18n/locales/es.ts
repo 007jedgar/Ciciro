@@ -616,6 +616,7 @@ const es: Translations = {
       copyUrl: "Copiar enlace",
       copyUrlHint: "Copia el enlace al portapapeles",
       copied: "Copiado",
+      copyError: "No se pudo copiar el enlace. Prueba con Compartir.",
       revokeTitle: "¿Desactivar este enlace?",
       revokeMessage: "Quien lo tenga ya no podrá leer. Sus comentarios se conservan.",
       deleteTitle: "¿Eliminar este enlace?",

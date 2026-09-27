@@ -156,6 +156,14 @@ describe("ShareLinks", () => {
     announce.mockRestore();
   });
 
+  it("shows the error state instead of an unhandled rejection when the clipboard refuses", async () => {
+    (Clipboard.setStringAsync as jest.Mock).mockRejectedValueOnce(new Error("no clipboard"));
+    setup();
+    fireEvent.press(screen.getByLabelText("Copy link"));
+    await waitFor(() => expect(screen.getByText("Could not copy the link. Try Share instead.")).toBeTruthy());
+    expect(screen.queryByText("Copied")).toBeNull();
+  });
+
   it("turns a link off and deletes one after confirming", async () => {
     const { revoke, remove, host } = setup();
     fireEvent.press(screen.getByText("Turn off"));

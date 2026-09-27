@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
+import { PressableCard } from "./PressableCard";
 
 export function LanguagePicker({
   variant = "cards",
@@ -54,7 +55,7 @@ export function LanguagePicker({
       {LOCALE_OPTIONS.map((opt) => {
         const active = activeId === opt.id;
         return (
-          <Pressable
+          <PressableCard
             key={opt.id}
             onPress={() => void setAppLocale(opt.id)}
             accessibilityRole="button"
@@ -71,7 +72,7 @@ export function LanguagePicker({
             ]}
           >
             <Text style={layout.cardTitle}>{opt.nativeName}</Text>
-          </Pressable>
+          </PressableCard>
         );
       })}
     </View>
