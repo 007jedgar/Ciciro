@@ -31,7 +31,9 @@ export function undoMessage(result: ReplaceUndoResult): string | null {
     result.failed > 0 ? `${result.failed} couldn't be saved` : "",
   ].filter(Boolean);
   if (result.restored === 0) {
-    if (result.failed === 0) return "Couldn't undo: the chapter changed since.";
+    if (result.failed === 0) {
+      return `Couldn't undo: ${result.changed > 1 ? "the chapters" : "the chapter"} changed since.`;
+    }
     return `Couldn't undo: ${
       result.failed === 1 ? "the chapter" : "the chapters"
     } couldn't be saved. Check your connection and try again.${

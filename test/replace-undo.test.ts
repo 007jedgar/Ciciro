@@ -1,31 +1,44 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { makeReplaceUndo, type ReplaceUndoDeps, type ReplaceUndoResult } from "@/lib/replace-undo";
 import { undoMessage } from "@/components/SearchPanel";
 
-// A tiny stand-in for the workspace: chapters with a confirmed revision, text
-// the writer may have typed, and the save queue's flush.
+// A tiny stand-in for the workspace: a server with chapters at a revision, the
+// writer's copy, and the save queue. A restore's save lands unless the chapter
+// is failing (network) or another device has moved it on (409).
 function workspace(over: Partial<ReplaceUndoDeps> = {}) {
   const revisions = new Map<string, number>([
     ["c1", 4],
     ["c2", 7],
   ]);
+  const server = new Map<string, string>();
+  const local = new Map<string, string>();
   const restored: Array<[string, string]> = [];
   const shown: string[][] = [];
-  // The server moves a chapter to a new revision when a restore lands; a failed
-  // save leaves the revision where it was.
   const failing = new Set<string>();
+  const elsewhere = new Map<string, string>();
   const deps: ReplaceUndoDeps = {
     flushSaves: async () => true,
     currentRevision: (id) => revisions.get(id),
-    restore: (id, content) => {
+    restore: async (id, content) => {
       restored.push([id, content]);
-      if (!failing.has(id)) revisions.set(id, (revisions.get(id) ?? 0) + 1);
+      local.set(id, content);
+      await Promise.resolve();
+      if (failing.has(id)) return "failed";
+      const other = elsewhere.get(id);
+      if (other !== undefined) {
+        server.set(id, other);
+        local.set(id, other);
+        revisions.set(id, (revisions.get(id) ?? 0) + 2);
+        return "conflict";
+      }
+      server.set(id, content);
+      revisions.set(id, (revisions.get(id) ?? 0) + 1);
+      return "saved";
     },
-    isSaved: () => true,
-    onRestored: (ids) => shown.push(ids),
+    show: (ids) => shown.push(ids),
     ...over,
   };
-  return { revisions, restored, shown, deps, failing };
+  return { revisions, server, local, restored, shown, deps, failing, elsewhere };
 }
 
 const before = [
@@ -76,37 +89,56 @@ describe("undoing a replace", () => {
     expect(result).toEqual({ restored: 1, total: 2, changed: 1, failed: 0 });
   });
 
-  it("does not count a restore whose save failed, even though the writer's copy rolled back to match the server", async () => {
+  it("counts a restore whose save failed as failed, and shows every chapter it touched, rolled back or not", async () => {
     const w = workspace();
     w.failing.add("c1");
-    // Local equals confirmed after the rollback, so isSaved says yes; only the
-    // revision, which did not move, shows the old text never arrived.
     const result = await makeReplaceUndo(before, w.deps)();
     expect(result).toEqual({ restored: 1, total: 2, changed: 0, failed: 1 });
-    expect(w.shown).toEqual([["c2"]]);
+    expect(w.shown).toEqual([["c1", "c2"], ["c1"]]);
+    expect(undoMessage(result)).toBe("Restored 1 of 2 chapters: 1 couldn't be saved.");
   });
 
-  it("trusts the server's revision, not the raw HTML, when it normalises what it saved", async () => {
+  it("counts a restore refused because another device wrote to the chapter as changed, though the revision moved", async () => {
     const w = workspace();
-    // The server keeps <p>old one</p> as its own normalised form; the text the
-    // writer's copy holds differs from what was sent, which must not read as a failure.
+    // The phone saved c1 after the replace; this device's copy never heard, so
+    // the restore goes out on revision 4 and the server answers 409.
+    w.elsewhere.set("c1", "<p>from the phone</p>");
     const result = await makeReplaceUndo(before, w.deps)();
-    expect(result.failed).toBe(0);
-    expect(result.restored).toBe(2);
+    expect(w.revisions.get("c1")).not.toBe(4);
+    expect(w.local.get("c1")).toBe("<p>from the phone</p>");
+    expect(result).toEqual({ restored: 1, total: 2, changed: 1, failed: 0 });
+    expect(w.shown).toEqual([["c1", "c2"], ["c1"]]);
+    expect(undoMessage(result)).toBe("Restored 1 of 2 chapters: 1 edited since and left as it is.");
   });
 
-  it("does not count a chapter that still has edits waiting to save", async () => {
-    const w = workspace({ isSaved: (id) => id === "c1" });
+  it("trusts the server's answer, not the raw HTML, when it normalises what it saved", async () => {
+    const w = workspace();
+    const normalise = (html: string) => html.replace("<p>", '<p data-block="b1">');
+    const save = w.deps.restore;
+    w.deps.restore = async (id, content) => {
+      const outcome = await save(id, content);
+      w.server.set(id, normalise(content));
+      return outcome;
+    };
     const result = await makeReplaceUndo(before, w.deps)();
-    expect(result).toEqual({ restored: 1, total: 2, changed: 0, failed: 1 });
-    expect(w.shown).toEqual([["c1"]]);
+    expect(w.server.get("c1")).not.toBe(w.local.get("c1"));
+    expect(result).toEqual({ restored: 2, total: 2, changed: 0, failed: 0 });
   });
 
-  it("flushes again after queueing the restores so they have landed", async () => {
-    const flush = vi.fn(async () => true);
-    const w = workspace({ flushSaves: flush });
-    await makeReplaceUndo(before, w.deps)();
-    expect(flush).toHaveBeenCalledTimes(2);
+  it("shows the old text before its save lands, so typing meanwhile builds on it", async () => {
+    const w = workspace();
+    let land!: () => void;
+    const landed = new Promise<void>((resolve) => (land = resolve));
+    const save = w.deps.restore;
+    w.deps.restore = async (id, content) => {
+      await landed;
+      return save(id, content);
+    };
+    const undo = makeReplaceUndo(before, w.deps)();
+    await Promise.resolve();
+    expect(w.shown).toEqual([["c1", "c2"]]);
+    land();
+    expect(await undo).toEqual({ restored: 2, total: 2, changed: 0, failed: 0 });
   });
 });
 
@@ -125,6 +157,10 @@ describe("undoMessage", () => {
 
   it("says a chapter was edited since when that is the only reason", () => {
     expect(undoMessage(result({ changed: 1 }))).toBe("Couldn't undo: the chapter changed since.");
+  });
+
+  it("pluralises when every chapter was edited since", () => {
+    expect(undoMessage(result({ total: 3, changed: 3 }))).toBe("Couldn't undo: the chapters changed since.");
   });
 
   it("words a save failure apart from 'changed since'", () => {

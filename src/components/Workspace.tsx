@@ -44,7 +44,7 @@ import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import type { ReplaceUndoResult } from "@/components/SearchPanel";
-import { makeReplaceUndo } from "@/lib/replace-undo";
+import { makeReplaceUndo, type SaveOutcome } from "@/lib/replace-undo";
 import { applyChapterOrder } from "@/lib/outline";
 import { fetchShareComments } from "@/lib/share-client";
 import type { ShareCommentView } from "@/lib/share-view";
@@ -127,6 +127,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }
   const projectRef = useRef(project);
   projectRef.current = project;
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const reorderQueueRef = useRef<Promise<void>>(Promise.resolve());
   const reorderPendingRef = useRef(0);
@@ -228,15 +230,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, []);
 
   const patchChapter = useCallback(
-    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>) => {
+    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>): Promise<SaveOutcome> => {
       if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
       pendingSaveCountRef.current += 1;
       setSaveState("saving");
       const inFlight = { ...fields };
 
-      saveQueueRef.current = saveQueueRef.current
+      const save = saveQueueRef.current
         .catch(() => {})
-        .then(async () => {
+        .then(async (): Promise<SaveOutcome> => {
           const store = optimisticStoreRef.current!;
 
           const attemptSave = async (
@@ -278,8 +280,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
           const payload = { ...inFlight };
           let outcome = await attemptSave(payload);
+          let conflicted = outcome === "409-retry" || outcome === "409-restored";
           if (outcome === "fail") {
             outcome = await attemptSave(payload);
+            if (outcome === "409-retry" || outcome === "409-restored") conflicted = true;
           } else if (outcome === "409-retry") {
             outcome = await attemptSave(payload);
             if (outcome === "409-retry") {
@@ -305,6 +309,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             if (settled) unsavedContentRef.current.delete(id);
             else unsavedContentRef.current.add(id);
           }
+          if (outcome === "fail") return "failed";
+          return conflicted ? "conflict" : "saved";
         })
         .finally(() => {
           pendingSaveCountRef.current -= 1;
@@ -312,6 +318,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             setSaveState((s) => (s === "saving" ? "saved" : s));
           }
         });
+      saveQueueRef.current = save.then(() => {});
+      return save.catch((): SaveOutcome => "failed");
     },
     [updateChapterLocal, getLocalFields, showTransientSaveState]
   );
@@ -573,7 +581,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       }));
       for (const r of replaced) applyChapter(r.id, r);
       const remount = (ids: string[]) => {
-        if (activeId && ids.includes(activeId)) {
+        const active = activeIdRef.current;
+        if (active && ids.includes(active)) {
           setResumePosition(null);
           setEditorNonce((n) => n + 1);
         }
@@ -585,16 +594,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         // The normal save path: queued behind other saves, on the store's revision.
         restore: (id, content) => {
           updateChapterLocal(id, { content, wordCount: chapterWordCount(content) });
-          patchChapter(id, { content });
+          return patchChapter(id, { content });
         },
-        isSaved: (id) => {
-          const local = getLocalFields(id);
-          return !(local && optimisticStoreRef.current?.hasLocalEdits(id, local));
-        },
-        onRestored: remount,
+        show: remount,
       });
     },
-    [activeId, flushSaves, getLocalFields, patchChapter, updateChapterLocal]
+    [flushSaves, patchChapter, updateChapterLocal]
   );
 
   const onSearchJump = useCallback(
