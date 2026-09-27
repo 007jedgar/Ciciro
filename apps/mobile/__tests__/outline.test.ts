@@ -1,4 +1,4 @@
-import { applyChapterOrder, dropIndexFor, moveItem, OUTLINE_ROW_HEIGHT, outlineHref } from "../lib/outline";
+import { applyChapterOrder, dragShift, dropIndexFor, moveItem, OUTLINE_ROW_HEIGHT, outlineHref } from "../lib/outline";
 
 describe("outline helpers", () => {
   it("moves an item and clamps the target", () => {
@@ -31,5 +31,20 @@ describe("outline helpers", () => {
 
   it("builds the outline route", () => {
     expect(outlineHref("p1")).toBe("/project/p1/outline");
+  });
+});
+
+describe("dragShift", () => {
+  it("slides the rows a downward drag passes up by one row", () => {
+    expect([0, 1, 2, 3, 4].map((i) => dragShift(i, 1, 3, 96))).toEqual([0, 0, -96, -96, 0]);
+  });
+
+  it("slides the rows an upward drag passes down by one row", () => {
+    expect([0, 1, 2, 3, 4].map((i) => dragShift(i, 3, 1, 96))).toEqual([0, 96, 96, 0, 0]);
+  });
+
+  it("leaves everything alone when nothing is dragged or the row has not moved", () => {
+    expect([0, 1, 2].map((i) => dragShift(i, -1, -1))).toEqual([0, 0, 0]);
+    expect([0, 1, 2].map((i) => dragShift(i, 1, 1))).toEqual([0, 0, 0]);
   });
 });

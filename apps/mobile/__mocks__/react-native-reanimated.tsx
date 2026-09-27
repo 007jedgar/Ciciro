@@ -87,6 +87,8 @@ export function useDerivedValue<T>(fn: () => T) {
   return { value: fn() };
 }
 
+export function useAnimatedReaction() {}
+
 export function useAnimatedStyle<T>(fn: () => T) {
   return fn();
 }

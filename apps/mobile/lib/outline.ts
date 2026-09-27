@@ -25,6 +25,24 @@ export function dropIndexFor(
   return Math.max(0, Math.min(count - 1, from + Math.round(translationY / rowHeight)));
 }
 
+/**
+ * How far row `index` slides while row `from` is dragged over slot `to`: rows
+ * the dragged one has passed step one row toward the gap it left, so the slot
+ * under the finger is always open. The dragged row itself follows the finger.
+ */
+export function dragShift(
+  index: number,
+  from: number,
+  to: number,
+  rowHeight: number = OUTLINE_ROW_HEIGHT
+): number {
+  "worklet";
+  if (from < 0 || to < 0 || index === from) return 0;
+  if (from < to && index > from && index <= to) return -rowHeight;
+  if (from > to && index >= to && index < from) return rowHeight;
+  return 0;
+}
+
 /** Lay chapters out in the given id order, renumbering `order`; unlisted ones follow. */
 export function applyChapterOrder<T extends Pick<Chapter, "id" | "order">>(
   chapters: T[],

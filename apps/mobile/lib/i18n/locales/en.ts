@@ -265,7 +265,7 @@ const en = {
     restoreMessage: "Your current text is saved to history first, so you can undo this.",
     restoreError: "Could not restore this version.",
     unsyncedError: "Some of your latest edits have not reached the server yet. Reconnect and try again.",
-    restored: "Version restored.",
+    restored: "Restored “{{title}}”.",
     undo: "Undo",
     undone: "Restore undone.",
     deleteTitle: "Delete this version?",

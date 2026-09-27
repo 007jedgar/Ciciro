@@ -264,7 +264,7 @@ const zh: Translations = {
     restoreMessage: "当前文本会先存入历史，因此你可以撤销。",
     restoreError: "无法恢复此版本。",
     unsyncedError: "你最近的部分修改尚未同步到服务器。请重新连接后再试。",
-    restored: "已恢复版本。",
+    restored: "已恢复“{{title}}”。",
     undo: "撤销",
     undone: "已撤销恢复。",
     deleteTitle: "删除此版本？",

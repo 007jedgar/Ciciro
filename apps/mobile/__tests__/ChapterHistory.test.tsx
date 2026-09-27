@@ -165,7 +165,7 @@ describe("ChapterHistory", () => {
     expect(restore).toHaveBeenCalledWith({ chapterId: "c1", snapshotId: "s1" });
     // Push before the restore, pull the restored ops after it.
     expect(settle).toHaveBeenCalledTimes(2);
-    await waitFor(() => expect(screen.getByText("Version restored.")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Restored \u201cFirst pass\u201d.")).toBeTruthy());
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Undo"));
@@ -186,7 +186,7 @@ describe("ChapterHistory", () => {
     expect(
       screen.getByText("Some of your latest edits have not reached the server yet. Reconnect and try again.")
     ).toBeTruthy();
-    expect(screen.queryByText("Version restored.")).toBeNull();
+    expect(screen.queryByText(/^Restored/)).toBeNull();
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Save snapshot"));
@@ -204,6 +204,6 @@ describe("ChapterHistory", () => {
       fireEvent.press(screen.getByLabelText("Restore"));
     });
     expect(screen.getByText("The chapter kept changing while restoring. Try again.")).toBeTruthy();
-    expect(screen.queryByText("Version restored.")).toBeNull();
+    expect(screen.queryByText(/^Restored/)).toBeNull();
   });
 });
