@@ -264,9 +264,10 @@ describe("undoing a replace on the real restore path", () => {
     const send = async (id: string, body: SavePayload & { expectedRevision: number }) => {
       if (first) {
         first = false;
-        // The server commits, then the connection drops before the answer.
+        // The server commits the restore as several ops, then the connection
+        // drops before the answer.
         w.server.content = body.content ?? w.server.content;
-        w.server.revision += 1;
+        w.server.revision += 3;
         throw new Error("connection reset");
       }
       const chapter: Chapter = {
@@ -287,8 +288,8 @@ describe("undoing a replace on the real restore path", () => {
     const result = await makeReplaceUndo(prior, w.deps)();
     expect(result).toEqual({ restored: 1, total: 1, changed: 0, failed: 0 });
     expect(undoMessage(result)).toBeNull();
-    expect(w.local).toMatchObject({ content: "<p>old one</p>", revision: 6 });
-    expect(w.store.getExpectedRevision("c1")).toBe(6);
+    expect(w.local).toMatchObject({ content: "<p>old one</p>", revision: 8 });
+    expect(w.store.getExpectedRevision("c1")).toBe(8);
   });
 
   it("still calls it a conflict when the retry's 409 carries another device's text", async () => {

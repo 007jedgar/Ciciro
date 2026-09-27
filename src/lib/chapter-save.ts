@@ -120,9 +120,8 @@ export async function restoreChapter(
         if (!body.chapter) return "fail";
         store.seed(body.chapter);
         // The first try landed but its answer was lost: the server holds
-        // exactly this restore, one revision on.
-        const ownEcho =
-          retry && body.chapter.content === content && body.chapter.revision === expectedRevision + 1;
+        // exactly this restore, however many revisions it took.
+        const ownEcho = retry && body.chapter.content === content && body.chapter.revision > expectedRevision;
         updateChapterLocal(id, {
           content: body.chapter.content,
           wordCount: body.chapter.wordCount,
