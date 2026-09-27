@@ -1,15 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { SuggestionAction, SuggestionPiece, SuggestionSummary } from "../lib/suggestions";
-import { clipText, suggestionAge, suggestionAuthors } from "../lib/suggestion-review";
+import type { ResolvingPiece } from "../lib/suggestion-review";
+import {
+  clipText,
+  FLASH_MS,
+  resolvingPieces,
+  suggestionAge,
+  suggestionAuthors,
+} from "../lib/suggestion-review";
+import { useElapsed } from "../lib/use-elapsed";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { fonts, type ColorTokens } from "../lib/theme";
 import { useAppTheme } from "../lib/settings";
 import { alpha } from "./Glass";
 import { GlassSheet } from "./GlassSheet";
 import { EditorIcon } from "./icons";
+import { RollingNumber } from "./RollingNumber";
 
 // Tracked changes on the phone. The editor shows them inline (underline for
 // added words, strikethrough for removed ones); this is where the author
@@ -31,6 +42,14 @@ function pieceStyle(kind: SuggestionPiece["kind"], colors: ColorTokens) {
     };
   }
   return { color: colors.ink };
+}
+
+/** A piece of a change being decided: the kept text flashes and settles, the rest shrinks away. */
+function resolvingStyle(piece: ResolvingPiece, colors: ColorTokens) {
+  if (piece.role === "context") return { color: colors.ink };
+  if (piece.role === "collapsing") return pieceStyle(piece.kind, colors);
+  const tint = piece.kind === "insert" ? colors.draft : colors.danger;
+  return { color: colors.ink, backgroundColor: alpha(tint, 0.42 * piece.flash) };
 }
 
 /** The row above the editor that says changes are waiting, styled like the open-questions banner. */
@@ -60,11 +79,31 @@ export function SuggestionsPill({
       ]}
     >
       <EditorIcon color={colors.accent} size={18} />
-      <Text style={[styles.pillLabel, { color: colors.ink }]} numberOfLines={1}>
-        {label}
-      </Text>
+      <PillLabel label={label} count={suggestions.length} color={colors.ink} />
       <Text style={[styles.pillAction, { color: colors.accent }]}>{t("suggestions.review")}</Text>
     </Pressable>
+  );
+}
+
+/** The pill's sentence with its count as a ticking number, so accepting one visibly counts down. */
+function PillLabel({ label, count, color }: { label: string; count: number; color: string }) {
+  const at = label.indexOf(String(count));
+  const text = [styles.pillLabel, { color }];
+  if (at < 0) {
+    return (
+      <Text style={text} numberOfLines={1}>
+        {label}
+      </Text>
+    );
+  }
+  return (
+    <View style={styles.pillLabelRow}>
+      <Text style={text}>{label.slice(0, at)}</Text>
+      <RollingNumber value={count} style={StyleSheet.flatten([styles.pillLabel, { color }])} />
+      <Text style={[text, styles.pillLabelRest]} numberOfLines={1}>
+        {label.slice(at + String(count).length)}
+      </Text>
+    </View>
   );
 }
 
@@ -81,16 +120,21 @@ export function SuggestionReviewCard({
   colors,
   now,
   onResolve,
+  resolving = null,
 }: {
   summary: SuggestionSummary;
   colors: ColorTokens;
   now: number;
   onResolve: (action: SuggestionAction) => void;
+  /** Set while the change is being accepted or rejected, to play it out on the card. */
+  resolving?: SuggestionAction | null;
 }) {
   const { t } = useTranslation();
   const author = summary.authorName.trim() || t("suggestions.someone");
   const age = suggestionAge(summary.createdAt, now);
   const when = age ? t(`suggestions.${age.key}`, age.key === "justNow" ? {} : { count: age.count }) : "";
+  const elapsed = useElapsed(resolving !== null, FLASH_MS);
+  const pieces = resolving ? resolvingPieces(summary.preview, resolving, elapsed) : null;
   return (
     <Animated.View
       testID={`suggestion-${summary.id}`}
@@ -107,17 +151,24 @@ export function SuggestionReviewCard({
         style={styles.preview}
         accessibilityLabel={t("suggestions.a11yChange", { author, change: changeSentence(summary, t) })}
       >
-        {summary.preview.map((piece, i) => (
-          <Text key={i} style={pieceStyle(piece.kind, colors)}>
-            {piece.text}
-          </Text>
-        ))}
+        {pieces
+          ? pieces.map((piece, i) => (
+              <Text key={i} style={resolvingStyle(piece, colors)}>
+                {piece.text}
+              </Text>
+            ))
+          : summary.preview.map((piece, i) => (
+              <Text key={i} style={pieceStyle(piece.kind, colors)}>
+                {piece.text}
+              </Text>
+            ))}
       </Text>
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${t("suggestions.reject")}: ${changeSentence(summary, t)}`}
           onPress={() => onResolve("reject")}
+          disabled={resolving !== null}
           hitSlop={8}
           style={({ pressed }) => [styles.secondary, { borderColor: colors.line, opacity: pressed ? 0.7 : 1 }]}
         >
@@ -127,6 +178,7 @@ export function SuggestionReviewCard({
           accessibilityRole="button"
           accessibilityLabel={`${t("suggestions.accept")}: ${changeSentence(summary, t)}`}
           onPress={() => onResolve("accept")}
+          disabled={resolving !== null}
           hitSlop={8}
           style={({ pressed }) => [styles.primary, { backgroundColor: colors.accent, opacity: pressed ? 0.82 : 1 }]}
         >
@@ -152,7 +204,42 @@ export function SuggestionsSheet({
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const [now, setNow] = useState(() => Date.now());
+  const reduceMotion = useReduceMotion();
+  // What is being played out right now: which suggestions (null is all) and how.
+  const [resolving, setResolving] = useState<{ action: SuggestionAction; ids: string[] | null } | null>(null);
+  const pendingResolve = useRef<{ timer: ReturnType<typeof setTimeout>; commit: () => void } | null>(null);
   const count = suggestions.length;
+
+  // Tapping Accept or Reject plays the change out on the card first (the accepted
+  // words flash, the struck ones shrink away), then hands it to the editor. Light
+  // haptic for one, medium for the whole batch.
+  function resolve(action: SuggestionAction, ids?: string[]) {
+    Haptics.impactAsync(
+      ids ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
+    ).catch(() => {});
+    if (reduceMotion || pendingResolve.current) {
+      pendingResolve.current?.commit();
+      onResolve(action, ids);
+      return;
+    }
+    const commit = () => {
+      if (!pendingResolve.current) return;
+      clearTimeout(pendingResolve.current.timer);
+      pendingResolve.current = null;
+      setResolving(null);
+      onResolve(action, ids);
+    };
+    setResolving({ action, ids: ids ?? null });
+    pendingResolve.current = { timer: setTimeout(commit, FLASH_MS), commit };
+  }
+
+  // Leaving mid-animation must not drop the decision.
+  useEffect(
+    () => () => {
+      pendingResolve.current?.commit();
+    },
+    []
+  );
 
   useEffect(() => {
     if (!visible) return;
@@ -181,7 +268,8 @@ export function SuggestionsSheet({
             <Pressable
               testID="suggestions-reject-all"
               accessibilityRole="button"
-              onPress={() => onResolve("reject")}
+              onPress={() => resolve("reject")}
+              disabled={resolving !== null}
               hitSlop={8}
               style={({ pressed }) => [styles.secondary, { borderColor: colors.line, opacity: pressed ? 0.7 : 1 }]}
             >
@@ -190,7 +278,8 @@ export function SuggestionsSheet({
             <Pressable
               testID="suggestions-accept-all"
               accessibilityRole="button"
-              onPress={() => onResolve("accept")}
+              onPress={() => resolve("accept")}
+              disabled={resolving !== null}
               hitSlop={8}
               style={({ pressed }) => [styles.primary, { backgroundColor: colors.accent, opacity: pressed ? 0.82 : 1 }]}
             >
@@ -204,7 +293,8 @@ export function SuggestionsSheet({
             summary={summary}
             colors={colors}
             now={now}
-            onResolve={(action) => onResolve(action, [summary.id])}
+            resolving={resolving && (!resolving.ids || resolving.ids.includes(summary.id)) ? resolving.action : null}
+            onResolve={(action) => resolve(action, [summary.id])}
           />
         ))}
       </ScrollView>
@@ -223,7 +313,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  pillLabel: { flexShrink: 1, fontSize: 14, lineHeight: 19 },
+  pillLabel: { fontSize: 14, lineHeight: 19 },
+  pillLabelRow: { flexShrink: 1, flexDirection: "row", alignItems: "center" },
+  pillLabelRest: { flexShrink: 1 },
   pillAction: { fontSize: 13, fontWeight: "600" },
   scroll: { flex: 1 },
   content: { paddingBottom: 8 },
