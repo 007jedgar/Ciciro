@@ -576,7 +576,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       const remount = (ids: string[]) => {
         const active = activeIdRef.current;
         if (active && ids.includes(active)) {
-          setResumePosition(null);
+          const caret = editorRef.current?.getCaret();
+          setFocusEndOnMount(false);
+          setResumePosition(caret ? { chapterId: active, ...caret } : null);
           setEditorNonce((n) => n + 1);
         }
       };

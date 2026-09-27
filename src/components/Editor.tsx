@@ -52,6 +52,8 @@ import { dictationParts, prepareDictation } from "@/lib/dictation";
 export type EditorHandle = {
   /** True once the page is mounted and can take the writes below. */
   isReady: () => boolean;
+  /** Where the caret is, to put it back after a remount. */
+  getCaret: () => ReadingCaret | null;
   // `key` groups related inserts (e.g. one per chat message) so that
   // inserting a second option from the same message lands right after the
   // first instead of wherever the cursor happens to be. Omit it for a
@@ -312,7 +314,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   const resolving = useRef(false);
   const applyResolved = useCallback(
     async (action: SuggestionAction, ids?: string[]) => {
-      if (!editor || resolving.current) return;
+      if (!editor || resolving.current || !editor.isEditable) return;
       const shell = shellRef.current;
       const going = action === "accept" ? "del" : "ins";
       const wait = motionMs(MOTION_MS.suggestionCollapse);
@@ -334,7 +336,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
           }
           await new Promise((resolve) => setTimeout(resolve, wait));
           resolving.current = false;
-          if (editor.isDestroyed) return;
+          if (editor.isDestroyed || !editor.isEditable) {
+            for (const el of els) el.classList.remove("suggestion-folding", "suggestion-fading");
+            return;
+          }
         }
       }
       const kept = resolvedRanges(editor.state.doc, action, ids);
@@ -411,12 +416,6 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (editor.isEditable !== !readOnly) editor.setEditable(!readOnly, false);
   }, [editor, readOnly]);
 
-  const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
-  useEffect(() => {
-    if (editor) onReadyRef.current?.();
-  }, [editor]);
-
   useEffect(() => {
     if (!editor || !focusEndOnMount) return;
     editor.commands.focus("end");
@@ -460,8 +459,16 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     editor.chain().focus().setTextSelection(target).run();
   }, [editor, restorePosition, focusEndOnMount]);
 
+  // After the caret has been put back, so held writes land where the writer was.
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  useEffect(() => {
+    if (editor) onReadyRef.current?.();
+  }, [editor]);
+
   useImperativeHandle(ref, () => ({
     isReady: () => Boolean(editor && !editor.isDestroyed),
+    getCaret: () => (editor && !editor.isDestroyed ? caretFromEditor(editor) : null),
     insertDraft(text: string, key = "default") {
       if (!editor) return;
       if (kind === "screenplay") {
@@ -605,10 +612,11 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
               type="button"
               className={`btn small ${element === el ? "primary" : "ghost"}`}
               aria-pressed={element === el}
+              disabled={readOnly}
               // Keep the caret in the page while picking an element.
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                if (!editor) return;
+                if (!editor || !editor.isEditable) return;
                 setElement(editor, el);
                 setCurrentElement(currentElement(editor));
               }}
