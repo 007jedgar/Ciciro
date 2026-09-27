@@ -52,8 +52,10 @@ import { dictationParts, prepareDictation } from "@/lib/dictation";
 export type EditorHandle = {
   /** True once the page is mounted and can take the writes below. */
   isReady: () => boolean;
-  /** Where the caret is, to put it back after a remount. */
+  /** Where the writer's caret is, to put it back after a remount; null when they never placed one. */
   getCaret: () => ReadingCaret | null;
+  /** True while the page has keyboard focus. */
+  hasFocus: () => boolean;
   // `key` groups related inserts (e.g. one per chat message) so that
   // inserting a second option from the same message lands right after the
   // first instead of wherever the cursor happens to be. Omit it for a
@@ -89,7 +91,7 @@ type Props = {
   onSelectionChange?: (text: string) => void;
   onCaretChange?: (caret: ReadingCaret) => void;
   /** `length` selects that many characters from the offset (a search hit). */
-  restorePosition?: (ReadingCaret & { length?: number }) | null;
+  restorePosition?: (ReadingCaret & { length?: number; focus?: boolean }) | null;
   /** When true on mount, place the caret at the end (AI opened this chapter). */
   focusEndOnMount?: boolean;
   /** Cross-fade the page in (a version was just restored). */
@@ -221,6 +223,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
   const [element, setCurrentElement] = useState<ScreenplayElement | null>(null);
 
+  // Set once the writer has put the caret somewhere (or one was put back for them).
+  const placedCaret = useRef(false);
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -262,7 +266,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         map.set(key, transaction.mapping.map(pos));
       }
     },
-    onFocus: ({ editor }) => showSuggestionAt(editor),
+    onFocus: ({ editor }) => {
+      placedCaret.current = true;
+      showSuggestionAt(editor);
+    },
     onBlur: () => showSuggestionAt(null),
     editorProps: {
       handleKeyDown: (view, event) => {
@@ -445,9 +452,13 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       target = start + Math.min(Math.max(0, restorePosition.offset), max);
       return false;
     });
+    placedCaret.current = placedCaret.current || target != null || selection != null;
+    const focus = restorePosition.focus !== false;
     if (selection) {
       const hit = selection as { from: number; to: number };
-      editor.chain().focus(undefined, { scrollIntoView: false }).setTextSelection(hit).run();
+      const chain = editor.chain();
+      if (focus) chain.focus(undefined, { scrollIntoView: false });
+      chain.setTextSelection(hit).run();
       // Glide to the hit and pulse it, so it is clear where the search landed.
       requestAnimationFrame(() => {
         if (editor.isDestroyed) return;
@@ -456,7 +467,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       return;
     }
     if (target == null) return;
-    editor.chain().focus().setTextSelection(target).run();
+    if (focus) editor.chain().focus().setTextSelection(target).run();
+    else editor.commands.setTextSelection(target);
   }, [editor, restorePosition, focusEndOnMount]);
 
   // After the caret has been put back, so held writes land where the writer was.
@@ -468,7 +480,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
   useImperativeHandle(ref, () => ({
     isReady: () => Boolean(editor && !editor.isDestroyed),
-    getCaret: () => (editor && !editor.isDestroyed ? caretFromEditor(editor) : null),
+    getCaret: () => (editor && !editor.isDestroyed && placedCaret.current ? caretFromEditor(editor) : null),
+    hasFocus: () => Boolean(editor && !editor.isDestroyed && editor.isFocused),
     insertDraft(text: string, key = "default") {
       if (!editor) return;
       if (kind === "screenplay") {

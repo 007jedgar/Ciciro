@@ -54,6 +54,46 @@ describe("the editor across an Undo restore", () => {
     expect(landed).toMatch(/Second line\. [Mm]ore words/);
   });
 
+  it("carries no caret the writer never placed, and puts one back without taking focus from the Search panel", async () => {
+    const search = document.createElement("input");
+    document.body.appendChild(search);
+    search.focus();
+    const ref = createRef<EditorHandle>();
+    let landed = "";
+    const content = '<p data-block-id="a">First line.</p><p data-block-id="b">Second line.</p>';
+    await act(async () =>
+      root.render(<Editor ref={ref} content={content} onChange={(html) => (landed = html)} />)
+    );
+    await settle();
+    // Replace all remounts a page the writer never clicked into: nothing to carry.
+    expect(ref.current?.getCaret()).toBeNull();
+    // A caret carried over from an unfocused page comes back without focus.
+    const focused: Element[] = [];
+    const focus = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (this: HTMLElement) {
+      focused.push(this);
+    });
+    await act(async () =>
+      root.render(
+        <Editor
+          key="remounted"
+          ref={ref}
+          content={content}
+          onChange={(html) => (landed = html)}
+          restorePosition={{ blockId: "b", offset: 12, focus: false }}
+        />
+      )
+    );
+    await settle();
+    await act(async () => new Promise((r) => setTimeout(r, 50)));
+    focus.mockRestore();
+    expect(focused.filter((el) => el.classList.contains("ProseMirror"))).toEqual([]);
+    expect(document.activeElement).toBe(search);
+    expect(ref.current?.getCaret()).toEqual({ blockId: "b", offset: 12 });
+    await act(async () => ref.current?.insertDictation("more words"));
+    expect(landed).toMatch(/Second line\. [Mm]ore words/);
+    search.remove();
+  });
+
   it("leaves the screenplay bar and suggestion accepts alone while the page is held", async () => {
     const ref = createRef<EditorHandle>();
     const onChange = vi.fn();
