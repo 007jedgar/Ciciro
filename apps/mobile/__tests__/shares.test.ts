@@ -59,12 +59,8 @@ describe("beta reader helpers", () => {
     expect(counts.get("c2")).toBe(1);
   });
 
-  it("says nothing about comments when a deleted link had none", async () => {
+  it("counts reader comments per chapter", async () => {
     await i18n.changeLanguage("en");
-    expect(i18n.t("beta.links.deleteMessage", { count: 0 })).toBe("This can't be undone.");
-    expect(i18n.t("beta.links.deleteMessage", { count: 1 })).toBe(
-      "Its 1 comment is deleted too. This can't be undone."
-    );
     expect(i18n.t("beta.chapterComments", { count: 2 })).toBe("2 reader comments");
   });
 });

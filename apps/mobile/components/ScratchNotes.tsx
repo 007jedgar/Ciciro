@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import Animated, { LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api/client";
 import {
@@ -11,8 +12,11 @@ import type { ScratchNote } from "../lib/api/types";
 import { scratchNoteExcerpt, scratchNoteTitle } from "../lib/scratch";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
+import { useUndoableRemoval } from "../lib/undo-removal";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
+import { UndoSnackbar } from "./UndoSnackbar";
 
 /** The scratchpad's list: every note for the manuscript, newest edit first. */
 export function ScratchNotes({
@@ -30,6 +34,10 @@ export function ScratchNotes({
   const create = useCreateScratchNoteMutation();
   const remove = useDeleteScratchNoteMutation();
   const [error, setError] = useState<string | null>(null);
+  const reduceMotion = useReduceMotion();
+  const { hidden, notice, remove: removeWithUndo, undo } = useUndoableRemoval({
+    onFailed: (_id, err) => setError(err instanceof ApiError ? err.message : t("scratch.deleteError")),
+  });
 
   async function add() {
     if (create.isPending) return;
@@ -42,21 +50,10 @@ export function ScratchNotes({
     }
   }
 
-  function confirmDelete(note: ScratchNote) {
-    const title = scratchNoteTitle(note, t("scratch.untitled"));
-    Alert.alert(t("scratch.deleteTitle", { title }), t("scratch.deleteMessage"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("common.delete"),
-        style: "destructive",
-        onPress: () => {
-          setError(null);
-          remove.mutateAsync({ projectId, noteId: note.id }).catch((err: unknown) => {
-            setError(err instanceof ApiError ? err.message : t("scratch.deleteError"));
-          });
-        },
-      },
-    ]);
+  // No confirmation: the row slides out and Undo stays up for a few seconds.
+  function removeNote(note: ScratchNote) {
+    setError(null);
+    removeWithUndo(note.id, t("scratch.removed"), () => remove.mutateAsync({ projectId, noteId: note.id }));
   }
 
   if (notes.isPending && !notes.data) {
@@ -67,8 +64,9 @@ export function ScratchNotes({
     );
   }
 
-  const list = notes.data ?? [];
+  const list = (notes.data ?? []).filter((n) => !hidden.has(n.id));
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       testID="scratch-notes"
       style={{ flex: 1 }}
@@ -103,28 +101,35 @@ export function ScratchNotes({
         const title = scratchNoteTitle(note, t("scratch.untitled"));
         const excerpt = scratchNoteExcerpt(note);
         return (
-          <Pressable
+          <Animated.View
             key={note.id}
-            style={[layout.card, { marginBottom: 12 }]}
-            onPress={() => onOpen(note.id)}
-            onLongPress={() => confirmDelete(note)}
-            accessibilityRole="button"
-            accessibilityLabel={t("scratch.open", { title })}
-            accessibilityHint={t("scratch.deleteHint")}
-            accessibilityActions={[{ name: "delete", label: t("common.delete") }]}
-            onAccessibilityAction={() => confirmDelete(note)}
+            exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+            layout={reduceMotion ? undefined : LinearTransition.duration(200)}
           >
-            <Text style={layout.cardTitle} numberOfLines={1}>
-              {title}
-            </Text>
-            {excerpt ? (
-              <Text style={layout.cardMeta} numberOfLines={2}>
-                {excerpt}
+            <PressableCard
+              style={[layout.card, { marginBottom: 12 }]}
+              onPress={() => onOpen(note.id)}
+              onLongPress={() => removeNote(note)}
+              accessibilityRole="button"
+              accessibilityLabel={t("scratch.open", { title })}
+              accessibilityHint={t("scratch.deleteHint")}
+              accessibilityActions={[{ name: "delete", label: t("common.delete") }]}
+              onAccessibilityAction={() => removeNote(note)}
+            >
+              <Text style={layout.cardTitle} numberOfLines={1}>
+                {title}
               </Text>
-            ) : null}
-          </Pressable>
+              {excerpt ? (
+                <Text style={layout.cardMeta} numberOfLines={2}>
+                  {excerpt}
+                </Text>
+              ) : null}
+            </PressableCard>
+          </Animated.View>
         );
       })}
     </ScrollView>
+    <UndoSnackbar message={notice?.message ?? null} onUndo={undo} />
+    </View>
   );
 }

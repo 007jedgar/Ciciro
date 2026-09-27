@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, Text, View } from "react-native";
+import Animated, { FadeIn, LinearTransition, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
@@ -22,6 +23,7 @@ import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
+import { UndoSnackbar } from "../../../../components/UndoSnackbar";
 import {
   ApiError,
   queryClient,
@@ -34,7 +36,9 @@ import {
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
 import { outlineHref } from "../../../../lib/outline";
-import { confirmChapterDelete } from "../../../../lib/chapter-delete";
+import { requestChapterDelete } from "../../../../lib/chapter-delete";
+import { useUndoableRemoval } from "../../../../lib/undo-removal";
+import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 import { importManuscriptFile, isImportable, pickImportFile } from "../../../../lib/import";
 import { useProject } from "../../../../lib/project";
 import { scratchListHref } from "../../../../lib/scratch";
@@ -62,8 +66,30 @@ export default function ChaptersScreen() {
   const weeklyReviews = useWeeklyReviewsQuery(typeof id === "string" ? id : "");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
-  const [pendingId, setPendingId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const reduceMotion = useReduceMotion();
+  const listRef = useRef<FlatList<Chapter>>(null);
+  // Chapters the list has already shown, so only ones added later slide in.
+  const seenIds = useRef<Set<string> | null>(null);
+  const restoredIds = useRef<Set<string>>(new Set());
+  const { hidden, notice, remove: removeWithUndo, undo } = useUndoableRemoval({
+    onFailed: (_id, err) => setDeleteError(err instanceof ApiError ? err.message : t("chapters.deleteError")),
+  });
+
+  const chapters = (project?.chapters ?? []).filter((c) => !hidden.has(c.id));
+  if (seenIds.current === null && project) seenIds.current = new Set(chapters.map((c) => c.id));
+  const freshIds = new Set(
+    chapters.filter((c) => seenIds.current !== null && !seenIds.current.has(c.id)).map((c) => c.id)
+  );
+  const freshKey = [...freshIds].join(",");
+
+  useEffect(() => {
+    if (!freshKey || !seenIds.current) return;
+    for (const id of freshKey.split(",")) seenIds.current.add(id);
+    // A new chapter lands at the end of a long list: bring it into view.
+    const timer = setTimeout(() => listRef.current?.scrollToEnd({ animated: !reduceMotion }), 60);
+    return () => clearTimeout(timer);
+  }, [freshKey, reduceMotion]);
 
   if (loading && !project) {
     return (
@@ -81,39 +107,30 @@ export default function ChaptersScreen() {
     );
   }
 
-  const chapters = project?.chapters ?? [];
   const kind = normalizeKind(project?.kind);
   const projectId = typeof id === "string" ? id : "";
 
   function requestDelete(chapter: Chapter) {
-    const title = chapter.title || t("chapters.newTitle");
-    confirmChapterDelete(
+    requestChapterDelete(
       chapter,
       {
         blockedTitle: t("chapters.deleteBlockedTitle"),
         blockedMessage: t("chapters.deleteBlockedMessage"),
-        deleteTitle: t("chapters.deleteTitle", { title }),
-        deleteMessage: t("chapters.deleteMessage"),
         cancel: t("common.cancel"),
-        delete: t("common.delete"),
       },
       () => {
-        void runDelete(chapter.id);
+        if (!projectId) return;
+        setDeleteError(null);
+        removeWithUndo(chapter.id, t("chapters.removed"), () =>
+          removeChapter.mutateAsync({ id: chapter.id, projectId })
+        );
       }
     );
   }
 
-  async function runDelete(chapterId: string) {
-    if (!projectId) return;
-    setDeleteError(null);
-    setPendingId(chapterId);
-    try {
-      await removeChapter.mutateAsync({ id: chapterId, projectId });
-    } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : t("chapters.deleteError"));
-    } finally {
-      setPendingId(null);
-    }
+  function undoRemoval() {
+    if (notice) restoredIds.current.add(notice.id);
+    undo();
   }
 
   async function importChapters() {
@@ -255,8 +272,10 @@ export default function ChaptersScreen() {
           {deleteError}
         </Text>
       ) : null}
-      <FlatList
+      <Animated.FlatList
+        ref={listRef}
         data={chapters}
+        itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         // An error line already clears the header, so the list starts under it.
@@ -299,28 +318,41 @@ export default function ChaptersScreen() {
         ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} /> : null}
         ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
         renderItem={({ item, index }) => (
-          <ChapterListCard
-            chapter={item}
-            number={index + 1}
-            kind={kind}
-            selected={item.id === selectedChapterId}
-            deleting={pendingId === item.id}
-            onOpen={() => {
-              setSelectedChapterId(item.id);
-              if (projectId) router.navigate(`/project/${projectId}/manuscript`);
-            }}
-            onRequestDelete={() => requestDelete(item)}
-            onStatusChange={(status) => {
-              void saveStatus(item, status);
-            }}
-            onOpenHistory={
-              projectId
-                ? () => router.push(`/project/${projectId}/history/${item.id}` as never)
-                : undefined
+          <Animated.View
+            entering={
+              reduceMotion
+                ? undefined
+                : freshIds.has(item.id)
+                  ? SlideInRight.duration(260)
+                  : restoredIds.current.has(item.id)
+                    ? FadeIn.duration(200)
+                    : undefined
             }
-          />
+            exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+          >
+            <ChapterListCard
+              chapter={item}
+              number={index + 1}
+              kind={kind}
+              selected={item.id === selectedChapterId}
+              onOpen={() => {
+                setSelectedChapterId(item.id);
+                if (projectId) router.navigate(`/project/${projectId}/manuscript`);
+              }}
+              onRequestDelete={() => requestDelete(item)}
+              onStatusChange={(status) => {
+                void saveStatus(item, status);
+              }}
+              onOpenHistory={
+                projectId
+                  ? () => router.push(`/project/${projectId}/history/${item.id}` as never)
+                  : undefined
+              }
+            />
+          </Animated.View>
         )}
       />
+      <UndoSnackbar message={notice?.message ?? null} onUndo={undoRemoval} bottom={clearance - 12} />
     </View>
   );
 }

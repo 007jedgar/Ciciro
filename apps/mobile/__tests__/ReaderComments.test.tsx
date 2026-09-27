@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { ReaderComments } from "../components/ReaderComments";
 import {
@@ -82,11 +82,6 @@ function setup(opts?: { comments?: ShareComment[]; chapterId?: string }) {
   deleteMock.mockReturnValue({ mutateAsync: remove, isPending: false });
   const onJump = jest.fn();
   const onManageLinks = jest.fn();
-  const host = {
-    alert: jest.fn((_title: string, _message?: string, buttons?: { onPress?: () => void }[]) => {
-      buttons?.[buttons.length - 1]?.onPress?.();
-    }),
-  };
   render(
     wrap(
       <ReaderComments
@@ -95,11 +90,10 @@ function setup(opts?: { comments?: ShareComment[]; chapterId?: string }) {
         chapterId={opts?.chapterId}
         onJump={onJump}
         onManageLinks={onManageLinks}
-        host={host as never}
       />
     )
   );
-  return { setStatus, remove, onJump, onManageLinks, host };
+  return { setStatus, remove, onJump, onManageLinks };
 }
 
 describe("ReaderComments", () => {
@@ -119,15 +113,40 @@ describe("ReaderComments", () => {
     expect(screen.getByText("Passage no longer in the chapter")).toBeTruthy();
   });
 
-  it("resolves a comment and deletes one after a confirm", async () => {
-    const { setStatus, remove, host } = setup();
+  it("resolves a comment", async () => {
+    const { setStatus } = setup();
     fireEvent.press(screen.getAllByText("Resolve")[0]);
     await waitFor(() =>
       expect(setStatus).toHaveBeenCalledWith({ projectId: "p1", commentId: "m1", status: "resolved" })
     );
-    fireEvent.press(screen.getAllByText("Delete")[0]);
-    expect(host.alert).toHaveBeenCalledWith("Delete this comment?", "It can't be brought back.", expect.any(Array));
-    await waitFor(() => expect(remove).toHaveBeenCalledWith({ projectId: "p1", commentId: "m1" }));
+  });
+
+  describe("deleting", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it("slides the comment out with Undo, then deletes it once the window passes", async () => {
+      const { remove } = setup();
+      fireEvent.press(screen.getAllByText("Delete")[0]);
+      expect(screen.queryByText("Love this image.")).toBeNull();
+      expect(screen.getByText("Comment deleted")).toBeTruthy();
+      expect(remove).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(6000);
+      });
+      expect(remove).toHaveBeenCalledWith({ projectId: "p1", commentId: "m1" });
+    });
+
+    it("keeps the comment when Undo is tapped", async () => {
+      const { remove } = setup();
+      fireEvent.press(screen.getAllByText("Delete")[0]);
+      fireEvent.press(screen.getByLabelText("Undo"));
+      expect(screen.getByText("Love this image.")).toBeTruthy();
+      await act(async () => {
+        jest.advanceTimersByTime(10000);
+      });
+      expect(remove).not.toHaveBeenCalled();
+    });
   });
 
   it("starts filtered to the chapter it was opened from", () => {

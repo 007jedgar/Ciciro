@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import Animated, { LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import {
   ApiError,
@@ -13,9 +14,11 @@ import { groupCommentsByChapter } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
 import { fonts } from "../lib/theme";
+import { useUndoableRemoval } from "../lib/undo-removal";
+import { useReduceMotion } from "../lib/use-reduce-motion";
+import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
-
-export type ReaderCommentsHost = { alert: typeof Alert.alert };
+import { UndoSnackbar } from "./UndoSnackbar";
 
 /** What beta readers said, by chapter, to jump to, resolve, or delete. */
 export function ReaderComments({
@@ -24,7 +27,6 @@ export function ReaderComments({
   chapterId,
   onJump,
   onManageLinks,
-  host = Alert,
 }: {
   projectId: string;
   /** The manuscript's chapters in order, for names and numbering. */
@@ -33,7 +35,6 @@ export function ReaderComments({
   chapterId?: string;
   onJump: (comment: ShareComment) => void;
   onManageLinks: () => void;
-  host?: ReaderCommentsHost;
 }) {
   const { t, i18n } = useTranslation();
   const { colors, layout } = useAppTheme();
@@ -43,9 +44,15 @@ export function ReaderComments({
   const list = useShareCommentsQuery(projectId, status);
   const setCommentStatus = useSetShareCommentStatusMutation();
   const remove = useDeleteShareCommentMutation();
-  const busy = setCommentStatus.isPending || remove.isPending;
+  const reduceMotion = useReduceMotion();
+  const { hidden, notice, remove: removeWithUndo, undo } = useUndoableRemoval({
+    onFailed: (_id, err) => setError(err instanceof ApiError ? err.message : t("beta.actionError")),
+  });
+  const busy = setCommentStatus.isPending;
 
-  const shown = (list.data ?? []).filter((c) => !onlyChapter || c.chapterId === chapterId);
+  const shown = (list.data ?? []).filter(
+    (c) => !hidden.has(c.id) && (!onlyChapter || c.chapterId === chapterId)
+  );
   const groups = groupCommentsByChapter(shown, chapters);
 
   function chapterHeading(number: number, title: string): string {
@@ -72,21 +79,19 @@ export function ReaderComments({
     );
   }
 
-  function confirmDelete(comment: ShareComment) {
-    host.alert(t("beta.deleteTitle"), t("beta.deleteMessage"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("common.delete"),
-        style: "destructive",
-        onPress: () => run(remove.mutateAsync({ projectId, commentId: comment.id })),
-      },
-    ]);
+  // No confirmation: the card slides out and Undo stays up for a few seconds.
+  function removeComment(comment: ShareComment) {
+    setError(null);
+    removeWithUndo(comment.id, t("beta.commentRemoved"), () =>
+      remove.mutateAsync({ projectId, commentId: comment.id })
+    );
   }
 
   const date = (iso: string) =>
     new Date(iso).toLocaleDateString(i18n.language, { month: "short", day: "numeric" });
 
   return (
+    <View style={styles.root}>
     <ScrollView
       testID="reader-comments"
       style={{ flex: 1 }}
@@ -94,7 +99,7 @@ export function ReaderComments({
       keyboardShouldPersistTaps="handled"
     >
       <Text style={[layout.body, styles.blurb]}>{t("beta.blurb")}</Text>
-      <Pressable
+      <PressableCard
         style={[layout.card, styles.linksCard]}
         onPress={onManageLinks}
         accessibilityRole="button"
@@ -102,7 +107,7 @@ export function ReaderComments({
       >
         <Text style={layout.cardTitle}>{t("beta.links.title")}</Text>
         <Text style={layout.cardMeta}>{t("beta.links.cardMeta")}</Text>
-      </Pressable>
+      </PressableCard>
 
       <View style={styles.filters}>
         <View style={[styles.segment, { backgroundColor: colors.panel2 }]}>
@@ -159,7 +164,13 @@ export function ReaderComments({
             <Text style={[layout.cardMeta, styles.groupTitle]}>{chapterHeading(group.number, group.title)}</Text>
           ) : null}
           {group.comments.map((comment) => (
-            <View key={comment.id} style={[layout.card, styles.card]} testID={`reader-comment-${comment.id}`}>
+            <Animated.View
+              key={comment.id}
+              style={[layout.card, styles.card]}
+              testID={`reader-comment-${comment.id}`}
+              exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+              layout={reduceMotion ? undefined : LinearTransition.duration(200)}
+            >
               <View style={[styles.quote, { borderLeftColor: colors.accent }]}>
                 <Text style={[styles.quoteText, { color: colors.inkSoft }]} numberOfLines={4}>
                   {comment.quote}
@@ -189,7 +200,7 @@ export function ReaderComments({
                 <View style={styles.spacer} />
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => confirmDelete(comment)}
+                  onPress={() => removeComment(comment)}
                   disabled={busy}
                   hitSlop={8}
                   style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
@@ -207,15 +218,18 @@ export function ReaderComments({
                   </Text>
                 </Pressable>
               </View>
-            </View>
+            </Animated.View>
           ))}
         </View>
       ))}
     </ScrollView>
+    <UndoSnackbar message={notice?.message ?? null} onUndo={undo} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 48 },
   blurb: { marginBottom: 16 },
   linksCard: { marginBottom: 20 },
