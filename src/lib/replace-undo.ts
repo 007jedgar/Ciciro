@@ -7,7 +7,7 @@ export type ReplaceUndoResult = {
   restored: number;
   /** Chapters the replace rewrote. */
   total: number;
-  /** Left alone because the writer wrote to them since the replace. */
+  /** Left alone because the writer, here or on another device, wrote to them since the replace. */
   changed: number;
   /** Put back locally but not saved (a network or server failure). */
   failed: number;
@@ -23,17 +23,18 @@ export type ReplacedBefore = {
   revision: number;
 };
 
+/** What the server made of a save: kept it, refused it for an older revision, or never took it. */
+export type SaveOutcome = "saved" | "conflict" | "failed";
+
 export type ReplaceUndoDeps = {
   /** Land anything typed and queued. Resolves false if some of it could not be saved. */
   flushSaves: () => Promise<boolean>;
   /** The revision the writer's copy of the chapter is confirmed at. */
   currentRevision: (id: string) => number | null | undefined;
-  /** Put the old text back through the normal save path (local copy now, save queued). */
-  restore: (id: string, content: string) => void;
-  /** True when the writer's copy of the chapter has nothing waiting to save (a failed save rolls back to the confirmed copy, so this alone proves nothing). */
-  isSaved: (id: string) => boolean;
-  /** Chapters whose text came back, for the editor to show. */
-  onRestored: (ids: string[]) => void;
+  /** Put the old text back through the normal save path: the local copy now, then the queued save's outcome. */
+  restore: (id: string, content: string) => Promise<SaveOutcome>;
+  /** Show these chapters' current text in the editor. */
+  show: (ids: string[]) => void;
 };
 
 export function makeReplaceUndo(before: readonly ReplacedBefore[], deps: ReplaceUndoDeps) {
@@ -45,25 +46,21 @@ export function makeReplaceUndo(before: readonly ReplacedBefore[], deps: Replace
     const untouched = before.filter(
       (prior) => prior.content !== null && deps.currentRevision(prior.id) === prior.revision
     );
-    for (const prior of untouched) deps.restore(prior.id, prior.content as string);
-    await deps.flushSaves();
-    // A restore landed when the server moved the chapter past the revision the
-    // replace left it at and nothing is waiting to save. The revision is the
-    // server's word for it; comparing text would trip over its normalising the
-    // HTML, and local-equals-confirmed also holds after a failed save rolls back.
-    const done = untouched
-      .filter((prior) => {
-        const now = deps.currentRevision(prior.id);
-        return now != null && now !== prior.revision && deps.isSaved(prior.id);
-      })
-      .map((prior) => prior.id);
-    // Whatever came back is shown, even when only some of it did.
-    if (done.length > 0) deps.onRestored(done);
+    const saves = untouched.map((prior) => deps.restore(prior.id, prior.content as string));
+    // Show the old text before its save lands, so typing meanwhile builds on it.
+    if (untouched.length > 0) deps.show(untouched.map((prior) => prior.id));
+    // The server's answer decides: a conflict means another device wrote to the
+    // chapter since, and comparing text would trip over the server normalising it.
+    const outcomes = await Promise.all(saves);
+    const missed = untouched.filter((_, i) => outcomes[i] !== "saved").map((prior) => prior.id);
+    // A missed save left the writer's copy at the server's text; show that instead.
+    if (missed.length > 0) deps.show(missed);
+    const conflicts = outcomes.filter((o) => o === "conflict").length;
     return {
-      restored: done.length,
+      restored: outcomes.filter((o) => o === "saved").length,
       total,
-      changed: total - untouched.length,
-      failed: untouched.length - done.length,
+      changed: total - untouched.length + conflicts,
+      failed: outcomes.filter((o) => o === "failed").length,
     };
   };
 }
