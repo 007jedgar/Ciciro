@@ -191,7 +191,9 @@ a link takes at most a couple of hundred an hour.
 shows each match with the words around it; click one to jump to it in the editor.
 Turn on **Match case** or **Whole word** to narrow it, type a replacement, and use
 **Replace** on a single match or **Replace all**. On the web, Replace all says how
-many it changed and offers **Undo** for a few seconds. Replacements are ordinary chapter
+many it changed and offers **Undo** for a few seconds. Undo saves your latest typing
+first and leaves alone any chapter written to since, here or on another device, and
+says which it could not put back. Replacements are ordinary chapter
 edits, so they sync to the phone like anything you type. On the phone, the Chapters
 tab has a Find and replace card with the same options.
 
