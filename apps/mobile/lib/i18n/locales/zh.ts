@@ -504,6 +504,7 @@ const zh: Translations = {
   recap: {
     title: "前情提要",
     dismiss: "关闭",
+    loading: "正在回顾故事至今的内容…",
   },
   stuck: {
     pill: "我卡住了",
@@ -512,6 +513,7 @@ const zh: Translations = {
     blurb: "根据本章和你的故事设定给出的几个下一步。选一个,与 Ciciro 一起展开。",
     error: "暂时无法获取想法,请重试。",
     more: "更多想法",
+    loading: "正在寻找下一步…",
   },
   weekly: {
     title: "每周回顾",

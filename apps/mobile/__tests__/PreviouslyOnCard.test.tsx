@@ -51,6 +51,16 @@ describe("PreviouslyOnCard", () => {
     expect(screen.queryByTestId("previously-on")).toBeNull();
   });
 
+  it("holds the card's place with skeleton lines while the recap is written", () => {
+    dueMock.mockReturnValue(true);
+    recapMock.mockReturnValue({ data: undefined, isPending: true });
+    render(wrap(<PreviouslyOnCard projectId="p1" />));
+    expect(screen.getByTestId("previously-on-loading")).toBeTruthy();
+    expect(screen.getByText("Previously on")).toBeTruthy();
+    expect(screen.getAllByLabelText("Catching up on the story so far…").length).toBeGreaterThan(1);
+    expect(screen.queryByTestId("previously-on")).toBeNull();
+  });
+
   it("renders nothing when it is not due or there is no recap", () => {
     dueMock.mockReturnValue(false);
     recapMock.mockReturnValue({ data: undefined });
@@ -72,6 +82,13 @@ describe("StuckSheet", () => {
     fireEvent.press(screen.getByText("Cut to the storm."));
     expect(onClose).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith("/project/p1/ciciro?prompt=Cut%20to%20the%20storm.");
+  });
+
+  it("shows skeleton ideas while Ciciro thinks", () => {
+    stuckMock.mockReturnValue({ mutate: jest.fn(), isPending: true, isError: false, data: undefined });
+    render(wrap(<StuckSheet open onClose={() => {}} projectId="p1" chapterId="c1" />));
+    expect(screen.getByTestId("loading-block")).toBeTruthy();
+    expect(screen.getAllByLabelText("Looking for ways forward…").length).toBeGreaterThan(1);
   });
 
   it("does not ask while closed", () => {

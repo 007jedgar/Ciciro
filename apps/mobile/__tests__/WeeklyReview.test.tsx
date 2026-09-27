@@ -65,6 +65,14 @@ function mockApi(opts?: { reviews?: Review[]; due?: boolean; create?: jest.Mock 
 }
 
 describe("WeeklyReview", () => {
+  it("shows skeleton lines under the button while a review is being written", () => {
+    mockApi({ reviews: [], due: true });
+    createMock.mockReturnValue({ mutateAsync: jest.fn(), isPending: true });
+    render(<WeeklyReview projectId="p1" />);
+    expect(screen.getByTestId("loading-block")).toBeTruthy();
+    expect(screen.getAllByLabelText("Reviewing your week...").length).toBeGreaterThan(1);
+  });
+
   it("shows the newest review with its loose ends and next steps", () => {
     mockApi();
     render(<WeeklyReview projectId="p1" />);

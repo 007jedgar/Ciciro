@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useStuckPromptsMutation } from "../lib/api";
 import { stuckPromptHref } from "../lib/recap";
 import { useAppTheme } from "../lib/settings";
+import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { GlassSheet } from "./GlassSheet";
 
 /**
@@ -50,24 +51,25 @@ export function StuckSheet({
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={[styles.blurb, { color: colors.inkSoft }]}>{t("stuck.blurb")}</Text>
           {ask.isPending ? (
-            <ActivityIndicator accessibilityLabel={t("common.loading")} />
+            <LoadingBlock label={t("stuck.loading")} lines={4} />
           ) : ask.isError ? (
             <Text style={{ color: colors.danger }} role="alert">
               {t("stuck.error")}
             </Text>
           ) : (
-            (ask.data ?? []).map((prompt) => (
-              <Pressable
-                key={prompt}
-                accessibilityRole="button"
-                onPress={() => use(prompt)}
-                style={({ pressed }) => [
-                  styles.prompt,
-                  { borderColor: colors.line, backgroundColor: colors.panel, opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <Text style={[styles.promptText, { color: colors.ink }]}>{prompt}</Text>
-              </Pressable>
+            (ask.data ?? []).map((prompt, index) => (
+              <FadeUp key={prompt} index={index}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => use(prompt)}
+                  style={({ pressed }) => [
+                    styles.prompt,
+                    { borderColor: colors.line, backgroundColor: colors.panel, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={[styles.promptText, { color: colors.ink }]}>{prompt}</Text>
+                </Pressable>
+              </FadeUp>
             ))
           )}
           <View style={styles.more}>

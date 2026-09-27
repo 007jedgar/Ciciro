@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import Animated, { LinearTransition, SlideOutLeft } from "react-native-reanimated";
+import Animated, { FadeInDown, LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import {
   ApiError,
@@ -14,6 +14,7 @@ import { groupCommentsByChapter } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
 import { fonts } from "../lib/theme";
+import { fadeUpDelay } from "../lib/skeleton";
 import { useUndoableRemoval } from "../lib/undo-removal";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { PressableCard } from "./PressableCard";
@@ -54,6 +55,7 @@ export function ReaderComments({
     (c) => !hidden.has(c.id) && (!onlyChapter || c.chapterId === chapterId)
   );
   const groups = groupCommentsByChapter(shown, chapters);
+  let commentIndex = 0;
 
   function chapterHeading(number: number, title: string): string {
     if (!number) return title || t("beta.archivedChapter");
@@ -168,6 +170,7 @@ export function ReaderComments({
               key={comment.id}
               style={[layout.card, styles.card]}
               testID={`reader-comment-${comment.id}`}
+              entering={reduceMotion ? undefined : FadeInDown.duration(240).delay(fadeUpDelay(commentIndex++))}
               exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
               layout={reduceMotion ? undefined : LinearTransition.duration(200)}
             >

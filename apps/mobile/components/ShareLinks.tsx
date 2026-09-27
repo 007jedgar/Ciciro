@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { AccessibilityInfo, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
-import Animated, { LinearTransition, SlideOutLeft } from "react-native-reanimated";
+import Animated, { FadeInDown, LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,6 +16,7 @@ import type { ShareLinkSummary } from "../lib/api/types";
 import { chapterNumberLabel, customChapterTitle } from "../lib/chapter-label";
 import { SHARE_EXPIRY_PRESETS, SHARE_LABEL_MAX, shareLinkUrl, type ShareExpiryPreset } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
+import { fadeUpDelay } from "../lib/skeleton";
 import { useUndoableRemoval } from "../lib/undo-removal";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { SkeletonList } from "./Skeleton";
@@ -296,7 +297,7 @@ export function ShareLinks({
       <View style={[styles.rule, { backgroundColor: colors.line }]} />
       {links.isPending && !links.data ? <SkeletonList count={2} accessibilityLabel={t("common.loading")} /> : null}
       {links.data && visibleLinks.length === 0 ? <Text style={layout.body}>{t("beta.links.empty")}</Text> : null}
-      {visibleLinks.map((link) => {
+      {visibleLinks.map((link, index) => {
         const active = link.status === "active";
         return (
           <Animated.View
@@ -304,6 +305,7 @@ export function ShareLinks({
             testID={`share-link-${link.id}`}
             style={[layout.card, styles.card, active ? null : styles.inactive]}
             exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+            entering={reduceMotion ? undefined : FadeInDown.duration(240).delay(fadeUpDelay(index))}
             layout={reduceMotion ? undefined : LinearTransition.duration(200)}
           >
             <View style={styles.cardHead}>

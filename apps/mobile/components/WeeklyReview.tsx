@@ -12,6 +12,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { barShare, formatWeekRange } from "../lib/weekly-review";
 import { writingDayKey, formatActiveDuration } from "../lib/writing-day";
+import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 
@@ -25,6 +26,7 @@ function ReviewBody({ review }: { review: Review }) {
   const active = stats.activeMs > 0 ? formatActiveDuration(stats.activeMs) : "";
   return (
     <View testID="weekly-review-body">
+      <FadeUp index={0}>
       <Text style={[layout.cardMeta, { marginBottom: 4 }]}>{t("weekly.accountWide")}</Text>
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>
         {t("weekly.statsLine", { words: stats.words, count: stats.daysWritten })}
@@ -47,7 +49,11 @@ function ReviewBody({ review }: { review: Review }) {
           />
         ))}
       </View>
+      </FadeUp>
+      <FadeUp index={1}>
       <Text style={[layout.body, { marginBottom: 16 }]}>{content.summary}</Text>
+      </FadeUp>
+      <FadeUp index={2}>
       <Text style={layout.cardTitle}>{t("weekly.touched")}</Text>
       {stats.chaptersTouched.length === 0 ? (
         <Text style={[layout.cardMeta, { marginBottom: 14 }]}>{t("weekly.touchedNone")}</Text>
@@ -58,6 +64,8 @@ function ReviewBody({ review }: { review: Review }) {
           </Text>
         ))
       )}
+      </FadeUp>
+      <FadeUp index={3}>
       <Text style={[layout.cardTitle, { marginTop: 14 }]}>{t("weekly.looseEnds")}</Text>
       {content.looseEnds.length === 0 ? (
         <Text style={[layout.cardMeta, { marginBottom: 14 }]}>{t("weekly.looseEndsNone")}</Text>
@@ -66,10 +74,13 @@ function ReviewBody({ review }: { review: Review }) {
           <Text key={i} style={layout.body}>{`• ${item}`}</Text>
         ))
       )}
+      </FadeUp>
+      <FadeUp index={4}>
       <Text style={[layout.cardTitle, { marginTop: 14 }]}>{t("weekly.next")}</Text>
       {content.nextSteps.map((item, i) => (
         <Text key={i} style={layout.body}>{`• ${item}`}</Text>
       ))}
+      </FadeUp>
     </View>
   );
 }
@@ -160,6 +171,9 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
       </PressableCard>
       {list.length === 0 && !reviews.isError ? (
         <Text style={layout.body}>{t("weekly.empty")}</Text>
+      ) : null}
+      {create.isPending ? (
+        <LoadingBlock label={t("weekly.working")} lines={6} style={{ marginBottom: 20 }} />
       ) : null}
       {selected ? (
         <View style={{ marginBottom: 20 }}>

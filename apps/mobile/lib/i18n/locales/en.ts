@@ -508,6 +508,7 @@ const en = {
   recap: {
     title: "Previously on",
     dismiss: "Dismiss",
+    loading: "Catching up on the story so far…",
   },
   stuck: {
     pill: "I'm stuck",
@@ -516,6 +517,7 @@ const en = {
     blurb: "A few next steps drawn from this chapter and your story bible. Pick one to talk it through with Ciciro.",
     error: "Couldn't get ideas right now. Try again.",
     more: "More ideas",
+    loading: "Looking for ways forward…",
   },
   weekly: {
     title: "Weekly review",
