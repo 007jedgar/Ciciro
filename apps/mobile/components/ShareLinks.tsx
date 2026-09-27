@@ -62,7 +62,7 @@ export function ShareLinks({
   const { hidden, notice, remove: removeWithUndo, undo } = useUndoableRemoval({
     onFailed: (_id, err) => setError(err instanceof ApiError ? err.message : t("beta.links.actionError")),
   });
-  const busy = revoke.isPending;
+  const busy = revoke.isPending || remove.isPending;
 
   function chapterName(index: number): string {
     const numbered = chapterNumberLabel(index + 1, (key, opts) => t(key, opts));
@@ -145,10 +145,26 @@ export function ShareLinks({
     ]);
   }
 
-  // No confirmation: the card slides out and Undo stays up for a few seconds.
+  // A link with reader comments takes them with it, so that asks first. An
+  // empty one slides out and Undo stays up for a few seconds.
   function removeLink(link: ShareLinkSummary) {
     setError(null);
-    removeWithUndo(link.id, t("beta.links.linkRemoved"), () => remove.mutateAsync({ projectId, linkId: link.id }));
+    if (link.commentCount === 0) {
+      removeWithUndo(link.id, t("beta.links.linkRemoved"), () => remove.mutateAsync({ projectId, linkId: link.id }));
+      return;
+    }
+    host.alert(t("beta.links.deleteTitle"), t("beta.links.deleteMessage", { count: link.commentCount }), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("common.delete"),
+        style: "destructive",
+        onPress: () => {
+          remove.mutateAsync({ projectId, linkId: link.id }).catch((err: unknown) => {
+            setError(err instanceof ApiError ? err.message : t("beta.links.actionError"));
+          });
+        },
+      },
+    ]);
   }
 
   function statusLine(link: ShareLinkSummary): string {
