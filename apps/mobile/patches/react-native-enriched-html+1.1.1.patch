@@ -59,8 +59,92 @@ index b8da319..5f133e8 100644
    SharedColor color{};
    Float fontSize{0.0};
    Float lineHeight{0.0};
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedBlockQuoteSpan.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedBlockQuoteSpan.kt
+index 5021c90..2bdc042 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedBlockQuoteSpan.kt
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedBlockQuoteSpan.kt
+@@ -3,11 +3,13 @@ package com.swmansion.enriched.common.spans
+ import android.graphics.Canvas
+ import android.graphics.Paint
+ import android.text.Layout
++import android.text.Spanned
+ import android.text.TextPaint
+ import android.text.style.LeadingMarginSpan
+ import android.text.style.MetricAffectingSpan
+ import com.swmansion.enriched.common.EnrichedStyle
+ import com.swmansion.enriched.common.spans.interfaces.EnrichedBlockSpan
++import com.swmansion.enriched.common.spans.interfaces.EnrichedParagraphSpacingSpan
+ 
+ // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/text/style/QuoteSpan.java
+ open class EnrichedBlockQuoteSpan(
+@@ -39,7 +41,10 @@ open class EnrichedBlockQuoteSpan(
+     val color = p.color
+     p.style = Paint.Style.FILL
+     p.color = enrichedStyle.blockquoteBorderColor
+-    c.drawRect(x.toFloat(), top.toFloat(), x + dir * enrichedStyle.blockquoteStripeWidth.toFloat(), bottom.toFloat(), p)
++    val quoteContinues =
++      text is Spanned && end < text.length && text.getSpans(end, end + 1, EnrichedBlockQuoteSpan::class.java).isNotEmpty()
++    val barBottom = if (quoteContinues) bottom else bottom - EnrichedParagraphSpacingSpan.below(text, start, end)
++    c.drawRect(x.toFloat(), top.toFloat(), x + dir * enrichedStyle.blockquoteStripeWidth.toFloat(), barBottom.toFloat(), p)
+     p.style = style
+     p.color = color
+   }
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedCodeBlockSpan.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedCodeBlockSpan.kt
+index 3eaa480..69fbb6d 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedCodeBlockSpan.kt
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/EnrichedCodeBlockSpan.kt
+@@ -11,6 +11,7 @@ import android.text.style.LineBackgroundSpan
+ import android.text.style.MetricAffectingSpan
+ import com.swmansion.enriched.common.EnrichedStyle
+ import com.swmansion.enriched.common.spans.interfaces.EnrichedBlockSpan
++import com.swmansion.enriched.common.spans.interfaces.EnrichedParagraphSpacingSpan
+ 
+ open class EnrichedCodeBlockSpan(
+   private val enrichedStyle: EnrichedStyle,
+@@ -72,7 +73,10 @@ open class EnrichedCodeBlockSpan(
+       radii[7] = radius
+     }
+ 
+-    val rect = RectF(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat())
++    val blockContinues =
++      end < text.length && text.getSpans(end, end + 1, EnrichedCodeBlockSpan::class.java).isNotEmpty()
++    val fillBottom = if (blockContinues) bottom else bottom - EnrichedParagraphSpacingSpan.below(text, start, end)
++    val rect = RectF(left.toFloat(), top.toFloat(), right.toFloat(), fillBottom.toFloat())
+ 
+     path.addRoundRect(rect, radii, Path.Direction.CW)
+     canvas.drawPath(path, p)
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/interfaces/EnrichedParagraphSpacingSpan.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/interfaces/EnrichedParagraphSpacingSpan.kt
+new file mode 100644
+index 0000000..d5e07d6
+--- /dev/null
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/common/spans/interfaces/EnrichedParagraphSpacingSpan.kt
+@@ -0,0 +1,24 @@
++package com.swmansion.enriched.common.spans.interfaces
++
++import android.text.Spanned
++
++interface EnrichedParagraphSpacingSpan {
++  fun paragraphSpacingBelow(
++    text: CharSequence,
++    start: Int,
++    end: Int,
++  ): Int
++
++  companion object {
++    fun below(
++      text: CharSequence?,
++      start: Int,
++      end: Int,
++    ): Int {
++      if (text !is Spanned || end <= start) return 0
++      return text
++        .getSpans(start, end, EnrichedParagraphSpacingSpan::class.java)
++        .maxOfOrNull { it.paragraphSpacingBelow(text, start, end) } ?: 0
++    }
++  }
++}
 diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
-index 023cc20..1cf1b08 100644
+index 023cc20..c8531e2 100644
 --- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
 +++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
 @@ -5,12 +5,18 @@ import android.content.ClipboardManager
@@ -104,7 +188,7 @@ index 023cc20..1cf1b08 100644
    var submitBehavior: String? = null
    private var autoFocus = false
    private var typefaceDirty = false
-@@ -523,7 +537,98 @@ class EnrichedTextInputView :
+@@ -523,7 +537,97 @@ class EnrichedTextInputView :
    fun setSelectionColor(colorInt: Int?) {
      if (colorInt == null) return
  
@@ -119,27 +203,27 @@ index 023cc20..1cf1b08 100644
 +    highlightColor = if (paragraphSpacing != null) Color.TRANSPARENT else color
 +  }
 +
-+  private fun lineHeightSpan(): EnrichedLineHeightSpan? {
-+    val spannable = text as? Spannable ?: return null
-+    return spannable.getSpans(0, spannable.length, EnrichedLineHeightSpan::class.java).firstOrNull()
-+  }
-+
 +  private fun paragraphSpacingBelowLine(
-+    span: EnrichedLineHeightSpan,
 +    textLayout: Layout,
 +    line: Int,
 +  ): Int {
++    val spacing = paragraphSpacing ?: return 0
 +    val content = text ?: return 0
-+    return span.paragraphSpacingBelow(content, textLayout.getLineStart(line), textLayout.getLineEnd(line))
++    return EnrichedLineHeightSpan.paragraphSpacingBelow(
++      spacing,
++      allowFontScaling,
++      content,
++      textLayout.getLineStart(line),
++      textLayout.getLineEnd(line),
++    )
 +  }
 +
 +  private fun cursorParagraphSpacing(): Int {
 +    if (paragraphSpacing == null) return 0
 +    val textLayout = layout ?: return 0
-+    val span = lineHeightSpan() ?: return 0
 +    val offset = selectionStart
 +    if (offset < 0) return 0
-+    return paragraphSpacingBelowLine(span, textLayout, textLayout.getLineForOffset(offset))
++    return paragraphSpacingBelowLine(textLayout, textLayout.getLineForOffset(offset))
 +  }
 +
 +  override fun onDraw(canvas: Canvas) {
@@ -149,17 +233,16 @@ index 023cc20..1cf1b08 100644
 +
 +  private fun drawSelectionWithoutParagraphSpacing(canvas: Canvas) {
 +    if (paragraphSpacing == null || !(isFocused || isPressed)) return
-+    val textLayout = layout ?: return
-+    val span = lineHeightSpan() ?: return
 +    val start = minOf(selectionStart, selectionEnd)
 +    val end = maxOf(selectionStart, selectionEnd)
 +    if (start < 0 || start == end) return
++    val textLayout = layout ?: return
 +
 +    selectionPath.reset()
 +    textLayout.getSelectionPath(start, end, selectionPath)
 +    selectionGapPath.reset()
 +    for (line in textLayout.getLineForOffset(start)..textLayout.getLineForOffset(end)) {
-+      val spacing = paragraphSpacingBelowLine(span, textLayout, line)
++      val spacing = paragraphSpacingBelowLine(textLayout, line)
 +      if (spacing <= 0) continue
 +      val bottom = textLayout.getLineBottom(line).toFloat()
 +      selectionGapPath.addRect(
@@ -204,7 +287,7 @@ index 023cc20..1cf1b08 100644
    }
  
    fun setCursorColor(colorInt: Int?) {
-@@ -574,15 +679,23 @@ class EnrichedTextInputView :
+@@ -574,15 +678,23 @@ class EnrichedTextInputView :
      forceScrollToSelection()
    }
  
@@ -274,18 +357,27 @@ index 09363e0..fa3d7a4 100644
            spannable.length,
            Spannable.SPAN_INCLUSIVE_INCLUSIVE,
 diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt
-index ddaeb7a..3eabb41 100644
+index ddaeb7a..1e74050 100644
 --- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt
 +++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt
-@@ -11,6 +11,7 @@ import com.swmansion.enriched.common.spans.interfaces.EnrichedHeadingSpan
+@@ -7,12 +7,15 @@ import android.text.style.LineHeightSpan
+ import android.text.style.MetricAffectingSpan
+ import com.swmansion.enriched.common.pixelFromSpOrDp
+ import com.swmansion.enriched.common.spans.interfaces.EnrichedHeadingSpan
++import com.swmansion.enriched.common.spans.interfaces.EnrichedParagraphSpacingSpan
+ 
  class EnrichedLineHeightSpan(
    val lineHeight: Float,
    val allowFontScaling: Boolean,
 +  val paragraphSpacing: Float = 0f,
  ) : MetricAffectingSpan(),
-   LineHeightSpan {
+-  LineHeightSpan {
++  LineHeightSpan,
++  EnrichedParagraphSpacingSpan {
    override fun updateDrawState(p0: TextPaint?) {
-@@ -30,16 +31,35 @@ class EnrichedLineHeightSpan(
+     // Do nothing but inform TextView that line height should be recalculated
+   }
+@@ -30,16 +33,45 @@ class EnrichedLineHeightSpan(
      fm: Paint.FontMetricsInt,
    ) {
      val spannable = text as? Spannable ?: return
@@ -303,10 +395,7 @@ index ddaeb7a..3eabb41 100644
 +        fm.top = minOf(fm.top, fm.ascent)
 +      }
 +    }
- 
--    val lineHeightPx = pixelFromSpOrDp(lineHeight, allowFontScaling)
--    val currentHeight = (fm.descent - fm.ascent).toFloat()
--    if (lineHeightPx <= currentHeight) return
++
 +    // Space after a paragraph goes below its last line, the one ending in a newline.
 +    // The final paragraph has no newline, so it gets no trailing space.
 +    val spacingPx = paragraphSpacingBelow(text, start, end)
@@ -316,16 +405,29 @@ index ddaeb7a..3eabb41 100644
 +    }
 +  }
  
--    val extra = (lineHeightPx - currentHeight).toInt()
--    fm.ascent -= extra
--    fm.top = minOf(fm.top, fm.ascent)
-+  fun paragraphSpacingBelow(
+-    val lineHeightPx = pixelFromSpOrDp(lineHeight, allowFontScaling)
+-    val currentHeight = (fm.descent - fm.ascent).toFloat()
+-    if (lineHeightPx <= currentHeight) return
++  override fun paragraphSpacingBelow(
 +    text: CharSequence,
 +    start: Int,
 +    end: Int,
-+  ): Int {
-+    if (paragraphSpacing <= 0f || end <= start || text[end - 1] != '\n') return 0
-+    return pixelFromSpOrDp(paragraphSpacing, allowFontScaling).toInt()
++  ): Int = paragraphSpacingBelow(paragraphSpacing, allowFontScaling, text, start, end)
+ 
+-    val extra = (lineHeightPx - currentHeight).toInt()
+-    fm.ascent -= extra
+-    fm.top = minOf(fm.top, fm.ascent)
++  companion object {
++    fun paragraphSpacingBelow(
++      paragraphSpacing: Float,
++      allowFontScaling: Boolean,
++      text: CharSequence,
++      start: Int,
++      end: Int,
++    ): Int {
++      if (paragraphSpacing <= 0f || end <= start || text[end - 1] != '\n') return 0
++      return pixelFromSpOrDp(paragraphSpacing, allowFontScaling).toInt()
++    }
    }
  }
 diff --git a/node_modules/react-native-enriched-html/android/src/main/new_arch/react/renderer/components/ReactNativeEnrichedSpec/conversions.h b/node_modules/react-native-enriched-html/android/src/main/new_arch/react/renderer/components/ReactNativeEnrichedSpec/conversions.h
