@@ -510,6 +510,7 @@ const es: Translations = {
   recap: {
     title: "Anteriormente",
     dismiss: "Descartar",
+    loading: "Repasando la historia hasta ahora…",
   },
   stuck: {
     pill: "Estoy atascado",
@@ -518,6 +519,7 @@ const es: Translations = {
     blurb: "Algunos próximos pasos a partir de este capítulo y tu biblia de la historia. Elige uno para comentarlo con Ciciro.",
     error: "No se pudieron obtener ideas ahora. Inténtalo de nuevo.",
     more: "Más ideas",
+    loading: "Buscando cómo avanzar…",
   },
   weekly: {
     title: "Repaso semanal",

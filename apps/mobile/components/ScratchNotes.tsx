@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import Animated, { LinearTransition, SlideOutLeft } from "react-native-reanimated";
+import Animated, { FadeInDown, LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api/client";
 import {
@@ -12,6 +12,7 @@ import type { ScratchNote } from "../lib/api/types";
 import { scratchNoteExcerpt, scratchNoteTitle } from "../lib/scratch";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
+import { fadeUpDelay } from "../lib/skeleton";
 import { useUndoableRemoval } from "../lib/undo-removal";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { PressableCard } from "./PressableCard";
@@ -97,13 +98,14 @@ export function ScratchNotes({
       {list.length === 0 && !notes.isError ? (
         <Text style={layout.body}>{t("scratch.empty")}</Text>
       ) : null}
-      {list.map((note) => {
+      {list.map((note, index) => {
         const title = scratchNoteTitle(note, t("scratch.untitled"));
         const excerpt = scratchNoteExcerpt(note);
         return (
           <Animated.View
             key={note.id}
             exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+            entering={reduceMotion ? undefined : FadeInDown.duration(240).delay(fadeUpDelay(index))}
             layout={reduceMotion ? undefined : LinearTransition.duration(200)}
           >
             <PressableCard
