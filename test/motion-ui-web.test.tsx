@@ -231,7 +231,7 @@ describe("SearchPanel replace", () => {
   });
 
   it("tells the writer what a partial Undo restored and refreshes the hits, even after a failed one", async () => {
-    const undo = vi.fn(async () => ({ restored: 1, total: 2, changed: 1, failed: 0, overwritten: 0 }));
+    const undo = vi.fn(async () => ({ restored: 1, total: 2, changed: 1, failed: 0 }));
     await mount(() => undo);
     const searches = () => (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(([u]) => !String(u).includes("/replace")).length;
     const all = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
@@ -251,7 +251,7 @@ describe("SearchPanel replace", () => {
   });
 
   it("refreshes the hits after an Undo that restored nothing", async () => {
-    const undo = vi.fn(async () => ({ restored: 0, total: 1, changed: 0, failed: 0, overwritten: 0, blocked: "unsaved" as const }));
+    const undo = vi.fn(async () => ({ restored: 0, total: 1, changed: 0, failed: 0, blocked: "unsaved" as const }));
     await mount(() => undo);
     const searches = () =>
       (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(([u]) => !String(u).includes("/replace")).length;

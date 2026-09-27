@@ -99,6 +99,8 @@ type Props = {
   onCommentClick?: (id: string) => void;
   /** What is being written. Screenplays get elements; a novel is the default. */
   kind?: ManuscriptKind;
+  /** Hold the page still: nothing can be typed while it is true. */
+  readOnly?: boolean;
 };
 
 const PLACEHOLDERS: Record<ManuscriptKind, string> = {
@@ -186,6 +188,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     commentHighlights,
     onCommentClick,
     kind = "novel",
+    readOnly = false,
   },
   ref
 ) {
@@ -397,6 +400,11 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (!editor) return;
     setCommentHighlights(editor, commentHighlights ?? []);
   }, [editor, commentHighlights]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (editor.isEditable !== !readOnly) editor.setEditable(!readOnly, false);
+  }, [editor, readOnly]);
 
   useEffect(() => {
     if (!editor || !focusEndOnMount) return;

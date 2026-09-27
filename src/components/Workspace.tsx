@@ -39,7 +39,7 @@ import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
 import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
 import { OptimisticChapterStore, type SaveOutcome } from "@/lib/optimistic-chapter";
-import { saveChapter, type SaveHint } from "@/lib/chapter-save";
+import { restoreChapter, saveChapter, type SaveHint } from "@/lib/chapter-save";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
@@ -137,6 +137,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const pendingSaveCountRef = useRef(0);
   // Chapters whose typed content the server has not accepted.
   const unsavedContentRef = useRef(new Set<string>());
+  // Chapters whose Undo is on its way to the server: read-only until it answers.
+  const restoringRef = useRef(new Set<string>());
+  const [restoring, setRestoring] = useState<ReadonlySet<string>>(new Set());
   const saveStateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the editor opens/creates a chapter, mount TipTap with the caret at
   // the end so Auto-mode drafts continue rather than prepending.
@@ -216,10 +219,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }));
   }, []);
 
-  const settledSaveState = useCallback(
-    (): SaveState => (unsavedContentRef.current.size > 0 ? "error" : "saved"),
-    []
-  );
+  const settledSaveState = useCallback((): SaveState => {
+    const unsaved = unsavedContentRef.current;
+    return projectRef.current.chapters.some((c) => unsaved.has(c.id)) ? "error" : "saved";
+  }, []);
 
   const showTransientSaveState = useCallback(
     (state: SaveHint) => {
@@ -238,37 +241,25 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     return { content: ch.content, title: ch.title, status: ch.status };
   }, []);
 
-  const patchChapter = useCallback(
-    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>): Promise<SaveOutcome> => {
+  const sendChapter = useCallback(
+    (chapterId: string, body: object) =>
+      fetch(`/api/chapters/${chapterId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    []
+  );
+
+  /** Run a chapter save behind every save already queued, with the indicator showing it. */
+  const enqueueSave = useCallback(
+    (task: () => Promise<SaveOutcome>): Promise<SaveOutcome> => {
       if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
       pendingSaveCountRef.current += 1;
       setSaveState("saving");
-
       const save = saveQueueRef.current
         .catch(() => {})
-        .then(async (): Promise<SaveOutcome> => {
-          const { outcome, settled } = await saveChapter(
-            {
-              store: optimisticStoreRef.current!,
-              send: (chapterId, body) =>
-                fetch(`/api/chapters/${chapterId}`, {
-                  method: "PATCH",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify(body),
-                }),
-              getLocalFields,
-              updateChapterLocal,
-              showHint: showTransientSaveState,
-            },
-            id,
-            fields
-          );
-          if ("content" in fields) {
-            if (settled) unsavedContentRef.current.delete(id);
-            else unsavedContentRef.current.add(id);
-          }
-          return outcome;
-        })
+        .then(task)
         .finally(() => {
           pendingSaveCountRef.current -= 1;
           if (pendingSaveCountRef.current === 0) {
@@ -278,13 +269,36 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       saveQueueRef.current = save.then(() => {});
       return save.catch((): SaveOutcome => "failed");
     },
-    [updateChapterLocal, getLocalFields, showTransientSaveState, settledSaveState]
+    [settledSaveState]
+  );
+
+  const patchChapter = useCallback(
+    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>): Promise<SaveOutcome> =>
+      enqueueSave(async () => {
+        const { outcome, settled } = await saveChapter(
+          {
+            store: optimisticStoreRef.current!,
+            send: sendChapter,
+            getLocalFields,
+            updateChapterLocal,
+            showHint: showTransientSaveState,
+          },
+          id,
+          fields
+        );
+        if ("content" in fields) {
+          if (settled) unsavedContentRef.current.delete(id);
+          else unsavedContentRef.current.add(id);
+        }
+        return outcome;
+      }),
+    [enqueueSave, sendChapter, updateChapterLocal, getLocalFields, showTransientSaveState]
   );
 
   // --- Content autosave (debounced) ---
   const onContentChange = useCallback(
     (html: string) => {
-      if (!activeId) return;
+      if (!activeId || restoringRef.current.has(activeId)) return;
       const prevWords =
         projectRef.current.chapters.find((c) => c.id === activeId)?.wordCount ?? 0;
       const nextWords = chapterWordCount(html);
@@ -344,6 +358,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const onChapterRestored = useCallback(
     (chapter: Chapter) => {
       setRestoredId(chapter.id);
+      unsavedContentRef.current.delete(chapter.id);
       optimisticStoreRef.current?.setConfirmed(chapter.id, {
         content: chapter.content,
         title: chapter.title,
@@ -549,14 +564,26 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         flushSaves,
         currentRevision: (id) => optimisticStoreRef.current?.getExpectedRevision(id),
         // The normal save path: queued behind other saves, on the store's revision.
-        restore: (id, content) => {
-          updateChapterLocal(id, { content, wordCount: chapterWordCount(content) });
-          return patchChapter(id, { content });
+        restore: (id, content) =>
+          enqueueSave(() =>
+            restoreChapter(
+              { store: optimisticStoreRef.current!, send: sendChapter, updateChapterLocal },
+              id,
+              content
+            )
+          ),
+        hold: (ids) => {
+          for (const id of ids) restoringRef.current.add(id);
+          setRestoring(new Set(restoringRef.current));
+          return () => {
+            for (const id of ids) restoringRef.current.delete(id);
+            setRestoring(new Set(restoringRef.current));
+          };
         },
         show: remount,
       });
     },
-    [flushSaves, patchChapter, updateChapterLocal]
+    [enqueueSave, flushSaves, sendChapter, updateChapterLocal]
   );
 
   const onSearchJump = useCallback(
@@ -698,6 +725,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           notify({ message: err?.error || "Couldn't delete that chapter." });
           return;
         }
+        unsavedContentRef.current.delete(id);
         setProject((p) => {
           const chapters = p.chapters
             .filter((c) => c.id !== id)
@@ -923,14 +951,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <ManuscriptPaceMeter projectId={project.id} />
         <span className="spacer" />
         <span className="save-state">
-          {saveState === "saving"
-            ? "Saving..."
-            : saveState === "restored"
-              ? "Couldn't save — restored"
-              : saveState === "error"
-                ? "Couldn't save — retrying"
-                : saveState === "overwrote"
-                  ? "Saved over a change from another device"
+          {activeId && restoring.has(activeId)
+            ? "Restoring..."
+            : saveState === "saving"
+              ? "Saving..."
+              : saveState === "restored"
+                ? "Couldn't save — restored"
+                : saveState === "error"
+                  ? "Couldn't save — retrying"
                   : "All changes saved"}
         </span>
         <ThemePicker compact />
@@ -1162,6 +1190,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   commentHighlights={commentHighlights}
                   onCommentClick={openReaderComment}
                   kind={kind}
+                  readOnly={restoring.has(activeChapter.id)}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />
