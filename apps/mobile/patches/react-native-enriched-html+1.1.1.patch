@@ -287,6 +287,56 @@ index 05d0e67..63e46ae 100644
  - (NSString *)primaryFontWeight {
    return _primaryFontWeight != nullptr
               ? _primaryFontWeight
+diff --git a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
+index 4e8dd50..ac865e3 100644
+--- a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
++++ b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
+@@ -23,6 +23,36 @@ - (void)layoutSubviews {
+ // UITextView places the cursor at the leading edge when a paragraph contains
+ // zero (or invisible) glyphs because the layout engine has nothing to align.
+ // We fix this by reading the active alignment and repositioning the caret rect
++// paragraphSpacing is added to the last line fragment of a paragraph, so the
++// system caret would grow into the gap. Trim it back to the text line box.
++- (CGRect)caretRectWithoutParagraphSpacing:(CGRect)rect
++                                   atIndex:(NSUInteger)idx {
++  NSString *text = self.textStorage.string;
++  NSUInteger length = text.length;
++  if (length == 0) {
++    return rect;
++  }
++  if (idx >= length && [text characterAtIndex:length - 1] == '\n') {
++    // caret sits on the trailing empty line, which has no spacing of its own
++    return rect;
++  }
++
++  NSLayoutManager *layoutManager = self.layoutManager;
++  NSUInteger glyphIndex = [layoutManager
++      glyphIndexForCharacterAtIndex:MIN(idx, length - 1)];
++  CGRect fragmentRect =
++      [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
++                                      effectiveRange:nullptr];
++  CGRect usedRect =
++      [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
++                                          effectiveRange:nullptr];
++  CGFloat extra = fragmentRect.size.height - usedRect.size.height;
++  if (extra > 0.5 && extra < rect.size.height) {
++    rect.size.height -= extra;
++  }
++  return rect;
++}
++
+ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+   CGRect rect = [super caretRectForPosition:position];
+   NSUInteger idx = [self offsetFromPosition:self.beginningOfDocument
+@@ -35,7 +65,7 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+ 
+   // Non-empty paragraph gets its caret drawn the usual way.
+   if (paraRange.length != 0) {
+-    return rect;
++    return [self caretRectWithoutParagraphSpacing:rect atIndex:idx];
+   }
+ 
+   NSParagraphStyle *pStyle =
 diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
 index 9569683..ab23db5 100644
 --- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
