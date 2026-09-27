@@ -96,3 +96,25 @@ export function rotateHue(hex: string, degrees: number, lift = 0): string {
     })
   );
 }
+
+/** `amount` (0..1) of the way from `from` to `to`, per channel. */
+export function mixColors(from: string, to: string, amount: number): string {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  const t = clamp01(amount);
+  return rgbToHex({ r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t });
+}
+
+function channelLuminance(value: number): number {
+  return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+}
+
+/** WCAG contrast ratio (1..21) between two hex colours. */
+export function contrastRatio(a: string, b: string): number {
+  const luminance = (hex: string) => {
+    const { r, g, b: blue } = hexToRgb(hex);
+    return 0.2126 * channelLuminance(r) + 0.7152 * channelLuminance(g) + 0.0722 * channelLuminance(blue);
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}

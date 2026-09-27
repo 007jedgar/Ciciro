@@ -81,7 +81,13 @@ export function ShareLinks({
   );
 
   async function copyUrl(link: ShareLinkSummary) {
-    await Clipboard.setStringAsync(shareLinkUrl(link));
+    try {
+      await Clipboard.setStringAsync(shareLinkUrl(link));
+    } catch {
+      setError(t("beta.links.copyError"));
+      return;
+    }
+    setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     AccessibilityInfo.announceForAccessibility(t("beta.links.copied"));
     setCopiedId(link.id);

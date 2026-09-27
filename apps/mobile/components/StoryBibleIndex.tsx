@@ -19,6 +19,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { SkeletonList } from "./Skeleton";
+import { PressableCard } from "./PressableCard";
 
 const STAGGER_MS = 40;
 
@@ -199,7 +200,7 @@ function FileCard({
     <Animated.View
       entering={animate ? FadeInDown.duration(260).delay(Math.min(index, 6) * STAGGER_MS) : undefined}
     >
-      <Pressable
+      <PressableCard
         style={layout.card}
         onPress={onPress}
         accessibilityRole="button"
@@ -207,7 +208,7 @@ function FileCard({
       >
         <Text style={layout.cardTitle}>{label}</Text>
         <Text style={layout.cardMeta}>{entry.summary}</Text>
-      </Pressable>
+      </PressableCard>
     </Animated.View>
   );
 }

@@ -12,6 +12,7 @@ import {
   reminderDaySummary,
   type ReminderTranslate,
 } from "../lib/writing-reminders";
+import { PressableCard } from "../components/PressableCard";
 
 export default function WritingRemindersScreen() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function WritingRemindersScreen() {
             const days = reminderDaySummary(reminder.days, translate);
             const goal = t("reminders.goalValue", { count: reminder.wordGoal });
             return (
-              <Pressable
+              <PressableCard
                 key={reminder.id}
                 style={layout.card}
                 onPress={() =>
@@ -82,7 +83,7 @@ export default function WritingRemindersScreen() {
                     .filter(Boolean)
                     .join(" · ")}
                 </Text>
-              </Pressable>
+              </PressableCard>
             );
           })
         )}

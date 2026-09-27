@@ -1,4 +1,4 @@
-import { hexToRgb, hslToRgb, rgbToHex, rgbToHsl, rotateHue } from "../lib/color";
+import { contrastRatio, hexToRgb, hslToRgb, mixColors, rgbToHex, rgbToHsl, rotateHue } from "../lib/color";
 
 describe("hexToRgb", () => {
   it("reads both shorthand and full hex", () => {
@@ -39,5 +39,20 @@ describe("rotateHue", () => {
       rgbToHsl(hexToRgb("#b4552d")).l
     );
     expect(rotateHue("#b4552d", 0, 5)).toBe("#ffffff");
+  });
+});
+
+describe("mixColors", () => {
+  it("moves a fraction of the way between two colours", () => {
+    expect(mixColors("#000000", "#ffffff", 0)).toBe("#000000");
+    expect(mixColors("#000000", "#ffffff", 1)).toBe("#ffffff");
+    expect(mixColors("#000000", "#ffffff", 0.5)).toBe("#808080");
+  });
+});
+
+describe("contrastRatio", () => {
+  it("is 21 for black on white and 1 for a colour on itself", () => {
+    expect(contrastRatio("#000", "#fff")).toBeCloseTo(21, 5);
+    expect(contrastRatio("#b4552d", "#b4552d")).toBeCloseTo(1, 5);
   });
 });

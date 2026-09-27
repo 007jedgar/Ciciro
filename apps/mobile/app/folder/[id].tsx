@@ -27,6 +27,7 @@ import {
 } from "../../lib/api";
 import { useAppTheme } from "../../lib/settings";
 import { useSession } from "../../lib/session";
+import { PressableCard } from "../../components/PressableCard";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -172,7 +173,7 @@ export default function FolderScreen() {
                   {t("folder.addFromLibrary")}
                 </Text>
                 {unfiled.map((item) => (
-                  <Pressable
+                  <PressableCard
                     key={item.id}
                     style={layout.card}
                     onPress={() => add(item.id)}
@@ -181,7 +182,7 @@ export default function FolderScreen() {
                   >
                     <Text style={layout.cardTitle}>{item.title || t("manuscripts.untitled")}</Text>
                     <Text style={layout.cardMeta}>{t("folder.addToFolder")}</Text>
-                  </Pressable>
+                  </PressableCard>
                 ))}
               </>
             ) : null}
