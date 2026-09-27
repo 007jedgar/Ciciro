@@ -1,5 +1,5 @@
 import { htmlToDoc } from "./manuscript";
-import { hasSuggestions, type SuggestionSummary } from "./suggestions";
+import { hasSuggestions, type SuggestionAction, type SuggestionPiece, type SuggestionSummary } from "./suggestions";
 
 // Small pure helpers behind the phone's suggestion review sheet.
 
@@ -39,4 +39,43 @@ export function blockHasSuggestions(html: string, blockId: string): boolean {
 export function clipText(text: string, max = 80): string {
   const flat = text.replace(/\s+/g, " ").trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/** The inserted text flashes over this long before it settles into the prose. */
+export const FLASH_MS = 400;
+/** The text being removed shrinks away over this long. */
+export const COLLAPSE_MS = 160;
+
+export type ResolvingPiece = {
+  text: string;
+  /** What the piece was in the proposal, for its colour while it still shows as one. */
+  kind: SuggestionPiece["kind"];
+  /** `kept` text stays and flashes; `collapsing` text is on its way out. */
+  role: "context" | "kept" | "collapsing";
+  /** 1 at the start of the flash, easing to 0 as it settles. */
+  flash: number;
+};
+
+/**
+ * One suggestion mid-decision. Accepting keeps the inserted words (they flash
+ * in the draft tint, then settle) and shrinks the struck words away; rejecting
+ * is the mirror image. `elapsedMs` is time since the writer tapped, so the
+ * card can draw any frame of it from the clock alone.
+ */
+export function resolvingPieces(
+  pieces: readonly SuggestionPiece[],
+  action: SuggestionAction,
+  elapsedMs: number
+): ResolvingPiece[] {
+  const kept: SuggestionPiece["kind"] = action === "accept" ? "insert" : "delete";
+  const flash = 1 - Math.min(1, Math.max(0, elapsedMs) / FLASH_MS);
+  const remaining = 1 - Math.min(1, Math.max(0, elapsedMs) / COLLAPSE_MS);
+  return pieces.map((piece) => {
+    if (piece.kind === "context") return { text: piece.text, kind: piece.kind, role: "context", flash: 0 };
+    if (piece.kind === kept) return { text: piece.text, kind: piece.kind, role: "kept", flash };
+    // Trim characters off the end: the words draw in from the right, which reads as a horizontal collapse.
+    const chars = [...piece.text];
+    const text = chars.slice(0, Math.ceil(chars.length * remaining)).join("");
+    return { text, kind: piece.kind, role: "collapsing", flash: 0 };
+  });
 }

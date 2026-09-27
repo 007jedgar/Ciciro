@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import * as Haptics from "expo-haptics";
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SuggestionsPill, SuggestionsSheet } from "../components/SuggestionsReview";
@@ -6,6 +7,11 @@ import { AppThemeContext, type AppThemeState } from "../lib/app-theme-context";
 import { defaultSettings } from "../lib/app-settings";
 import { listSuggestions } from "../lib/suggestions";
 import { colors, makeLayout } from "../lib/theme";
+
+jest.mock("expo-haptics", () => ({
+  impactAsync: jest.fn(async () => {}),
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
+}));
 
 jest.mock("expo-blur", () => {
   const { View } = require("react-native");
@@ -46,7 +52,7 @@ describe("suggestion review on the phone", () => {
   it("says how many changes wait and from whom", () => {
     const onOpen = jest.fn();
     const { unmount } = render(wrap(<SuggestionsPill suggestions={suggestions} onOpen={onOpen} />));
-    expect(screen.getByText("2 suggestions from Ciciro")).toBeTruthy();
+    expect(screen.getByLabelText(/^2 suggestions from Ciciro/)).toBeTruthy();
     fireEvent.press(screen.getByTestId("suggestions-pill"));
     expect(onOpen).toHaveBeenCalledTimes(1);
     unmount();
@@ -58,33 +64,71 @@ describe("suggestion review on the phone", () => {
     unmount();
   });
 
-  it("shows each change in context and resolves one at a time", () => {
-    const onResolve = jest.fn();
-    const { unmount } = render(
-      wrap(<SuggestionsSheet visible suggestions={suggestions} onClose={jest.fn()} onResolve={onResolve} />)
-    );
-    expect(screen.getByText("walked slowly")).toBeTruthy();
-    expect(screen.getByText("ambled")).toBeTruthy();
-    expect(screen.getAllByText("5m ago")).toHaveLength(2);
-    expect(screen.getByLabelText("Ciciro suggests: Replace “walked slowly” with “ambled”")).toBeTruthy();
+  describe("deciding", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
 
-    fireEvent.press(screen.getByLabelText("Accept: Replace “walked slowly” with “ambled”"));
-    expect(onResolve).toHaveBeenLastCalledWith("accept", ["s1"]);
-    fireEvent.press(screen.getByLabelText("Reject: Replace “Nobody” with “No one”"));
-    expect(onResolve).toHaveBeenLastCalledWith("reject", ["s2"]);
-    unmount();
-  });
+    it("shows each change in context", () => {
+      const { unmount } = render(
+        wrap(<SuggestionsSheet visible suggestions={suggestions} onClose={jest.fn()} onResolve={jest.fn()} />)
+      );
+      expect(screen.getByText("walked slowly")).toBeTruthy();
+      expect(screen.getByText("ambled")).toBeTruthy();
+      expect(screen.getAllByText("5m ago")).toHaveLength(2);
+      expect(screen.getByLabelText("Ciciro suggests: Replace “walked slowly” with “ambled”")).toBeTruthy();
+      unmount();
+    });
 
-  it("accepts or rejects everything at once", () => {
-    const onResolve = jest.fn();
-    const { unmount } = render(
-      wrap(<SuggestionsSheet visible suggestions={suggestions} onClose={jest.fn()} onResolve={onResolve} />)
-    );
-    fireEvent.press(screen.getByTestId("suggestions-accept-all"));
-    expect(onResolve).toHaveBeenLastCalledWith("accept");
-    fireEvent.press(screen.getByTestId("suggestions-reject-all"));
-    expect(onResolve).toHaveBeenLastCalledWith("reject");
-    unmount();
+    it("plays the change out on the card, then resolves it, with a light haptic", () => {
+      const onResolve = jest.fn();
+      const { unmount } = render(
+        wrap(<SuggestionsSheet visible suggestions={suggestions} onClose={jest.fn()} onResolve={onResolve} />)
+      );
+      fireEvent.press(screen.getByLabelText("Accept: Replace “walked slowly” with “ambled”"));
+      expect(Haptics.impactAsync).toHaveBeenLastCalledWith("light");
+      // Still on screen while the inserted words flash and the struck ones shrink.
+      expect(onResolve).not.toHaveBeenCalled();
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      expect(onResolve).toHaveBeenLastCalledWith("accept", ["s1"]);
+
+      fireEvent.press(screen.getByLabelText("Reject: Replace “Nobody” with “No one”"));
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      expect(onResolve).toHaveBeenLastCalledWith("reject", ["s2"]);
+      unmount();
+    });
+
+    it("accepts everything with a medium haptic and rejects everything at once", () => {
+      const onResolve = jest.fn();
+      const { unmount } = render(
+        wrap(<SuggestionsSheet visible suggestions={suggestions} onClose={jest.fn()} onResolve={onResolve} />)
+      );
+      fireEvent.press(screen.getByTestId("suggestions-accept-all"));
+      expect(Haptics.impactAsync).toHaveBeenLastCalledWith("medium");
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      expect(onResolve).toHaveBeenLastCalledWith("accept", undefined);
+      fireEvent.press(screen.getByTestId("suggestions-reject-all"));
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      expect(onResolve).toHaveBeenLastCalledWith("reject", undefined);
+      unmount();
+    });
+
+    it("does not drop a decision when the sheet goes away mid-animation", () => {
+      const onResolve = jest.fn();
+      const { unmount } = render(
+        wrap(<SuggestionsSheet visible suggestions={suggestions} onClose={jest.fn()} onResolve={onResolve} />)
+      );
+      fireEvent.press(screen.getByTestId("suggestions-accept-all"));
+      unmount();
+      expect(onResolve).toHaveBeenCalledWith("accept", undefined);
+    });
   });
 
   it("closes itself once the last change is resolved", () => {
