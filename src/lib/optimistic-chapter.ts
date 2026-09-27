@@ -143,6 +143,20 @@ export function handleNetworkFailure(
   return { uiHint: "error" };
 }
 
+/** How one PATCH of a save went. */
+export type SaveAttempt = "ok" | "409-retry" | "409-restored" | "fail";
+
+/** What the server made of a save: took it as sent, refused it for an older revision, or never took it. */
+export type SaveOutcome = "saved" | "conflict" | "failed";
+
+/** A save counts as saved only when the server took the payload as first sent, with no conflict along the way. */
+export function saveOutcome(attempts: readonly SaveAttempt[]): SaveOutcome {
+  const last = attempts[attempts.length - 1];
+  if (last === undefined || last === "fail") return "failed";
+  if (last === "ok" && !attempts.some((a) => a === "409-retry" || a === "409-restored")) return "saved";
+  return "conflict";
+}
+
 /** Per-chapter confirmed snapshots for optimistic saves. */
 export class OptimisticChapterStore {
   private confirmed = new Map<string, ConfirmedSnapshot>();

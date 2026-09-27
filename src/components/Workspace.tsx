@@ -38,13 +38,19 @@ import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
 import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
-import { OptimisticChapterStore, handleNetworkFailure } from "@/lib/optimistic-chapter";
+import {
+  OptimisticChapterStore,
+  handleNetworkFailure,
+  saveOutcome,
+  type SaveAttempt,
+  type SaveOutcome,
+} from "@/lib/optimistic-chapter";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import type { ReplaceUndoResult } from "@/components/SearchPanel";
-import { makeReplaceUndo, type SaveOutcome } from "@/lib/replace-undo";
+import { makeReplaceUndo } from "@/lib/replace-undo";
 import { applyChapterOrder } from "@/lib/outline";
 import { fetchShareComments } from "@/lib/share-client";
 import type { ShareCommentView } from "@/lib/share-view";
@@ -230,7 +236,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, []);
 
   const patchChapter = useCallback(
-    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>): Promise<SaveOutcome> => {
+    (
+      id: string,
+      fields: Partial<Pick<Chapter, "content" | "title" | "status">>,
+      { retryConflicts = true }: { retryConflicts?: boolean } = {}
+    ): Promise<SaveOutcome> => {
       if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
       pendingSaveCountRef.current += 1;
       setSaveState("saving");
@@ -243,7 +253,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
           const attemptSave = async (
             payload: typeof inFlight
-          ): Promise<"ok" | "409-retry" | "409-restored" | "fail"> => {
+          ): Promise<SaveAttempt> => {
             const expectedRevision = store.getExpectedRevision(id);
             if (expectedRevision == null) return "fail";
             try {
@@ -279,17 +289,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           };
 
           const payload = { ...inFlight };
-          let outcome = await attemptSave(payload);
-          let conflicted = outcome === "409-retry" || outcome === "409-restored";
-          if (outcome === "fail") {
-            outcome = await attemptSave(payload);
-            if (outcome === "409-retry" || outcome === "409-restored") conflicted = true;
-          } else if (outcome === "409-retry") {
-            outcome = await attemptSave(payload);
-            if (outcome === "409-retry") {
-              outcome = await attemptSave(payload);
-            }
+          const attempts: SaveAttempt[] = [await attemptSave(payload)];
+          if (attempts[0] === "fail") {
+            attempts.push(await attemptSave(payload));
+          } else if (attempts[0] === "409-retry" && retryConflicts) {
+            attempts.push(await attemptSave(payload));
+            if (attempts[1] === "409-retry") attempts.push(await attemptSave(payload));
           }
+          const outcome = attempts[attempts.length - 1];
           let settled = outcome !== "fail" && outcome !== "409-retry";
           if (outcome === "fail") {
             const confirmed = store.get(id);
@@ -309,8 +316,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             if (settled) unsavedContentRef.current.delete(id);
             else unsavedContentRef.current.add(id);
           }
-          if (outcome === "fail") return "failed";
-          return conflicted ? "conflict" : "saved";
+          return saveOutcome(attempts);
         })
         .finally(() => {
           pendingSaveCountRef.current -= 1;
@@ -594,7 +600,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         // The normal save path: queued behind other saves, on the store's revision.
         restore: (id, content) => {
           updateChapterLocal(id, { content, wordCount: chapterWordCount(content) });
-          return patchChapter(id, { content });
+          return patchChapter(id, { content }, { retryConflicts: false });
         },
         show: remount,
       });

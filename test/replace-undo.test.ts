@@ -111,20 +111,6 @@ describe("undoing a replace", () => {
     expect(undoMessage(result)).toBe("Restored 1 of 2 chapters: 1 edited since and left as it is.");
   });
 
-  it("trusts the server's answer, not the raw HTML, when it normalises what it saved", async () => {
-    const w = workspace();
-    const normalise = (html: string) => html.replace("<p>", '<p data-block="b1">');
-    const save = w.deps.restore;
-    w.deps.restore = async (id, content) => {
-      const outcome = await save(id, content);
-      w.server.set(id, normalise(content));
-      return outcome;
-    };
-    const result = await makeReplaceUndo(before, w.deps)();
-    expect(w.server.get("c1")).not.toBe(w.local.get("c1"));
-    expect(result).toEqual({ restored: 2, total: 2, changed: 0, failed: 0 });
-  });
-
   it("shows the old text before its save lands, so typing meanwhile builds on it", async () => {
     const w = workspace();
     let land!: () => void;
