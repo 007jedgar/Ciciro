@@ -1,15 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Text, View } from "react-native";
+import { Gesture, GestureDetector, ScrollView } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   runOnJS,
-  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-  type SharedValue,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
@@ -33,39 +31,46 @@ type Props = {
 };
 
 /** Neighbours make room on a short spring; the drop settles on a shorter one. */
-const NEIGHBOUR_SPRING = { duration: 150, dampingRatio: 0.85 } as const;
-const SETTLE_SPRING = { duration: 120, dampingRatio: 0.9 } as const;
+const NEIGHBOUR_SPRING = { damping: 26, stiffness: 420, mass: 0.7 } as const;
+const SETTLE_SPRING = { damping: 30, stiffness: 620, mass: 0.7 } as const;
 const LIFT_SCALE = 1.03;
 /** If the new order never arrives (the save failed), the row eases home after this. */
 const SETTLE_FALLBACK_MS = 700;
 
-/** Drag state shared by every row, so neighbours can react without re-rendering. */
-type DragState = {
-  /** Index of the row being dragged, or -1. */
-  from: SharedValue<number>;
-  /** Slot the dragged row would land in, or -1. */
-  to: SharedValue<number>;
-};
+/**
+ * Where a drag stands. Only the dragged row's own motion (following the finger,
+ * lifting) runs per frame on the UI thread; everyone else reacts to this, which
+ * changes only when the finger crosses into another slot. It is stamped with the
+ * order it was made for, so a row never acts on a drag whose reorder has landed.
+ */
+type DragState = { from: number; to: number; order: string };
+
+const IDLE: DragState = { from: -1, to: -1, order: "" };
 
 function OutlineRow({
   chapter,
   index,
   count,
-  drag: state,
+  drag,
+  order,
   reduceMotion,
   onOpen,
   onMove,
   onDragging,
+  onSlot,
   onDrop,
 }: {
   chapter: Chapter;
   index: number;
   count: number;
   drag: DragState;
+  /** The current id order, to tell whether `drag` is still about it. */
+  order: string;
   reduceMotion: boolean;
   onOpen: () => void;
   onMove: (to: number) => void;
   onDragging: (dragging: boolean) => void;
+  onSlot: (from: number, to: number) => void;
   onDrop: (from: number, to: number) => void;
 }) {
   const { t } = useTranslation();
@@ -75,6 +80,11 @@ function OutlineRow({
   const translateY = useSharedValue(0);
   const lifted = useSharedValue(0);
   const neighbour = useSharedValue(0);
+  const lastSlot = useSharedValue(-1);
+  // Locals, not module constants: worklets capture what is in their own scope.
+  const rowHeight = OUTLINE_ROW_HEIGHT;
+  const liftScale = LIFT_SCALE;
+  const settle = SETTLE_SPRING;
 
   // A new order has been applied: this row is where it belongs now, so the
   // transient offsets are zeroed without animating (that would move it twice).
@@ -85,25 +95,21 @@ function OutlineRow({
     neighbour.value = 0;
   }, [index, translateY, neighbour]);
 
-  useAnimatedReaction(
-    () => dragShift(index, state.from.value, state.to.value),
-    (shift, previous) => {
-      if (previous === null || shift === previous) return;
-      neighbour.value = reduceMotion ? shift : withSpring(shift, NEIGHBOUR_SPRING);
-    },
-    [index, reduceMotion]
-  );
+  // Step aside for the dragged row.
+  const shift = drag.order === order ? dragShift(index, drag.from, drag.to, rowHeight) : 0;
+  useEffect(() => {
+    neighbour.value = reduceMotion ? shift : withSpring(shift, NEIGHBOUR_SPRING);
+  }, [shift, reduceMotion, neighbour]);
 
-  // A drop whose new order never arrived: the dragged row eases back to its slot.
-  useAnimatedReaction(
-    () => state.from.value,
-    (current, previous) => {
-      if (current === -1 && previous === index && translateY.value !== 0) {
-        translateY.value = reduceMotion ? 0 : withSpring(0, SETTLE_SPRING);
-      }
-    },
-    [index, reduceMotion]
-  );
+  // The drag ended without a new order (the save failed): ease the row home.
+  const dragged = drag.from === index && drag.order === order;
+  const wasDragged = useRef(false);
+  useEffect(() => {
+    if (wasDragged.current && !dragged) {
+      translateY.value = reduceMotion ? 0 : withSpring(0, SETTLE_SPRING);
+    }
+    wasDragged.current = dragged;
+  }, [dragged, reduceMotion, translateY]);
 
   const numbered = chapterNumberLabel(index + 1, (key, opts) => t(key, opts));
   const custom = customChapterTitle(chapter.title, numbered, t("chapters.newTitle"));
@@ -114,33 +120,54 @@ function OutlineRow({
   const pickUp = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   };
+  const tick = () => {
+    Haptics.selectionAsync().catch(() => {});
+  };
 
   const pan = Gesture.Pan()
-    .onStart(() => {
-      lifted.value = reduceMotion ? 1 : withSpring(1, SETTLE_SPRING);
-      state.from.value = index;
-      state.to.value = index;
+    // Recognised after a point of movement, ahead of the list's own scroll
+    // gesture, so a drag that starts on the handle is never a scroll.
+    .minDistance(1)
+    .onBegin(() => {
       runOnJS(onDragging)(true);
+    })
+    .onStart(() => {
+      lifted.value = reduceMotion ? 1 : withTiming(1, { duration: 120 });
+      lastSlot.value = index;
+      runOnJS(onSlot)(index, index);
       runOnJS(pickUp)();
     })
     .onUpdate((e) => {
       translateY.value = e.translationY;
-      state.to.value = dropIndexFor(index, e.translationY, count);
+      const slot = dropIndexFor(index, e.translationY, count, rowHeight);
+      if (slot !== lastSlot.value) {
+        lastSlot.value = slot;
+        runOnJS(onSlot)(index, slot);
+        runOnJS(tick)();
+      }
     })
     .onEnd((e) => {
-      const to = dropIndexFor(index, e.translationY, count);
-      state.to.value = to;
-      lifted.value = reduceMotion ? 0 : withSpring(0, SETTLE_SPRING);
-      runOnJS(onDragging)(false);
-      const settled = (to - index) * OUTLINE_ROW_HEIGHT;
+      const to = dropIndexFor(index, e.translationY, count, rowHeight);
+      lifted.value = reduceMotion ? 0 : withTiming(0, { duration: 120 });
+      const settled = (to - index) * rowHeight;
       // Settle into the slot, then hand the new order over.
       translateY.value = reduceMotion
-        ? withTiming(settled, { duration: 0 })
-        : withSpring(settled, SETTLE_SPRING, (finished) => {
+        ? settled
+        : withSpring(settled, settle, (finished) => {
             "worklet";
             if (finished) runOnJS(onDrop)(index, to);
           });
       if (reduceMotion) runOnJS(onDrop)(index, to);
+    })
+    .onFinalize((_e, success) => {
+      // A touch that never became a drag, or was cancelled, must not leave the
+      // list locked or a gap open.
+      runOnJS(onDragging)(false);
+      if (!success) {
+        lifted.value = withTiming(0, { duration: 120 });
+        translateY.value = withTiming(0, { duration: 120 });
+        runOnJS(onDrop)(index, index);
+      }
     });
 
   const rowStyle = useAnimatedStyle(() => {
@@ -148,7 +175,7 @@ function OutlineRow({
     return {
       transform: [
         { translateY: translateY.value + neighbour.value },
-        { scale: 1 + (LIFT_SCALE - 1) * isLifted },
+        { scale: 1 + (liftScale - 1) * isLifted },
       ],
       zIndex: isLifted > 0 ? 10 : 0,
       shadowOpacity: 0.28 * isLifted,
@@ -218,24 +245,39 @@ function OutlineRow({
 
 /** The dashed outline of the slot the dragged chapter will land in. */
 function InsertionGap({
-  state,
+  slot,
   top,
   reduceMotion,
 }: {
-  state: DragState;
+  /** The slot being held open, or -1 when nothing is being dragged. */
+  slot: number;
   top: number;
   reduceMotion: boolean;
 }) {
   const themed = useOptionalAppTheme();
   const colors = themed?.colors ?? parchmentColors;
-  const style = useAnimatedStyle(() => {
-    const slot = state.to.value;
-    const y = top + Math.max(0, slot) * OUTLINE_ROW_HEIGHT;
-    return {
-      opacity: state.from.value >= 0 ? 1 : 0,
-      transform: [{ translateY: reduceMotion ? y : withSpring(y, NEIGHBOUR_SPRING) }],
-    };
-  });
+  const y = useSharedValue(top);
+  const visible = useSharedValue(0);
+
+  useEffect(() => {
+    if (slot < 0) {
+      visible.value = reduceMotion ? 0 : withTiming(0, { duration: 120 });
+      return;
+    }
+    const target = top + slot * OUTLINE_ROW_HEIGHT;
+    if (visible.value === 0) {
+      // Appearing: land on the slot, do not slide in from wherever it last was.
+      y.value = target;
+      visible.value = reduceMotion ? 1 : withTiming(1, { duration: 120 });
+    } else {
+      y.value = reduceMotion ? target : withSpring(target, NEIGHBOUR_SPRING);
+    }
+  }, [slot, top, reduceMotion, y, visible]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: visible.value,
+    transform: [{ translateY: y.value }],
+  }));
   return (
     <Animated.View
       pointerEvents="none"
@@ -262,25 +304,16 @@ function InsertionGap({
 export function OutlineList({ chapters, paddingTop = 0, paddingBottom = 0, onOpen, onReorder }: Props) {
   const reduceMotion = useReduceMotion();
   const [dragging, setDragging] = useState(false);
+  const [drag, setDrag] = useState<DragState>(IDLE);
   const ids = chapters.map((c) => c.id);
   const orderKey = ids.join("|");
-  const from = useSharedValue(-1);
-  const to = useSharedValue(-1);
-  const state: DragState = { from, to };
   const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearDrag = () => {
-    from.value = -1;
-    to.value = -1;
-  };
-
-  // The drop keeps its offsets until the reordered list arrives, so rows do not
-  // spring back and then jump; a row that never got its new order eases home.
+  // The reordered list has arrived: the drag is over, and its offsets are moot.
   useLayoutEffect(() => {
     if (fallback.current) clearTimeout(fallback.current);
     fallback.current = null;
-    clearDrag();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setDrag(IDLE);
   }, [orderKey]);
 
   useEffect(
@@ -292,12 +325,16 @@ export function OutlineList({ chapters, paddingTop = 0, paddingBottom = 0, onOpe
 
   function drop(index: number, target: number) {
     if (target === index) {
-      clearDrag();
+      setDrag(IDLE);
       return;
     }
     onReorder(moveItem(ids, index, target));
-    fallback.current = setTimeout(clearDrag, SETTLE_FALLBACK_MS);
+    // The drop keeps its offsets until the new order lands, so rows do not spring
+    // back and then jump; a save that never lands eases everything home.
+    fallback.current = setTimeout(() => setDrag(IDLE), SETTLE_FALLBACK_MS);
   }
+
+  const active = drag.order === orderKey ? drag : IDLE;
 
   return (
     <ScrollView
@@ -305,14 +342,15 @@ export function OutlineList({ chapters, paddingTop = 0, paddingBottom = 0, onOpe
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingTop, paddingBottom }}
     >
-      <InsertionGap state={state} top={paddingTop} reduceMotion={reduceMotion} />
+      <InsertionGap slot={active.to} top={paddingTop} reduceMotion={reduceMotion} />
       {chapters.map((chapter, index) => (
         <OutlineRow
           key={chapter.id}
           chapter={chapter}
           index={index}
           count={chapters.length}
-          drag={state}
+          drag={active}
+          order={orderKey}
           reduceMotion={reduceMotion}
           onOpen={() => onOpen(chapter)}
           onMove={(target) => {
@@ -320,6 +358,7 @@ export function OutlineList({ chapters, paddingTop = 0, paddingBottom = 0, onOpe
             onReorder(moveItem(ids, index, target));
           }}
           onDragging={setDragging}
+          onSlot={(from, to) => setDrag({ from, to, order: orderKey })}
           onDrop={drop}
         />
       ))}
