@@ -153,20 +153,20 @@ describe("saveOutcome", () => {
     expect(saveOutcome(["fail", "ok"])).toBe("saved");
   });
 
-  it("is a conflict when a retry after a 409 landed, since the server copy had moved on", () => {
-    expect(saveOutcome(["409-retry", "ok"])).toBe("conflict");
-    expect(saveOutcome(["409-retry", "409-retry", "ok"])).toBe("conflict");
+  it("is overwrote when the writer's newer words landed on a copy the server had moved on", () => {
+    expect(saveOutcome(["409-retry", "ok"])).toBe("overwrote");
+    expect(saveOutcome(["409-retry", "409-retry", "ok"])).toBe("overwrote");
   });
 
-  it("is a conflict when the server's copy was adopted or the conflict never cleared", () => {
+  it("is a conflict when the server's copy was adopted", () => {
     expect(saveOutcome(["409-restored"])).toBe("conflict");
-    expect(saveOutcome(["409-retry"])).toBe("conflict");
     expect(saveOutcome(["fail", "409-restored"])).toBe("conflict");
   });
 
-  it("is failed when the last attempt never reached the server", () => {
+  it("is failed when nothing landed", () => {
     expect(saveOutcome(["fail", "fail"])).toBe("failed");
-    expect(saveOutcome(["409-retry", "fail"])).toBe("failed");
+    expect(saveOutcome(["409-retry", "409-retry", "409-retry"])).toBe("failed");
+    expect(saveOutcome(["fail", "409-retry"])).toBe("failed");
     expect(saveOutcome([])).toBe("failed");
   });
 });

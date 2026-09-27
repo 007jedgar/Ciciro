@@ -26,20 +26,27 @@ export function undoMessage(result: ReplaceUndoResult): string | null {
     return "Couldn't undo: some edits haven't saved yet. Try again in a moment.";
   }
   if (result.restored === result.total) return null;
+  const edited = (n: number) => `${n} edited since and left as ${n === 1 ? "it is" : "they are"}`;
+  const overwritten =
+    result.overwritten > 0
+      ? `${result.overwritten} changed on another device while you typed, and your version was saved over ${
+          result.overwritten === 1 ? "it" : "them"
+        }`
+      : "";
   const parts = [
-    result.changed > 0 ? `${result.changed} edited since and left as ${result.changed === 1 ? "it is" : "they are"}` : "",
+    result.changed > 0 ? edited(result.changed) : "",
+    overwritten,
     result.failed > 0 ? `${result.failed} couldn't be saved` : "",
   ].filter(Boolean);
-  if (result.restored === 0) {
+  if (result.restored === 0 && result.overwritten === 0) {
     if (result.failed === 0) {
       return `Couldn't undo: ${result.changed > 1 ? "the chapters" : "the chapter"} changed since.`;
     }
     return `Couldn't undo: ${
       result.failed === 1 ? "the chapter" : "the chapters"
-    } couldn't be saved. Check your connection and try again.${
-      result.changed > 0 ? ` ${result.changed} edited since and left as ${result.changed === 1 ? "it is" : "they are"}.` : ""
-    }`;
+    } couldn't be saved. Check your connection and try again.${result.changed > 0 ? ` ${edited(result.changed)}.` : ""}`;
   }
+  if (result.restored === 0) return `Couldn't undo: ${parts.join("; ")}.`;
   return `Restored ${result.restored} of ${chaptersLabel(result.total)}: ${parts.join("; ")}.`;
 }
 

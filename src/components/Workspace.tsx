@@ -38,13 +38,8 @@ import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
 import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
-import {
-  OptimisticChapterStore,
-  handleNetworkFailure,
-  saveOutcome,
-  type SaveAttempt,
-  type SaveOutcome,
-} from "@/lib/optimistic-chapter";
+import { OptimisticChapterStore, type SaveOutcome } from "@/lib/optimistic-chapter";
+import { saveChapter, type SaveHint } from "@/lib/chapter-save";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
@@ -64,7 +59,7 @@ import {
 } from "@/lib/manuscript-kind";
 import type { Project, Chapter, OpenQuestion, ClientUiEvent } from "@/lib/types";
 
-type SaveState = "saved" | "saving" | "error" | "restored";
+type SaveState = "saved" | "saving" | SaveHint;
 
 const SUGGESTING_KEY = "ciciro-suggesting";
 
@@ -221,13 +216,21 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     }));
   }, []);
 
-  const showTransientSaveState = useCallback((state: "error" | "restored") => {
-    setSaveState(state);
-    if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
-    saveStateTimer.current = setTimeout(() => {
-      if (pendingSaveCountRef.current === 0) setSaveState("saved");
-    }, 3000);
-  }, []);
+  const settledSaveState = useCallback(
+    (): SaveState => (unsavedContentRef.current.size > 0 ? "error" : "saved"),
+    []
+  );
+
+  const showTransientSaveState = useCallback(
+    (state: SaveHint) => {
+      setSaveState(state);
+      if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
+      saveStateTimer.current = setTimeout(() => {
+        if (pendingSaveCountRef.current === 0) setSaveState(settledSaveState());
+      }, 3000);
+    },
+    [settledSaveState]
+  );
 
   const getLocalFields = useCallback((id: string) => {
     const ch = projectRef.current.chapters.find((c) => c.id === id);
@@ -236,98 +239,46 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, []);
 
   const patchChapter = useCallback(
-    (
-      id: string,
-      fields: Partial<Pick<Chapter, "content" | "title" | "status">>,
-      { retryConflicts = true }: { retryConflicts?: boolean } = {}
-    ): Promise<SaveOutcome> => {
+    (id: string, fields: Partial<Pick<Chapter, "content" | "title" | "status">>): Promise<SaveOutcome> => {
       if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
       pendingSaveCountRef.current += 1;
       setSaveState("saving");
-      const inFlight = { ...fields };
 
       const save = saveQueueRef.current
         .catch(() => {})
         .then(async (): Promise<SaveOutcome> => {
-          const store = optimisticStoreRef.current!;
-
-          const attemptSave = async (
-            payload: typeof inFlight
-          ): Promise<SaveAttempt> => {
-            const expectedRevision = store.getExpectedRevision(id);
-            if (expectedRevision == null) return "fail";
-            try {
-              const res = await fetch(`/api/chapters/${id}`, {
-                method: "PATCH",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ ...payload, expectedRevision }),
-              });
-              if (res.status === 409) {
-                const body = (await res.json()) as { chapter?: Chapter };
-                const serverChapter = body.chapter;
-                const local = getLocalFields(id);
-                if (!serverChapter || !local) return "fail";
-
-                const result = store.apply409(id, serverChapter, local, payload);
-                updateChapterLocal(id, result.localPatch);
-
-                if (result.retry) {
-                  Object.assign(payload, result.retry);
-                  return "409-retry";
-                }
-                showTransientSaveState("restored");
-                return "409-restored";
-              }
-              if (!res.ok) return "fail";
-              const chapter = (await res.json()) as Chapter;
-              const { localPatch } = store.applySuccess(id, chapter);
-              updateChapterLocal(id, localPatch);
-              return "ok";
-            } catch {
-              return "fail";
-            }
-          };
-
-          const payload = { ...inFlight };
-          const attempts: SaveAttempt[] = [await attemptSave(payload)];
-          if (attempts[0] === "fail") {
-            attempts.push(await attemptSave(payload));
-          } else if (attempts[0] === "409-retry" && retryConflicts) {
-            attempts.push(await attemptSave(payload));
-            if (attempts[1] === "409-retry") attempts.push(await attemptSave(payload));
-          }
-          const outcome = attempts[attempts.length - 1];
-          let settled = outcome !== "fail" && outcome !== "409-retry";
-          if (outcome === "fail") {
-            const confirmed = store.get(id);
-            const local = getLocalFields(id);
-            if (confirmed && local) {
-              const failure = handleNetworkFailure(confirmed, local, payload);
-              if (failure.localPatch) {
-                updateChapterLocal(id, failure.localPatch);
-                settled = true;
-              }
-              showTransientSaveState(failure.uiHint);
-            } else {
-              showTransientSaveState("error");
-            }
-          }
-          if ("content" in payload) {
+          const { outcome, settled } = await saveChapter(
+            {
+              store: optimisticStoreRef.current!,
+              send: (chapterId, body) =>
+                fetch(`/api/chapters/${chapterId}`, {
+                  method: "PATCH",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify(body),
+                }),
+              getLocalFields,
+              updateChapterLocal,
+              showHint: showTransientSaveState,
+            },
+            id,
+            fields
+          );
+          if ("content" in fields) {
             if (settled) unsavedContentRef.current.delete(id);
             else unsavedContentRef.current.add(id);
           }
-          return saveOutcome(attempts);
+          return outcome;
         })
         .finally(() => {
           pendingSaveCountRef.current -= 1;
           if (pendingSaveCountRef.current === 0) {
-            setSaveState((s) => (s === "saving" ? "saved" : s));
+            setSaveState((s) => (s === "saving" ? settledSaveState() : s));
           }
         });
       saveQueueRef.current = save.then(() => {});
       return save.catch((): SaveOutcome => "failed");
     },
-    [updateChapterLocal, getLocalFields, showTransientSaveState]
+    [updateChapterLocal, getLocalFields, showTransientSaveState, settledSaveState]
   );
 
   // --- Content autosave (debounced) ---
@@ -600,7 +551,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         // The normal save path: queued behind other saves, on the store's revision.
         restore: (id, content) => {
           updateChapterLocal(id, { content, wordCount: chapterWordCount(content) });
-          return patchChapter(id, { content }, { retryConflicts: false });
+          return patchChapter(id, { content });
         },
         show: remount,
       });
@@ -978,7 +929,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               ? "Couldn't save — restored"
               : saveState === "error"
                 ? "Couldn't save — retrying"
-                : "All changes saved"}
+                : saveState === "overwrote"
+                  ? "Saved over a change from another device"
+                  : "All changes saved"}
         </span>
         <ThemePicker compact />
         <button
