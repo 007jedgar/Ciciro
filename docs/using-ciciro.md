@@ -145,9 +145,10 @@ or in search. They sync between the web and your phone. If the same note is
 edited on two devices, Ciciro asks whether to keep your version or the other one
 rather than overwriting either. On the phone, long-press a note to delete it: the
 note slides away and a bar offers **Undo** for six seconds before the delete
-goes through. Beta reader comments, share links and empty chapters delete the
-same way; a chapter that still has prose is never deleted, and the phone asks
-you to empty it first.
+goes through. Beta reader comments, share links without comments and empty
+chapters delete the same way. A share link that has reader comments asks first
+and says how many comments are deleted with it. A chapter that still has prose
+is never deleted, and the phone asks you to empty it first.
 
 ## Weekly review
 
