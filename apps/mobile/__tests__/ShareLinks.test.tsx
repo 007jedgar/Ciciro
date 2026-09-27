@@ -175,8 +175,46 @@ describe("ShareLinks", () => {
     beforeEach(() => jest.useFakeTimers());
     afterEach(() => jest.useRealTimers());
 
-    it("slides the link out with Undo, then deletes it once the window passes", async () => {
+    it("asks first when the link has comments, naming how many go with it", async () => {
       const { remove, host } = setup();
+      let confirm: (() => void) | undefined;
+      host.alert.mockImplementationOnce((_title, _message, buttons) => {
+        confirm = buttons?.[buttons.length - 1]?.onPress;
+      });
+      fireEvent.press(screen.getByText("Delete"));
+      expect(host.alert).toHaveBeenCalledWith(
+        "Delete this link?",
+        "Its 2 comments are deleted too. This can't be undone.",
+        expect.any(Array)
+      );
+      expect(screen.getByTestId("share-link-l1")).toBeTruthy();
+      expect(screen.queryByText("Link deleted")).toBeNull();
+      expect(remove).not.toHaveBeenCalled();
+      await act(async () => {
+        confirm?.();
+      });
+      expect(remove).toHaveBeenCalledWith({ projectId: "p1", linkId: "l1" });
+      expect(screen.queryByText("Link deleted")).toBeNull();
+    });
+
+    it("keeps the link when the confirmation is cancelled", async () => {
+      const { remove, host } = setup([link({ commentCount: 1 })]);
+      host.alert.mockImplementationOnce(() => {});
+      fireEvent.press(screen.getByText("Delete"));
+      expect(host.alert).toHaveBeenCalledWith(
+        "Delete this link?",
+        "Its 1 comment is deleted too. This can't be undone.",
+        expect.any(Array)
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(10000);
+      });
+      expect(screen.getByTestId("share-link-l1")).toBeTruthy();
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("slides a link with no comments out with Undo, then deletes it once the window passes", async () => {
+      const { remove, host } = setup([link({ commentCount: 0 })]);
       fireEvent.press(screen.getByText("Delete"));
       expect(host.alert).not.toHaveBeenCalled();
       expect(screen.queryByTestId("share-link-l1")).toBeNull();
@@ -189,7 +227,7 @@ describe("ShareLinks", () => {
     });
 
     it("keeps the link when Undo is tapped", async () => {
-      const { remove } = setup();
+      const { remove } = setup([link({ commentCount: 0 })]);
       fireEvent.press(screen.getByText("Delete"));
       fireEvent.press(screen.getByLabelText("Undo"));
       expect(screen.getByTestId("share-link-l1")).toBeTruthy();
