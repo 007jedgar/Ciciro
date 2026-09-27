@@ -1,5 +1,7 @@
 import {
   clampRate,
+  lineYForOffset,
+  readAloudScrollTarget,
   readAloudSelectionFor,
   readAloudSentences,
   SentenceReader,
@@ -171,5 +173,27 @@ describe("SentenceReader", () => {
     expect(reader.current.state).toBe("idle");
     expect(clampRate(10)).toBe(2);
     expect(clampRate("x")).toBe(1);
+  });
+});
+
+describe("read-aloud scroll target", () => {
+  const lines = [
+    { text: "The river ran high that ", y: 0 },
+    { text: "spring, and Marra stood ", y: 30 },
+    { text: "at the ford.", y: 60 },
+  ];
+
+  it("finds the rendered line a character offset falls on", () => {
+    expect(lineYForOffset(lines, 0)).toBe(0);
+    expect(lineYForOffset(lines, 23)).toBe(0);
+    expect(lineYForOffset(lines, 24)).toBe(30);
+    expect(lineYForOffset(lines, 50)).toBe(60);
+    expect(lineYForOffset(lines, 500)).toBe(60);
+    expect(lineYForOffset([], 3)).toBe(0);
+  });
+
+  it("keeps the sentence at 40% of the viewport height and never scrolls above the top", () => {
+    expect(readAloudScrollTarget({ bodyY: 100, paragraphY: 900, lineY: 30, viewportHeight: 700 })).toBe(750);
+    expect(readAloudScrollTarget({ bodyY: 100, paragraphY: 10, lineY: 0, viewportHeight: 700 })).toBe(0);
   });
 });

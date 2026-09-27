@@ -4,12 +4,17 @@ import { useTranslation } from "react-i18next";
 import { getLocales } from "expo-localization";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../lib/settings";
+import { useFade } from "../lib/use-fade";
+import { useReduceMotion } from "../lib/use-reduce-motion";
+import { alpha } from "./Glass";
 import { GlassSheet } from "./GlassSheet";
 import { fonts } from "../lib/theme";
 import { blocksPlainText } from "../lib/read-aloud-text";
 import {
   expoSpeechEngine,
+  lineYForOffset,
   RATE_STEPS,
+  readAloudScrollTarget,
   readAloudSentences,
   SentenceReader,
   setReadAloudPrefs,
@@ -21,6 +26,23 @@ import {
 } from "../lib/read-aloud";
 
 export type ReadAloudVoice = VoiceOption;
+
+/** The highlight eases in and out over this long as the reading moves on. */
+const HIGHLIGHT_MS = 150;
+
+/** One sentence of the page, its highlight fading in while it is read and out when it is done. */
+function Sentence({ on, color, children }: { on: boolean; color: string; children: string }) {
+  const reduceMotion = useReduceMotion();
+  const level = useFade(on ? 1 : 0, HIGHLIGHT_MS, !reduceMotion);
+  return (
+    <Text
+      testID={on ? "reading-sentence" : undefined}
+      style={level > 0 ? { backgroundColor: alpha(color, level) } : undefined}
+    >
+      {children}
+    </Text>
+  );
+}
 
 function deviceLocale(): string {
   try {
@@ -78,7 +100,9 @@ export function ReadAloud({
   const readerRef = useRef<SentenceReader | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const lineY = useRef<Map<number, number>>(new Map());
+  const lineBreaks = useRef<Map<number, { text: string; y: number }[]>>(new Map());
   const bodyY = useRef(0);
+  const viewportHeight = useRef(0);
 
   const plain = useMemo(() => blocksPlainText(html), [html]);
   const [active, setActive] = useState<ReturnType<typeof readAloudSentences>>([]);
@@ -122,8 +146,19 @@ export function ReadAloud({
   const current = state === "idle" ? null : (shown[index] ?? null);
   useEffect(() => {
     if (!current) return;
-    const y = lineY.current.get(current.line);
-    if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, bodyY.current + y - 80), animated: true });
+    const paragraphY = lineY.current.get(current.line);
+    if (paragraphY == null) return;
+    // Keep the sentence 40% of the way down the viewport, on the line it starts on.
+    const inParagraph = lineBreaks.current.get(current.line);
+    scrollRef.current?.scrollTo({
+      y: readAloudScrollTarget({
+        bodyY: bodyY.current,
+        paragraphY,
+        lineY: inParagraph ? lineYForOffset(inParagraph, current.start) : 0,
+        viewportHeight: viewportHeight.current,
+      }),
+      animated: true,
+    });
   }, [current]);
 
   const sortedVoices = useMemo(() => voiceChoices(voices, deviceLocale(), prefs.voice), [voices, prefs.voice]);
@@ -143,6 +178,7 @@ export function ReadAloud({
     <View style={{ flex: 1 }}>
       <ScrollView
         ref={scrollRef}
+        onLayout={(e) => (viewportHeight.current = e.nativeEvent.layout.height)}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator
@@ -187,6 +223,12 @@ export function ReadAloud({
             <Text
               key={lineIndex}
               onLayout={(e) => lineY.current.set(lineIndex, e.nativeEvent.layout.y)}
+              onTextLayout={(e) =>
+                lineBreaks.current.set(
+                  lineIndex,
+                  e.nativeEvent.lines.map((l) => ({ text: l.text, y: l.y }))
+                )
+              }
               style={{
                 fontFamily: fonts.serif,
                 fontSize: 18,
@@ -196,13 +238,9 @@ export function ReadAloud({
               }}
             >
               {parts.map((p, i) => (
-                <Text
-                  key={i}
-                  testID={p.on ? "reading-sentence" : undefined}
-                  style={p.on ? { backgroundColor: colors.accentSoft } : undefined}
-                >
+                <Sentence key={i} on={p.on} color={colors.accentSoft}>
                   {p.text}
-                </Text>
+                </Sentence>
               ))}
             </Text>
           );
