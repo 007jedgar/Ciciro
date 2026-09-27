@@ -1,6 +1,6 @@
 import { ManuscriptMeta } from "../components/ManuscriptMeta";
 import { useMemo, useState } from "react";
-import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
