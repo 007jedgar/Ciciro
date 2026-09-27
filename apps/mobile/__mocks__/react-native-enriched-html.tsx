@@ -8,6 +8,7 @@ export const EnrichedTextInput = forwardRef(function EnrichedTextInput(
     testID?: string;
     defaultValue?: string;
     style?: StyleProp<TextStyle>;
+    paragraphSpacing?: number;
     onFocus?: (e: unknown) => void;
     onBlur?: (e: unknown) => void;
     onChangeText?: (e: { nativeEvent: { value: string } }) => void;
@@ -54,6 +55,7 @@ export const EnrichedTextInput = forwardRef(function EnrichedTextInput(
       testID={props.testID}
       defaultValue={props.defaultValue}
       style={props.style}
+      {...({ paragraphSpacing: props.paragraphSpacing } as object)}
       multiline
       onFocus={props.onFocus as never}
       onBlur={props.onBlur as never}

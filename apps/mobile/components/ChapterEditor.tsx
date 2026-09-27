@@ -19,6 +19,17 @@ export type EditorStyle = {
   color: string;
 };
 
+/**
+ * Space after each paragraph in ems, so phone drafts keep the paragraph
+ * separation the desktop editor has without storing blank paragraphs. The native
+ * `paragraphSpacing` prop comes from `patches/react-native-enriched-html+*.patch`.
+ */
+export const PARAGRAPH_SPACING_EM = 0.9;
+
+export function paragraphSpacingFor(fontSize: number): number {
+  return fontSize * PARAGRAPH_SPACING_EM;
+}
+
 export function marksFromEnrichedState(state: OnChangeStateEvent): BlockMarks {
   return {
     bold: state.bold.isActive,
@@ -172,6 +183,7 @@ export function ChapterEditor({
               ]
             : undefined
         }
+        paragraphSpacing={paragraphSpacingFor(editorStyle.fontSize)}
         htmlStyle={{
           h2: { fontSize: editorStyle.fontSize + 6, bold: true },
           blockquote: {

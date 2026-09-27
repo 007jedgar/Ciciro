@@ -10,7 +10,8 @@
     "setup:ios": "cd ios && pod install --repo-update && cd ..",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/ui": "~57.0.20",
@@ -73,6 +74,7 @@
     "@types/react": "~19.2.2",
     "jest": "~29.7.0",
     "jest-expo": "~57.0.5",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
   "op-sqlite": {

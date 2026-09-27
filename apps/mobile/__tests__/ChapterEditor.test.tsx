@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import {
   ChapterEditor,
+  paragraphSpacingFor,
   kindFromEnrichedState,
   marksFromEnrichedState,
 } from "../components/ChapterEditor";
@@ -115,6 +116,28 @@ describe("ChapterEditor", () => {
     expect(
       kindFromEnrichedState(style({ unorderedList: { isActive: true, isConflicting: false, isBlocking: false } }))
     ).toBe("list_item");
+  });
+
+  it("spaces paragraphs in ems of the editor font, without storing blank paragraphs", () => {
+    expect(paragraphSpacingFor(20)).toBeCloseTo(18);
+    render(
+      <ChapterEditor
+        chapterId="c1"
+        html={html}
+        editorStyle={editorStyle}
+        focused={false}
+        resumeOffset={null}
+        onFocused={jest.fn()}
+        onBlurred={jest.fn()}
+        onChangeText={jest.fn()}
+        onChangeState={jest.fn()}
+        onChangeSelection={jest.fn()}
+        registerEditor={jest.fn()}
+      />
+    );
+    const input = screen.getByTestId("chapter-editor");
+    expect(input.props.paragraphSpacing).toBeCloseTo(editorStyle.fontSize * 0.9);
+    expect(input.props.defaultValue).not.toMatch(/<p>\s*<\/p>/);
   });
 
   it("forwards typing to the host", () => {
