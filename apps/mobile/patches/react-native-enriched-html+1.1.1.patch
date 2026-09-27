@@ -1,0 +1,397 @@
+diff --git a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
+index d948ca9..d16f976 100644
+--- a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
++++ b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
+@@ -80,6 +80,9 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
+       case "allowFontScaling":
+         mViewManager.setAllowFontScaling(view, value == null ? false : (boolean) value);
+         break;
++      case "paragraphSpacing":
++        mViewManager.setParagraphSpacing(view, value == null ? 0f : ((Double) value).floatValue());
++        break;
+       case "color":
+         mViewManager.setColor(view, ColorPropConverter.getColor(value, view.getContext()));
+         break;
+diff --git a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
+index 8e7b44c..0c43171 100644
+--- a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
++++ b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
+@@ -34,6 +34,7 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
+   void setReturnKeyLabel(T view, @Nullable String value);
+   void setSubmitBehavior(T view, @Nullable String value);
+   void setAllowFontScaling(T view, boolean value);
++  void setParagraphSpacing(T view, float value);
+   void setColor(T view, @Nullable Integer value);
+   void setFontSize(T view, float value);
+   void setLineHeight(T view, float value);
+diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
+index 9569683..ab23db5 100644
+--- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
++++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
+@@ -38,6 +38,7 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
+     returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
+     submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
+     allowFontScaling(convertRawProp(context, rawProps, "allowFontScaling", sourceProps.allowFontScaling, {false})),
++    paragraphSpacing(convertRawProp(context, rawProps, "paragraphSpacing", sourceProps.paragraphSpacing, {0.0})),
+     color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
+     fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
+     lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
+@@ -137,6 +138,10 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
+     result["allowFontScaling"] = allowFontScaling;
+   }
+     
++  if ((paragraphSpacing != oldProps->paragraphSpacing) && !(std::isnan(paragraphSpacing) && std::isnan(oldProps->paragraphSpacing))) {
++    result["paragraphSpacing"] = paragraphSpacing;
++  }
++    
+   if (color != oldProps->color) {
+     result["color"] = *color;
+   }
+diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
+index b8da319..5f133e8 100644
+--- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
++++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
+@@ -881,6 +881,7 @@ class EnrichedTextInputViewProps final : public ViewProps {
+   std::string returnKeyLabel{};
+   std::string submitBehavior{};
+   bool allowFontScaling{false};
++  Float paragraphSpacing{0.0};
+   SharedColor color{};
+   Float fontSize{0.0};
+   Float lineHeight{0.0};
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
+index 023cc20..97a68a8 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputView.kt
+@@ -134,6 +134,7 @@ class EnrichedTextInputView :
+   private var fontSizeRaw: Float? = null
+   var fontSize: Float? = null
+   private var lineHeight: Float? = null
++  private var paragraphSpacing: Float? = null
+   var submitBehavior: String? = null
+   private var autoFocus = false
+   private var typefaceDirty = false
+@@ -574,15 +575,22 @@ class EnrichedTextInputView :
+     forceScrollToSelection()
+   }
+ 
++  fun setParagraphSpacing(spacing: Float) {
++    paragraphSpacing = if (spacing == 0f) null else spacing
++    applyLineSpacing()
++    layoutManager.invalidateLayout()
++    forceScrollToSelection()
++  }
++
+   private fun applyLineSpacing() {
+     val spannable = text as? Spannable ?: return
+     spannable
+       .getSpans(0, spannable.length, EnrichedLineHeightSpan::class.java)
+       .forEach { spannable.removeSpan(it) }
+ 
+-    val lh = lineHeight ?: return
++    if (lineHeight == null && paragraphSpacing == null) return
+     spannable.setSpan(
+-      EnrichedLineHeightSpan(lh, allowFontScaling),
++      EnrichedLineHeightSpan(lineHeight ?: 0f, allowFontScaling, paragraphSpacing ?: 0f),
+       0,
+       spannable.length,
+       Spannable.SPAN_INCLUSIVE_INCLUSIVE,
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
+index 9dcbb82..2f207c2 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
+@@ -209,6 +209,14 @@ class EnrichedTextInputViewManager :
+     view?.setLineHeight(height)
+   }
+ 
++  @ReactProp(name = "paragraphSpacing", defaultFloat = 0f)
++  override fun setParagraphSpacing(
++    view: EnrichedTextInputView?,
++    spacing: Float,
++  ) {
++    view?.setParagraphSpacing(spacing)
++  }
++
+   @ReactProp(name = "fontFamily")
+   override fun setFontFamily(
+     view: EnrichedTextInputView?,
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt
+index 09363e0..fa3d7a4 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt
+@@ -151,16 +151,17 @@ object MeasurementStore {
+     val rawText = getInitialText(defaultView, props)
+     val fontSize = getInitialFontSize(defaultView, props)
+     val lineHeight = props?.getDouble("lineHeight")?.toFloat() ?: 0f
++    val paragraphSpacing = props?.getDouble("paragraphSpacing")?.toFloat() ?: 0f
+ 
+     val fontFamily = props?.getString("fontFamily")
+     val fontStyle = parseFontStyle(props?.getString("fontStyle"))
+     val fontWeight = parseFontWeight(props?.getString("fontWeight"))
+ 
+     val text: CharSequence =
+-      if (lineHeight > 0f) {
++      if (lineHeight > 0f || paragraphSpacing > 0f) {
+         val spannable = SpannableString(rawText)
+         spannable.setSpan(
+-          EnrichedLineHeightSpan(lineHeight, allowFontScaling),
++          EnrichedLineHeightSpan(lineHeight, allowFontScaling, paragraphSpacing),
+           0,
+           spannable.length,
+           Spannable.SPAN_INCLUSIVE_INCLUSIVE,
+diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt
+index ddaeb7a..913248e 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt
++++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/spans/EnrichedLineHeightSpan.kt
+@@ -11,6 +11,7 @@ import com.swmansion.enriched.common.spans.interfaces.EnrichedHeadingSpan
+ class EnrichedLineHeightSpan(
+   val lineHeight: Float,
+   val allowFontScaling: Boolean,
++  val paragraphSpacing: Float = 0f,
+ ) : MetricAffectingSpan(),
+   LineHeightSpan {
+   override fun updateDrawState(p0: TextPaint?) {
+@@ -30,16 +31,26 @@ class EnrichedLineHeightSpan(
+     fm: Paint.FontMetricsInt,
+   ) {
+     val spannable = text as? Spannable ?: return
++
+     // Do not modify line height for headings
+     // In the future we may consider adding custom lineHeight support for each paragraph style
+-    if (spannable.getSpans(start, end, EnrichedHeadingSpan::class.java).isNotEmpty()) return
+-
+-    val lineHeightPx = pixelFromSpOrDp(lineHeight, allowFontScaling)
+-    val currentHeight = (fm.descent - fm.ascent).toFloat()
+-    if (lineHeightPx <= currentHeight) return
++    val isHeading = spannable.getSpans(start, end, EnrichedHeadingSpan::class.java).isNotEmpty()
++    if (!isHeading && lineHeight > 0f) {
++      val lineHeightPx = pixelFromSpOrDp(lineHeight, allowFontScaling)
++      val currentHeight = (fm.descent - fm.ascent).toFloat()
++      if (lineHeightPx > currentHeight) {
++        val extra = (lineHeightPx - currentHeight).toInt()
++        fm.ascent -= extra
++        fm.top = minOf(fm.top, fm.ascent)
++      }
++    }
+ 
+-    val extra = (lineHeightPx - currentHeight).toInt()
+-    fm.ascent -= extra
+-    fm.top = minOf(fm.top, fm.ascent)
++    // Space after a paragraph goes below its last line, the one ending in a newline.
++    // The final paragraph has no newline, so it gets no trailing space.
++    if (paragraphSpacing > 0f && end > start && text[end - 1] == '\n') {
++      val spacingPx = pixelFromSpOrDp(paragraphSpacing, allowFontScaling).toInt()
++      fm.descent += spacingPx
++      fm.bottom = maxOf(fm.bottom, fm.descent)
++    }
+   }
+ }
+diff --git a/node_modules/react-native-enriched-html/android/src/main/new_arch/react/renderer/components/ReactNativeEnrichedSpec/conversions.h b/node_modules/react-native-enriched-html/android/src/main/new_arch/react/renderer/components/ReactNativeEnrichedSpec/conversions.h
+index 195e706..48a9516 100644
+--- a/node_modules/react-native-enriched-html/android/src/main/new_arch/react/renderer/components/ReactNativeEnrichedSpec/conversions.h
++++ b/node_modules/react-native-enriched-html/android/src/main/new_arch/react/renderer/components/ReactNativeEnrichedSpec/conversions.h
+@@ -18,6 +18,7 @@ inline folly::dynamic toDynamic(const EnrichedTextInputViewProps &props) {
+   serializedProps["fontStyle"] = props.fontStyle;
+   serializedProps["fontFamily"] = props.fontFamily;
+   serializedProps["lineHeight"] = props.lineHeight;
++  serializedProps["paragraphSpacing"] = props.paragraphSpacing;
+   serializedProps["allowFontScaling"] = props.allowFontScaling;
+   serializedProps["useHtmlNormalizer"] = props.useHtmlNormalizer;
+   serializedProps["htmlStyle"] = toDynamic(props.htmlStyle);
+diff --git a/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm b/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
+index a899aa6..847d443 100644
+--- a/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
++++ b/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
+@@ -235,6 +235,11 @@ - (void)updateProps:(Props::Shared const &)props
+     stylePropChanged = YES;
+   }
+ 
++  if (newViewProps.paragraphSpacing != oldViewProps.paragraphSpacing) {
++    [newConfig setParagraphSpacing:newViewProps.paragraphSpacing];
++    stylePropChanged = YES;
++  }
++
+   if (newViewProps.fontWeight != oldViewProps.fontWeight) {
+     if (!newViewProps.fontWeight.empty()) {
+       [newConfig
+@@ -660,6 +665,7 @@ - (void)updateProps:(Props::Shared const &)props
+     NSMutableParagraphStyle *defaultPStyle =
+         [[NSMutableParagraphStyle alloc] init];
+     defaultPStyle.minimumLineHeight = [config scaledPrimaryLineHeight];
++    defaultPStyle.paragraphSpacing = [config scaledParagraphSpacing];
+     defaultTypingAttributes[NSParagraphStyleAttributeName] = defaultPStyle;
+ 
+     // no emitting during styles reload
+@@ -911,6 +917,7 @@ - (void)refreshLineHeight {
+                 if (pStyle == nil)
+                   return;
+                 pStyle.minimumLineHeight = [config scaledPrimaryLineHeight];
++                pStyle.paragraphSpacing = [config scaledParagraphSpacing];
+                 [textView.textStorage addAttribute:NSParagraphStyleAttributeName
+                                              value:pStyle
+                                              range:range];
+diff --git a/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h b/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h
+index d39248b..abc9b8f 100644
+--- a/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h
++++ b/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h
+@@ -15,6 +15,9 @@
+ - (CGFloat)primaryLineHeight;
+ - (void)setPrimaryLineHeight:(CGFloat)newValue;
+ - (CGFloat)scaledPrimaryLineHeight;
++- (CGFloat)paragraphSpacing;
++- (void)setParagraphSpacing:(CGFloat)newValue;
++- (CGFloat)scaledParagraphSpacing;
+ - (NSString *)primaryFontWeight;
+ - (void)setPrimaryFontWeight:(NSString *)newValue;
+ - (NSString *)primaryFontFamily;
+diff --git a/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.mm b/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.mm
+index 05d0e67..63e46ae 100644
+--- a/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.mm
++++ b/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.mm
+@@ -6,6 +6,7 @@ @implementation EnrichedConfig {
+   UIColor *_primaryColor;
+   NSNumber *_primaryFontSize;
+   CGFloat _primaryLineHeight;
++  CGFloat _paragraphSpacing;
+   NSString *_primaryFontWeight;
+   NSString *_primaryFontFamily;
+   UIFont *_primaryFont;
+@@ -77,6 +78,7 @@ - (id)copyWithZone:(NSZone *)zone {
+   copy->_primaryColor = [_primaryColor copy];
+   copy->_primaryFontSize = [_primaryFontSize copy];
+   copy->_primaryLineHeight = _primaryLineHeight;
++  copy->_paragraphSpacing = _paragraphSpacing;
+   copy->_primaryFontWeight = [_primaryFontWeight copy];
+   copy->_primaryFontFamily = [_primaryFontFamily copy];
+   copy->_primaryFont = [_primaryFont copy];
+@@ -169,6 +171,22 @@ - (CGFloat)scaledPrimaryLineHeight {
+       scaledValueForValue:[self primaryLineHeight]];
+ }
+ 
++- (CGFloat)paragraphSpacing {
++  return _paragraphSpacing;
++}
++
++- (void)setParagraphSpacing:(CGFloat)newValue {
++  _paragraphSpacing = newValue;
++}
++
++- (CGFloat)scaledParagraphSpacing {
++  if (!_allowFontScaling) {
++    return [self paragraphSpacing];
++  }
++  return [[UIFontMetrics defaultMetrics]
++      scaledValueForValue:[self paragraphSpacing]];
++}
++
+ - (NSString *)primaryFontWeight {
+   return _primaryFontWeight != nullptr
+              ? _primaryFontWeight
+diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
+index 9569683..ab23db5 100644
+--- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
++++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
+@@ -38,6 +38,7 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
+     returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
+     submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
+     allowFontScaling(convertRawProp(context, rawProps, "allowFontScaling", sourceProps.allowFontScaling, {false})),
++    paragraphSpacing(convertRawProp(context, rawProps, "paragraphSpacing", sourceProps.paragraphSpacing, {0.0})),
+     color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
+     fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
+     lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
+@@ -137,6 +138,10 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
+     result["allowFontScaling"] = allowFontScaling;
+   }
+     
++  if ((paragraphSpacing != oldProps->paragraphSpacing) && !(std::isnan(paragraphSpacing) && std::isnan(oldProps->paragraphSpacing))) {
++    result["paragraphSpacing"] = paragraphSpacing;
++  }
++    
+   if (color != oldProps->color) {
+     result["color"] = *color;
+   }
+diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h
+index b8da319..5f133e8 100644
+--- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h
++++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h
+@@ -881,6 +881,7 @@ class EnrichedTextInputViewProps final : public ViewProps {
+   std::string returnKeyLabel{};
+   std::string submitBehavior{};
+   bool allowFontScaling{false};
++  Float paragraphSpacing{0.0};
+   SharedColor color{};
+   Float fontSize{0.0};
+   Float lineHeight{0.0};
+diff --git a/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts b/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
+index 20e9d12..eb0a334 100644
+--- a/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
++++ b/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
+@@ -377,6 +377,7 @@ export interface NativeProps extends ViewProps {
+   returnKeyLabel?: string;
+   submitBehavior?: string;
+   allowFontScaling?: boolean;
++  paragraphSpacing?: Float;
+ 
+   // event callbacks
+   onInputFocus?: DirectEventHandler<TargetedEvent>;
+diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
+index 5b2fd66..2d71d31 100644
+--- a/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
++++ b/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
+@@ -344,6 +344,7 @@ export interface NativeProps extends ViewProps {
+     returnKeyLabel?: string;
+     submitBehavior?: string;
+     allowFontScaling?: boolean;
++    paragraphSpacing?: Float;
+     onInputFocus?: DirectEventHandler<TargetedEvent>;
+     onInputBlur?: DirectEventHandler<TargetedEvent>;
+     onChangeText?: DirectEventHandler<OnChangeTextEvent>;
+diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
+index 9b433e4..e2b24fa 100644
+--- a/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
++++ b/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
+@@ -558,6 +558,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+      * expands to fit all content. Defaults to `true`.
+      */
+     scrollEnabled?: boolean;
++    /**
++     * Extra space in points added after each paragraph, so paragraphs read as
++     * separate blocks without inserting blank ones. Does not change the HTML,
++     * the text, or selection offsets. Scales with `allowFontScaling`.
++     * Defaults to `0`.
++     */
++    paragraphSpacing?: number;
+     /**
+      * Regular expression used to auto-detect links as the user types. Set to
+      * `null` to disable automatic link detection. Defaults to a built-in URL
+diff --git a/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts b/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
+index 20e9d12..eb0a334 100644
+--- a/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
++++ b/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
+@@ -377,6 +377,7 @@ export interface NativeProps extends ViewProps {
+   returnKeyLabel?: string;
+   submitBehavior?: string;
+   allowFontScaling?: boolean;
++  paragraphSpacing?: Float;
+ 
+   // event callbacks
+   onInputFocus?: DirectEventHandler<TargetedEvent>;
+diff --git a/node_modules/react-native-enriched-html/src/types.ts b/node_modules/react-native-enriched-html/src/types.ts
+index d4d0dfd..aefcefb 100644
+--- a/node_modules/react-native-enriched-html/src/types.ts
++++ b/node_modules/react-native-enriched-html/src/types.ts
+@@ -663,6 +663,14 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+    */
+   scrollEnabled?: boolean;
+ 
++  /**
++   * Extra space in points added after each paragraph, so paragraphs read as
++   * separate blocks without inserting blank ones. Does not change the HTML,
++   * the text, or selection offsets. Scales with `allowFontScaling`.
++   * Defaults to `0`.
++   */
++  paragraphSpacing?: number;
++
+   /**
+    * Regular expression used to auto-detect links as the user types. Set to
+    * `null` to disable automatic link detection. Defaults to a built-in URL

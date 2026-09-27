@@ -15,6 +15,10 @@ Resolve PR / branch conflicts by **rebasing** onto the base branch. Do not merge
 
 The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `src/lib/suggestions.ts` have byte-for-byte copies in `apps/mobile/lib/`. Change both; `test/manuscript-parity.test.ts` and `test/suggestions-parity.test.ts` fail when they drift. Pending tracked changes live inline in chapter HTML; see `docs/tracked-changes.md`.
 
+## Patched native editor
+
+`apps/mobile` patches `react-native-enriched-html` (`paragraphSpacing`) through `patch-package` in `apps/mobile/patches/`. After editing `node_modules` for a fix, regenerate with `npx patch-package react-native-enriched-html`; any native change needs a rebuilt dev client.
+
 ## Production D1 schema
 
 `prisma db push` never reaches the Worker's D1. A schema change needs a `prisma/d1-*.sql` upgrade (see `docs/hosting.md`) applied to production before merging to `main`; the `main` build fails while D1 is behind (`npm run db:check:d1`).
