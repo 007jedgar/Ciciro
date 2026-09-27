@@ -296,7 +296,11 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const barRowStyle = useAnimatedStyle(() => ({
     opacity: interpolate(keyboard.progress.value, [0, 0.7], [1, 0], "clamp"),
     transform: [
-      { translateY: interpolate(keyboard.progress.value, [0, 1], [0, insets.bottom + BAR_MARGIN + PILL_HEIGHT + 24]) },
+      {
+        translateY: reduceMotion
+          ? 0
+          : interpolate(keyboard.progress.value, [0, 1], [0, insets.bottom + BAR_MARGIN + PILL_HEIGHT + 24]),
+      },
     ],
   }));
 
