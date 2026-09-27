@@ -145,6 +145,7 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
           className="dictation-error"
           role="alert"
           data-state={errorPresence.state}
+          onClick={() => setError(null)}
         >
           <span>{shownError.current}</span>
           <button
