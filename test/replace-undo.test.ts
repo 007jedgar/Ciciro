@@ -257,6 +257,68 @@ describe("undoing a replace on the real restore path", () => {
     expect(undoMessage(result)).toBe("Couldn't undo: the chapter changed since.");
   });
 
+  it("counts a restore as restored when its answer was lost and the retry's 409 is the restore itself", async () => {
+    const w = realSave();
+    w.phoneIsNotAhead();
+    let first = true;
+    const send = async (id: string, body: SavePayload & { expectedRevision: number }) => {
+      if (first) {
+        first = false;
+        // The server commits, then the connection drops before the answer.
+        w.server.content = body.content ?? w.server.content;
+        w.server.revision += 1;
+        throw new Error("connection reset");
+      }
+      const chapter: Chapter = {
+        id,
+        projectId: "p1",
+        title: "One",
+        order: 0,
+        content: w.server.content,
+        summary: "",
+        status: "draft",
+        wordCount: 2,
+        revision: w.server.revision,
+      };
+      return new Response(JSON.stringify({ chapter }), { status: 409 });
+    };
+    w.deps.restore = (id, content) =>
+      restoreChapter({ store: w.store, send, updateChapterLocal: (_id, patch) => Object.assign(w.local, patch) }, id, content);
+    const result = await makeReplaceUndo(prior, w.deps)();
+    expect(result).toEqual({ restored: 1, total: 1, changed: 0, failed: 0 });
+    expect(undoMessage(result)).toBeNull();
+    expect(w.local).toMatchObject({ content: "<p>old one</p>", revision: 6 });
+    expect(w.store.getExpectedRevision("c1")).toBe(6);
+  });
+
+  it("still calls it a conflict when the retry's 409 carries another device's text", async () => {
+    const w = realSave();
+    let first = true;
+    const send = async (id: string) => {
+      if (first) {
+        first = false;
+        throw new Error("connection reset");
+      }
+      const chapter: Chapter = {
+        id,
+        projectId: "p1",
+        title: "One",
+        order: 0,
+        content: w.server.content,
+        summary: "",
+        status: "draft",
+        wordCount: 2,
+        revision: w.server.revision,
+      };
+      return new Response(JSON.stringify({ chapter }), { status: 409 });
+    };
+    w.deps.restore = (id, content) =>
+      restoreChapter({ store: w.store, send, updateChapterLocal: (_id, patch) => Object.assign(w.local, patch) }, id, content);
+    const result = await makeReplaceUndo(prior, w.deps)();
+    expect(result).toEqual({ restored: 0, total: 1, changed: 1, failed: 0 });
+    expect(w.local).toMatchObject({ content: "<p>from the phone</p>", revision: 6 });
+  });
+
   it("leaves the writer's copy alone when the server cannot be reached", async () => {
     const w = realSave();
     w.deps.restore = (id, content) =>

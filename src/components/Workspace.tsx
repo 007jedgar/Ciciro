@@ -40,6 +40,7 @@ import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
 import { OptimisticChapterStore, type SaveOutcome } from "@/lib/optimistic-chapter";
 import { restoreChapter, saveChapter, type SaveHint } from "@/lib/chapter-save";
+import { createHeldWrites } from "@/lib/held-writes";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
@@ -140,6 +141,26 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // Chapters whose Undo is on its way to the server: read-only until it answers.
   const restoringRef = useRef(new Set<string>());
   const [restoring, setRestoring] = useState<ReadonlySet<string>>(new Set());
+  const heldWrites = useMemo(
+    () =>
+      createHeldWrites<EditorHandle>({
+        isHeld: (id) => restoringRef.current.has(id),
+        target: (id) => {
+          const editor = editorRef.current;
+          return id === activeIdRef.current && editor?.isReady() ? editor : null;
+        },
+      }),
+    []
+  );
+  const writeToEditor = useCallback(
+    (write: (editor: EditorHandle) => void) => {
+      const id = activeIdRef.current;
+      if (id) heldWrites.write(id, write);
+    },
+    [heldWrites]
+  );
+  const flushHeldWrites = useCallback(() => heldWrites.flush(), [heldWrites]);
+  useEffect(flushHeldWrites, [flushHeldWrites, restoring, activeId, editorNonce]);
   const saveStateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the editor opens/creates a chapter, mount TipTap with the caret at
   // the end so Auto-mode drafts continue rather than prepending.
@@ -803,7 +824,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }
 
   function insertDraft(text: string, key?: string) {
-    editorRef.current?.insertDraft(text, key);
+    writeToEditor((editor) => editor.insertDraft(text, key));
   }
   const getSelection = useCallback(() => editorRef.current?.getSelection() ?? "", []);
 
@@ -984,7 +1005,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         />
         <DictationButton
           resetKey={`${activeChapter?.id ?? ""}:${viewMode}`}
-          onPhrase={(text, lang) => editorRef.current?.insertDictation(text, lang)}
+          onPhrase={(text, lang) => writeToEditor((editor) => editor.insertDictation(text, lang))}
         />
         <button
           className="btn small"
@@ -1162,8 +1183,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   suggestions={suggestions}
                   activeId={activeSuggestionId}
                   onReveal={(id) => editorRef.current?.revealSuggestion(id)}
-                  onAcceptAll={() => editorRef.current?.resolveSuggestions("accept")}
-                  onRejectAll={() => editorRef.current?.resolveSuggestions("reject")}
+                  onAcceptAll={() => writeToEditor((editor) => editor.resolveSuggestions("accept"))}
+                  onRejectAll={() => writeToEditor((editor) => editor.resolveSuggestions("reject"))}
                 />
               ) : null}
               {viewMode === "prose" ? (
@@ -1191,6 +1212,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   onCommentClick={openReaderComment}
                   kind={kind}
                   readOnly={restoring.has(activeChapter.id)}
+                  onReady={flushHeldWrites}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />

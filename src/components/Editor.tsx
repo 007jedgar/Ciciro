@@ -50,6 +50,8 @@ import {
 import { dictationParts, prepareDictation } from "@/lib/dictation";
 
 export type EditorHandle = {
+  /** True once the page is mounted and can take the writes below. */
+  isReady: () => boolean;
   // `key` groups related inserts (e.g. one per chat message) so that
   // inserting a second option from the same message lands right after the
   // first instead of wherever the cursor happens to be. Omit it for a
@@ -101,6 +103,8 @@ type Props = {
   kind?: ManuscriptKind;
   /** Hold the page still: nothing can be typed while it is true. */
   readOnly?: boolean;
+  /** The page can take writes (the handle's insert calls land). */
+  onReady?: () => void;
 };
 
 const PLACEHOLDERS: Record<ManuscriptKind, string> = {
@@ -189,6 +193,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     onCommentClick,
     kind = "novel",
     readOnly = false,
+    onReady,
   },
   ref
 ) {
@@ -406,6 +411,12 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (editor.isEditable !== !readOnly) editor.setEditable(!readOnly, false);
   }, [editor, readOnly]);
 
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  useEffect(() => {
+    if (editor) onReadyRef.current?.();
+  }, [editor]);
+
   useEffect(() => {
     if (!editor || !focusEndOnMount) return;
     editor.commands.focus("end");
@@ -450,6 +461,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   }, [editor, restorePosition, focusEndOnMount]);
 
   useImperativeHandle(ref, () => ({
+    isReady: () => Boolean(editor && !editor.isDestroyed),
     insertDraft(text: string, key = "default") {
       if (!editor) return;
       if (kind === "screenplay") {
