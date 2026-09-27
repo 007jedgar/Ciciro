@@ -8,6 +8,7 @@ import {
   handleSaveSuccess,
   localMatchesInFlight,
   rollbackInFlightFields,
+  saveOutcome,
   snapshotFromChapter,
 } from "@/lib/optimistic-chapter";
 
@@ -143,5 +144,29 @@ describe("optimistic chapter save", () => {
         status: "draft",
       })
     ).toBe(true);
+  });
+});
+
+describe("saveOutcome", () => {
+  it("is saved only when the server took the payload as first sent", () => {
+    expect(saveOutcome(["ok"])).toBe("saved");
+    expect(saveOutcome(["fail", "ok"])).toBe("saved");
+  });
+
+  it("is a conflict when a retry after a 409 landed, since the server copy had moved on", () => {
+    expect(saveOutcome(["409-retry", "ok"])).toBe("conflict");
+    expect(saveOutcome(["409-retry", "409-retry", "ok"])).toBe("conflict");
+  });
+
+  it("is a conflict when the server's copy was adopted or the conflict never cleared", () => {
+    expect(saveOutcome(["409-restored"])).toBe("conflict");
+    expect(saveOutcome(["409-retry"])).toBe("conflict");
+    expect(saveOutcome(["fail", "409-restored"])).toBe("conflict");
+  });
+
+  it("is failed when the last attempt never reached the server", () => {
+    expect(saveOutcome(["fail", "fail"])).toBe("failed");
+    expect(saveOutcome(["409-retry", "fail"])).toBe("failed");
+    expect(saveOutcome([])).toBe("failed");
   });
 });

@@ -1,3 +1,5 @@
+import type { SaveOutcome } from "@/lib/optimistic-chapter";
+
 // Taking back a Replace all. The replace rewrote whole chapters on the server,
 // so Undo puts the old text back, but only into chapters nobody has written to
 // since: the writer's newer words always win over an Undo.
@@ -23,8 +25,7 @@ export type ReplacedBefore = {
   revision: number;
 };
 
-/** What the server made of a save: kept it, refused it for an older revision, or never took it. */
-export type SaveOutcome = "saved" | "conflict" | "failed";
+export type { SaveOutcome };
 
 export type ReplaceUndoDeps = {
   /** Land anything typed and queued. Resolves false if some of it could not be saved. */
