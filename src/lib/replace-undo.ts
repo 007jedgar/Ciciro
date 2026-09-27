@@ -13,6 +13,8 @@ export type ReplaceUndoResult = {
   changed: number;
   /** Put back locally but not saved (a network or server failure). */
   failed: number;
+  /** Changed on another device while the writer typed into the restored text; their version was saved over it. */
+  overwritten: number;
   /** Nothing was attempted: the writer's own edits could not be saved first. */
   blocked?: "unsaved";
 };
@@ -43,7 +45,7 @@ export function makeReplaceUndo(before: readonly ReplacedBefore[], deps: Replace
     const total = before.length;
     // The editor holds typing back for a moment before saving it; land it, so
     // the revisions below say whether the writer has touched a chapter since.
-    if (!(await deps.flushSaves())) return { restored: 0, total, changed: 0, failed: 0, blocked: "unsaved" };
+    if (!(await deps.flushSaves())) return { restored: 0, total, changed: 0, failed: 0, overwritten: 0, blocked: "unsaved" };
     const untouched = before.filter(
       (prior) => prior.content !== null && deps.currentRevision(prior.id) === prior.revision
     );
@@ -53,15 +55,20 @@ export function makeReplaceUndo(before: readonly ReplacedBefore[], deps: Replace
     // The server's answer decides: a conflict means another device wrote to the
     // chapter since, and comparing text would trip over the server normalising it.
     const outcomes = await Promise.all(saves);
-    const missed = untouched.filter((_, i) => outcomes[i] !== "saved").map((prior) => prior.id);
-    // A missed save left the writer's copy at the server's text; show that instead.
-    if (missed.length > 0) deps.show(missed);
-    const conflicts = outcomes.filter((o) => o === "conflict").length;
+    const count = (outcome: SaveOutcome) => outcomes.filter((o) => o === outcome).length;
+    // A conflict took the server's copy and a failed save may have rolled back
+    // to it; show the writer's copy as it now stands. After "overwrote" the
+    // editor already holds what was saved, typing and all.
+    const reverted = untouched
+      .filter((_, i) => outcomes[i] === "conflict" || outcomes[i] === "failed")
+      .map((prior) => prior.id);
+    if (reverted.length > 0) deps.show(reverted);
     return {
-      restored: outcomes.filter((o) => o === "saved").length,
+      restored: count("saved"),
       total,
-      changed: total - untouched.length + conflicts,
-      failed: outcomes.filter((o) => o === "failed").length,
+      changed: total - untouched.length + count("conflict"),
+      failed: count("failed"),
+      overwritten: count("overwrote"),
     };
   };
 }
