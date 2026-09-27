@@ -43,7 +43,8 @@ import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
 import { uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
-import type { ReplaceUndo } from "@/components/SearchPanel";
+import type { ReplaceUndoResult } from "@/components/SearchPanel";
+import { makeReplaceUndo } from "@/lib/replace-undo";
 import { applyChapterOrder } from "@/lib/outline";
 import { fetchShareComments } from "@/lib/share-client";
 import type { ShareCommentView } from "@/lib/share-view";
@@ -549,7 +550,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, [restoredId, viewMode]);
 
   const onSearchReplaced = useCallback(
-    (replaced: ReplacedChapter[]): ReplaceUndo => {
+    (replaced: ReplacedChapter[]): (() => Promise<ReplaceUndoResult>) => {
       const store = optimisticStoreRef.current;
       const applyChapter = (
         id: string,
@@ -578,30 +579,22 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         }
       };
       remount(replaced.map((r) => r.id));
-      return async () => {
-        if (before.some((prior) => prior.content === null)) return false;
-        if (!(await flushSaves())) return false;
-        const undone: string[] = [];
-        for (const prior of before) {
-          const res = await fetch(`/api/chapters/${prior.id}`, {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ content: prior.content, expectedRevision: prior.revision }),
-          }).catch(() => null);
-          // A chapter edited since the replace is left as the writer has it.
-          if (!res?.ok) {
-            remount(undone);
-            return false;
-          }
-          const chapter = (await res.json()) as Chapter;
-          applyChapter(chapter.id, chapter);
-          undone.push(chapter.id);
-        }
-        remount(undone);
-        return true;
-      };
+      return makeReplaceUndo(before, {
+        flushSaves,
+        currentRevision: (id) => optimisticStoreRef.current?.getExpectedRevision(id),
+        // The normal save path: queued behind other saves, on the store's revision.
+        restore: (id, content) => {
+          updateChapterLocal(id, { content, wordCount: chapterWordCount(content) });
+          patchChapter(id, { content });
+        },
+        isSaved: (id) => {
+          const local = getLocalFields(id);
+          return !(local && optimisticStoreRef.current?.hasLocalEdits(id, local));
+        },
+        onRestored: remount,
+      });
     },
-    [activeId, flushSaves, updateChapterLocal]
+    [activeId, flushSaves, getLocalFields, patchChapter, updateChapterLocal]
   );
 
   const onSearchJump = useCallback(

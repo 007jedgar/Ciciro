@@ -11,9 +11,27 @@ import {
 import DrawerHead from "@/components/DrawerHead";
 import { useSnackbar } from "@/components/Snackbar";
 import { MOTION_MS, measureRow, motionMs } from "@/lib/motion";
+import type { ReplaceUndoResult } from "@/lib/replace-undo";
 
-/** Puts back the text a replace overwrote. Resolves false if a chapter changed since. */
-export type ReplaceUndo = () => Promise<boolean>;
+export type { ReplaceUndoResult };
+
+/** Puts back the text a replace overwrote, for every chapter still as the replace left it. */
+export type ReplaceUndo = () => Promise<ReplaceUndoResult>;
+
+const chaptersLabel = (n: number) => `${n} ${n === 1 ? "chapter" : "chapters"}`;
+
+/** What to tell the writer after Undo, or null when everything came back. */
+export function undoMessage(result: ReplaceUndoResult): string | null {
+  if (result.blocked === "unsaved") {
+    return "Couldn't undo: some edits haven't saved yet. Try again in a moment.";
+  }
+  if (result.restored === result.total) return null;
+  if (result.restored === 0) return "Couldn't undo: the chapter changed since.";
+  const rest = result.total - result.restored;
+  return `Restored ${result.restored} of ${chaptersLabel(result.total)}. The other ${
+    rest === 1 ? "one was" : `${rest} were`
+  } edited since and left as they are.`;
+}
 
 function hitKey(m: SearchMatch): string {
   return `${m.chapterId}:${m.blockId}:${m.occurrence}`;
@@ -127,9 +145,11 @@ export default function SearchPanel({ projectId, onClose, onJump, flushSaves, on
           ? {
               actionLabel: "Undo",
               onAction: () => {
-                void undo().then((ok) => {
-                  if (!ok) notify({ message: "Couldn't undo: a chapter changed since." });
-                  else if (mounted.current) void run();
+                void undo().then((result) => {
+                  const message = undoMessage(result);
+                  if (message) notify({ message });
+                  // Whatever the outcome, the hits on screen are stale.
+                  if (mounted.current) void run();
                 });
               },
             }
