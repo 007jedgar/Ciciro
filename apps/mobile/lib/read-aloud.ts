@@ -315,3 +315,38 @@ export function expoSpeechEngine(): SpeechEngine {
     },
   };
 }
+
+/** Where in the viewport the sentence being read is kept, as a fraction of its height. */
+export const READ_ALOUD_FOCUS = 0.4;
+
+/**
+ * Y of the rendered line a character offset falls on, from a paragraph's laid-out
+ * lines. The lines' text runs on from one to the next, so an offset lands on the
+ * line whose running length first passes it; past the end it is the last line.
+ */
+export function lineYForOffset(lines: readonly { text: string; y: number }[], offset: number): number {
+  let seen = 0;
+  for (const line of lines) {
+    seen += line.text.length;
+    if (offset < seen) return line.y;
+  }
+  return lines.length > 0 ? lines[lines.length - 1].y : 0;
+}
+
+/**
+ * The scroll offset that puts a sentence at 40% of the viewport height, so the
+ * text being read sits a little above centre with the next lines coming up
+ * below it. Never scrolls above the top.
+ */
+export function readAloudScrollTarget(opts: {
+  /** Y of the text block inside the scroll content. */
+  bodyY: number;
+  /** Y of the sentence's paragraph inside that block. */
+  paragraphY: number;
+  /** Y of the sentence's first line inside the paragraph. */
+  lineY: number;
+  viewportHeight: number;
+}): number {
+  const top = opts.bodyY + opts.paragraphY + opts.lineY;
+  return Math.max(0, Math.round(top - opts.viewportHeight * READ_ALOUD_FOCUS));
+}
