@@ -110,7 +110,7 @@ export async function restoreChapter(
   content: string
 ): Promise<SaveOutcome> {
   const { store, updateChapterLocal } = deps;
-  const attempt = async (): Promise<SaveAttempt> => {
+  const attempt = async (retry: boolean): Promise<SaveAttempt> => {
     const expectedRevision = store.getExpectedRevision(id);
     if (expectedRevision == null) return "fail";
     try {
@@ -119,12 +119,16 @@ export async function restoreChapter(
         const body = (await res.json()) as { chapter?: Chapter };
         if (!body.chapter) return "fail";
         store.seed(body.chapter);
+        // The first try landed but its answer was lost: the server holds
+        // exactly this restore, one revision on.
+        const ownEcho =
+          retry && body.chapter.content === content && body.chapter.revision === expectedRevision + 1;
         updateChapterLocal(id, {
           content: body.chapter.content,
           wordCount: body.chapter.wordCount,
           revision: body.chapter.revision,
         });
-        return "409-restored";
+        return ownEcho ? "ok" : "409-restored";
       }
       if (!res.ok) return "fail";
       const chapter = (await res.json()) as Chapter;
@@ -135,7 +139,7 @@ export async function restoreChapter(
       return "fail";
     }
   };
-  let last = await attempt();
-  if (last === "fail") last = await attempt();
+  let last = await attempt(false);
+  if (last === "fail") last = await attempt(true);
   return saveOutcome([last]);
 }
