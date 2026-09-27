@@ -169,7 +169,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
           {create.isPending ? t("weekly.working") : due ? t("weekly.reviewNow") : t("weekly.writeNew")}
         </Text>
       </PressableCard>
-      {list.length === 0 && !reviews.isError ? (
+      {list.length === 0 && !reviews.isError && !create.isPending ? (
         <Text style={layout.body}>{t("weekly.empty")}</Text>
       ) : null}
       {create.isPending ? (

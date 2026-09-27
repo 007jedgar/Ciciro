@@ -143,7 +143,11 @@ text stays in the browser, the list marks it "Not saved yet, will retry", and Ci
 never counted in your words or writing-day stats and never appear in an export
 or in search. They sync between the web and your phone. If the same note is
 edited on two devices, Ciciro asks whether to keep your version or the other one
-rather than overwriting either.
+rather than overwriting either. On the phone, long-press a note to delete it: the
+note slides away and a bar offers **Undo** for six seconds before the delete
+goes through. Beta reader comments, share links and empty chapters delete the
+same way; a chapter that still has prose is never deleted, and the phone asks
+you to empty it first.
 
 ## Weekly review
 
@@ -199,7 +203,7 @@ tab has a Find and replace card with the same options.
 
 ## Outline
 
-Open **Outline** in the top bar (web) or the Outline tile on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices.
+Open **Outline** in the top bar (web) or the Outline tile on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices. On the phone, dragging a card by its handle lifts it, the other cards slide aside, and a dashed outline marks where it will land.
 
 ## Focus and typewriter mode
 
