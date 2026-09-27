@@ -174,6 +174,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     blockId: string;
     offset: number;
     length?: number;
+    focus?: boolean;
   } | null>(null);
   const chatWidthRef = useRef(chatWidth);
   chatWidthRef.current = chatWidth;
@@ -576,9 +577,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       const remount = (ids: string[]) => {
         const active = activeIdRef.current;
         if (active && ids.includes(active)) {
-          const caret = editorRef.current?.getCaret();
+          const editor = editorRef.current;
+          const caret = editor?.getCaret();
           setFocusEndOnMount(false);
-          setResumePosition(caret ? { chapterId: active, ...caret } : null);
+          setResumePosition(caret ? { chapterId: active, ...caret, focus: editor?.hasFocus() ?? false } : null);
           setEditorNonce((n) => n + 1);
         }
       };
@@ -1202,6 +1204,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                           blockId: resumePosition.blockId,
                           offset: resumePosition.offset,
                           length: resumePosition.length,
+                          focus: resumePosition.focus,
                         }
                       : null
                   }
