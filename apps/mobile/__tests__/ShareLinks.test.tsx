@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import * as Clipboard from "expo-clipboard";
 import type { ReactNode } from "react";
 import { AccessibilityInfo } from "react-native";
@@ -164,16 +164,39 @@ describe("ShareLinks", () => {
     expect(screen.queryByText("Copied")).toBeNull();
   });
 
-  it("turns a link off and deletes one after confirming", async () => {
-    const { revoke, remove, host } = setup();
+  it("turns a link off after confirming", async () => {
+    const { revoke, host } = setup();
     fireEvent.press(screen.getByText("Turn off"));
+    expect(host.alert).toHaveBeenCalled();
     await waitFor(() => expect(revoke).toHaveBeenCalledWith({ projectId: "p1", linkId: "l1" }));
-    fireEvent.press(screen.getByText("Delete"));
-    expect(host.alert).toHaveBeenLastCalledWith(
-      "Delete this link?",
-      "Its 2 comments are deleted too. This can't be undone.",
-      expect.any(Array)
-    );
-    await waitFor(() => expect(remove).toHaveBeenCalledWith({ projectId: "p1", linkId: "l1" }));
+  });
+
+  describe("deleting", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it("slides the link out with Undo, then deletes it once the window passes", async () => {
+      const { remove, host } = setup();
+      fireEvent.press(screen.getByText("Delete"));
+      expect(host.alert).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("share-link-l1")).toBeNull();
+      expect(screen.getByText("Link deleted")).toBeTruthy();
+      expect(remove).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(6000);
+      });
+      expect(remove).toHaveBeenCalledWith({ projectId: "p1", linkId: "l1" });
+    });
+
+    it("keeps the link when Undo is tapped", async () => {
+      const { remove } = setup();
+      fireEvent.press(screen.getByText("Delete"));
+      fireEvent.press(screen.getByLabelText("Undo"));
+      expect(screen.getByTestId("share-link-l1")).toBeTruthy();
+      await act(async () => {
+        jest.advanceTimersByTime(10000);
+      });
+      expect(remove).not.toHaveBeenCalled();
+    });
   });
 });

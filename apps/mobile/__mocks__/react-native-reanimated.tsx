@@ -8,7 +8,7 @@
  * then assert on what a screen says rather than on how it got there.
  */
 import { forwardRef, type ComponentType } from "react";
-import { Image, ScrollView, Text, View } from "react-native";
+import { FlatList, Image, ScrollView, Text, View } from "react-native";
 
 type Entering = Record<string, unknown>;
 
@@ -35,7 +35,7 @@ function builder(): Entering {
 
 /** Strip animation-only props so React Native does not see unknown keys. */
 function stripped<P extends Record<string, unknown>>(props: P) {
-  const { entering, exiting, layout, sharedTransitionTag, ...rest } = props;
+  const { entering, exiting, layout, itemLayoutAnimation, sharedTransitionTag, ...rest } = props;
   return rest;
 }
 
@@ -58,6 +58,15 @@ export const FadeOutDown = builder();
 export const LinearTransition = builder();
 export const SlideInDown = builder();
 export const SlideOutDown = builder();
+export const SlideInLeft = builder();
+export const SlideInRight = builder();
+export const SlideOutLeft = builder();
+export const SlideOutRight = builder();
+export const FadeOutUp = builder();
+export const FadeInLeft = builder();
+export const FadeInRight = builder();
+export const ZoomIn = builder();
+export const ZoomOut = builder();
 
 export const Easing = {
   linear: (t: number) => t,
@@ -88,6 +97,10 @@ export function useAnimatedProps<T>(fn: () => T) {
 
 export function useAnimatedRef() {
   return { current: null };
+}
+
+export function useAnimatedKeyboard() {
+  return { height: { value: 0 }, state: { value: 0 } };
 }
 
 export function useReducedMotion() {
@@ -148,6 +161,7 @@ const Animated = {
   Text: AnimatedText,
   Image: animate(Image as never),
   ScrollView: animate(ScrollView as never),
+  FlatList: animate(FlatList as never),
   createAnimatedComponent: animate,
 };
 

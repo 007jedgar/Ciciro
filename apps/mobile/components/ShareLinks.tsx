@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { AccessibilityInfo, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import Animated, { LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,7 +16,10 @@ import type { ShareLinkSummary } from "../lib/api/types";
 import { chapterNumberLabel, customChapterTitle } from "../lib/chapter-label";
 import { SHARE_EXPIRY_PRESETS, SHARE_LABEL_MAX, shareLinkUrl, type ShareExpiryPreset } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
+import { useUndoableRemoval } from "../lib/undo-removal";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { SkeletonList } from "./Skeleton";
+import { UndoSnackbar } from "./UndoSnackbar";
 
 export type ShareLinksHost = {
   alert: typeof Alert.alert;
@@ -53,7 +57,11 @@ export function ShareLinks({
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const busy = revoke.isPending || remove.isPending;
+  const reduceMotion = useReduceMotion();
+  const { hidden, notice, remove: removeWithUndo, undo } = useUndoableRemoval({
+    onFailed: (_id, err) => setError(err instanceof ApiError ? err.message : t("beta.links.actionError")),
+  });
+  const busy = revoke.isPending;
 
   function chapterName(index: number): string {
     const numbered = chapterNumberLabel(index + 1, (key, opts) => t(key, opts));
@@ -136,20 +144,10 @@ export function ShareLinks({
     ]);
   }
 
-  function confirmDelete(link: ShareLinkSummary) {
-    host.alert(t("beta.links.deleteTitle"), t("beta.links.deleteMessage", { count: link.commentCount }), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("common.delete"),
-        style: "destructive",
-        onPress: () => {
-          setError(null);
-          remove.mutateAsync({ projectId, linkId: link.id }).catch((err: unknown) => {
-            setError(err instanceof ApiError ? err.message : t("beta.links.actionError"));
-          });
-        },
-      },
-    ]);
+  // No confirmation: the card slides out and Undo stays up for a few seconds.
+  function removeLink(link: ShareLinkSummary) {
+    setError(null);
+    removeWithUndo(link.id, t("beta.links.linkRemoved"), () => remove.mutateAsync({ projectId, linkId: link.id }));
   }
 
   function statusLine(link: ShareLinkSummary): string {
@@ -168,6 +166,8 @@ export function ShareLinks({
     return [scopeText, when, t("beta.links.comments", { count: link.commentCount })].join(" · ");
   }
 
+  const visibleLinks = (links.data ?? []).filter((l) => !hidden.has(l.id));
+
   const chip = (active: boolean) => [
     styles.chip,
     { borderColor: active ? colors.accent : colors.line, backgroundColor: active ? colors.accentSoft : "transparent" },
@@ -175,6 +175,7 @@ export function ShareLinks({
   const chipText = (active: boolean) => [styles.chipText, { color: active ? colors.ink : colors.inkSoft }];
 
   return (
+    <View style={styles.root}>
     <KeyboardAwareScrollView
       testID="share-links"
       style={{ flex: 1 }}
@@ -294,14 +295,16 @@ export function ShareLinks({
 
       <View style={[styles.rule, { backgroundColor: colors.line }]} />
       {links.isPending && !links.data ? <SkeletonList count={2} accessibilityLabel={t("common.loading")} /> : null}
-      {links.data && links.data.length === 0 ? <Text style={layout.body}>{t("beta.links.empty")}</Text> : null}
-      {(links.data ?? []).map((link) => {
+      {links.data && visibleLinks.length === 0 ? <Text style={layout.body}>{t("beta.links.empty")}</Text> : null}
+      {visibleLinks.map((link) => {
         const active = link.status === "active";
         return (
-          <View
+          <Animated.View
             key={link.id}
             testID={`share-link-${link.id}`}
             style={[layout.card, styles.card, active ? null : styles.inactive]}
+            exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+            layout={reduceMotion ? undefined : LinearTransition.duration(200)}
           >
             <View style={styles.cardHead}>
               <Text style={[layout.cardTitle, styles.cardTitle]} numberOfLines={1}>
@@ -357,7 +360,7 @@ export function ShareLinks({
               ) : null}
               <Pressable
                 accessibilityRole="button"
-                onPress={() => confirmDelete(link)}
+                onPress={() => removeLink(link)}
                 disabled={busy}
                 hitSlop={12}
                 style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
@@ -365,14 +368,17 @@ export function ShareLinks({
                 <Text style={[styles.ghostBtnText, { color: colors.danger }]}>{t("common.delete")}</Text>
               </Pressable>
             </View>
-          </View>
+          </Animated.View>
         );
       })}
     </KeyboardAwareScrollView>
+    <UndoSnackbar message={notice?.message ?? null} onUndo={undo} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 64 },
   blurb: { marginBottom: 16 },
   label: { marginTop: 4, marginBottom: 6, fontWeight: "600" },

@@ -4,29 +4,27 @@ import { isChapterEmpty } from "./html";
 export type ChapterDeleteCopy = {
   blockedTitle: string;
   blockedMessage: string;
-  deleteTitle: string;
-  deleteMessage: string;
   cancel: string;
-  delete: string;
 };
 
 export type ChapterDeleteHost = {
   alert: typeof Alert.alert;
 };
 
-/** Confirm a hard-delete for empty chapters; explain the empty-first rule otherwise. */
-export function confirmChapterDelete(
+/**
+ * An empty chapter goes straight to `onRemove` (the caller slides the row out
+ * and offers Undo, so there is nothing to confirm); one that still has prose
+ * is never deleted here, and the writer is told to empty it first.
+ */
+export function requestChapterDelete(
   chapter: { title: string; content?: string | null },
   copy: ChapterDeleteCopy,
-  onDelete: () => void,
+  onRemove: () => void,
   host: ChapterDeleteHost = Alert
 ): void {
   if (!isChapterEmpty(chapter.content)) {
     host.alert(copy.blockedTitle, copy.blockedMessage, [{ text: copy.cancel, style: "cancel" }]);
     return;
   }
-  host.alert(copy.deleteTitle, copy.deleteMessage, [
-    { text: copy.cancel, style: "cancel" },
-    { text: copy.delete, style: "destructive", onPress: onDelete },
-  ]);
+  onRemove();
 }

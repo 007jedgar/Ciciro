@@ -1,5 +1,4 @@
-import { Alert } from "react-native";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { ScratchNotes } from "../components/ScratchNotes";
 import {
   useCreateScratchNoteMutation,
@@ -85,15 +84,64 @@ describe("ScratchNotes", () => {
     expect(create).toHaveBeenCalledWith({ projectId: "p1" });
   });
 
-  it("deletes a note after a confirm", async () => {
-    const remove = jest.fn(async () => ({ ok: true }));
-    mockApi({ remove });
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    render(<ScratchNotes projectId="p1" onOpen={jest.fn()} />);
-    fireEvent(screen.getByLabelText("Open Tides"), "longPress");
-    expect(alert).toHaveBeenCalledTimes(1);
-    const buttons = alert.mock.calls[0][2]!;
-    buttons.find((b) => b.style === "destructive")!.onPress!();
-    await waitFor(() => expect(remove).toHaveBeenCalledWith({ projectId: "p1", noteId: "n2" }));
+  describe("deleting", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it("slides the note out at once and only deletes after the undo window", async () => {
+      const remove = jest.fn(async () => ({ ok: true }));
+      mockApi({ remove });
+      render(<ScratchNotes projectId="p1" onOpen={jest.fn()} />);
+      fireEvent(screen.getByLabelText("Open Tides"), "longPress");
+
+      expect(screen.queryByLabelText("Open Tides")).toBeNull();
+      expect(screen.getByText("Note deleted")).toBeTruthy();
+      expect(remove).not.toHaveBeenCalled();
+
+      await act(async () => {
+        jest.advanceTimersByTime(6000);
+      });
+      expect(remove).toHaveBeenCalledWith({ projectId: "p1", noteId: "n2" });
+      expect(screen.queryByText("Note deleted")).toBeNull();
+    });
+
+    it("brings the note back and never deletes it when Undo is tapped", async () => {
+      const remove = jest.fn(async () => ({ ok: true }));
+      mockApi({ remove });
+      render(<ScratchNotes projectId="p1" onOpen={jest.fn()} />);
+      fireEvent(screen.getByLabelText("Open Tides"), "longPress");
+      fireEvent.press(screen.getByLabelText("Undo"));
+
+      expect(screen.getByLabelText("Open Tides")).toBeTruthy();
+      await act(async () => {
+        jest.advanceTimersByTime(10000);
+      });
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("commits the first delete when a second one starts", async () => {
+      const remove = jest.fn(async () => ({ ok: true }));
+      mockApi({ remove });
+      render(<ScratchNotes projectId="p1" onOpen={jest.fn()} />);
+      fireEvent(screen.getByLabelText("Open Tides"), "longPress");
+      fireEvent(screen.getByLabelText("Open Names to use"), "longPress");
+      await act(async () => {});
+      expect(remove).toHaveBeenCalledWith({ projectId: "p1", noteId: "n2" });
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    it("puts the note back and says why when the delete fails", async () => {
+      const remove = jest.fn(async () => {
+        throw new Error("offline");
+      });
+      mockApi({ remove });
+      render(<ScratchNotes projectId="p1" onOpen={jest.fn()} />);
+      fireEvent(screen.getByLabelText("Open Tides"), "longPress");
+      await act(async () => {
+        jest.advanceTimersByTime(6000);
+      });
+      expect(screen.getByLabelText("Open Tides")).toBeTruthy();
+      expect(screen.getByText("Couldn't delete this note.")).toBeTruthy();
+    });
   });
 });

@@ -4,9 +4,12 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
+import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import * as Haptics from "expo-haptics";
 import { useRouter, useSegments } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -75,6 +78,42 @@ type ActionDef = {
   run: () => void | Promise<void>;
 };
 
+/** Gap between one tile's spring and the next, so the menu fills in like a wave. */
+const TILE_STAGGER_MS = 30;
+
+/**
+ * One tile of the action grid. Each springs in from a smaller scale a beat after
+ * the one before it when the menu opens; closing drops them all at once with
+ * the panel, so there is nothing to wait for.
+ */
+function ActionTile({
+  index,
+  open,
+  reduceMotion,
+  style,
+  children,
+}: {
+  index: number;
+  open: boolean;
+  reduceMotion: boolean;
+  style: object;
+  children: ReactElement;
+}) {
+  const pop: SharedValue<number> = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) {
+      pop.value = open ? 1 : 0;
+      return;
+    }
+    pop.value = open ? withDelay(index * TILE_STAGGER_MS, withSpring(1, SPRING)) : withTiming(0, { duration: 120 });
+  }, [index, open, pop, reduceMotion]);
+  const animated = useAnimatedStyle(() => ({
+    opacity: interpolate(pop.value, [0, 1], [0, 1], "clamp"),
+    transform: [{ scale: interpolate(pop.value, [0, 1], [0.6, 1]) }],
+  }));
+  return <Animated.View style={[style, animated]}>{children}</Animated.View>;
+}
+
 export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const { colors, dark } = useAppTheme();
@@ -132,6 +171,9 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const bubble = useSharedValue(activeIndex);
   const fabPress = useSharedValue(0);
   const seg = useSharedValue(0);
+  // 0 with the keyboard down, 1 with it up: the bar tucks below the screen edge
+  // with the keyboard instead of being covered by it.
+  const keyboard = useReanimatedKeyboardAnimation();
 
   useEffect(() => {
     progress.value = reduceMotion
@@ -251,6 +293,13 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
     transform: [{ translateX: bubble.value * seg.value + (seg.value - BUBBLE_W) / 2 }],
   }));
 
+  const barRowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(keyboard.progress.value, [0, 0.7], [1, 0], "clamp"),
+    transform: [
+      { translateY: interpolate(keyboard.progress.value, [0, 1], [0, insets.bottom + BAR_MARGIN + PILL_HEIGHT + 24]) },
+    ],
+  }));
+
   const glassBubble = dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.055)";
 
   return (
@@ -274,7 +323,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
       >
         <Glass dark={dark} colors={colors} radius={32} style={styles.gridPanel}>
           <View style={styles.gridRows}>
-            {actions.map((action) => {
+            {actions.map((action, index) => {
               const tint = action.tone === "ai" ? colors.accent : colors.ink;
               return (
                 <Pressable
@@ -286,7 +335,10 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
                 >
                   {({ pressed }) => (
                     <>
-                      <View
+                      <ActionTile
+                        index={index}
+                        open={open}
+                        reduceMotion={reduceMotion}
                         style={[
                           styles.tile,
                           {
@@ -298,7 +350,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
                         ]}
                       >
                         <action.Icon color={tint} size={24} />
-                      </View>
+                      </ActionTile>
                       <Text numberOfLines={2} style={[styles.cellLabel, { color: colors.inkSoft }]}>
                         {t(action.labelKey)}
                       </Text>
@@ -312,9 +364,9 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
       </Animated.View>
 
       {/* Floating bar: glass pill of tabs + the round FAB. */}
-      <View
+      <Animated.View
         pointerEvents="box-none"
-        style={[styles.barRow, { bottom: insets.bottom + BAR_MARGIN }]}
+        style={[styles.barRow, { bottom: insets.bottom + BAR_MARGIN }, barRowStyle]}
       >
         <Animated.View pointerEvents={open ? "none" : "auto"} style={[styles.pillWrap, pillStyle]}>
           <Glass dark={dark} colors={colors} radius={PILL_HEIGHT / 2} style={styles.pill}>
@@ -362,7 +414,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
             <PlusIcon color={colors.panel} size={22} />
           </Animated.View>
         </Pressable>
-      </View>
+      </Animated.View>
       {stuckChapterId ? (
         <StuckSheet
           open={stuckOpen}

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { useAppTheme } from "../lib/settings";
+import { useOptionalAppTheme } from "../lib/settings";
+import { colors as parchmentColors } from "../lib/theme";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { Snackbar } from "./Snackbar";
 
@@ -16,7 +17,9 @@ export function UndoSnackbar({
   bottom?: number;
 }) {
   const { t } = useTranslation();
-  const { colors, dark } = useAppTheme();
+  const themed = useOptionalAppTheme();
+  const colors = themed?.colors ?? parchmentColors;
+  const dark = themed?.dark ?? false;
   const reduceMotion = useReduceMotion();
   if (!message) return null;
   return (
