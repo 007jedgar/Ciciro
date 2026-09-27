@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import {
@@ -30,7 +39,12 @@ import { Snackbar } from "./Snackbar";
 /** How long "Version restored - Undo" stays up. */
 const NOTICE_MS = 8000;
 
-type Notice = { kind: "restored"; backup: ChapterSnapshotSummary | null } | { kind: "undone" };
+type Notice =
+  | { kind: "restored"; backup: ChapterSnapshotSummary | null; title: string }
+  | { kind: "undone" };
+
+/** Rows open and close over this long; the restore crossfade is the same length. */
+const ACCORDION_MS = 200;
 
 export type ChapterHistoryHost = { alert: typeof Alert.alert };
 
@@ -70,6 +84,8 @@ export function ChapterHistory({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [restoring, setRestoring] = useState(false);
   const busy = save.isPending || restoring || remove.isPending;
+  const crossfade = useSharedValue(1);
+  const crossfadeStyle = useAnimatedStyle(() => ({ opacity: crossfade.value }));
 
   useEffect(() => {
     if (!notice) return;
@@ -113,7 +129,19 @@ export function ChapterHistory({
       }
       const result = await restoreMutation.mutateAsync({ chapterId, snapshotId: snapshot.id });
       setSelectedId(null);
-      setNotice(undo ? { kind: "undone" } : { kind: "restored", backup: result.backup });
+      // The list dips and comes back with the restored version in it, so the
+      // swap reads as one change rather than a jump.
+      crossfade.value = reduceMotion
+        ? 1
+        : withSequence(
+            withTiming(0.35, { duration: ACCORDION_MS / 2 }),
+            withTiming(1, { duration: ACCORDION_MS / 2 })
+          );
+      setNotice(
+        undo
+          ? { kind: "undone" }
+          : { kind: "restored", backup: result.backup, title: snapshotTitle(snapshot, t) }
+      );
       await settle();
     } catch (err) {
       failure(err, t("history.restoreError"));
@@ -220,6 +248,7 @@ export function ChapterHistory({
           </Text>
         ) : null}
 
+        <Animated.View style={crossfadeStyle}>
         {list.isPending ? (
           <SkeletonList count={4} accessibilityLabel={t("common.loading")} />
         ) : list.data && list.data.length === 0 ? (
@@ -231,8 +260,9 @@ export function ChapterHistory({
             const time = formatSnapshotTime(snapshot.createdAt, i18n.language, t);
             const words = t("chapters.wordCount", { count: snapshot.wordCount });
             return (
-              <View
+              <Animated.View
                 key={snapshot.id}
+                layout={reduceMotion ? undefined : LinearTransition.duration(ACCORDION_MS)}
                 style={[layout.card, styles.card, open ? { borderColor: colors.inkSoft } : null]}
               >
                 <Pressable
@@ -251,7 +281,11 @@ export function ChapterHistory({
                   <Text style={layout.cardMeta}>{`${time} · ${words}`}</Text>
                 </Pressable>
                 {open ? (
-                  <View style={[styles.preview, { borderTopColor: colors.line }]}>
+                  <Animated.View
+                    entering={reduceMotion ? undefined : FadeIn.duration(ACCORDION_MS)}
+                    exiting={reduceMotion ? undefined : FadeOut.duration(ACCORDION_MS / 2)}
+                    style={[styles.preview, { borderTopColor: colors.line }]}
+                  >
                     <View style={[styles.segment, { backgroundColor: colors.panel2 }]}>
                       {(["changes", "text"] as const).map((value) => {
                         const active = mode === value;
@@ -327,17 +361,18 @@ export function ChapterHistory({
                         </Text>
                       </Pressable>
                     </View>
-                  </View>
+                  </Animated.View>
                 ) : null}
-              </View>
+              </Animated.View>
             );
           })
         )}
+        </Animated.View>
       </KeyboardAwareScrollView>
       {notice ? (
         <View pointerEvents="box-none" style={styles.noticeDock}>
           <Snackbar
-            message={notice.kind === "undone" ? t("history.undone") : t("history.restored")}
+            message={notice.kind === "undone" ? t("history.undone") : t("history.restored", { title: notice.title })}
             actionLabel={notice.kind === "restored" && notice.backup ? t("history.undo") : undefined}
             onAction={notice.kind === "restored" && notice.backup ? undoRestore : undefined}
             colors={colors}
