@@ -93,6 +93,27 @@ describe("snackbar", () => {
     expect(text()).toBeNull();
   });
 
+  it("keeps B's Undo window when A's delete fails after B was shown", async () => {
+    // Delete A, then B (which settles A). A's DELETE fails and reports itself.
+    const commitB = vi.fn();
+    const failA = vi.fn(async () => {
+      await Promise.resolve();
+      show({ message: "Couldn't delete A" });
+    });
+    await act(async () => show({ message: "Deleted A", actionLabel: "Undo", onAction: vi.fn(), onCommit: failA }));
+    await act(async () => show({ message: "Deleted B", actionLabel: "Undo", onAction: vi.fn(), onCommit: commitB }));
+    await act(async () => {
+      for (let i = 0; i < 4; i++) await Promise.resolve();
+    });
+    expect(failA).toHaveBeenCalledTimes(1);
+    expect(commitB).not.toHaveBeenCalled();
+    expect(text()).toBe("Deleted BUndo");
+    // B still can be undone, and A's error follows it.
+    await act(async () => host.querySelector<HTMLButtonElement>(".snackbar-action")!.click());
+    expect(commitB).not.toHaveBeenCalled();
+    expect(text()).toBe("Couldn't delete A");
+  });
+
   it("shows the held message once the one before it commits", async () => {
     const onCommit = vi.fn();
     await act(async () => show({ message: "Deleted", actionLabel: "Undo", onAction: vi.fn(), onCommit }));

@@ -230,6 +230,47 @@ describe("SearchPanel replace", () => {
     expect(undo).toHaveBeenCalledTimes(1);
   });
 
+  it("tells the writer what a partial Undo restored and refreshes the hits, even after a failed one", async () => {
+    const undo = vi.fn(async () => ({ restored: 1, total: 2 }));
+    await mount(() => undo);
+    const searches = () => (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(([u]) => !String(u).includes("/replace")).length;
+    const all = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+      (b) => b.textContent === "Replace all"
+    )!;
+    await act(async () => all.click());
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    const before = searches();
+    await act(async () => host.querySelector<HTMLButtonElement>(".snackbar-action")!.click());
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    expect(host.querySelector(".snackbar-message")?.textContent).toContain("Restored 1 of 2 chapters");
+    expect(searches()).toBeGreaterThan(before);
+  });
+
+  it("refreshes the hits after an Undo that restored nothing", async () => {
+    const undo = vi.fn(async () => ({ restored: 0, total: 1, blocked: "unsaved" as const }));
+    await mount(() => undo);
+    const searches = () =>
+      (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(([u]) => !String(u).includes("/replace")).length;
+    const all = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
+      (b) => b.textContent === "Replace all"
+    )!;
+    await act(async () => all.click());
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    const before = searches();
+    await act(async () => host.querySelector<HTMLButtonElement>(".snackbar-action")!.click());
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    expect(host.querySelector(".snackbar-message")?.textContent).toMatch(/haven't saved/);
+    expect(searches()).toBeGreaterThan(before);
+  });
+
   it("offers no Undo when the owner cannot take a replace back", async () => {
     await mount(() => undefined);
     const all = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
