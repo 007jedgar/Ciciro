@@ -26,11 +26,19 @@ export function undoMessage(result: ReplaceUndoResult): string | null {
     return "Couldn't undo: some edits haven't saved yet. Try again in a moment.";
   }
   if (result.restored === result.total) return null;
-  if (result.restored === 0) return "Couldn't undo: the chapter changed since.";
-  const rest = result.total - result.restored;
-  return `Restored ${result.restored} of ${chaptersLabel(result.total)}. The other ${
-    rest === 1 ? "one was" : `${rest} were`
-  } edited since and left as they are.`;
+  const parts = [
+    result.changed > 0 ? `${result.changed} edited since and left as ${result.changed === 1 ? "it is" : "they are"}` : "",
+    result.failed > 0 ? `${result.failed} couldn't be saved` : "",
+  ].filter(Boolean);
+  if (result.restored === 0) {
+    if (result.failed === 0) return "Couldn't undo: the chapter changed since.";
+    return `Couldn't undo: ${
+      result.failed === 1 ? "the chapter" : "the chapters"
+    } couldn't be saved. Check your connection and try again.${
+      result.changed > 0 ? ` ${result.changed} edited since and left as ${result.changed === 1 ? "it is" : "they are"}.` : ""
+    }`;
+  }
+  return `Restored ${result.restored} of ${chaptersLabel(result.total)}: ${parts.join("; ")}.`;
 }
 
 function hitKey(m: SearchMatch): string {
