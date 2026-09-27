@@ -15,7 +15,7 @@ import {
 } from "@/lib/optimistic-chapter";
 
 /** What the save indicator should say for a moment after a save. */
-export type SaveHint = "error" | "restored" | "overwrote";
+export type SaveHint = "error" | "restored";
 
 export type ChapterSaveDeps = {
   store: OptimisticChapterStore;
@@ -95,7 +95,47 @@ export async function saveChapter(
   } else if (last === "409-retry") {
     showHint("error");
   }
-  const outcome = saveOutcome(attempts);
-  if (outcome === "overwrote") showHint("overwrote");
-  return { outcome, settled };
+  return { outcome: saveOutcome(attempts), settled };
+}
+
+/**
+ * Put earlier text back into a chapter, on the revision this device last
+ * confirmed. The writer's copy changes only once the server has answered: to
+ * the restored text when it took it, or to the server's own newer copy on a
+ * 409, which is never written over. A network failure leaves it as it was.
+ */
+export async function restoreChapter(
+  deps: Pick<ChapterSaveDeps, "store" | "send" | "updateChapterLocal">,
+  id: string,
+  content: string
+): Promise<SaveOutcome> {
+  const { store, updateChapterLocal } = deps;
+  const attempt = async (): Promise<SaveAttempt> => {
+    const expectedRevision = store.getExpectedRevision(id);
+    if (expectedRevision == null) return "fail";
+    try {
+      const res = await deps.send(id, { content, expectedRevision });
+      if (res.status === 409) {
+        const body = (await res.json()) as { chapter?: Chapter };
+        if (!body.chapter) return "fail";
+        store.seed(body.chapter);
+        updateChapterLocal(id, {
+          content: body.chapter.content,
+          wordCount: body.chapter.wordCount,
+          revision: body.chapter.revision,
+        });
+        return "409-restored";
+      }
+      if (!res.ok) return "fail";
+      const chapter = (await res.json()) as Chapter;
+      const { localPatch } = store.applySuccess(id, chapter);
+      updateChapterLocal(id, { ...localPatch, content: chapter.content });
+      return "ok";
+    } catch {
+      return "fail";
+    }
+  };
+  let last = await attempt();
+  if (last === "fail") last = await attempt();
+  return saveOutcome([last]);
 }

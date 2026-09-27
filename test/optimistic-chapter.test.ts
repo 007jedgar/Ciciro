@@ -153,9 +153,9 @@ describe("saveOutcome", () => {
     expect(saveOutcome(["fail", "ok"])).toBe("saved");
   });
 
-  it("is overwrote when the writer's newer words landed on a copy the server had moved on", () => {
-    expect(saveOutcome(["409-retry", "ok"])).toBe("overwrote");
-    expect(saveOutcome(["409-retry", "409-retry", "ok"])).toBe("overwrote");
+  it("is not saved when a retry after a 409 landed, since the payload was not taken as sent", () => {
+    expect(saveOutcome(["409-retry", "ok"])).toBe("conflict");
+    expect(saveOutcome(["409-retry", "409-retry", "ok"])).toBe("conflict");
   });
 
   it("is a conflict when the server's copy was adopted", () => {

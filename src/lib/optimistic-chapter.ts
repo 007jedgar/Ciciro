@@ -146,19 +146,15 @@ export function handleNetworkFailure(
 /** How one PATCH of a save went. */
 export type SaveAttempt = "ok" | "409-retry" | "409-restored" | "fail";
 
-/**
- * What the server made of a save: took it as sent, kept its own newer copy,
- * took the writer's newer words over a copy another device had moved on, or
- * never took it.
- */
-export type SaveOutcome = "saved" | "conflict" | "overwrote" | "failed";
+/** What the server made of a save: took it as sent, kept its own newer copy, or never took it. */
+export type SaveOutcome = "saved" | "conflict" | "failed";
 
 /** A save counts as saved only when the server took the payload as first sent, with no conflict along the way. */
 export function saveOutcome(attempts: readonly SaveAttempt[]): SaveOutcome {
   const last = attempts[attempts.length - 1];
   if (last === "409-restored") return "conflict";
   if (last !== "ok") return "failed";
-  return attempts.includes("409-retry") ? "overwrote" : "saved";
+  return attempts.includes("409-retry") ? "conflict" : "saved";
 }
 
 /** Per-chapter confirmed snapshots for optimistic saves. */

@@ -13,8 +13,6 @@ export type ReplaceUndoResult = {
   changed: number;
   /** Put back locally but not saved (a network or server failure). */
   failed: number;
-  /** Changed on another device while the writer typed into the restored text; their version was saved over it. */
-  overwritten: number;
   /** Nothing was attempted: the writer's own edits could not be saved first. */
   blocked?: "unsaved";
 };
@@ -34,8 +32,10 @@ export type ReplaceUndoDeps = {
   flushSaves: () => Promise<boolean>;
   /** The revision the writer's copy of the chapter is confirmed at. */
   currentRevision: (id: string) => number | null | undefined;
-  /** Put the old text back through the normal save path: the local copy now, then the queued save's outcome. */
+  /** Save the old text through the save queue; the writer's copy changes only once the server has answered. */
   restore: (id: string, content: string) => Promise<SaveOutcome>;
+  /** Keep these chapters from being edited while their restore is in flight. Returns the release. */
+  hold: (ids: string[]) => () => void;
   /** Show these chapters' current text in the editor. */
   show: (ids: string[]) => void;
 };
@@ -45,30 +45,33 @@ export function makeReplaceUndo(before: readonly ReplacedBefore[], deps: Replace
     const total = before.length;
     // The editor holds typing back for a moment before saving it; land it, so
     // the revisions below say whether the writer has touched a chapter since.
-    if (!(await deps.flushSaves())) return { restored: 0, total, changed: 0, failed: 0, overwritten: 0, blocked: "unsaved" };
+    if (!(await deps.flushSaves())) return { restored: 0, total, changed: 0, failed: 0, blocked: "unsaved" };
     const untouched = before.filter(
       (prior) => prior.content !== null && deps.currentRevision(prior.id) === prior.revision
     );
-    const saves = untouched.map((prior) => deps.restore(prior.id, prior.content as string));
-    // Show the old text before its save lands, so typing meanwhile builds on it.
-    if (untouched.length > 0) deps.show(untouched.map((prior) => prior.id));
-    // The server's answer decides: a conflict means another device wrote to the
-    // chapter since, and comparing text would trip over the server normalising it.
-    const outcomes = await Promise.all(saves);
+    if (untouched.length === 0) return { restored: 0, total, changed: total, failed: 0 };
+    // Nothing can be typed into a chapter while its restore is in flight, so
+    // the server's answer is the whole story: nothing to merge, nothing written
+    // over another device's newer copy.
+    const release = deps.hold(untouched.map((prior) => prior.id));
+    let outcomes: SaveOutcome[];
+    try {
+      outcomes = await Promise.all(untouched.map((prior) => deps.restore(prior.id, prior.content as string)));
+      // A landed restore holds the old text and a conflict holds the server's
+      // newer copy; a failed one is as it was, so it needs no fresh editor.
+      const changedHere = untouched
+        .filter((_, i) => outcomes[i] !== "failed")
+        .map((prior) => prior.id);
+      if (changedHere.length > 0) deps.show(changedHere);
+    } finally {
+      release();
+    }
     const count = (outcome: SaveOutcome) => outcomes.filter((o) => o === outcome).length;
-    // A conflict took the server's copy and a failed save may have rolled back
-    // to it; show the writer's copy as it now stands. After "overwrote" the
-    // editor already holds what was saved, typing and all.
-    const reverted = untouched
-      .filter((_, i) => outcomes[i] === "conflict" || outcomes[i] === "failed")
-      .map((prior) => prior.id);
-    if (reverted.length > 0) deps.show(reverted);
     return {
       restored: count("saved"),
       total,
       changed: total - untouched.length + count("conflict"),
       failed: count("failed"),
-      overwritten: count("overwrote"),
     };
   };
 }
