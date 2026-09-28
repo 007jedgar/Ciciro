@@ -144,3 +144,7 @@ onChangeText IGNORED (echo of our own setValue)
 Confirmed visually on-device: the editor shows "Fix two evidence chapter SERVER-CORRECTED." after the correction, in the same running app session, with no typing and no blur/refocus in between.
 
 A regression test (`apps/mobile/__tests__/ChapterEditor.test.tsx`, "ignores a native onChangeText echo of its own setValue, so a later correction still lands") reproduces the echo with a synthetic `onChangeText` carrying the same plain text `ChapterEditor` just applied, and asserts the next `html` correction is still adopted.
+
+### Follow-up: multi-paragraph quotes
+
+The first version of this fix compared the echo's plain text against `blocksPlainText(html)`. A second review round caught that as unreliable for multi-paragraph blocks such as blockquotes: `blocksPlainText` collapses the paragraph breaks inside a quote to spaces, while the native echo preserves them as newlines, so a quote chapter's mount echo still marked the editor dirty. `ChapterEditor` now reads the buffer with `getHTML()` and compares it through the same HTML-diff pipeline (`opsFromEnrichedHtml`) the rest of the sync path already trusts, which handles multi-paragraph quotes correctly: no ops means the echo is ignored.
