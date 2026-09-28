@@ -198,7 +198,7 @@ async function commitProse(
         revision: current.revision,
       },
       (current.content || "") + newHtml,
-      { actor: "ai", runId }
+      { actor: "ai", runId, tally: "drafted" }
     );
     if (written.ok) return { content: written.content, revision: written.revision };
   }

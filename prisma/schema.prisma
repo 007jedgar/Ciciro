@@ -157,6 +157,10 @@ model Chapter {
   // point of acceptance/insertion rather than derived later.
   aiAcceptedWords Int @default(0) // words from an accepted Ciciro suggestion
   aiDraftedWords  Int @default(0) // words Ciciro inserted directly (no suggestion to accept)
+  // Every word added to the chapter's settled prose by anyone, the same
+  // cumulative way (src/lib/chapter-ops.ts): the denominator that makes the
+  // Ciciro share a ratio of two running totals rather than of current text.
+  wordsAdded      Int @default(0)
   // When these counters started. Defaults to chapter creation for a chapter
   // made after this shipped; for an older chapter the migration backfills it
   // to the migration's run time, so the UI can say the figures only cover

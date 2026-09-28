@@ -181,7 +181,7 @@ query reads `kind`, so until the column exists the whole app fails with
 `no such column: kind`. Existing manuscripts become novels.
 
 The AI-involvement disclosure summary needs `aiAcceptedWords`, `aiDraftedWords`,
-and `aiInvolvementSince` on `Chapter`:
+`wordsAdded`, and `aiInvolvementSince` on `Chapter`:
 
 ```bash
 wrangler d1 execute ciciro --remote --file=prisma/d1-ai-involvement.sql

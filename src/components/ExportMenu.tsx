@@ -119,10 +119,10 @@ function AiInvolvementNote({ chapters }: { chapters: Chapter[] }) {
   return (
     <div className="export-ai-note">
       {describeAiInvolvement(involvement)}
-      {since}, counted once when accepted or inserted. A running total, not a share of the
-      manuscript&rsquo;s current words: later edits and deletions don&rsquo;t lower it, and
-      activity before a chapter began tracking isn&rsquo;t included. A self-report for your own
-      disclosure - not a KDP or AI-detector compliance guarantee.
+      {since}. Each word is counted once, when written; these are running totals, not a share of
+      the manuscript&rsquo;s current words, so later edits and deletions don&rsquo;t lower them,
+      and activity before a chapter began tracking isn&rsquo;t included. A self-report for your
+      own disclosure - not a KDP or AI-detector compliance guarantee.
     </div>
   );
 }

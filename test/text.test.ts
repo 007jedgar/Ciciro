@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aiInvolvement,
   chapterPlainText,
+  chapterWordsAdded,
   countWords,
   describeAiInvolvement,
   extractDraft,
@@ -75,35 +76,44 @@ describe("extractDraft", () => {
 });
 
 describe("aiInvolvement", () => {
-  it("is zero when nothing was ever accepted or drafted", () => {
-    expect(aiInvolvement({ aiAcceptedWords: 0, aiDraftedWords: 0 })).toEqual({
+  it("is zero when nothing was ever added", () => {
+    expect(aiInvolvement({})).toEqual({
       acceptedWords: 0,
       draftedWords: 0,
       ciciroWords: 0,
+      wordsAdded: 0,
+      authorWords: 0,
+      percent: 0,
       since: null,
     });
   });
 
-  it("treats missing counters as 0 (an untracked or pre-tracking chapter)", () => {
-    expect(aiInvolvement({}).ciciroWords).toBe(0);
-  });
-
-  it("sums accepted-suggestion and drafted words and keeps each side", () => {
+  it("reports Ciciro's share of every word added, alongside the counts", () => {
     const since = "2026-09-01T00:00:00.000Z";
-    expect(aiInvolvement({ aiAcceptedWords: 30, aiDraftedWords: 20, aiInvolvementSince: since })).toEqual({
+    expect(
+      aiInvolvement({ aiAcceptedWords: 30, aiDraftedWords: 20, wordsAdded: 300, aiInvolvementSince: since })
+    ).toEqual({
       acceptedWords: 30,
       draftedWords: 20,
       ciciroWords: 50,
+      wordsAdded: 300,
+      authorWords: 250,
+      percent: 17,
       since: new Date(since),
     });
   });
 
-  it("reports the cumulative count even after the chapter shrank below it, rather than a share", () => {
-    // 300 accepted words, all later deleted: the count stays 300 and nothing
-    // divides it by the chapter's current length.
-    const result = aiInvolvement({ aiAcceptedWords: 300, aiDraftedWords: 0 });
-    expect(result.ciciroWords).toBe(300);
-    expect(result).not.toHaveProperty("percent");
+  it("divides by words added, not the chapter's current length, so deletions don't inflate it", () => {
+    // 300 Ciciro words accepted, then deleted, then 300 of the author's own:
+    // half of what was ever added came from Ciciro, whatever is left now.
+    const result = aiInvolvement({ aiAcceptedWords: 300, wordsAdded: 600 });
+    expect(result.percent).toBe(50);
+    expect(result.authorWords).toBe(300);
+  });
+
+  it("never reads over 100% when the Ciciro tally lands before the total", () => {
+    const result = aiInvolvement({ aiAcceptedWords: 40, wordsAdded: 10 });
+    expect(result).toMatchObject({ wordsAdded: 40, authorWords: 0, percent: 100 });
   });
 
   it("ignores an unparseable tracking start", () => {
@@ -112,36 +122,61 @@ describe("aiInvolvement", () => {
 });
 
 describe("manuscriptAiInvolvement", () => {
-  it("sums every chapter and dates tracking from the earliest chapter", () => {
+  it("sums every chapter before one percentage, and dates tracking from the earliest", () => {
     const result = manuscriptAiInvolvement([
-      { aiAcceptedWords: 10, aiDraftedWords: 0, aiInvolvementSince: "2026-09-10T00:00:00.000Z" },
-      { aiAcceptedWords: 0, aiDraftedWords: 40, aiInvolvementSince: new Date("2026-09-02T00:00:00.000Z") },
-      {},
+      { aiAcceptedWords: 10, wordsAdded: 100, aiInvolvementSince: "2026-09-10T00:00:00.000Z" },
+      { aiDraftedWords: 40, wordsAdded: 200, aiInvolvementSince: new Date("2026-09-02T00:00:00.000Z") },
+      { wordsAdded: 50 },
     ]);
     expect(result).toEqual({
       acceptedWords: 10,
       draftedWords: 40,
       ciciroWords: 50,
+      wordsAdded: 350,
+      authorWords: 300,
+      percent: 14,
       since: new Date("2026-09-02T00:00:00.000Z"),
     });
   });
 
   it("is zero for a manuscript with no chapters", () => {
-    expect(manuscriptAiInvolvement([])).toEqual({ acceptedWords: 0, draftedWords: 0, ciciroWords: 0, since: null });
+    expect(manuscriptAiInvolvement([]).percent).toBe(0);
   });
 });
 
 describe("describeAiInvolvement", () => {
-  it("states both cumulative counts", () => {
-    expect(
-      describeAiInvolvement({ acceptedWords: 1000, draftedWords: 234, ciciroWords: 1234, since: null })
-    ).toBe("1,234 words from Ciciro (1,000 from accepted suggestions, 234 inserted directly)");
+  it("states the percentage with both cumulative sides", () => {
+    expect(describeAiInvolvement(aiInvolvement({ aiAcceptedWords: 100, aiDraftedWords: 20, wordsAdded: 1000 }))).toBe(
+      "12% of the 1,000 words added came from Ciciro (100 from accepted suggestions, 20 inserted directly); " +
+        "880 you wrote yourself"
+    );
+  });
+});
+
+describe("chapterWordsAdded", () => {
+  const p = (text: string) => `<p>${text}</p>`;
+
+  it("counts typed words", () => {
+    expect(chapterWordsAdded(p("She walked home."), p("She walked home. Then she slept."))).toBe(3);
   });
 
-  it("uses the singular for one word", () => {
-    expect(describeAiInvolvement({ acceptedWords: 1, draftedWords: 0, ciciroWords: 1, since: null })).toMatch(
-      /^1 word from Ciciro/
-    );
+  it("counts a replacement's new words, not its net change", () => {
+    expect(chapterWordsAdded(p("She walked slowly to the door."), p("She ambled to the door."))).toBe(1);
+  });
+
+  it("counts nothing for a deletion", () => {
+    expect(chapterWordsAdded(p("She walked slowly to the door."), p("She walked to the door."))).toBe(0);
+  });
+
+  it("counts edits in two places without the unchanged text between them", () => {
+    expect(chapterWordsAdded(p("one two three four five"), p("one new two three four five more"))).toBe(2);
+  });
+
+  it("counts a pending suggestion only once it is accepted", () => {
+    const attrs = 'data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-25T10:00:00.000Z"';
+    const pending = `<p>She <del data-suggestion-id="s" ${attrs}>walked</del><ins data-suggestion-id="s" ${attrs}>sprinted</ins> home.</p>`;
+    expect(chapterWordsAdded(p("She walked home."), pending)).toBe(0);
+    expect(chapterWordsAdded(pending, p("She sprinted home."))).toBe(1);
   });
 });
 

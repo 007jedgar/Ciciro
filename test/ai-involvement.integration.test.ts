@@ -11,6 +11,9 @@ import { executeEditorTool } from "@/lib/tools";
 import { aiInvolvement } from "@/lib/text";
 import { POST as postAiInvolvement } from "@/app/api/chapters/[id]/ai-involvement/route";
 import { POST as postInsertion } from "@/app/api/chat/insertions/route";
+import { resolveSuggestions } from "@/lib/suggestions";
+import { saveManualSnapshot } from "@/lib/snapshots";
+import { restoreSnapshot } from "@/lib/snapshot-restore";
 
 const PROSE = '<p data-block-id="b1">She walked slowly to the door.</p>';
 
@@ -88,7 +91,55 @@ describe("AI-involvement tally", () => {
       { chapterNumber: 1, expectedRevision: revision, text: "A brand new final line.", position: "end" },
       { projectId }
     );
-    expect(result.ui).toMatchObject({ type: "chapter_updated", chapterId, aiDraftedWords: 5 });
+    expect(result.ui).toMatchObject({ type: "chapter_updated", chapterId, aiDraftedWords: 5, wordsAdded: 11 });
+  });
+
+  it("counts every word the author adds, cumulatively, as the percentage's denominator", async () => {
+    const { user, chapterId, revision } = await seed();
+    const seeded = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+    expect(seeded.wordsAdded).toBe(6);
+
+    const shorter = '<p data-block-id="b1">She walked to the door.</p>';
+    const cut = await updateChapter(chapterId, user, { content: shorter, expectedRevision: revision });
+    expect(cut.chapter.wordsAdded).toBe(6);
+
+    const longer = '<p data-block-id="b1">She walked to the door. She knocked twice.</p>';
+    const grown = await updateChapter(chapterId, user, { content: longer, expectedRevision: cut.chapter.revision });
+    expect(grown.chapter.wordsAdded).toBe(9);
+  });
+
+  it("puts an accepted Ciciro suggestion on both sides, so the percentage is Ciciro's share of words added", async () => {
+    const { user, projectId, chapterId, revision } = await seed();
+    await executeEditorTool(
+      "edit_manuscript",
+      { chapterNumber: 1, expectedRevision: revision, replacements: [{ find: "walked slowly", replace: "ambled" }] },
+      { projectId }
+    );
+    const pending = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+    expect(pending.wordsAdded).toBe(6);
+
+    const acceptedWords = ciciroAcceptedWordCount(pending.content);
+    await updateChapter(chapterId, user, {
+      content: resolveSuggestions(pending.content, "accept", null),
+      expectedRevision: pending.revision,
+    });
+    await recordAiInvolvement(chapterId, user, { acceptedWords });
+
+    const after = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+    expect(after.wordsAdded).toBe(7);
+    expect(aiInvolvement(after)).toMatchObject({ ciciroWords: 1, wordsAdded: 7, authorWords: 6, percent: 14 });
+  });
+
+  it("does not count restoring a snapshot as adding words", async () => {
+    const { user, chapterId, revision } = await seed();
+    const snap = await saveManualSnapshot(chapterId, user, { label: "before" });
+    const cut = await updateChapter(chapterId, user, {
+      content: '<p data-block-id="b1">She left.</p>',
+      expectedRevision: revision,
+    });
+    expect(cut.chapter.wordsAdded).toBe(7);
+    const restored = await restoreSnapshot(chapterId, snap.id, user);
+    expect(restored.chapter.wordsAdded).toBe(7);
   });
 
   it("tallies a chat draft paste once, even when the same segment is posted concurrently", async () => {

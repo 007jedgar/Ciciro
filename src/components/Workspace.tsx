@@ -901,8 +901,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (evt.type === "chapter_updated") {
         const store = optimisticStoreRef.current;
         const local = projectRef.current.chapters.find((c) => c.id === evt.chapterId);
-        if (evt.aiDraftedWords != null) {
-          updateChapterLocal(evt.chapterId, { aiDraftedWords: evt.aiDraftedWords });
+        if (evt.aiDraftedWords != null || evt.wordsAdded != null) {
+          updateChapterLocal(evt.chapterId, {
+            ...(evt.aiDraftedWords != null ? { aiDraftedWords: evt.aiDraftedWords } : {}),
+            ...(evt.wordsAdded != null ? { wordsAdded: evt.wordsAdded } : {}),
+          });
         }
         if (
           evt.chapterId === activeId &&
@@ -1178,13 +1181,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                         title={
                           `${describeAiInvolvement(involvement)}` +
                           (since ? ` since ${since}` : "") +
-                          ". A running total of what you accepted or Ciciro inserted (auto-draft, " +
-                          "Continue writing), counted once at that moment; a later edit or deletion " +
-                          "doesn't lower it, so it is not a share of the chapter's current words. " +
-                          "A self-report for your own disclosure, not a compliance guarantee."
+                          ". Running totals of words added, yours and Ciciro's (accepted " +
+                          "suggestions, auto-draft, Continue writing), each counted once when " +
+                          "written; a later edit or deletion doesn't lower either, so this is not a " +
+                          "share of the chapter's current words. A self-report for your own " +
+                          "disclosure, not a compliance guarantee."
                         }
                       >
-                        {involvement.ciciroWords.toLocaleString()} from Ciciro
+                        {involvement.percent}% Ciciro
                       </span>
                     </>
                   );
@@ -1286,9 +1290,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   onSuggestionsAccepted={(words) => {
                     const id = activeIdRef.current;
                     if (!id) return;
-                    const prior =
-                      projectRef.current.chapters.find((c) => c.id === id)?.aiAcceptedWords ?? 0;
-                    updateChapterLocal(id, { aiAcceptedWords: prior + words });
+                    const prior = projectRef.current.chapters.find((c) => c.id === id);
+                    updateChapterLocal(id, {
+                      aiAcceptedWords: (prior?.aiAcceptedWords ?? 0) + words,
+                      wordsAdded: (prior?.wordsAdded ?? 0) + words,
+                    });
                     recordAiAcceptance(id, words);
                   }}
                 />

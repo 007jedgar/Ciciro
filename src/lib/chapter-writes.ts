@@ -1,4 +1,4 @@
-import { appendSystemOps } from "@/lib/chapter-ops";
+import { appendSystemOps, type WordTally } from "@/lib/chapter-ops";
 import { snapshotBeforeAiWrite } from "@/lib/snapshots";
 import {
   diffHtmlToOps,
@@ -106,7 +106,7 @@ function wholeDocumentOps(
 export async function writeChapterHtml(
   chapter: ChapterHead,
   nextHtml: string,
-  opts?: { actor?: ManuscriptActor; groupId?: string; runId?: string }
+  opts?: { actor?: ManuscriptActor; groupId?: string; runId?: string; tally?: WordTally }
 ): Promise<ChapterWriteResult> {
   const actor = opts?.actor ?? "ai";
   const groupId = opts?.groupId ?? newId();
@@ -127,7 +127,10 @@ export async function writeChapterHtml(
   // The editor is about to change prose the author may want back.
   if (actor === "ai") await snapshotBeforeAiWrite(chapter, opts?.runId ?? groupId);
 
-  const result = await appendSystemOps(chapter.id, chapter.projectId, ops, { actor });
+  const result = await appendSystemOps(chapter.id, chapter.projectId, ops, {
+    actor,
+    tally: opts?.tally,
+  });
   return {
     ok: result.rejected.length === 0,
     revision: result.chapter.revision,

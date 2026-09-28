@@ -5,8 +5,8 @@
 -- Apply with: wrangler d1 execute ciciro --remote --file=prisma/d1-ai-involvement.sql
 --
 -- Run it before (or together with) deploying the build that adds the
--- disclosure summary. `aiAcceptedWords` and `aiDraftedWords` are read on every
--- chapter query, so without them the app fails with
+-- disclosure summary. `aiAcceptedWords`, `aiDraftedWords` and `wordsAdded`
+-- are read on every chapter query, so without them the app fails with
 -- "no such column: aiAcceptedWords".
 --
 -- SQLite refuses `ADD COLUMN ... DEFAULT CURRENT_TIMESTAMP` ("Cannot add a
@@ -18,5 +18,6 @@
 
 ALTER TABLE "Chapter" ADD COLUMN "aiAcceptedWords" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "Chapter" ADD COLUMN "aiDraftedWords" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Chapter" ADD COLUMN "wordsAdded" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "Chapter" ADD COLUMN "aiInvolvementSince" DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00';
 UPDATE "Chapter" SET "aiInvolvementSince" = CURRENT_TIMESTAMP;

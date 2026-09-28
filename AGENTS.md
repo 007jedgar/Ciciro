@@ -33,7 +33,7 @@ Pass numbers into Reanimated worklets as arguments or same-scope locals: a defau
 
 ## AI-involvement tally
 
-`Chapter.aiAcceptedWords` / `aiDraftedWords` (see `src/lib/text.ts` `aiInvolvement`) are cumulative counters, not derived from `content`: accepting a Ciciro suggestion drops its authorship marks (`resolveSuggestions`), so the word count has to be taken at that moment (`ciciroAcceptedWordCount` in `src/lib/suggestions.ts`, called from every accept path, web and mobile) and added, permanently - a later edit or deletion never moves or removes it. The same applies to text Ciciro inserts with no suggestion to accept (`insert_text`, a chat `<draft>` paste): tallied once, at insertion. Do not try to reconstruct these from `content` later.
+`Chapter.aiAcceptedWords` / `aiDraftedWords` (see `src/lib/text.ts` `aiInvolvement`) are cumulative counters, not derived from `content`: accepting a Ciciro suggestion drops its authorship marks (`resolveSuggestions`), so the word count has to be taken at that moment (`ciciroAcceptedWordCount` in `src/lib/suggestions.ts`, called from every accept path, web and mobile) and added, permanently - a later edit or deletion never moves or removes it. The same applies to text Ciciro inserts with no suggestion to accept (`insert_text`, a chat `<draft>` paste): tallied once, at insertion. The percentage's denominator, `wordsAdded`, is tallied the same way inside the op log's commit (`tally` in `src/lib/chapter-ops.ts`): a server-side writer that lands new Ciciro prose passes `tally: "drafted"`, one that restores old text passes `"none"`. Do not try to reconstruct any of these from `content` later.
 
 ## Model defaults
 
