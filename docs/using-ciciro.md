@@ -67,7 +67,7 @@ type a custom request when it does not.
 | Line edit selection | Prose-level pass on a highlighted passage |
 | Align to theme | Language vs `style.md` theme/tone/POV |
 | Find loose ends | Open loops in `plot.md` vs the manuscript |
-| Continuity check | Names, traits, dates, and places in the chapter vs `canon.md`, `world.md`, `timeline.md`, and the characters it names |
+| Continuity check | Opens a panel (not a chat prompt) that checks names, traits, dates, and places in the open chapter or whole manuscript against `canon.md`, `world.md`, `timeline.md`, and the characters it names; "Show in text" jumps to each quote |
 | Ask me questions | Craft questions to sit with; it will not answer them |
 | Continue writing | Next ~300-400 words from the end of the open chapter |
 | Review for holes | Continuity gaps and passages that look inserted in the wrong spot |
