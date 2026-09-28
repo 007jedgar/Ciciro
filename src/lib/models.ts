@@ -11,25 +11,27 @@ const FRIENDLY_NAMES: Record<string, string> = {
   "llama-3.1-8b-instant": "Llama 3.1 8B",
 };
 
-export type ModelSlot = { role: string; id: string; name: string };
+export type ModelRole = "editor" | "drafter" | "quickDrafts" | "router";
+
+export type ModelSlot = { key: ModelRole; role: string; id: string; name: string };
 
 export type ModelSummary = {
   slots: ModelSlot[];
   router: (ModelSlot & { provider: "groq" }) | null;
 };
 
-function slot(role: string, id: string): ModelSlot {
-  return { role, id, name: FRIENDLY_NAMES[id] ?? id };
+function slot(key: ModelRole, role: string, id: string): ModelSlot {
+  return { key, role, id, name: FRIENDLY_NAMES[id] ?? id };
 }
 
 /** The models actually in effect right now - resolved env values or defaults. */
 export function getModelSummary(): ModelSummary {
   return {
     slots: [
-      slot("Editor", EDITOR_MODEL),
-      slot("Drafter", DRAFTER_MODEL),
-      slot("Quick drafts", DRAFTER_FAST_MODEL),
+      slot("editor", "Editor", EDITOR_MODEL),
+      slot("drafter", "Drafter", DRAFTER_MODEL),
+      slot("quickDrafts", "Quick drafts", DRAFTER_FAST_MODEL),
     ],
-    router: hasGroqKey() ? { ...slot("Router", ROUTER_MODEL), provider: "groq" } : null,
+    router: hasGroqKey() ? { ...slot("router", "Router", ROUTER_MODEL), provider: "groq" } : null,
   };
 }

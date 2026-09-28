@@ -250,7 +250,9 @@ export type SettingsResponse = {
   settings: AppSettings;
 };
 
-export type ModelSlot = { role: string; id: string; name: string };
+export type ModelRole = "editor" | "drafter" | "quickDrafts" | "router";
+
+export type ModelSlot = { key: ModelRole; role: string; id: string; name: string };
 
 export type ModelsResponse = {
   slots: ModelSlot[];

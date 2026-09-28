@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useModelsQuery } from "../lib/api/hooks";
+import type { ModelRole } from "../lib/api/types";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -20,6 +21,13 @@ import { useWritingReminderList } from "../lib/writing-reminder-store";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
+
+const MODEL_ROLE_LABELS: Record<ModelRole, string> = {
+  editor: "settings.modelEditor",
+  drafter: "settings.modelDrafter",
+  quickDrafts: "settings.modelQuickDrafts",
+  router: "settings.modelRouter",
+};
 
 const WORD_GOALS = [100, 250, 500] as const;
 const WEEKLY_TARGETS = [3, 4, 5, 6, 7] as const;
@@ -439,27 +447,43 @@ export default function SettingsScreen() {
         </Group>
 
         {models ? (
-          <Group colors={colors}>
-            {models.slots.map((slot, index) => (
-              <InfoRow
-                key={slot.role}
-                label={slot.role}
-                value={slot.name}
-                detail={slot.id}
-                colors={colors}
-                last={!models.router && index === models.slots.length - 1}
-              />
-            ))}
-            {models.router ? (
-              <InfoRow
-                label="Router"
-                value={`${models.router.name} (Groq)`}
-                detail={models.router.id}
-                colors={colors}
-                last
-              />
-            ) : null}
-          </Group>
+          <>
+            <Text
+              accessibilityRole="header"
+              style={{
+                marginHorizontal: 16,
+                marginBottom: 8,
+                fontSize: 12,
+                fontWeight: "600",
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
+                color: colors.inkSoft,
+              }}
+            >
+              {t("settings.models")}
+            </Text>
+            <Group colors={colors}>
+              {models.slots.map((slot, index) => (
+                <InfoRow
+                  key={slot.key}
+                  label={t(MODEL_ROLE_LABELS[slot.key])}
+                  value={slot.name}
+                  detail={slot.id}
+                  colors={colors}
+                  last={!models.router && index === models.slots.length - 1}
+                />
+              ))}
+              {models.router ? (
+                <InfoRow
+                  label={t(MODEL_ROLE_LABELS.router)}
+                  value={`${models.router.name} (Groq)`}
+                  detail={models.router.id}
+                  colors={colors}
+                  last
+                />
+              ) : null}
+            </Group>
+          </>
         ) : null}
 
         <Group colors={colors}>

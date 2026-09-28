@@ -19,9 +19,9 @@ describe("getModelSummary", () => {
     const { getModelSummary } = await import("@/lib/models");
     const summary = getModelSummary();
     expect(summary.slots).toEqual([
-      { role: "Editor", id: "claude-opus-5", name: "Claude Opus 5" },
-      { role: "Drafter", id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-      { role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+      { key: "editor", role: "Editor", id: "claude-opus-5", name: "Claude Opus 5" },
+      { key: "drafter", role: "Drafter", id: "claude-sonnet-5", name: "Claude Sonnet 5" },
+      { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
     ]);
     expect(summary.router).toBeNull();
   });
@@ -31,8 +31,9 @@ describe("getModelSummary", () => {
     process.env.GROQ_API_KEY = "test-key";
     const { getModelSummary } = await import("@/lib/models");
     const summary = getModelSummary();
-    expect(summary.slots[0]).toEqual({ role: "Editor", id: "claude-opus-6", name: "claude-opus-6" });
+    expect(summary.slots[0]).toEqual({ key: "editor", role: "Editor", id: "claude-opus-6", name: "claude-opus-6" });
     expect(summary.router).toEqual({
+      key: "router",
       role: "Router",
       id: "llama-3.1-8b-instant",
       name: "Llama 3.1 8B",
