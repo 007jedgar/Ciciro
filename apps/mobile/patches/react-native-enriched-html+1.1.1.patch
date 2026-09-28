@@ -88,28 +88,36 @@ index 05d0e67..63e46ae 100644
    return _primaryFontWeight != nullptr
               ? _primaryFontWeight
 diff --git a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
-index 4e8dd50..935a99e 100644
+index 4e8dd50..e206f39 100644
 --- a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
 +++ b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
-@@ -7,6 +7,47 @@
+@@ -7,6 +7,55 @@
  #import "TextListsUtils.h"
  #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
  
 +@interface EnrichedTextSelectionRect : UITextSelectionRect
 +- (instancetype)initWithSelectionRect:(UITextSelectionRect *)base
-+                                 rect:(CGRect)rect;
++                                 rect:(CGRect)rect
++                        containsStart:(BOOL)containsStart
++                          containsEnd:(BOOL)containsEnd;
 +@end
 +
 +@implementation EnrichedTextSelectionRect {
 +  UITextSelectionRect *_base;
 +  CGRect _rect;
++  BOOL _containsStart;
++  BOOL _containsEnd;
 +}
 +
 +- (instancetype)initWithSelectionRect:(UITextSelectionRect *)base
-+                                 rect:(CGRect)rect {
++                                 rect:(CGRect)rect
++                        containsStart:(BOOL)containsStart
++                          containsEnd:(BOOL)containsEnd {
 +  if (self = [super init]) {
 +    _base = base;
 +    _rect = rect;
++    _containsStart = containsStart;
++    _containsEnd = containsEnd;
 +  }
 +  return self;
 +}
@@ -123,11 +131,11 @@ index 4e8dd50..935a99e 100644
 +}
 +
 +- (BOOL)containsStart {
-+  return _base.containsStart;
++  return _containsStart;
 +}
 +
 +- (BOOL)containsEnd {
-+  return _base.containsEnd;
++  return _containsEnd;
 +}
 +
 +- (BOOL)isVertical {
@@ -139,45 +147,89 @@ index 4e8dd50..935a99e 100644
  @implementation EnrichedInputTextView
  
  - (void)layoutSubviews {
-@@ -20,6 +61,55 @@ - (void)layoutSubviews {
+@@ -20,6 +69,100 @@ - (void)layoutSubviews {
    }
  }
  
 +// paragraphSpacing is added to the last line fragment of a paragraph, so the
-+// caret and selection rects would grow into the gap. Clamp a view-space rect's
-+// bottom to the text line box of the line fragment its bottom edge lies in.
-+- (CGRect)rectWithoutParagraphSpacing:(CGRect)rect {
-+  if (self.textStorage.length == 0 || CGRectGetHeight(rect) <= 1) {
-+    return rect;
++// caret and selection rects would grow into the gap. Split a view-space rect
++// into the vertical spans that hold text, cutting out the gap below every
++// paragraph-final line fragment it crosses. Lines are found from the rect's
++// own geometry rather than a character offset: at a soft wrap the caret can
++// sit at the end of the previous line.
++- (NSArray<NSValue *> *)textSpansInRect:(CGRect)rect {
++  NSString *text = self.textStorage.string;
++  if (text.length == 0 || CGRectGetHeight(rect) <= 1) {
++    return @[ [NSValue valueWithCGRect:rect] ];
 +  }
 +
-+  // Probe the rect's own bottom edge rather than its character offset: at a
-+  // soft wrap the caret can sit at the end of the previous line, and a
-+  // multi-line selection rect ends on its last line.
 +  NSLayoutManager *layoutManager = self.layoutManager;
++  NSTextContainer *textContainer = self.textContainer;
 +  UIEdgeInsets inset = self.textContainerInset;
-+  CGPoint probe = CGPointMake(CGRectGetMidX(rect) - inset.left,
-+                              CGRectGetMaxY(rect) - inset.top - 0.5);
-+  NSUInteger glyphIndex =
-+      [layoutManager glyphIndexForPoint:probe
-+                        inTextContainer:self.textContainer];
-+  CGRect fragmentRect =
-+      [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
-+                                      effectiveRange:nullptr];
-+  if (probe.y < CGRectGetMinY(fragmentRect) ||
-+      probe.y > CGRectGetMaxY(fragmentRect)) {
-+    return rect;
++  NSCharacterSet *newlines = [NSCharacterSet newlineCharacterSet];
++  CGRect band = CGRectMake(0, CGRectGetMinY(rect) - inset.top,
++                           textContainer.size.width, CGRectGetHeight(rect));
++  NSRange glyphRange = [layoutManager glyphRangeForBoundingRect:band
++                                                inTextContainer:textContainer];
++  NSMutableArray<NSValue *> *spans = [NSMutableArray array];
++  CGFloat top = CGRectGetMinY(rect);
++  CGFloat bottom = CGRectGetMaxY(rect);
++
++  NSUInteger glyphIndex = glyphRange.location;
++  while (glyphIndex < NSMaxRange(glyphRange)) {
++    NSRange lineGlyphRange;
++    CGRect fragmentRect =
++        [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
++                                        effectiveRange:&lineGlyphRange];
++    CGRect usedRect =
++        [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
++                                            effectiveRange:nullptr];
++    if (lineGlyphRange.length == 0) {
++      break;
++    }
++    glyphIndex = NSMaxRange(lineGlyphRange);
++
++    CGFloat fragmentBottom = CGRectGetMaxY(fragmentRect) + inset.top;
++    CGFloat textBottom = CGRectGetMaxY(usedRect) + inset.top;
++    if (CGRectGetMinY(fragmentRect) + inset.top >= bottom) {
++      break;
++    }
++    if (textBottom <= top || textBottom >= fragmentBottom - 0.5 ||
++        textBottom >= bottom - 0.5) {
++      continue;
++    }
++    NSRange charRange =
++        [layoutManager characterRangeForGlyphRange:lineGlyphRange
++                                  actualGlyphRange:nullptr];
++    if (charRange.length == 0) {
++      continue;
++    }
++    unichar lastChar = [text characterAtIndex:NSMaxRange(charRange) - 1];
++    if (NSMaxRange(charRange) < text.length &&
++        ![newlines characterIsMember:lastChar]) {
++      continue;
++    }
++    CGRect span = rect;
++    span.origin.y = top;
++    span.size.height = textBottom - top;
++    [spans addObject:[NSValue valueWithCGRect:span]];
++    top = fragmentBottom;
 +  }
-+  CGRect usedRect =
-+      [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
-+                                          effectiveRange:nullptr];
-+  CGFloat textBottom = CGRectGetMaxY(usedRect) + inset.top;
-+  if (textBottom <= CGRectGetMinY(rect) ||
-+      textBottom >= CGRectGetMaxY(rect) - 0.5) {
-+    return rect;
++
++  // The system caret overhangs its line box by about a point; keep that
++  // overhang on the trimmed rect instead of leaving it as a sliver below.
++  CGFloat rest = bottom - top;
++  if (rest > 0.5 && rest < 2 && spans.count > 0) {
++    CGRect last = spans.lastObject.CGRectValue;
++    last.size.height += rest;
++    spans[spans.count - 1] = [NSValue valueWithCGRect:last];
++  } else if (rest > 0.5) {
++    CGRect span = rect;
++    span.origin.y = top;
++    span.size.height = rest;
++    [spans addObject:[NSValue valueWithCGRect:span]];
 +  }
-+  rect.size.height = textBottom - CGRectGetMinY(rect);
-+  return rect;
++  return spans;
 +}
 +
 +- (CGRect)caretRectWithoutParagraphSpacing:(CGRect)rect
@@ -189,13 +241,14 @@ index 4e8dd50..935a99e 100644
 +    // caret sits on the trailing empty line, which has no spacing of its own
 +    return rect;
 +  }
-+  return [self rectWithoutParagraphSpacing:rect];
++  NSArray<NSValue *> *spans = [self textSpansInRect:rect];
++  return spans.count > 0 ? spans.firstObject.CGRectValue : rect;
 +}
 +
  // UITextView places the cursor at the leading edge when a paragraph contains
  // zero (or invisible) glyphs because the layout engine has nothing to align.
  // We fix this by reading the active alignment and repositioning the caret rect
-@@ -35,7 +125,7 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+@@ -35,14 +178,14 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
  
    // Non-empty paragraph gets its caret drawn the usual way.
    if (paraRange.length != 0) {
@@ -204,33 +257,52 @@ index 4e8dd50..935a99e 100644
    }
  
    NSParagraphStyle *pStyle =
-@@ -61,6 +151,26 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
-   return rect;
- }
+       self.typingAttributes[NSParagraphStyleAttributeName];
  
+   if (pStyle == nil) {
+-    return rect;
++    return [self caretRectWithoutParagraphSpacing:rect atIndex:idx];
+   }
+ 
+   NSString *marker =
+@@ -58,7 +201,36 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+     rect.origin.x = containerWidth - rect.size.width;
+   }
+ 
+-  return rect;
++  return [self caretRectWithoutParagraphSpacing:rect atIndex:idx];
++}
++
 +// A selection spanning paragraphs would otherwise highlight the paragraph
-+// gap. UITextSelectionRect is immutable, so wrap each rect with a trimmed one.
++// gaps. UITextSelectionRect is immutable, so replace each rect that crosses a
++// gap with wrappers around its text spans.
 +- (NSArray<UITextSelectionRect *> *)selectionRectsForRange:
 +    (UITextRange *)range {
 +  NSArray<UITextSelectionRect *> *rects = [super selectionRectsForRange:range];
 +  NSMutableArray<UITextSelectionRect *> *trimmed =
 +      [NSMutableArray arrayWithCapacity:rects.count];
 +  for (UITextSelectionRect *selectionRect in rects) {
-+    CGRect rect = [self rectWithoutParagraphSpacing:selectionRect.rect];
-+    if (CGRectEqualToRect(rect, selectionRect.rect)) {
++    CGRect rect = selectionRect.rect;
++    NSArray<NSValue *> *spans = [self textSpansInRect:rect];
++    if (spans.count == 1 && CGRectEqualToRect(spans[0].CGRectValue, rect)) {
 +      [trimmed addObject:selectionRect];
-+    } else {
++      continue;
++    }
++    [spans enumerateObjectsUsingBlock:^(NSValue *span, NSUInteger i,
++                                        BOOL *stop) {
 +      [trimmed addObject:[[EnrichedTextSelectionRect alloc]
 +                             initWithSelectionRect:selectionRect
-+                                              rect:rect]];
-+    }
++                                              rect:span.CGRectValue
++                                     containsStart:selectionRect.containsStart &&
++                                                   i == 0
++                                       containsEnd:selectionRect.containsEnd &&
++                                                   i == spans.count - 1]];
++    }];
 +  }
 +  return trimmed;
-+}
-+
+ }
+ 
  - (void)copy:(id)sender {
-   EnrichedTextInputView *typedInput = (EnrichedTextInputView *)_input;
-   if (typedInput == nullptr) {
 diff --git a/node_modules/react-native-enriched-html/ios/extensions/LayoutManagerExtension.mm b/node_modules/react-native-enriched-html/ios/extensions/LayoutManagerExtension.mm
 index 72c9620..49394a8 100644
 --- a/node_modules/react-native-enriched-html/ios/extensions/LayoutManagerExtension.mm
