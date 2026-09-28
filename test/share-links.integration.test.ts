@@ -585,5 +585,11 @@ describe("beta reader share links", () => {
       expect(gate("/api/shares/s1", "DELETE").status).toBe(401);
       expect(gate("/reader").status).toBe(307);
     });
+
+    it("lets signed-out visitors read the privacy page", () => {
+      const res = middleware(new NextRequest("http://localhost/privacy"));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
   });
 });
