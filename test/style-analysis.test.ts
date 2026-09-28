@@ -206,13 +206,15 @@ describe("mergeProposedStyleMd", () => {
   it("drafts the full proposal when there is no style.md yet", () => {
     expect(mergeProposedStyleMd("", traits)).toEqual({
       styleMd: renderProposedStyleMd(traits),
+      added: traits,
       suggestions: [],
     });
   });
 
   it("keeps the existing file intact and adds only traits it doesn't already say", () => {
-    const { styleMd, suggestions } = mergeProposedStyleMd(existing, traits);
+    const { styleMd, added, suggestions } = mergeProposedStyleMd(existing, traits);
     expect(styleMd.startsWith(existing.trimEnd())).toBe(true);
+    expect(added).toEqual([traits[0]]);
     expect(styleMd).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n  > "she walked"`);
     expect(styleMd).not.toContain("**Tense:**");
     expect(suggestions).toEqual([]);
@@ -225,8 +227,9 @@ describe("mergeProposedStyleMd", () => {
   it("never rewrites a saved bullet; a differing reading becomes a suggestion", () => {
     const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third, never head-hop away from Mara.\n  > "she walked"\n\n## Narrator\n- Mara\n`;
     const reading = { category: "pov" as const, text: "Close third person.", quote: "Mara said" };
-    const { styleMd, suggestions } = mergeProposedStyleMd(previous, [reading]);
+    const { styleMd, added, suggestions } = mergeProposedStyleMd(previous, [reading]);
     expect(styleMd).toBe(previous);
+    expect(added).toEqual([]);
     expect(suggestions).toEqual([
       { trait: reading, current: "- **POV:** Close third, never head-hop away from Mara." },
     ]);
