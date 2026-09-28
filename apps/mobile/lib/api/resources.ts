@@ -38,6 +38,7 @@ import type {
   ManuscriptEdit,
   ManuscriptTargetPutRequest,
   ManuscriptTargetResponse,
+  ModelsResponse,
   RecapResponse,
   ScratchNote,
   ScratchNoteCreateRequest,
@@ -159,6 +160,10 @@ export const ciciro = {
       api<SettingsResponse>("/api/settings", jsonInit("PATCH", body, opts)),
     put: (body: AppSettings, opts?: RequestOpts) =>
       api<SettingsResponse>("/api/settings", jsonInit("PUT", body, opts)),
+  },
+
+  models: {
+    get: (opts?: RequestOpts) => api<ModelsResponse>("/api/models", opts),
   },
 
   writing: {

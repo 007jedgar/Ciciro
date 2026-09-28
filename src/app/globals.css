@@ -1690,6 +1690,12 @@ textarea {
   color: var(--ink-soft);
 }
 
+.settings-model {
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: default;
+}
+
 .writing-meter {
   display: inline-flex;
   width: 72px;

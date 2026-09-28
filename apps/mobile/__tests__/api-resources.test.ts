@@ -40,6 +40,7 @@ const RESOURCES: ResourceCase[] = [
   },
   { name: "auth.logout", run: () => ciciro.auth.logout(), method: "POST", path: /\/api\/auth\/logout$/ },
   { name: "settings.get", run: () => ciciro.settings.get(), path: /\/api\/settings$/ },
+  { name: "models.get", run: () => ciciro.models.get(), path: /\/api\/models$/ },
   {
     name: "settings.patch",
     run: () => ciciro.settings.patch({ theme: "ember" }),

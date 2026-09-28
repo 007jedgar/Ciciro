@@ -178,6 +178,14 @@ export function useSettingsQuery(options?: Enabled) {
   });
 }
 
+export function useModelsQuery(options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.models,
+    queryFn: () => ciciro.models.get(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
 export function useWritingDaysQuery(
   from: string,
   to: string,
