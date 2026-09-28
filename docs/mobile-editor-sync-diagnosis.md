@@ -100,3 +100,47 @@ The design goal: **one id per block for its whole life, one source of truth on t
 - Unit tests for deterministic ids (same vector on server and phone), id de-duplication, head-gap refetch, `missing_block` rebase, and cycle coalescing.
 - Server integration test: a legacy unstamped chapter accepts a phone `replace_block` after lazy stamping.
 - Maestro flow on the simulator: type at end → Return → type → wait 3 s → text still there, new paragraph below the last, then reload the app and the text is still there.
+
+## Cold-open blank quote: confirmed trigger
+
+Device: iPhone 18 Pro simulator (iOS 26, UDID `EA6BA671-CBE4-4FCC-9B08-0E7CED9788F9`), app built against this branch, backed by the local dev Next.js server and Metro.
+
+### Reproduction
+
+1. Open a chapter, type, background/kill the app so a network correction can land after the fact.
+2. Cold-launch the app. `ChapterEditor` mounts from the MMKV-persisted react-query cache before the network revalidation resolves, so it first paints whatever content was last cached (which can predate a correction made elsewhere).
+3. The `content-sync` effect's own `setValue(...)` call (applying that cached content) makes the native `EnrichedTextInput` re-emit `onChangeText` on its own, ~400-500ms later, with the plain text of what was just set - with zero user interaction. This is a property of the native module (`ios/EnrichedTextInputView.mm`): it emits `onChangeText` whenever its text storage differs from the last string it reported, which includes a change made by `setValue`, not only by typing.
+4. With the original fix (commit `988348d`, `dirtyRef` set unconditionally in `onChangeText`), that native echo marks the editor dirty from the mount alone. Once dirty, the content-sync effect's guard (`if (dirtyRef.current) return`) skips every later `html` prop change - including the real network correction once it lands - so the chapter is stuck on whatever it painted at mount, indefinitely (the "blank quote" symptom the scout report saw is one instance of a stale mount value that a correction never overwrites).
+
+### Captured trigger (commit `988348d`, before this fix)
+
+```
+content-sync effect fired: chapterId=cmul34aik000511lsxlus9a87 dirty=false html=<p ...>Q1 quote line.</p>
+setValue APPLIED for chapterId=cmul34aik000511lsxlus9a87
+onChangeText fired for chapterId=cmul34aik000511lsxlus9a87 # ~360ms later, no typing, no focus event in between
+```
+
+`dirtyRef` is unconditionally set `true` by this `onChangeText`, even though nothing was typed.
+
+### Fix
+
+`ChapterEditor` now records the plain text it just applied (`blocksPlainText(html)`, the same plain-text/offset contract the caret math elsewhere already relies on) alongside each `setValue` call. `onChangeText` only marks the editor dirty when the reported text differs from that baseline; a match is treated as the native echo of our own write and ignored. This doesn't depend on timing: it compares text, not measures a delay, so a real edit that happens to arrive immediately after a sync is still recognized (its text differs from the baseline).
+
+### Captured round trip after the fix (same mechanism, fixed code)
+
+```
+content-sync effect fired: dirty=false html=<p ...>Fix two evidence chapter.</p>
+setValue APPLIED appliedPlainText='Fix two evidence chapter.'
+onChangeText fired value='Fix two evidence chapter.' appliedPlainText='Fix two evidence chapter.' dirty=false
+onChangeText IGNORED (echo of our own setValue) # <- native echo, correctly not marked dirty
+
+# a server-side correction lands (PATCH via the app's own session):
+content-sync effect fired: dirty=false html=<p ...>Fix two evidence chapter SERVER-CORRECTED.</p>
+setValue APPLIED appliedPlainText='Fix two evidence chapter SERVER-CORRECTED.' # <- correction adopted, dirty never blocked it
+onChangeText fired value='...SERVER-CORRECTED.' appliedPlainText='...SERVER-CORRECTED.' dirty=false
+onChangeText IGNORED (echo of our own setValue)
+```
+
+Confirmed visually on-device: the editor shows "Fix two evidence chapter SERVER-CORRECTED." after the correction, in the same running app session, with no typing and no blur/refocus in between.
+
+A regression test (`apps/mobile/__tests__/ChapterEditor.test.tsx`, "ignores a native onChangeText echo of its own setValue, so a later correction still lands") reproduces the echo with a synthetic `onChangeText` carrying the same plain text `ChapterEditor` just applied, and asserts the next `html` correction is still adopted.

@@ -80,7 +80,7 @@ describe("enriched html adapter", () => {
       // used to gain more blank lines on every subsequent flush, even with no
       // further typing, because each pass left one more bare newline behind.
       const once = fromEnrichedHtml(nativeOutput);
-      const twice = fromEnrichedHtml(nativeOutput);
+      const twice = fromEnrichedHtml(toEnrichedHtml(once));
       expect(twice).toBe(once);
     });
 

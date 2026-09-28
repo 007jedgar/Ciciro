@@ -132,6 +132,81 @@ describe("ChapterEditor", () => {
     await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
   });
 
+  it("ignores a native onChangeText echo of its own setValue, so a later correction still lands", async () => {
+    // The native editor re-emits onChangeText for a programmatic setValue,
+    // not just for real typing, before the user has touched anything. Only
+    // an onChangeText whose text differs from what the sync effect just
+    // applied is a real edit.
+    const registerEditor = jest.fn();
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null as number | null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor,
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const editor = [...registerEditor.mock.calls].reverse().find((call) => call[0])?.[0] as
+      | EnrichedTextInputInstance
+      | undefined;
+    expect(editor).toBeTruthy();
+    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there.");
+    expect(props.onChangeText).not.toHaveBeenCalled();
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
+  });
+
+  it("holds off syncing after a toolbar or dictation edit reported through markEdited", () => {
+    const registerEditor = jest.fn();
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null as number | null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor,
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const [editor, markEdited] = [...registerEditor.mock.calls].reverse().find((call) => call[0]) as [
+      EnrichedTextInputInstance,
+      () => void,
+    ];
+    const setValue = jest.spyOn(editor, "setValue");
+    markEdited();
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a"><strong>Hello</strong> there.</p>' />);
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
+  it("leaves the buffer alone when new html renders the same as what it last applied", () => {
+    const registerEditor = jest.fn();
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null as number | null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor,
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const editor = [...registerEditor.mock.calls].reverse().find((call) => call[0])?.[0] as EnrichedTextInputInstance;
+    const setValue = jest.spyOn(editor, "setValue");
+    rerender(<ChapterEditor {...props} html='<p data-block-id="b">Hello there.</p>' />);
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
   it("resumes adopting corrections once the field blurs after typing", async () => {
     const registerEditor = jest.fn();
     const props = {

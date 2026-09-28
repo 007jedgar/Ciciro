@@ -11,6 +11,7 @@ import type { BlockMarks } from "../lib/block-editor";
 import { toEnrichedHtml } from "../lib/enriched-html";
 import { FORMAT_PRESS_MS } from "../lib/format-chrome";
 import { typewriterBottomInset } from "../lib/focus-mode";
+import { blocksPlainText } from "../lib/read-aloud-text";
 
 export type EditorStyle = {
   fontFamily: string;
@@ -79,7 +80,7 @@ export function ChapterEditor({
   onChangeSelection: (start: number, end: number) => void;
   onLongPress?: () => void;
   onSetKind?: (kind: FormatBlockKind) => void;
-  registerEditor: (ref: EnrichedTextInputInstance | null) => void;
+  registerEditor: (ref: EnrichedTextInputInstance | null, markEdited?: () => void) => void;
   testID?: string;
 }) {
   const inputRef = useRef<EnrichedTextInputInstance | null>(null);
@@ -91,6 +92,18 @@ export function ChapterEditor({
   // correction to `html` (e.g. once the real content lands) was skipped by a
   // guard meant to protect in-progress typing, not a passive resume-focus.
   const dirtyRef = useRef(false);
+  // Plain text of the content the sync effect below just pushed via setValue.
+  // The native editor re-emits onChangeText for a programmatic setValue too
+  // (it compares its text storage to what it last reported, not to "did the
+  // user type"), so onChangeText alone can't tell a real edit from an echo of
+  // our own write. Only an onChangeText whose text differs from this baseline
+  // is a real edit; a match is the native layer echoing what we just set.
+  const appliedPlainTextRef = useRef<string | null>(null);
+  // The enriched HTML the sync effect last pushed, cleared by any local edit.
+  // A new `html` that renders the same as it (a commit settling, or a block id
+  // being stamped) has nothing to correct, so rewriting the buffer would only
+  // throw away the caret.
+  const appliedEnrichedRef = useRef<string | null>(null);
   const didResume = useRef<string | null>(null);
   const pressTouch = useRef<{ handle: ReturnType<typeof setTimeout>; x: number; y: number } | null>(
     null
@@ -100,13 +113,24 @@ export function ChapterEditor({
   const typewriterPad = typewriterBottomInset(typewriter, shellHeight - bottomInset);
 
   useEffect(() => {
-    registerEditor(inputRef.current);
+    // Toolbar marks, block kinds and dictation change the buffer without an
+    // onChangeText of their own, so the screen reports them here to hold off
+    // the sync effect exactly like typing does.
+    registerEditor(inputRef.current, () => {
+      dirtyRef.current = true;
+      appliedPlainTextRef.current = null;
+      appliedEnrichedRef.current = null;
+    });
     return () => registerEditor(null);
   }, [registerEditor]);
 
   useEffect(() => {
     if (dirtyRef.current) return;
-    inputRef.current?.setValue(toEnrichedHtml(html));
+    const enriched = toEnrichedHtml(html);
+    if (enriched === appliedEnrichedRef.current) return;
+    appliedPlainTextRef.current = blocksPlainText(html);
+    appliedEnrichedRef.current = enriched;
+    inputRef.current?.setValue(enriched);
   }, [html]);
 
   useEffect(() => {
@@ -213,8 +237,17 @@ export function ChapterEditor({
           onBlurred();
         }}
         onChangeText={(e) => {
+          const value = e.nativeEvent.value;
+          if (!dirtyRef.current && value === appliedPlainTextRef.current) {
+            // The native editor's own echo of the setValue the sync effect
+            // just applied, not something the user typed: ignore it so a
+            // later correction to `html` still lands.
+            return;
+          }
           dirtyRef.current = true;
-          onChangeText(e.nativeEvent.value);
+          appliedPlainTextRef.current = null;
+          appliedEnrichedRef.current = null;
+          onChangeText(value);
         }}
         onChangeState={(e) => onChangeState(e.nativeEvent)}
         onChangeSelection={(e) => onChangeSelection(e.nativeEvent.start, e.nativeEvent.end)}
