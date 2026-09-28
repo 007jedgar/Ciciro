@@ -140,6 +140,7 @@ export default function ManuscriptScreen() {
   const caretTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commitChain = useRef(Promise.resolve());
   const editorRef = useRef<EnrichedTextInputInstance | null>(null);
+  const markEditedRef = useRef<(() => void) | null>(null);
   const frozenResumeRef = useRef<{ chapterId: string; blockId: string; offset: number } | null>(null);
   const [focused, setFocused] = useState(false);
   const focusedRef = useRef(false);
@@ -372,6 +373,7 @@ export default function ManuscriptScreen() {
     (mark: BlockMark) => {
       const editor = editorRef.current;
       if (!editor) return;
+      markEditedRef.current?.();
       if (mark === "bold") editor.toggleBold();
       if (mark === "italic") editor.toggleItalic();
       if (mark === "underline") editor.toggleUnderline();
@@ -387,6 +389,7 @@ export default function ManuscriptScreen() {
       const editor = editorRef.current;
       if (!editor) return;
       setPressMenuOpen(false);
+      markEditedRef.current?.();
       if (kind === "heading") editor.toggleH2();
       else if (kind === "quote") editor.toggleBlockQuote();
       else if (kind === "list_item") editor.toggleUnorderedList();
@@ -501,9 +504,13 @@ export default function ManuscriptScreen() {
     };
   }, [setEditingBlockIds]);
 
-  const registerEditor = useCallback((ref: EnrichedTextInputInstance | null) => {
-    editorRef.current = ref;
-  }, []);
+  const registerEditor = useCallback(
+    (ref: EnrichedTextInputInstance | null, markEdited?: () => void) => {
+      editorRef.current = ref;
+      markEditedRef.current = markEdited ?? null;
+    },
+    []
+  );
 
   // Dictated phrases land one at a time: each one reads the editor's live HTML,
   // splices the phrase in at the caret and writes it back, so a second phrase
@@ -520,6 +527,7 @@ export default function ManuscriptScreen() {
         const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(await editor.getHTML()));
         const result = insertDictation(live, caretRef.current.docOffset, text, lang);
         if (!result) return;
+        markEditedRef.current?.();
         editor.setValue(toEnrichedHtml(result.html));
         editor.setSelection(result.caret, result.caret);
         caretRef.current = { ...caretRef.current, docOffset: result.caret };
