@@ -86,7 +86,8 @@ export function quoteAppearsIn(quote: string, sample: string): boolean {
   return normalizeForMatch(sample).includes(q);
 }
 
-const NO_EVIDENCE_RE = /\b(?:not enough|insufficient|too little|no clear|no) evidence\b/i;
+const NO_EVIDENCE_RE =
+  /^(?:there (?:is|was) )?(?:(?:not enough|insufficient|too little|no clear) evidence\b|no evidence\b(?!\s+of\b))/i;
 
 type RawTrait = { category?: unknown; text?: unknown; quote?: unknown };
 type RawCharacter = { name?: unknown; voice?: unknown; quote?: unknown };
@@ -165,6 +166,12 @@ export function renderProposedStyleMd(traits: StyleTrait[]): string {
 
 export const ANALYZED_STYLE_HEADING = "## Analyzed from my prose";
 
+/** A list item labelled with the category, bold or not: `- POV:`, `* **POV:**`, `- **POV**:`. */
+function categoryBulletRe(category: StyleTraitCategory): RegExp {
+  const label = STYLE_TRAIT_LABELS[category].replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
+  return new RegExp(`^\\s*[-*+]\\s+(?:\\*\\*|__)?\\s*${label}\\s*(?:(?:\\*\\*|__)\\s*:|:)`, "i");
+}
+
 /**
  * The style.md draft to offer the author. Their existing file is kept
  * exactly as it is: no saved bullet is ever rewritten. Only traits for a
@@ -187,8 +194,8 @@ export function mergeProposedStyleMd(
   const suggestions: StyleSuggestion[] = [];
   for (const trait of traits) {
     if (existing.includes(normalizeForMatch(trait.text))) continue;
-    const bullet = normalizeForMatch(`- **${STYLE_TRAIT_LABELS[trait.category]}:**`);
-    const saved = currentLines.find((l) => normalizeForMatch(l).startsWith(bullet));
+    const bullet = categoryBulletRe(trait.category);
+    const saved = currentLines.find((l) => bullet.test(l));
     if (saved) suggestions.push({ trait, current: saved.trim() });
     else fresh.push(trait);
   }
