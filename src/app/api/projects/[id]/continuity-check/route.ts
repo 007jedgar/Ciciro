@@ -5,7 +5,7 @@ import { runContinuityCheck } from "@/lib/continuity";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type Ctx = { params: Promise<{ id: string }> };
 
