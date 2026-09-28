@@ -88,13 +88,13 @@ index 05d0e67..63e46ae 100644
    return _primaryFontWeight != nullptr
               ? _primaryFontWeight
 diff --git a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
-index 4e8dd50..ac865e3 100644
+index 4e8dd50..98725aa 100644
 --- a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
 +++ b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
-@@ -23,6 +23,36 @@ - (void)layoutSubviews {
- // UITextView places the cursor at the leading edge when a paragraph contains
- // zero (or invisible) glyphs because the layout engine has nothing to align.
- // We fix this by reading the active alignment and repositioning the caret rect
+@@ -20,6 +20,46 @@ - (void)layoutSubviews {
+   }
+ }
+ 
 +// paragraphSpacing is added to the last line fragment of a paragraph, so the
 +// system caret would grow into the gap. Trim it back to the text line box.
 +- (CGRect)caretRectWithoutParagraphSpacing:(CGRect)rect
@@ -109,12 +109,22 @@ index 4e8dd50..ac865e3 100644
 +    return rect;
 +  }
 +
++  // Pick the line the caret is drawn on, not the one its offset starts:
++  // at a soft wrap the caret can sit at the end of the previous line.
 +  NSLayoutManager *layoutManager = self.layoutManager;
-+  NSUInteger glyphIndex = [layoutManager
-+      glyphIndexForCharacterAtIndex:MIN(idx, length - 1)];
++  UIEdgeInsets inset = self.textContainerInset;
++  CGPoint caretPoint = CGPointMake(CGRectGetMidX(rect) - inset.left,
++                                   CGRectGetMidY(rect) - inset.top);
++  NSUInteger glyphIndex =
++      [layoutManager glyphIndexForPoint:caretPoint
++                        inTextContainer:self.textContainer];
 +  CGRect fragmentRect =
 +      [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
 +                                      effectiveRange:nullptr];
++  if (caretPoint.y < CGRectGetMinY(fragmentRect) ||
++      caretPoint.y > CGRectGetMaxY(fragmentRect)) {
++    return rect;
++  }
 +  CGRect usedRect =
 +      [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
 +                                          effectiveRange:nullptr];
@@ -125,10 +135,10 @@ index 4e8dd50..ac865e3 100644
 +  return rect;
 +}
 +
- - (CGRect)caretRectForPosition:(UITextPosition *)position {
-   CGRect rect = [super caretRectForPosition:position];
-   NSUInteger idx = [self offsetFromPosition:self.beginningOfDocument
-@@ -35,7 +65,7 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+ // UITextView places the cursor at the leading edge when a paragraph contains
+ // zero (or invisible) glyphs because the layout engine has nothing to align.
+ // We fix this by reading the active alignment and repositioning the caret rect
+@@ -35,7 +75,7 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
  
    // Non-empty paragraph gets its caret drawn the usual way.
    if (paraRange.length != 0) {
@@ -137,6 +147,54 @@ index 4e8dd50..ac865e3 100644
    }
  
    NSParagraphStyle *pStyle =
+@@ -61,6 +101,47 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+   return rect;
+ }
+ 
++// paragraphSpacing is added to the last line fragment of a paragraph, so a
++// selection spanning paragraphs would otherwise highlight into that gap.
++// Trim each selection rect back to the text line box, same as the caret.
++- (NSArray<UITextSelectionRect *> *)selectionRectsForRange:
++    (UITextRange *)range {
++  NSArray<UITextSelectionRect *> *rects = [super selectionRectsForRange:range];
++  NSLayoutManager *layoutManager = self.layoutManager;
++  UIEdgeInsets inset = self.textContainerInset;
++
++  for (UITextSelectionRect *selectionRect in rects) {
++    CGRect rect = selectionRect.rect;
++    CGPoint point = CGPointMake(CGRectGetMidX(rect) - inset.left,
++                                 CGRectGetMidY(rect) - inset.top);
++    NSUInteger glyphIndex =
++        [layoutManager glyphIndexForPoint:point
++                          inTextContainer:self.textContainer];
++    CGRect fragmentRect =
++        [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
++                                        effectiveRange:nullptr];
++    if (point.y < CGRectGetMinY(fragmentRect) ||
++        point.y > CGRectGetMaxY(fragmentRect)) {
++      continue;
++    }
++    CGRect usedRect =
++        [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
++                                            effectiveRange:nullptr];
++    CGFloat extra = fragmentRect.size.height - usedRect.size.height;
++    if (extra <= 0.5 || extra >= rect.size.height) {
++      continue;
++    }
++    rect.size.height -= extra;
++    @try {
++      [selectionRect setValue:[NSValue valueWithCGRect:rect] forKey:@"rect"];
++    } @catch (NSException *exception) {
++      // private UITextSelectionRect layout changed; leave rect as-is
++    }
++  }
++
++  return rects;
++}
++
+ - (void)copy:(id)sender {
+   EnrichedTextInputView *typedInput = (EnrichedTextInputView *)_input;
+   if (typedInput == nullptr) {
 diff --git a/node_modules/react-native-enriched-html/ios/extensions/LayoutManagerExtension.mm b/node_modules/react-native-enriched-html/ios/extensions/LayoutManagerExtension.mm
 index 72c9620..49394a8 100644
 --- a/node_modules/react-native-enriched-html/ios/extensions/LayoutManagerExtension.mm
