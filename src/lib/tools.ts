@@ -668,6 +668,14 @@ async function bumpChapterRevision(
   return writeChapterHtml(chapter, data.content, { actor: "ai", runId, tally });
 }
 
+async function readWordTally(
+  chapterId: string
+): Promise<{ aiDraftedWords: number; wordsAdded: number } | null> {
+  return prisma.chapter
+    .findUnique({ where: { id: chapterId }, select: { aiDraftedWords: true, wordsAdded: true } })
+    .catch(() => null);
+}
+
 async function recordManuscriptEdits(
   edits: { chapterId: string; find: string; replace: string }[]
 ): Promise<void> {
@@ -1440,6 +1448,7 @@ export async function executeEditorTool(
       const changed = content !== ch.content;
       let revision = expectedRevision;
       let savedContent = content;
+      let tally: { aiDraftedWords: number; wordsAdded: number } | null = null;
       if (changed) {
         const committed = await bumpChapterRevision(
           ch,
@@ -1448,7 +1457,8 @@ export async function executeEditorTool(
             content,
             wordCount,
           },
-          ctx.runId
+          ctx.runId,
+          "drafted"
         );
         if (committed.ok) {
           await recordManuscriptEdits(
@@ -1458,6 +1468,7 @@ export async function executeEditorTool(
               replace: a.replace,
             }))
           );
+          tally = await readWordTally(ch.id);
         }
         if (!committed.ok) {
           return {
@@ -1482,6 +1493,7 @@ export async function executeEditorTool(
               content: savedContent,
               wordCount,
               revision,
+              ...(tally ?? {}),
             }
           : undefined,
       };
@@ -1824,9 +1836,7 @@ export async function executeEditorTool(
       let tally: { aiDraftedWords: number; wordsAdded: number } | null = null;
       if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
-        tally = await prisma.chapter
-          .findUnique({ where: { id: ch.id }, select: { aiDraftedWords: true, wordsAdded: true } })
-          .catch(() => null);
+        tally = await readWordTally(ch.id);
       }
       if (!committed.ok) {
         return {

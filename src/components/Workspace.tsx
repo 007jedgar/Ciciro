@@ -33,7 +33,12 @@ import {
   useSuggestionAuthor,
 } from "@/components/TrackChanges";
 import { useSettings } from "@/components/SettingsProvider";
-import { aiInvolvement, chapterWordCount, describeAiInvolvement } from "@/lib/text";
+import {
+  aiInvolvement,
+  aiInvolvementPercentLabel,
+  chapterWordCount,
+  describeAiInvolvement,
+} from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -1188,7 +1193,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                           "disclosure, not a compliance guarantee."
                         }
                       >
-                        {involvement.percent}% Ciciro
+                        {aiInvolvementPercentLabel(involvement)} Ciciro
                       </span>
                     </>
                   );

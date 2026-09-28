@@ -159,6 +159,15 @@ export function manuscriptAiInvolvement(chapters: readonly AiInvolvementChapter[
 }
 
 /**
+ * `percent` as shown: "<1%" rather than "0%" when Ciciro contributed words
+ * too few to round up, so the label never contradicts the counts beside it.
+ */
+export function aiInvolvementPercentLabel(involvement: AiInvolvement): string {
+  if (involvement.ciciroWords > 0 && involvement.percent === 0) return "<1%";
+  return `${involvement.percent}%`;
+}
+
+/**
  * "12% of the 1,000 words added came from Ciciro (100 from accepted
  * suggestions, 20 inserted directly); 880 you wrote yourself".
  */
@@ -166,7 +175,7 @@ export function describeAiInvolvement(involvement: AiInvolvement): string {
   const n = (x: number) => x.toLocaleString();
   const noun = involvement.wordsAdded === 1 ? "word" : "words";
   return (
-    `${involvement.percent}% of the ${n(involvement.wordsAdded)} ${noun} added came from Ciciro ` +
+    `${aiInvolvementPercentLabel(involvement)} of the ${n(involvement.wordsAdded)} ${noun} added came from Ciciro ` +
     `(${n(involvement.acceptedWords)} from accepted suggestions, ` +
     `${n(involvement.draftedWords)} inserted directly); ` +
     `${n(involvement.authorWords)} you wrote yourself`
