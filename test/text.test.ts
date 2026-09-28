@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aiInvolvement,
+  aiInvolvementPercentLabel,
   chapterPlainText,
   chapterWordsAdded,
   countWords,
@@ -150,6 +151,22 @@ describe("describeAiInvolvement", () => {
       "12% of the 1,000 words added came from Ciciro (100 from accepted suggestions, 20 inserted directly); " +
         "880 you wrote yourself"
     );
+  });
+});
+
+describe("aiInvolvementPercentLabel", () => {
+  it("reads <1% when Ciciro contributed too few words to round up", () => {
+    const involvement = aiInvolvement({ aiAcceptedWords: 10, wordsAdded: 5000 });
+    expect(aiInvolvementPercentLabel(involvement)).toBe("<1%");
+    expect(describeAiInvolvement(involvement)).toMatch(/^<1% of the 5,000 words added came from Ciciro/);
+  });
+
+  it("reads 0% only when Ciciro contributed nothing", () => {
+    expect(aiInvolvementPercentLabel(aiInvolvement({ wordsAdded: 5000 }))).toBe("0%");
+  });
+
+  it("shows the rounded percentage otherwise", () => {
+    expect(aiInvolvementPercentLabel(aiInvolvement({ aiDraftedWords: 30, wordsAdded: 100 }))).toBe("30%");
   });
 });
 

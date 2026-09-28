@@ -12,6 +12,7 @@ import { aiInvolvement } from "@/lib/text";
 import { POST as postAiInvolvement } from "@/app/api/chapters/[id]/ai-involvement/route";
 import { POST as postInsertion } from "@/app/api/chat/insertions/route";
 import { resolveSuggestions } from "@/lib/suggestions";
+import { updateUserSettings } from "@/lib/user-settings";
 import { saveManualSnapshot } from "@/lib/snapshots";
 import { restoreSnapshot } from "@/lib/snapshot-restore";
 
@@ -92,6 +93,26 @@ describe("AI-involvement tally", () => {
       { projectId }
     );
     expect(result.ui).toMatchObject({ type: "chapter_updated", chapterId, aiDraftedWords: 5, wordsAdded: 11 });
+  });
+
+  it("tallies a direct edit_manuscript rewrite as Ciciro's when suggestions are off", async () => {
+    const { user, projectId, chapterId, revision } = await seed();
+    await updateUserSettings(user.id, { aiSuggestions: false });
+    const result = await executeEditorTool(
+      "edit_manuscript",
+      {
+        chapterNumber: 1,
+        expectedRevision: revision,
+        replacements: [{ find: "walked slowly", replace: "crept on silent feet" }],
+      },
+      { projectId }
+    );
+    const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+    expect(chapter.content).not.toContain("data-suggestion-id");
+    expect(chapter.aiDraftedWords).toBe(4);
+    expect(chapter.wordsAdded).toBe(10);
+    expect(result.ui).toMatchObject({ type: "chapter_updated", aiDraftedWords: 4, wordsAdded: 10 });
+    expect(aiInvolvement(chapter).percent).toBe(40);
   });
 
   it("counts every word the author adds, cumulatively, as the percentage's denominator", async () => {
