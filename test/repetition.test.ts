@@ -67,6 +67,23 @@ describe("analyzeRepetitionText - stop words", () => {
     });
     expect(report.phrases.find((p) => p.text === "out of the fog")?.count).toBe(10);
   });
+
+  it("treats contractions typed with a curly apostrophe as stop words, counted with the straight form", () => {
+    const text = Array(10).fill("I don’t know, I’m sure I couldn’t say. I don't mind.").join(" ");
+    const report = analyzeRepetitionText(text, [], { ...DEFAULT_THRESHOLDS, minWordCount: 1, wordRatePer1000: 0 });
+    const words = report.words.map((w) => w.text);
+    expect(words).not.toContain("don’t");
+    expect(words).not.toContain("don't");
+    expect(words).not.toContain("i’m");
+    expect(words).not.toContain("couldn’t");
+    expect(report.words.find((w) => w.text === "know")?.count).toBe(10);
+  });
+
+  it("never flags a stop word that ends in 's", () => {
+    const text = Array(20).fill("let's").join(" ");
+    const report = analyzeRepetitionText(text, [], { ...DEFAULT_THRESHOLDS, minWordCount: 1, wordRatePer1000: 0 });
+    expect(report.words).toEqual([]);
+  });
 });
 
 describe("analyzeRepetitionText - character names", () => {
@@ -141,6 +158,34 @@ describe("analyzeRepetitionText - phrase n-grams", () => {
       phraseLengths: [2],
     });
     expect(report.phrases.find((p) => p.text === "slowly slowly")).toBeUndefined();
+  });
+
+  it("does not let a phrase span sentence or clause punctuation", () => {
+    const text = Array(10).fill('"Yes," she said. The door creaked - open wide.').join("\n");
+    const report = analyzeRepetitionText(text, [], {
+      ...DEFAULT_THRESHOLDS,
+      minPhraseCount: 1,
+      phraseRatePer1000: 0,
+      phraseLengths: [2, 3],
+    });
+    const phrases = report.phrases.map((p) => p.text);
+    expect(phrases).not.toContain("yes she said");
+    expect(phrases).not.toContain("said the");
+    expect(phrases).not.toContain("creaked open");
+    expect(report.phrases.find((p) => p.text === "the door creaked")?.count).toBe(10);
+    expect(report.phrases.find((p) => p.text === "open wide")?.count).toBe(10);
+    expect(report.wordsAnalyzed).toBe(80);
+  });
+
+  it("keeps a contraction whole inside a phrase", () => {
+    const text = Array(5).fill("she didn’t look back").join(". ");
+    const report = analyzeRepetitionText(text, [], {
+      ...DEFAULT_THRESHOLDS,
+      minPhraseCount: 1,
+      phraseRatePer1000: 0,
+      phraseLengths: [4],
+    });
+    expect(report.phrases.find((p) => p.text === "she didn't look back")?.count).toBe(5);
   });
 
   it("respects configured phrase lengths only", () => {

@@ -87,32 +87,39 @@ export const STOP_WORDS: ReadonlySet<string> = new Set([
 // possessives ("don't", "Marta's") stay one token.
 const WORD_RE = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
-function tokenize(paragraph: string): string[] {
+function tokenize(text: string): string[] {
   const out: string[] = [];
-  for (const m of paragraph.matchAll(WORD_RE)) out.push(m[0].toLowerCase());
+  for (const m of text.matchAll(WORD_RE)) out.push(m[0].replace(/’/g, "'").toLowerCase());
   return out;
 }
 
-/** Tokens of a chapter's plain text, one array per paragraph so a phrase never spans a paragraph break. */
-function paragraphTokens(text: string): string[][] {
-  const paragraphs: string[][] = [];
+// Anything but letters, digits, whitespace and a word-internal apostrophe ends
+// a clause: sentence and clause punctuation, dashes, quotes, brackets.
+const CLAUSE_BREAK_RE = /[^\p{L}\p{N}\s'’]+|(?<![\p{L}\p{N}])['’]|['’](?![\p{L}\p{N}])/u;
+
+/**
+ * Tokens of a chapter's plain text, one array per clause so a phrase never
+ * spans a paragraph break or punctuation (and so reads as it appears in the text).
+ */
+function clauseTokens(text: string): string[][] {
+  const clauses: string[][] = [];
   for (const para of text.split(/\n+/)) {
-    const tokens = tokenize(para);
-    if (tokens.length > 0) paragraphs.push(tokens);
+    for (const clause of para.split(CLAUSE_BREAK_RE)) {
+      const tokens = tokenize(clause);
+      if (tokens.length > 0) clauses.push(tokens);
+    }
   }
-  return paragraphs;
+  return clauses;
 }
 
 /** A token stripped of a trailing possessive, for matching against the exclusion set. */
 function baseToken(token: string): string {
-  return token.replace(/['’]s$/i, "");
+  return token.replace(/'s$/i, "");
 }
 
 /** The word tokens making up a bible character's name (e.g. "Marta Chen" -> ["marta", "chen"]). */
 export function nameTokens(name: string): string[] {
-  const out: string[] = [];
-  for (const m of name.matchAll(WORD_RE)) out.push(m[0].toLowerCase());
-  return out;
+  return tokenize(name);
 }
 
 /** Stop words plus every token of every given character name, lowercased. */
@@ -126,7 +133,7 @@ export function buildExclusionSet(characterNames: readonly string[]): ReadonlySe
 
 /** True when every token of a word or phrase is a stop word or a character name - pure filler. */
 function isFiller(displayText: string, excluded: ReadonlySet<string>): boolean {
-  return displayText.split(" ").every((t) => excluded.has(baseToken(t)));
+  return displayText.split(" ").every((t) => excluded.has(t) || excluded.has(baseToken(t)));
 }
 
 type Counts = { words: Map<string, number>; phrases: Map<string, number>; wordsAnalyzed: number };
@@ -135,7 +142,7 @@ function collectCounts(text: string, phraseLengths: readonly number[]): Counts {
   const words = new Map<string, number>();
   const phrases = new Map<string, number>();
   let wordsAnalyzed = 0;
-  for (const tokens of paragraphTokens(text)) {
+  for (const tokens of clauseTokens(text)) {
     wordsAnalyzed += tokens.length;
     for (const t of tokens) words.set(t, (words.get(t) ?? 0) + 1);
     for (const n of phraseLengths) {
