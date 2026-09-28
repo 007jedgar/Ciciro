@@ -80,6 +80,7 @@ export function handleSaveSuccess(
     localPatch: {
       revision: serverChapter.revision,
       wordCount: serverChapter.wordCount,
+      ...(typeof serverChapter.wordsAdded === "number" ? { wordsAdded: serverChapter.wordsAdded } : {}),
     },
   };
 }

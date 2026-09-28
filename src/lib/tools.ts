@@ -18,12 +18,13 @@ import {
 } from "@/lib/manuscript-kind";
 import { AuthError } from "@/lib/auth/session";
 import { planNewChapters } from "@/lib/chapters";
-import { chapterWordCount, countWords } from "@/lib/text";
+import { chapterWordCount } from "@/lib/text";
 import {
   writeChapterHtml,
   type ChapterHtmlWrite,
   type ChapterWriteResult,
 } from "@/lib/chapter-writes";
+import type { WordTally } from "@/lib/chapter-ops";
 import {
   countPassageOccurrences,
   deletePassageRange,
@@ -656,14 +657,15 @@ async function bumpChapterRevision(
   chapter: { id: string; projectId: string; content: string; revision: number },
   revision: number,
   data: ChapterHtmlWrite,
-  runId: string | undefined
+  runId: string | undefined,
+  tally?: WordTally
 ): Promise<ChapterWriteResult> {
   if (chapter.revision !== revision) {
     // The caller read this row and checked it against the revision the editor
     // was given, so a mismatch here means the head moved under it.
     return { ok: false, revision: chapter.revision, content: chapter.content };
   }
-  return writeChapterHtml(chapter, data.content, { actor: "ai", runId });
+  return writeChapterHtml(chapter, data.content, { actor: "ai", runId, tally });
 }
 
 async function recordManuscriptEdits(
@@ -1813,22 +1815,18 @@ export async function executeEditorTool(
           content,
           wordCount,
         },
-        ctx.runId
+        ctx.runId,
+        // No suggestion is proposed here (there is nothing to accept - the
+        // text lands directly), so the write itself tallies these words as
+        // Ciciro's; see the AI-involvement tally in src/lib/text.ts.
+        "drafted"
       );
-      let aiDraftedWords: number | undefined;
+      let tally: { aiDraftedWords: number; wordsAdded: number } | null = null;
       if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
-        // No suggestion is proposed here (there is nothing to accept - the
-        // text lands directly), so this is the only moment the word count is
-        // known as Ciciro's; see the AI-involvement tally in src/lib/text.ts.
-        aiDraftedWords = await prisma.chapter
-          .update({
-            where: { id: ch.id },
-            data: { aiDraftedWords: { increment: countWords(text) } },
-            select: { aiDraftedWords: true },
-          })
-          .then((row) => row.aiDraftedWords)
-          .catch(() => undefined);
+        tally = await prisma.chapter
+          .findUnique({ where: { id: ch.id }, select: { aiDraftedWords: true, wordsAdded: true } })
+          .catch(() => null);
       }
       if (!committed.ok) {
         return {
@@ -1851,7 +1849,7 @@ export async function executeEditorTool(
           content: committed.content,
           wordCount,
           revision,
-          ...(aiDraftedWords != null ? { aiDraftedWords } : {}),
+          ...(tally ?? {}),
         },
       };
     }

@@ -1,5 +1,6 @@
 // Small text helpers shared between server and client.
 
+import { diffArrays } from "diff";
 import { htmlWithoutSuggestions } from "@/lib/suggestions";
 
 // Strip HTML tags to plain text. Block tags become newlines so paragraphs survive.
@@ -51,15 +52,49 @@ export function extractDraft(reply: string): string | null {
 }
 
 /**
- * How many words Ciciro has contributed to a chapter (or manuscript) since
- * tracking began: words from a suggestion the author accepted, plus prose
- * Ciciro inserted directly (a "Continue writing" paste, an auto-draft).
- * Counted once, permanently, at the moment of acceptance or insertion - a
- * later edit to that passage does not move the word back to the author's
- * side, and a later deletion does not lower the count. These are cumulative
- * counts, so they are never expressed as a share of the chapter's current
- * words: that denominator shrinks and grows with revision while the counts
- * only grow, and dividing one by the other would misstate the figure.
+ * Words `afterHtml` adds to `beforeHtml`'s prose as it stands (pending
+ * suggestions unapplied, as `chapterWordCount` reads it), by a word-level
+ * diff: a replacement counts its new words, a deletion counts nothing, and a
+ * pending suggestion counts only once it is accepted. An edit too scattered to
+ * diff cheaply falls back to its net growth.
+ */
+export function chapterWordsAdded(beforeHtml: string, afterHtml: string): number {
+  const before = proseWords(beforeHtml);
+  const after = proseWords(afterHtml);
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start++;
+  let endBefore = before.length;
+  let endAfter = after.length;
+  while (endBefore > start && endAfter > start && before[endBefore - 1] === after[endAfter - 1]) {
+    endBefore--;
+    endAfter--;
+  }
+  const removed = before.slice(start, endBefore);
+  const added = after.slice(start, endAfter);
+  if (added.length === 0) return 0;
+  if (removed.length === 0) return added.length;
+  const changes = diffArrays(removed, added, { maxEditLength: WORD_DIFF_LIMIT });
+  if (!changes) return Math.max(0, added.length - removed.length);
+  return changes.reduce((n, change) => (change.added ? n + change.count : n), 0);
+}
+
+const WORD_DIFF_LIMIT = 2_000;
+
+function proseWords(html: string): string[] {
+  const text = chapterPlainText(html).trim();
+  return text ? text.split(/\s+/) : [];
+}
+
+/**
+ * How much of what was added to a chapter (or manuscript) since tracking
+ * began came from Ciciro. Both sides are running totals, counted once at the
+ * moment of writing and never lowered by a later edit or deletion:
+ * `acceptedWords` from Ciciro suggestions the author accepted, `draftedWords`
+ * from prose Ciciro inserted directly (a "Continue writing" paste, an
+ * auto-draft, insert_text), and `wordsAdded` from every word added by anyone
+ * (see `chapterWordsAdded`). `percent` divides the Ciciro total by
+ * `wordsAdded`, never by the chapter's current length, which shrinks and grows
+ * with revision while the tallies only grow.
  */
 export type AiInvolvement = {
   /** Words that started as an accepted Ciciro suggestion. */
@@ -67,6 +102,12 @@ export type AiInvolvement = {
   /** Words Ciciro inserted directly, with no suggestion to accept. */
   draftedWords: number;
   ciciroWords: number;
+  /** Every word added since tracking began; never below `ciciroWords`. */
+  wordsAdded: number;
+  /** `wordsAdded` less Ciciro's share: what the author wrote themselves. */
+  authorWords: number;
+  /** 0-100, rounded: `ciciroWords` as a share of `wordsAdded`. */
+  percent: number;
   /** When counting began (the earliest, across a manuscript); null if unknown. */
   since: Date | null;
 };
@@ -74,6 +115,7 @@ export type AiInvolvement = {
 type AiInvolvementChapter = {
   aiAcceptedWords?: number;
   aiDraftedWords?: number;
+  wordsAdded?: number;
   aiInvolvementSince?: string | Date | null;
 };
 
@@ -91,23 +133,42 @@ export function aiInvolvement(chapter: AiInvolvementChapter): AiInvolvement {
 export function manuscriptAiInvolvement(chapters: readonly AiInvolvementChapter[]): AiInvolvement {
   let acceptedWords = 0;
   let draftedWords = 0;
+  let wordsAdded = 0;
   let since: Date | null = null;
   for (const c of chapters) {
-    acceptedWords += Math.max(0, c.aiAcceptedWords ?? 0);
-    draftedWords += Math.max(0, c.aiDraftedWords ?? 0);
+    const accepted = Math.max(0, c.aiAcceptedWords ?? 0);
+    const drafted = Math.max(0, c.aiDraftedWords ?? 0);
+    acceptedWords += accepted;
+    draftedWords += drafted;
+    // The two sides are counted by different writes, so one can land before
+    // the other; a chapter's total never reads below its own Ciciro share.
+    wordsAdded += Math.max(c.wordsAdded ?? 0, accepted + drafted);
     const start = trackingStart(c.aiInvolvementSince);
     if (start && (!since || start < since)) since = start;
   }
-  return { acceptedWords, draftedWords, ciciroWords: acceptedWords + draftedWords, since };
+  const ciciroWords = acceptedWords + draftedWords;
+  return {
+    acceptedWords,
+    draftedWords,
+    ciciroWords,
+    wordsAdded,
+    authorWords: wordsAdded - ciciroWords,
+    percent: wordsAdded > 0 ? Math.round((ciciroWords / wordsAdded) * 100) : 0,
+    since,
+  };
 }
 
-/** "1,234 words from Ciciro (1,000 accepted suggestions, 234 inserted directly)". */
+/**
+ * "12% of the 1,000 words added came from Ciciro (100 from accepted
+ * suggestions, 20 inserted directly); 880 you wrote yourself".
+ */
 export function describeAiInvolvement(involvement: AiInvolvement): string {
   const n = (x: number) => x.toLocaleString();
-  const noun = involvement.ciciroWords === 1 ? "word" : "words";
+  const noun = involvement.wordsAdded === 1 ? "word" : "words";
   return (
-    `${n(involvement.ciciroWords)} ${noun} from Ciciro ` +
+    `${involvement.percent}% of the ${n(involvement.wordsAdded)} ${noun} added came from Ciciro ` +
     `(${n(involvement.acceptedWords)} from accepted suggestions, ` +
-    `${n(involvement.draftedWords)} inserted directly)`
+    `${n(involvement.draftedWords)} inserted directly); ` +
+    `${n(involvement.authorWords)} you wrote yourself`
   );
 }

@@ -48,6 +48,7 @@ export type Chapter = {
   /** See src/lib/text.ts `aiInvolvement`. Absent reads as 0 / untracked. */
   aiAcceptedWords?: number;
   aiDraftedWords?: number;
+  wordsAdded?: number;
   aiInvolvementSince?: string;
 };
 
