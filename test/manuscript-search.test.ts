@@ -47,6 +47,11 @@ describe("findMatches", () => {
   it("keeps offsets stable for characters that change length when lowercased", () => {
     expect(findMatches("İ needle", "needle", loose)).toEqual([{ start: 2, end: 8 }]);
   });
+
+  it("matches a curly apostrophe with a straight one, either way round", () => {
+    expect(findMatches("I don’t know. I don't care.", "don't", loose)).toHaveLength(2);
+    expect(findMatches("I don't care", "don’t", { ...loose, matchCase: true })).toEqual([{ start: 2, end: 7 }]);
+  });
 });
 
 describe("replaceInBlockHtml", () => {

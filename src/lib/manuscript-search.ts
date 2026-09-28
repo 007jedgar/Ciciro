@@ -130,9 +130,10 @@ function fold(s: string): string {
   return out;
 }
 
-// A non-breaking space matches a typed space, one code unit for one.
+// A non-breaking space matches a typed space and a curly apostrophe a straight
+// one, one code unit for one.
 function spaces(s: string): string {
-  return s.replace(/\u00a0/g, " ");
+  return s.replace(/\u00a0/g, " ").replace(/’/g, "'");
 }
 
 /**
