@@ -1,26 +1,82 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { visibleChaptersInclude } from "@/lib/chapters";
+
+async function loadedChapterContent(run: () => Promise<unknown>) {
+  const findProject = vi.spyOn(prisma.project, "findUnique");
+  const findChapters = vi.spyOn(prisma.chapter, "findMany");
+  await run();
+  const projects = (await Promise.all(findProject.mock.results.map((r) => r.value))) as Array<{
+    chapters?: Array<Record<string, unknown>>;
+  } | null>;
+  const chapterRows = (await Promise.all(findChapters.mock.results.map((r) => r.value))) as Array<
+    Array<Record<string, unknown>>
+  >;
+  return {
+    indexRows: projects.flatMap((p) => p?.chapters ?? []),
+    contentIds: chapterRows
+      .flat()
+      .filter((row) => "content" in row)
+      .map((row) => row.id as string)
+      .sort(),
+  };
+}
 
 describe("chapter index query stays content-free; context output is unchanged", () => {
   beforeEach(async () => {
     await prisma.project.deleteMany();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   afterAll(async () => {
     await prisma.$disconnect();
   });
 
-  it("visibleChaptersInclude selects only the fields buildEditorContext's index needs", () => {
-    expect(visibleChaptersInclude.select).toEqual({
-      id: true,
-      title: true,
-      order: true,
-      wordCount: true,
-      status: true,
-      summary: true,
+  it("loads content only for the open and named chapters, never for the whole index", async () => {
+    const project = await prisma.project.create({
+      data: {
+        title: "Content load fixture",
+        chapters: {
+          create: [
+            { title: "Ch1", order: 0, content: "<p>One.</p>", wordCount: 1 },
+            { title: "Ch2", order: 1, content: "<p>Two.</p>", wordCount: 1 },
+            { title: "Ch3", order: 2, content: "<p>Three.</p>", wordCount: 1 },
+            { title: "Ch4", order: 3, content: "<p>Four.</p>", wordCount: 1 },
+          ],
+        },
+      },
+      include: { chapters: { orderBy: { order: "asc" } } },
     });
+    const [ch1, ch2, ch3] = project.chapters;
+
+    const { indexRows, contentIds } = await loadedChapterContent(() =>
+      buildEditorContext(project.id, ch2.id, "chapter", false, [3])
+    );
+
+    expect(indexRows).toHaveLength(4);
+    expect(indexRows.every((row) => !("content" in row))).toBe(true);
+    expect(contentIds).toEqual([ch2.id, ch3.id].sort());
+    expect(contentIds).not.toContain(ch1.id);
+  });
+
+  it("loads no chapter content when no chapter is open or named", async () => {
+    const project = await prisma.project.create({
+      data: {
+        title: "No open chapter",
+        chapters: { create: [{ title: "Ch1", order: 0, content: "<p>One.</p>" }] },
+      },
+    });
+
+    const { indexRows, contentIds } = await loadedChapterContent(() =>
+      buildEditorContext(project.id, null, "book")
+    );
+
+    expect(indexRows).toHaveLength(1);
+    expect(indexRows.every((row) => !("content" in row))).toBe(true);
+    expect(contentIds).toEqual([]);
   });
 
   it("is byte-identical for a fixture manuscript: full index for every chapter, prose only for the open one", async () => {
