@@ -10,6 +10,7 @@ import { ciciroAcceptedWordCount } from "@/lib/suggestions";
 import { executeEditorTool } from "@/lib/tools";
 import { aiInvolvement } from "@/lib/text";
 import { POST as postAiInvolvement } from "@/app/api/chapters/[id]/ai-involvement/route";
+import { POST as postInsertion } from "@/app/api/chat/insertions/route";
 
 const PROSE = '<p data-block-id="b1">She walked slowly to the door.</p>';
 
@@ -37,7 +38,7 @@ describe("AI-involvement tally", () => {
     const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
     expect(chapter.aiAcceptedWords).toBe(0);
     expect(chapter.aiDraftedWords).toBe(0);
-    expect(aiInvolvement(chapter).percent).toBe(0);
+    expect(aiInvolvement(chapter).ciciroWords).toBe(0);
     // A brand-new chapter's tracking starts at (essentially) its own creation.
     expect(Math.abs(chapter.aiInvolvementSince.getTime() - chapter.createdAt.getTime())).toBeLessThan(1000);
   });
@@ -78,6 +79,36 @@ describe("AI-involvement tally", () => {
     expect(chapter.aiDraftedWords).toBe(5);
     expect(chapter.aiAcceptedWords).toBe(0);
     expect(chapter.content).not.toContain("data-suggestion-id");
+  });
+
+  it("carries insert_text's new drafted tally in its chapter_updated event", async () => {
+    const { projectId, chapterId, revision } = await seed();
+    const result = await executeEditorTool(
+      "insert_text",
+      { chapterNumber: 1, expectedRevision: revision, text: "A brand new final line.", position: "end" },
+      { projectId }
+    );
+    expect(result.ui).toMatchObject({ type: "chapter_updated", chapterId, aiDraftedWords: 5 });
+  });
+
+  it("tallies a chat draft paste once, even when the same segment is posted concurrently", async () => {
+    const { user, projectId, chapterId } = await seed();
+    const session = await createSession(user.id);
+    const post = () =>
+      postInsertion(
+        new NextRequest("http://localhost/api/chat/insertions", {
+          method: "POST",
+          headers: { [SESSION_HEADER]: session, "content-type": "application/json" },
+          body: JSON.stringify({ projectId, turnId: "turn-1", segmentIndex: 0, chapterId, wordCount: 7 }),
+        })
+      );
+    const responses = await Promise.all([post(), post(), post()]);
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200]);
+    const bodies = await Promise.all(responses.map((r) => r.json()));
+    expect(bodies.filter((b) => b.aiDraftedWords === 7)).toHaveLength(1);
+    const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+    expect(chapter.aiDraftedWords).toBe(7);
+    expect(await prisma.draftInsertion.count({ where: { turnId: "turn-1" } })).toBe(1);
   });
 
   it("ignores a zero or negative delta and never decrements", async () => {

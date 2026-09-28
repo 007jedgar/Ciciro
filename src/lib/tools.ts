@@ -1815,14 +1815,20 @@ export async function executeEditorTool(
         },
         ctx.runId
       );
+      let aiDraftedWords: number | undefined;
       if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
         // No suggestion is proposed here (there is nothing to accept - the
         // text lands directly), so this is the only moment the word count is
         // known as Ciciro's; see the AI-involvement tally in src/lib/text.ts.
-        await prisma.chapter
-          .update({ where: { id: ch.id }, data: { aiDraftedWords: { increment: countWords(text) } } })
-          .catch(() => {});
+        aiDraftedWords = await prisma.chapter
+          .update({
+            where: { id: ch.id },
+            data: { aiDraftedWords: { increment: countWords(text) } },
+            select: { aiDraftedWords: true },
+          })
+          .then((row) => row.aiDraftedWords)
+          .catch(() => undefined);
       }
       if (!committed.ok) {
         return {
@@ -1845,6 +1851,7 @@ export async function executeEditorTool(
           content: committed.content,
           wordCount,
           revision,
+          ...(aiDraftedWords != null ? { aiDraftedWords } : {}),
         },
       };
     }

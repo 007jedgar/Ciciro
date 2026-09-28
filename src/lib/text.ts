@@ -51,54 +51,63 @@ export function extractDraft(reply: string): string | null {
 }
 
 /**
- * How much of a chapter's (or manuscript's) words started as Ciciro text: a
- * suggestion the author accepted, or prose Ciciro inserted directly (a
- * "Continue writing" paste, an auto-draft). Counted once, permanently, at
- * the moment of acceptance or insertion - a later edit to that passage does
- * not move the word back to the author's side, and a later deletion does not
- * lower the count. `ciciroWords` is clamped to the chapter's current word
- * count so the percentage never reads over 100%, which heavy revision could
- * otherwise produce.
+ * How many words Ciciro has contributed to a chapter (or manuscript) since
+ * tracking began: words from a suggestion the author accepted, plus prose
+ * Ciciro inserted directly (a "Continue writing" paste, an auto-draft).
+ * Counted once, permanently, at the moment of acceptance or insertion - a
+ * later edit to that passage does not move the word back to the author's
+ * side, and a later deletion does not lower the count. These are cumulative
+ * counts, so they are never expressed as a share of the chapter's current
+ * words: that denominator shrinks and grows with revision while the counts
+ * only grow, and dividing one by the other would misstate the figure.
  */
 export type AiInvolvement = {
-  totalWords: number;
-  /** Words that started as an accepted Ciciro suggestion or an inserted draft. */
+  /** Words that started as an accepted Ciciro suggestion. */
+  acceptedWords: number;
+  /** Words Ciciro inserted directly, with no suggestion to accept. */
+  draftedWords: number;
   ciciroWords: number;
-  authorWords: number;
-  /** 0-100, rounded. */
-  percent: number;
+  /** When counting began (the earliest, across a manuscript); null if unknown. */
+  since: Date | null;
 };
 
 type AiInvolvementChapter = {
-  wordCount: number;
   aiAcceptedWords?: number;
   aiDraftedWords?: number;
+  aiInvolvementSince?: string | Date | null;
 };
 
+function trackingStart(value: string | Date | null | undefined): Date | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function aiInvolvement(chapter: AiInvolvementChapter): AiInvolvement {
-  const totalWords = Math.max(0, chapter.wordCount);
-  const ciciroWords = Math.min(
-    totalWords,
-    Math.max(0, (chapter.aiAcceptedWords ?? 0) + (chapter.aiDraftedWords ?? 0))
-  );
-  return {
-    totalWords,
-    ciciroWords,
-    authorWords: totalWords - ciciroWords,
-    percent: totalWords > 0 ? Math.round((ciciroWords / totalWords) * 100) : 0,
-  };
+  return manuscriptAiInvolvement([chapter]);
 }
 
 /** The same tally across every chapter passed in, for a manuscript-wide figure. */
 export function manuscriptAiInvolvement(chapters: readonly AiInvolvementChapter[]): AiInvolvement {
-  return aiInvolvement(
-    chapters.reduce<{ wordCount: number; aiAcceptedWords: number; aiDraftedWords: number }>(
-      (sum, c) => ({
-        wordCount: sum.wordCount + Math.max(0, c.wordCount),
-        aiAcceptedWords: sum.aiAcceptedWords + Math.max(0, c.aiAcceptedWords ?? 0),
-        aiDraftedWords: sum.aiDraftedWords + Math.max(0, c.aiDraftedWords ?? 0),
-      }),
-      { wordCount: 0, aiAcceptedWords: 0, aiDraftedWords: 0 }
-    )
+  let acceptedWords = 0;
+  let draftedWords = 0;
+  let since: Date | null = null;
+  for (const c of chapters) {
+    acceptedWords += Math.max(0, c.aiAcceptedWords ?? 0);
+    draftedWords += Math.max(0, c.aiDraftedWords ?? 0);
+    const start = trackingStart(c.aiInvolvementSince);
+    if (start && (!since || start < since)) since = start;
+  }
+  return { acceptedWords, draftedWords, ciciroWords: acceptedWords + draftedWords, since };
+}
+
+/** "1,234 words from Ciciro (1,000 accepted suggestions, 234 inserted directly)". */
+export function describeAiInvolvement(involvement: AiInvolvement): string {
+  const n = (x: number) => x.toLocaleString();
+  const noun = involvement.ciciroWords === 1 ? "word" : "words";
+  return (
+    `${n(involvement.ciciroWords)} ${noun} from Ciciro ` +
+    `(${n(involvement.acceptedWords)} from accepted suggestions, ` +
+    `${n(involvement.draftedWords)} inserted directly)`
   );
 }

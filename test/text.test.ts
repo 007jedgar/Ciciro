@@ -3,6 +3,7 @@ import {
   aiInvolvement,
   chapterPlainText,
   countWords,
+  describeAiInvolvement,
   extractDraft,
   htmlToText,
   isChapterEmpty,
@@ -74,61 +75,73 @@ describe("extractDraft", () => {
 });
 
 describe("aiInvolvement", () => {
-  it("is all-author when nothing was ever accepted or drafted", () => {
-    expect(aiInvolvement({ wordCount: 100, aiAcceptedWords: 0, aiDraftedWords: 0 })).toEqual({
-      totalWords: 100,
+  it("is zero when nothing was ever accepted or drafted", () => {
+    expect(aiInvolvement({ aiAcceptedWords: 0, aiDraftedWords: 0 })).toEqual({
+      acceptedWords: 0,
+      draftedWords: 0,
       ciciroWords: 0,
-      authorWords: 100,
-      percent: 0,
+      since: null,
     });
   });
 
   it("treats missing counters as 0 (an untracked or pre-tracking chapter)", () => {
-    expect(aiInvolvement({ wordCount: 50 })).toEqual({
-      totalWords: 50,
-      ciciroWords: 0,
-      authorWords: 50,
-      percent: 0,
-    });
+    expect(aiInvolvement({}).ciciroWords).toBe(0);
   });
 
-  it("sums accepted-suggestion and drafted words, and rounds the percentage", () => {
-    expect(aiInvolvement({ wordCount: 300, aiAcceptedWords: 30, aiDraftedWords: 20 })).toEqual({
-      totalWords: 300,
+  it("sums accepted-suggestion and drafted words and keeps each side", () => {
+    const since = "2026-09-01T00:00:00.000Z";
+    expect(aiInvolvement({ aiAcceptedWords: 30, aiDraftedWords: 20, aiInvolvementSince: since })).toEqual({
+      acceptedWords: 30,
+      draftedWords: 20,
       ciciroWords: 50,
-      authorWords: 250,
-      percent: 17,
+      since: new Date(since),
     });
   });
 
-  it("clamps at 100% when heavy deletion of the author's own prose outpaces the chapter's growth", () => {
-    // The chapter shrank below its lifetime Ciciro tally; the percentage
-    // still reads as a sane 0-100%, not over 100.
-    expect(aiInvolvement({ wordCount: 10, aiAcceptedWords: 40, aiDraftedWords: 0 })).toEqual({
-      totalWords: 10,
-      ciciroWords: 10,
-      authorWords: 0,
-      percent: 100,
-    });
+  it("reports the cumulative count even after the chapter shrank below it, rather than a share", () => {
+    // 300 accepted words, all later deleted: the count stays 300 and nothing
+    // divides it by the chapter's current length.
+    const result = aiInvolvement({ aiAcceptedWords: 300, aiDraftedWords: 0 });
+    expect(result.ciciroWords).toBe(300);
+    expect(result).not.toHaveProperty("percent");
   });
 
-  it("is 0% for an empty chapter rather than dividing by zero", () => {
-    expect(aiInvolvement({ wordCount: 0, aiAcceptedWords: 0, aiDraftedWords: 0 }).percent).toBe(0);
+  it("ignores an unparseable tracking start", () => {
+    expect(aiInvolvement({ aiInvolvementSince: "not a date" }).since).toBeNull();
   });
 });
 
 describe("manuscriptAiInvolvement", () => {
-  it("aggregates every chapter before computing one manuscript-wide percentage", () => {
+  it("sums every chapter and dates tracking from the earliest chapter", () => {
     const result = manuscriptAiInvolvement([
-      { wordCount: 100, aiAcceptedWords: 10, aiDraftedWords: 0 },
-      { wordCount: 200, aiAcceptedWords: 0, aiDraftedWords: 40 },
-      { wordCount: 50 },
+      { aiAcceptedWords: 10, aiDraftedWords: 0, aiInvolvementSince: "2026-09-10T00:00:00.000Z" },
+      { aiAcceptedWords: 0, aiDraftedWords: 40, aiInvolvementSince: new Date("2026-09-02T00:00:00.000Z") },
+      {},
     ]);
-    expect(result).toEqual({ totalWords: 350, ciciroWords: 50, authorWords: 300, percent: 14 });
+    expect(result).toEqual({
+      acceptedWords: 10,
+      draftedWords: 40,
+      ciciroWords: 50,
+      since: new Date("2026-09-02T00:00:00.000Z"),
+    });
   });
 
-  it("is 0% for a manuscript with no chapters", () => {
-    expect(manuscriptAiInvolvement([])).toEqual({ totalWords: 0, ciciroWords: 0, authorWords: 0, percent: 0 });
+  it("is zero for a manuscript with no chapters", () => {
+    expect(manuscriptAiInvolvement([])).toEqual({ acceptedWords: 0, draftedWords: 0, ciciroWords: 0, since: null });
+  });
+});
+
+describe("describeAiInvolvement", () => {
+  it("states both cumulative counts", () => {
+    expect(
+      describeAiInvolvement({ acceptedWords: 1000, draftedWords: 234, ciciroWords: 1234, since: null })
+    ).toBe("1,234 words from Ciciro (1,000 from accepted suggestions, 234 inserted directly)");
+  });
+
+  it("uses the singular for one word", () => {
+    expect(describeAiInvolvement({ acceptedWords: 1, draftedWords: 0, ciciroWords: 1, since: null })).toMatch(
+      /^1 word from Ciciro/
+    );
   });
 });
 

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSnackbar } from "@/components/Snackbar";
 import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { MOTION_MS, usePresence } from "@/lib/motion";
-import { manuscriptAiInvolvement } from "@/lib/text";
+import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
 import type { Chapter } from "@/lib/types";
 
 export const EXPORT_FORMATS = [
@@ -113,14 +113,16 @@ export default function ExportMenu({ projectId, chapters }: { projectId: string;
  * disclosure rules are the author's to check, not Ciciro's to certify.
  */
 function AiInvolvementNote({ chapters }: { chapters: Chapter[] }) {
+  if (!chapters.some((c) => c.wordCount > 0)) return null;
   const involvement = manuscriptAiInvolvement(chapters);
-  if (involvement.totalWords === 0) return null;
+  const since = involvement.since ? ` since ${involvement.since.toLocaleDateString()}` : "";
   return (
     <div className="export-ai-note">
-      {involvement.percent}% of this manuscript&rsquo;s words started as a Ciciro suggestion you
-      accepted or text Ciciro inserted directly. Counts only activity since each chapter began
-      tracking this; if any chapter predates that, its earlier history is not reflected. A
-      self-report for your own disclosure - not a KDP or AI-detector compliance guarantee.
+      {describeAiInvolvement(involvement)}
+      {since}, counted once when accepted or inserted. A running total, not a share of the
+      manuscript&rsquo;s current words: later edits and deletions don&rsquo;t lower it, and
+      activity before a chapter began tracking isn&rsquo;t included. A self-report for your own
+      disclosure - not a KDP or AI-detector compliance guarantee.
     </div>
   );
 }

@@ -166,6 +166,8 @@ export type ClientUiEvent =
       wordCount: number;
       revision: number;
       title?: string;
+      /** The chapter's new running tally, when this update added Ciciro prose. */
+      aiDraftedWords?: number;
     }
   | {
       // A fork the editor resolved provisionally. The client surfaces it so the
