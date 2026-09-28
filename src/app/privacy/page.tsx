@@ -55,9 +55,9 @@ export default function PrivacyPage() {
             your full chat message and, when you ask to move text between chapters, the
             passage involved: whatever you selected in the editor (at any length) and up to
             about 600 characters of chapter text following a stray chapter heading. The
-            second is ranking chat-search results, where Groq receives your search query and
-            the first 160 characters or so of each matching past message, including cleared
-            ones. Groq never receives your story bible or whole chapters you haven&apos;t
+            second is ranking chat-search results, where Groq receives the editor&apos;s search
+            terms and a short snippet (about 160 characters) around each match in past
+            messages, including cleared ones. Groq never receives your story bible or whole chapters you haven&apos;t
             selected, and it&apos;s advisory only - the editor still decides what to do. If
             no Groq key is set, or Groq has a problem, Ciciro falls back to Anthropic instead.
           </p>
