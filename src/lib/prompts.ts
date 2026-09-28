@@ -1,10 +1,11 @@
 // Prompts for the two roles + the quick-action library.
 //
 // Tuning notes baked in from Anthropic's model guidance:
-//  - Opus 5 (editor): narrates and runs long by default, self-verifies and
-//    self-corrects on its own, and delegates readily. So we ask for brevity,
-//    give an explicit narration cadence, constrain scope, add NO "double-check"
-//    scaffolding, and give explicit rules for WHEN to dispatch vs write itself.
+//  - Opus 5.5 (editor; notes written for Opus 5): narrates and runs long by
+//    default, self-verifies and self-corrects on its own, and delegates
+//    readily. So we ask for brevity, give an explicit narration cadence,
+//    constrain scope, add NO "double-check" scaffolding, and give explicit
+//    rules for WHEN to dispatch vs write itself.
 //  - Sonnet 5 (drafter): follows instructions literally and will not generalize.
 //    So briefs must be complete and explicit about voice, length, and scope.
 
@@ -236,7 +237,7 @@ Rules:
 - Write ONLY the brief. No preamble.
 - Never use em dashes; use a hyphen "-".`;
 
-// Appended to editor calls during an unattended auto-draft run. Keeps Opus 5 from
+// Appended to editor calls during an unattended auto-draft run. Keeps the editor from
 // stopping early, asking questions no one is watching to answer, or narrating.
 export const AUTONOMOUS_DIRECTIVE = `You are running autonomously to draft a chapter. The author is not watching in real
 time and cannot answer questions mid-run. For reversible choices that follow from the
