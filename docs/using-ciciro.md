@@ -18,7 +18,7 @@ you only ever see the editor.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
 - **Export** sits in the top bar. **More** in the top bar holds **Questions**,
-  **Story bible**, **Repetition**, **Scratchpad**, **Weekly review**, and **Beta
+  **Story bible**, **Analyze my style**, **Repetition**, **Scratchpad**, **Weekly review**, and **Beta
   readers**; a dot on **More** means one of them has something waiting.
 
 The workspace needs a wide window. In a browser narrower than about 700px (a
@@ -202,6 +202,23 @@ says which it could not put back. Replacements are ordinary chapter
 edits, so they sync to the phone like anything you type. On the phone, the Chapters
 tab has a Find and replace card with the same options. A straight apostrophe
 finds curly ones too, so `don't` matches `don’t`.
+
+## Analyze my style
+
+**Analyze my style** in the top bar's **More** menu drafts your `style.md` and
+character **Voice** sections from your own chapters, instead of you writing
+them from scratch. Click **Analyze my style** and it samples a spread of
+chapters across the manuscript (not the whole book, and never text that came
+from an unaccepted Ciciro suggestion), then proposes a short style.md - POV,
+tense, sentence rhythm, diction, dialogue conventions, recurring devices, and
+what you avoid - and a Voice section for any character who speaks enough in
+the sample to show one. Every claim is backed by a real quote pulled from your
+prose, shown right under it.
+
+Nothing is written to the story bible on its own. Edit any proposed text
+first if it is not quite right, then **Save to style.md** or **Save to
+&lt;character&gt;** one at a time; skip anything you do not want. It needs an
+Anthropic API key, like the rest of Ciciro's AI features.
 
 ## Repetition
 
