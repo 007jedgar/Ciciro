@@ -13,7 +13,7 @@ export const visibleChapterWhere = { archivedAt: null } as const;
 
 /**
  * Index-only columns: callers that only need the chapter list (title, order,
- * word count, status, summary) — not the full `content` HTML, which can be
+ * word count, status, summary), not the full `content` HTML, which can be
  * hundreds of KB per chapter. A caller that needs prose fetches `content`
  * itself (see `getProject`'s `PROJECT_DETAIL_INCLUDE`, or
  * `buildEditorContext`'s targeted content query).
