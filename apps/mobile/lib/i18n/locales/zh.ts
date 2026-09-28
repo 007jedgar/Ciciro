@@ -187,6 +187,7 @@ const zh: Translations = {
     account: "账户",
     signedIn: "已登录 Ciciro",
     signOut: "退出登录",
+    privacyPolicy: "隐私政策",
   },
   themes: {
     parchment: "羊皮纸",

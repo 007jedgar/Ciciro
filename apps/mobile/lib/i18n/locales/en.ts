@@ -187,6 +187,7 @@ const en = {
     account: "Account",
     signedIn: "Signed in to Ciciro",
     signOut: "Sign out",
+    privacyPolicy: "Privacy policy",
   },
   themes: {
     parchment: "Parchment",

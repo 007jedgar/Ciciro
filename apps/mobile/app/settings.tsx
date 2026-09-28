@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
+import { API_URL } from "../lib/api/client";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize, type FormatChrome } from "../lib/app-settings";
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
@@ -398,6 +399,20 @@ export default function SettingsScreen() {
             <Text style={{ fontSize: 17, color: colors.ink }}>{user.email}</Text>
             <Text style={{ marginTop: 3, fontSize: 13, color: colors.inkSoft }}>{t("settings.signedIn")}</Text>
           </View>
+          <Hairline colors={colors} />
+          <Pressable
+            onPress={() => void Linking.openURL(`${API_URL}/privacy`)}
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.privacyPolicy")}
+            style={({ pressed }) => ({
+              minHeight: 52,
+              paddingHorizontal: 16,
+              justifyContent: "center",
+              backgroundColor: pressed ? colors.panel2 : "transparent",
+            })}
+          >
+            <Text style={{ fontSize: 17, color: colors.ink }}>{t("settings.privacyPolicy")}</Text>
+          </Pressable>
           <Hairline colors={colors} />
           <Pressable
             onPress={() => void logout().then(() => router.replace("/"))}

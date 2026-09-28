@@ -189,6 +189,7 @@ const es: Translations = {
     account: "Cuenta",
     signedIn: "Sesión iniciada en Ciciro",
     signOut: "Cerrar sesión",
+    privacyPolicy: "Política de privacidad",
   },
   themes: {
     parchment: "Pergamino",
