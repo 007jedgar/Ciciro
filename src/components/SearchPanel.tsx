@@ -58,13 +58,24 @@ type Props = {
   flushSaves: (chapterId?: string) => Promise<boolean>;
   /** Chapters the server rewrote. Returns how to take the replace back, if it can be. */
   onReplaced: (chapters: ReplacedChapter[]) => ReplaceUndo | void;
+  /** Pre-fill the query, e.g. when opened to inspect a flagged repetition. */
+  initialQuery?: string;
+  initialWholeWord?: boolean;
 };
 
-export default function SearchPanel({ projectId, onClose, onJump, flushSaves, onReplaced }: Props) {
-  const [query, setQuery] = useState("");
+export default function SearchPanel({
+  projectId,
+  onClose,
+  onJump,
+  flushSaves,
+  onReplaced,
+  initialQuery,
+  initialWholeWord,
+}: Props) {
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [replacement, setReplacement] = useState("");
   const [matchCase, setMatchCase] = useState(false);
-  const [wholeWord, setWholeWord] = useState(false);
+  const [wholeWord, setWholeWord] = useState(initialWholeWord ?? false);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
