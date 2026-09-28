@@ -22,7 +22,8 @@ export type EditorStyle = {
 /**
  * Space after each paragraph in ems, so phone drafts keep the paragraph
  * separation the desktop editor has without storing blank paragraphs. The native
- * `paragraphSpacing` prop comes from `patches/react-native-enriched-html+*.patch`.
+ * `paragraphSpacing` prop comes from `patches/react-native-enriched-html+*.patch`
+ * and is iOS only for now; Android ignores it.
  */
 export const PARAGRAPH_SPACING_EM = 0.9;
 
