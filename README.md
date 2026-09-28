@@ -154,6 +154,9 @@ Set in `.env` (all overridable):
 - `CICIRO_DRAFTER_MODEL` = `claude-sonnet-5` - writes prose from briefs.
 - `CICIRO_DRAFTER_FAST_MODEL` = `claude-haiku-4-5` - the editor's "fast" mode.
 
+Settings (web and mobile) shows the models actually in effect, via `/api/models`.
+Default changes are recorded in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+
 Prompts are tuned to each model's documented behavior (`src/lib/prompts.ts`): the
 editor prompt asks for brevity, a set narration cadence, tight scope, and explicit
 rules for when to dispatch vs. write itself; the drafter prompt leans on Sonnet 5's
