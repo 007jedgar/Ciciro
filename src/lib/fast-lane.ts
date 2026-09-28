@@ -44,6 +44,11 @@ function groqKey(): string | undefined {
   return k || undefined;
 }
 
+/** Whether the Groq router is configured, without exposing the key itself. */
+export function hasGroqKey(): boolean {
+  return Boolean(groqKey());
+}
+
 async function groqJson(
   system: string,
   user: string

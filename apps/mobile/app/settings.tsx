@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import { useModelsQuery } from "../lib/api/hooks";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -79,6 +80,48 @@ function SheetRow({
         </Text>
         <ChevronRightIcon color={colors.inkSoft} size={16} />
       </Pressable>
+      {last ? null : <Hairline colors={colors} />}
+    </>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  detail,
+  colors,
+  last,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  colors: ColorTokens;
+  last?: boolean;
+}) {
+  return (
+    <>
+      <View
+        style={{
+          minHeight: 52,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{label}</Text>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={{ fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
+            {value}
+          </Text>
+          {detail ? (
+            <Text style={{ marginTop: 2, fontSize: 11, color: colors.inkSoft }} numberOfLines={1}>
+              {detail}
+            </Text>
+          ) : null}
+        </View>
+      </View>
       {last ? null : <Hairline colors={colors} />}
     </>
   );
@@ -201,6 +244,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, ready, logout } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
+  const { data: models } = useModelsQuery({ enabled: Boolean(user) });
   const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
@@ -393,6 +437,30 @@ export default function SettingsScreen() {
             </Pressable>
           ) : null}
         </Group>
+
+        {models ? (
+          <Group colors={colors}>
+            {models.slots.map((slot, index) => (
+              <InfoRow
+                key={slot.role}
+                label={slot.role}
+                value={slot.name}
+                detail={slot.id}
+                colors={colors}
+                last={!models.router && index === models.slots.length - 1}
+              />
+            ))}
+            {models.router ? (
+              <InfoRow
+                label="Router"
+                value={`${models.router.name} (Groq)`}
+                detail={models.router.id}
+                colors={colors}
+                last
+              />
+            ) : null}
+          </Group>
+        ) : null}
 
         <Group colors={colors}>
           <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>

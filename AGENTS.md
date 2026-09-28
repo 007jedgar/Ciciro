@@ -31,6 +31,10 @@ Durations and easings are tokens in `src/app/globals.css`, all scaled by `--moti
 
 Pass numbers into Reanimated worklets as arguments or same-scope locals: a default parameter or imported constant used inside one can be missing on the UI runtime. A throw there stops every animation until the app restarts, so if motion "does nothing" on the simulator, read Metro's log and relaunch before debugging the code.
 
+## Model defaults
+
+`src/lib/anthropic.ts` and `src/lib/fast-lane.ts` pin the models Ciciro runs on; `src/lib/models.ts` resolves them (env override or default) for the `/api/models` endpoint that Settings (web and mobile) reads. Changing a default requires a line in `docs/CHANGELOG.md` recording the new default, since Settings is a user's only visibility into which model they're on.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

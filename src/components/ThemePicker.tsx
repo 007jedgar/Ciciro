@@ -4,12 +4,30 @@ import { useEffect, useRef, useState } from "react";
 import { THEMES, type ThemeId } from "@/lib/theme";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type FormatChrome } from "@/lib/settings";
 import { useSettings } from "@/components/SettingsProvider";
+import type { ModelSummary } from "@/lib/models";
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
   const { settings, patch } = useSettings();
   const [open, setOpen] = useState(false);
+  const [models, setModels] = useState<ModelSummary | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const theme = settings.theme;
+
+  useEffect(() => {
+    if (!open || models) return;
+    let cancelled = false;
+    void fetch("/api/models")
+      .then((res) => (res.ok ? (res.json() as Promise<ModelSummary>) : null))
+      .then((data) => {
+        if (!cancelled && data) setModels(data);
+      })
+      .catch(() => {
+        /* no session yet, or offline - leave the section out */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, models]);
 
   useEffect(() => {
     if (!open) return;
@@ -270,6 +288,28 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
                   ))}
                 </div>
               </div>
+            </>
+          ) : null}
+
+          {models ? (
+            <>
+              <div className="theme-menu-label">Models</div>
+              {models.slots.map((slot) => (
+                <div className="settings-row" key={slot.role}>
+                  <span>{slot.role}</span>
+                  <span className="settings-model" title={slot.id}>
+                    {slot.name}
+                  </span>
+                </div>
+              ))}
+              {models.router ? (
+                <div className="settings-row">
+                  <span>Router</span>
+                  <span className="settings-model" title={models.router.id}>
+                    {models.router.name} (Groq)
+                  </span>
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>

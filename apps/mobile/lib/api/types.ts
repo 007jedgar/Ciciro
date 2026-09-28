@@ -250,6 +250,13 @@ export type SettingsResponse = {
   settings: AppSettings;
 };
 
+export type ModelSlot = { role: string; id: string; name: string };
+
+export type ModelsResponse = {
+  slots: ModelSlot[];
+  router: (ModelSlot & { provider: "groq" }) | null;
+};
+
 export type ProjectCreateRequest = {
   title?: string;
   author?: string;

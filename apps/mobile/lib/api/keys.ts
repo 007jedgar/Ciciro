@@ -2,6 +2,7 @@ export const queryKeys = {
   health: ["health"] as const,
   me: ["auth", "me"] as const,
   settings: ["settings"] as const,
+  models: ["models"] as const,
   writing: {
     days: (from: string, to: string) => ["writing", "days", from, to] as const,
   },
