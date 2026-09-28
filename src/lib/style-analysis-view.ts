@@ -157,8 +157,10 @@ export const ANALYZED_STYLE_HEADING = "## Analyzed from my prose";
 /**
  * The style.md draft to offer the author: their existing file kept intact,
  * plus only the proposed traits whose text it doesn't already contain,
- * gathered under ANALYZED_STYLE_HEADING (appended to that section when a
- * previous analysis already added it). An empty file gets the full proposal.
+ * gathered under ANALYZED_STYLE_HEADING. When a previous analysis already
+ * added that section, a trait replaces the bullet (and quote line) for its
+ * own category there rather than stacking a second one beside it. An empty
+ * file gets the full proposal.
  */
 export function mergeProposedStyleMd(currentStyleMd: string, traits: StyleTrait[]): string {
   const current = currentStyleMd.replace(/\s*$/, "");
@@ -166,17 +168,33 @@ export function mergeProposedStyleMd(currentStyleMd: string, traits: StyleTrait[
   const existing = normalizeForMatch(current);
   const fresh = traits.filter((t) => !existing.includes(normalizeForMatch(t.text)));
   if (fresh.length === 0) return `${current}\n`;
-  const added = traitLines(fresh).join("\n");
 
   const headingAt = current.indexOf(ANALYZED_STYLE_HEADING);
-  if (headingAt === -1) return `${current}\n\n${ANALYZED_STYLE_HEADING}\n${added}\n`;
+  if (headingAt === -1) {
+    return `${current}\n\n${ANALYZED_STYLE_HEADING}\n${traitLines(fresh).join("\n")}\n`;
+  }
   const bodyStart = headingAt + ANALYZED_STYLE_HEADING.length;
   const nextHeading = /\n##?\s+/.exec(current.slice(bodyStart));
-  if (!nextHeading) return `${current}\n${added}\n`;
-  const sectionEnd = bodyStart + nextHeading.index;
-  const section = current.slice(0, sectionEnd).replace(/\s*$/, "");
+  const sectionEnd = nextHeading ? bodyStart + nextHeading.index : current.length;
+  const before = current.slice(0, bodyStart);
   const after = current.slice(sectionEnd).replace(/^\s*/, "");
-  return `${section}\n${added}\n\n${after}\n`;
+
+  const body = current.slice(bodyStart, sectionEnd).replace(/^\n/, "").replace(/\s*$/, "");
+  const lines = body ? body.split("\n") : [];
+  for (const trait of fresh) {
+    const replacement = traitLines([trait]);
+    const bullet = `- **${STYLE_TRAIT_LABELS[trait.category]}:**`;
+    const start = lines.findIndex((l) => l.startsWith(bullet));
+    if (start === -1) {
+      lines.push(...replacement);
+      continue;
+    }
+    let end = start + 1;
+    while (end < lines.length && /^\s+>/.test(lines[end])) end++;
+    lines.splice(start, end - start, ...replacement);
+  }
+  const section = `${before}\n${lines.join("\n")}`;
+  return after ? `${section}\n\n${after}\n` : `${section}\n`;
 }
 
 const VOICE_HEADING_RE = /^##\s+voice\s*$/im;

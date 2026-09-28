@@ -190,6 +190,25 @@ describe("mergeProposedStyleMd", () => {
     expect(merged).toBe(existing);
   });
 
+  it("replaces a previous analysis's bullet for the same category instead of stacking another", () => {
+    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n  > "she walked"\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`;
+    const merged = mergeProposedStyleMd(previous, [
+      { category: "pov", text: "Close third, tight on Mara.", quote: "Mara said" },
+      { category: "tense", text: "Past tense.", quote: "" },
+    ]);
+    expect(merged).toBe(
+      `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third, tight on Mara.\n  > "Mara said"\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`
+    );
+  });
+
+  it("replaces a same-category bullet when the analysis section ends the file", () => {
+    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n`;
+    const merged = mergeProposedStyleMd(previous, [
+      { category: "pov", text: "First person, present.", quote: "" },
+    ]);
+    expect(merged).toBe(`# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** First person, present.\n`);
+  });
+
   it("adds to a previous analysis section instead of repeating the heading", () => {
     const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`;
     const merged = mergeProposedStyleMd(previous, traits);
