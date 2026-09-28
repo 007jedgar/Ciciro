@@ -46,26 +46,31 @@ export default function PrivacyPage() {
           </p>
           <p>
             If the operator running this Ciciro instance has set up a Groq key (optional -
-            not everyone does), short excerpts of your chat messages and chat-search results
-            are sent to{" "}
+            not everyone does), some of your text is also sent to{" "}
             <a href="https://groq.com/terms-of-use/" target="_blank" rel="noreferrer">
               Groq
             </a>
-            &apos;s API for two narrow jobs: deciding whether a request is a quick lookup or
-            real editorial work, and ranking chat-search results. Groq never sees your full
-            chapters or story bible, and it&apos;s advisory only - the editor still decides
-            what to do. If no Groq key is set, or Groq has a problem, Ciciro falls back to
-            Anthropic instead.
+            &apos;s API for two narrow jobs. The first is deciding whether a request is a
+            quick lookup, a structural move, or real editorial work. For that, Groq receives
+            your full chat message and, when you ask to move text between chapters, the
+            passage involved: whatever you selected in the editor (at any length) and up to
+            about 600 characters of chapter text following a stray chapter heading. The
+            second is ranking chat-search results, where Groq receives your search query and
+            the first 160 characters or so of each matching past message, including cleared
+            ones. Groq never receives your story bible or whole chapters you haven&apos;t
+            selected, and it&apos;s advisory only - the editor still decides what to do. If
+            no Groq key is set, or Groq has a problem, Ciciro falls back to Anthropic instead.
           </p>
           <p>
             Nobody else sees your manuscript as part of normal use. Ciciro has no analytics,
             telemetry, or error-reporting service wired in, and no email-sending is set up, so
-            your writing can&apos;t end up in an analytics dashboard or an email body. Dictation
-            and read-aloud run on your device&apos;s or browser&apos;s own speech engine, not a
-            cloud voice API Ciciro talks to - though if you use dictation in a browser like
-            Chrome, that browser may itself send the audio to Google&apos;s speech servers under
-            Google&apos;s own terms; that happens between your browser and Google, not through
-            Ciciro.
+            your writing can&apos;t end up in an analytics dashboard or an email body.
+            Dictation and read-aloud use your device&apos;s or browser&apos;s built-in speech
+            engine, not a cloud voice API Ciciro talks to. That engine may still process your
+            voice on its maker&apos;s servers: in the phone app, dictation can go to Apple or
+            Google under your phone&apos;s speech-recognition settings, and in a browser like
+            Chrome, the browser may send the audio to Google. That happens between your device
+            and its maker, not through Ciciro.
           </p>
         </section>
 
@@ -76,6 +81,13 @@ export default function PrivacyPage() {
             <li>Chapter text, and the version history (snapshots) behind it</li>
             <li>Story bible files - characters, plot points, open questions, notes</li>
             <li>Chat history with the editor, including AI-generated drafts and edits</li>
+            <li>
+              Full transcripts of each editor run, including any text you had selected and
+              the chapter text the editor read along the way
+            </li>
+            <li>The exact find-and-replace text of every correction the editor made</li>
+            <li>Scratch notes, weekly reviews, and the &ldquo;Previously on&rdquo; recap of each manuscript</li>
+            <li>Writing stats: words written and time spent per day and per sitting</li>
             <li>Comments left on anything you&apos;ve shared, and the share links themselves</li>
             <li>Your account email and password hash - never the plain password</li>
           </ul>
@@ -102,9 +114,14 @@ export default function PrivacyPage() {
           <h2>Deleting your data</h2>
           <p>
             Deleting a manuscript removes its chapters, snapshots, story bible, chat history,
-            and any share links tied to it. Archiving a chapter hides it without deleting it
+            editor run transcripts, notes, recaps, and any share links tied to it. Your daily
+            writing stats belong to your account rather than a manuscript, so deleting a
+            manuscript leaves them in place. Archiving a chapter hides it without deleting it
             outright, so you can bring it back; an empty chapter can be deleted directly.
-            Clearing a chat thread deletes those messages outright, not just hides them.
+            Clearing a chat thread archives those messages rather than deleting them: they
+            leave the conversation and the editor stops reading them back, but they stay in
+            the database, Undo can restore them, and the editor&apos;s chat search can still
+            find them. They&apos;re only removed when the whole manuscript is deleted.
           </p>
         </section>
 
