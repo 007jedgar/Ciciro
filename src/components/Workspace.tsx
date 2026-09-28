@@ -15,6 +15,7 @@ import DictationButton from "@/components/DictationButton";
 import ChapterHistory from "@/components/ChapterHistory";
 import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
+import RepetitionPanel from "@/components/RepetitionPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import Presence from "@/components/Presence";
 import Scratchpad from "@/components/Scratchpad";
@@ -90,6 +91,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchInitial, setSearchInitial] = useState<{ query: string; wholeWord: boolean } | null>(null);
+  const [repetitionOpen, setRepetitionOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
   const [betaOpen, setBetaOpen] = useState(false);
   const chapterRows = useLeavingIds();
@@ -474,6 +477,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
         e.preventDefault();
+        setSearchInitial(null);
         setSearchOpen(true);
       }
     }
@@ -520,7 +524,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     );
   }, [focusPhase]);
   const overlayOpenRef = useRef(false);
-  overlayOpenRef.current = bibleOpen || searchOpen || questionsOpen || autoWriteOpen;
+  overlayOpenRef.current = bibleOpen || searchOpen || repetitionOpen || questionsOpen || autoWriteOpen;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
@@ -628,6 +632,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     },
     [activeId]
   );
+
+  // --- Repetition ---
+  const onInspectRepetition = useCallback((text: string) => {
+    setRepetitionOpen(false);
+    setSearchInitial({ query: text, wholeWord: true });
+    setSearchOpen(true);
+  }, []);
 
   // --- Beta reader comments ---
   const refreshReaderComments = useCallback(() => {
@@ -1013,7 +1024,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         />
         <button
           className="btn small"
-          onClick={() => setSearchOpen(true)}
+          onClick={() => {
+            setSearchInitial(null);
+            setSearchOpen(true);
+          }}
           title="Find and replace across every chapter (Cmd/Ctrl+Shift+F)"
         >
           Search
@@ -1036,6 +1050,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               onSelect: () => setQuestionsOpen(true),
             },
             { key: "bible", label: "Story bible", onSelect: () => setBibleOpen(true) },
+            {
+              key: "repetition",
+              label: "Repetition",
+              title: "Overused words and phrases, per chapter and across the manuscript",
+              onSelect: () => setRepetitionOpen(true),
+            },
             { key: "scratchpad", label: "Scratchpad", onSelect: () => setScratchOpen(true) },
             {
               key: "weekly",
@@ -1294,6 +1314,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
       </Presence>
 
+      <Presence open={repetitionOpen}>
+        <RepetitionPanel
+          projectId={project.id}
+          activeChapterId={activeId}
+          onClose={() => setRepetitionOpen(false)}
+          onInspect={onInspectRepetition}
+        />
+      </Presence>
+
       <Presence open={scratchOpen}>
         <Scratchpad projectId={project.id} onClose={() => setScratchOpen(false)} />
       </Presence>
@@ -1319,6 +1348,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onJump={onSearchJump}
           flushSaves={flushSaves}
           onReplaced={onSearchReplaced}
+          initialQuery={searchInitial?.query}
+          initialWholeWord={searchInitial?.wholeWord}
         />
       </Presence>
 
