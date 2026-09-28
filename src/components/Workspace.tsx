@@ -1284,7 +1284,11 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   onReady={flushHeldWrites}
                   onSuggestionsAccepted={(words) => {
                     const id = activeIdRef.current;
-                    if (id) recordAiAcceptance(id, words);
+                    if (!id) return;
+                    const prior =
+                      projectRef.current.chapters.find((c) => c.id === id)?.aiAcceptedWords ?? 0;
+                    updateChapterLocal(id, { aiAcceptedWords: prior + words });
+                    recordAiAcceptance(id, words);
                   }}
                 />
               ) : viewMode === "diff" ? (
