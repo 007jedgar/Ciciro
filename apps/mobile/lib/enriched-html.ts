@@ -33,13 +33,46 @@ function ciciroInline(html: string): string {
     .replace(/<\/?i\b/gi, (tag) => tag.replace(/\bi\b/i, "em"));
 }
 
+/**
+ * Enriched's iOS serializer (`HtmlParser.mm:parseToHtmlFromRange`) gives a
+ * distinct quoted line its own `<p>`, directly adjacent to its neighbors, but
+ * pads blank lines it inserts around style edges (confirmed live: an
+ * unedited multi-paragraph quote already carries a dozen-plus of these) with
+ * bare `<br>`s instead. The previous version of this function stripped every
+ * `<p>`/`<div>` inside a blockquote to nothing, which dropped the boundary
+ * between quoted lines entirely; running the document-wide `<br>` →
+ * `<p></p>` conversion first, before this function ever saw the markup, then
+ * left a bare whitespace character where each of those padding `<br>`s used
+ * to be. A chapter re-opened after typing near a quote would show blank
+ * lines where paragraph breaks used to be, and gain one more on every edit
+ * because the padding count itself grows each round trip. Tokenize the
+ * quote's own markup instead: treat both a `<p>`/`<div>` boundary and a
+ * `<br>` as ending the current line, drop lines that come out blank, and
+ * rewrap what is left as clean `<p>` paragraphs, so a multi-line quote
+ * round-trips as stable, proper elements instead of degrading into newlines
+ * that compound over time.
+ */
 function unwrapQuoteInners(html: string): string {
   return html.replace(/<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>/gi, (_full, inner: string) => {
-    const stripped = String(inner).replace(
-      /<\/?(?:p|div|blockquoteitem|blockquote-content)\b[^>]*>/gi,
-      ""
-    );
-    return `<blockquote>${stripped}</blockquote>`;
+    const paragraphs: string[] = [];
+    let buffer = "";
+    const flush = () => {
+      const text = buffer.trim();
+      if (text) paragraphs.push(text);
+      buffer = "";
+    };
+    const tokenRe = /(<br\s*\/?>|<\/?(?:p|div|blockquoteitem|blockquote-content)\b[^>]*>)|[^<]+|<[^>]+>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = tokenRe.exec(String(inner)))) {
+      if (m[1]) {
+        flush();
+      } else {
+        buffer += m[0];
+      }
+    }
+    flush();
+    const body = paragraphs.length > 0 ? paragraphs.map((p) => `<p>${p}</p>`).join("") : "<p></p>";
+    return `<blockquote>${body}</blockquote>`;
   });
 }
 
@@ -100,7 +133,11 @@ export function toEnrichedHtml(html: string): string {
  * breaks stay the paragraphs the writer sees, so text offsets still line up.
  */
 export function fromEnrichedHtmlAsShown(html: string): string {
-  return unwrapQuoteInners(ciciroInline(brToEmptyParagraphs(unwrapShell(html)))).trim();
+  // unwrapQuoteInners must run before brToEmptyParagraphs: it needs to see the
+  // blockquote's own <br> line breaks to rebuild them as <p> paragraphs. Once
+  // it has consumed those, brToEmptyParagraphs only has to handle <br>s
+  // outside any blockquote.
+  return brToEmptyParagraphs(ciciroInline(unwrapQuoteInners(unwrapShell(html)))).trim();
 }
 
 /** Enriched getHTML() → Ciciro-shaped blocks, still without durable ids. */

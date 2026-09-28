@@ -29,7 +29,7 @@ describe("enriched html adapter", () => {
     expect(next).toContain("<strong>Hi</strong>");
     expect(next).toContain("<em>you</em>");
     expect(next).toContain("<p></p>");
-    expect(next).toContain("<blockquote>Quoted</blockquote>");
+    expect(next).toContain("<blockquote><p>Quoted</p></blockquote>");
     expect(next).toContain("<li>One</li>");
   });
 
@@ -59,6 +59,59 @@ describe("enriched html adapter", () => {
     const ops = opsFromEnrichedHtml(previous, "<p>Hello.</p><p>Inserted.</p><p>World.</p>", 3);
     expect(ops.map((op) => op.type)).toEqual(["insert_block"]);
     expect(ops[0]).toMatchObject({ type: "insert_block", afterBlockId: "a" });
+  });
+
+  describe("multi-line quotes", () => {
+    // Enriched's iOS serializer represents each line inside a blockquote with
+    // a <br>, and pads blank style-edge lines with extra <br>s of its own
+    // (see HtmlParser.mm:parseToHtmlFromRange). Reproduces the shape actually
+    // observed from a live device: docs/mobile-editor-sync-diagnosis.md and
+    // the blockquote-drop report.
+    const nativeOutput =
+      "<html>\n<blockquote>\n<br>\n<br>\n<p>Q1</p>\n<p>Q2</p>\n<br>\n<br>\n<p>MARKER-TYPED-HERE</p>\n<br>\n</blockquote>\n</html>";
+
+    it("keeps each quoted line as its own <p>, dropping blank style-edge lines", () => {
+      const shown = fromEnrichedHtml(nativeOutput);
+      expect(shown).toBe("<blockquote><p>Q1</p><p>Q2</p><p>MARKER-TYPED-HERE</p></blockquote>");
+    });
+
+    it("does not grow when the same native output is converted again", () => {
+      // Regression for the compounding bug: a chapter that round-tripped once
+      // used to gain more blank lines on every subsequent flush, even with no
+      // further typing, because each pass left one more bare newline behind.
+      const once = fromEnrichedHtml(nativeOutput);
+      const twice = fromEnrichedHtml(nativeOutput);
+      expect(twice).toBe(once);
+    });
+
+    it("keeps a paragraph typed while quote formatting is still active as its own <p>, not fused text", () => {
+      const previous = '<blockquote data-block-id="q1"><p>Q1</p></blockquote>';
+      // The user typed a new line without leaving quote formatting; Enriched
+      // reports it as one more <br>-separated line inside the same blockquote.
+      const incoming = "<blockquote><p>Q1</p><br><p>New paragraph</p></blockquote>";
+      const shown = fromEnrichedHtml(incoming);
+      expect(shown).toBe("<blockquote><p>Q1</p><p>New paragraph</p></blockquote>");
+      const stamped = restampCiciroHtml(previous, shown);
+      expect(stamped).toBe(
+        '<blockquote data-block-id="q1"><p>Q1</p><p>New paragraph</p></blockquote>'
+      );
+    });
+
+    it("stabilizes ops after the first fix-up: no ops once the stored shape matches native", () => {
+      const previous = '<blockquote data-block-id="q1"><p>Q1</p><p>Q2</p></blockquote>';
+      const ops = opsFromEnrichedHtml(previous, nativeOutput, 5);
+      expect(ops).toHaveLength(1);
+      expect(ops[0]).toMatchObject({ type: "replace_block", blockId: "q1" });
+      const fixedUp = (ops[0] as { html: string }).html;
+      // Feeding the same native output back against the now-clean stored HTML
+      // produces no further ops - the runaway loop is broken.
+      expect(opsFromEnrichedHtml(fixedUp, nativeOutput, 6)).toEqual([]);
+    });
+
+    it("collapses a quote emptied down to bare line breaks to a single empty paragraph", () => {
+      const shown = fromEnrichedHtml("<blockquote><br><br><br></blockquote>");
+      expect(shown).toBe("<blockquote><p></p></blockquote>");
+    });
   });
 
   it("maps a document caret onto the block it sits in", () => {
