@@ -45,14 +45,13 @@ function style(overrides: Partial<OnChangeStateEvent> = {}): OnChangeStateEvent 
 }
 
 describe("ChapterEditor", () => {
-  it("does not clobber the native buffer while focused", () => {
+  it("does not clobber the native buffer while an edit is in flight", () => {
     const registerEditor = jest.fn();
     const { rerender } = render(
       <ChapterEditor
         chapterId="c1"
         html={html}
         editorStyle={editorStyle}
-        focused
         resumeOffset={null}
         onFocused={jest.fn()}
         onBlurred={jest.fn()}
@@ -64,12 +63,12 @@ describe("ChapterEditor", () => {
     );
     const editor = registerEditor.mock.calls[0][0] as EnrichedTextInputInstance;
     const setValue = jest.spyOn(editor, "setValue");
+    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
     rerender(
       <ChapterEditor
         chapterId="c1"
         html='<p data-block-id="a">Stale from sync.</p>'
         editorStyle={editorStyle}
-        focused
         resumeOffset={null}
         onFocused={jest.fn()}
         onBlurred={jest.fn()}
@@ -82,13 +81,12 @@ describe("ChapterEditor", () => {
     expect(setValue).not.toHaveBeenCalled();
   });
 
-  it("adopts remote HTML once the field is not focused", async () => {
+  it("adopts remote HTML when nothing has been typed yet", async () => {
     const registerEditor = jest.fn();
     const props = {
       chapterId: "c1",
       html,
       editorStyle,
-      focused: false,
       resumeOffset: null as number | null,
       onFocused: jest.fn(),
       onBlurred: jest.fn(),
@@ -102,6 +100,61 @@ describe("ChapterEditor", () => {
       | EnrichedTextInputInstance
       | undefined;
     expect(editor).toBeTruthy();
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
+  });
+
+  it("still adopts a content correction after a programmatic focus with no typing (cold-open race)", async () => {
+    // Reproduces the bug-2 trigger: the resume effect focuses the input
+    // imperatively to restore the caret on reopen, before the user has typed
+    // anything. That native focus alone must never block a legitimate later
+    // correction to `html` - only an actual edit should.
+    const registerEditor = jest.fn();
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null as number | null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor,
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const editor = [...registerEditor.mock.calls].reverse().find((call) => call[0])?.[0] as
+      | EnrichedTextInputInstance
+      | undefined;
+    expect(editor).toBeTruthy();
+    fireEvent(screen.getByTestId("chapter-editor"), "focus");
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
+  });
+
+  it("resumes adopting corrections once the field blurs after typing", async () => {
+    const registerEditor = jest.fn();
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null as number | null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor,
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const editor = [...registerEditor.mock.calls].reverse().find((call) => call[0])?.[0] as
+      | EnrichedTextInputInstance
+      | undefined;
+    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    const setValue = jest.spyOn(editor!, "setValue");
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">Stale from sync.</p>' />);
+    expect(setValue).not.toHaveBeenCalled();
+    fireEvent(screen.getByTestId("chapter-editor"), "blur");
     rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
     await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
   });
@@ -125,7 +178,6 @@ describe("ChapterEditor", () => {
         chapterId="c1"
         html={html}
         editorStyle={editorStyle}
-        focused={false}
         resumeOffset={null}
         onFocused={jest.fn()}
         onBlurred={jest.fn()}
@@ -147,7 +199,6 @@ describe("ChapterEditor", () => {
         chapterId="c1"
         html={html}
         editorStyle={editorStyle}
-        focused
         resumeOffset={null}
         onFocused={jest.fn()}
         onBlurred={jest.fn()}
@@ -170,7 +221,6 @@ describe("ChapterEditor", () => {
           chapterId="c1"
           html={html}
           editorStyle={editorStyle}
-          focused
           resumeOffset={null}
           onFocused={jest.fn()}
           onBlurred={jest.fn()}
@@ -202,7 +252,6 @@ describe("ChapterEditor", () => {
           chapterId="c1"
           html={html}
           editorStyle={editorStyle}
-          focused
           resumeOffset={null}
           onFocused={jest.fn()}
           onBlurred={jest.fn()}
@@ -232,7 +281,6 @@ describe("ChapterEditor", () => {
         chapterId="c1"
         html={html}
         editorStyle={editorStyle}
-        focused={false}
         resumeOffset={null}
         bottomInset={16}
         typewriter

@@ -52,7 +52,6 @@ export function ChapterEditor({
   html,
   editorStyle,
   placeholder,
-  focused,
   resumeOffset,
   bottomInset = 0,
   typewriter = false,
@@ -70,7 +69,6 @@ export function ChapterEditor({
   html: string;
   editorStyle: EditorStyle;
   placeholder?: string;
-  focused: boolean;
   resumeOffset: number | null;
   bottomInset?: number;
   typewriter?: boolean;
@@ -85,8 +83,14 @@ export function ChapterEditor({
   testID?: string;
 }) {
   const inputRef = useRef<EnrichedTextInputInstance | null>(null);
-  const focusedRef = useRef(focused);
-  focusedRef.current = focused;
+  // Whether the user has typed since the editor last resynced with `html`.
+  // Native focus alone doesn't set this: the resume effect below focuses the
+  // input programmatically (to restore the caret on reopen) before the user
+  // has touched anything, and gating on `focused` there made a chapter opened
+  // cold stick with whatever `html` it mounted with forever, since every later
+  // correction to `html` (e.g. once the real content lands) was skipped by a
+  // guard meant to protect in-progress typing, not a passive resume-focus.
+  const dirtyRef = useRef(false);
   const didResume = useRef<string | null>(null);
   const pressTouch = useRef<{ handle: ReturnType<typeof setTimeout>; x: number; y: number } | null>(
     null
@@ -101,7 +105,7 @@ export function ChapterEditor({
   }, [registerEditor]);
 
   useEffect(() => {
-    if (focusedRef.current) return;
+    if (dirtyRef.current) return;
     inputRef.current?.setValue(toEnrichedHtml(html));
   }, [html]);
 
@@ -204,8 +208,14 @@ export function ChapterEditor({
           lineHeight: editorStyle.lineHeight,
         }}
         onFocus={() => onFocused()}
-        onBlur={() => onBlurred()}
-        onChangeText={(e) => onChangeText(e.nativeEvent.value)}
+        onBlur={() => {
+          dirtyRef.current = false;
+          onBlurred();
+        }}
+        onChangeText={(e) => {
+          dirtyRef.current = true;
+          onChangeText(e.nativeEvent.value);
+        }}
         onChangeState={(e) => onChangeState(e.nativeEvent)}
         onChangeSelection={(e) => onChangeSelection(e.nativeEvent.start, e.nativeEvent.end)}
       />
