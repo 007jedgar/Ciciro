@@ -41,6 +41,17 @@ describe("getModelSummary", () => {
     });
   });
 
+  it("keeps the friendly name for an editor pinned to the previous default", async () => {
+    process.env.CICIRO_EDITOR_MODEL = "claude-opus-5";
+    const { getModelSummary } = await import("@/lib/models");
+    expect(getModelSummary().slots[0]).toEqual({
+      key: "editor",
+      role: "Editor",
+      id: "claude-opus-5",
+      name: "Claude Opus 5",
+    });
+  });
+
   it("never includes an API key", async () => {
     process.env.GROQ_API_KEY = "super-secret";
     process.env.ANTHROPIC_API_KEY = "also-secret";

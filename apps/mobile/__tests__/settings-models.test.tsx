@@ -124,7 +124,7 @@ describe("Settings models section", () => {
     const { rerender } = renderSettings();
     await act(async () => {});
     expect(screen.queryByRole("header", { name: "Models" })).toBeNull();
-    expect(screen.queryByText("Claude Opus 5")).toBeNull();
+    expect(screen.queryByText("Claude Opus 5.5")).toBeNull();
 
     useModelsQueryMock.mockReturnValue({ data: { ...MODELS, router: null } } as ReturnType<typeof useModelsQuery>);
     const settings = defaultSettings();
@@ -137,7 +137,7 @@ describe("Settings models section", () => {
       </AppThemeContext.Provider>
     );
     await act(async () => {});
-    expect(screen.getByText("Claude Opus 5")).toBeTruthy();
+    expect(screen.getByText("Claude Opus 5.5")).toBeTruthy();
     expect(screen.queryByText("Router")).toBeNull();
   });
 });
