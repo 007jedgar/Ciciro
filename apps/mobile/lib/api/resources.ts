@@ -1,6 +1,7 @@
 import { api, apiBlob, readNdjsonPost } from "./client";
 import { normalizeChatSnapshot } from "./types";
 import type {
+  AiInvolvementRequest,
   AuthMeResponse,
   AuthSessionResponse,
   AutowriteRequest,
@@ -392,6 +393,11 @@ export const ciciro = {
       ),
     edits: (id: string, opts?: RequestOpts) =>
       api<ManuscriptEdit[]>(`/api/chapters/${encodeURIComponent(id)}/edits`, opts),
+    recordAiInvolvement: (id: string, body: AiInvolvementRequest, opts?: RequestOpts) =>
+      api<OkResponse>(
+        `/api/chapters/${encodeURIComponent(id)}/ai-involvement`,
+        jsonInit("POST", body, opts)
+      ),
     snapshots: {
       list: (id: string, opts?: RequestOpts) =>
         api<ChapterSnapshotListResponse>(`/api/chapters/${encodeURIComponent(id)}/snapshots`, opts),

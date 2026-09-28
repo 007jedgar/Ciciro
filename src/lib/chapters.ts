@@ -330,6 +330,39 @@ export async function unarchiveChapter(id: string, user: PublicUser | null) {
   });
 }
 
+// A single accept or paste action's word count, generously bounded against a
+// malformed or hostile client - not a realistic ceiling on a chapter's total.
+export const MAX_AI_INVOLVEMENT_DELTA = 20_000;
+
+function aiInvolvementDelta(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(Math.floor(value), MAX_AI_INVOLVEMENT_DELTA);
+}
+
+/**
+ * Add this action's word count to a chapter's AI-involvement tally: words
+ * from a Ciciro suggestion the author just accepted, words Ciciro just
+ * inserted directly, or both. `acceptedWords`/`draftedWords` are deltas for
+ * this one action, not running totals - see src/lib/text.ts.
+ */
+export async function recordAiInvolvement(
+  id: string,
+  user: PublicUser | null,
+  delta: { acceptedWords?: number; draftedWords?: number }
+): Promise<void> {
+  await authorizeOwnedChapter(id, user);
+  const acceptedWords = aiInvolvementDelta(delta.acceptedWords);
+  const draftedWords = aiInvolvementDelta(delta.draftedWords);
+  if (acceptedWords === 0 && draftedWords === 0) return;
+  await prisma.chapter.update({
+    where: { id },
+    data: {
+      ...(acceptedWords > 0 ? { aiAcceptedWords: { increment: acceptedWords } } : {}),
+      ...(draftedWords > 0 ? { aiDraftedWords: { increment: draftedWords } } : {}),
+    },
+  });
+}
+
 export async function listChapterEdits(id: string, user: PublicUser | null) {
   await authorizeOwnedChapter(id, user);
   return prisma.manuscriptEdit.findMany({

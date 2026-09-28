@@ -11,6 +11,10 @@ export type Chapter = {
   wordCount: number;
   revision: number;
   archivedAt?: string | Date | null;
+  /** See src/lib/text.ts `aiInvolvement`. Absent reads as 0 / untracked. */
+  aiAcceptedWords?: number;
+  aiDraftedWords?: number;
+  aiInvolvementSince?: string | Date;
 };
 
 export type Character = {

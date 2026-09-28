@@ -33,7 +33,7 @@ import {
   useSuggestionAuthor,
 } from "@/components/TrackChanges";
 import { useSettings } from "@/components/SettingsProvider";
-import { chapterWordCount } from "@/lib/text";
+import { aiInvolvement, chapterWordCount } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -79,6 +79,17 @@ const CHAT_MAX = CHAT_WIDTH_MAX;
 
 function clampChatWidth(n: number) {
   return Math.min(CHAT_MAX, Math.max(CHAT_MIN, Math.round(n)));
+}
+
+// Best-effort tally of an accepted Ciciro suggestion (see src/lib/text.ts).
+// Fire-and-forget like recordDraftInsertion in ChatPanel: a dropped call
+// under-counts a self-report figure, it does not corrupt the manuscript.
+function recordAiAcceptance(chapterId: string, words: number) {
+  fetch(`/api/chapters/${chapterId}/ai-involvement`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ acceptedWords: words }),
+  }).catch(() => {});
 }
 
 export default function Workspace({ initialProject }: { initialProject: Project }) {
@@ -1090,7 +1101,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onOpenChange={setWeeklyOpen}
           onDueChange={setWeeklyDue}
         />
-        <ExportMenu projectId={project.id} />
+        <ExportMenu projectId={project.id} chapters={project.chapters} />
       </div>
 
       <ChapterSidebar
@@ -1152,6 +1163,31 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               ) : null}
               <div className="editor-meta">
                 <span>{activeChapter.wordCount.toLocaleString()} words</span>
+                {(() => {
+                  const involvement = aiInvolvement(activeChapter);
+                  if (involvement.totalWords === 0 || involvement.ciciroWords === 0) return null;
+                  const since = activeChapter.aiInvolvementSince
+                    ? new Date(activeChapter.aiInvolvementSince).toLocaleDateString()
+                    : null;
+                  return (
+                    <>
+                      <span>-</span>
+                      <span
+                        className="ai-involvement-badge"
+                        title={
+                          `${involvement.percent}% of this chapter's words started as a Ciciro ` +
+                          "suggestion you accepted, or text Ciciro inserted directly (auto-draft, " +
+                          "Continue writing). Counted once, at that moment" +
+                          (since ? `, since ${since}` : "") +
+                          "; a later edit doesn't move the word back. A self-report for your own " +
+                          "disclosure, not a compliance guarantee."
+                        }
+                      >
+                        {involvement.percent}% Ciciro
+                      </span>
+                    </>
+                  );
+                })()}
                 <span>-</span>
                 <select
                   value={activeChapter.status}
@@ -1246,6 +1282,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   kind={kind}
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
+                  onSuggestionsAccepted={(words) => {
+                    const id = activeIdRef.current;
+                    if (id) recordAiAcceptance(id, words);
+                  }}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />

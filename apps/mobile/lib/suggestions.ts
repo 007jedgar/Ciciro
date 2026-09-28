@@ -720,6 +720,24 @@ export function listSuggestions(html: string): SuggestionSummary[] {
   });
 }
 
+/**
+ * Words the given Ciciro-authored suggestions (all pending ones, or just
+ * `ids`) would add if accepted. Call this before `resolveSuggestions(html,
+ * "accept", ids)`: accepting drops the marks, and with them any trace of
+ * who proposed the words that stayed, so a durable tally has to be taken at
+ * the moment of acceptance, not reconstructed afterward.
+ */
+export function ciciroAcceptedWordCount(html: string, ids?: readonly string[] | null): number {
+  const wanted = ids ? new Set(ids) : null;
+  let words = 0;
+  for (const s of listSuggestions(html)) {
+    if (s.authorId !== CICIRO_AUTHOR.authorId || !s.inserted) continue;
+    if (wanted && !wanted.has(s.id)) continue;
+    words += s.inserted.split(/\s+/).filter(Boolean).length;
+  }
+  return words;
+}
+
 // ---------------------------------------------------------------------------
 // Diffing
 // ---------------------------------------------------------------------------

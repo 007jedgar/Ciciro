@@ -11,6 +11,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { quickActionsFor, type QuickAction } from "@/lib/prompts";
+import { countWords } from "@/lib/text";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import type {
   ChatMessage,
@@ -112,6 +113,8 @@ function recordDraftInsertion(opts: {
   turnId: string;
   segmentIndex: number;
   chapterId: string | null;
+  /** Words in the draft, tallied once as Ciciro's; see src/lib/text.ts. */
+  wordCount: number;
 }) {
   if (!opts.chapterId || !opts.turnId) return;
   fetch("/api/chat/insertions", {
@@ -122,6 +125,7 @@ function recordDraftInsertion(opts: {
       turnId: opts.turnId,
       segmentIndex: opts.segmentIndex,
       chapterId: opts.chapterId,
+      wordCount: opts.wordCount,
     }),
   }).catch(() => {});
 }
@@ -136,7 +140,7 @@ function renderBody(
   insertedKeys: Set<string>,
   onInsert: (text: string, key: string) => void,
   markInserted: (draftKey: string) => void,
-  onDurableInsert: (segmentIndex: number) => void,
+  onDurableInsert: (segmentIndex: number, wordCount: number) => void,
   live: boolean
 ) {
   const display = !live && hasOpenDraft(content) ? closeOpenDrafts(content) : content;
@@ -172,7 +176,7 @@ function renderBody(
               onClick={() => {
                 onInsert(draft, insertGroupKey);
                 markInserted(draftKey);
-                onDurableInsert(idx);
+                onDurableInsert(idx, countWords(draft));
               }}
             >
               {inserted ? "Inserted" : "Insert into manuscript"}
@@ -314,6 +318,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           turnId,
           segmentIndex: idx,
           chapterId: activeChapterRef.current,
+          wordCount: countWords(draft),
         });
       }
     });
@@ -1006,13 +1011,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                       insertedKeys,
                       onInsertDraft,
                       markInserted,
-                      (segmentIndex) => {
+                      (segmentIndex, wordCount) => {
                         if (!m.turnId) return;
                         recordDraftInsertion({
                           projectId,
                           turnId: m.turnId,
                           segmentIndex,
                           chapterId: activeChapterRef.current,
+                          wordCount,
                         });
                       },
                       false
@@ -1058,7 +1064,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                     insertedKeys,
                     onInsertDraft,
                     markInserted,
-                    (segmentIndex) => {
+                    (segmentIndex, wordCount) => {
                       const turnId = streamTurnIdRef.current;
                       if (!turnId) return;
                       recordDraftInsertion({
@@ -1066,6 +1072,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                         turnId,
                         segmentIndex,
                         chapterId: activeChapterRef.current,
+                        wordCount,
                       });
                     },
                     true

@@ -18,7 +18,7 @@ import {
 } from "@/lib/manuscript-kind";
 import { AuthError } from "@/lib/auth/session";
 import { planNewChapters } from "@/lib/chapters";
-import { chapterWordCount } from "@/lib/text";
+import { chapterWordCount, countWords } from "@/lib/text";
 import {
   writeChapterHtml,
   type ChapterHtmlWrite,
@@ -1817,6 +1817,12 @@ export async function executeEditorTool(
       );
       if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
+        // No suggestion is proposed here (there is nothing to accept - the
+        // text lands directly), so this is the only moment the word count is
+        // known as Ciciro's; see the AI-involvement tally in src/lib/text.ts.
+        await prisma.chapter
+          .update({ where: { id: ch.id }, data: { aiDraftedWords: { increment: countWords(text) } } })
+          .catch(() => {});
       }
       if (!committed.ok) {
         return {

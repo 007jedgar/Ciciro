@@ -49,3 +49,56 @@ export function extractDraft(reply: string): string | null {
   const match = reply.match(/<draft>([\s\S]*?)<\/draft>/i);
   return match ? match[1].trim() : null;
 }
+
+/**
+ * How much of a chapter's (or manuscript's) words started as Ciciro text: a
+ * suggestion the author accepted, or prose Ciciro inserted directly (a
+ * "Continue writing" paste, an auto-draft). Counted once, permanently, at
+ * the moment of acceptance or insertion - a later edit to that passage does
+ * not move the word back to the author's side, and a later deletion does not
+ * lower the count. `ciciroWords` is clamped to the chapter's current word
+ * count so the percentage never reads over 100%, which heavy revision could
+ * otherwise produce.
+ */
+export type AiInvolvement = {
+  totalWords: number;
+  /** Words that started as an accepted Ciciro suggestion or an inserted draft. */
+  ciciroWords: number;
+  authorWords: number;
+  /** 0-100, rounded. */
+  percent: number;
+};
+
+type AiInvolvementChapter = {
+  wordCount: number;
+  aiAcceptedWords?: number;
+  aiDraftedWords?: number;
+};
+
+export function aiInvolvement(chapter: AiInvolvementChapter): AiInvolvement {
+  const totalWords = Math.max(0, chapter.wordCount);
+  const ciciroWords = Math.min(
+    totalWords,
+    Math.max(0, (chapter.aiAcceptedWords ?? 0) + (chapter.aiDraftedWords ?? 0))
+  );
+  return {
+    totalWords,
+    ciciroWords,
+    authorWords: totalWords - ciciroWords,
+    percent: totalWords > 0 ? Math.round((ciciroWords / totalWords) * 100) : 0,
+  };
+}
+
+/** The same tally across every chapter passed in, for a manuscript-wide figure. */
+export function manuscriptAiInvolvement(chapters: readonly AiInvolvementChapter[]): AiInvolvement {
+  return aiInvolvement(
+    chapters.reduce<{ wordCount: number; aiAcceptedWords: number; aiDraftedWords: number }>(
+      (sum, c) => ({
+        wordCount: sum.wordCount + Math.max(0, c.wordCount),
+        aiAcceptedWords: sum.aiAcceptedWords + Math.max(0, c.aiAcceptedWords ?? 0),
+        aiDraftedWords: sum.aiDraftedWords + Math.max(0, c.aiDraftedWords ?? 0),
+      }),
+      { wordCount: 0, aiAcceptedWords: 0, aiDraftedWords: 0 }
+    )
+  );
+}

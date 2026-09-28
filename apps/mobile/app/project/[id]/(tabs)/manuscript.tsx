@@ -66,6 +66,7 @@ import { useProject } from "../../../../lib/project";
 import { useFocusMode } from "../../../../lib/focus-mode";
 import { blockHasSuggestions } from "../../../../lib/suggestion-review";
 import {
+  ciciroAcceptedWordCount,
   listSuggestions,
   resolveSuggestions,
   type SuggestionAction,
@@ -467,9 +468,18 @@ export default function ManuscriptScreen() {
       await flush();
       const current = chapterRef.current;
       if (!current) return;
+      // Accepting drops the marks that say these words were Ciciro's, so the
+      // tally has to be taken from the content as it stands right now.
+      const acceptedWords =
+        action === "accept" ? ciciroAcceptedWordCount(current.content, ids ?? null) : 0;
       const next = resolveSuggestions(current.content, action, ids ?? null);
       if (next === current.content) return;
       commitOps(diffHtmlToOps(current.content, next, current.revision));
+      if (acceptedWords > 0) {
+        void ciciro.chapters
+          .recordAiInvolvement(current.id, { acceptedWords })
+          .catch(() => {});
+      }
       const updated = chapterRef.current;
       if (updated) editorRef.current?.setValue(toEnrichedHtml(updated.content));
       Haptics.selectionAsync().catch(() => {});
