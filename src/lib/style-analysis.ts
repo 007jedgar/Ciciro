@@ -179,6 +179,7 @@ export async function analyzeStyle(
     currentStyleMd,
     currentStyleMdRevision: styleFile?.revision ?? 0,
     proposedStyleMd: merged.styleMd,
+    draftTraits: merged.added,
     styleSuggestions: merged.suggestions,
   };
 }

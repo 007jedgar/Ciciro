@@ -9,7 +9,10 @@ import type { StyleAnalysisProposal } from "@/lib/style-analysis-view";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const proposal: StyleAnalysisProposal = {
-  traits: [{ category: "pov", text: "Close third person.", quote: "Mara said" }],
+  traits: [
+    { category: "pov", text: "Close third person.", quote: "Mara said" },
+    { category: "tense", text: "Past tense throughout.", quote: "never asked" },
+  ],
   characters: [
     {
       path: "characters/cole.md",
@@ -24,6 +27,7 @@ const proposal: StyleAnalysisProposal = {
   currentStyleMd: '# Style\n- Never use em dashes; use a hyphen "-".\n',
   currentStyleMdRevision: 5,
   proposedStyleMd: '# Style\n- Never use em dashes; use a hyphen "-".\n\n## Analyzed from my prose\n- **POV:** Close third person.\n',
+  draftTraits: [{ category: "pov", text: "Close third person.", quote: "Mara said" }],
   styleSuggestions: [
     {
       trait: { category: "tense", text: "Past tense throughout.", quote: "never asked" },
@@ -104,6 +108,10 @@ describe("StyleAnalysisPanel", () => {
     expect(suggestions).toContain("You have: - **Tense:** Present, always.");
     expect(suggestions).toContain("Past tense throughout.");
     expect(styleArea.value).not.toContain("Past tense throughout.");
+    const proposed = styleArea.closest(".bible-item")!.cloneNode(true) as HTMLElement;
+    proposed.querySelector("details")?.remove();
+    expect(proposed.textContent).toContain("Close third person.");
+    expect(proposed.textContent).not.toContain("Past tense throughout.");
   });
 
   it("saves style.md again after an edit without a revision conflict", async () => {

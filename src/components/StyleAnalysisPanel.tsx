@@ -147,9 +147,14 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
 
             <div className="bible-item">
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Proposed style.md</div>
-              {proposal.traits.map((t) => (
+              {proposal.draftTraits.map((t) => (
                 <TraitRow key={t.category} trait={t} />
               ))}
+              {proposal.draftTraits.length === 0 && (
+                <p className="scratch-hint">
+                  Your style.md already covers everything the analysis found; nothing new to add.
+                </p>
+              )}
               {proposal.currentStyleMd.trim() && (
                 <details style={{ margin: "6px 0" }}>
                   <summary style={{ fontSize: 12, cursor: "pointer" }}>

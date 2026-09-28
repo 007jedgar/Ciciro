@@ -55,6 +55,8 @@ export type StyleAnalysisProposal = {
   currentStyleMd: string;
   currentStyleMdRevision: number;
   proposedStyleMd: string;
+  /** The traits proposedStyleMd actually adds to the author's file. */
+  draftTraits: StyleTrait[];
   /** Readings for categories style.md already covers, offered for comparison only - never merged in. */
   styleSuggestions: StyleSuggestion[];
 };
@@ -184,9 +186,9 @@ function categoryBulletRe(category: StyleTraitCategory): RegExp {
 export function mergeProposedStyleMd(
   currentStyleMd: string,
   traits: StyleTrait[]
-): { styleMd: string; suggestions: StyleSuggestion[] } {
+): { styleMd: string; added: StyleTrait[]; suggestions: StyleSuggestion[] } {
   const current = currentStyleMd.replace(/\s*$/, "");
-  if (!current.trim()) return { styleMd: renderProposedStyleMd(traits), suggestions: [] };
+  if (!current.trim()) return { styleMd: renderProposedStyleMd(traits), added: traits, suggestions: [] };
   const existing = normalizeForMatch(current);
   const currentLines = current.split("\n");
 
@@ -199,20 +201,24 @@ export function mergeProposedStyleMd(
     if (saved) suggestions.push({ trait, current: saved.trim() });
     else fresh.push(trait);
   }
-  if (fresh.length === 0) return { styleMd: `${current}\n`, suggestions };
-  const added = traitLines(fresh).join("\n");
+  if (fresh.length === 0) return { styleMd: `${current}\n`, added: fresh, suggestions };
+  const addedLines = traitLines(fresh).join("\n");
 
   const headingAt = current.indexOf(ANALYZED_STYLE_HEADING);
   if (headingAt === -1) {
-    return { styleMd: `${current}\n\n${ANALYZED_STYLE_HEADING}\n${added}\n`, suggestions };
+    return {
+      styleMd: `${current}\n\n${ANALYZED_STYLE_HEADING}\n${addedLines}\n`,
+      added: fresh,
+      suggestions,
+    };
   }
   const bodyStart = headingAt + ANALYZED_STYLE_HEADING.length;
   const nextHeading = /\n##?\s+/.exec(current.slice(bodyStart));
-  if (!nextHeading) return { styleMd: `${current}\n${added}\n`, suggestions };
+  if (!nextHeading) return { styleMd: `${current}\n${addedLines}\n`, added: fresh, suggestions };
   const sectionEnd = bodyStart + nextHeading.index;
   const section = current.slice(0, sectionEnd).replace(/\s*$/, "");
   const after = current.slice(sectionEnd).replace(/^\s*/, "");
-  return { styleMd: `${section}\n${added}\n\n${after}\n`, suggestions };
+  return { styleMd: `${section}\n${addedLines}\n\n${after}\n`, added: fresh, suggestions };
 }
 
 const VOICE_HEADING_RE = /^##\s+voice\s*$/im;
