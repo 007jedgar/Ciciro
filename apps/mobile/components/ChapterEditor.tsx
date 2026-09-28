@@ -102,6 +102,9 @@ export function ChapterEditor({
   // decide it: a multi-paragraph quote echoes its lines newline-separated.
   const appliedHtmlRef = useRef<string | null>(null);
   const focusedRef = useRef(false);
+  // Bumped by every local edit, so an async getHTML() read that a newer edit
+  // overtook is recognised as stale and its result discarded.
+  const editEpochRef = useRef(0);
   // The enriched HTML the sync effect last pushed, cleared by any local edit.
   // A new `html` that renders the same as it (a commit settling, or a block id
   // being stamped) has nothing to correct, so rewriting the buffer would only
@@ -125,6 +128,7 @@ export function ChapterEditor({
     // the sync effect exactly like typing does.
     registerEditor(inputRef.current, () => {
       dirtyRef.current = true;
+      editEpochRef.current += 1;
       appliedHtmlRef.current = null;
       appliedEnrichedRef.current = null;
     });
@@ -145,10 +149,14 @@ export function ChapterEditor({
       // An edit made with the field unfocused (dictation keeps running after
       // a blur) has no onBlur to settle it. It has settled once `html` holds
       // everything the buffer does; until then a later phrase is still
-      // waiting on its flush and must stay protected.
+      // waiting on its flush and must stay protected. Remaining tail races
+      // between several dictation phrases landing while unfocused are a
+      // known limitation here, outside the focused-typing and cold-open paths.
+      const epoch = editEpochRef.current;
       void input.getHTML().then(
         (live) => {
-          if (!dirtyRef.current || focusedRef.current || htmlRef.current !== html) return;
+          if (editEpochRef.current !== epoch || focusedRef.current || htmlRef.current !== html)
+            return;
           if (opsFromEnrichedHtml(html, live, 0).length > 0) return;
           dirtyRef.current = false;
           appliedHtmlRef.current = html;
@@ -290,6 +298,7 @@ export function ChapterEditor({
           const value = e.nativeEvent.value;
           const markEdited = () => {
             dirtyRef.current = true;
+            editEpochRef.current += 1;
             appliedHtmlRef.current = null;
             appliedEnrichedRef.current = null;
             onChangeText(value);
@@ -300,13 +309,14 @@ export function ChapterEditor({
             return;
           }
           echoChecksRef.current += 1;
+          const epoch = editEpochRef.current;
           void input
             .getHTML()
             .then(
               (enriched) => {
                 const applied = appliedHtmlRef.current;
                 return (
-                  !dirtyRef.current &&
+                  editEpochRef.current === epoch &&
                   applied != null &&
                   opsFromEnrichedHtml(applied, enriched, 0).length === 0
                 );
