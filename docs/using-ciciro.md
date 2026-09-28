@@ -18,8 +18,8 @@ you only ever see the editor.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
 - **Export** sits in the top bar. **More** in the top bar holds **Questions**,
-  **Story bible**, **Scratchpad**, **Weekly review**, and **Beta readers**; a dot
-  on **More** means one of them has something waiting.
+  **Story bible**, **Repetition**, **Scratchpad**, **Weekly review**, and **Beta
+  readers**; a dot on **More** means one of them has something waiting.
 
 The workspace needs a wide window. In a browser narrower than about 700px (a
 phone), a manuscript opens to an **Open in the app** screen that hands you to the
@@ -200,7 +200,19 @@ many it changed and offers **Undo** for a few seconds. Undo saves your latest ty
 first and leaves alone any chapter written to since, here or on another device, and
 says which it could not put back. Replacements are ordinary chapter
 edits, so they sync to the phone like anything you type. On the phone, the Chapters
-tab has a Find and replace card with the same options.
+tab has a Find and replace card with the same options. A straight apostrophe
+finds curly ones too, so `don't` matches `don’t`.
+
+## Repetition
+
+**Repetition** in the top bar's **More** menu lists the words and phrases you
+lean on more than usual, with how many times each appears. Switch between
+**This chapter** (the open one) and **Whole manuscript**. Common words like
+"the" or "didn't" and the names of your story bible's characters are left out,
+and phrases never run across a sentence or clause break. Click a flag to open
+**Search** with it filled in and see every use in context. The check runs
+without AI, so it needs no API key, and it never changes your prose. It is on
+the web only for now.
 
 ## Outline
 
