@@ -337,6 +337,16 @@ headings and bold, italic, lists, quotes, and scene breaks preserved.
 **Export > PDF** a book-layout PDF with a contents page and page numbers. On the
 phone, the foot of the Chapters tab has an Export card that hands the file to the share sheet.
 
+On the web, the Export menu also notes how much of the words added since
+tracking began came from Ciciro, split into accepted suggestions and prose
+Ciciro inserted directly, with the rest counted as yours. Once a chapter has
+any Ciciro words, a **% Ciciro** badge beside its word count shows the same
+figure for that chapter; hover it for the counts. These are running totals,
+each word counted once when written, so later edits and deletions do not lower
+them and they are not a share of the current text. It is a self-report to help
+you disclose AI assistance honestly, not a guarantee of compliance with KDP or
+any AI detector.
+
 ## Other kinds of writing
 
 When you start a manuscript, on the web or the phone, choose what you are writing. The default is a novel, exactly as before.
