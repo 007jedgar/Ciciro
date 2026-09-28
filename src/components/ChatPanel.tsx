@@ -67,6 +67,8 @@ type Props = {
   kind?: ManuscriptKind;
   /** Live chapter focus / content updates from editor tools mid-turn. */
   onUiEvent?: (evt: ClientUiEvent) => void;
+  /** The "Continuity check" chip opens this instead of sending a chat prompt. */
+  onOpenContinuityCheck?: () => void;
 };
 
 type ConnState = "online" | "offline" | "reconnecting" | "stalled";
@@ -213,6 +215,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     onTurnComplete,
     onUiEvent,
     onDraftTallied,
+    onOpenContinuityCheck,
     kind = "novel",
   },
   ref
@@ -922,11 +925,15 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   }
 
   function runAction(a: QuickAction) {
+    if (a.kind === "panel") {
+      if (a.id === "continuity-check") onOpenContinuityCheck?.();
+      return;
+    }
     if (a.scope === "selection" && !getSelection().trim()) {
       alert("Highlight some text in the manuscript first, then run this action.");
       return;
     }
-    send(a.prompt, "action", a.scope);
+    send(a.prompt ?? "", "action", a.scope);
   }
 
   const banner =
