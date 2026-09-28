@@ -18,8 +18,8 @@ you only ever see the editor.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
 - **Export** sits in the top bar. **More** in the top bar holds **Questions**,
-  **Story bible**, **Analyze my style**, **Repetition**, **Scratchpad**, **Weekly review**, and **Beta
-  readers**; a dot on **More** means one of them has something waiting.
+  **Story bible**, **Analyze my style**, **Repetition**, **Scratchpad**,
+  **Weekly review**, and **Beta readers**; a dot on **More** means one of them has something waiting.
 
 The workspace needs a wide window. In a browser narrower than about 700px (a
 phone), a manuscript opens to an **Open in the app** screen that hands you to the
