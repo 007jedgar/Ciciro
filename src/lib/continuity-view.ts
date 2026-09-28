@@ -93,6 +93,31 @@ export function buildContinuityInput(
   ].join("\n");
 }
 
+/** Case-insensitive substring check, so quoting only needs care, not exact casing. */
+function contains(haystack: string, needle: string): boolean {
+  return haystack.toLowerCase().includes(needle.toLowerCase());
+}
+
+/**
+ * Drop any finding whose quotes are not actually in the text they claim to
+ * quote. The system prompt insists on verbatim substrings so "Show in text"
+ * can always locate the passage, but a model can still paraphrase - this is
+ * the backstop so a hallucinated or reworded quote never reaches the author
+ * as an unclickable "finding".
+ */
+export function groundFindings(
+  findings: ContinuityFinding[],
+  chapterText: string,
+  bibleSections: { path: string; content: string }[]
+): ContinuityFinding[] {
+  const byPath = new Map(bibleSections.map((s) => [s.path, s.content]));
+  return findings.filter((f) => {
+    if (!contains(chapterText, f.chapterQuote)) return false;
+    const canonContent = byPath.get(f.canonFile);
+    return canonContent !== undefined && contains(canonContent, f.canonQuote);
+  });
+}
+
 function isKnownCanonFile(path: string): boolean {
   return path === "canon.md" || path === "world.md" || path === "timeline.md" || /^characters\/[^/]+\.md$/.test(path);
 }

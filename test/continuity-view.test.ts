@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildContinuityInput,
+  groundFindings,
   MAX_BIBLE_CHARS,
   MAX_CHAPTER_CHARS,
   parseContinuityFindings,
@@ -128,5 +129,40 @@ describe("parseContinuityFindings", () => {
 
     const many = Array.from({ length: 30 }, (_, i) => ({ ...finding, note: `#${i}` }));
     expect(parseContinuityFindings(JSON.stringify(many)).length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe("groundFindings", () => {
+  const bible = [{ path: "characters/mara.md", content: "# Mara\nMara has green eyes." }];
+  const chapterText = "Mara stepped off the train. Her eyes were brown in the lamplight.";
+  const finding = {
+    chapterQuote: "Her eyes were brown in the lamplight.",
+    canonFile: "characters/mara.md",
+    canonQuote: "Mara has green eyes.",
+    note: "Eye color contradicts the character file.",
+  };
+
+  it("keeps a finding whose quotes are verbatim substrings of the given text", () => {
+    expect(groundFindings([finding], chapterText, bible)).toEqual([finding]);
+  });
+
+  it("is case-insensitive, since Show in text matches case-insensitively too", () => {
+    const upper = { ...finding, chapterQuote: finding.chapterQuote.toUpperCase() };
+    expect(groundFindings([upper], chapterText, bible)).toEqual([upper]);
+  });
+
+  it("drops a finding whose chapter quote was paraphrased or is missing", () => {
+    const paraphrased = { ...finding, chapterQuote: "Her eyes looked brown." };
+    expect(groundFindings([paraphrased], chapterText, bible)).toEqual([]);
+  });
+
+  it("drops a finding whose canon quote isn't actually in the named bible file", () => {
+    const wrong = { ...finding, canonQuote: "Mara has blue eyes." };
+    expect(groundFindings([wrong], chapterText, bible)).toEqual([]);
+  });
+
+  it("drops a finding that names a bible file that wasn't sent", () => {
+    const wrongFile = { ...finding, canonFile: "world.md" };
+    expect(groundFindings([wrongFile], chapterText, bible)).toEqual([]);
   });
 });
