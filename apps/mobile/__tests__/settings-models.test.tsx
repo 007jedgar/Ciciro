@@ -56,7 +56,7 @@ const useModelsQueryMock = useModelsQuery as jest.MockedFunction<typeof useModel
 
 const MODELS: ModelsResponse = {
   slots: [
-    { key: "editor", role: "Editor", id: "claude-opus-5", name: "Claude Opus 5" },
+    { key: "editor", role: "Editor", id: "claude-opus-5-5", name: "Claude Opus 5.5" },
     { key: "drafter", role: "Drafter", id: "claude-sonnet-5", name: "Claude Sonnet 5" },
     { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
   ],
@@ -89,7 +89,7 @@ describe("Settings models section", () => {
 
     expect(screen.getByRole("header", { name: "Models" })).toBeTruthy();
     for (const [label, name, id] of [
-      ["Editor", "Claude Opus 5", "claude-opus-5"],
+      ["Editor", "Claude Opus 5.5", "claude-opus-5-5"],
       ["Drafter", "Claude Sonnet 5", "claude-sonnet-5"],
       ["Quick drafts", "Claude Haiku 4.5", "claude-haiku-4-5"],
       ["Router", "Llama 3.1 8B (Groq)", "llama-3.1-8b-instant"],

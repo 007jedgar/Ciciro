@@ -5,7 +5,7 @@ import { hasGroqKey, ROUTER_MODEL } from "@/lib/fast-lane";
 // docs/CHANGELOG.md). An operator-set id that isn't in this map still shows,
 // just without a friendly label - the raw id is always shown too.
 const FRIENDLY_NAMES: Record<string, string> = {
-  "claude-opus-5": "Claude Opus 5",
+  "claude-opus-5-5": "Claude Opus 5.5",
   "claude-sonnet-5": "Claude Sonnet 5",
   "claude-haiku-4-5": "Claude Haiku 4.5",
   "llama-3.1-8b-instant": "Llama 3.1 8B",

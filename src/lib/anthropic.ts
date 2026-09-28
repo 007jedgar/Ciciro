@@ -31,7 +31,7 @@ export function getAnthropic(): Anthropic {
 //  - DRAFTER does the actual prose generation from a brief. Sonnet 5 - near-Opus
 //    prose quality at lower cost/latency. Haiku is available as a "fast" mode.
 export const EDITOR_MODEL =
-  readEnv("CICIRO_EDITOR_MODEL") || readEnv("CICIRO_MODEL") || "claude-opus-5";
+  readEnv("CICIRO_EDITOR_MODEL") || readEnv("CICIRO_MODEL") || "claude-opus-5-5";
 export const DRAFTER_MODEL = readEnv("CICIRO_DRAFTER_MODEL") || "claude-sonnet-5";
 export const DRAFTER_FAST_MODEL =
   readEnv("CICIRO_DRAFTER_FAST_MODEL") || "claude-haiku-4-5";
