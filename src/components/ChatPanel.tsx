@@ -11,6 +11,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { quickActionsFor, type QuickAction } from "@/lib/prompts";
+import { countWords } from "@/lib/text";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import type {
   ChatMessage,
@@ -59,11 +60,15 @@ type Props = {
   // `key` groups every draft insert from the same message so the editor can
   // keep them in the right order (see EditorHandle.insertDraft).
   onInsertDraft: (text: string, key: string) => void;
+  /** A draft paste was tallied; carries the chapter's new aiDraftedWords. */
+  onDraftTallied?: (chapterId: string, aiDraftedWords: number) => void;
   onTurnComplete?: () => void;
   /** What is being written; picks the quick actions. Defaults to a novel. */
   kind?: ManuscriptKind;
   /** Live chapter focus / content updates from editor tools mid-turn. */
   onUiEvent?: (evt: ClientUiEvent) => void;
+  /** The "Continuity check" chip opens this instead of sending a chat prompt. */
+  onOpenContinuityCheck?: () => void;
 };
 
 type ConnState = "online" | "offline" | "reconnecting" | "stalled";
@@ -112,8 +117,12 @@ function recordDraftInsertion(opts: {
   turnId: string;
   segmentIndex: number;
   chapterId: string | null;
+  /** Words in the draft, tallied once as Ciciro's; see src/lib/text.ts. */
+  wordCount: number;
+  onTallied?: (chapterId: string, aiDraftedWords: number) => void;
 }) {
-  if (!opts.chapterId || !opts.turnId) return;
+  const chapterId = opts.chapterId;
+  if (!chapterId || !opts.turnId) return;
   fetch("/api/chat/insertions", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -121,9 +130,15 @@ function recordDraftInsertion(opts: {
       projectId: opts.projectId,
       turnId: opts.turnId,
       segmentIndex: opts.segmentIndex,
-      chapterId: opts.chapterId,
+      chapterId,
+      wordCount: opts.wordCount,
     }),
-  }).catch(() => {});
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((row: { aiDraftedWords?: unknown } | null) => {
+      if (typeof row?.aiDraftedWords === "number") opts.onTallied?.(chapterId, row.aiDraftedWords);
+    })
+    .catch(() => {});
 }
 
 // Render a message body: markdown for prose, insertable blocks for <draft>.
@@ -136,7 +151,7 @@ function renderBody(
   insertedKeys: Set<string>,
   onInsert: (text: string, key: string) => void,
   markInserted: (draftKey: string) => void,
-  onDurableInsert: (segmentIndex: number) => void,
+  onDurableInsert: (segmentIndex: number, wordCount: number) => void,
   live: boolean
 ) {
   const display = !live && hasOpenDraft(content) ? closeOpenDrafts(content) : content;
@@ -172,7 +187,7 @@ function renderBody(
               onClick={() => {
                 onInsert(draft, insertGroupKey);
                 markInserted(draftKey);
-                onDurableInsert(idx);
+                onDurableInsert(idx, countWords(draft));
               }}
             >
               {inserted ? "Inserted" : "Insert into manuscript"}
@@ -199,10 +214,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     onInsertDraft,
     onTurnComplete,
     onUiEvent,
+    onDraftTallied,
+    onOpenContinuityCheck,
     kind = "novel",
   },
   ref
 ) {
+  const onDraftTalliedRef = useRef(onDraftTallied);
+  onDraftTalliedRef.current = onDraftTallied;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [runs, setRuns] = useState<EditorRun[]>([]);
   const [input, setInput] = useState("");
@@ -314,6 +333,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           turnId,
           segmentIndex: idx,
           chapterId: activeChapterRef.current,
+          wordCount: countWords(draft),
+          onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
         });
       }
     });
@@ -904,11 +925,15 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   }
 
   function runAction(a: QuickAction) {
+    if (a.kind === "panel") {
+      if (a.id === "continuity-check") onOpenContinuityCheck?.();
+      return;
+    }
     if (a.scope === "selection" && !getSelection().trim()) {
       alert("Highlight some text in the manuscript first, then run this action.");
       return;
     }
-    send(a.prompt, "action", a.scope);
+    send(a.prompt ?? "", "action", a.scope);
   }
 
   const banner =
@@ -1006,13 +1031,15 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                       insertedKeys,
                       onInsertDraft,
                       markInserted,
-                      (segmentIndex) => {
+                      (segmentIndex, wordCount) => {
                         if (!m.turnId) return;
                         recordDraftInsertion({
                           projectId,
                           turnId: m.turnId,
                           segmentIndex,
                           chapterId: activeChapterRef.current,
+                          wordCount,
+                          onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
                         });
                       },
                       false
@@ -1058,7 +1085,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                     insertedKeys,
                     onInsertDraft,
                     markInserted,
-                    (segmentIndex) => {
+                    (segmentIndex, wordCount) => {
                       const turnId = streamTurnIdRef.current;
                       if (!turnId) return;
                       recordDraftInsertion({
@@ -1066,6 +1093,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                         turnId,
                         segmentIndex,
                         chapterId: activeChapterRef.current,
+                        wordCount,
+                        onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
                       });
                     },
                     true

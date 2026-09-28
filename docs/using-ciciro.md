@@ -18,8 +18,8 @@ you only ever see the editor.
   Status light, **Compact**, **Clear chat**, and **Auto on/off** live in the
   header.
 - **Export** sits in the top bar. **More** in the top bar holds **Questions**,
-  **Story bible**, **Repetition**, **Scratchpad**, **Weekly review**, and **Beta
-  readers**; a dot on **More** means one of them has something waiting.
+  **Story bible**, **Analyze my style**, **Repetition**, **Scratchpad**,
+  **Weekly review**, and **Beta readers**; a dot on **More** means one of them has something waiting.
 
 The workspace needs a wide window. In a browser narrower than about 700px (a
 phone), a manuscript opens to an **Open in the app** screen that hands you to the
@@ -67,6 +67,7 @@ type a custom request when it does not.
 | Line edit selection | Prose-level pass on a highlighted passage |
 | Align to theme | Language vs `style.md` theme/tone/POV |
 | Find loose ends | Open loops in `plot.md` vs the manuscript |
+| Continuity check | Opens a panel (not a chat prompt) that checks names, traits, dates, and places in the open chapter or whole manuscript against `canon.md`, `world.md`, `timeline.md`, and the characters it names; "Show in text" jumps to each quote |
 | Ask me questions | Craft questions to sit with; it will not answer them |
 | Continue writing | Next ~300-400 words from the end of the open chapter |
 | Review for holes | Continuity gaps and passages that look inserted in the wrong spot |
@@ -203,6 +204,31 @@ edits, so they sync to the phone like anything you type. On the phone, the Chapt
 tab has a Find and replace card with the same options. A straight apostrophe
 finds curly ones too, so `don't` matches `don’t`.
 
+## Analyze my style
+
+**Analyze my style** in the top bar's **More** menu drafts your `style.md` and
+character **Voice** sections from your own chapters, instead of you writing
+them from scratch. Click **Analyze my style** and it samples a spread of
+chapters across the manuscript (not the whole book, and never text that came
+from an unaccepted Ciciro suggestion), then proposes a short style.md - POV,
+tense, sentence rhythm, diction, dialogue conventions, recurring devices, and
+what you avoid - and a Voice section for any character who speaks enough in
+the sample to show one. Each claim shows a supporting quote from your prose,
+right under it, when one could be verified; a category the sample has no
+evidence for is left out rather than filled with a placeholder.
+
+If you already have a `style.md`, the draft keeps it exactly as it is, bullets
+from an earlier analysis included, and adds only categories it has no bullet
+for yet, under an **Analyzed from my prose** heading. Where the analysis reads
+a category you already cover differently, that reading is not added; it is
+listed as a suggestion under **Your current style.md** above the draft, next
+to your file, for you to copy in by hand if you prefer it.
+
+Nothing is written to the story bible on its own. Edit any proposed text
+first if it is not quite right, then **Save to style.md** or **Save to
+&lt;character&gt;** one at a time; skip anything you do not want. It needs an
+Anthropic API key, like the rest of Ciciro's AI features.
+
 ## Repetition
 
 **Repetition** in the top bar's **More** menu lists the words and phrases you
@@ -311,6 +337,16 @@ headings and bold, italic, lists, quotes, and scene breaks preserved.
 **Export > EPUB** makes an ebook (title page, contents, chapters in order) and
 **Export > PDF** a book-layout PDF with a contents page and page numbers. On the
 phone, the foot of the Chapters tab has an Export card that hands the file to the share sheet.
+
+On the web, the Export menu also notes how much of the words added since
+tracking began came from Ciciro, split into accepted suggestions and prose
+Ciciro inserted directly, with the rest counted as yours. Once a chapter has
+any Ciciro words, a **% Ciciro** badge beside its word count shows the same
+figure for that chapter; hover it for the counts. These are running totals,
+each word counted once when written, so later edits and deletions do not lower
+them and they are not a share of the current text. It is a self-report to help
+you disclose AI assistance honestly, not a guarantee of compliance with KDP or
+any AI detector.
 
 ## Other kinds of writing
 

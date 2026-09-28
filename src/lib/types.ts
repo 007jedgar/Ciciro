@@ -11,6 +11,11 @@ export type Chapter = {
   wordCount: number;
   revision: number;
   archivedAt?: string | Date | null;
+  /** See src/lib/text.ts `aiInvolvement`. Absent reads as 0 / untracked. */
+  aiAcceptedWords?: number;
+  aiDraftedWords?: number;
+  wordsAdded?: number;
+  aiInvolvementSince?: string | Date;
 };
 
 export type Character = {
@@ -162,6 +167,9 @@ export type ClientUiEvent =
       wordCount: number;
       revision: number;
       title?: string;
+      /** The chapter's new running tallies, when this update added Ciciro prose. */
+      aiDraftedWords?: number;
+      wordsAdded?: number;
     }
   | {
       // A fork the editor resolved provisionally. The client surfaces it so the

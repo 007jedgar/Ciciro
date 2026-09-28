@@ -4,7 +4,7 @@
 
 An AI book-writing assistant and manuscript editor. You write in a distraction-free
 editor with chapter navigation, and you talk to **one** partner - Ciciro, the editor
-(Claude Opus 5). It holds the story's canon, plans, critiques, tracks plot points and
+(Claude Opus 5.5). It holds the story's canon, plans, critiques, tracks plot points and
 loose ends, and decides what gets written. When prose needs writing, it briefs a
 faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
 Manuscripts import from Word, Google Docs, Markdown and Scrivener, and export to
@@ -72,14 +72,14 @@ aligned: [Story bible](docs/story-bible.md).
 - **Prisma + SQLite** - local-first manuscript + chat storage.
 - **Story bible = markdown files on disk** (`data/<projectId>/bible/`) - the shared
   memory the editor reads and writes.
-- **@anthropic-ai/sdk** - the editor (Opus 5) runs an agentic tool loop; the drafter
+- **@anthropic-ai/sdk** - the editor (Opus 5.5) runs an agentic tool loop; the drafter
   (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
 - **docx** - manuscript-format Word export; **JSZip** and **pdf-lib** for EPUB and PDF.
 
 ## The architecture
 
 ### One editor, backstage drafters
-You talk only to the **editor** (Opus 5). It reasons on a small, always-current
+You talk only to the **editor** (Opus 5.5). It reasons on a small, always-current
 context and makes the calls. When you ask for prose, it:
 
 1. Reads the relevant bible files and prior text (retrieval tools).
@@ -150,7 +150,7 @@ sheet.
 
 Set in `.env` (all overridable):
 
-- `CICIRO_EDITOR_MODEL` = `claude-opus-5` - the one you talk to.
+- `CICIRO_EDITOR_MODEL` = `claude-opus-5-5` - the one you talk to.
 - `CICIRO_DRAFTER_MODEL` = `claude-sonnet-5` - writes prose from briefs.
 - `CICIRO_DRAFTER_FAST_MODEL` = `claude-haiku-4-5` - the editor's "fast" mode.
 

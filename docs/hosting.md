@@ -180,6 +180,17 @@ Run it before deploying the build that ships kinds, not after. Every project
 query reads `kind`, so until the column exists the whole app fails with
 `no such column: kind`. Existing manuscripts become novels.
 
+The AI-involvement disclosure summary needs `aiAcceptedWords`, `aiDraftedWords`,
+`wordsAdded`, and `aiInvolvementSince` on `Chapter`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-ai-involvement.sql
+```
+
+Run it before deploying the build that ships the summary. Existing chapters'
+counters start at zero from the migration's run time, not their creation, so
+the UI notes that older acceptances predate tracking.
+
 ## Authentication
 
 - `POST /api/auth/signup` — create an account and start a session.

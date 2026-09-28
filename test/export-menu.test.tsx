@@ -6,6 +6,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ExportMenu from "@/components/ExportMenu";
 import { SnackbarProvider } from "@/components/Snackbar";
 import { attachmentName } from "@/lib/export-client";
+import type { Chapter } from "@/lib/types";
+
+function chapter(overrides: Partial<Chapter>): Chapter {
+  return {
+    id: "c1",
+    projectId: "p1",
+    title: "Chapter One",
+    order: 0,
+    content: "",
+    summary: "",
+    status: "draft",
+    wordCount: 0,
+    revision: 0,
+    ...overrides,
+  };
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -38,7 +54,7 @@ beforeEach(async () => {
   await act(async () =>
     root.render(
       <SnackbarProvider>
-        <ExportMenu projectId="p1" />
+        <ExportMenu projectId="p1" chapters={[]} />
       </SnackbarProvider>
     )
   );
@@ -95,6 +111,47 @@ describe("ExportMenu", () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toBe("Nothing to export.");
     expect(item("Word").disabled).toBe(false);
     expect(clicked).toEqual([]);
+  });
+});
+
+describe("ExportMenu AI-involvement note", () => {
+  async function renderWith(chapters: Chapter[]) {
+    const localHost = document.createElement("div");
+    document.body.appendChild(localHost);
+    const localRoot = createRoot(localHost);
+    await act(async () =>
+      localRoot.render(
+        <SnackbarProvider>
+          <ExportMenu projectId="p1" chapters={chapters} />
+        </SnackbarProvider>
+      )
+    );
+    await act(async () =>
+      localHost.querySelector<HTMLButtonElement>(".export-menu-root > button")!.click()
+    );
+    return { localHost, localRoot };
+  }
+
+  it("says nothing for a manuscript with no words yet", async () => {
+    const { localHost, localRoot } = await renderWith([chapter({ wordCount: 0 })]);
+    expect(localHost.querySelector(".export-ai-note")).toBeNull();
+    await act(async () => localRoot.unmount());
+    localHost.remove();
+  });
+
+  it("reports Ciciro's share of every word added across chapters, with the counts", async () => {
+    const { localHost, localRoot } = await renderWith([
+      chapter({ id: "c1", wordCount: 100, aiAcceptedWords: 20, aiDraftedWords: 5, wordsAdded: 150 }),
+      chapter({ id: "c2", wordCount: 100, aiAcceptedWords: 0, aiDraftedWords: 0, wordsAdded: 50 }),
+    ]);
+    const note = localHost.querySelector(".export-ai-note");
+    expect(note?.textContent).toContain(
+      "13% of the 200 words added came from Ciciro (20 from accepted suggestions, 5 inserted directly); " +
+        "175 you wrote yourself"
+    );
+    expect(note?.textContent).toContain("not a KDP or AI-detector compliance guarantee");
+    await act(async () => localRoot.unmount());
+    localHost.remove();
   });
 });
 

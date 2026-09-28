@@ -148,6 +148,25 @@ model Chapter {
   // the manuscript and can be restored; only empty chapters may be deleted.
   archivedAt DateTime?
 
+  // AI-involvement disclosure (see src/lib/text.ts, docs/tracked-changes.md).
+  // Both counters are cumulative and permanent: a word is tallied once, at
+  // the moment a Ciciro suggestion is accepted or Ciciro's prose is inserted
+  // directly, and a later edit or deletion never moves or removes it. Neither
+  // figure is reconstructable from `content` once a suggestion is accepted
+  // (acceptance drops the authorship marks), so both are recorded at the
+  // point of acceptance/insertion rather than derived later.
+  aiAcceptedWords Int @default(0) // words from an accepted Ciciro suggestion
+  aiDraftedWords  Int @default(0) // words Ciciro inserted directly (no suggestion to accept)
+  // Every word added to the chapter's settled prose by anyone, the same
+  // cumulative way (src/lib/chapter-ops.ts): the denominator that makes the
+  // Ciciro share a ratio of two running totals rather than of current text.
+  wordsAdded      Int @default(0)
+  // When these counters started. Defaults to chapter creation for a chapter
+  // made after this shipped; for an older chapter the migration backfills it
+  // to the migration's run time, so the UI can say the figures only cover
+  // activity since then.
+  aiInvolvementSince DateTime @default(now())
+
   plotPoints        PlotPoint[]
   manuscriptEdits   ManuscriptEdit[]
   ops               ChapterOp[]

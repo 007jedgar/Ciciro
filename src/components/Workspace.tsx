@@ -7,6 +7,7 @@ import Editor, { type EditorHandle } from "@/components/Editor";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import ChatPanel, { type ChatHandle } from "@/components/ChatPanel";
 import StoryBible from "@/components/StoryBible";
+import StyleAnalysisPanel from "@/components/StyleAnalysisPanel";
 import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
@@ -16,6 +17,7 @@ import ChapterHistory from "@/components/ChapterHistory";
 import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
 import RepetitionPanel from "@/components/RepetitionPanel";
+import ContinuityCheckPanel from "@/components/ContinuityCheckPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import Presence from "@/components/Presence";
 import Scratchpad from "@/components/Scratchpad";
@@ -32,7 +34,12 @@ import {
   useSuggestionAuthor,
 } from "@/components/TrackChanges";
 import { useSettings } from "@/components/SettingsProvider";
-import { chapterWordCount } from "@/lib/text";
+import {
+  aiInvolvement,
+  aiInvolvementPercentLabel,
+  chapterWordCount,
+  describeAiInvolvement,
+} from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -80,6 +87,17 @@ function clampChatWidth(n: number) {
   return Math.min(CHAT_MAX, Math.max(CHAT_MIN, Math.round(n)));
 }
 
+// Best-effort tally of an accepted Ciciro suggestion (see src/lib/text.ts).
+// Fire-and-forget like recordDraftInsertion in ChatPanel: a dropped call
+// under-counts a self-report figure, it does not corrupt the manuscript.
+function recordAiAcceptance(chapterId: string, words: number) {
+  fetch(`/api/chapters/${chapterId}/ai-involvement`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ acceptedWords: words }),
+  }).catch(() => {});
+}
+
 export default function Workspace({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState<Project>(initialProject);
   const kind = normalizeKind(project.kind);
@@ -88,11 +106,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     initialProject.chapters[0]?.id ?? null
   );
   const [bibleOpen, setBibleOpen] = useState(false);
+  const [styleAnalysisOpen, setStyleAnalysisOpen] = useState(false);
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInitial, setSearchInitial] = useState<{ query: string; wholeWord: boolean } | null>(null);
   const [repetitionOpen, setRepetitionOpen] = useState(false);
+  const [continuityOpen, setContinuityOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
   const [betaOpen, setBetaOpen] = useState(false);
   const chapterRows = useLeavingIds();
@@ -524,7 +544,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     );
   }, [focusPhase]);
   const overlayOpenRef = useRef(false);
-  overlayOpenRef.current = bibleOpen || searchOpen || repetitionOpen || questionsOpen || autoWriteOpen;
+  overlayOpenRef.current =
+    bibleOpen || searchOpen || repetitionOpen || continuityOpen || questionsOpen || autoWriteOpen;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
@@ -636,6 +657,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // --- Repetition ---
   const onInspectRepetition = useCallback((text: string) => {
     setRepetitionOpen(false);
+    setSearchInitial({ query: text, wholeWord: true });
+    setSearchOpen(true);
+  }, []);
+
+  // --- Continuity check ---
+  const onInspectContinuity = useCallback((text: string) => {
+    setContinuityOpen(false);
     setSearchInitial({ query: text, wholeWord: true });
     setSearchOpen(true);
   }, []);
@@ -888,6 +916,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (evt.type === "chapter_updated") {
         const store = optimisticStoreRef.current;
         const local = projectRef.current.chapters.find((c) => c.id === evt.chapterId);
+        if (evt.aiDraftedWords != null || evt.wordsAdded != null) {
+          updateChapterLocal(evt.chapterId, {
+            ...(evt.aiDraftedWords != null ? { aiDraftedWords: evt.aiDraftedWords } : {}),
+            ...(evt.wordsAdded != null ? { wordsAdded: evt.wordsAdded } : {}),
+          });
+        }
         if (
           evt.chapterId === activeId &&
           local &&
@@ -1051,6 +1085,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             },
             { key: "bible", label: "Story bible", onSelect: () => setBibleOpen(true) },
             {
+              key: "style-analysis",
+              label: "Analyze my style",
+              title: "Draft a proposed style.md and character Voice sections from your own chapters",
+              onSelect: () => setStyleAnalysisOpen(true),
+            },
+            {
               key: "repetition",
               label: "Repetition",
               title: "Overused words and phrases, per chapter and across the manuscript",
@@ -1082,7 +1122,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onOpenChange={setWeeklyOpen}
           onDueChange={setWeeklyDue}
         />
-        <ExportMenu projectId={project.id} />
+        <ExportMenu projectId={project.id} chapters={project.chapters} />
       </div>
 
       <ChapterSidebar
@@ -1144,6 +1184,30 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               ) : null}
               <div className="editor-meta">
                 <span>{activeChapter.wordCount.toLocaleString()} words</span>
+                {(() => {
+                  const involvement = aiInvolvement(activeChapter);
+                  if (involvement.ciciroWords === 0) return null;
+                  const since = involvement.since ? involvement.since.toLocaleDateString() : null;
+                  return (
+                    <>
+                      <span>-</span>
+                      <span
+                        className="ai-involvement-badge"
+                        title={
+                          `${describeAiInvolvement(involvement)}` +
+                          (since ? ` since ${since}` : "") +
+                          ". Running totals of words added, yours and Ciciro's (accepted " +
+                          "suggestions, auto-draft, Continue writing), each counted once when " +
+                          "written; a later edit or deletion doesn't lower either, so this is not a " +
+                          "share of the chapter's current words. A self-report for your own " +
+                          "disclosure, not a compliance guarantee."
+                        }
+                      >
+                        {aiInvolvementPercentLabel(involvement)} Ciciro
+                      </span>
+                    </>
+                  );
+                })()}
                 <span>-</span>
                 <select
                   value={activeChapter.status}
@@ -1238,6 +1302,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   kind={kind}
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
+                  onSuggestionsAccepted={(words) => {
+                    const id = activeIdRef.current;
+                    if (!id) return;
+                    const prior = projectRef.current.chapters.find((c) => c.id === id);
+                    updateChapterLocal(id, {
+                      aiAcceptedWords: (prior?.aiAcceptedWords ?? 0) + words,
+                      wordsAdded: (prior?.wordsAdded ?? 0) + words,
+                    });
+                    recordAiAcceptance(id, words);
+                  }}
                 />
               ) : viewMode === "diff" ? (
                 <DiffView chapterId={activeChapter.id} refreshToken={diffRefreshToken} />
@@ -1288,9 +1362,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           order: c.order,
         }))}
         onInsertDraft={insertDraft}
+        onDraftTallied={(chapterId, aiDraftedWords) =>
+          updateChapterLocal(chapterId, { aiDraftedWords })
+        }
         kind={kind}
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}
+        onOpenContinuityCheck={() => setContinuityOpen(true)}
       />
 
       <Presence open={outlineOpen} exitMs={MOTION_MS.dialogOut}>
@@ -1314,12 +1392,26 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
       </Presence>
 
+      <Presence open={styleAnalysisOpen}>
+        <StyleAnalysisPanel projectId={project.id} onClose={() => setStyleAnalysisOpen(false)} />
+      </Presence>
+
       <Presence open={repetitionOpen}>
         <RepetitionPanel
           projectId={project.id}
           activeChapterId={activeId}
           onClose={() => setRepetitionOpen(false)}
           onInspect={onInspectRepetition}
+        />
+      </Presence>
+
+      <Presence open={continuityOpen}>
+        <ContinuityCheckPanel
+          projectId={project.id}
+          activeChapterId={activeId}
+          activeChapterTitle={activeChapter?.title ?? ""}
+          onClose={() => setContinuityOpen(false)}
+          onInspect={onInspectContinuity}
         />
       </Presence>
 

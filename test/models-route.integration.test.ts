@@ -30,7 +30,7 @@ describe("GET /api/models", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.slots).toEqual([
-      { key: "editor", role: "Editor", id: "claude-opus-5", name: "Claude Opus 5" },
+      { key: "editor", role: "Editor", id: "claude-opus-5-5", name: "Claude Opus 5.5" },
       { key: "drafter", role: "Drafter", id: "claude-sonnet-5", name: "Claude Sonnet 5" },
       { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
     ]);

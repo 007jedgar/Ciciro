@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CICIRO_AUTHOR,
   carrySuggestions,
+  ciciroAcceptedWordCount,
   hasSuggestions,
   htmlWithoutSuggestions,
   listSuggestions,
@@ -76,6 +77,42 @@ describe("reading suggestions", () => {
     expect(before.text.startsWith("…")).toBe(true);
     expect(before.text.length).toBeLessThanOrEqual(50);
     expect(after.text.endsWith("…")).toBe(true);
+  });
+});
+
+describe("ciciroAcceptedWordCount", () => {
+  it("counts only Ciciro's inserted words, not the author's own suggestions", () => {
+    const html =
+      `<p data-block-id="a">She ${del("s1", "walked slowly")}${ins("s1", "ambled quietly")} home.</p>` +
+      `<p data-block-id="b">${ins("s2", "A short aside.", AUTHOR)}</p>`;
+    expect(ciciroAcceptedWordCount(html)).toBe(2);
+  });
+
+  it("counts nothing for a suggestion that only deletes", () => {
+    const html = `<p data-block-id="a">${del("s1", "gone for good")}stays.</p>`;
+    expect(ciciroAcceptedWordCount(html)).toBe(0);
+  });
+
+  it("limits the tally to the given ids", () => {
+    const html =
+      `<p data-block-id="a">${ins("s1", "one two")}</p>` +
+      `<p data-block-id="b">${ins("s2", "three four five")}</p>`;
+    expect(ciciroAcceptedWordCount(html)).toBe(5);
+    expect(ciciroAcceptedWordCount(html, ["s1"])).toBe(2);
+    expect(ciciroAcceptedWordCount(html, ["s2"])).toBe(3);
+    expect(ciciroAcceptedWordCount(html, [])).toBe(0);
+  });
+
+  it("is 0 when the chapter has no pending suggestions", () => {
+    expect(ciciroAcceptedWordCount("<p data-block-id=\"a\">Plain prose.</p>")).toBe(0);
+  });
+
+  it("sums a suggestion that spans multiple blocks", () => {
+    const id = "s1";
+    const html =
+      `<p data-block-id="a">${ins(id, "First new paragraph.")}</p>` +
+      `<p data-block-id="b">${ins(id, "Second one too.")}</p>`;
+    expect(ciciroAcceptedWordCount(html)).toBe(listSuggestions(html)[0].inserted.split(/\s+/).length);
   });
 });
 

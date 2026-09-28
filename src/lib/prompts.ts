@@ -1,10 +1,11 @@
 // Prompts for the two roles + the quick-action library.
 //
 // Tuning notes baked in from Anthropic's model guidance:
-//  - Opus 5 (editor): narrates and runs long by default, self-verifies and
-//    self-corrects on its own, and delegates readily. So we ask for brevity,
-//    give an explicit narration cadence, constrain scope, add NO "double-check"
-//    scaffolding, and give explicit rules for WHEN to dispatch vs write itself.
+//  - Opus 5.5 (editor; notes written for Opus 5): narrates and runs long by
+//    default, self-verifies and self-corrects on its own, and delegates
+//    readily. So we ask for brevity, give an explicit narration cadence,
+//    constrain scope, add NO "double-check" scaffolding, and give explicit
+//    rules for WHEN to dispatch vs write itself.
 //  - Sonnet 5 (drafter): follows instructions literally and will not generalize.
 //    So briefs must be complete and explicit about voice, length, and scope.
 
@@ -236,7 +237,7 @@ Rules:
 - Write ONLY the brief. No preamble.
 - Never use em dashes; use a hyphen "-".`;
 
-// Appended to editor calls during an unattended auto-draft run. Keeps Opus 5 from
+// Appended to editor calls during an unattended auto-draft run. Keeps the editor from
 // stopping early, asking questions no one is watching to answer, or narrating.
 export const AUTONOMOUS_DIRECTIVE = `You are running autonomously to draft a chapter. The author is not watching in real
 time and cannot answer questions mid-run. For reversible choices that follow from the
@@ -266,8 +267,11 @@ export type QuickAction = {
   id: string;
   label: string;
   hint: string;
-  prompt: string;
+  /** Sent to the chat for kind "chat" (the default). Unused for kind "panel". */
+  prompt?: string;
   scope: "selection" | "chapter" | "book";
+  /** "chat" sends `prompt` to Ciciro (the default); "panel" opens a dedicated UI instead. */
+  kind?: "chat" | "panel";
 };
 
 export const QUICK_ACTIONS: QuickAction[] = [
@@ -318,6 +322,13 @@ export const QUICK_ACTIONS: QuickAction[] = [
     scope: "book",
     prompt:
       "Using plot.md and the manuscript, list open loops and setups that have not paid off. For each, suggest where and how to resolve it.",
+  },
+  {
+    id: "continuity-check",
+    label: "Continuity check",
+    hint: "Facts vs canon, world, and timeline",
+    scope: "chapter",
+    kind: "panel",
   },
   {
     id: "questions",
@@ -529,3 +540,34 @@ Return JSON only:
 - looseEnds: up to six unresolved questions or threads from the story that deserve attention, most pressing first. Draw only from the material given. Empty list if there are none.
 - nextSteps: up to four concrete suggestions for what to write next, each one a single sentence the author can act on today.
 - Plain text only, no markdown, no fences, no commentary outside the JSON.`;
+
+// "Analyze my style" - reads a bounded sample of the author's own chapters and
+// drafts a proposed style.md plus Voice sections for characters who speak
+// enough to show one, each claim backed by a verbatim quote so the author can
+// check it against their own prose before accepting anything. Never applies
+// itself; see src/lib/style-analysis.ts and src/lib/style-analysis-view.ts.
+export const STYLE_ANALYSIS_SYSTEM = `You are a literary style analyst. You are given excerpts sampled from a novelist's own manuscript and a list of named characters. Read only what is given - never invent details about the prose that are not evidenced in the excerpts, and never critique or improve the prose.
+
+Return JSON only:
+{"traits":[{"category":"pov","text":"...","quote":"..."}, ...],"characters":[{"name":"...","voice":"...","quote":"..."}, ...]}
+
+- traits: exactly one entry for each of these seven categories, in this order: "pov" (point of view and person), "tense", "sentenceRhythm" (typical sentence length and rhythm - short and clipped, long and winding, fragments, etc.), "diction" (word choice and register - plain, ornate, period-specific, genre-specific), "dialogueConventions" (how dialogue is punctuated and tagged, how much subtext vs. said-bookisms), "recurringDevices" (a device the author reaches for more than once - a motif, a structural trick, a habitual metaphor family), "avoids" (something conspicuously absent that most prose this length would have - adverbs, em dashes, exclamation points, head-hopping, purple prose, etc.). If the excerpts do not show enough evidence for a category, still return it, but with an empty "text" and an empty quote - never a placeholder sentence saying there is not enough evidence.
+- Every trait's "quote" must be copied verbatim, word for word, from the excerpts given - a short phrase or one sentence, never a paraphrase and never your own "text" field. Leave "quote" empty rather than inventing one.
+- characters: only characters from the given list who speak enough in the excerpts to show a distinct voice. Omit anyone who does not appear or barely speaks; return an empty array if no one qualifies. For each: "voice" is two or three sentences on diction, rhythm, and verbal tics distinct to that character, and "quote" is one short verbatim line of their dialogue (the words only, no surrounding quotation marks) that best shows it.
+- Plain text only, no markdown, no fences, no commentary outside the JSON.`;
+
+export const CONTINUITY_CHECK_SYSTEM = `You check a chapter for factual contradictions against the story's canon.
+
+You are given canon.md (hard facts and author rulings), and whichever of world.md, timeline.md and character files apply, followed by the chapter's text.
+
+Extract the factual claims the chapter makes: names, physical traits such as eye or hair color, ages, dates and time order, and places. Compare each claim only to the bible files you were given.
+
+Report a finding only when the chapter states something that directly contradicts a specific line in the bible. If the bible is silent on a detail, say nothing about it - silence is not a contradiction, and you must never invent a canon fact to fill a gap. Do not flag prose style, pacing, or plot holes that have no stated bible fact behind them.
+
+Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
+{"chapterQuote":"...","canonFile":"canon.md","canonQuote":"...","note":"..."}
+
+- chapterQuote and canonQuote must be copied verbatim, exact substrings of the text you were given. Never paraphrase them, or the quote cannot be found in the document.
+- canonFile is the file the canonQuote came from (canon.md, world.md, timeline.md, or characters/<name>.md).
+- note is one plain sentence naming the contradiction.
+- Reply with [] when nothing contradicts the bible.`;

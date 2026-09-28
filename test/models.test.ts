@@ -19,7 +19,7 @@ describe("getModelSummary", () => {
     const { getModelSummary } = await import("@/lib/models");
     const summary = getModelSummary();
     expect(summary.slots).toEqual([
-      { key: "editor", role: "Editor", id: "claude-opus-5", name: "Claude Opus 5" },
+      { key: "editor", role: "Editor", id: "claude-opus-5-5", name: "Claude Opus 5.5" },
       { key: "drafter", role: "Drafter", id: "claude-sonnet-5", name: "Claude Sonnet 5" },
       { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
     ]);
@@ -38,6 +38,17 @@ describe("getModelSummary", () => {
       id: "llama-3.1-8b-instant",
       name: "Llama 3.1 8B",
       provider: "groq",
+    });
+  });
+
+  it("keeps the friendly name for an editor pinned to the previous default", async () => {
+    process.env.CICIRO_EDITOR_MODEL = "claude-opus-5";
+    const { getModelSummary } = await import("@/lib/models");
+    expect(getModelSummary().slots[0]).toEqual({
+      key: "editor",
+      role: "Editor",
+      id: "claude-opus-5",
+      name: "Claude Opus 5",
     });
   });
 

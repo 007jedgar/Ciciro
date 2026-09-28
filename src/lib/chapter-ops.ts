@@ -11,7 +11,7 @@ import {
   type ManuscriptActor,
   type ManuscriptOp,
 } from "@/lib/manuscript";
-import { chapterWordCount } from "@/lib/text";
+import { chapterWordCount, chapterWordsAdded } from "@/lib/text";
 import { ensureBlockIds } from "@/lib/block-ids";
 import { snapshotSessionBoundary } from "@/lib/snapshots";
 
@@ -47,7 +47,26 @@ export type AppendOpsOptions = {
    * server over an author route gets to claim it was the assistant.
    */
   actor: ManuscriptActor;
+  /**
+   * Which AI-involvement counters the words this write adds move (see
+   * src/lib/text.ts `aiInvolvement`). Defaults by actor: an author write
+   * counts toward `wordsAdded`, a Ciciro write toward nothing, since moving
+   * or correcting prose is not adding it. A Ciciro write that lands new
+   * prose directly passes "drafted"; a restore of earlier text passes "none".
+   */
+  tally?: WordTally;
 };
+
+/** "author": `wordsAdded`; "drafted": `wordsAdded` and `aiDraftedWords`. */
+export type WordTally = "author" | "drafted" | "none";
+
+function tallyData(tally: WordTally, words: number) {
+  if (tally === "none" || words <= 0) return {};
+  return {
+    wordsAdded: { increment: words },
+    ...(tally === "drafted" ? { aiDraftedWords: { increment: words } } : {}),
+  };
+}
 
 const ACTORS = new Set<ManuscriptActor>(["user", "ai", "correction"]);
 const TYPES = new Set<ManuscriptOp["type"]>([
@@ -217,7 +236,8 @@ async function applyGroup(
   chapterId: string,
   projectId: string,
   group: OpGroup,
-  actor: ManuscriptActor
+  actor: ManuscriptActor,
+  tally: WordTally
 ): Promise<GroupOutcome> {
   const stamped: ManuscriptOp[] = group.ops.map((op) => ({
     ...op,
@@ -260,6 +280,7 @@ async function applyGroup(
 
   const content = docToHtml(doc);
   const wordCount = chapterWordCount(content);
+  const counters = tallyData(tally, tally === "none" ? 0 : chapterWordsAdded(chapter.content, content));
   const head = base + pending.length;
   const rows = pending.map((op, index) =>
     prisma.chapterOp.create({
@@ -284,7 +305,7 @@ async function applyGroup(
       ...rows,
       prisma.chapter.updateMany({
         where: { id: chapterId, revision: base },
-        data: { content, wordCount, revision: head },
+        data: { content, wordCount, revision: head, ...counters },
       }),
     ]);
     snapshotWrites = (results[results.length - 1] as { count: number }).count;
@@ -300,7 +321,7 @@ async function applyGroup(
     // backwards over a revision newer than the one we own.
     await prisma.chapter.updateMany({
       where: { id: chapterId, revision: { lt: head } },
-      data: { content, wordCount, revision: head },
+      data: { content, wordCount, revision: head, ...counters },
     });
   }
 
@@ -347,8 +368,9 @@ async function appendGroups(
   chapterId: string,
   projectId: string,
   ops: ManuscriptOp[],
-  actor: ManuscriptActor
+  opts: AppendOpsOptions
 ): Promise<AppendOpsResult> {
+  const tally = opts.tally ?? (opts.actor === "user" ? "author" : "none");
   const accepted: AcceptedOp[] = [];
   const rejected: RejectedOp[] = [];
   const created: ChapterOpRecord[] = [];
@@ -367,7 +389,7 @@ async function appendGroups(
       }
       continue;
     }
-    const outcome = await applyGroup(chapterId, projectId, group, actor);
+    const outcome = await applyGroup(chapterId, projectId, group, opts.actor, tally);
     accepted.push(...outcome.accepted);
     rejected.push(...outcome.rejected);
     created.push(...outcome.created);
@@ -390,7 +412,7 @@ export async function appendOps(
   const owned = await authorizeOwnedChapter(chapterId, user);
   // The first keystroke after a break closes the previous session in history.
   await snapshotSessionBoundary(chapterId);
-  return appendGroups(chapterId, owned.projectId, ops, opts.actor);
+  return appendGroups(chapterId, owned.projectId, ops, opts);
 }
 
 /**
@@ -411,7 +433,7 @@ export async function appendSystemOps(
   });
   if (!chapter) throw new AuthError("Not found.", 404);
   if (chapter.projectId !== projectId) throw new AuthError("Not found.", 404);
-  return appendGroups(chapterId, projectId, ops, opts.actor);
+  return appendGroups(chapterId, projectId, ops, opts);
 }
 
 export async function listChapterOps(

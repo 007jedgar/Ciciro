@@ -11,10 +11,25 @@ import { chapterWordCount, isChapterEmpty } from "@/lib/text";
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
 export const visibleChapterWhere = { archivedAt: null } as const;
 
+/**
+ * Index-only columns: callers that only need the chapter list (title, order,
+ * word count, status, summary), not the full `content` HTML, which can be
+ * hundreds of KB per chapter. A caller that needs prose fetches `content`
+ * itself (see `getProject`'s `PROJECT_DETAIL_INCLUDE`, or
+ * `buildEditorContext`'s targeted content query).
+ */
 export const visibleChaptersInclude = {
   where: visibleChapterWhere,
   orderBy: { order: "asc" as const },
-};
+  select: {
+    id: true,
+    title: true,
+    order: true,
+    wordCount: true,
+    status: true,
+    summary: true,
+  },
+} as const;
 
 /** Ids only — D1 cannot run Prisma `_count` with a relation `where`. */
 export const visibleChapterIdInclude = {
@@ -312,6 +327,39 @@ export async function unarchiveChapter(id: string, user: PublicUser | null) {
   return prisma.chapter.update({
     where: { id },
     data: { archivedAt: null },
+  });
+}
+
+// A single accept or paste action's word count, generously bounded against a
+// malformed or hostile client - not a realistic ceiling on a chapter's total.
+export const MAX_AI_INVOLVEMENT_DELTA = 20_000;
+
+function aiInvolvementDelta(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(Math.floor(value), MAX_AI_INVOLVEMENT_DELTA);
+}
+
+/**
+ * Add this action's word count to a chapter's AI-involvement tally: words
+ * from a Ciciro suggestion the author just accepted, words Ciciro just
+ * inserted directly, or both. `acceptedWords`/`draftedWords` are deltas for
+ * this one action, not running totals - see src/lib/text.ts.
+ */
+export async function recordAiInvolvement(
+  id: string,
+  user: PublicUser | null,
+  delta: { acceptedWords?: number; draftedWords?: number }
+): Promise<void> {
+  await authorizeOwnedChapter(id, user);
+  const acceptedWords = aiInvolvementDelta(delta.acceptedWords);
+  const draftedWords = aiInvolvementDelta(delta.draftedWords);
+  if (acceptedWords === 0 && draftedWords === 0) return;
+  await prisma.chapter.update({
+    where: { id },
+    data: {
+      ...(acceptedWords > 0 ? { aiAcceptedWords: { increment: acceptedWords } } : {}),
+      ...(draftedWords > 0 ? { aiDraftedWords: { increment: draftedWords } } : {}),
+    },
   });
 }
 

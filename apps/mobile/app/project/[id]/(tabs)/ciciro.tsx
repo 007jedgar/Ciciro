@@ -16,6 +16,7 @@ import {
 } from "../../../../lib/api";
 import type { OpenQuestion } from "../../../../lib/api/types";
 import { insertDraftOps, insertionKey } from "../../../../lib/chat-insert";
+import { countWords } from "../../../../lib/manuscript";
 import {
   asCiciroIntent,
   chatRequestFromAnswer,
@@ -110,6 +111,7 @@ export default function CiciroScreen() {
             turnId,
             segmentIndex: index,
             chapterId: chapter.id,
+            wordCount: countWords(text),
           })
           .then(() => {
             void queryClient.invalidateQueries({

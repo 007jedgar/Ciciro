@@ -24,6 +24,7 @@ import {
   type ChapterHtmlWrite,
   type ChapterWriteResult,
 } from "@/lib/chapter-writes";
+import type { WordTally } from "@/lib/chapter-ops";
 import {
   countPassageOccurrences,
   deletePassageRange,
@@ -656,14 +657,23 @@ async function bumpChapterRevision(
   chapter: { id: string; projectId: string; content: string; revision: number },
   revision: number,
   data: ChapterHtmlWrite,
-  runId: string | undefined
+  runId: string | undefined,
+  tally?: WordTally
 ): Promise<ChapterWriteResult> {
   if (chapter.revision !== revision) {
     // The caller read this row and checked it against the revision the editor
     // was given, so a mismatch here means the head moved under it.
     return { ok: false, revision: chapter.revision, content: chapter.content };
   }
-  return writeChapterHtml(chapter, data.content, { actor: "ai", runId });
+  return writeChapterHtml(chapter, data.content, { actor: "ai", runId, tally });
+}
+
+async function readWordTally(
+  chapterId: string
+): Promise<{ aiDraftedWords: number; wordsAdded: number } | null> {
+  return prisma.chapter
+    .findUnique({ where: { id: chapterId }, select: { aiDraftedWords: true, wordsAdded: true } })
+    .catch(() => null);
 }
 
 async function recordManuscriptEdits(
@@ -1438,6 +1448,7 @@ export async function executeEditorTool(
       const changed = content !== ch.content;
       let revision = expectedRevision;
       let savedContent = content;
+      let tally: { aiDraftedWords: number; wordsAdded: number } | null = null;
       if (changed) {
         const committed = await bumpChapterRevision(
           ch,
@@ -1446,7 +1457,8 @@ export async function executeEditorTool(
             content,
             wordCount,
           },
-          ctx.runId
+          ctx.runId,
+          "drafted"
         );
         if (committed.ok) {
           await recordManuscriptEdits(
@@ -1456,6 +1468,7 @@ export async function executeEditorTool(
               replace: a.replace,
             }))
           );
+          tally = await readWordTally(ch.id);
         }
         if (!committed.ok) {
           return {
@@ -1480,6 +1493,7 @@ export async function executeEditorTool(
               content: savedContent,
               wordCount,
               revision,
+              ...(tally ?? {}),
             }
           : undefined,
       };
@@ -1813,10 +1827,16 @@ export async function executeEditorTool(
           content,
           wordCount,
         },
-        ctx.runId
+        ctx.runId,
+        // No suggestion is proposed here (there is nothing to accept - the
+        // text lands directly), so the write itself tallies these words as
+        // Ciciro's; see the AI-involvement tally in src/lib/text.ts.
+        "drafted"
       );
+      let tally: { aiDraftedWords: number; wordsAdded: number } | null = null;
       if (committed.ok) {
         await recordManuscriptEdits([{ chapterId: ch.id, find: "", replace: text }]);
+        tally = await readWordTally(ch.id);
       }
       if (!committed.ok) {
         return {
@@ -1839,6 +1859,7 @@ export async function executeEditorTool(
           content: committed.content,
           wordCount,
           revision,
+          ...(tally ?? {}),
         },
       };
     }

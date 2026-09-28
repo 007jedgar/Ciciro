@@ -31,6 +31,14 @@ Durations and easings are tokens in `src/app/globals.css`, all scaled by `--moti
 
 Pass numbers into Reanimated worklets as arguments or same-scope locals: a default parameter or imported constant used inside one can be missing on the UI runtime. A throw there stops every animation until the app restarts, so if motion "does nothing" on the simulator, read Metro's log and relaunch before debugging the code.
 
+## AI-involvement tally
+
+`Chapter.aiAcceptedWords` / `aiDraftedWords` (see `src/lib/text.ts` `aiInvolvement`) are cumulative counters, not derived from `content`: accepting a Ciciro suggestion drops its authorship marks (`resolveSuggestions`), so the word count has to be taken at that moment (`ciciroAcceptedWordCount` in `src/lib/suggestions.ts`, called from every accept path, web and mobile) and added, permanently - a later edit or deletion never moves or removes it. The same applies to text Ciciro inserts with no suggestion to accept (`insert_text`, a chat `<draft>` paste): tallied once, at insertion. The percentage's denominator, `wordsAdded`, is tallied the same way inside the op log's commit (`tally` in `src/lib/chapter-ops.ts`): a server-side writer that lands new Ciciro prose passes `tally: "drafted"`, one that restores old text passes `"none"`. Do not try to reconstruct any of these from `content` later.
+
+## Checks with structured findings
+
+A quick action (`src/lib/prompts.ts`) can be `kind: "panel"` instead of the default `"chat"`: `ChatPanel` calls a callback prop instead of sending a chat prompt, so the chip can open a dedicated drawer with its own API route and lib module (see `continuity-check` / `src/lib/continuity.ts` + `continuity-view.ts`, alongside `RepetitionPanel`/`WeeklyReview`) rather than routing through the agentic editor chat. A finding's exact quote becomes a jump-to link by opening `SearchPanel` pre-filled with that text (`onInspect` in `Workspace.tsx`) rather than building new anchor/scroll plumbing. Keep the LLM-facing side of such a check bounded and cheap: one non-agentic `DRAFTER_MODEL` call per unit of work (not the `EDITOR_MODEL` chat loop), sending only the bible files relevant to what's being checked, and re-verify any quoted text is an actual substring of what was sent before surfacing it (a model can still paraphrase despite instructions not to).
+
 ## Model defaults
 
 `src/lib/anthropic.ts` and `src/lib/fast-lane.ts` pin the models Ciciro runs on; `src/lib/models.ts` resolves them (env override or default) for the `/api/models` endpoint that Settings (web and mobile) reads. Changing a default requires a line in `docs/CHANGELOG.md` recording the new default, since Settings is a user's only visibility into which model they're on.

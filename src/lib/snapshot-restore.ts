@@ -66,7 +66,10 @@ export async function restoreSnapshot(
     // Unlike the automatic snapshots this one is not best effort: a restore
     // that cannot keep the text it replaces does not run.
     const backup = await keepCurrentText(current, snapshot.id);
-    const written = await writeChapterHtml(current, snapshot.content, { actor: "user" });
+    const written = await writeChapterHtml(current, snapshot.content, {
+      actor: "user",
+      tally: "none",
+    });
     if (written.ok) {
       const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });
       if (!chapter) throw new AuthError("Not found.", 404);

@@ -63,7 +63,10 @@ listed (or findable in the prose).
 
 **Style.** Put non-negotiable prose rules here (hyphens not em dashes, no new
 named characters in a scene, narrator knowledge). Theme alignment uses this
-file.
+file. Already have chapters written? **Analyze my style** (top bar's **More**
+menu) drafts this file and each speaking character's Voice section from your
+own prose instead of you writing them cold - see [Using
+Ciciro](using-ciciro.md#analyze-my-style).
 
 You can also edit the files on disk. After the first run they are the source of
 truth; the database is only used to seed them.
