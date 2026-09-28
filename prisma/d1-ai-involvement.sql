@@ -1,5 +1,5 @@
--- One-shot upgrade: per-chapter AI-involvement tally (see src/lib/text.ts,
--- docs/tracked-changes.md). SQLite has no `ADD COLUMN IF NOT EXISTS`, so run
+-- One-shot upgrade: per-chapter AI-involvement tally (see src/lib/text.ts
+-- `aiInvolvement`). SQLite has no `ADD COLUMN IF NOT EXISTS`, so run
 -- this once; a second run fails on the ALTERs, which is harmless.
 --
 -- Apply with: wrangler d1 execute ciciro --remote --file=prisma/d1-ai-involvement.sql
