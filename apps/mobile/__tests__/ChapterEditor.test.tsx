@@ -239,6 +239,23 @@ describe("ChapterEditor", () => {
     await expect(editor.getHTML()).resolves.toBe("<p>From the desk.</p>");
   });
 
+  it("discards an unfocused settle read that a newer edit overtook", async () => {
+    const { props, editor, rerender } = renderForEcho(html);
+    const markEdited = props.registerEditor.mock.calls.find((call) => call[0])?.[1] as () => void;
+    markEdited();
+    editor.setValue("<html><p>Hello there. Phrase one.</p></html>");
+    rerender(
+      <ChapterEditor {...props} html='<p data-block-id="a">Hello there. Phrase one.</p>' />
+    );
+    markEdited();
+    editor.setValue("<html><p>Hello there. Phrase one. Phrase two.</p></html>");
+    await act(async () => {});
+    const setValue = jest.spyOn(editor, "setValue");
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    await act(async () => {});
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
   it("keeps an unfocused edit protected until html holds that edit's own content", async () => {
     const { props, editor, rerender } = renderForEcho(html);
     const markEdited = props.registerEditor.mock.calls.find((call) => call[0])?.[1] as () => void;
