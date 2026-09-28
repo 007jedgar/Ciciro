@@ -111,23 +111,45 @@ export async function buildEditorContext(
   const namedNumbers = [...new Set(namedChapterNumbers)].filter(
     (number) => Number.isInteger(number) && number > 0
   );
+  const namedChapters = namedNumbers
+    .map((number) => project.chapters[number - 1])
+    .filter((chapter): chapter is (typeof project.chapters)[number] => Boolean(chapter));
+
+  const active = project.chapters.find((c) => c.id === activeChapterId);
+
+  // Only the active chapter and any named chapters need prose; the index
+  // above only reads title/order/wordCount/status/summary. One targeted
+  // query instead of pulling every visible chapter's `content`.
+  const contentIds = new Set<string>();
+  if (active) contentIds.add(active.id);
+  for (const chapter of namedChapters) {
+    if (chapter.id !== activeChapterId) contentIds.add(chapter.id);
+  }
+  const contentRows = contentIds.size
+    ? await prisma.chapter.findMany({
+        where: { id: { in: [...contentIds] } },
+        select: { id: true, content: true },
+      })
+    : [];
+  const contentById = new Map(contentRows.map((row) => [row.id, row.content]));
+
   for (const chapterNumber of namedNumbers) {
     const chapter = project.chapters[chapterNumber - 1];
     if (!chapter || chapter.id === activeChapterId) continue;
     parts.push(
       `\n# NAMED CHAPTER ${chapterNumber}: ${chapter.title} (passage index)`,
-      formatSceneIndex(indexChapter(chapter.content, chapterNumber), {
+      formatSceneIndex(indexChapter(contentById.get(chapter.id) ?? "", chapterNumber), {
         paragraphs: true,
         paraCap: 24,
       })
     );
   }
 
-  const active = project.chapters.find((c) => c.id === activeChapterId);
   if (active) {
+    const activeContent = contentById.get(active.id) ?? "";
     const chapterNumber = project.chapters.indexOf(active) + 1;
-    const fullText = htmlToText(chapterHtmlForModel(active.content)) || "(empty)";
-    const passageIndex = compactOpenChapterIndex(active.content, chapterNumber);
+    const fullText = htmlToText(chapterHtmlForModel(activeContent)) || "(empty)";
+    const passageIndex = compactOpenChapterIndex(activeContent, chapterNumber);
     // Most tasks don't need the whole chapter. Always send the passage index
     // so the editor can move by id after compact without re-quoting prose.
     // Only send annotated full text when the task's scope is the chapter.
@@ -136,8 +158,8 @@ export async function buildEditorContext(
         `\n# OPEN CHAPTER: ${active.title} (passages: ch${chapterNumber}.sK / ch${chapterNumber}.pA)`,
         passageIndex,
         "",
-        pendingSuggestionsNote(active.content) +
-          renderAnnotatedChapter(chapterHtmlForModel(active.content), chapterNumber)
+        pendingSuggestionsNote(activeContent) +
+          renderAnnotatedChapter(chapterHtmlForModel(activeContent), chapterNumber)
       );
     } else {
       const openPlotPoints = await prisma.plotPoint.findMany({
@@ -160,7 +182,7 @@ export async function buildEditorContext(
       }
       block.push(
         `\nSummary so far: ${active.summary.trim() || "(none recorded yet)"}`,
-        `\n${pendingSuggestionsNote(active.content)}...${tail}`
+        `\n${pendingSuggestionsNote(activeContent)}...${tail}`
       );
       parts.push(block.join("\n"));
     }

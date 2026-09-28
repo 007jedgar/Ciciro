@@ -3,7 +3,7 @@ import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } f
 import { ensureChaptersBlockIds } from "@/lib/block-ids";
 import {
   visibleChapterIdInclude,
-  visibleChaptersInclude,
+  visibleChapterWhere,
   withVisibleChapterCount,
 } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
@@ -30,7 +30,10 @@ const PROJECT_LIST_INCLUDE = {
 } as const;
 
 const PROJECT_DETAIL_INCLUDE = {
-  chapters: visibleChaptersInclude,
+  // Full chapter rows (including `content`): the editor UI and
+  // `ensureChaptersBlockIds` both need the prose, unlike the index-only
+  // `visibleChaptersInclude` used by `buildEditorContext`.
+  chapters: { where: visibleChapterWhere, orderBy: { order: "asc" as const } },
   characters: { orderBy: { name: "asc" as const } },
   plotPoints: { orderBy: { order: "asc" as const } },
 };

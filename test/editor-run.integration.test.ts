@@ -128,6 +128,26 @@ describe("durable editor lifecycle", () => {
     expect(await claimEditorRun(first!.run.id)).toBeNull();
   });
 
+  it("marks the context block cacheable so tool-loop iterations don't re-bill it", async () => {
+    const project = await createProject();
+    const prepared = await prepareEditorRun({
+      projectId: project.id,
+      message: "What happened in chapter one?",
+      clientTurnId: "cache-control-turn",
+    });
+    const messages = JSON.parse(prepared!.run.messagesJson) as Anthropic.MessageParam[];
+    const last = messages[messages.length - 1];
+    expect(last.role).toBe("user");
+    const blocks = last.content;
+    expect(Array.isArray(blocks)).toBe(true);
+    const contextBlock = (blocks as Anthropic.TextBlockParam[]).find(
+      (block) => block.type === "text" && block.text.startsWith("<context>")
+    );
+    expect(contextBlock).toBeDefined();
+    expect(contextBlock?.text).toContain("deterministic fixture context");
+    expect(contextBlock?.cache_control).toEqual({ type: "ephemeral" });
+  });
+
   it("checkpoints slice exhaustion as continuing and retains prior tool results", async () => {
     const project = await createProject();
     const prepared = await prepareEditorRun({

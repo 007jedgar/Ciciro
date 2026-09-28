@@ -11,10 +11,25 @@ import { chapterWordCount, isChapterEmpty } from "@/lib/text";
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
 export const visibleChapterWhere = { archivedAt: null } as const;
 
+/**
+ * Index-only columns: callers that only need the chapter list (title, order,
+ * word count, status, summary) — not the full `content` HTML, which can be
+ * hundreds of KB per chapter. A caller that needs prose fetches `content`
+ * itself (see `getProject`'s `PROJECT_DETAIL_INCLUDE`, or
+ * `buildEditorContext`'s targeted content query).
+ */
 export const visibleChaptersInclude = {
   where: visibleChapterWhere,
   orderBy: { order: "asc" as const },
-};
+  select: {
+    id: true,
+    title: true,
+    order: true,
+    wordCount: true,
+    status: true,
+    summary: true,
+  },
+} as const;
 
 /** Ids only — D1 cannot run Prisma `_count` with a relation `where`. */
 export const visibleChapterIdInclude = {
