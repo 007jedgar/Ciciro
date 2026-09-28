@@ -88,57 +88,114 @@ index 05d0e67..63e46ae 100644
    return _primaryFontWeight != nullptr
               ? _primaryFontWeight
 diff --git a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
-index 4e8dd50..98725aa 100644
+index 4e8dd50..935a99e 100644
 --- a/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
 +++ b/node_modules/react-native-enriched-html/ios/enrichedInputTextView/EnrichedInputTextView.mm
-@@ -20,6 +20,46 @@ - (void)layoutSubviews {
+@@ -7,6 +7,47 @@
+ #import "TextListsUtils.h"
+ #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+ 
++@interface EnrichedTextSelectionRect : UITextSelectionRect
++- (instancetype)initWithSelectionRect:(UITextSelectionRect *)base
++                                 rect:(CGRect)rect;
++@end
++
++@implementation EnrichedTextSelectionRect {
++  UITextSelectionRect *_base;
++  CGRect _rect;
++}
++
++- (instancetype)initWithSelectionRect:(UITextSelectionRect *)base
++                                 rect:(CGRect)rect {
++  if (self = [super init]) {
++    _base = base;
++    _rect = rect;
++  }
++  return self;
++}
++
++- (CGRect)rect {
++  return _rect;
++}
++
++- (NSWritingDirection)writingDirection {
++  return _base.writingDirection;
++}
++
++- (BOOL)containsStart {
++  return _base.containsStart;
++}
++
++- (BOOL)containsEnd {
++  return _base.containsEnd;
++}
++
++- (BOOL)isVertical {
++  return _base.isVertical;
++}
++
++@end
++
+ @implementation EnrichedInputTextView
+ 
+ - (void)layoutSubviews {
+@@ -20,6 +61,55 @@ - (void)layoutSubviews {
    }
  }
  
 +// paragraphSpacing is added to the last line fragment of a paragraph, so the
-+// system caret would grow into the gap. Trim it back to the text line box.
-+- (CGRect)caretRectWithoutParagraphSpacing:(CGRect)rect
-+                                   atIndex:(NSUInteger)idx {
-+  NSString *text = self.textStorage.string;
-+  NSUInteger length = text.length;
-+  if (length == 0) {
-+    return rect;
-+  }
-+  if (idx >= length && [text characterAtIndex:length - 1] == '\n') {
-+    // caret sits on the trailing empty line, which has no spacing of its own
++// caret and selection rects would grow into the gap. Clamp a view-space rect's
++// bottom to the text line box of the line fragment its bottom edge lies in.
++- (CGRect)rectWithoutParagraphSpacing:(CGRect)rect {
++  if (self.textStorage.length == 0 || CGRectGetHeight(rect) <= 1) {
 +    return rect;
 +  }
 +
-+  // Pick the line the caret is drawn on, not the one its offset starts:
-+  // at a soft wrap the caret can sit at the end of the previous line.
++  // Probe the rect's own bottom edge rather than its character offset: at a
++  // soft wrap the caret can sit at the end of the previous line, and a
++  // multi-line selection rect ends on its last line.
 +  NSLayoutManager *layoutManager = self.layoutManager;
 +  UIEdgeInsets inset = self.textContainerInset;
-+  CGPoint caretPoint = CGPointMake(CGRectGetMidX(rect) - inset.left,
-+                                   CGRectGetMidY(rect) - inset.top);
++  CGPoint probe = CGPointMake(CGRectGetMidX(rect) - inset.left,
++                              CGRectGetMaxY(rect) - inset.top - 0.5);
 +  NSUInteger glyphIndex =
-+      [layoutManager glyphIndexForPoint:caretPoint
++      [layoutManager glyphIndexForPoint:probe
 +                        inTextContainer:self.textContainer];
 +  CGRect fragmentRect =
 +      [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
 +                                      effectiveRange:nullptr];
-+  if (caretPoint.y < CGRectGetMinY(fragmentRect) ||
-+      caretPoint.y > CGRectGetMaxY(fragmentRect)) {
++  if (probe.y < CGRectGetMinY(fragmentRect) ||
++      probe.y > CGRectGetMaxY(fragmentRect)) {
 +    return rect;
 +  }
 +  CGRect usedRect =
 +      [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
 +                                          effectiveRange:nullptr];
-+  CGFloat extra = fragmentRect.size.height - usedRect.size.height;
-+  if (extra > 0.5 && extra < rect.size.height) {
-+    rect.size.height -= extra;
++  CGFloat textBottom = CGRectGetMaxY(usedRect) + inset.top;
++  if (textBottom <= CGRectGetMinY(rect) ||
++      textBottom >= CGRectGetMaxY(rect) - 0.5) {
++    return rect;
 +  }
++  rect.size.height = textBottom - CGRectGetMinY(rect);
 +  return rect;
++}
++
++- (CGRect)caretRectWithoutParagraphSpacing:(CGRect)rect
++                                   atIndex:(NSUInteger)idx {
++  NSString *text = self.textStorage.string;
++  NSUInteger length = text.length;
++  if (idx >= length && length > 0 &&
++      [text characterAtIndex:length - 1] == '\n') {
++    // caret sits on the trailing empty line, which has no spacing of its own
++    return rect;
++  }
++  return [self rectWithoutParagraphSpacing:rect];
 +}
 +
  // UITextView places the cursor at the leading edge when a paragraph contains
  // zero (or invisible) glyphs because the layout engine has nothing to align.
  // We fix this by reading the active alignment and repositioning the caret rect
-@@ -35,7 +75,7 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+@@ -35,7 +125,7 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
  
    // Non-empty paragraph gets its caret drawn the usual way.
    if (paraRange.length != 0) {
@@ -147,49 +204,28 @@ index 4e8dd50..98725aa 100644
    }
  
    NSParagraphStyle *pStyle =
-@@ -61,6 +101,47 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
+@@ -61,6 +151,26 @@ - (CGRect)caretRectForPosition:(UITextPosition *)position {
    return rect;
  }
  
-+// paragraphSpacing is added to the last line fragment of a paragraph, so a
-+// selection spanning paragraphs would otherwise highlight into that gap.
-+// Trim each selection rect back to the text line box, same as the caret.
++// A selection spanning paragraphs would otherwise highlight the paragraph
++// gap. UITextSelectionRect is immutable, so wrap each rect with a trimmed one.
 +- (NSArray<UITextSelectionRect *> *)selectionRectsForRange:
 +    (UITextRange *)range {
 +  NSArray<UITextSelectionRect *> *rects = [super selectionRectsForRange:range];
-+  NSLayoutManager *layoutManager = self.layoutManager;
-+  UIEdgeInsets inset = self.textContainerInset;
-+
++  NSMutableArray<UITextSelectionRect *> *trimmed =
++      [NSMutableArray arrayWithCapacity:rects.count];
 +  for (UITextSelectionRect *selectionRect in rects) {
-+    CGRect rect = selectionRect.rect;
-+    CGPoint point = CGPointMake(CGRectGetMidX(rect) - inset.left,
-+                                 CGRectGetMidY(rect) - inset.top);
-+    NSUInteger glyphIndex =
-+        [layoutManager glyphIndexForPoint:point
-+                          inTextContainer:self.textContainer];
-+    CGRect fragmentRect =
-+        [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
-+                                        effectiveRange:nullptr];
-+    if (point.y < CGRectGetMinY(fragmentRect) ||
-+        point.y > CGRectGetMaxY(fragmentRect)) {
-+      continue;
-+    }
-+    CGRect usedRect =
-+        [layoutManager lineFragmentUsedRectForGlyphAtIndex:glyphIndex
-+                                            effectiveRange:nullptr];
-+    CGFloat extra = fragmentRect.size.height - usedRect.size.height;
-+    if (extra <= 0.5 || extra >= rect.size.height) {
-+      continue;
-+    }
-+    rect.size.height -= extra;
-+    @try {
-+      [selectionRect setValue:[NSValue valueWithCGRect:rect] forKey:@"rect"];
-+    } @catch (NSException *exception) {
-+      // private UITextSelectionRect layout changed; leave rect as-is
++    CGRect rect = [self rectWithoutParagraphSpacing:selectionRect.rect];
++    if (CGRectEqualToRect(rect, selectionRect.rect)) {
++      [trimmed addObject:selectionRect];
++    } else {
++      [trimmed addObject:[[EnrichedTextSelectionRect alloc]
++                             initWithSelectionRect:selectionRect
++                                              rect:rect]];
 +    }
 +  }
-+
-+  return rects;
++  return trimmed;
 +}
 +
  - (void)copy:(id)sender {
