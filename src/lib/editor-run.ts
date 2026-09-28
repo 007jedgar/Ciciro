@@ -270,13 +270,24 @@ export async function prepareEditorRun(input: EditorRunInput) {
       input.continueFrom || legacyAssistant?.content || ""
     );
 
+    // The context block is fixed for the whole run but resent on every
+    // tool-loop iteration (executeClaimedEditorRun below), so it gets its
+    // own cache breakpoint alongside the system prompt's (prompts.ts,
+    // editorSystemFor) - two of Anthropic's four-breakpoint-per-request limit.
+    const contextBlock: Anthropic.TextBlockParam = {
+      type: "text",
+      text: `<context>\n${contextWithPlan}\n</context>`,
+      cache_control: { type: "ephemeral" },
+    };
+
     if (visibleSeed) {
       messages.push({ role: "assistant", content: visibleSeed });
       messages.push({
         role: "user",
-        content:
-          `<context>\n${contextWithPlan}\n</context>${selectionBlock}\n\n` +
-          continuePrompt(visibleSeed),
+        content: [
+          contextBlock,
+          { type: "text", text: `${selectionBlock}\n\n${continuePrompt(visibleSeed)}` },
+        ],
       });
     } else {
       const last = messages.length - 1;
@@ -286,7 +297,7 @@ export async function prepareEditorRun(input: EditorRunInput) {
       }
       messages[last] = {
         role: "user",
-        content: `<context>\n${contextWithPlan}\n</context>${selectionBlock}\n\n${row.content}`,
+        content: [contextBlock, { type: "text", text: `${selectionBlock}\n\n${row.content}` }],
       };
     }
 
