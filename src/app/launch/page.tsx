@@ -183,6 +183,9 @@ export default function LaunchPage() {
           <Link href="/signup" className="launch-link">
             Get early access
           </Link>
+          <Link href="/privacy" className="launch-link">
+            Privacy
+          </Link>
         </nav>
         <p className="launch-footer-note">Ciciro is in early access. &copy; {new Date().getFullYear()}.</p>
       </footer>

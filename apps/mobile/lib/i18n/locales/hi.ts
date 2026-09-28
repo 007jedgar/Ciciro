@@ -188,6 +188,7 @@ const hi: Translations = {
     account: "खाता",
     signedIn: "Ciciro में साइन इन हैं",
     signOut: "साइन आउट",
+    privacyPolicy: "गोपनीयता नीति",
   },
   themes: {
     parchment: "चर्मपत्र",

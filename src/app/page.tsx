@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
@@ -320,6 +321,9 @@ export default function Home() {
           <h1>Ciciro</h1>
         </div>
         <div className="account-bar">
+          <Link className="btn ghost small" href="/privacy">
+            Privacy
+          </Link>
           <AccountBar />
           <ThemePicker />
         </div>
