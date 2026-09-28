@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import {
   ChapterEditor,
   paragraphSpacingFor,
@@ -45,7 +45,7 @@ function style(overrides: Partial<OnChangeStateEvent> = {}): OnChangeStateEvent 
 }
 
 describe("ChapterEditor", () => {
-  it("does not clobber the native buffer while an edit is in flight", () => {
+  it("does not clobber the native buffer while an edit is in flight", async () => {
     const registerEditor = jest.fn();
     const { rerender } = render(
       <ChapterEditor
@@ -63,7 +63,9 @@ describe("ChapterEditor", () => {
     );
     const editor = registerEditor.mock.calls[0][0] as EnrichedTextInputInstance;
     const setValue = jest.spyOn(editor, "setValue");
-    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    });
     rerender(
       <ChapterEditor
         chapterId="c1"
@@ -132,15 +134,11 @@ describe("ChapterEditor", () => {
     await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
   });
 
-  it("ignores a native onChangeText echo of its own setValue, so a later correction still lands", async () => {
-    // The native editor re-emits onChangeText for a programmatic setValue,
-    // not just for real typing, before the user has touched anything. Only
-    // an onChangeText whose text differs from what the sync effect just
-    // applied is a real edit.
+  function renderForEcho(initial: string) {
     const registerEditor = jest.fn();
     const props = {
       chapterId: "c1",
-      html,
+      html: initial,
       editorStyle,
       resumeOffset: null as number | null,
       onFocused: jest.fn(),
@@ -150,15 +148,94 @@ describe("ChapterEditor", () => {
       onChangeSelection: jest.fn(),
       registerEditor,
     };
-    const { rerender } = render(<ChapterEditor {...props} />);
+    const view = render(<ChapterEditor {...props} />);
     const editor = [...registerEditor.mock.calls].reverse().find((call) => call[0])?.[0] as
-      | EnrichedTextInputInstance
+      | (EnrichedTextInputInstance & { emitNativeChangeText: (value: string) => void })
       | undefined;
     expect(editor).toBeTruthy();
-    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there.");
+    return { ...view, props, editor: editor! };
+  }
+
+  it("ignores a native onChangeText echo of its own setValue, so a later correction still lands", async () => {
+    // The native editor re-emits onChangeText for a programmatic setValue,
+    // not just for real typing, before the user has touched anything. Only
+    // a buffer that differs from what the sync effect applied is a real edit.
+    const { props, editor, rerender } = renderForEcho(html);
+    await act(async () => editor.emitNativeChangeText("Hello there."));
     expect(props.onChangeText).not.toHaveBeenCalled();
     rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
-    await expect(editor!.getHTML()).resolves.toBe("<p>From the desk.</p>");
+    await expect(editor.getHTML()).resolves.toBe("<p>From the desk.</p>");
+  });
+
+  it("ignores the newline-separated echo of a multi-paragraph quote", async () => {
+    const quote = '<blockquote data-block-id="q"><p>Line one.</p><p>Line two.</p></blockquote>';
+    const { props, editor, rerender } = renderForEcho(quote);
+    await act(async () => editor.emitNativeChangeText("Line one.\nLine two."));
+    expect(props.onChangeText).not.toHaveBeenCalled();
+    rerender(
+      <ChapterEditor
+        {...props}
+        html='<blockquote data-block-id="q"><p>Line one.</p><p>Line two, corrected.</p></blockquote>'
+      />
+    );
+    await expect(editor.getHTML()).resolves.toBe(
+      "<blockquote><p>Line one.</p><p>Line two, corrected.</p></blockquote>"
+    );
+  });
+
+  it("still treats the first keystroke after a sync as a real edit", async () => {
+    const { props, editor, rerender } = renderForEcho(html);
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    });
+    expect(props.onChangeText).toHaveBeenCalledWith("Hello there. Typing now.");
+    const setValue = jest.spyOn(editor, "setValue");
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">Stale from sync.</p>' />);
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
+  it("holds a correction that arrives while an echo is being checked, then applies it", async () => {
+    const { props, editor, rerender } = renderForEcho(html);
+    const setValue = jest.spyOn(editor, "setValue");
+    act(() => editor.emitNativeChangeText("Hello there."));
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    expect(setValue).not.toHaveBeenCalled();
+    await act(async () => {});
+    expect(props.onChangeText).not.toHaveBeenCalled();
+    await expect(editor.getHTML()).resolves.toBe("<p>From the desk.</p>");
+  });
+
+  it("tells the screen when a correction replaces the buffer", () => {
+    const onContentApplied = jest.fn();
+    const { props, rerender } = renderForEcho(html);
+    rerender(
+      <ChapterEditor
+        {...props}
+        onContentApplied={onContentApplied}
+        html='<p data-block-id="a">From the desk.</p>'
+      />
+    );
+    expect(onContentApplied).toHaveBeenCalledTimes(1);
+    rerender(
+      <ChapterEditor
+        {...props}
+        onContentApplied={onContentApplied}
+        html='<p data-block-id="b">From the desk.</p>'
+      />
+    );
+    expect(onContentApplied).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets corrections land again once an unfocused edit (dictation after blur) commits", async () => {
+    const { props, editor, rerender } = renderForEcho(html);
+    const markEdited = props.registerEditor.mock.calls.find((call) => call[0])?.[1] as () => void;
+    markEdited();
+    editor.setValue("<html><p>Hello there. Dictated.</p></html>");
+    const setValue = jest.spyOn(editor, "setValue");
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">Hello there. Dictated.</p>' />);
+    expect(setValue).not.toHaveBeenCalled();
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    await expect(editor.getHTML()).resolves.toBe("<p>From the desk.</p>");
   });
 
   it("holds off syncing after a toolbar or dictation edit reported through markEdited", () => {
@@ -225,7 +302,9 @@ describe("ChapterEditor", () => {
     const editor = [...registerEditor.mock.calls].reverse().find((call) => call[0])?.[0] as
       | EnrichedTextInputInstance
       | undefined;
-    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    });
     const setValue = jest.spyOn(editor!, "setValue");
     rerender(<ChapterEditor {...props} html='<p data-block-id="a">Stale from sync.</p>' />);
     expect(setValue).not.toHaveBeenCalled();
@@ -267,7 +346,7 @@ describe("ChapterEditor", () => {
     expect(input.props.defaultValue).not.toMatch(/<p>\s*<\/p>/);
   });
 
-  it("forwards typing to the host", () => {
+  it("forwards typing to the host", async () => {
     const onChangeText = jest.fn();
     render(
       <ChapterEditor
@@ -283,7 +362,9 @@ describe("ChapterEditor", () => {
         registerEditor={jest.fn()}
       />
     );
-    fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. More.");
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. More.");
+    });
     expect(onChangeText).toHaveBeenCalledWith("Hello there. More.");
   });
 

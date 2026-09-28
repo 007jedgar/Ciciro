@@ -18,7 +18,15 @@ export const EnrichedTextInput = forwardRef(function EnrichedTextInput(
   ref: Ref<unknown>
 ) {
   const html = useRef(props.defaultValue ?? "");
+  const propsRef = useRef(props);
+  propsRef.current = props;
   const api = useRef({
+    // Test hook: the native view re-emits onChangeText after a programmatic
+    // setValue with the buffer unchanged, which typing through the TextInput
+    // below can't reproduce.
+    emitNativeChangeText: (value: string) => {
+      propsRef.current.onChangeText?.({ nativeEvent: { value } });
+    },
     focus: noop,
     blur: noop,
     setValue: (value: string) => {
@@ -60,7 +68,10 @@ export const EnrichedTextInput = forwardRef(function EnrichedTextInput(
       onFocus={props.onFocus as never}
       onBlur={props.onBlur as never}
       onChangeText={(value) => {
-        html.current = value;
+        html.current = `<html>${value
+          .split("\n")
+          .map((line) => `<p>${line}</p>`)
+          .join("")}</html>`;
         props.onChangeText?.({ nativeEvent: { value } });
       }}
     />

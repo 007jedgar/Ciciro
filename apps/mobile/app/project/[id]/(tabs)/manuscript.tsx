@@ -308,6 +308,10 @@ export default function ManuscriptScreen() {
     [markTyping, scheduleFlush, settings.autoCorrect]
   );
 
+  const onContentApplied = useCallback(() => {
+    liveTextRef.current = null;
+  }, []);
+
   const liveChapterText = useCallback((current: Chapter) => {
     const live = liveTextRef.current;
     return live && live.chapterId === current.id ? live.text : blocksPlainText(current.content);
@@ -656,6 +660,7 @@ export default function ManuscriptScreen() {
               onFocused={onFocused}
               onBlurred={onBlurred}
               onChangeText={onChangeText}
+              onContentApplied={onContentApplied}
               onChangeState={onChangeState}
               onChangeSelection={onCaret}
               onLongPress={showPressMenu(settings.formatChrome) ? openPressMenu : undefined}

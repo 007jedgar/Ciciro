@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,10 +8,9 @@ import {
 } from "react-native-enriched-html";
 import type { FormatBlockKind } from "./FormatBar";
 import type { BlockMarks } from "../lib/block-editor";
-import { toEnrichedHtml } from "../lib/enriched-html";
+import { opsFromEnrichedHtml, toEnrichedHtml } from "../lib/enriched-html";
 import { FORMAT_PRESS_MS } from "../lib/format-chrome";
 import { typewriterBottomInset } from "../lib/focus-mode";
-import { blocksPlainText } from "../lib/read-aloud-text";
 
 export type EditorStyle = {
   fontFamily: string;
@@ -59,6 +58,7 @@ export function ChapterEditor({
   onFocused,
   onBlurred,
   onChangeText,
+  onContentApplied,
   onChangeState,
   onChangeSelection,
   onLongPress,
@@ -76,6 +76,7 @@ export function ChapterEditor({
   onFocused: () => void;
   onBlurred: () => void;
   onChangeText: (text: string) => void;
+  onContentApplied?: () => void;
   onChangeState: (state: OnChangeStateEvent) => void;
   onChangeSelection: (start: number, end: number) => void;
   onLongPress?: () => void;
@@ -92,22 +93,28 @@ export function ChapterEditor({
   // correction to `html` (e.g. once the real content lands) was skipped by a
   // guard meant to protect in-progress typing, not a passive resume-focus.
   const dirtyRef = useRef(false);
-  // Plain text of the content the sync effect below just pushed via setValue.
-  // The native editor re-emits onChangeText for a programmatic setValue too
-  // (it compares its text storage to what it last reported, not to "did the
-  // user type"), so onChangeText alone can't tell a real edit from an echo of
-  // our own write. Only an onChangeText whose text differs from this baseline
-  // is a real edit; a match is the native layer echoing what we just set.
-  const appliedPlainTextRef = useRef<string | null>(null);
+  // The `html` the sync effect last pushed via setValue. The native editor
+  // re-emits onChangeText for a programmatic setValue too (it compares its
+  // text storage to what it last reported, not to "did the user type"), so
+  // onChangeText alone can't tell a real edit from an echo of our own write.
+  // Only a buffer that diffs against this into ops is a real edit; no ops
+  // means the native layer is echoing what we just set. Plain text can't
+  // decide it: a multi-paragraph quote echoes its lines newline-separated.
+  const appliedHtmlRef = useRef<string | null>(null);
+  const focusedRef = useRef(false);
   // The enriched HTML the sync effect last pushed, cleared by any local edit.
   // A new `html` that renders the same as it (a commit settling, or a block id
   // being stamped) has nothing to correct, so rewriting the buffer would only
   // throw away the caret.
   const appliedEnrichedRef = useRef<string | null>(null);
+  const onContentAppliedRef = useRef(onContentApplied);
+  onContentAppliedRef.current = onContentApplied;
   const didResume = useRef<string | null>(null);
-  const pressTouch = useRef<{ handle: ReturnType<typeof setTimeout>; x: number; y: number } | null>(
-    null
-  );
+  const pressTouch = useRef<{
+    handle: ReturnType<typeof setTimeout>;
+    x: number;
+    y: number;
+  } | null>(null);
   const { t } = useTranslation();
   const [shellHeight, setShellHeight] = useState(0);
   const typewriterPad = typewriterBottomInset(typewriter, shellHeight - bottomInset);
@@ -118,20 +125,38 @@ export function ChapterEditor({
     // the sync effect exactly like typing does.
     registerEditor(inputRef.current, () => {
       dirtyRef.current = true;
-      appliedPlainTextRef.current = null;
+      appliedHtmlRef.current = null;
       appliedEnrichedRef.current = null;
     });
     return () => registerEditor(null);
   }, [registerEditor]);
 
-  useEffect(() => {
-    if (dirtyRef.current) return;
+  const htmlRef = useRef(html);
+  htmlRef.current = html;
+  const echoChecksRef = useRef(0);
+
+  const syncBuffer = useCallback(() => {
+    if (echoChecksRef.current > 0) return;
+    const html = htmlRef.current;
     const enriched = toEnrichedHtml(html);
+    if (dirtyRef.current) {
+      if (focusedRef.current) return;
+      // An edit made with the field unfocused (dictation keeps running after
+      // a blur) has no onBlur to settle it: its commit is this `html`, so
+      // adopt it as the baseline and let later corrections land again.
+      dirtyRef.current = false;
+      appliedHtmlRef.current = html;
+      appliedEnrichedRef.current = enriched;
+      return;
+    }
     if (enriched === appliedEnrichedRef.current) return;
-    appliedPlainTextRef.current = blocksPlainText(html);
+    appliedHtmlRef.current = html;
     appliedEnrichedRef.current = enriched;
     inputRef.current?.setValue(enriched);
-  }, [html]);
+    onContentAppliedRef.current?.();
+  }, []);
+
+  useEffect(syncBuffer, [html, syncBuffer]);
 
   useEffect(() => {
     if (resumeOffset == null) return;
@@ -205,10 +230,22 @@ export function ChapterEditor({
         contextMenuItems={
           onSetKind
             ? [
-                { text: t("manuscript.formatHeading"), onPress: () => onSetKind("heading") },
-                { text: t("manuscript.formatQuote"), onPress: () => onSetKind("quote") },
-                { text: t("manuscript.formatList"), onPress: () => onSetKind("list_item") },
-                { text: t("manuscript.formatParagraph"), onPress: () => onSetKind("paragraph") },
+                {
+                  text: t("manuscript.formatHeading"),
+                  onPress: () => onSetKind("heading"),
+                },
+                {
+                  text: t("manuscript.formatQuote"),
+                  onPress: () => onSetKind("quote"),
+                },
+                {
+                  text: t("manuscript.formatList"),
+                  onPress: () => onSetKind("list_item"),
+                },
+                {
+                  text: t("manuscript.formatParagraph"),
+                  onPress: () => onSetKind("paragraph"),
+                },
               ]
             : undefined
         }
@@ -231,23 +268,50 @@ export function ChapterEditor({
           fontSize: editorStyle.fontSize,
           lineHeight: editorStyle.lineHeight,
         }}
-        onFocus={() => onFocused()}
+        onFocus={() => {
+          focusedRef.current = true;
+          onFocused();
+        }}
         onBlur={() => {
+          focusedRef.current = false;
           dirtyRef.current = false;
           onBlurred();
         }}
         onChangeText={(e) => {
           const value = e.nativeEvent.value;
-          if (!dirtyRef.current && value === appliedPlainTextRef.current) {
-            // The native editor's own echo of the setValue the sync effect
-            // just applied, not something the user typed: ignore it so a
-            // later correction to `html` still lands.
+          const markEdited = () => {
+            dirtyRef.current = true;
+            appliedHtmlRef.current = null;
+            appliedEnrichedRef.current = null;
+            onChangeText(value);
+          };
+          const input = inputRef.current;
+          if (dirtyRef.current || appliedHtmlRef.current == null || !input) {
+            markEdited();
             return;
           }
-          dirtyRef.current = true;
-          appliedPlainTextRef.current = null;
-          appliedEnrichedRef.current = null;
-          onChangeText(value);
+          echoChecksRef.current += 1;
+          void input
+            .getHTML()
+            .then(
+              (enriched) => {
+                const applied = appliedHtmlRef.current;
+                return (
+                  !dirtyRef.current &&
+                  applied != null &&
+                  opsFromEnrichedHtml(applied, enriched, 0).length === 0
+                );
+              },
+              () => false
+            )
+            .then((echo) => {
+              echoChecksRef.current -= 1;
+              // The native editor's own echo of the setValue the sync effect
+              // just applied, not something the user typed: ignore it, and
+              // apply any correction that arrived while this was checked.
+              if (echo) syncBuffer();
+              else markEdited();
+            });
         }}
         onChangeState={(e) => onChangeState(e.nativeEvent)}
         onChangeSelection={(e) => onChangeSelection(e.nativeEvent.start, e.nativeEvent.end)}
