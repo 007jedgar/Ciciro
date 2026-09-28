@@ -46,8 +46,10 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
   const [error, setError] = useState("");
   const [styleDraft, setStyleDraft] = useState("");
   const [styleState, setStyleState] = useState<ItemState>("idle");
+  const [styleRevision, setStyleRevision] = useState(0);
   const [charDrafts, setCharDrafts] = useState<Record<string, string>>({});
   const [charState, setCharState] = useState<Record<string, ItemState>>({});
+  const [charRevisions, setCharRevisions] = useState<Record<string, number>>({});
 
   async function analyze() {
     setLoading(true);
@@ -57,11 +59,15 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
       setProposal(found);
       setStyleDraft(found.proposedStyleMd);
       setStyleState("idle");
+      setStyleRevision(found.currentStyleMdRevision);
       const drafts: Record<string, string> = {};
+      const revisions: Record<string, number> = {};
       for (const c of found.characters) {
         drafts[c.path] = replaceVoiceSection(c.currentContent, c.voice);
+        revisions[c.path] = c.currentRevision;
       }
       setCharDrafts(drafts);
+      setCharRevisions(revisions);
       setCharState({});
     } catch (e) {
       setError((e as Error).message);
@@ -75,7 +81,8 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
     setStyleState("saving");
     setError("");
     try {
-      await saveBibleFile(projectId, "style.md", styleDraft, proposal.currentStyleMdRevision);
+      const { revision } = await saveBibleFile(projectId, "style.md", styleDraft, styleRevision);
+      setStyleRevision(revision);
       setStyleState("saved");
     } catch (e) {
       setError((e as Error).message);
@@ -87,7 +94,13 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
     setCharState((s) => ({ ...s, [c.path]: "saving" }));
     setError("");
     try {
-      await saveBibleFile(projectId, c.path, charDrafts[c.path] ?? "", c.currentRevision);
+      const { revision } = await saveBibleFile(
+        projectId,
+        c.path,
+        charDrafts[c.path] ?? "",
+        charRevisions[c.path] ?? c.currentRevision
+      );
+      setCharRevisions((r) => ({ ...r, [c.path]: revision }));
       setCharState((s) => ({ ...s, [c.path]: "saved" }));
     } catch (e) {
       setError((e as Error).message);
@@ -137,6 +150,25 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
               {proposal.traits.map((t) => (
                 <TraitRow key={t.category} trait={t} />
               ))}
+              {proposal.currentStyleMd.trim() && (
+                <details style={{ margin: "6px 0" }}>
+                  <summary style={{ fontSize: 12, cursor: "pointer" }}>
+                    Your current style.md (kept as is; new traits are added below it)
+                  </summary>
+                  <pre
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 12,
+                      lineHeight: 1.6,
+                      whiteSpace: "pre-wrap",
+                      color: "var(--ink-soft)",
+                      margin: "6px 0 0",
+                    }}
+                  >
+                    {proposal.currentStyleMd}
+                  </pre>
+                </details>
+              )}
               <textarea
                 value={styleDraft}
                 onChange={(e) => {

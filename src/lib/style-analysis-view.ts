@@ -59,12 +59,23 @@ export type StyleAnalysisProposal = {
 
 const MIN_QUOTE_LEN = 3;
 
-/** Loose whitespace-insensitive substring check, for verifying a quote is real. */
+function normalizeForMatch(s: string): string {
+  return s
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Loose substring check for verifying a quote is real: ignores whitespace,
+ * case, and curly-versus-straight quotes and apostrophes.
+ */
 export function quoteAppearsIn(quote: string, sample: string): boolean {
-  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
-  const q = norm(quote);
+  const q = normalizeForMatch(quote);
   if (q.length < MIN_QUOTE_LEN) return false;
-  return norm(sample).includes(q);
+  return normalizeForMatch(sample).includes(q);
 }
 
 type RawTrait = { category?: unknown; text?: unknown; quote?: unknown };
@@ -123,16 +134,49 @@ export function parseStyleAnalysisJson(
   return { traits, characters };
 }
 
-/** A short style.md built from the proposed traits, one bullet per category. */
-export function renderProposedStyleMd(traits: StyleTrait[]): string {
-  const lines = ["# Style", "> Voice, POV, tense, prose rules, and dialogue conventions.", ""];
+function traitLines(traits: StyleTrait[]): string[] {
+  const lines: string[] = [];
   for (const category of STYLE_TRAIT_ORDER) {
     const trait = traits.find((t) => t.category === category);
     if (!trait) continue;
     lines.push(`- **${STYLE_TRAIT_LABELS[category]}:** ${trait.text}`);
     if (trait.quote) lines.push(`  > "${trait.quote}"`);
   }
+  return lines;
+}
+
+/** A short style.md built from the proposed traits, one bullet per category. */
+export function renderProposedStyleMd(traits: StyleTrait[]): string {
+  const lines = ["# Style", "> Voice, POV, tense, prose rules, and dialogue conventions.", ""];
+  lines.push(...traitLines(traits));
   return lines.join("\n") + "\n";
+}
+
+export const ANALYZED_STYLE_HEADING = "## Analyzed from my prose";
+
+/**
+ * The style.md draft to offer the author: their existing file kept intact,
+ * plus only the proposed traits whose text it doesn't already contain,
+ * gathered under ANALYZED_STYLE_HEADING (appended to that section when a
+ * previous analysis already added it). An empty file gets the full proposal.
+ */
+export function mergeProposedStyleMd(currentStyleMd: string, traits: StyleTrait[]): string {
+  const current = currentStyleMd.replace(/\s*$/, "");
+  if (!current.trim()) return renderProposedStyleMd(traits);
+  const existing = normalizeForMatch(current);
+  const fresh = traits.filter((t) => !existing.includes(normalizeForMatch(t.text)));
+  if (fresh.length === 0) return `${current}\n`;
+  const added = traitLines(fresh).join("\n");
+
+  const headingAt = current.indexOf(ANALYZED_STYLE_HEADING);
+  if (headingAt === -1) return `${current}\n\n${ANALYZED_STYLE_HEADING}\n${added}\n`;
+  const bodyStart = headingAt + ANALYZED_STYLE_HEADING.length;
+  const nextHeading = /\n##?\s+/.exec(current.slice(bodyStart));
+  if (!nextHeading) return `${current}\n${added}\n`;
+  const sectionEnd = bodyStart + nextHeading.index;
+  const section = current.slice(0, sectionEnd).replace(/\s*$/, "");
+  const after = current.slice(sectionEnd).replace(/^\s*/, "");
+  return `${section}\n${added}\n\n${after}\n`;
 }
 
 const VOICE_HEADING_RE = /^##\s+voice\s*$/im;
