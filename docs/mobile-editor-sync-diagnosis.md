@@ -124,27 +124,59 @@ onChangeText fired for chapterId=cmul34aik000511lsxlus9a87 # ~360ms later, no ty
 
 ### Fix
 
-`ChapterEditor` now records the plain text it just applied (`blocksPlainText(html)`, the same plain-text/offset contract the caret math elsewhere already relies on) alongside each `setValue` call. `onChangeText` only marks the editor dirty when the reported text differs from that baseline; a match is treated as the native echo of our own write and ignored. This doesn't depend on timing: it compares text, not measures a delay, so a real edit that happens to arrive immediately after a sync is still recognized (its text differs from the baseline).
+`ChapterEditor` (`apps/mobile/components/ChapterEditor.tsx`) keeps the html its content-sync effect last passed to `setValue` (`appliedHtmlRef`). While the editor is not dirty, `onChangeText` does not decide from the event's plain text. It reads the live buffer with `getHTML()` and compares it to that applied html through `opsFromEnrichedHtml(applied, enriched, 0)`, the same HTML-diff pipeline `flush()` already trusts to decide whether anything changed. Zero ops means the event was the native echo of our own write, so it is ignored and the editor stays clean. Any ops mean a real edit: the editor is marked dirty and the original plain text is forwarded to the screen. Once dirty, later keystrokes skip the check and forward synchronously, so typing pays the async round trip only once after each sync.
 
-### Captured round trip after the fix (same mechanism, fixed code)
+An edit-epoch counter (`editEpochRef`) guards every async `getHTML()` read. Each local edit bumps it, and a read whose epoch moved on while it was in flight is discarded. A stale read therefore can never mark an edit as an echo, or clear the dirty state for an unfocused (dictation) edit it never saw.
+
+#### Why not compare plain text
+
+The first version of this fix compared the echo's plain text against `blocksPlainText(html)`. That breaks on multi-paragraph blocks such as blockquotes, which are exactly the shape of this bug. `blocksPlainText` collapses the paragraph breaks inside a quote to spaces (`Line one. Line two.`). The native echo is `textStorage.string` with only zero-width spaces stripped (`ios/EnrichedTextInputView.mm`), so it keeps them as newlines (`Line one.\nLine two.`). A quote chapter's mount echo would still have marked the editor dirty. The capture below shows the newline-separated echo of a two-paragraph quote being recognized by the HTML comparison.
+
+### Captured on-device with the final code (`970f008`)
+
+Device: iPhone 18 Pro simulator, dev client running this commit's `ChapterEditor.tsx` against the local dev server and database, with temporary `[BQDEBUG4]` logging (not committed). Corrections were written through the real `updateChapter` path (`diffHtmlToOps` and the op log), so the phone received them through its normal pull. Log lines below are trimmed to the relevant fields.
+
+**Single paragraph: a stale mount, then a correction lands.**
 
 ```
-content-sync effect fired: dirty=false html=<p ...>Fix two evidence chapter.</p>
-setValue APPLIED appliedPlainText='Fix two evidence chapter.'
-onChangeText fired value='Fix two evidence chapter.' appliedPlainText='Fix two evidence chapter.' dirty=false
-onChangeText IGNORED (echo of our own setValue) # <- native echo, correctly not marked dirty
+06:01:44.697 syncBuffer: setValue APPLIED html=<p ...>Round two stale draft, pre-correction.</p>
+06:01:45.097 onChangeText fired value='Round two stale draft, pre-correction.' dirty=false   # native echo, no typing
+06:01:45.233 onChangeText echo-check resolved: echo=true                                    # ignored, editor stays clean
+06:01:45.233 syncBuffer: SKIPPED (already applied)
 
-# a server-side correction lands (PATCH via the app's own session):
-content-sync effect fired: dirty=false html=<p ...>Fix two evidence chapter SERVER-CORRECTED.</p>
-setValue APPLIED appliedPlainText='Fix two evidence chapter SERVER-CORRECTED.' # <- correction adopted, dirty never blocked it
-onChangeText fired value='...SERVER-CORRECTED.' appliedPlainText='...SERVER-CORRECTED.' dirty=false
-onChangeText IGNORED (echo of our own setValue)
+# the server correction arrives through the app's own pull:
+06:01:45.521 syncBuffer: setValue APPLIED html=<p ...>Round two, SERVER-CORRECTED via direct DB write.</p>
+06:01:45.538 onChangeText fired value='Round two, SERVER-CORRECTED via direct DB write.' dirty=false
+06:01:45.556 onChangeText echo-check resolved: echo=true
+06:01:45.557 syncBuffer: SKIPPED (already applied)
 ```
 
-Confirmed visually on-device: the editor shows "Fix two evidence chapter SERVER-CORRECTED." after the correction, in the same running app session, with no typing and no blur/refocus in between.
+| Cold mount (stale) | Same session, after the correction |
+| --- | --- |
+| ![Editor showing the stale draft after a cold mount](images/editor-sync-01-single-para-stale-mount.png) | ![Editor showing the server-corrected text without any typing](images/editor-sync-02-single-para-corrected.png) |
 
-A regression test (`apps/mobile/__tests__/ChapterEditor.test.tsx`, "ignores a native onChangeText echo of its own setValue, so a later correction still lands") reproduces the echo with a synthetic `onChangeText` carrying the same plain text `ChapterEditor` just applied, and asserts the next `html` correction is still adopted.
+**Two-paragraph blockquote: the mount echo is ignored, then typing inside the quote counts as an edit.** The chapter holds the canonical shape `stampBlockIds` produces, with the block id on the `<blockquote>` only.
 
-### Follow-up: multi-paragraph quotes
+```
+06:08:39.575 syncBuffer: setValue APPLIED html=<blockquote data-block-id="seeof8a2zgo"><p>Canonical quote, first paragraph.</p><p>Canonical quote, second paragraph.</p></blockquote>
+06:08:39.679 onChangeText fired value='Canonical quote, first paragraph.\nCanonical quote, second paragraph.' dirty=false
+06:08:39.712 onChangeText echo-check resolved: echo=true                                    # newline-separated echo still recognized
+06:08:39.712 syncBuffer: SKIPPED (already applied)
 
-The first version of this fix compared the echo's plain text against `blocksPlainText(html)`. A second review round caught that as unreliable for multi-paragraph blocks such as blockquotes: `blocksPlainText` collapses the paragraph breaks inside a quote to spaces, while the native echo preserves them as newlines, so a quote chapter's mount echo still marked the editor dirty. `ChapterEditor` now reads the buffer with `getHTML()` and compares it through the same HTML-diff pipeline (`opsFromEnrichedHtml`) the rest of the sync path already trusts, which handles multi-paragraph quotes correctly: no ops means the echo is ignored.
+# typing " Typed live." into the second paragraph:
+06:08:58.314 onChangeText fired value='...second pa ragraph.' dirty=false
+06:08:58.384 onChangeText echo-check resolved: echo=false
+06:08:58.384 onChangeText -> REAL EDIT
+06:08:58.390 onChangeText fired value='...second pa Typed liragraph.' dirty=true            # already dirty: forwarded without a check
+06:08:59.491 syncBuffer: dirty=true html=<blockquote ...><p>Canonical quote, first paragraph.</p><p>Canonical quote, second pa Typed live.ragraph.</p></blockquote>
+```
+
+The committed html keeps both paragraphs inside the one quote, and the edit lands in the second.
+
+| Cold mount | After typing in the second paragraph |
+| --- | --- |
+| ![Two-paragraph quote rendered intact after a cold mount](images/editor-sync-04-multipara-canonical-mounted.png) | ![The typed words inside the second paragraph, both paragraphs still in the quote](images/editor-sync-05-multipara-typed-real-edit.png) |
+
+### Regression tests
+
+`apps/mobile/__tests__/ChapterEditor.test.tsx` drives the same paths with a mocked native input whose `getHTML()` resolves asynchronously: "ignores a native onChangeText echo of its own setValue, so a later correction still lands", "ignores the newline-separated echo of a multi-paragraph quote", "still treats the first keystroke after a sync as a real edit", and the unfocused-edit and stale-read cases ("discards an unfocused settle read that a newer edit overtook"). The echo tests fail against the base commit's `ChapterEditor`.
