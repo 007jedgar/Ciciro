@@ -24,6 +24,12 @@ const proposal: StyleAnalysisProposal = {
   currentStyleMd: '# Style\n- Never use em dashes; use a hyphen "-".\n',
   currentStyleMdRevision: 5,
   proposedStyleMd: '# Style\n- Never use em dashes; use a hyphen "-".\n\n## Analyzed from my prose\n- **POV:** Close third person.\n',
+  styleSuggestions: [
+    {
+      trait: { category: "tense", text: "Past tense throughout.", quote: "never asked" },
+      current: "- **Tense:** Present, always.",
+    },
+  ],
 };
 
 let root: Root;
@@ -90,6 +96,14 @@ describe("StyleAnalysisPanel", () => {
     const [styleArea] = host.querySelectorAll("textarea");
     expect(styleArea.value).toBe(proposal.proposedStyleMd);
     expect(host.querySelector("details pre")?.textContent).toBe(proposal.currentStyleMd);
+  });
+
+  it("lists a differing reading as a suggestion beside the current file, not in the draft", () => {
+    const [styleArea] = host.querySelectorAll("textarea");
+    const suggestions = host.querySelector("details .style-suggestions")?.textContent ?? "";
+    expect(suggestions).toContain("You have: - **Tense:** Present, always.");
+    expect(suggestions).toContain("Past tense throughout.");
+    expect(styleArea.value).not.toContain("Past tense throughout.");
   });
 
   it("saves style.md again after an edit without a revision conflict", async () => {

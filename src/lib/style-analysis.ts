@@ -170,12 +170,15 @@ export async function analyzeStyle(
     });
   }
 
+  const currentStyleMd = styleFile?.content ?? "";
+  const merged = mergeProposedStyleMd(currentStyleMd, parsed.traits);
   return {
     traits: parsed.traits,
     characters,
     sampledChapters: sample.map((c) => ({ id: c.id, title: c.title })),
-    currentStyleMd: styleFile?.content ?? "",
+    currentStyleMd,
     currentStyleMdRevision: styleFile?.revision ?? 0,
-    proposedStyleMd: mergeProposedStyleMd(styleFile?.content ?? "", parsed.traits),
+    proposedStyleMd: merged.styleMd,
+    styleSuggestions: merged.suggestions,
   };
 }

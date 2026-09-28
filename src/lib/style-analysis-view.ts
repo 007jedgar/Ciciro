@@ -55,6 +55,14 @@ export type StyleAnalysisProposal = {
   currentStyleMd: string;
   currentStyleMdRevision: number;
   proposedStyleMd: string;
+  /** Readings for categories style.md already covers, offered for comparison only - never merged in. */
+  styleSuggestions: StyleSuggestion[];
+};
+
+export type StyleSuggestion = {
+  trait: StyleTrait;
+  /** The bullet style.md already has for this category, as written. */
+  current: string;
 };
 
 const MIN_QUOTE_LEN = 3;
@@ -78,13 +86,16 @@ export function quoteAppearsIn(quote: string, sample: string): boolean {
   return normalizeForMatch(sample).includes(q);
 }
 
+const NO_EVIDENCE_RE = /\b(?:not enough|insufficient|too little|no clear|no) evidence\b/i;
+
 type RawTrait = { category?: unknown; text?: unknown; quote?: unknown };
 type RawCharacter = { name?: unknown; voice?: unknown; quote?: unknown };
 export type ParsedCharacterVoice = { name: string; voice: string; quote: string };
 
 /**
- * Parse the model's JSON reply. A trait keeps its `text` even without
- * evidence (the model is told to say so), but a `quote` that cannot be found
+ * Parse the model's JSON reply. A trait the model had no evidence for comes
+ * back with empty `text` and is dropped, so no placeholder ever reaches a
+ * draft. A trait keeps its `text` without a quote, but a `quote` that cannot be found
  * verbatim in the sample is dropped to "" rather than trusted - the point of
  * this feature is that every claim is checkable against the author's own
  * prose. A character not in `characterNames` is dropped outright.
@@ -110,7 +121,7 @@ export function parseStyleAnalysisJson(
     const category = item.category as StyleTraitCategory;
     if (!STYLE_TRAIT_ORDER.includes(category)) continue;
     const text = typeof item.text === "string" ? item.text.trim() : "";
-    if (!text) continue;
+    if (!text || NO_EVIDENCE_RE.test(text)) continue;
     const rawQuote = typeof item.quote === "string" ? item.quote.trim() : "";
     const quote = rawQuote && quoteAppearsIn(rawQuote, opts.sampleText) ? rawQuote : "";
     byCategory.set(category, { category, text, quote });
@@ -155,46 +166,46 @@ export function renderProposedStyleMd(traits: StyleTrait[]): string {
 export const ANALYZED_STYLE_HEADING = "## Analyzed from my prose";
 
 /**
- * The style.md draft to offer the author: their existing file kept intact,
- * plus only the proposed traits whose text it doesn't already contain,
- * gathered under ANALYZED_STYLE_HEADING. When a previous analysis already
- * added that section, a trait replaces the bullet (and quote line) for its
- * own category there rather than stacking a second one beside it. An empty
- * file gets the full proposal.
+ * The style.md draft to offer the author. Their existing file is kept
+ * exactly as it is: no saved bullet is ever rewritten. Only traits for a
+ * category the file has no bullet for yet are appended, gathered under
+ * ANALYZED_STYLE_HEADING (added to the end of that section when a previous
+ * analysis created it). A trait for a category the file already covers, in
+ * different words, comes back as a suggestion to compare, not a change. An
+ * empty file gets the full proposal.
  */
-export function mergeProposedStyleMd(currentStyleMd: string, traits: StyleTrait[]): string {
+export function mergeProposedStyleMd(
+  currentStyleMd: string,
+  traits: StyleTrait[]
+): { styleMd: string; suggestions: StyleSuggestion[] } {
   const current = currentStyleMd.replace(/\s*$/, "");
-  if (!current.trim()) return renderProposedStyleMd(traits);
+  if (!current.trim()) return { styleMd: renderProposedStyleMd(traits), suggestions: [] };
   const existing = normalizeForMatch(current);
-  const fresh = traits.filter((t) => !existing.includes(normalizeForMatch(t.text)));
-  if (fresh.length === 0) return `${current}\n`;
+  const currentLines = current.split("\n");
+
+  const fresh: StyleTrait[] = [];
+  const suggestions: StyleSuggestion[] = [];
+  for (const trait of traits) {
+    if (existing.includes(normalizeForMatch(trait.text))) continue;
+    const bullet = normalizeForMatch(`- **${STYLE_TRAIT_LABELS[trait.category]}:**`);
+    const saved = currentLines.find((l) => normalizeForMatch(l).startsWith(bullet));
+    if (saved) suggestions.push({ trait, current: saved.trim() });
+    else fresh.push(trait);
+  }
+  if (fresh.length === 0) return { styleMd: `${current}\n`, suggestions };
+  const added = traitLines(fresh).join("\n");
 
   const headingAt = current.indexOf(ANALYZED_STYLE_HEADING);
   if (headingAt === -1) {
-    return `${current}\n\n${ANALYZED_STYLE_HEADING}\n${traitLines(fresh).join("\n")}\n`;
+    return { styleMd: `${current}\n\n${ANALYZED_STYLE_HEADING}\n${added}\n`, suggestions };
   }
   const bodyStart = headingAt + ANALYZED_STYLE_HEADING.length;
   const nextHeading = /\n##?\s+/.exec(current.slice(bodyStart));
-  const sectionEnd = nextHeading ? bodyStart + nextHeading.index : current.length;
-  const before = current.slice(0, bodyStart);
+  if (!nextHeading) return { styleMd: `${current}\n${added}\n`, suggestions };
+  const sectionEnd = bodyStart + nextHeading.index;
+  const section = current.slice(0, sectionEnd).replace(/\s*$/, "");
   const after = current.slice(sectionEnd).replace(/^\s*/, "");
-
-  const body = current.slice(bodyStart, sectionEnd).replace(/^\n/, "").replace(/\s*$/, "");
-  const lines = body ? body.split("\n") : [];
-  for (const trait of fresh) {
-    const replacement = traitLines([trait]);
-    const bullet = `- **${STYLE_TRAIT_LABELS[trait.category]}:**`;
-    const start = lines.findIndex((l) => l.startsWith(bullet));
-    if (start === -1) {
-      lines.push(...replacement);
-      continue;
-    }
-    let end = start + 1;
-    while (end < lines.length && /^\s+>/.test(lines[end])) end++;
-    lines.splice(start, end - start, ...replacement);
-  }
-  const section = `${before}\n${lines.join("\n")}`;
-  return after ? `${section}\n\n${after}\n` : `${section}\n`;
+  return { styleMd: `${section}\n${added}\n\n${after}\n`, suggestions };
 }
 
 const VOICE_HEADING_RE = /^##\s+voice\s*$/im;
