@@ -72,14 +72,14 @@ aligned: [Story bible](docs/story-bible.md).
 - **Prisma + SQLite** - local-first manuscript + chat storage.
 - **Story bible = markdown files on disk** (`data/<projectId>/bible/`) - the shared
   memory the editor reads and writes.
-- **@anthropic-ai/sdk** - the editor (Opus 5) runs an agentic tool loop; the drafter
+- **@anthropic-ai/sdk** - the editor (Opus 5.5) runs an agentic tool loop; the drafter
   (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
 - **docx** - manuscript-format Word export; **JSZip** and **pdf-lib** for EPUB and PDF.
 
 ## The architecture
 
 ### One editor, backstage drafters
-You talk only to the **editor** (Opus 5). It reasons on a small, always-current
+You talk only to the **editor** (Opus 5.5). It reasons on a small, always-current
 context and makes the calls. When you ask for prose, it:
 
 1. Reads the relevant bible files and prior text (retrieval tools).
