@@ -7,6 +7,7 @@ import Editor, { type EditorHandle } from "@/components/Editor";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import ChatPanel, { type ChatHandle } from "@/components/ChatPanel";
 import StoryBible from "@/components/StoryBible";
+import StyleAnalysisPanel from "@/components/StyleAnalysisPanel";
 import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
 import DiffView from "@/components/DiffView";
@@ -88,6 +89,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     initialProject.chapters[0]?.id ?? null
   );
   const [bibleOpen, setBibleOpen] = useState(false);
+  const [styleAnalysisOpen, setStyleAnalysisOpen] = useState(false);
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1051,6 +1053,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             },
             { key: "bible", label: "Story bible", onSelect: () => setBibleOpen(true) },
             {
+              key: "style-analysis",
+              label: "Analyze my style",
+              title: "Draft a proposed style.md and character Voice sections from your own chapters",
+              onSelect: () => setStyleAnalysisOpen(true),
+            },
+            {
               key: "repetition",
               label: "Repetition",
               title: "Overused words and phrases, per chapter and across the manuscript",
@@ -1312,6 +1320,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       <Presence open={bibleOpen}>
         <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
+      </Presence>
+
+      <Presence open={styleAnalysisOpen}>
+        <StyleAnalysisPanel projectId={project.id} onClose={() => setStyleAnalysisOpen(false)} />
       </Presence>
 
       <Presence open={repetitionOpen}>

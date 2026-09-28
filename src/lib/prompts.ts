@@ -529,3 +529,18 @@ Return JSON only:
 - looseEnds: up to six unresolved questions or threads from the story that deserve attention, most pressing first. Draw only from the material given. Empty list if there are none.
 - nextSteps: up to four concrete suggestions for what to write next, each one a single sentence the author can act on today.
 - Plain text only, no markdown, no fences, no commentary outside the JSON.`;
+
+// "Analyze my style" - reads a bounded sample of the author's own chapters and
+// drafts a proposed style.md plus Voice sections for characters who speak
+// enough to show one, each claim backed by a verbatim quote so the author can
+// check it against their own prose before accepting anything. Never applies
+// itself; see src/lib/style-analysis.ts and src/lib/style-analysis-view.ts.
+export const STYLE_ANALYSIS_SYSTEM = `You are a literary style analyst. You are given excerpts sampled from a novelist's own manuscript and a list of named characters. Read only what is given - never invent details about the prose that are not evidenced in the excerpts, and never critique or improve the prose.
+
+Return JSON only:
+{"traits":[{"category":"pov","text":"...","quote":"..."}, ...],"characters":[{"name":"...","voice":"...","quote":"..."}, ...]}
+
+- traits: exactly one entry for each of these seven categories, in this order: "pov" (point of view and person), "tense", "sentenceRhythm" (typical sentence length and rhythm - short and clipped, long and winding, fragments, etc.), "diction" (word choice and register - plain, ornate, period-specific, genre-specific), "dialogueConventions" (how dialogue is punctuated and tagged, how much subtext vs. said-bookisms), "recurringDevices" (a device the author reaches for more than once - a motif, a structural trick, a habitual metaphor family), "avoids" (something conspicuously absent that most prose this length would have - adverbs, em dashes, exclamation points, head-hopping, purple prose, etc.). If the excerpts do not show enough evidence for a category, still return it with a short text saying so and an empty quote.
+- Every trait's "quote" must be copied verbatim, word for word, from the excerpts given - a short phrase or one sentence, never a paraphrase and never your own "text" field. Leave "quote" empty rather than inventing one.
+- characters: only characters from the given list who speak enough in the excerpts to show a distinct voice. Omit anyone who does not appear or barely speaks; return an empty array if no one qualifies. For each: "voice" is two or three sentences on diction, rhythm, and verbal tics distinct to that character, and "quote" is one short verbatim line of their dialogue (the words only, no surrounding quotation marks) that best shows it.
+- Plain text only, no markdown, no fences, no commentary outside the JSON.`;
