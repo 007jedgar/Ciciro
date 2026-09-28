@@ -4,7 +4,7 @@
 // logic can be unit tested without mocking Anthropic or Prisma; see
 // src/lib/continuity.ts for the parts that touch the database and the model.
 
-import { MAX_QUERY_LENGTH, normalizeQuery } from "@/lib/manuscript-search";
+import { findMatches, MAX_QUERY_LENGTH } from "@/lib/manuscript-search";
 
 export type BibleIndexEntry = { path: string; summary: string };
 
@@ -126,8 +126,7 @@ export function groundFindings(
 ): ContinuityFinding[] {
   const byPath = new Map(bibleSections.map((s) => [s.path, s.content]));
   return findings.filter((f) => {
-    if (normalizeQuery(f.chapterQuote) === null) return false;
-    if (!contains(chapterText, f.chapterQuote)) return false;
+    if (findMatches(chapterText, f.chapterQuote, { matchCase: false, wholeWord: true }).length === 0) return false;
     const canonContent = byPath.get(f.canonFile);
     return canonContent !== undefined && contains(canonContent, f.canonQuote);
   });
@@ -144,7 +143,10 @@ function isKnownCanonFile(path: string): boolean {
  */
 function searchableQuote(raw: string): string {
   const firstLine = raw.split(/[\r\n]+/).map((l) => l.trim()).find(Boolean) ?? "";
-  return firstLine.slice(0, MAX_QUERY_LENGTH).trim();
+  if (firstLine.length <= MAX_QUERY_LENGTH) return firstLine;
+  const cut = firstLine.slice(0, MAX_QUERY_LENGTH + 1);
+  const lastBreak = cut.search(/[^\p{L}\p{N}_][\p{L}\p{N}_]*$/u);
+  return (lastBreak > 0 ? cut.slice(0, lastBreak) : "").trim();
 }
 
 function normalizeFinding(raw: unknown): ContinuityFinding | null {

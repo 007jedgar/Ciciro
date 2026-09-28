@@ -154,8 +154,20 @@ describe("parseContinuityFindings", () => {
     const spanning = { ...finding, chapterQuote: "Her eyes were brown.\n\nThe lamp went out." };
     expect(parseContinuityFindings(JSON.stringify([spanning]))[0].chapterQuote).toBe("Her eyes were brown.");
 
+    const sentence = "Her eyes were brown in the lamplight, and she did not look away. ".repeat(4).trim();
+    const long = { ...finding, chapterQuote: sentence };
+    const quote = parseContinuityFindings(JSON.stringify([long]))[0].chapterQuote;
+    expect(quote.length).toBeLessThanOrEqual(MAX_QUERY_LENGTH);
+    expect(sentence.startsWith(quote)).toBe(true);
+    expect(sentence[quote.length]).toMatch(/[^\p{L}\p{N}_]/u);
+    expect(groundFindings([{ ...finding, chapterQuote: quote }], sentence, [
+      { path: "characters/mara.md", content: finding.canonQuote },
+    ])).toHaveLength(1);
+  });
+
+  it("drops a long chapter quote with no word break to trim at", () => {
     const long = { ...finding, chapterQuote: "a".repeat(MAX_QUERY_LENGTH + 50) };
-    expect(parseContinuityFindings(JSON.stringify([long]))[0].chapterQuote).toHaveLength(MAX_QUERY_LENGTH);
+    expect(parseContinuityFindings(JSON.stringify([long]))).toEqual([]);
   });
 
   it("trims quotes and notes and caps the number of findings", () => {
@@ -202,7 +214,12 @@ describe("groundFindings", () => {
     expect(groundFindings([spanning], text, bible)).toEqual([]);
   });
 
-  it("drops a finding that names a bible file that wasn't sent", () => {
+  it("drops a chapter quote that starts or ends mid-word, since Show in text matches whole words", () => {
+    const partial = { ...finding, chapterQuote: "eyes were bro" };
+    expect(groundFindings([partial], chapterText, bible)).toEqual([]);
+  });
+
+    it("drops a finding that names a bible file that wasn't sent", () => {
     const wrongFile = { ...finding, canonFile: "world.md" };
     expect(groundFindings([wrongFile], chapterText, bible)).toEqual([]);
   });
