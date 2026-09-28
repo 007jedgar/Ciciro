@@ -13,7 +13,7 @@ Resolve PR / branch conflicts by **rebasing** onto the base branch. Do not merge
 
 ## Code the phone shares
 
-The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `src/lib/suggestions.ts` have byte-for-byte copies in `apps/mobile/lib/`. Change both; `test/manuscript-parity.test.ts` and `test/suggestions-parity.test.ts` fail when they drift. Pending tracked changes live inline in chapter HTML; see `docs/tracked-changes.md`.
+The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `src/lib/suggestions.ts` have byte-for-byte copies in `apps/mobile/lib/`. Change both; `test/manuscript-parity.test.ts` and `test/suggestions-parity.test.ts` fail when they drift. Pending tracked changes live inline in chapter HTML; see `docs/tracked-changes.md`. Not every pure `src/lib` module needs a mobile mirror - only add one, plus a parity test, when mobile actually gains a surface that uses it (e.g. `src/lib/repetition.ts` is web-only today; there is no mobile Repetition screen).
 
 ## Patched native editor
 
