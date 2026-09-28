@@ -233,9 +233,28 @@ describe("ChapterEditor", () => {
     editor.setValue("<html><p>Hello there. Dictated.</p></html>");
     const setValue = jest.spyOn(editor, "setValue");
     rerender(<ChapterEditor {...props} html='<p data-block-id="a">Hello there. Dictated.</p>' />);
+    await act(async () => {});
     expect(setValue).not.toHaveBeenCalled();
     rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
     await expect(editor.getHTML()).resolves.toBe("<p>From the desk.</p>");
+  });
+
+  it("keeps an unfocused edit protected until html holds that edit's own content", async () => {
+    const { props, editor, rerender } = renderForEcho(html);
+    const markEdited = props.registerEditor.mock.calls.find((call) => call[0])?.[1] as () => void;
+    markEdited();
+    editor.setValue("<html><p>Hello there. Phrase one. Phrase two.</p></html>");
+    const setValue = jest.spyOn(editor, "setValue");
+    rerender(
+      <ChapterEditor {...props} html='<p data-block-id="a">Hello there. Phrase one.</p>' />
+    );
+    await act(async () => {});
+    rerender(<ChapterEditor {...props} html='<p data-block-id="a">From the desk.</p>' />);
+    await act(async () => {});
+    expect(setValue).not.toHaveBeenCalled();
+    await expect(editor.getHTML()).resolves.toBe(
+      "<html><p>Hello there. Phrase one. Phrase two.</p></html>"
+    );
   });
 
   it("holds off syncing after a toolbar or dictation edit reported through markEdited", () => {

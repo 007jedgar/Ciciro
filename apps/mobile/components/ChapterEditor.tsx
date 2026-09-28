@@ -140,13 +140,22 @@ export function ChapterEditor({
     const html = htmlRef.current;
     const enriched = toEnrichedHtml(html);
     if (dirtyRef.current) {
-      if (focusedRef.current) return;
+      const input = inputRef.current;
+      if (focusedRef.current || !input) return;
       // An edit made with the field unfocused (dictation keeps running after
-      // a blur) has no onBlur to settle it: its commit is this `html`, so
-      // adopt it as the baseline and let later corrections land again.
-      dirtyRef.current = false;
-      appliedHtmlRef.current = html;
-      appliedEnrichedRef.current = enriched;
+      // a blur) has no onBlur to settle it. It has settled once `html` holds
+      // everything the buffer does; until then a later phrase is still
+      // waiting on its flush and must stay protected.
+      void input.getHTML().then(
+        (live) => {
+          if (!dirtyRef.current || focusedRef.current || htmlRef.current !== html) return;
+          if (opsFromEnrichedHtml(html, live, 0).length > 0) return;
+          dirtyRef.current = false;
+          appliedHtmlRef.current = html;
+          appliedEnrichedRef.current = enriched;
+        },
+        () => undefined
+      );
       return;
     }
     if (enriched === appliedEnrichedRef.current) return;
