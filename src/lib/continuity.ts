@@ -9,6 +9,7 @@ import { htmlToText } from "@/lib/text";
 import { visibleChapterWhere } from "@/lib/chapters";
 import {
   buildContinuityInput,
+  groundFindings,
   parseContinuityFindings,
   relevantCharacterPaths,
   type ContinuityCheckResult,
@@ -123,7 +124,7 @@ export async function runContinuityCheck(
     const text = htmlToText(chapter.content).trim();
     if (!text) continue;
     const bible = await relevantBible(projectId, text);
-    const chapterFindings = await askModel(bible, chapter.title, text);
+    const chapterFindings = groundFindings(await askModel(bible, chapter.title, text), text, bible);
     for (const finding of chapterFindings) {
       findings.push({ ...finding, chapterId: chapter.id, chapterTitle: chapter.title });
     }

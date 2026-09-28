@@ -100,6 +100,7 @@ describe("continuity check", () => {
 
   it("checks every chapter for scope book, tagging each finding with its chapter", async () => {
     const { user, project } = await seed();
+    await writeBibleFile(project.id, "canon.md", "# Canon\n- Aiden works nights.");
     const one = await chapterOf(project.id, "One", "<p>Aiden arrived at dawn.</p>", 0);
     const two = await chapterOf(project.id, "Two", "<p>Aiden left at dusk.</p>", 1);
     const empty = await chapterOf(project.id, "Empty", "", 2);
