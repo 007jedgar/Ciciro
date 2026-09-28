@@ -116,6 +116,19 @@ describe("parseStyleAnalysisJson", () => {
     expect(out?.traits.map((t) => t.category)).toEqual(["pov", "tense", "dialogueConventions"]);
   });
 
+  it("drops a trait the model had no evidence for instead of keeping a placeholder", () => {
+    const raw = JSON.stringify({
+      traits: [
+        { category: "pov", text: "Close third person.", quote: "Mara said" },
+        { category: "tense", text: "", quote: "" },
+        { category: "diction", text: "Not enough evidence in the excerpts.", quote: "" },
+      ],
+      characters: [],
+    });
+    const out = parseStyleAnalysisJson(raw, { sampleText, characterNames });
+    expect(out?.traits.map((t) => t.category)).toEqual(["pov"]);
+  });
+
   it("drops a quote that cannot be found verbatim in the sample, but keeps the text", () => {
     const out = parseStyleAnalysisJson(validJson(), { sampleText, characterNames });
     const dialogue = out?.traits.find((t) => t.category === "dialogueConventions");
@@ -175,47 +188,49 @@ describe("mergeProposedStyleMd", () => {
     '# Style\n> Voice, POV, tense.\n\n- Never use em dashes; use a hyphen "-".\n- Past tense.\n\n## Narrator\n- Mara\n';
 
   it("drafts the full proposal when there is no style.md yet", () => {
-    expect(mergeProposedStyleMd("", traits)).toBe(renderProposedStyleMd(traits));
+    expect(mergeProposedStyleMd("", traits)).toEqual({
+      styleMd: renderProposedStyleMd(traits),
+      suggestions: [],
+    });
   });
 
   it("keeps the existing file intact and adds only traits it doesn't already say", () => {
-    const merged = mergeProposedStyleMd(existing, traits);
-    expect(merged.startsWith(existing.trimEnd())).toBe(true);
-    expect(merged).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n  > "she walked"`);
-    expect(merged).not.toContain("**Tense:**");
+    const { styleMd, suggestions } = mergeProposedStyleMd(existing, traits);
+    expect(styleMd.startsWith(existing.trimEnd())).toBe(true);
+    expect(styleMd).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n  > "she walked"`);
+    expect(styleMd).not.toContain("**Tense:**");
+    expect(suggestions).toEqual([]);
   });
 
   it("returns the file unchanged when every trait is already there", () => {
-    const merged = mergeProposedStyleMd(existing, [traits[1]]);
-    expect(merged).toBe(existing);
+    expect(mergeProposedStyleMd(existing, [traits[1]]).styleMd).toBe(existing);
   });
 
-  it("replaces a previous analysis's bullet for the same category instead of stacking another", () => {
-    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n  > "she walked"\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`;
-    const merged = mergeProposedStyleMd(previous, [
-      { category: "pov", text: "Close third, tight on Mara.", quote: "Mara said" },
-      { category: "tense", text: "Past tense.", quote: "" },
+  it("never rewrites a saved bullet; a differing reading becomes a suggestion", () => {
+    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third, never head-hop away from Mara.\n  > "she walked"\n\n## Narrator\n- Mara\n`;
+    const reading = { category: "pov" as const, text: "Close third person.", quote: "Mara said" };
+    const { styleMd, suggestions } = mergeProposedStyleMd(previous, [reading]);
+    expect(styleMd).toBe(previous);
+    expect(suggestions).toEqual([
+      { trait: reading, current: "- **POV:** Close third, never head-hop away from Mara." },
     ]);
-    expect(merged).toBe(
-      `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third, tight on Mara.\n  > "Mara said"\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`
-    );
   });
 
-  it("replaces a same-category bullet when the analysis section ends the file", () => {
-    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n`;
-    const merged = mergeProposedStyleMd(previous, [
-      { category: "pov", text: "First person, present.", quote: "" },
-    ]);
-    expect(merged).toBe(`# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **POV:** First person, present.\n`);
+  it("treats a bullet the author wrote outside the analysis section as covering its category", () => {
+    const authored = "# Style\n- **Tense:** Present, always.\n";
+    const { styleMd, suggestions } = mergeProposedStyleMd(authored, [traits[1]]);
+    expect(styleMd).toBe(authored);
+    expect(suggestions.map((sg) => sg.trait.category)).toEqual(["tense"]);
   });
 
-  it("adds to a previous analysis section instead of repeating the heading", () => {
-    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`;
-    const merged = mergeProposedStyleMd(previous, traits);
-    expect(merged.split(ANALYZED_STYLE_HEADING)).toHaveLength(2);
-    expect(merged).toBe(
-      `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Past tense.\n- **POV:** Close third person.\n  > "she walked"\n\n## Narrator\n- Mara\n`
+  it("appends only new categories to a previous analysis section", () => {
+    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Future tense.\n\n## Narrator\n- Mara\n`;
+    const { styleMd, suggestions } = mergeProposedStyleMd(previous, traits);
+    expect(styleMd.split(ANALYZED_STYLE_HEADING)).toHaveLength(2);
+    expect(styleMd).toBe(
+      `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Future tense.\n- **POV:** Close third person.\n  > "she walked"\n\n## Narrator\n- Mara\n`
     );
+    expect(suggestions.map((sg) => sg.trait.category)).toEqual(["tense"]);
   });
 });
 
@@ -336,6 +351,7 @@ describe("analyzeStyle", () => {
     expect(proposal.proposedStyleMd.startsWith(proposal.currentStyleMd.trimEnd())).toBe(true);
     expect(proposal.proposedStyleMd).toContain("Never use em dashes");
     expect(proposal.proposedStyleMd).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.`);
+    expect(proposal.styleSuggestions).toEqual([]);
     expect(proposal.sampledChapters.map((c) => c.title).sort()).toEqual(
       ["The Pier", "The Return", "The Storm"].sort()
     );

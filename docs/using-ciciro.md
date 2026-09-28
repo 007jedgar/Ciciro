@@ -212,12 +212,16 @@ chapters across the manuscript (not the whole book, and never text that came
 from an unaccepted Ciciro suggestion), then proposes a short style.md - POV,
 tense, sentence rhythm, diction, dialogue conventions, recurring devices, and
 what you avoid - and a Voice section for any character who speaks enough in
-the sample to show one. Every claim is backed by a real quote pulled from your
-prose, shown right under it.
+the sample to show one. Each claim shows a supporting quote from your prose,
+right under it, when one could be verified; a category the sample has no
+evidence for is left out rather than filled with a placeholder.
 
-If you already have a `style.md`, the draft keeps it exactly as it is and adds
-only the traits it does not already say, under an **Analyzed from my prose**
-heading; open **Your current style.md** above the draft to compare.
+If you already have a `style.md`, the draft keeps it exactly as it is, bullets
+from an earlier analysis included, and adds only categories it has no bullet
+for yet, under an **Analyzed from my prose** heading. Where the analysis reads
+a category you already cover differently, that reading is not added; it is
+listed as a suggestion under **Your current style.md** above the draft, next
+to your file, for you to copy in by hand if you prefer it.
 
 Nothing is written to the story bible on its own. Edit any proposed text
 first if it is not quite right, then **Save to style.md** or **Save to

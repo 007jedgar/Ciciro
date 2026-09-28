@@ -153,7 +153,11 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
               {proposal.currentStyleMd.trim() && (
                 <details style={{ margin: "6px 0" }}>
                   <summary style={{ fontSize: 12, cursor: "pointer" }}>
-                    Your current style.md (kept as is; new traits are added below it)
+                    Your current style.md (kept as is; only new categories are added below it)
+                    {proposal.styleSuggestions.length > 0 &&
+                      ` - ${proposal.styleSuggestions.length} differing ${
+                        proposal.styleSuggestions.length === 1 ? "reading" : "readings"
+                      } to compare`}
                   </summary>
                   <pre
                     style={{
@@ -167,6 +171,21 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
                   >
                     {proposal.currentStyleMd}
                   </pre>
+                  {proposal.styleSuggestions.length > 0 && (
+                    <div className="style-suggestions" style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                        Suggestions only - not added to the draft
+                      </div>
+                      {proposal.styleSuggestions.map((sg) => (
+                        <div key={sg.trait.category} style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                            You have: {sg.current}
+                          </div>
+                          <TraitRow trait={sg.trait} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </details>
               )}
               <textarea
