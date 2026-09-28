@@ -27,7 +27,7 @@ import { FlashHighlight, flashRanges } from "@/lib/tiptap-flash";
 import { scrollDeltaTo, scrollPaneBy, tweenScrollBy } from "@/lib/editor-scroll";
 import { MOTION_MS, motionMs } from "@/lib/motion";
 import { SuggestionCard, type SuggestionDetail } from "@/components/TrackChanges";
-import type { SuggestionAction, SuggestionAuthor } from "@/lib/suggestions";
+import { ciciroAcceptedWordCount, type SuggestionAction, type SuggestionAuthor } from "@/lib/suggestions";
 import {
   DELETION_MARK,
   INSERTION_MARK,
@@ -109,6 +109,8 @@ type Props = {
   readOnly?: boolean;
   /** The page can take writes (the handle's insert calls land). */
   onReady?: () => void;
+  /** Fired with the word count whenever an accepted suggestion was Ciciro's. */
+  onSuggestionsAccepted?: (words: number) => void;
 };
 
 const PLACEHOLDERS: Record<ManuscriptKind, string> = {
@@ -198,6 +200,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     kind = "novel",
     readOnly = false,
     onReady,
+    onSuggestionsAccepted,
   },
   ref
 ) {
@@ -316,6 +319,9 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (suggestionAuthor) storage.author = suggestionAuthor;
   }, [editor, suggesting, suggestionAuthor]);
 
+  const onSuggestionsAcceptedRef = useRef(onSuggestionsAccepted);
+  onSuggestionsAcceptedRef.current = onSuggestionsAccepted;
+
   // Accepting drops the struck text and rejecting drops the inserted text: fold
   // that half away first, then apply the change and flash what stays.
   const resolving = useRef(false);
@@ -350,7 +356,12 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         }
       }
       const kept = resolvedRanges(editor.state.doc, action, ids);
+      // Accepting drops the marks that say these words were Ciciro's, so the
+      // tally has to be taken from the HTML as it stands right now.
+      const acceptedWords =
+        action === "accept" ? ciciroAcceptedWordCount(editor.getHTML(), ids ?? null) : 0;
       if (!resolveInEditor(editor, action, ids)) return;
+      if (acceptedWords > 0) onSuggestionsAcceptedRef.current?.(acceptedWords);
       const doc = editor.state.doc;
       flashRanges(
         editor,

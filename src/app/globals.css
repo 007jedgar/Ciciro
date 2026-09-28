@@ -855,6 +855,10 @@ textarea {
 .editor-meta .btn {
   white-space: nowrap;
 }
+.ai-involvement-badge {
+  cursor: help;
+  border-bottom: 1px dotted var(--ink-soft);
+}
 .ProseMirror {
   font-family: var(--editor-font-family, var(--serif));
   font-size: var(--editor-size, 19px);
@@ -2122,6 +2126,14 @@ textarea {
 .export-option-hint {
   font-size: 11px;
   color: var(--ink-soft);
+}
+.export-ai-note {
+  margin: 6px 4px 2px;
+  padding: 8px 8px 2px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 /* ---------- Search and replace ---------- */

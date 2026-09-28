@@ -45,6 +45,10 @@ export type Chapter = {
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** See src/lib/text.ts `aiInvolvement`. Absent reads as 0 / untracked. */
+  aiAcceptedWords?: number;
+  aiDraftedWords?: number;
+  aiInvolvementSince?: string;
 };
 
 export type Character = {
@@ -632,6 +636,13 @@ export type DraftInsertionCreateRequest = {
   turnId: string;
   segmentIndex: number;
   chapterId: string;
+  /** Words in the draft, tallied once as Ciciro's; see src/lib/text.ts. */
+  wordCount?: number;
+};
+
+export type AiInvolvementRequest = {
+  acceptedWords?: number;
+  draftedWords?: number;
 };
 
 export type AutowriteRequest = {

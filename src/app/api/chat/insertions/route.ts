@@ -2,18 +2,23 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { authorizeProject } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
+import { MAX_AI_INVOLVEMENT_DELTA } from "@/lib/chapters";
 
 export const runtime = "nodejs";
 
 // POST /api/chat/insertions — record that a draft segment was inserted.
-// Body: { projectId, turnId, segmentIndex, chapterId }
+// Body: { projectId, turnId, segmentIndex, chapterId, wordCount? }. wordCount,
+// when given, is added once to the chapter's AI-involvement tally (see
+// src/lib/text.ts) - never on a retry of the same (turnId, segmentIndex),
+// which is why the row is looked up before the upsert below.
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { projectId, turnId, segmentIndex, chapterId } = body as {
+  const { projectId, turnId, segmentIndex, chapterId, wordCount } = body as {
     projectId?: string;
     turnId?: string;
     segmentIndex?: number;
     chapterId?: string;
+    wordCount?: number;
   };
 
   if (
@@ -43,21 +48,23 @@ export async function POST(req: NextRequest) {
   });
   if (!chapter) return json({ error: "chapter not found" }, 404);
 
+  const key = { turnId_segmentIndex: { turnId: turnId.trim(), segmentIndex } };
+  const existing = await prisma.draftInsertion.findUnique({ where: key });
   const row = await prisma.draftInsertion.upsert({
-    where: {
-      turnId_segmentIndex: {
-        turnId: turnId.trim(),
-        segmentIndex,
-      },
-    },
-    create: {
-      projectId,
-      turnId: turnId.trim(),
-      segmentIndex,
-      chapterId,
-    },
+    where: key,
+    create: { projectId, turnId: turnId.trim(), segmentIndex, chapterId },
     update: { chapterId },
   });
+
+  if (!existing && typeof wordCount === "number" && wordCount > 0) {
+    // Ownership of chapterId is already established above (it must belong to
+    // the authorized projectId), so this skips the redundant per-chapter auth
+    // check that recordAiInvolvement would otherwise do.
+    const words = Math.min(Math.floor(wordCount), MAX_AI_INVOLVEMENT_DELTA);
+    await prisma.chapter
+      .update({ where: { id: chapterId }, data: { aiDraftedWords: { increment: words } } })
+      .catch(() => {});
+  }
 
   return json(row, 200);
 }

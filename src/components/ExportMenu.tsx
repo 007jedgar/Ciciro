@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSnackbar } from "@/components/Snackbar";
 import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { MOTION_MS, usePresence } from "@/lib/motion";
+import { manuscriptAiInvolvement } from "@/lib/text";
+import type { Chapter } from "@/lib/types";
 
 export const EXPORT_FORMATS = [
   { format: "docx", label: "Word (.docx)", hint: "Standard manuscript format", short: "Word" },
@@ -12,7 +14,7 @@ export const EXPORT_FORMATS = [
   { format: "pdf", label: "PDF (.pdf)", hint: "Book layout with contents", short: "PDF" },
 ] as const;
 
-export default function ExportMenu({ projectId }: { projectId: string }) {
+export default function ExportMenu({ projectId, chapters }: { projectId: string; chapters: Chapter[] }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   const [error, setError] = useState("");
@@ -99,8 +101,25 @@ export default function ExportMenu({ projectId }: { projectId: string }) {
               {error}
             </div>
           ) : null}
+          <AiInvolvementNote chapters={chapters} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A factual self-report, not a compliance guarantee: KDP and AI-detector
+ * disclosure rules are the author's to check, not Ciciro's to certify.
+ */
+function AiInvolvementNote({ chapters }: { chapters: Chapter[] }) {
+  const involvement = manuscriptAiInvolvement(chapters);
+  if (involvement.totalWords === 0) return null;
+  return (
+    <div className="export-ai-note">
+      {involvement.percent}% of this manuscript&rsquo;s words started as a Ciciro suggestion you
+      accepted or text Ciciro inserted directly. A self-report for your own disclosure - not a
+      KDP or AI-detector compliance guarantee.
     </div>
   );
 }

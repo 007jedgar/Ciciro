@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { chapterPlainText, countWords, extractDraft, htmlToText, isChapterEmpty } from "@/lib/text";
+import {
+  aiInvolvement,
+  chapterPlainText,
+  countWords,
+  extractDraft,
+  htmlToText,
+  isChapterEmpty,
+  manuscriptAiInvolvement,
+} from "@/lib/text";
 
 describe("htmlToText", () => {
   it("returns empty string for empty input", () => {
@@ -62,6 +70,65 @@ describe("extractDraft", () => {
 
   it("returns null when there is no draft", () => {
     expect(extractDraft("just chatting")).toBeNull();
+  });
+});
+
+describe("aiInvolvement", () => {
+  it("is all-author when nothing was ever accepted or drafted", () => {
+    expect(aiInvolvement({ wordCount: 100, aiAcceptedWords: 0, aiDraftedWords: 0 })).toEqual({
+      totalWords: 100,
+      ciciroWords: 0,
+      authorWords: 100,
+      percent: 0,
+    });
+  });
+
+  it("treats missing counters as 0 (an untracked or pre-tracking chapter)", () => {
+    expect(aiInvolvement({ wordCount: 50 })).toEqual({
+      totalWords: 50,
+      ciciroWords: 0,
+      authorWords: 50,
+      percent: 0,
+    });
+  });
+
+  it("sums accepted-suggestion and drafted words, and rounds the percentage", () => {
+    expect(aiInvolvement({ wordCount: 300, aiAcceptedWords: 30, aiDraftedWords: 20 })).toEqual({
+      totalWords: 300,
+      ciciroWords: 50,
+      authorWords: 250,
+      percent: 17,
+    });
+  });
+
+  it("clamps at 100% when heavy deletion of the author's own prose outpaces the chapter's growth", () => {
+    // The chapter shrank below its lifetime Ciciro tally; the percentage
+    // still reads as a sane 0-100%, not over 100.
+    expect(aiInvolvement({ wordCount: 10, aiAcceptedWords: 40, aiDraftedWords: 0 })).toEqual({
+      totalWords: 10,
+      ciciroWords: 10,
+      authorWords: 0,
+      percent: 100,
+    });
+  });
+
+  it("is 0% for an empty chapter rather than dividing by zero", () => {
+    expect(aiInvolvement({ wordCount: 0, aiAcceptedWords: 0, aiDraftedWords: 0 }).percent).toBe(0);
+  });
+});
+
+describe("manuscriptAiInvolvement", () => {
+  it("aggregates every chapter before computing one manuscript-wide percentage", () => {
+    const result = manuscriptAiInvolvement([
+      { wordCount: 100, aiAcceptedWords: 10, aiDraftedWords: 0 },
+      { wordCount: 200, aiAcceptedWords: 0, aiDraftedWords: 40 },
+      { wordCount: 50 },
+    ]);
+    expect(result).toEqual({ totalWords: 350, ciciroWords: 50, authorWords: 300, percent: 14 });
+  });
+
+  it("is 0% for a manuscript with no chapters", () => {
+    expect(manuscriptAiInvolvement([])).toEqual({ totalWords: 0, ciciroWords: 0, authorWords: 0, percent: 0 });
   });
 });
 
