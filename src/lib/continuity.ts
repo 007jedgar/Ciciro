@@ -4,14 +4,15 @@ import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { CONTINUITY_CHECK_SYSTEM } from "@/lib/prompts";
-import { listBible, readBibleFile } from "@/lib/bible";
-import { htmlToText } from "@/lib/text";
+import { listBible, readBibleFile, type BibleEntry } from "@/lib/bible";
+import { chapterPlainText } from "@/lib/text";
 import { visibleChapterWhere } from "@/lib/chapters";
 import {
   buildContinuityInput,
   groundFindings,
   parseContinuityFindings,
   relevantCharacterPaths,
+  type ContinuityCheckFinding,
   type ContinuityCheckResult,
   type ContinuityFinding,
   type ContinuityScope,
@@ -29,30 +30,51 @@ import {
 // names (see relevantCharacterPaths). Findings are not persisted; each run is
 // a fresh, on-demand check against the bible as it stands right now.
 
-async function relevantBible(
-  projectId: string,
-  chapterText: string
-): Promise<{ path: string; content: string }[]> {
+const BOOK_CONCURRENCY = 3;
+const BOOK_TIME_BUDGET_MS = 240_000;
+
+type BibleSection = { path: string; content: string };
+
+/** canon.md, world.md, timeline.md and the index, read once per run. */
+async function loadBible(projectId: string): Promise<{ singular: BibleSection[]; index: BibleEntry[] }> {
   const [canon, world, timeline, index] = await Promise.all([
     readBibleFile(projectId, "canon.md"),
     readBibleFile(projectId, "world.md"),
     readBibleFile(projectId, "timeline.md"),
     listBible(projectId),
   ]);
-  const characterPaths = relevantCharacterPaths(index, chapterText);
+  return {
+    singular: [
+      { path: "canon.md", content: canon },
+      { path: "world.md", content: world },
+      { path: "timeline.md", content: timeline },
+    ],
+    index,
+  };
+}
+
+async function relevantBible(
+  projectId: string,
+  bible: { singular: BibleSection[]; index: BibleEntry[] },
+  characterCache: Map<string, Promise<string>>,
+  chapterText: string
+): Promise<BibleSection[]> {
+  const characterPaths = relevantCharacterPaths(bible.index, chapterText);
   const characterFiles = await Promise.all(
-    characterPaths.map(async (path) => ({ path, content: await readBibleFile(projectId, path) }))
+    characterPaths.map(async (path) => {
+      let content = characterCache.get(path);
+      if (!content) {
+        content = readBibleFile(projectId, path);
+        characterCache.set(path, content);
+      }
+      return { path, content: await content };
+    })
   );
-  return [
-    { path: "canon.md", content: canon },
-    { path: "world.md", content: world },
-    { path: "timeline.md", content: timeline },
-    ...characterFiles,
-  ];
+  return [...bible.singular, ...characterFiles];
 }
 
 async function askModel(
-  bibleSections: { path: string; content: string }[],
+  bibleSections: BibleSection[],
   chapterTitle: string,
   chapterText: string
 ): Promise<ContinuityFinding[]> {
@@ -116,18 +138,52 @@ export async function runContinuityCheck(
     throw new AuthError("Chapter not found.", 404);
   }
 
-  const findings: ContinuityCheckResult["findings"] = [];
-  // Sequential, not Promise.all: one call per chapter is already the bound on
-  // cost, and a whole-manuscript run should not burst every chapter's request
-  // at the model provider at once.
-  for (const chapter of chapters) {
-    const text = htmlToText(chapter.content).trim();
-    if (!text) continue;
-    const bible = await relevantBible(projectId, text);
-    const chapterFindings = groundFindings(await askModel(bible, chapter.title, text), text, bible);
-    for (const finding of chapterFindings) {
-      findings.push({ ...finding, chapterId: chapter.id, chapterTitle: chapter.title });
+  const bible = await loadBible(projectId);
+  const characterCache = new Map<string, Promise<string>>();
+  const deadline = Date.now() + BOOK_TIME_BUDGET_MS;
+  const perChapter: { findings: ContinuityCheckFinding[]; status: "pending" | "empty" | "checked"; error?: unknown }[] =
+    chapters.map(() => ({ findings: [], status: "pending" }));
+
+  async function checkChapter(i: number): Promise<void> {
+    const chapter = chapters[i];
+    const text = chapterPlainText(chapter.content).trim();
+    if (!text) {
+      perChapter[i].status = "empty";
+      return;
+    }
+    const sections = await relevantBible(projectId, bible, characterCache, text);
+    const grounded = groundFindings(await askModel(sections, chapter.title, text), text, sections);
+    perChapter[i].findings = grounded.map((f) => ({ ...f, chapterId: chapter.id, chapterTitle: chapter.title }));
+    perChapter[i].status = "checked";
+  }
+
+  // A small worker pool, not Promise.all: one call per chapter is already the
+  // bound on cost, and a whole-manuscript run should not burst every
+  // chapter's request at the model provider at once. Chapters not started
+  // before the time budget runs out, or whose call fails, are reported as
+  // unchecked so the findings already gathered still reach the author.
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < chapters.length && Date.now() < deadline) {
+      const i = next++;
+      try {
+        await checkChapter(i);
+      } catch (error) {
+        if (scope === "chapter") throw error;
+        perChapter[i].error = error;
+      }
     }
   }
-  return { scope, findings };
+  await Promise.all(Array.from({ length: Math.min(BOOK_CONCURRENCY, chapters.length) }, worker));
+
+  const firstError = perChapter.find((c) => c.error !== undefined)?.error;
+  if (firstError !== undefined && !perChapter.some((c) => c.status === "checked")) throw firstError;
+
+  return {
+    scope,
+    findings: perChapter.flatMap((c) => c.findings),
+    unchecked: chapters
+      .filter((_, i) => perChapter[i].status === "pending")
+      .map((chapter) => ({ chapterId: chapter.id, chapterTitle: chapter.title })),
+  };
 }

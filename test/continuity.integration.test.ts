@@ -69,6 +69,7 @@ describe("continuity check", () => {
     const result = await runContinuityCheck(project.id, user, { scope: "chapter", chapterId: chapter.id });
 
     expect(result.scope).toBe("chapter");
+    expect(result.unchecked).toEqual([]);
     expect(result.findings).toEqual([
       {
         chapterQuote: "Her eyes were brown in the lamplight.",
@@ -121,6 +122,58 @@ describe("continuity check", () => {
     expect(mocks.create).toHaveBeenCalledTimes(2);
     void two;
     void empty;
+  });
+
+  it("keeps findings from checked chapters when another chapter's call fails", async () => {
+    const { user, project } = await seed();
+    await writeBibleFile(project.id, "canon.md", "# Canon\n- Aiden works nights.");
+    const one = await chapterOf(project.id, "One", "<p>Aiden arrived at dawn.</p>", 0);
+    const two = await chapterOf(project.id, "Two", "<p>Aiden left at dusk.</p>", 1);
+    mocks.create.mockImplementation(async (req: { messages: { content: string }[] }) => {
+      if (req.messages[0].content.includes("# Chapter: Two")) {
+        throw Object.assign(new Error("overloaded"), { status: 529 });
+      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify([
+              { chapterQuote: "arrived at dawn", canonFile: "canon.md", canonQuote: "Aiden works nights.", note: "" },
+            ]),
+          },
+        ],
+      };
+    });
+
+    const result = await runContinuityCheck(project.id, user, { scope: "book" });
+
+    expect(result.findings.map((f) => f.chapterId)).toEqual([one.id]);
+    expect(result.unchecked).toEqual([{ chapterId: two.id, chapterTitle: "Two" }]);
+  });
+
+  it("fails the book run when no chapter could be checked", async () => {
+    const { user, project } = await seed();
+    await chapterOf(project.id, "One", "<p>Text.</p>", 0);
+    await chapterOf(project.id, "Two", "<p>More text.</p>", 1);
+    mocks.create.mockRejectedValue(Object.assign(new Error("overloaded"), { status: 529 }));
+    await expect(runContinuityCheck(project.id, user, { scope: "book" })).rejects.toMatchObject({ status: 503 });
+  });
+
+  it("sends the chapter without pending suggestions, so an unaccepted edit is not read as canon", async () => {
+    const { user, project } = await seed();
+    const attrs = 'data-author-id="ciciro" data-author-name="Ciciro" data-created-at="2026-09-25T10:00:00.000Z"';
+    const chapter = await chapterOf(
+      project.id,
+      "Eyes",
+      `<p>Her eyes were <del data-suggestion-id="s1" ${attrs}>green</del><ins data-suggestion-id="s1" ${attrs}>brown</ins>.</p>`
+    );
+    reply("[]");
+
+    await runContinuityCheck(project.id, user, { scope: "chapter", chapterId: chapter.id });
+
+    const sent = promptText();
+    expect(sent).toContain("Her eyes were green.");
+    expect(sent).not.toContain("brown");
   });
 
   it("skips archived chapters", async () => {

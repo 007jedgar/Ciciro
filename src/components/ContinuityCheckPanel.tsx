@@ -140,7 +140,16 @@ export default function ContinuityCheckPanel({
               <span className="skeleton short" />
             </div>
           )}
-          {!busy && result && result.findings.length === 0 && (
+          {!busy && result && result.unchecked.length > 0 && (
+            <div className="scratch-error" role="alert">
+              {result.unchecked.length === 1
+                ? `Couldn't check "${result.unchecked[0].chapterTitle}". Run the check again to include it.`
+                : `Couldn't check ${result.unchecked.length} chapters: ${result.unchecked
+                    .map((c) => `"${c.chapterTitle}"`)
+                    .join(", ")}. Run the check again to include them.`}
+            </div>
+          )}
+          {!busy && result && result.findings.length === 0 && result.unchecked.length === 0 && (
             <div className="empty">Nothing contradicts the bible.</div>
           )}
           {!busy &&

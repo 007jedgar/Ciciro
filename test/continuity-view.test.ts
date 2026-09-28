@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_QUERY_LENGTH } from "@/lib/manuscript-search";
 import {
   buildContinuityInput,
   groundFindings,
@@ -42,6 +43,32 @@ describe("relevantCharacterPaths", () => {
 
   it("is case-insensitive", () => {
     expect(relevantCharacterPaths(index, "AIDEN showed up late.")).toEqual(["characters/aiden-cross.md"]);
+  });
+
+  it("matches any name token, so a surname alone pulls in the file", () => {
+    const cast = [{ path: "characters/sherlock-holmes.md", summary: "Sherlock Holmes" }];
+    expect(relevantCharacterPaths(cast, "Holmes lit his pipe.")).toEqual(["characters/sherlock-holmes.md"]);
+  });
+
+  it("ignores titles and short tokens", () => {
+    const cast = [
+      { path: "characters/dr-li.md", summary: "Dr Li" },
+      { path: "characters/captain-ahab.md", summary: "Captain Ahab" },
+    ];
+    expect(relevantCharacterPaths(cast, "The doctor, Dr. Watson, called the captain.")).toEqual([]);
+    expect(relevantCharacterPaths(cast, "Ahab stared at the sea.")).toEqual(["characters/captain-ahab.md"]);
+  });
+
+  it("matches names that start or end with a non-ASCII letter", () => {
+    const cast = [
+      { path: "characters/elodie.md", summary: "Élodie" },
+      { path: "characters/zoe.md", summary: "Zoë" },
+    ];
+    expect(relevantCharacterPaths(cast, "Then Élodie left, and Zoë followed.")).toEqual([
+      "characters/elodie.md",
+      "characters/zoe.md",
+    ]);
+    expect(relevantCharacterPaths(cast, "Zoëlle arrived.")).toEqual([]);
   });
 });
 
@@ -123,6 +150,14 @@ describe("parseContinuityFindings", () => {
     }
   });
 
+  it("keeps chapter quotes searchable: one line, at most MAX_QUERY_LENGTH characters", () => {
+    const spanning = { ...finding, chapterQuote: "Her eyes were brown.\n\nThe lamp went out." };
+    expect(parseContinuityFindings(JSON.stringify([spanning]))[0].chapterQuote).toBe("Her eyes were brown.");
+
+    const long = { ...finding, chapterQuote: "a".repeat(MAX_QUERY_LENGTH + 50) };
+    expect(parseContinuityFindings(JSON.stringify([long]))[0].chapterQuote).toHaveLength(MAX_QUERY_LENGTH);
+  });
+
   it("trims quotes and notes and caps the number of findings", () => {
     const padded = { ...finding, chapterQuote: `  ${finding.chapterQuote}  ` };
     expect(parseContinuityFindings(JSON.stringify([padded]))[0].chapterQuote).toBe(finding.chapterQuote);
@@ -159,6 +194,12 @@ describe("groundFindings", () => {
   it("drops a finding whose canon quote isn't actually in the named bible file", () => {
     const wrong = { ...finding, canonQuote: "Mara has blue eyes." };
     expect(groundFindings([wrong], chapterText, bible)).toEqual([]);
+  });
+
+  it("drops a chapter quote that Show in text could not search for", () => {
+    const text = "Her eyes were brown.\n\nThe lamp went out.";
+    const spanning = { ...finding, chapterQuote: text };
+    expect(groundFindings([spanning], text, bible)).toEqual([]);
   });
 
   it("drops a finding that names a bible file that wasn't sent", () => {

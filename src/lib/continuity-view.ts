@@ -4,6 +4,8 @@
 // logic can be unit tested without mocking Anthropic or Prisma; see
 // src/lib/continuity.ts for the parts that touch the database and the model.
 
+import { MAX_QUERY_LENGTH, normalizeQuery } from "@/lib/manuscript-search";
+
 export type BibleIndexEntry = { path: string; summary: string };
 
 export type ContinuityFinding = {
@@ -27,6 +29,8 @@ export type ContinuityScope = "chapter" | "book";
 export type ContinuityCheckResult = {
   scope: ContinuityScope;
   findings: ContinuityCheckFinding[];
+  /** Chapters the run could not check (a failed call, or out of time). */
+  unchecked: { chapterId: string; chapterTitle: string }[];
 };
 
 export const MAX_BIBLE_CHARS = 6000;
@@ -39,22 +43,32 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Candidate names for a character file: the de-slugged path, and the index summary. */
-function nameCandidates(entry: BibleIndexEntry): string[] {
-  const slugName = entry.path
-    .replace(/^characters\//, "")
-    .replace(/\.md$/, "")
-    .replace(/-/g, " ")
-    .trim();
-  const summaryName = entry.summary.split(/[-–,(]/)[0]?.trim() ?? "";
-  return [slugName, summaryName].filter((s) => s.length >= 2);
+const NAME_TOKEN_MIN = 3;
+const TITLES = new Set([
+  "mr", "mrs", "ms", "miss", "mx", "dr", "sir", "dame", "lord", "lady", "king", "queen",
+  "prince", "princess", "captain", "capt", "general", "colonel", "major", "sergeant", "officer",
+  "detective", "inspector", "professor", "prof", "father", "mother", "sister", "brother",
+  "aunt", "uncle", "saint", "st", "the", "and", "of", "von", "van", "der", "del", "de", "la", "le",
+]);
+
+/**
+ * Words that identify a character file: every token of the de-slugged path
+ * and of the name that opens the index summary, minus short tokens and
+ * titles, so "sherlock-holmes" matches a chapter that only says "Holmes".
+ */
+function nameTokens(entry: BibleIndexEntry): string[] {
+  const slugName = entry.path.replace(/^characters\//, "").replace(/\.md$/, "");
+  const summaryName = entry.summary.split(/[-–,(]/)[0] ?? "";
+  const tokens = `${slugName} ${summaryName}`
+    .split(/[^\p{L}\p{N}_']+/u)
+    .map((t) => t.replace(/^'+|'+$/g, ""))
+    .filter((t) => t.length >= NAME_TOKEN_MIN && !TITLES.has(t.toLowerCase()));
+  return Array.from(new Set(tokens.map((t) => t.toLowerCase())));
 }
 
-/** True when the name's first word (its call name) appears as a whole word in the text. */
-function mentionsName(text: string, name: string): boolean {
-  const token = name.split(/\s+/).filter(Boolean)[0];
-  if (!token) return false;
-  return new RegExp(`\\b${escapeRegExp(token)}\\b`, "i").test(text);
+/** True when the token appears as a whole word, with Unicode letters counting as word characters. */
+function mentionsName(text: string, token: string): boolean {
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(token)}(?![\\p{L}\\p{N}_])`, "iu").test(text);
 }
 
 /**
@@ -66,7 +80,7 @@ function mentionsName(text: string, name: string): boolean {
 export function relevantCharacterPaths(index: BibleIndexEntry[], chapterText: string): string[] {
   return index
     .filter((e) => e.path.startsWith("characters/"))
-    .filter((e) => nameCandidates(e).some((name) => mentionsName(chapterText, name)))
+    .filter((e) => nameTokens(e).some((token) => mentionsName(chapterText, token)))
     .map((e) => e.path);
 }
 
@@ -112,6 +126,7 @@ export function groundFindings(
 ): ContinuityFinding[] {
   const byPath = new Map(bibleSections.map((s) => [s.path, s.content]));
   return findings.filter((f) => {
+    if (normalizeQuery(f.chapterQuote) === null) return false;
     if (!contains(chapterText, f.chapterQuote)) return false;
     const canonContent = byPath.get(f.canonFile);
     return canonContent !== undefined && contains(canonContent, f.canonQuote);
@@ -122,10 +137,20 @@ function isKnownCanonFile(path: string): boolean {
   return path === "canon.md" || path === "world.md" || path === "timeline.md" || /^characters\/[^/]+\.md$/.test(path);
 }
 
+/**
+ * "Show in text" searches one line of at most MAX_QUERY_LENGTH characters, so
+ * a chapter quote that spans paragraphs keeps its first line, and a long one
+ * keeps its opening; either is still a verbatim substring of the chapter.
+ */
+function searchableQuote(raw: string): string {
+  const firstLine = raw.split(/[\r\n]+/).map((l) => l.trim()).find(Boolean) ?? "";
+  return firstLine.slice(0, MAX_QUERY_LENGTH).trim();
+}
+
 function normalizeFinding(raw: unknown): ContinuityFinding | null {
   if (!raw || typeof raw !== "object") return null;
   const src = raw as Record<string, unknown>;
-  const chapterQuote = typeof src.chapterQuote === "string" ? src.chapterQuote.trim().slice(0, QUOTE_MAX) : "";
+  const chapterQuote = typeof src.chapterQuote === "string" ? searchableQuote(src.chapterQuote) : "";
   const canonQuote = typeof src.canonQuote === "string" ? src.canonQuote.trim().slice(0, QUOTE_MAX) : "";
   const canonFile = typeof src.canonFile === "string" ? src.canonFile.trim() : "";
   const note = typeof src.note === "string" ? src.note.trim().slice(0, NOTE_MAX) : "";
