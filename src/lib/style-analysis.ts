@@ -9,7 +9,7 @@ import { visibleChapterWhere } from "@/lib/chapters";
 import { chapterPlainText, countWords } from "@/lib/text";
 import {
   parseStyleAnalysisJson,
-  renderProposedStyleMd,
+  mergeProposedStyleMd,
   type CharacterVoiceProposal,
   type StyleAnalysisProposal,
 } from "@/lib/style-analysis-view";
@@ -176,6 +176,6 @@ export async function analyzeStyle(
     sampledChapters: sample.map((c) => ({ id: c.id, title: c.title })),
     currentStyleMd: styleFile?.content ?? "",
     currentStyleMdRevision: styleFile?.revision ?? 0,
-    proposedStyleMd: renderProposedStyleMd(parsed.traits),
+    proposedStyleMd: mergeProposedStyleMd(styleFile?.content ?? "", parsed.traits),
   };
 }

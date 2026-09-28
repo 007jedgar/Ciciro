@@ -23,6 +23,8 @@ import {
 import {
   parseStyleAnalysisJson,
   quoteAppearsIn,
+  ANALYZED_STYLE_HEADING,
+  mergeProposedStyleMd,
   renderProposedStyleMd,
   replaceVoiceSection,
   STYLE_TRAIT_ORDER,
@@ -73,6 +75,12 @@ describe("excerptWords", () => {
 describe("quoteAppearsIn", () => {
   it("matches ignoring case and whitespace differences", () => {
     expect(quoteAppearsIn("Never   Asked", "she never asked for this")).toBe(true);
+  });
+
+  it("matches straight quotes and apostrophes against curly ones in the prose", () => {
+    const prose = "\u201CI don\u2019t know,\u201D she said.";
+    expect(quoteAppearsIn(`"I don't know," she said`, prose)).toBe(true);
+    expect(quoteAppearsIn("don\u2019t know", "I don't know")).toBe(true);
   });
 
   it("rejects a quote that is not in the sample", () => {
@@ -155,6 +163,40 @@ describe("renderProposedStyleMd", () => {
 
   it("covers every declared trait category", () => {
     expect(STYLE_TRAIT_ORDER.length).toBe(7);
+  });
+});
+
+describe("mergeProposedStyleMd", () => {
+  const traits = [
+    { category: "pov" as const, text: "Close third person.", quote: "she walked" },
+    { category: "tense" as const, text: "Past tense.", quote: "" },
+  ];
+  const existing =
+    '# Style\n> Voice, POV, tense.\n\n- Never use em dashes; use a hyphen "-".\n- Past tense.\n\n## Narrator\n- Mara\n';
+
+  it("drafts the full proposal when there is no style.md yet", () => {
+    expect(mergeProposedStyleMd("", traits)).toBe(renderProposedStyleMd(traits));
+  });
+
+  it("keeps the existing file intact and adds only traits it doesn't already say", () => {
+    const merged = mergeProposedStyleMd(existing, traits);
+    expect(merged.startsWith(existing.trimEnd())).toBe(true);
+    expect(merged).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.\n  > "she walked"`);
+    expect(merged).not.toContain("**Tense:**");
+  });
+
+  it("returns the file unchanged when every trait is already there", () => {
+    const merged = mergeProposedStyleMd(existing, [traits[1]]);
+    expect(merged).toBe(existing);
+  });
+
+  it("adds to a previous analysis section instead of repeating the heading", () => {
+    const previous = `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Past tense.\n\n## Narrator\n- Mara\n`;
+    const merged = mergeProposedStyleMd(previous, traits);
+    expect(merged.split(ANALYZED_STYLE_HEADING)).toHaveLength(2);
+    expect(merged).toBe(
+      `# Style\n- Rule.\n\n${ANALYZED_STYLE_HEADING}\n- **Tense:** Past tense.\n- **POV:** Close third person.\n  > "she walked"\n\n## Narrator\n- Mara\n`
+    );
   });
 });
 
@@ -272,6 +314,9 @@ describe("analyzeStyle", () => {
     });
     expect(proposal.characters[0].currentContent).toContain("## Voice");
     expect(proposal.proposedStyleMd).toContain("# Style");
+    expect(proposal.proposedStyleMd.startsWith(proposal.currentStyleMd.trimEnd())).toBe(true);
+    expect(proposal.proposedStyleMd).toContain("Never use em dashes");
+    expect(proposal.proposedStyleMd).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.`);
     expect(proposal.sampledChapters.map((c) => c.title).sort()).toEqual(
       ["The Pier", "The Return", "The Storm"].sort()
     );

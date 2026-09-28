@@ -215,6 +215,10 @@ what you avoid - and a Voice section for any character who speaks enough in
 the sample to show one. Every claim is backed by a real quote pulled from your
 prose, shown right under it.
 
+If you already have a `style.md`, the draft keeps it exactly as it is and adds
+only the traits it does not already say, under an **Analyzed from my prose**
+heading; open **Your current style.md** above the draft to compare.
+
 Nothing is written to the story bible on its own. Edit any proposed text
 first if it is not quite right, then **Save to style.md** or **Save to
 &lt;character&gt;** one at a time; skip anything you do not want. It needs an
