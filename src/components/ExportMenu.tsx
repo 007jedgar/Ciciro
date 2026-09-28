@@ -118,8 +118,9 @@ function AiInvolvementNote({ chapters }: { chapters: Chapter[] }) {
   return (
     <div className="export-ai-note">
       {involvement.percent}% of this manuscript&rsquo;s words started as a Ciciro suggestion you
-      accepted or text Ciciro inserted directly. A self-report for your own disclosure - not a
-      KDP or AI-detector compliance guarantee.
+      accepted or text Ciciro inserted directly. Counts only activity since each chapter began
+      tracking this; if any chapter predates that, its earlier history is not reflected. A
+      self-report for your own disclosure - not a KDP or AI-detector compliance guarantee.
     </div>
   );
 }

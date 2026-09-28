@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-// POST /api/chapters/:id/ai-involvement — add this action's word count to the
+// POST /api/chapters/:id/ai-involvement: add this action's word count to the
 // chapter's AI-involvement tally. Body: { acceptedWords?, draftedWords? },
 // each the words from one accept or one insert, not a running total. Best
 // effort: a dropped call under-counts a self-report figure, it does not
