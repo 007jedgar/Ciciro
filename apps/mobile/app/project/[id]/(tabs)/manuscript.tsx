@@ -652,7 +652,6 @@ export default function ManuscriptScreen() {
               html={content}
               editorStyle={editorStyle}
               placeholder={isScreenplay ? t("screenplay.placeholder") : ""}
-              focused={focused}
               resumeOffset={resume?.index ?? null}
               bottomInset={editorBottomInset}
               typewriter={settings.typewriterMode}
