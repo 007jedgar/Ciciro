@@ -116,6 +116,22 @@ describe("parseStyleAnalysisJson", () => {
     expect(out?.traits.map((t) => t.category)).toEqual(["pov", "tense", "dialogueConventions"]);
   });
 
+  it("keeps an avoids trait that describes an absence", () => {
+    const raw = JSON.stringify({
+      traits: [
+        {
+          category: "avoids",
+          text: "No evidence of adverbs or exclamation points anywhere; the prose stays flat.",
+          quote: "",
+        },
+        { category: "diction", text: "No evidence in the excerpts.", quote: "" },
+      ],
+      characters: [],
+    });
+    const out = parseStyleAnalysisJson(raw, { sampleText, characterNames });
+    expect(out?.traits.map((t) => t.category)).toEqual(["avoids"]);
+  });
+
   it("drops a trait the model had no evidence for instead of keeping a placeholder", () => {
     const raw = JSON.stringify({
       traits: [
@@ -221,6 +237,18 @@ describe("mergeProposedStyleMd", () => {
     const { styleMd, suggestions } = mergeProposedStyleMd(authored, [traits[1]]);
     expect(styleMd).toBe(authored);
     expect(suggestions.map((sg) => sg.trait.category)).toEqual(["tense"]);
+  });
+
+  it("recognizes a hand-written category bullet in plain or starred form", () => {
+    for (const authored of [
+      "# Style\n- POV: close third, Mara only.\n",
+      "# Style\n* **POV:** close third, Mara only.\n",
+      "# Style\n- **pov**: close third, Mara only.\n",
+    ]) {
+      const { styleMd, suggestions } = mergeProposedStyleMd(authored, [traits[0]]);
+      expect(styleMd).toBe(authored);
+      expect(suggestions.map((sg) => sg.trait.category)).toEqual(["pov"]);
+    }
   });
 
   it("appends only new categories to a previous analysis section", () => {
