@@ -267,8 +267,11 @@ export type QuickAction = {
   id: string;
   label: string;
   hint: string;
-  prompt: string;
+  /** Sent to the chat for kind "chat" (the default). Unused for kind "panel". */
+  prompt?: string;
   scope: "selection" | "chapter" | "book";
+  /** "chat" sends `prompt` to Ciciro (the default); "panel" opens a dedicated UI instead. */
+  kind?: "chat" | "panel";
 };
 
 export const QUICK_ACTIONS: QuickAction[] = [
@@ -319,6 +322,13 @@ export const QUICK_ACTIONS: QuickAction[] = [
     scope: "book",
     prompt:
       "Using plot.md and the manuscript, list open loops and setups that have not paid off. For each, suggest where and how to resolve it.",
+  },
+  {
+    id: "continuity-check",
+    label: "Continuity check",
+    hint: "Facts vs canon, world, and timeline",
+    scope: "chapter",
+    kind: "panel",
   },
   {
     id: "questions",
@@ -545,3 +555,19 @@ Return JSON only:
 - Every trait's "quote" must be copied verbatim, word for word, from the excerpts given - a short phrase or one sentence, never a paraphrase and never your own "text" field. Leave "quote" empty rather than inventing one.
 - characters: only characters from the given list who speak enough in the excerpts to show a distinct voice. Omit anyone who does not appear or barely speaks; return an empty array if no one qualifies. For each: "voice" is two or three sentences on diction, rhythm, and verbal tics distinct to that character, and "quote" is one short verbatim line of their dialogue (the words only, no surrounding quotation marks) that best shows it.
 - Plain text only, no markdown, no fences, no commentary outside the JSON.`;
+
+export const CONTINUITY_CHECK_SYSTEM = `You check a chapter for factual contradictions against the story's canon.
+
+You are given canon.md (hard facts and author rulings), and whichever of world.md, timeline.md and character files apply, followed by the chapter's text.
+
+Extract the factual claims the chapter makes: names, physical traits such as eye or hair color, ages, dates and time order, and places. Compare each claim only to the bible files you were given.
+
+Report a finding only when the chapter states something that directly contradicts a specific line in the bible. If the bible is silent on a detail, say nothing about it - silence is not a contradiction, and you must never invent a canon fact to fill a gap. Do not flag prose style, pacing, or plot holes that have no stated bible fact behind them.
+
+Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
+{"chapterQuote":"...","canonFile":"canon.md","canonQuote":"...","note":"..."}
+
+- chapterQuote and canonQuote must be copied verbatim, exact substrings of the text you were given. Never paraphrase them, or the quote cannot be found in the document.
+- canonFile is the file the canonQuote came from (canon.md, world.md, timeline.md, or characters/<name>.md).
+- note is one plain sentence naming the contradiction.
+- Reply with [] when nothing contradicts the bible.`;

@@ -17,6 +17,7 @@ import ChapterHistory from "@/components/ChapterHistory";
 import ReadAloud from "@/components/ReadAloud";
 import SearchPanel from "@/components/SearchPanel";
 import RepetitionPanel from "@/components/RepetitionPanel";
+import ContinuityCheckPanel from "@/components/ContinuityCheckPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import Presence from "@/components/Presence";
 import Scratchpad from "@/components/Scratchpad";
@@ -111,6 +112,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInitial, setSearchInitial] = useState<{ query: string; wholeWord: boolean } | null>(null);
   const [repetitionOpen, setRepetitionOpen] = useState(false);
+  const [continuityOpen, setContinuityOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
   const [betaOpen, setBetaOpen] = useState(false);
   const chapterRows = useLeavingIds();
@@ -542,7 +544,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     );
   }, [focusPhase]);
   const overlayOpenRef = useRef(false);
-  overlayOpenRef.current = bibleOpen || searchOpen || repetitionOpen || questionsOpen || autoWriteOpen;
+  overlayOpenRef.current =
+    bibleOpen || searchOpen || repetitionOpen || continuityOpen || questionsOpen || autoWriteOpen;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
@@ -654,6 +657,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // --- Repetition ---
   const onInspectRepetition = useCallback((text: string) => {
     setRepetitionOpen(false);
+    setSearchInitial({ query: text, wholeWord: true });
+    setSearchOpen(true);
+  }, []);
+
+  // --- Continuity check ---
+  const onInspectContinuity = useCallback((text: string) => {
+    setContinuityOpen(false);
     setSearchInitial({ query: text, wholeWord: true });
     setSearchOpen(true);
   }, []);
@@ -1358,6 +1368,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         kind={kind}
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}
+        onOpenContinuityCheck={() => setContinuityOpen(true)}
       />
 
       <Presence open={outlineOpen} exitMs={MOTION_MS.dialogOut}>
@@ -1391,6 +1402,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           activeChapterId={activeId}
           onClose={() => setRepetitionOpen(false)}
           onInspect={onInspectRepetition}
+        />
+      </Presence>
+
+      <Presence open={continuityOpen}>
+        <ContinuityCheckPanel
+          projectId={project.id}
+          activeChapterId={activeId}
+          activeChapterTitle={activeChapter?.title ?? ""}
+          onClose={() => setContinuityOpen(false)}
+          onInspect={onInspectContinuity}
         />
       </Presence>
 
