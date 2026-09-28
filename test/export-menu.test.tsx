@@ -139,13 +139,16 @@ describe("ExportMenu AI-involvement note", () => {
     localHost.remove();
   });
 
-  it("reports the share of words that started as Ciciro's, across every chapter", async () => {
+  it("reports cumulative Ciciro word counts across every chapter, not a share", async () => {
     const { localHost, localRoot } = await renderWith([
       chapter({ id: "c1", wordCount: 100, aiAcceptedWords: 20, aiDraftedWords: 5 }),
       chapter({ id: "c2", wordCount: 100, aiAcceptedWords: 0, aiDraftedWords: 0 }),
     ]);
     const note = localHost.querySelector(".export-ai-note");
-    expect(note?.textContent).toContain("13%");
+    expect(note?.textContent).toContain(
+      "25 words from Ciciro (20 from accepted suggestions, 5 inserted directly)"
+    );
+    expect(note?.textContent).not.toContain("%");
     expect(note?.textContent).toContain("not a KDP or AI-detector compliance guarantee");
     await act(async () => localRoot.unmount());
     localHost.remove();

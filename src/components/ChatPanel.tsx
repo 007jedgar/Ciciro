@@ -60,6 +60,8 @@ type Props = {
   // `key` groups every draft insert from the same message so the editor can
   // keep them in the right order (see EditorHandle.insertDraft).
   onInsertDraft: (text: string, key: string) => void;
+  /** A draft paste was tallied; carries the chapter's new aiDraftedWords. */
+  onDraftTallied?: (chapterId: string, aiDraftedWords: number) => void;
   onTurnComplete?: () => void;
   /** What is being written; picks the quick actions. Defaults to a novel. */
   kind?: ManuscriptKind;
@@ -115,8 +117,10 @@ function recordDraftInsertion(opts: {
   chapterId: string | null;
   /** Words in the draft, tallied once as Ciciro's; see src/lib/text.ts. */
   wordCount: number;
+  onTallied?: (chapterId: string, aiDraftedWords: number) => void;
 }) {
-  if (!opts.chapterId || !opts.turnId) return;
+  const chapterId = opts.chapterId;
+  if (!chapterId || !opts.turnId) return;
   fetch("/api/chat/insertions", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -124,10 +128,15 @@ function recordDraftInsertion(opts: {
       projectId: opts.projectId,
       turnId: opts.turnId,
       segmentIndex: opts.segmentIndex,
-      chapterId: opts.chapterId,
+      chapterId,
       wordCount: opts.wordCount,
     }),
-  }).catch(() => {});
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((row: { aiDraftedWords?: unknown } | null) => {
+      if (typeof row?.aiDraftedWords === "number") opts.onTallied?.(chapterId, row.aiDraftedWords);
+    })
+    .catch(() => {});
 }
 
 // Render a message body: markdown for prose, insertable blocks for <draft>.
@@ -203,10 +212,13 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     onInsertDraft,
     onTurnComplete,
     onUiEvent,
+    onDraftTallied,
     kind = "novel",
   },
   ref
 ) {
+  const onDraftTalliedRef = useRef(onDraftTallied);
+  onDraftTalliedRef.current = onDraftTallied;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [runs, setRuns] = useState<EditorRun[]>([]);
   const [input, setInput] = useState("");
@@ -319,6 +331,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           segmentIndex: idx,
           chapterId: activeChapterRef.current,
           wordCount: countWords(draft),
+          onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
         });
       }
     });
@@ -1019,6 +1032,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                           segmentIndex,
                           chapterId: activeChapterRef.current,
                           wordCount,
+                          onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
                         });
                       },
                       false
@@ -1073,6 +1087,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                         segmentIndex,
                         chapterId: activeChapterRef.current,
                         wordCount,
+                        onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
                       });
                     },
                     true

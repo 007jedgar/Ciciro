@@ -7,11 +7,16 @@
 -- Run it before (or together with) deploying the build that adds the
 -- disclosure summary. `aiAcceptedWords` and `aiDraftedWords` are read on every
 -- chapter query, so without them the app fails with
--- "no such column: aiAcceptedWords". `aiInvolvementSince` defaults to this
--- migration's run time for every existing chapter, which is correct: their
--- history predates tracking, so counting starts now, not at CURRENT_TIMESTAMP
--- backdated to their creation.
+-- "no such column: aiAcceptedWords".
+--
+-- SQLite refuses `ADD COLUMN ... DEFAULT CURRENT_TIMESTAMP` ("Cannot add a
+-- column with non-constant default"), so `aiInvolvementSince` is added with a
+-- constant placeholder and then set to this migration's run time for every
+-- existing chapter. That is the correct start: their history predates
+-- tracking, so counting starts now, not backdated to their creation. New
+-- chapters get their own creation time from Prisma's @default(now()).
 
 ALTER TABLE "Chapter" ADD COLUMN "aiAcceptedWords" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "Chapter" ADD COLUMN "aiDraftedWords" INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE "Chapter" ADD COLUMN "aiInvolvementSince" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Chapter" ADD COLUMN "aiInvolvementSince" DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00';
+UPDATE "Chapter" SET "aiInvolvementSince" = CURRENT_TIMESTAMP;

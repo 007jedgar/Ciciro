@@ -33,7 +33,7 @@ import {
   useSuggestionAuthor,
 } from "@/components/TrackChanges";
 import { useSettings } from "@/components/SettingsProvider";
-import { aiInvolvement, chapterWordCount } from "@/lib/text";
+import { aiInvolvement, chapterWordCount, describeAiInvolvement } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -901,6 +901,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       if (evt.type === "chapter_updated") {
         const store = optimisticStoreRef.current;
         const local = projectRef.current.chapters.find((c) => c.id === evt.chapterId);
+        if (evt.aiDraftedWords != null) {
+          updateChapterLocal(evt.chapterId, { aiDraftedWords: evt.aiDraftedWords });
+        }
         if (
           evt.chapterId === activeId &&
           local &&
@@ -1165,25 +1168,23 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 <span>{activeChapter.wordCount.toLocaleString()} words</span>
                 {(() => {
                   const involvement = aiInvolvement(activeChapter);
-                  if (involvement.totalWords === 0 || involvement.ciciroWords === 0) return null;
-                  const since = activeChapter.aiInvolvementSince
-                    ? new Date(activeChapter.aiInvolvementSince).toLocaleDateString()
-                    : null;
+                  if (involvement.ciciroWords === 0) return null;
+                  const since = involvement.since ? involvement.since.toLocaleDateString() : null;
                   return (
                     <>
                       <span>-</span>
                       <span
                         className="ai-involvement-badge"
                         title={
-                          `${involvement.percent}% of this chapter's words started as a Ciciro ` +
-                          "suggestion you accepted, or text Ciciro inserted directly (auto-draft, " +
-                          "Continue writing). Counted once, at that moment" +
-                          (since ? `, since ${since}` : "") +
-                          "; a later edit doesn't move the word back. A self-report for your own " +
-                          "disclosure, not a compliance guarantee."
+                          `${describeAiInvolvement(involvement)}` +
+                          (since ? ` since ${since}` : "") +
+                          ". A running total of what you accepted or Ciciro inserted (auto-draft, " +
+                          "Continue writing), counted once at that moment; a later edit or deletion " +
+                          "doesn't lower it, so it is not a share of the chapter's current words. " +
+                          "A self-report for your own disclosure, not a compliance guarantee."
                         }
                       >
-                        {involvement.percent}% Ciciro
+                        {involvement.ciciroWords.toLocaleString()} from Ciciro
                       </span>
                     </>
                   );
@@ -1340,6 +1341,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           order: c.order,
         }))}
         onInsertDraft={insertDraft}
+        onDraftTallied={(chapterId, aiDraftedWords) =>
+          updateChapterLocal(chapterId, { aiDraftedWords })
+        }
         kind={kind}
         onTurnComplete={onTurnComplete}
         onUiEvent={onUiEvent}
