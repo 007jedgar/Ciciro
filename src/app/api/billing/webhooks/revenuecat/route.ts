@@ -9,6 +9,11 @@ export const dynamic = "force-dynamic";
 // RevenueCat waits 60 seconds and retries a failure up to 5 times.
 export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => null);
-  const result = await handleRevenueCatWebhook(req.headers.get("authorization"), payload);
-  return NextResponse.json(result.body, { status: result.status });
+  try {
+    const result = await handleRevenueCatWebhook(req.headers.get("authorization"), payload);
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error) {
+    console.error("[billing] RevenueCat webhook failed", error);
+    return NextResponse.json({ error: "Webhook handling failed." }, { status: 500 });
+  }
 }
