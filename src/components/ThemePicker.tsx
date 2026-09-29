@@ -4,12 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { THEMES, type ThemeId } from "@/lib/theme";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type FormatChrome } from "@/lib/settings";
 import { useSettings } from "@/components/SettingsProvider";
+import DeleteAccountDialog from "@/components/DeleteAccountDialog";
+import { EXPORT_URL } from "@/lib/account/copy";
 import type { ModelSummary } from "@/lib/models";
+
+type Account = { email: string };
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
   const { settings, patch } = useSettings();
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ModelSummary | null>(null);
+  // undefined until asked; null when signed out (local-first has no account).
+  const [account, setAccount] = useState<Account | null | undefined>(undefined);
+  const [deleting, setDeleting] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const theme = settings.theme;
 
@@ -28,6 +35,22 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
       cancelled = true;
     };
   }, [open, models]);
+
+  useEffect(() => {
+    if (!open || account !== undefined) return;
+    let cancelled = false;
+    void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+      .then((res) => (res.ok ? (res.json() as Promise<{ user: Account | null }>) : null))
+      .then((data) => {
+        if (!cancelled) setAccount(data?.user ?? null);
+      })
+      .catch(() => {
+        /* offline - leave the section out */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, account]);
 
   useEffect(() => {
     if (!open) return;
@@ -312,8 +335,37 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               ) : null}
             </>
           ) : null}
+
+          {account ? (
+            <>
+              <div className="theme-menu-label">Account</div>
+              <p className="settings-hint settings-account" title={account.email}>
+                {account.email}
+              </p>
+              <a className="settings-action" href={EXPORT_URL} download>
+                Export my data
+              </a>
+              <button
+                type="button"
+                className="settings-action danger"
+                onClick={() => {
+                  setOpen(false);
+                  setDeleting(true);
+                }}
+              >
+                Delete account…
+              </button>
+            </>
+          ) : null}
         </div>
       )}
+      {account ? (
+        <DeleteAccountDialog
+          open={deleting}
+          email={account.email}
+          onClose={() => setDeleting(false)}
+        />
+      ) : null}
     </div>
   );
 }
