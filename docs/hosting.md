@@ -39,6 +39,7 @@ run coordinator.
 | `EMAIL_FROM` | for email | `"Name <address>"` the send comes from. Required once `RESEND_API_KEY` is set. |
 | `EMAIL_REPLY_TO` | optional | Reply-to address; overridable per send. |
 | `APPLE_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional | Sign in with Apple / Google. See [social sign-in](social-sign-in.md#configuration). |
+| `CICIRO_PUBLIC_URL` | Path A | The public origin, e.g. `https://ciciro.app`, for the Apple / Google callbacks and links in emails. Unset uses the request's origin, which is safe on Workers but lets a container that trusts a forwarded Host send reset links to someone else's site. |
 
 Never commit `.env`; set secrets through your platform (Cloudflare
 `wrangler secret put`, or container env).
@@ -242,16 +243,41 @@ fires `ON DELETE CASCADE` and empties every child table. That is why a
 password-less account stores `passwordHash = ""` rather than NULL. The schema
 check flags a column that is NOT NULL in D1 but optional in Prisma.
 
+Email verification and password reset links need `EmailToken` (they set the
+`User.emailVerifiedAt` column added above):
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-email-tokens.sql
+```
+
+Run it before deploying the build that ships them. Sign-in keeps working
+without it, but account deletion and the data export also read `EmailToken`,
+so until it runs they fail with `no such table: EmailToken`.
+
 ## Authentication
 
-- `POST /api/auth/signup` — create an account and start a session.
-- `POST /api/auth/login` — verify credentials and start a session.
-- `POST /api/auth/logout` — end the current session.
-- `GET  /api/auth/me` — the current user (or `null`).
-- `GET  /api/auth/providers` — which Apple / Google buttons are configured.
-- `GET  /api/auth/oauth/:provider/start`, `.../callback` — the Apple / Google
+- `POST /api/auth/signup`: create an account and start a session.
+- `POST /api/auth/login`: verify credentials and start a session.
+- `POST /api/auth/logout`: end the current session.
+- `GET  /api/auth/me`: the current user (or `null`).
+- `GET  /api/auth/providers`: which Apple / Google buttons are configured.
+- `GET  /api/auth/oauth/:provider/start`, `.../callback`: the Apple / Google
   browser flow; `POST /api/auth/apple/native` and `POST /api/auth/handoff` for
   the app. See [Sign in with Apple and Google](social-sign-in.md).
+- `POST /api/auth/verify-email/resend`: email the signed-in user a new
+  confirmation link (`429` with `Retry-After` inside the per-account cooldown).
+- `POST /api/auth/password/forgot`: email a reset link. Answers the same
+  whether or not the address has an account.
+- `POST /api/auth/password/reset`: set a new password from a reset link and
+  end every session the account has.
+
+The links land on `/verify-email` and `/reset-password` (requested from
+`/forgot-password`), which pass the auth gate. Link tokens follow the session
+rule: only a SHA-256 hash is stored (`EmailToken`), each link works once, a
+confirmation link lasts 48 hours and a reset link one hour, and a new reset
+link retires older unused ones. Sign-in never waits on verification;
+`User.emailVerifiedAt` records it, and a completed reset sets it too, since
+the reset proved the address.
 
 Sessions are httpOnly cookies (`ciciro_session`); the raw token never touches
 the database — only its SHA-256 hash is stored, and a TTL sweeps expired rows.
@@ -294,9 +320,22 @@ the Workers path. With no `RESEND_API_KEY` set, it logs the message and
 returns instead of sending or throwing, so local dev and CI never need a real
 key. Recipients are masked in that log, which is written at error level on a
 hosted deploy (`CICIRO_REQUIRE_AUTH`) so a forgotten secret shows up. A caller
-passing `throwOnError` gets a thrown error for a missing key too. This module only sends; templates (the actual subject/HTML/text content
-per email) and any user-facing flow that triggers a send are separate,
-later work.
+passing `throwOnError` gets a thrown error for a missing key too.
+
+Templates live in `src/lib/email/templates.ts` as typed content blocks that
+`render.ts` turns into both the HTML (React Email primitives in the shared
+`layout.tsx`, light by default with an Ember dark palette for clients that
+honor `prefers-color-scheme`) and the plain-text part. `account-emails.ts`
+holds the sends the app makes: confirm your email (password signups), welcome
+(once the address is confirmed), password reset and account deleted. Each
+passes a Resend idempotency key so a retried request never sends twice, and
+none of them throw, so a failed send never fails the signup or deletion
+around it. The billing templates (payment failed, subscription canceled,
+renewal reminder) are built but not sent yet.
+
+To see every template, run `npm run dev` and open `/dev/emails`, which shows
+each one in light, dark and plain text (`/dev/emails/<id>` serves the raw
+HTML, `?format=text` the text part). Both 404 in production.
 
 **Account setup, once per environment:**
 

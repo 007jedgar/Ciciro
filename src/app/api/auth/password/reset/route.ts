@@ -5,7 +5,7 @@ import { resetPassword } from "@/lib/auth/password-reset";
 
 export const runtime = "nodejs";
 
-// POST /api/auth/password/reset — { token, password }. Sets the new password
+// POST /api/auth/password/reset: { token, password }. Sets the new password
 // and signs the account out everywhere, this browser included.
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;

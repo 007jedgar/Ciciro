@@ -19,6 +19,10 @@ else stays in commit messages.
   `thinking` rather than disabling it, so the `between_tools` note does not apply
   and behavior is unchanged.
 
+- Ciciro now sends email: a link to confirm your address after signing up, a
+  welcome once it's confirmed, password reset links ("Forgot password?" on web
+  and mobile sign-in), and a note when an account is deleted. Settings shows
+  when your email isn't confirmed yet and can resend the link.
 - Settings (web and mobile) can now export all of your data as one zip and delete
   your account. `/account/delete` explains account deletion publicly, for the
   App Store and Google Play deletion requirements.
