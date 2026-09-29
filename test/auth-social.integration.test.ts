@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
+import { AppleRevokeError, revokeAppleTokens } from "@/lib/auth/apple-revoke";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { NO_PASSWORD, redeemHandoff, signInWithIdentity, SocialAuthError } from "@/lib/auth/identity";
 import { pkceChallenge, randomToken, sha256Hex, type VerifiedIdentity } from "@/lib/auth/oidc";
@@ -570,5 +571,86 @@ describe("browser and native sign-in flows", () => {
         status: 503,
       });
     });
+  });
+});
+
+describe("revokeAppleTokens", () => {
+  let applePem = "";
+
+  beforeAll(async () => {
+    applePem = (await fakeAppleSigningKey()).pem;
+  });
+
+  beforeEach(async () => {
+    await resetDb();
+    vi.stubEnv("APPLE_TEAM_ID", "TEAM123456");
+    vi.stubEnv("APPLE_KEY_ID", "KEY1234567");
+    vi.stubEnv("APPLE_PRIVATE_KEY", applePem);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function appleUser() {
+    const user = await signInWithIdentity(google({ provider: "apple", subject: "001.web" }), {
+      refreshToken: { token: "web-rt", clientId: "app.ciciro.web" },
+    });
+    await prisma.identity.create({
+      data: {
+        userId: user.id,
+        provider: "apple",
+        subject: "001.other",
+        refreshToken: "ios-rt",
+        refreshTokenClientId: "app.ciciro.mobile",
+      },
+    });
+    return user;
+  }
+
+  it("revokes each token with the client it was issued to, then clears it", async () => {
+    const user = await appleUser();
+    const sent: URLSearchParams[] = [];
+    const fetchStub = (async (url: string | URL | Request, init?: RequestInit) => {
+      expect(String(url)).toBe("https://appleid.apple.com/auth/revoke");
+      sent.push(new URLSearchParams(String(init?.body)));
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+
+    await expect(revokeAppleTokens(user.id, fetchStub)).resolves.toBe(2);
+    expect(sent.map((b) => [b.get("client_id"), b.get("token"), b.get("token_type_hint")]).sort()).toEqual([
+      ["app.ciciro.mobile", "ios-rt", "refresh_token"],
+      ["app.ciciro.web", "web-rt", "refresh_token"],
+    ]);
+    expect(sent.every((b) => b.get("client_secret")?.split(".").length === 3)).toBe(true);
+    const left = await prisma.identity.findMany({ where: { userId: user.id } });
+    expect(left.every((i) => i.refreshToken === "" && i.refreshTokenClientId === "")).toBe(true);
+  });
+
+  it("tries every token and reports the ones Apple refused", async () => {
+    const user = await appleUser();
+    const fetchStub = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const token = new URLSearchParams(String(init?.body)).get("token");
+      return new Response(null, { status: token === "ios-rt" ? 400 : 200 });
+    }) as typeof fetch;
+
+    const error = await revokeAppleTokens(user.id, fetchStub).catch((e) => e);
+    expect(error).toBeInstanceOf(AppleRevokeError);
+    expect(error.failed).toHaveLength(1);
+    const kept = await prisma.identity.findMany({ where: { userId: user.id, refreshToken: { not: "" } } });
+    expect(kept.map((i) => i.refreshToken)).toEqual(["ios-rt"]);
+  });
+
+  it("does nothing for a user without Apple tokens", async () => {
+    const user = await signInWithIdentity(google());
+    const fetchStub = vi.fn();
+    await expect(revokeAppleTokens(user.id, fetchStub as unknown as typeof fetch)).resolves.toBe(0);
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  it("refuses to pretend when the signing key is missing", async () => {
+    const user = await appleUser();
+    vi.stubEnv("APPLE_PRIVATE_KEY", "");
+    await expect(revokeAppleTokens(user.id)).rejects.toBeInstanceOf(AppleRevokeError);
   });
 });

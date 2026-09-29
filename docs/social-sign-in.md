@@ -58,11 +58,11 @@ revoke it (below).
 
 - **Account deletion (App Store guideline 5.1.1(v))**: Ciciro has no in-app
   account deletion yet, and the App Store requires it for apps that create
-  accounts. When it lands, it must revoke each Apple identity's token with
-  `POST https://appleid.apple.com/auth/revoke` (`client_id` =
-  `Identity.refreshTokenClientId`, `client_secret` = `appleClientSecret(...)`,
-  `token` = `Identity.refreshToken`, `token_type_hint=refresh_token`) before
-  deleting the user.
+  accounts. Revocation is ready for it: run `revokeAppleTokens(userId)`
+  (`src/lib/auth/apple-revoke.ts`) as a pre-delete hook, before the user row
+  goes (the tokens live on its `Identity` rows). It calls Apple's
+  `/auth/revoke` with each token's own client_id and throws
+  `AppleRevokeError` if Apple refuses any, so deletion can stop and retry.
 - **Email verification**: password signups do not verify their email yet. Until
   they do, someone could register a password account under another person's
   address before that person first uses Apple or Google with it, and linking

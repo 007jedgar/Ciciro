@@ -183,7 +183,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-  label: { fontSize: 16, fontWeight: "600" },
+  // Matches the native Apple button, whose title scales with its height.
+  label: { fontSize: 18, fontWeight: "500" },
   disabled: { opacity: 0.6 },
   divider: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4, marginBottom: 12 },
   rule: { flex: 1, height: StyleSheet.hairlineWidth },

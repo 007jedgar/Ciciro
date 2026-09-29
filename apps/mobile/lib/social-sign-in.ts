@@ -42,7 +42,11 @@ export async function appleSheetCredential(): Promise<AppleCredential | null> {
       nonce: hashed,
     });
   } catch (error) {
-    if ((error as { code?: string }).code === "ERR_REQUEST_CANCELED") return null;
+    // CANCELED: the person closed the sheet. UNKNOWN (ASAuthorizationError
+    // 1000): they closed the system's own "sign in to your Apple Account"
+    // prompt, which already said what was wrong.
+    const code = (error as { code?: string }).code;
+    if (code === "ERR_REQUEST_CANCELED" || code === "ERR_REQUEST_UNKNOWN") return null;
     throw new SocialSignInError("failed");
   }
   if (!credential.identityToken) throw new SocialSignInError("failed");
