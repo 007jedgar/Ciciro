@@ -131,6 +131,13 @@ export default async function PrivacyPage() {
             the database, Undo can restore them, and the editor&apos;s chat search can still
             find them. They&apos;re only removed when the whole manuscript is deleted.
           </p>
+          <p>
+            Deleting your account removes all of it at once: every manuscript and everything
+            listed above, your writing stats, settings, and the account itself.{" "}
+            <Link href="/account/delete">Here&apos;s how</Link>. Before you do, Export my data
+            in settings downloads a copy of everything Ciciro stores for you, with each
+            manuscript as a Word document and as Markdown.
+          </p>
         </section>
 
         <section className="privacy-section">

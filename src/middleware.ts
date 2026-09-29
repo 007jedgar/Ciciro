@@ -12,7 +12,7 @@ import {
 
 // Paths that never require a session. Beta reader links (/read/:token and
 // /api/read/:token/...) carry their own credential, the share token.
-const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/privacy"];
+const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/privacy", "/account/delete"];
 const PUBLIC_PREFIXES = ["/api/auth/", "/api/health", "/read/", "/api/read/"];
 
 function isPublic(pathname: string): boolean {
