@@ -137,11 +137,17 @@ describe("signInWithIdentity", () => {
 
   it("stores and refreshes the Apple refresh token", async () => {
     const identity = google({ provider: "apple", subject: "001.rt" });
-    await signInWithIdentity(identity, { refreshToken: "rt-1" });
+    await signInWithIdentity(identity, { refreshToken: { token: "rt-1", clientId: "app.ciciro.web" } });
     await signInWithIdentity(identity);
-    expect((await prisma.identity.findFirstOrThrow()).refreshToken).toBe("rt-1");
-    await signInWithIdentity(identity, { refreshToken: "rt-2" });
-    expect((await prisma.identity.findFirstOrThrow()).refreshToken).toBe("rt-2");
+    expect(await prisma.identity.findFirstOrThrow()).toMatchObject({
+      refreshToken: "rt-1",
+      refreshTokenClientId: "app.ciciro.web",
+    });
+    await signInWithIdentity(identity, { refreshToken: { token: "rt-2", clientId: "app.ciciro.mobile" } });
+    expect(await prisma.identity.findFirstOrThrow()).toMatchObject({
+      refreshToken: "rt-2",
+      refreshTokenClientId: "app.ciciro.mobile",
+    });
   });
 
   it("links concurrent first sign-ins to one account", async () => {
@@ -401,7 +407,10 @@ describe("browser and native sign-in flows", () => {
     expect(endpoint.calls[0].url).toBe("https://appleid.apple.com/auth/token");
     expect(endpoint.calls[0].body.get("client_id")).toBe("app.ciciro.web");
     expect(endpoint.calls[0].body.get("client_secret")?.split(".")).toHaveLength(3);
-    expect((await prisma.identity.findFirstOrThrow()).refreshToken).toBe("apple-rt");
+    expect(await prisma.identity.findFirstOrThrow()).toMatchObject({
+      refreshToken: "apple-rt",
+      refreshTokenClientId: "app.ciciro.web",
+    });
   });
 
   it("Apple still signs in when the code exchange fails", async () => {
@@ -513,7 +522,10 @@ describe("browser and native sign-in flows", () => {
       // Native codes are issued to the bundle ID, with no redirect_uri.
       expect(endpoint.calls[0].body.get("client_id")).toBe("app.ciciro.mobile");
       expect(endpoint.calls[0].body.has("redirect_uri")).toBe(false);
-      expect((await prisma.identity.findFirstOrThrow()).refreshToken).toBe("ios-rt");
+      expect(await prisma.identity.findFirstOrThrow()).toMatchObject({
+      refreshToken: "ios-rt",
+      refreshTokenClientId: "app.ciciro.mobile",
+    });
     });
 
     it("rejects a replayed token without the raw nonce", async () => {

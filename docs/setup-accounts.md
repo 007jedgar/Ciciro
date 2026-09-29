@@ -17,9 +17,10 @@ Copy names exactly. Do not commit `.env` or Wrangler secrets.
 | [Groq](https://console.groq.com/) | Optional | Cheap chat-search ranking only |
 | [Expo](https://expo.dev/) | For the mobile app | EAS / device builds later |
 | GitHub | If you protect `main` | Required check `test` once CI lands |
-| Extra identity provider (Google, Auth0, Clerk, …) | No | Email + password only |
+| [Apple Developer](https://developer.apple.com/account) | Optional | Sign in with Apple |
+| [Google Cloud](https://console.cloud.google.com/) | Optional | Sign in with Google |
 
-There is no OAuth, magic link, or SSO in this repo. Auth is email, password (scrypt), and an httpOnly cookie named `ciciro_session`.
+Auth is email and password (scrypt), plus optional Sign in with Apple and Google, all ending in an httpOnly cookie named `ciciro_session`. There is no magic link or SSO. Console setup for Apple and Google is in [Sign in with Apple and Google](social-sign-in.md).
 
 ## Local `.env`
 
@@ -36,6 +37,8 @@ Copy [`.env.example`](../.env.example) to `.env` in the repo root (the Next.js a
 | `CICIRO_STANDALONE` | Docker build | `next.config.mjs`; the Dockerfile sets this. |
 | `GROQ_API_KEY` | No | `src/lib/fast-lane.ts` |
 | `CICIRO_ROUTER_MODEL` | No | Groq ranker model; default `llama-3.1-8b-instant` |
+| `APPLE_SERVICES_ID`, `APPLE_BUNDLE_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | No | Sign in with Apple (`src/lib/auth/social-config.ts`) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | No | Sign in with Google (`src/lib/auth/social-config.ts`) |
 
 `.env.example` does not list `CICIRO_REQUIRE_AUTH`. Local single-author use stays open when it is unset or anything other than `true`. For a local rehearsal of hosted mode:
 
@@ -55,6 +58,7 @@ Implementation: `src/lib/auth/**`, `src/app/api/auth/**`, `src/middleware.ts`.
 - **Login:** `POST /api/auth/login` with JSON `{ "email", "password" }`. Browser page: `/login`.
 - **Logout:** `POST /api/auth/logout`.
 - **Who am I:** `GET /api/auth/me` returns `{ "user": { id, email, name } | null }`.
+- **Apple / Google:** buttons on `/login`, `/signup`, and the app's sign-in screen, shown only when configured. See [Sign in with Apple and Google](social-sign-in.md).
 - **Session cookie:** `ciciro_session` (constant `SESSION_COOKIE` in `src/lib/auth/constants.ts`). httpOnly, `SameSite=Lax`, `Secure` when `NODE_ENV=production`, path `/`, TTL 30 days. Only the SHA-256 of the token is stored.
 - **Passwords:** scrypt, self-describing hash `scrypt$N$r$p$saltHex$hashHex`.
 
@@ -195,5 +199,6 @@ The **`test`** workflow in `.github/workflows/ci.yml` runs lint, Vitest, and mob
 6. Open `/signup` on the deployed origin, create an account, then `/login` as a second check. Create a manuscript.
 7. Docker alternative to steps 4-5: `docker build -t ciciro .` and `docker run` with the same two env vars (auth is on in the image).
 8. Optional: Groq key as `GROQ_API_KEY`.
-9. Mobile: `cd apps/mobile && npm install`. Set `EXPO_PUBLIC_API_URL` to the origin from step 5 or 7. Then `npx expo start`. Sign in against that host. The app never gets `ANTHROPIC_API_KEY`.
-10. Confirm the GitHub **`test`** check is required on `main` (Settings → Rulesets).
+9. Optional: Sign in with Apple and Google. Run `prisma/d1-social-sign-in.sql` on D1, then follow [Sign in with Apple and Google](social-sign-in.md).
+10. Mobile: `cd apps/mobile && npm install`. Set `EXPO_PUBLIC_API_URL` to the origin from step 5 or 7. Then `npx expo start`. Sign in against that host. The app never gets `ANTHROPIC_API_KEY`.
+11. Confirm the GitHub **`test`** check is required on `main` (Settings → Rulesets).

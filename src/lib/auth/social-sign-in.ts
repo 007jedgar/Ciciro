@@ -221,8 +221,8 @@ async function appleRefreshToken(
   clientId: string,
   redirectUri: string | undefined,
   deps: SocialDeps
-): Promise<string> {
-  if (!code) return "";
+): Promise<{ token: string; clientId: string } | undefined> {
+  if (!code) return undefined;
   // Best effort: the ID token already proved who this is. The refresh token is
   // only what account deletion will revoke, and the next sign-in retries.
   try {
@@ -232,10 +232,10 @@ async function appleRefreshToken(
       { code, clientId, clientSecret: await appleClientSecret(config, clientId), redirectUri },
       deps.fetch
     );
-    return exchanged.refreshToken;
+    return exchanged.refreshToken ? { token: exchanged.refreshToken, clientId } : undefined;
   } catch (error) {
     console.error("apple: code exchange failed:", error instanceof Error ? error.message : error);
-    return "";
+    return undefined;
   }
 }
 

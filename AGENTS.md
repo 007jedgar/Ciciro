@@ -21,7 +21,7 @@ The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `sr
 
 ## Production D1 schema
 
-`prisma db push` never reaches the Worker's D1. A schema change needs a `prisma/d1-*.sql` upgrade (see `docs/hosting.md`) applied to production before merging to `main`; the `main` build fails while D1 is behind (`npm run db:check:d1`).
+`prisma db push` never reaches the Worker's D1. A schema change needs a `prisma/d1-*.sql` upgrade (see `docs/hosting.md`) applied to production before merging to `main`; the `main` build fails while D1 is behind (`npm run db:check:d1`). Only add tables and columns there: D1 cannot turn foreign keys off, so rebuilding a referenced table (the only way SQLite drops NOT NULL or changes a type) cascade-deletes its children. Model "no value" with a default instead (e.g. `User.passwordHash = ""` for Apple / Google accounts).
 
 ## Account data
 
