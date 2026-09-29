@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
-import { publicOrigin } from "@/lib/auth/social-sign-in";
+import { publicOrigin } from "@/lib/public-origin";
 import { createCheckoutSession } from "@/lib/billing/stripe";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!interval) return NextResponse.json({ error: "interval must be month or year" }, { status: 400 });
   try {
     const user = await requireSessionUser(req);
-    const url = await createCheckoutSession(user, interval, publicOrigin(req));
+    const url = await createCheckoutSession(user, interval, publicOrigin(req.nextUrl.origin));
     return NextResponse.json({ url });
   } catch (error) {
     const failure = responseFromAuthError(error);
