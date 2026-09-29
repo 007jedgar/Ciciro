@@ -14,7 +14,8 @@ import {
 
 type Recipient = { id: string; email: string; name?: string };
 
-async function send(
+/** Render a template and send it once: Resend drops a repeat of the same key. */
+export async function sendTemplateEmail(
   to: string,
   content: EmailContent,
   origin: string,
@@ -43,7 +44,7 @@ export function sendVerifyEmail(
   origin: string
 ): Promise<SendEmailResult> {
   const verifyUrl = `${origin}/verify-email?token=${encodeURIComponent(link.token)}`;
-  return send(
+  return sendTemplateEmail(
     user.email,
     verifyEmailTemplate({ name: user.name, verifyUrl, expiresInMs: link.expiresInMs }),
     origin,
@@ -52,7 +53,7 @@ export function sendVerifyEmail(
 }
 
 export function sendWelcomeEmail(user: Recipient, origin: string): Promise<SendEmailResult> {
-  return send(user.email, welcomeTemplate({ name: user.name, appUrl: `${origin}/` }), origin, `welcome/${user.id}`);
+  return sendTemplateEmail(user.email, welcomeTemplate({ name: user.name, appUrl: `${origin}/` }), origin, `welcome/${user.id}`);
 }
 
 export function sendPasswordResetEmail(
@@ -61,7 +62,7 @@ export function sendPasswordResetEmail(
   origin: string
 ): Promise<SendEmailResult> {
   const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(link.token)}`;
-  return send(
+  return sendTemplateEmail(
     user.email,
     passwordResetTemplate({ email: user.email, resetUrl, expiresInMs: link.expiresInMs }),
     origin,
@@ -74,7 +75,7 @@ export function sendAccountDeletedEmail(
   origin: string,
   deletedAt = new Date()
 ): Promise<SendEmailResult> {
-  return send(
+  return sendTemplateEmail(
     account.email,
     accountDeletedTemplate({ name: account.name, email: account.email, deletedAt }),
     origin,

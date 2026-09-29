@@ -34,16 +34,17 @@ jest.mock("../lib/session", () => ({
 }));
 jest.mock("../lib/api", () => {
   const actual = jest.requireActual("../lib/api/client");
-  return { ApiError: actual.ApiError, ciciro: { auth: { resendVerification: () => mockResend() } } };
+  return {
+    ApiError: actual.ApiError,
+    ciciro: { auth: { resendVerification: () => mockResend() } },
+    useEntitlementQuery: () => ({ data: undefined, refetch: jest.fn() }),
+  };
 });
 jest.mock("../lib/writing-reminder-notifications", () => ({
   getReminderPermission: jest.fn(async () => "granted"),
 }));
 jest.mock("../lib/writing-reminder-store", () => ({ useWritingReminderList: () => [] }));
-jest.mock("../lib/api/hooks", () => ({
-  useModelsQuery: () => ({ data: undefined }),
-  useEntitlementQuery: () => ({ data: undefined }),
-}));
+jest.mock("../lib/api/hooks", () => ({ useModelsQuery: () => ({ data: undefined }) }));
 jest.mock("../lib/use-export-account-data", () => ({
   useExportAccountData: () => ({ busy: mockExportBusy, run: mockRunExport }),
 }));

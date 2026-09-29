@@ -65,6 +65,7 @@ export type FakeStripeSubscription = {
   cancel_at_period_end: boolean;
   cancel_at: number | null;
   ended_at: number | null;
+  cancellation_details: { comment: string | null };
   livemode: boolean;
   metadata: Record<string, string>;
   items: {
@@ -93,7 +94,8 @@ export type FakeStripe = {
   ) => FakeStripeSubscription;
   /** A signed webhook delivery for `event` (the Stripe-Signature header and body). */
   sign: (event: Record<string, unknown>) => Promise<{ payload: string; signature: string }>;
-  event: (type: string, object: unknown) => Record<string, unknown>;
+  /** An event about `object`; `previous` is what an `*.updated` event's fields were before. */
+  event: (type: string, object: unknown, previous?: Record<string, unknown>) => Record<string, unknown>;
   close: () => Promise<void>;
 };
 
@@ -145,6 +147,7 @@ export async function fakeStripe(
       if (!sub) return null;
       sub.status = "canceled";
       sub.ended_at = Math.floor(Date.now() / 1000);
+      sub.cancellation_details = { comment: params["cancellation_details[comment]"] ?? null };
       return { body: sub };
     }
     if (method === "POST" && path === "/v1/checkout/sessions") {
@@ -194,6 +197,7 @@ export async function fakeStripe(
         cancel_at_period_end: false,
         cancel_at: null,
         ended_at: null,
+        cancellation_details: { comment: null },
         livemode: false,
         metadata: opts.userId ? { userId: opts.userId } : {},
         items: {
@@ -210,14 +214,14 @@ export async function fakeStripe(
       subscriptions.set(sub.id, sub);
       return sub;
     },
-    event: (type, object) => ({
+    event: (type, object, previous) => ({
       id: nextId("evt"),
       object: "event",
       type,
       api_version: "2026-08-26.dahlia",
       created: Math.floor(Date.now() / 1000),
       livemode: false,
-      data: { object },
+      data: previous ? { object, previous_attributes: previous } : { object },
     }),
     sign: async (event) => {
       const payload = JSON.stringify(event);
