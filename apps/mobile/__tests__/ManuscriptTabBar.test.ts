@@ -1,19 +1,27 @@
-import { keyboardCoversTabBar } from "../lib/manuscript-tab-bar";
+import { keyboardHideProgress } from "../lib/manuscript-tab-bar";
 
-describe("keyboardCoversTabBar", () => {
+describe("keyboardHideProgress", () => {
   it("stays visible when no keyboard is up", () => {
-    expect(keyboardCoversTabBar(0)).toBe(false);
+    expect(keyboardHideProgress(0)).toBe(0);
   });
 
   it("stays visible for a floating IME add-on shorter than a real keyboard", () => {
-    // Android's stylus-handwriting toolbar and voice-typing's compact strip report the
-    // `ime()` inset as visible while only occupying ~50-90dp, far short of a real keyboard.
-    expect(keyboardCoversTabBar(60)).toBe(false);
-    expect(keyboardCoversTabBar(-60)).toBe(false);
+    expect(keyboardHideProgress(60)).toBe(0);
+    expect(keyboardHideProgress(-60)).toBe(0);
   });
 
-  it("hides once a real keyboard covers the bar, regardless of sign convention", () => {
-    expect(keyboardCoversTabBar(300)).toBe(true);
-    expect(keyboardCoversTabBar(-300)).toBe(true);
+  it("is fully hidden once a real keyboard is up, regardless of sign convention", () => {
+    expect(keyboardHideProgress(300)).toBe(1);
+    expect(keyboardHideProgress(-300)).toBe(1);
+  });
+
+  it("ramps continuously with height, with no step", () => {
+    let prev = keyboardHideProgress(0);
+    for (let h = 1; h <= 320; h++) {
+      const next = keyboardHideProgress(h);
+      expect(next).toBeGreaterThanOrEqual(prev);
+      expect(next - prev).toBeLessThan(0.05);
+      prev = next;
+    }
   });
 });

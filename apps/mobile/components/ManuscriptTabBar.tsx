@@ -23,7 +23,7 @@ import { loadWritingReminders } from "../lib/writing-reminder-store";
 import { writingReminderEntryForProject } from "../lib/writing-reminder-sync";
 import { openTodayEntry } from "../lib/journal";
 import { normalizeKind } from "../lib/manuscript-kind";
-import { keyboardCoversTabBar } from "../lib/manuscript-tab-bar";
+import { keyboardHideProgress } from "../lib/manuscript-tab-bar";
 import { Glass, alpha } from "./Glass";
 import { StuckSheet } from "./StuckSheet";
 import {
@@ -295,7 +295,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   }));
 
   const barRowStyle = useAnimatedStyle(() => {
-    const hideProgress = keyboardCoversTabBar(keyboard.height.value) ? keyboard.progress.value : 0;
+    const hideProgress = keyboardHideProgress(keyboard.height.value);
     return {
       opacity: interpolate(hideProgress, [0, 0.7], [1, 0], "clamp"),
       transform: [
