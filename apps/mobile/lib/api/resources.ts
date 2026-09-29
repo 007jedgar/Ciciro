@@ -6,6 +6,7 @@ import type {
   AuthSessionResponse,
   AutowriteRequest,
   AutowriteStreamEvent,
+  DeleteAccountRequest,
   BibleEntry,
   BibleFile,
   BibleNewCharacterRequest,
@@ -153,6 +154,8 @@ export const ciciro = {
       api<AuthSessionResponse>("/api/auth/signup", jsonInit("POST", body, opts)),
     logout: (opts?: RequestOpts) =>
       api<OkResponse>("/api/auth/logout", jsonInit("POST", undefined, opts)),
+    deleteAccount: (body: DeleteAccountRequest, opts?: RequestOpts) =>
+      api<OkResponse>("/api/auth/account", jsonInit("DELETE", body, opts)),
   },
 
   settings: {

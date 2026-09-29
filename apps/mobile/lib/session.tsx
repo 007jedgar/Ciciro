@@ -13,6 +13,7 @@ import {
   setSessionToken,
 } from "./session-store";
 import { SessionContext } from "./session-context";
+import type { DeleteAccountRequest } from "./api/types";
 import type { PublicUser } from "./types";
 
 export { useSession, type SessionState } from "./session-context";
@@ -90,12 +91,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const logout = useCallback(async () => {
-    try {
-      await ciciro.auth.logout();
-    } catch (error) {
-      if (!(error instanceof ApiError)) throw error;
-    }
+  const endAccount = useCallback(() => {
     setSessionToken(null);
     rememberUser(null);
     setUser(null);
@@ -103,9 +99,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     clearPersistedQueryCache();
   }, []);
 
+  const logout = useCallback(async () => {
+    try {
+      await ciciro.auth.logout();
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error;
+    }
+    endAccount();
+  }, [endAccount]);
+
+  const deleteAccount = useCallback(
+    async (proof: DeleteAccountRequest) => {
+      const userId = user?.id;
+      await ciciro.auth.deleteAccount(proof);
+      endAccount();
+      if (userId) {
+        // Required here, not imported at the top: it reaches MMKV and the
+        // replica, which every screen that reads the session would load too.
+        const { forgetAccountOnDevice } = require("./account-data") as typeof import("./account-data");
+        await forgetAccountOnDevice(userId).catch(() => {
+          /* best effort: the account is already gone on the server */
+        });
+      }
+    },
+    [user, endAccount]
+  );
+
   const value = useMemo(
-    () => ({ user, ready, refresh, login, signup, logout }),
-    [user, ready, refresh, login, signup, logout]
+    () => ({ user, ready, refresh, login, signup, logout, deleteAccount }),
+    [user, ready, refresh, login, signup, logout, deleteAccount]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
