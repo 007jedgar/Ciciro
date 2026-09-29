@@ -54,6 +54,36 @@ Ask it to record decisions: "She's British - put that in canon." If it
 proposes a provisional choice, answer it in **Questions** so the manuscript
 stays aligned.
 
+## Craft defaults and em dashes
+
+New prose from Ciciro follows a set of craft defaults that steer it away from
+habits common in model-written fiction: a mood mirrored by the weather, a
+closing line that explains the scene, "not X but Y" contrasts, lines built to
+sound wise, an earnest or lyrical tone you did not ask for, long balanced
+sentences and lists of three, conflict that is only ever silence, and scenes
+that end on a reconciliation or an epiphany. A blog post gets the nonfiction
+version (no staged run-ups, inflated claims, stock words, or send-offs); a
+journal gets none. After each draft, a quick check quotes any spot where the
+draft still does one of these, and the editor fixes it or keeps it on purpose
+before you see the `<draft>`. The check only looks at new drafts, never at
+your own prose.
+
+Your voice outranks the defaults. If you write lyrical prose on purpose, or
+end scenes on a turn of feeling, say so in `style.md` (or in the character's
+Voice section) and the editor carries it into every brief.
+
+Ciciro writes no em dashes by default. If you write with them, change the line
+in `style.md` to:
+
+```
+- Em dashes: allowed
+```
+
+Or ask Ciciro to switch them on and it will set that line for you. With it
+set, drafts use dashes the way your own prose does. Projects created before
+this switch existed have a line saying never to use em dashes instead; add the
+`Em dashes: allowed` line (and delete the old one) to switch them on.
+
 ## Quick actions
 
 The chips above the chat are scoped prompts. Use them when the job matches;

@@ -61,8 +61,10 @@ patterns here are how dialogue stays in character across chapters.
 reads `plot.md` against the manuscript; unpaid setups only show up if they are
 listed (or findable in the prose).
 
-**Style.** Put non-negotiable prose rules here (hyphens not em dashes, no new
-named characters in a scene, narrator knowledge). Theme alignment uses this
+**Style.** Put non-negotiable prose rules here (no new named characters in a
+scene, narrator knowledge, habits of yours Ciciro should keep). Em dashes are
+off by default; the line `- Em dashes: allowed` switches them on (see [Craft
+defaults and em dashes](using-ciciro.md#craft-defaults-and-em-dashes)). Theme alignment uses this
 file. Already have chapters written? **Analyze my style** (top bar's **More**
 menu) drafts this file and each speaking character's Voice section from your
 own prose instead of you writing them cold - see [Using

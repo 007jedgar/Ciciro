@@ -93,10 +93,10 @@ describe("manuscript kind", () => {
 
   it("gives the assistant kind-specific prompts and actions", () => {
     expect(kindDirective("novel")).toBe("");
-    expect(editorSystemFor("novel")[0].text).toBe(EDITOR_SYSTEM);
+    expect(editorSystemFor("novel", "", { craft: false })[0].text).toBe(EDITOR_SYSTEM);
     expect(editorSystemFor("screenplay")[0].text).toContain("SCREENPLAY");
     expect(editorSystemFor("journal", "EXTRA")[0].text).toMatch(/JOURNAL[\s\S]*EXTRA$/);
-    expect(drafterSystemFor("novel")).toBe(DRAFTER_SYSTEM);
+    expect(drafterSystemFor("novel", { craft: false })).toBe(DRAFTER_SYSTEM);
     expect(drafterSystemFor("screenplay")).toContain("script pages");
     expect(quickActionsFor("novel")).toBe(QUICK_ACTIONS);
     for (const kind of MANUSCRIPT_KINDS) {

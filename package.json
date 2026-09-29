@@ -16,6 +16,7 @@
     "setup": "prisma generate && prisma db push",
     "typecheck": "tsc --noEmit",
     "higgsfield:example": "node --env-file-if-exists=.env.local scripts/higgsfield/index.ts",
+    "demo:craft": "node --env-file-if-exists=.env.local scripts/craft-demo/run.mjs",
     "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
     "typecheck:mobile": "npm run typecheck --prefix apps/mobile",
     "test:mobile": "npm test --prefix apps/mobile",

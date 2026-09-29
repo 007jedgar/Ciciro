@@ -14,6 +14,7 @@ import { registerUser } from "@/lib/auth/session";
 import { createProject } from "@/lib/projects";
 import { createCharacter } from "@/lib/story";
 import { ensureBible } from "@/lib/bible";
+import { EM_DASH_STYLE_LINE } from "@/lib/craft-defaults";
 import {
   analyzeStyle,
   excerptWords,
@@ -380,7 +381,7 @@ describe("analyzeStyle", () => {
     expect(proposal.characters[0].currentContent).toContain("## Voice");
     expect(proposal.proposedStyleMd).toContain("# Style");
     expect(proposal.proposedStyleMd.startsWith(proposal.currentStyleMd.trimEnd())).toBe(true);
-    expect(proposal.proposedStyleMd).toContain("Never use em dashes");
+    expect(proposal.proposedStyleMd).toContain(EM_DASH_STYLE_LINE);
     expect(proposal.proposedStyleMd).toContain(`${ANALYZED_STYLE_HEADING}\n- **POV:** Close third person.`);
     expect(proposal.styleSuggestions).toEqual([]);
     expect(proposal.sampledChapters.map((c) => c.title).sort()).toEqual(
