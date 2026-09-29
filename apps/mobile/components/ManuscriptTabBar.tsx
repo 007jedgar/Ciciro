@@ -23,6 +23,7 @@ import { loadWritingReminders } from "../lib/writing-reminder-store";
 import { writingReminderEntryForProject } from "../lib/writing-reminder-sync";
 import { openTodayEntry } from "../lib/journal";
 import { normalizeKind } from "../lib/manuscript-kind";
+import { keyboardCoversTabBar } from "../lib/manuscript-tab-bar";
 import { Glass, alpha } from "./Glass";
 import { StuckSheet } from "./StuckSheet";
 import {
@@ -293,16 +294,19 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
     transform: [{ translateX: bubble.value * seg.value + (seg.value - BUBBLE_W) / 2 }],
   }));
 
-  const barRowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(keyboard.progress.value, [0, 0.7], [1, 0], "clamp"),
-    transform: [
-      {
-        translateY: reduceMotion
-          ? 0
-          : interpolate(keyboard.progress.value, [0, 1], [0, insets.bottom + BAR_MARGIN + PILL_HEIGHT + 24]),
-      },
-    ],
-  }));
+  const barRowStyle = useAnimatedStyle(() => {
+    const hideProgress = keyboardCoversTabBar(keyboard.height.value) ? keyboard.progress.value : 0;
+    return {
+      opacity: interpolate(hideProgress, [0, 0.7], [1, 0], "clamp"),
+      transform: [
+        {
+          translateY: reduceMotion
+            ? 0
+            : interpolate(hideProgress, [0, 1], [0, insets.bottom + BAR_MARGIN + PILL_HEIGHT + 24]),
+        },
+      ],
+    };
+  });
 
   const glassBubble = dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.055)";
 
