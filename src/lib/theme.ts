@@ -1,7 +1,9 @@
 export type ThemeId =
   | "parchment"
-  | "sage"
   | "ember"
+  | "parchment-classic"
+  | "sage"
+  | "ember-classic"
   | "walnut"
   | "inkwell"
   | "candle";
@@ -14,10 +16,15 @@ export type ThemeMeta = {
   swatch: [string, string];
 };
 
+// "parchment" and "ember" are the ids every device already stores for the
+// default light and dark themes, so they carry the current Archive look; the
+// palettes they used to name moved to the "-classic" ids (see globals.css).
 export const THEMES: ThemeMeta[] = [
-  { id: "parchment", label: "Parchment", mode: "light", swatch: ["#f2ebe0", "#b4552d"] },
+  { id: "parchment", label: "Archive", mode: "light", swatch: ["#f1ede4", "#2340e0"] },
+  { id: "parchment-classic", label: "Parchment", mode: "light", swatch: ["#f2ebe0", "#b4552d"] },
   { id: "sage", label: "Sage", mode: "light", swatch: ["#e8ebe3", "#6b7a4e"] },
-  { id: "ember", label: "Ember", mode: "dark", swatch: ["#1a1713", "#d9754a"] },
+  { id: "ember", label: "Archive night", mode: "dark", swatch: ["#121211", "#6b82ff"] },
+  { id: "ember-classic", label: "Ember", mode: "dark", swatch: ["#1a1713", "#d9754a"] },
   { id: "walnut", label: "Walnut", mode: "dark", swatch: ["#1c1410", "#c4a574"] },
   { id: "inkwell", label: "Inkwell", mode: "dark", swatch: ["#121820", "#c9a27a"] },
   { id: "candle", label: "Candle", mode: "dark", swatch: ["#14110e", "#e0a85c"] },

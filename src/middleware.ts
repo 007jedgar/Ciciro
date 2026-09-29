@@ -14,7 +14,10 @@ import {
 // /api/read/:token/...) carry their own credential, the share token.
 // Billing webhooks authenticate by signature (Stripe) or shared secret
 // (RevenueCat) instead of a session.
+// `/` is public because it serves the landing page to signed-out visitors
+// (src/app/page.tsx decides, after validating the session).
 const PUBLIC_PATHS = [
+  "/",
   "/login",
   "/signup",
   "/launch",
@@ -67,7 +70,7 @@ export function middleware(req: NextRequest) {
 
   const loginUrl = req.nextUrl.clone();
   loginUrl.pathname = "/login";
-  loginUrl.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname)}`;
+  loginUrl.search = `?next=${encodeURIComponent(pathname)}`;
   return NextResponse.redirect(loginUrl);
 }
 

@@ -1,6 +1,32 @@
 /* ---------- Theme tokens ---------- */
+/* Archive (day) and Archive night are the launch design language: a warm desk,
+   crisp sheets, ink-black bands, cobalt for action, and vermilion, blush and
+   butter as paper stock. They keep the long-standing default ids "parchment"
+   and "ember" so every signed-in device that already stores those ids (the
+   phone app included) lands on the new look; the old palettes live on as
+   "parchment-classic" and "ember-classic". */
 :root,
 [data-theme="parchment"] {
+  color-scheme: light;
+  --bg: #f1ede4;
+  --panel: #fffdf7;
+  --panel-2: #e9e4d8;
+  --ink: #141414;
+  --ink-soft: #5a574f;
+  --line: #dad4c6;
+  --accent: #2340e0;
+  --accent-soft: #dfe4fb;
+  --on-accent: #fff;
+  --draft: #13795b;
+  --draft-soft: #d4efe2;
+  --del: #d23a2a;
+  --del-soft: #f7dcd8;
+  --texture-opacity: 0.3;
+  --texture-blend: multiply;
+  --glow: rgba(35, 64, 224, 0.05);
+}
+
+[data-theme="parchment-classic"] {
   color-scheme: light;
   --bg: #f2ebe0;
   --panel: #faf6ef;
@@ -41,6 +67,26 @@
 }
 
 [data-theme="ember"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --panel: #1d1c19;
+  --panel-2: #26241f;
+  --ink: #ede8dc;
+  --ink-soft: #a39d90;
+  --line: #34322d;
+  --accent: #6b82ff;
+  --accent-soft: #1f2547;
+  --on-accent: #121211;
+  --draft: #5fd0a4;
+  --draft-soft: #173228;
+  --del: #ff7a66;
+  --del-soft: #3a1f1b;
+  --texture-opacity: 0.3;
+  --texture-blend: soft-light;
+  --glow: rgba(107, 130, 255, 0.06);
+}
+
+[data-theme="ember-classic"] {
   color-scheme: dark;
   --bg: #1a1713;
   --panel: #221e19;
@@ -168,16 +214,42 @@
   --stagger-rise: calc(60ms * var(--motion));
   --duration-typewriter: calc(120ms * var(--motion));
   --duration-accordion: calc(200ms * var(--motion));
+  /* The landing's desk-to-phone scene loops on this; the caret blinks on the
+     second. Both are loops, so reduced motion also sets animation: none. */
+  --duration-scene: calc(9000ms * var(--motion));
+  --duration-caret: calc(1000ms * var(--motion));
   --press-scale: 0.98;
   --hover-lift: -1px;
   --enter-shift: 24px;
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   --lift-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 22%, transparent);
-  --sans: var(--font-sans), "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
-  --serif: var(--font-serif), Literata, Georgia, "Times New Roman", serif;
+  --sans: var(--font-sans), "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --serif: var(--font-serif), Newsreader, Georgia, "Times New Roman", serif;
   --mono: var(--font-mono), "JetBrains Mono", ui-monospace, Menlo, monospace;
   --editor-font-family: var(--serif);
   --editor-size: 19px;
+  /* Archive stock and marks, shared by every theme. Vermilion and blush are
+     paper colours, not text colours: text on them is always ink. */
+  --band: #141414;
+  --band-ink: #f3efe6;
+  --band-soft: #a8a396;
+  --band-line: #2c2b28;
+  --vermilion: #e8442c;
+  --blush: #f5aca2;
+  --butter: #ffd84d;
+  --stamp: color-mix(in srgb, var(--accent) 80%, transparent);
+  --margin-rule: color-mix(in srgb, var(--vermilion) 45%, transparent);
+  --paper-shadow:
+    0 1px 1px color-mix(in srgb, var(--ink) 7%, transparent),
+    0 18px 36px -20px color-mix(in srgb, var(--ink) 38%, transparent);
+}
+
+[data-theme="ember"] {
+  --band: #070707;
+  --vermilion: #ff5a40;
+  --blush: #d98a82;
+  --butter: #f2c94c;
+  --paper-shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 22px 40px -18px rgba(0, 0, 0, 0.8);
 }
 
 html[data-editor-font="sans"] {
@@ -241,10 +313,16 @@ button {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 8px;
+  padding: var(--space-2) 14px;
+  border-radius: 999px;
   font-size: 13px;
-  transition: background 0.15s, border-color 0.15s, transform var(--duration-press) var(--ease-out);
+  font-weight: 500;
+  line-height: 1.2;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-press) var(--ease-out);
 }
 .btn:active:not(:disabled) {
   transform: scale(var(--press-scale));
@@ -272,9 +350,11 @@ button {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+  font-weight: 600;
 }
 .btn.primary:hover {
-  filter: brightness(1.05);
+  background: color-mix(in srgb, var(--accent) 86%, var(--ink));
+  border-color: color-mix(in srgb, var(--accent) 86%, var(--ink));
 }
 .btn.ghost {
   border-color: transparent;
@@ -286,7 +366,7 @@ button {
   background: var(--panel-2);
 }
 .btn.small {
-  padding: 4px 8px;
+  padding: 4px 10px;
   font-size: 12px;
 }
 
@@ -307,6 +387,7 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 textarea {
   resize: vertical;
@@ -1921,35 +2002,14 @@ textarea {
   margin: 0;
 }
 .brand-mark {
-  position: relative;
-  display: inline-block;
+  display: inline-flex;
   flex: 0 0 auto;
-  border-radius: 22%;
-  overflow: hidden;
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
 }
-.brand-mark-img {
-  position: absolute;
-  inset: 0;
+.brand-mark svg {
+  display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.brand-mark-dark {
-  display: none;
-}
-[data-theme="ember"] .brand-mark-light,
-[data-theme="walnut"] .brand-mark-light,
-[data-theme="inkwell"] .brand-mark-light,
-[data-theme="candle"] .brand-mark-light {
-  display: none;
-}
-[data-theme="ember"] .brand-mark-dark,
-[data-theme="walnut"] .brand-mark-dark,
-[data-theme="inkwell"] .brand-mark-dark,
-[data-theme="candle"] .brand-mark-dark {
-  display: block;
 }
 .auth-card .brand-mark {
   align-self: center;

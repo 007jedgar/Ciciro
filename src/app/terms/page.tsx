@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import BackLink from "@/app/privacy/BackLink";
-import { authRequired } from "@/lib/auth/constants";
-import { getSessionUser } from "@/lib/auth/session";
 import "../privacy/privacy.css";
 
 export const metadata: Metadata = {
@@ -11,22 +9,15 @@ export const metadata: Metadata = {
   description: "The terms for using Ciciro and for Ciciro Pro subscriptions, on the web and in the apps.",
 };
 
-async function homeHref(): Promise<string> {
-  if (!authRequired()) return "/";
-  const user = await getSessionUser().catch(() => null);
-  return user ? "/" : "/launch";
-}
-
 export default async function TermsPage() {
-  const home = await homeHref();
   return (
     <main className="privacy-page">
       <header className="privacy-header">
-        <Link href={home} className="privacy-brand">
+        <Link href="/" className="privacy-brand">
           <BrandMark size={24} />
           <span className="privacy-wordmark">Ciciro</span>
         </Link>
-        <BackLink fallback={home} />
+        <BackLink fallback="/" />
       </header>
 
       <article className="privacy-body">

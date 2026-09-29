@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import { DELETED_WITH_ACCOUNT } from "@/lib/account/copy";
-import { authRequired } from "@/lib/auth/constants";
 import { getSessionUser } from "@/lib/auth/session";
 import BackLink from "../../privacy/BackLink";
 import AccountDeleteActions from "./AccountDeleteActions";
@@ -20,16 +19,15 @@ type Props = { searchParams: Promise<{ deleted?: string }> };
 export default async function AccountDeletePage({ searchParams }: Props) {
   const user = await getSessionUser().catch(() => null);
   const justDeleted = (await searchParams).deleted === "1" && !user;
-  const home = !authRequired() || user ? "/" : "/launch";
 
   return (
     <main className="privacy-page">
       <header className="privacy-header">
-        <Link href={home} className="privacy-brand">
+        <Link href="/" className="privacy-brand">
           <BrandMark size={24} />
           <span className="privacy-wordmark">Ciciro</span>
         </Link>
-        <BackLink fallback={home} />
+        <BackLink fallback="/" />
       </header>
 
       <article className="privacy-body">
