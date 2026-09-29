@@ -116,7 +116,7 @@ describe("Settings models section", () => {
     expect(screen.queryByText("Drafter")).toBeNull();
     expect(screen.queryByText("Quick drafts")).toBeNull();
     expect(screen.queryByText("Router")).toBeNull();
-    expect(screen.getByText("Claude Sonnet 5")).toBeTruthy();
+    expect(screen.getByText("Claude Sonnet 5.5")).toBeTruthy();
   });
 
   it("leaves the section out while the models are unknown, and drops the router row without Groq", async () => {
