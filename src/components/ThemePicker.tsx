@@ -306,7 +306,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
 
           <div className="theme-menu-label">Daily words</div>
           <p className="settings-hint">
-            Five minutes is a session. Aim for {settings.weeklyDayTarget} of the last 7 days — the
+            Five minutes is a session. Aim for {settings.weeklyDayTarget} of the last 7 days. The
             rest are rest days, not a streak to protect.
           </p>
           <div className="settings-row">

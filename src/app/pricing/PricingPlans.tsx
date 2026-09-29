@@ -156,7 +156,7 @@ export default function PricingPlans({
           </p>
           <ul>
             <li>The whole editor, story bible and outline</li>
-            <li>Word and Markdown export, and your data any time</li>
+            <li>Word, Markdown, EPUB and PDF export, and your data any time</li>
             <li>Sync across the web, iPhone and Android</li>
             <li>{allowance(limits.free)} with Ciciro</li>
           </ul>

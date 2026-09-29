@@ -317,8 +317,8 @@ export default function Library() {
     <div className="home">
       <div className="home-top">
         <div className="brand-lockup">
-          <BrandMark size={44} />
-          <h1>Ciciro</h1>
+          <BrandMark size={36} />
+          <span className="home-wordmark">Ciciro</span>
         </div>
         <div className="account-bar">
           <Link className="btn ghost small" href="/privacy">
@@ -328,7 +328,15 @@ export default function Library() {
           <ThemePicker />
         </div>
       </div>
-      <p className="tag">Your AI writing partner - plan it, write it, ship the manuscript.</p>
+      <div className="home-heading">
+        <p className="home-kicker">
+          Library{shelf === "ready" ? ` / ${projects.length} ${projects.length === 1 ? "manuscript" : "manuscripts"}` : ""}
+        </p>
+        <h1>
+          Your <em>manuscripts</em>
+        </h1>
+        <p className="tag">Kept exactly where you left them. Five minutes is enough to keep going.</p>
+      </div>
 
       {shelf === "loading" ? <p className="tag">Loading manuscripts…</p> : null}
       {shelf === "error" ? (
@@ -366,7 +374,7 @@ export default function Library() {
       ) : null}
 
       <form className="new-form" onSubmit={create}>
-        <strong>Start something new</strong>
+        <strong className="new-form-tab">Start something new</strong>
         <div className="kind-picker" role="group" aria-label="What are you writing?">
           {MANUSCRIPT_KINDS.map((option) => (
             <button
@@ -425,7 +433,7 @@ export default function Library() {
       </form>
 
       <form className="new-form" onSubmit={importManuscript}>
-        <strong>Import a manuscript</strong>
+        <strong className="new-form-tab">Import a manuscript</strong>
         <p className="folder-notes">
           Word (.docx, including Google Docs downloaded as Word), Markdown, or a zipped Scrivener
           project. Chapters split on headings; bold, italic and scene breaks carry over.
@@ -448,7 +456,7 @@ export default function Library() {
       </form>
 
       <form className="new-form" onSubmit={createFolder}>
-        <strong>New folder</strong>
+        <strong className="new-form-tab">New folder</strong>
         <input
           placeholder="Folder name"
           value={folderName}

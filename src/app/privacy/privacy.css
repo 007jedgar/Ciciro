@@ -25,7 +25,9 @@
 
 .privacy-wordmark {
   font-family: var(--serif);
-  font-size: 1.1rem;
+  font-style: italic;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
@@ -39,30 +41,47 @@
   color: var(--ink);
 }
 
+/* The page is a sheet on the desk, with a red margin rule. */
 .privacy-body {
   max-width: 720px;
-  margin: 0 auto;
-  padding: 40px 24px 96px;
+  margin: 28px auto 72px;
+  padding: 48px 48px 64px 72px;
+  background:
+    linear-gradient(
+      to right,
+      transparent 44px,
+      var(--margin-rule) 44px,
+      var(--margin-rule) 45px,
+      transparent 45px
+    ),
+    var(--panel);
+  border-radius: 2px;
+  box-shadow: var(--paper-shadow);
 }
 
 .privacy-eyebrow {
-  font-size: 0.85rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  margin: 0 0 12px;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
 }
 
 .privacy-title {
   font-family: var(--serif);
-  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
-  line-height: 1.25;
+  font-weight: 300;
+  font-size: clamp(2rem, 4.4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 72;
   color: var(--ink);
   margin: 0 0 10px;
 }
 
 .privacy-updated {
-  font-size: 0.85rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
   color: var(--ink-soft);
   margin: 0 0 28px;
 }
@@ -82,7 +101,10 @@
 
 .privacy-section h2 {
   font-family: var(--serif);
-  font-size: 1.3rem;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
   color: var(--ink);
   margin: 0 0 16px;
 }
@@ -129,10 +151,20 @@
 
 @media (max-width: 640px) {
   .privacy-header {
-    padding: 20px 20px 0;
+    padding: 20px 16px 0;
   }
   .privacy-body {
-    padding: 32px 20px 72px;
+    margin: 20px 12px 48px;
+    padding: 32px 20px 48px 40px;
+    background:
+      linear-gradient(
+        to right,
+        transparent 24px,
+        var(--margin-rule) 24px,
+        var(--margin-rule) 25px,
+        transparent 25px
+      ),
+      var(--panel);
   }
 }
 
@@ -168,8 +200,9 @@
   margin: 28px 0 32px;
   padding: 18px 20px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+  border-left: 4px solid var(--draft);
+  border-radius: 2px;
+  background: var(--bg);
 }
 
 .account-delete-done h2 {
