@@ -10,6 +10,7 @@ import {
   reviewDue,
   type WeeklyReview as Review,
 } from "@/lib/weekly-review-view";
+import { reportAiLimit } from "@/lib/billing-client";
 
 type Props = {
   projectId: string;
@@ -139,6 +140,7 @@ export default function WeeklyReview({ projectId, open: openProp, onOpenChange, 
         body: JSON.stringify({ to: writingDayKey(), tzOffset: new Date().getTimezoneOffset() }),
       });
       const data = await res.json().catch(() => ({}));
+      reportAiLimit(res.status, data);
       if (!res.ok) throw new Error(data.error || "Couldn't write the review.");
       const review = data as Review;
       setReviews((prev) => [review, ...(prev ?? [])]);

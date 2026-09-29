@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
 import type { ContinuityCheckFinding, ContinuityCheckResult, ContinuityScope } from "@/lib/continuity-view";
+import { reportAiLimit } from "@/lib/billing-client";
 
 type Props = {
   projectId: string;
@@ -73,6 +74,7 @@ export default function ContinuityCheckPanel({
         ),
       });
       const data = await res.json().catch(() => ({}));
+      reportAiLimit(res.status, data);
       if (!res.ok) throw new Error(data.error || "Couldn't run the continuity check.");
       setResult(data as ContinuityCheckResult);
     } catch (e) {

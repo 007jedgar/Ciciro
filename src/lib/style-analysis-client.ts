@@ -1,4 +1,5 @@
 import type { StyleAnalysisProposal } from "@/lib/style-analysis-view";
+import { reportAiLimit } from "@/lib/billing-client";
 
 export type {
   CharacterVoiceProposal,
@@ -21,6 +22,7 @@ export async function runStyleAnalysis(
     | { error?: string }
     | null;
   if (!res.ok) {
+    reportAiLimit(res.status, body);
     throw new Error(body?.error || "Couldn't analyze style.");
   }
   return body as StyleAnalysisProposal;

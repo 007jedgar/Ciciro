@@ -9,6 +9,7 @@ import {
   waitForOnline,
 } from "@/lib/ndjson-stream";
 import DrawerHead from "@/components/DrawerHead";
+import { reportAiLimit } from "@/lib/billing-client";
 
 type Props = {
   projectId: string;
@@ -63,6 +64,13 @@ export default function AutoWrite({
     } catch {
       setPhase("error");
       setError("Request failed to start.");
+      return;
+    }
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      reportAiLimit(res.status, data);
+      setPhase("error");
+      setError(data.error || "Request failed to start.");
       return;
     }
     if (!res.body) {

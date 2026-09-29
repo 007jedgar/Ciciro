@@ -80,6 +80,10 @@ export type FakeStripe = {
   customers: Map<string, { id: string; object: "customer"; email: string; metadata: Record<string, string> }>;
   subscriptions: Map<string, FakeStripeSubscription>;
   charges: Map<string, { id: string; object: "charge"; customer: string; refunded: boolean }>;
+  prices: Map<
+    string,
+    { id: string; object: "price"; currency: string; unit_amount: number; recurring: { interval: string } }
+  >;
   /** Answer the next `times` requests to `path` with a 500 (the SDK retries twice). */
   failNext: (path: string, times?: number) => void;
   addCustomer: (userId: string) => string;
@@ -93,11 +97,26 @@ export type FakeStripe = {
   close: () => Promise<void>;
 };
 
-export async function fakeStripe(): Promise<FakeStripe> {
+/** `checkoutUrl` points Checkout somewhere real, e.g. a local stand-in page for a manual run. */
+export async function fakeStripe(
+  options: { checkoutUrl?: (sessionId: string) => string } = {}
+): Promise<FakeStripe> {
   const requests: Recorded[] = [];
   const customers: FakeStripe["customers"] = new Map();
   const subscriptions: FakeStripe["subscriptions"] = new Map();
   const charges: FakeStripe["charges"] = new Map();
+  const prices: FakeStripe["prices"] = new Map(
+    (["month", "year"] as const).map((interval) => [
+      `price_pro_${interval}`,
+      {
+        id: `price_pro_${interval}`,
+        object: "price" as const,
+        currency: "usd",
+        unit_amount: interval === "month" ? 1200 : 9600,
+        recurring: { interval },
+      },
+    ])
+  );
   const failing = new Failures();
 
   const handle: Handler = ({ method, path, params }) => {
@@ -130,10 +149,15 @@ export async function fakeStripe(): Promise<FakeStripe> {
     }
     if (method === "POST" && path === "/v1/checkout/sessions") {
       const id = nextId("cs_test");
-      return { body: { id, object: "checkout.session", url: `https://checkout.stripe.test/c/pay/${id}` } };
+      const url = options.checkoutUrl?.(id) ?? `https://checkout.stripe.test/c/pay/${id}`;
+      return { body: { id, object: "checkout.session", url } };
     }
     if (method === "POST" && path === "/v1/billing_portal/sessions") {
       return { body: { id: nextId("bps"), object: "billing_portal.session", url: "https://billing.stripe.test/p/session" } };
+    }
+    if (method === "GET" && (m = path.match(/^\/v1\/prices\/([^/]+)$/))) {
+      const price = prices.get(m[1]);
+      return price ? { body: price } : null;
     }
     if (method === "GET" && (m = path.match(/^\/v1\/charges\/([^/]+)$/))) {
       const charge = charges.get(m[1]);
@@ -153,6 +177,7 @@ export async function fakeStripe(): Promise<FakeStripe> {
     customers,
     subscriptions,
     charges,
+    prices,
     failNext: (path, times = 1) => failing.add(path, times),
     addCustomer: (userId) => {
       const customer = { id: nextId("cus"), object: "customer" as const, email: "", metadata: { userId } };

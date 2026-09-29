@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { StuckResponse } from "@/lib/recap-view";
 import { MOTION_MS, usePresence } from "@/lib/motion";
+import { reportAiLimit } from "@/lib/billing-client";
 
 type Props = {
   projectId: string;
@@ -34,6 +35,7 @@ export default function StuckPrompts({ projectId, chapterId, onUse }: Props) {
       const data = (await res.json().catch(() => ({}))) as Partial<StuckResponse> & {
         error?: string;
       };
+      reportAiLimit(res.status, data);
       if (!res.ok || !data.prompts) throw new Error(data.error || "Could not get ideas.");
       if (request !== latest.current) return;
       setPrompts(data.prompts);

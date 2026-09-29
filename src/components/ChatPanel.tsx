@@ -43,6 +43,15 @@ import {
 } from "@/lib/ndjson-stream";
 import { closeOpenDrafts, hasOpenDraft } from "@/lib/heal";
 import { parseSegments } from "@/lib/segments";
+import { reportAiLimit } from "@/lib/billing-client";
+
+/** The month's AI allowance is used up: stop, don't retry (AiLimitDialog explains). */
+class AiLimitStop extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiLimitStop";
+  }
+}
 
 type Scope = "selection" | "chapter" | "book";
 
@@ -495,7 +504,9 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     if (!res.ok && res.status !== 404) {
       if (ct.includes("application/json")) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || `HTTP ${res.status}`);
+        const message = (err as { error?: string }).error || `HTTP ${res.status}`;
+        if (reportAiLimit(res.status, err)) throw new AiLimitStop(message);
+        throw new Error(message);
       }
       throw new Error(`HTTP ${res.status}`);
     }
@@ -721,7 +732,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             break;
           } catch (err) {
             sliceError = err;
-            if (ctrl.signal.aborted) throw err;
+            if (ctrl.signal.aborted || err instanceof AiLimitStop) throw err;
             if (err instanceof OfflineError) {
               setConn("offline");
               await waitForOnline(ctrl.signal);
@@ -772,7 +783,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         clearPendingTurn(projectId);
       }
       setConn("online");
-    } catch {
+    } catch (err) {
+      if (err instanceof AiLimitStop) {
+        // Nothing was sent: take the message back out of the thread and into
+        // the composer, so it is there when the allowance comes back.
+        clearPendingTurn(projectId);
+        setMessages((m) => m.filter((msg) => !(msg.role === "user" && msg.turnId === turn.turnId)));
+        setInput(turn.message);
+      }
       try {
         await refreshMessages();
       } catch {
@@ -905,6 +923,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         body: JSON.stringify({ projectId, compactOnly: true }),
       });
       const data = await res.json();
+      if (reportAiLimit(res.status, data)) return;
       if (data.compacted) await refreshMessages();
       else alert("Chat is already within the context budget.");
     } catch {

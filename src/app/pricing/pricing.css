@@ -1,0 +1,213 @@
+/* Pricing page. Builds on the privacy page's layout (privacy.css); scoped under
+   .pricing-page so it never touches shared app chrome. */
+
+.pricing-page .privacy-header {
+  max-width: 820px;
+}
+
+.pricing-body {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+}
+
+.pricing-lede {
+  max-width: 620px;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  margin: 0 0 32px;
+}
+
+.pricing-banner {
+  margin: 0 0 24px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.pricing-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0 20px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.pricing-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.pricing-toggle button.active {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+
+.pricing-save {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.pricing-plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pricing-plan {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 22px 22px 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.pricing-plan.pro {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+.pricing-plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pricing-plan h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--ink);
+}
+
+.pricing-badge {
+  flex: none;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pricing-price {
+  margin: 14px 0 16px;
+  font-family: var(--serif);
+  font-size: 2rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.pricing-price span {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.pricing-plan ul {
+  flex: 1;
+  margin: 0 0 20px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pricing-plan li {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.pricing-status {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.pricing-cta {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.pricing-page .pricing-cta.btn {
+  color: var(--ink);
+}
+
+.pricing-page .pricing-cta.btn.primary {
+  color: var(--on-accent);
+}
+
+.pricing-cta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pricing-error {
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--del);
+}
+
+.pricing-error a {
+  color: var(--accent);
+}
+
+.pricing-notes {
+  margin: 36px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.pricing-notes p {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.pricing-notes strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pricing-notes a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .pricing-body {
+    padding: 32px 20px 72px;
+  }
+  .pricing-plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
