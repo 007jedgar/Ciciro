@@ -97,6 +97,20 @@ describe("api client", () => {
     expect(getSessionToken()).toBe("json-token");
   });
 
+  it("never stores a mangled cookie value as the session token", async () => {
+    setSessionToken("good-token");
+    mockFetch(async () =>
+      jsonResponse(
+        { user: { id: "u1", email: "ada@example.com", name: "Ada" }, token: "good-token,ciciro_session=good-token" },
+        { sessionHeader: "good-token,ciciro_session=good-token" }
+      )
+    );
+
+    await api("/api/auth/me");
+
+    expect(getSessionToken()).toBe("good-token");
+  });
+
   it("throws ApiError with the server message and body", async () => {
     mockFetch(async () =>
       jsonResponse({ error: "You do not have access to this manuscript." }, { status: 403 })

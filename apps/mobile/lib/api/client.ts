@@ -36,17 +36,26 @@ function readSetCookie(res: Response): string {
   return res.headers.get("set-cookie") ?? "";
 }
 
+/**
+ * A session token is base64url. Anything with a comma, semicolon, `=` or
+ * space is a mangled cookie (iOS can merge two into `TOKEN,ciciro_session=TOKEN`),
+ * and storing it would fail every request after.
+ */
+export function isSessionToken(value: unknown): value is string {
+  return typeof value === "string" && /^[^\s,;=]+$/.test(value);
+}
+
 function captureSession(res: Response): void {
   const headerToken = res.headers.get(SESSION_HEADER);
-  if (headerToken) setSessionToken(headerToken);
+  if (isSessionToken(headerToken)) setSessionToken(headerToken);
   const match = readSetCookie(res).match(new RegExp(`${SESSION_COOKIE_NAME}=([^;,\\s]+)`));
-  if (match?.[1]) setSessionToken(match[1]);
+  if (isSessionToken(match?.[1])) setSessionToken(match[1]);
 }
 
 function captureTokenFromBody(data: unknown): void {
   if (!data || typeof data !== "object" || !("token" in data)) return;
   const token = (data as { token?: unknown }).token;
-  if (typeof token === "string" && token) setSessionToken(token);
+  if (isSessionToken(token)) setSessionToken(token);
 }
 
 function errorMessage(data: unknown, status: number): string {

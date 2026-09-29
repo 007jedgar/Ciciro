@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { AuthError, authenticate, createSession, registerUser } from "@/lib/auth/session";
+import { AuthError, authenticate, createSession, getSession, registerUser } from "@/lib/auth/session";
 import { hashSessionToken } from "@/lib/auth/tokens";
 
 describe("account registration and authentication", () => {
@@ -94,5 +94,17 @@ describe("account registration and authentication", () => {
       where: { tokenHash: hashSessionToken(token) },
     });
     expect(stored.userId).toBe(user.id);
+  });
+
+  it("finds the session among merged cookies and hands back only the token that matched", async () => {
+    const user = await registerUser({ email: "merged@example.com", password: "session-password" });
+    const token = await createSession(user.id, "vitest");
+    const headers = new Headers({
+      "x-ciciro-session": `${token},ciciro_session=${token}`,
+      cookie: `ciciro_session=stale%2Cciciro_session%3Dstale,ciciro_session=${token}`,
+    });
+    const session = await getSession({ headers });
+    expect(session?.user.id).toBe(user.id);
+    expect(session?.token).toBe(token);
   });
 });
