@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { BrandDots } from "./BrandDots";
 import { SocialSignIn } from "./SocialSignIn";
 import { ApiError } from "../lib/api";
+import type { PublicUser } from "../lib/api/types";
 import {
   type AuthFieldErrorKey,
   type AuthMode,
@@ -96,13 +97,20 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
 
   // --- auth form state -------------------------------------------------------
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const { name, email, password, errors, setName, setEmail, setPassword, validate } =
+  const { name, email, password, errors, setName, setEmail, setPassword, validate, reset } =
     useAuthFormStore();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nameH, setNameH] = useState(NAME_ROW_FALLBACK);
 
   const isSignup = mode === "signup";
+
+  // The form store outlives this screen, so clear it: after signing out, the
+  // next person to open sign-in must not find the last password filled in.
+  function signedIn(user: PublicUser) {
+    reset();
+    restoreLastPlace(router, user.id);
+  }
 
   async function submit() {
     setError(null);
@@ -112,13 +120,10 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
     }
     setBusy(true);
     try {
-      if (isSignup) {
-        const user = await signup({ email: email.trim(), password, name: name.trim() || undefined });
-        restoreLastPlace(router, user.id);
-      } else {
-        const user = await login(email.trim(), password);
-        restoreLastPlace(router, user.id);
-      }
+      const user = isSignup
+        ? await signup({ email: email.trim(), password, name: name.trim() || undefined })
+        : await login(email.trim(), password);
+      signedIn(user);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("errors.network"));
       setBusy(false);
@@ -322,7 +327,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 disabled={busy}
                 onBusyChange={setBusy}
                 onError={setError}
-                onSignedIn={(user) => restoreLastPlace(router, user.id)}
+                onSignedIn={signedIn}
               />
 
               {/* name: only for account creation, sliding in and out */}
