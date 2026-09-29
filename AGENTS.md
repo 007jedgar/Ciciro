@@ -31,7 +31,7 @@ Durations and easings are tokens in `src/app/globals.css`, all scaled by `--moti
 
 Pass numbers into Reanimated worklets as arguments or same-scope locals: a default parameter or imported constant used inside one can be missing on the UI runtime. A throw there stops every animation until the app restarts, so if motion "does nothing" on the simulator, read Metro's log and relaunch before debugging the code. The same applies to functions: Reanimated only auto-workletizes the callback passed directly to a hook like `useAnimatedStyle`, not a plain function imported from another module and called inside that callback - give the imported function its own `"worklet"` directive, or it crashes every animation with `[Worklets] Tried to synchronously call a Remote Function`.
 
-On Android, `useReanimatedKeyboardAnimation()`'s `progress` is boolean (0/1 on the IME inset's visibility), not continuous - a floating IME add-on shorter than a real keyboard (the stylus-handwriting toolbar, voice-typing's compact strip) still pins it to 1. Gate keyboard-reactive UI on the paired `height` value too (see `keyboardCoversTabBar` in `apps/mobile/lib/manuscript-tab-bar.ts`) or it disappears whenever one of those shows.
+On Android, `useReanimatedKeyboardAnimation()`'s `progress` is boolean (0/1 on the IME inset's visibility), not continuous - a floating IME add-on shorter than a real keyboard (the stylus-handwriting toolbar, voice-typing's compact strip) still pins it to 1. Drive keyboard-reactive UI from the paired `height` value instead, ramped continuously so there is no step (see `keyboardHideProgress` in `apps/mobile/lib/manuscript-tab-bar.ts`), or it disappears whenever one of those shows.
 
 ## AI-involvement tally
 
