@@ -41,10 +41,12 @@ is no nonce-less path.
 
 1. A known provider identity (`Identity`, unique on provider + `sub`) signs
    into its account, even after the email on it changes.
-2. Otherwise a **verified** email matching an account links to it. Apple's
-   private-relay addresses (`@privaterelay.appleid.com`) are ordinary emails.
+2. Otherwise a **verified** email matching an account links to it, and marks
+   its email verified. If that account was an unverified password account, the
+   link is a takeover (see the follow-up below). Apple's private-relay
+   addresses (`@privaterelay.appleid.com`) are ordinary emails.
 3. Otherwise a verified email creates an account with no password
-   (`passwordHash` is `""`, which never verifies).
+   (`passwordHash` is `""`, which never verifies) and `emailVerifiedAt` set.
 4. An unverified email never links or creates anything.
 
 Apple sends the person's name only on the first authorization. The app and the
@@ -109,10 +111,12 @@ npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
 
-Production D1 needs the `Identity` and `AuthHandoff` tables first:
+Production D1 needs the `Identity` and `AuthHandoff` tables and the
+`User.emailVerifiedAt` column first:
 
 ```bash
 npx wrangler d1 execute ciciro --remote --file=prisma/d1-social-sign-in.sql
+npx wrangler d1 execute ciciro --remote --file=prisma/d1-email-verified.sql
 ```
 
 ## Apple Developer setup
