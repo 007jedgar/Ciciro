@@ -15,6 +15,6 @@ export const VERIFY_COPY: Record<VerifyOutcome, { title: string; body: string }>
   },
   invalid: {
     title: "This link won't work",
-    body: "It may have been copied incompletely, or replaced by a newer email. Send yourself a new one.",
+    body: "It may have been copied incompletely. Send yourself a new one.",
   },
 };
