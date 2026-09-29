@@ -16,6 +16,7 @@ import {
   AUTONOMOUS_DIRECTIVE,
   beatDraftMessage,
   drafterSystemFor,
+  PROSE_MAX_TOKENS,
   editBeatInstruction,
   editorSystemFor,
 } from "@/lib/prompts";
@@ -28,6 +29,8 @@ export type Verdict = "A" | "B" | "tie";
 
 export type ArmRun = {
   draft: string;
+  /** The editor's reply hit its token limit, so (as auto-draft does) the draft stands as the final. */
+  editCutOff?: boolean;
   /** The CRAFT CHECK the editor received (arm B only). */
   craftCheck: string;
   final: string;
@@ -59,6 +62,8 @@ export type DemoResult = {
   samples: number;
   scenes: SceneRun[];
   usage: Usage[];
+  /** Caveats about this run, added after the fact and shown at the top of the page. */
+  notes?: string[];
 };
 
 // --- Metrics ---------------------------------------------------------------------
@@ -123,10 +128,6 @@ function textOf(res: Anthropic.Message): string {
     .trim();
 }
 
-function clamp(n: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, n));
-}
-
 /** What buildEditorContext would give the editor for this scene. */
 export function sceneContext(scene: DemoScene): string {
   return `style.md:\n${scene.styleMd}\n${scene.bible}\n\nOPEN CHAPTER (last passage):\n${scene.continuity}`;
@@ -149,12 +150,13 @@ async function runArm(client: Client, scene: DemoScene, arm: Arm, record: Record
     client,
     {
       model: DRAFTER_MODEL,
-      max_tokens: clamp(scene.wordTarget * 3, 800, 4000),
+      max_tokens: PROSE_MAX_TOKENS,
       system: drafterSystemFor(scene.kind, { emDashes, craft }),
       messages: [{ role: "user", content: beatDraftMessage(scene.brief, scene.continuity, false, scene.wordTarget) }],
     },
     record
   );
+  if (draftRes.stop_reason === "max_tokens") throw new Error("The draft ran past its length limit.");
   const draft = textOf(draftRes);
 
   const findings = craft
@@ -166,7 +168,7 @@ async function runArm(client: Client, scene: DemoScene, arm: Arm, record: Record
     client,
     {
       model: EDITOR_MODEL,
-      max_tokens: clamp(scene.wordTarget * 4, 1000, 5000),
+      max_tokens: PROSE_MAX_TOKENS,
       thinking: { type: "adaptive" },
       output_config: { effort: "high" },
       system: editorSystemFor(scene.kind, AUTONOMOUS_DIRECTIVE, { craft }),
@@ -179,7 +181,9 @@ async function runArm(client: Client, scene: DemoScene, arm: Arm, record: Record
     } as Anthropic.MessageCreateParamsNonStreaming,
     record
   );
-  const final = textOf(editRes) || draft;
+  // Mirrors runAutoWrite: a cut-off edit is skipped and the draft stands.
+  const editCutOff = editRes.stop_reason === "max_tokens";
+  const final = (!editCutOff && textOf(editRes)) || draft;
 
   // Annotate both arms' finals with the same check, so the page compares like with like.
   const finalFindings = await checkDraft(final, {
@@ -188,7 +192,7 @@ async function runArm(client: Client, scene: DemoScene, arm: Arm, record: Record
     brief: scene.brief,
     client: recording(client, record),
   });
-  return { draft, craftCheck, final, finalFindings, metrics: textMetrics(final) };
+  return { draft, editCutOff, craftCheck, final, finalFindings, metrics: textMetrics(final) };
 }
 
 /** A client that records usage for calls made on its behalf (checkDraft's own call). */

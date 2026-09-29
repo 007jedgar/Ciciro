@@ -77,6 +77,7 @@ function badges(run: ArmRun): string {
     `${fmt(m.dashesPer1k)} dashes per 1k`,
     `${m.contrasts} staged contrasts`,
     `${run.finalFindings.length} flagged`,
+    ...(run.editCutOff ? ["edit cut off: draft kept"] : []),
   ];
   return `<ul class="badges">${items.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>`;
 }
@@ -227,6 +228,9 @@ export function renderPage(result: DemoResult): string {
   const banner = result.dryRun
     ? `<div class="banner"><b>Dry run.</b> Every passage, finding, and verdict below is canned mock output, used to check the harness end to end. It says nothing about which pipeline writes better. The cost is an estimate for a real run.</div>`
     : "";
+  const notes = (result.notes || [])
+    .map((n) => `<div class="banner"><b>Note on this run.</b> ${escapeHtml(n)}</div>`)
+    .join("");
   const toc = result.scenes
     .map((s) => `<a href="#${escapeHtml(s.scene.id)}">${escapeHtml(s.scene.title)}</a>`)
     .join("");
@@ -239,6 +243,7 @@ export function renderPage(result: DemoResult): string {
 <h1>Craft defaults, side by side</h1>
 <p class="lede">The same scenes and briefs, drafted by Ciciro's current pipeline and by the pipeline with craft defaults (drafter rules, the post-draft check, and the editor's craft section). Each sample is one auto-draft beat: ${escapeHtml(result.models.drafter)} drafts, ${escapeHtml(result.models.editor)} edits to final. Highlights mark what the craft check finds in each final passage. ${result.samples} sample${result.samples === 1 ? "" : "s"} per scene; run ${escapeHtml(result.startedAt.slice(0, 16).replace("T", " "))} UTC.</p>
 ${banner}
+${notes}
 ${summary(result)}
 <nav class="toc">${toc}</nav>
 ${result.scenes.map(sceneBlock).join("")}
