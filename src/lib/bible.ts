@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { AuthError } from "@/lib/auth/session";
+import { EM_DASH_STYLE_LINE } from "@/lib/craft-defaults";
 
 // The story bible is a set of markdown files, one concern per path. These are
 // the shared memory between the editor (Opus) and the drafters (Sonnet/Haiku):
@@ -221,7 +222,7 @@ const STARTERS: Record<string, (p: SeedProject) => string> = {
     (p.pov ? `- POV / tense: ${p.pov}\n` : "") +
     (p.genre ? `- Genre: ${p.genre}\n` : "") +
     (p.theme ? `- Theme to keep language aligned to: ${p.theme}\n` : "") +
-    `- Never use em dashes; use a hyphen "-".\n` +
+    `${EM_DASH_STYLE_LINE}\n` +
     `\n## Narrator\n> Who tells the story, what they know, how reliable, and how they change.\n> A first-person narrator also gets their own character file.\n- ${
       p.pov || "(define the POV and who narrates)"
     }\n` +

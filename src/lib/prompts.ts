@@ -173,13 +173,15 @@ placement inside a chapter, use insert_text instead of relying on the cursor.
   move_text, or insert_text tool result confirms it. If a match comes back NOT FOUND,
   say plainly that it did not apply and what you'll try instead - do not claim success
   anyway.
-- Never use em dashes; use a hyphen "-".
+- Never use em dashes; use a hyphen "-". The one exception is manuscript prose when
+  style.md has the line "Em dashes: allowed": then use them the way the author does.
+  When the author asks to switch dashes on or off, set that line with update_bible.
 - Any prose you want the author to review and insert by hand goes in ONE
   <draft>...</draft> block. Everything outside it is your note to the author. When
   you place prose yourself with insert_text or move_text, you do not also need a
   <draft> for that same passage.`;
 
-export const DRAFTER_SYSTEM = `You are a novelist's drafting hand. You receive a precise brief from the editor and
+const DRAFTER_RULES = `You are a novelist's drafting hand. You receive a precise brief from the editor and
 return prose that fulfills it exactly. You cannot see the wider manuscript or story
 bible; the brief contains everything you need.
 
@@ -190,8 +192,13 @@ Rules:
   style.
 - Write ONLY the prose. No preamble, no notes, no headings, no summary of what you
   did. Do not restate the brief.
-- Hit the target length. Move the scene forward; do not summarize or skip ahead.
-- Never use em dashes; use a hyphen "-".`;
+- Hit the target length. Move the scene forward; do not summarize or skip ahead.`;
+
+const DRAFTER_NO_DASHES = `- Never use em dashes; use a hyphen "-".`;
+const DRAFTER_DASHES = `- Em dashes are allowed: use them the way the continuity excerpt and voice notes do.`;
+
+/** The drafter's base prompt as it stands with em dashes off (the default) and no craft defaults. */
+export const DRAFTER_SYSTEM = `${DRAFTER_RULES}\n${DRAFTER_NO_DASHES}`;
 
 // Regenerated after every chapter save so the editor can orient on a chapter
 // without reading it in full - pure continuity bookkeeping, not craft judgment.
@@ -248,21 +255,87 @@ continue. Do the work, then report faithfully: state plainly what you drafted. R
 exactly what each step asks for and nothing else - no preamble, no meta-commentary.`;
 
 import { drafterDirective, kindDirective, type ManuscriptKind } from "@/lib/manuscript-kind";
+import { craftHabitsFor, drafterCraftDefaults, editorCraftSection } from "@/lib/craft-defaults";
 
-/** The editor's system blocks: the shared prompt plus, for non-novels, what the manuscript is. */
+/**
+ * Craft defaults (src/lib/craft-defaults.ts) are on everywhere Ciciro writes.
+ * `craft: false` exists for the side-by-side demo's baseline arm
+ * (scripts/craft-demo), which must reproduce the prompts as they were before.
+ */
+export type CraftOptions = { craft?: boolean };
+
+/** The editor's system blocks: the shared prompt, what the manuscript is, and the craft defaults. */
 export function editorSystemFor(
   kind: ManuscriptKind,
-  extra = ""
+  extra = "",
+  { craft = true }: CraftOptions = {}
 ): { type: "text"; text: string; cache_control: { type: "ephemeral" } }[] {
   const directive = kindDirective(kind);
-  const text = [EDITOR_SYSTEM, directive, extra].filter(Boolean).join("\n\n");
+  const craftSection = craft ? editorCraftSection(kind) : "";
+  const text = [EDITOR_SYSTEM, directive, craftSection, extra].filter(Boolean).join("\n\n");
   return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
 }
 
-/** The drafter's system prompt for this kind of manuscript. */
-export function drafterSystemFor(kind: ManuscriptKind): string {
-  const directive = drafterDirective(kind);
-  return directive ? `${DRAFTER_SYSTEM}\n\n${directive}` : DRAFTER_SYSTEM;
+/**
+ * The drafter's system prompt for this kind of manuscript. The drafter cannot
+ * see style.md, so the caller reads the author's em-dash switch there
+ * (`emDashesAllowed` in craft-defaults.ts) and passes it in.
+ */
+export function drafterSystemFor(
+  kind: ManuscriptKind,
+  { emDashes = false, craft = true }: CraftOptions & { emDashes?: boolean } = {}
+): string {
+  const base = `${DRAFTER_RULES}\n${emDashes ? DRAFTER_DASHES : DRAFTER_NO_DASHES}`;
+  const craftBlock = craft ? drafterCraftDefaults(kind) : "";
+  return [base, drafterDirective(kind), craftBlock].filter(Boolean).join("\n\n");
+}
+
+/** The drafter's request for one auto-draft beat: its brief, where it continues from, and its length. */
+export function beatDraftMessage(brief: string, tail: string, isOpening: boolean, wordTarget: number): string {
+  const continuity = isOpening
+    ? "This opens the chapter. Do not restate any heading."
+    : `Continue seamlessly from this; do not repeat it:\n<continuity>\n${tail}\n</continuity>`;
+  return `${brief}\n\n${continuity}\n\nTarget length: about ${wordTarget} words.`;
+}
+
+/**
+ * What the editor is asked when it edits one auto-draft beat to final. A
+ * CRAFT CHECK from the post-draft check (formatCraftCheck in prose-tells.ts)
+ * goes just before the return instruction.
+ */
+export function editBeatInstruction(goal: string, draft: string, tail: string, craftCheck = ""): string {
+  return `You are editing one drafted beat of the chapter to final. Enforce the story's voice,
+POV, tense, and canon; tighten prose; fix any drift or continuity break with the text
+before it. Beat goal: ${goal}.
+${tail ? `It follows this text:\n<before>\n${tail}\n</before>\n` : ""}
+Here is the draft to edit:\n<draft>\n${draft}\n</draft>\n
+${craftCheck ? `${craftCheck.trim()}\n\n` : ""}Return ONLY the final edited prose for this beat - no commentary, no headings, no draft tags.`;
+}
+
+/**
+ * The post-draft check's system prompt for this kind of manuscript, or "" when
+ * the kind has no craft defaults (a journal) and only the mechanical checks run.
+ */
+export function proseCheckSystemFor(kind: ManuscriptKind): string {
+  const habits = craftHabitsFor(kind);
+  if (!habits.length) return "";
+  const scope =
+    kind === "blog"
+      ? "Look at the whole passage."
+      : "Look at narration and action only. Dialogue is exempt unless it is a speech about the theme or reads like narration.";
+  return `You check a passage of freshly drafted prose for habits that are common in model-written text, so the editor can fix them before the author sees the passage. You never rewrite the prose.
+
+Report a finding only for a clear instance of one of these habits:
+${habits.map((h) => `- ${h.name}: ${h.rule}`).join("\n")}
+
+${scope} If the brief's voice or the surrounding prose plainly does something on purpose, it is not a finding. Prefer no finding to a weak one.
+
+Reply with JSON only: {"findings":[{"quote":"...","habit":"...","note":"..."}]}
+- quote: copied verbatim from the passage, an exact substring, the shortest span that shows the habit (at most one sentence). Never paraphrase it.
+- habit: the habit's name exactly as listed above.
+- note: one plain sentence saying what to change.
+- At most 6 findings, most important first. Reply {"findings":[]} when the passage is clean.
+- Never use em dashes; use a hyphen "-".`;
 }
 
 /**

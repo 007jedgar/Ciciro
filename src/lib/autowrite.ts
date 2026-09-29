@@ -2,7 +2,10 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, EDITOR_MODEL, DRAFTER_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { editorSystemFor, drafterSystemFor, PROSE_MAX_TOKENS, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
+import { editorSystemFor, drafterSystemFor, editBeatInstruction, beatDraftMessage, PROSE_MAX_TOKENS, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
+import { emDashesAllowed } from "@/lib/craft-defaults";
+import { readBibleFile } from "@/lib/bible";
+import { checkDraft, formatCraftCheck } from "@/lib/prose-tells";
 import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
@@ -129,19 +132,17 @@ later.`;
 
 async function draftBeat(
   kind: ManuscriptKind,
+  emDashes: boolean,
   beat: Beat,
   tail: string,
   isOpening: boolean
 ): Promise<string> {
   const anthropic = getAnthropic();
-  const continuity = isOpening
-    ? "This opens the chapter. Do not restate any heading."
-    : `Continue seamlessly from this; do not repeat it:\n<continuity>\n${tail}\n</continuity>`;
   const res = await anthropic.messages.create({
     model: DRAFTER_MODEL,
     max_tokens: PROSE_MAX_TOKENS,
-    system: drafterSystemFor(kind),
-    messages: [{ role: "user", content: `${beat.brief}\n\n${continuity}\n\nTarget length: about ${beat.wordTarget} words.` }],
+    system: drafterSystemFor(kind, { emDashes }),
+    messages: [{ role: "user", content: beatDraftMessage(beat.brief, tail, isOpening, beat.wordTarget) }],
   });
   return finishedText(res, "draft");
 }
@@ -151,16 +152,12 @@ async function editBeatToFinal(
   chapterId: string,
   beat: Beat,
   draft: string,
-  tail: string
+  tail: string,
+  craftCheck: string
 ): Promise<string> {
   const context = await buildEditorContext(projectId, chapterId);
   const anthropic = getAnthropic();
-  const instruction = `You are editing one drafted beat of the chapter to final. Enforce the story's voice,
-POV, tense, and canon; tighten prose; fix any drift or continuity break with the text
-before it. Beat goal: ${beat.goal}.
-${tail ? `It follows this text:\n<before>\n${tail}\n</before>\n` : ""}
-Here is the draft to edit:\n<draft>\n${draft}\n</draft>\n
-Return ONLY the final edited prose for this beat - no commentary, no headings, no draft tags.`;
+  const instruction = editBeatInstruction(beat.goal, draft, tail, craftCheck);
 
   const res = await anthropic.messages.create({
     model: EDITOR_MODEL,
@@ -224,6 +221,7 @@ export async function runAutoWrite(opts: {
   }
 
   const kind = await kindOf(projectId);
+  const emDashes = emDashesAllowed(await readBibleFile(projectId, "style.md"));
 
   emit({ type: "phase", v: "planning" });
   let beats: Beat[];
@@ -274,7 +272,7 @@ export async function runAutoWrite(opts: {
     emit({ type: "beat", i: i + 1, n: beats.length, status: "drafting", goal: beat.goal });
     let prose: string;
     try {
-      prose = await draftBeat(kind, beat, tail, isOpening);
+      prose = await draftBeat(kind, emDashes, beat, tail, isOpening);
     } catch (e) {
       emit({ type: "note", v: `Beat ${i + 1} draft failed: ${(e as Error).message}` });
       continue;
@@ -282,7 +280,8 @@ export async function runAutoWrite(opts: {
 
     emit({ type: "beat", i: i + 1, n: beats.length, status: "editing", goal: beat.goal });
     try {
-      const edited = await editBeatToFinal(projectId, chapterId, beat, prose, tail);
+      const findings = await checkDraft(prose, { kind, emDashes, brief: beat.brief });
+      const edited = await editBeatToFinal(projectId, chapterId, beat, prose, tail, formatCraftCheck(findings));
       if (edited.trim()) prose = edited;
     } catch (e) {
       emit({ type: "note", v: `Beat ${i + 1} edit skipped: ${(e as Error).message}` });
