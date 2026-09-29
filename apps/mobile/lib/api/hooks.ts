@@ -170,6 +170,14 @@ export function useMeQuery(options?: Enabled) {
   });
 }
 
+/** Which Sign in with Apple / Google buttons the server can back. */
+export function useAuthProvidersQuery() {
+  return useQuery({
+    queryKey: queryKeys.authProviders,
+    queryFn: () => ciciro.auth.providers(),
+  });
+}
+
 export function useSettingsQuery(options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.settings,

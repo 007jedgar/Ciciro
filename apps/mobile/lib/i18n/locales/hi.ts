@@ -64,6 +64,17 @@ const hi: Translations = {
     newHere: "नए हैं?",
     createAnAccount: "खाता बनाएँ",
     alreadyHaveAccount: "पहले से खाता है?",
+    continueWithApple: "Apple के साथ जारी रखें",
+    continueWithGoogle: "Google के साथ जारी रखें",
+    or: "या",
+    social: {
+      cancelled: "साइन इन रद्द कर दिया गया।",
+      expired: "यह साइन इन समाप्त हो गया। फिर से कोशिश करें।",
+      unavailable: "यह साइन इन विकल्प अभी सेट नहीं है।",
+      failed: "साइन इन नहीं हो सका। फिर से कोशिश करें।",
+      no_email: "आपके खाते ने ईमेल पता साझा नहीं किया, इसलिए Ciciro खाता नहीं बना सकता।",
+      unverified_email: "प्रदाता के साथ अपना ईमेल पता सत्यापित करें, फिर दोबारा कोशिश करें।",
+    },
   },
   manuscripts: {
     title: "पांडुलिपियाँ",

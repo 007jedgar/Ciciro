@@ -64,6 +64,17 @@ const zh: Translations = {
     newHere: "第一次来？",
     createAnAccount: "创建账户",
     alreadyHaveAccount: "已有账户？",
+    continueWithApple: "通过 Apple 继续",
+    continueWithGoogle: "通过 Google 继续",
+    or: "或",
+    social: {
+      cancelled: "已取消登录。",
+      expired: "此次登录已过期，请重试。",
+      unavailable: "此登录方式尚未设置。",
+      failed: "无法登录，请重试。",
+      no_email: "你的账号没有提供电子邮件地址，因此 Ciciro 无法创建账号。",
+      unverified_email: "请先在服务提供方验证你的电子邮件地址，然后重试。",
+    },
   },
   manuscripts: {
     title: "手稿",

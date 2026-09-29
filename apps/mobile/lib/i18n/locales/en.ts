@@ -62,6 +62,17 @@ const en = {
     emailInvalid: "Enter a valid email.",
     passwordRequired: "Enter your password.",
     passwordShort: "Password must be at least {{count}} characters.",
+    continueWithApple: "Continue with Apple",
+    continueWithGoogle: "Continue with Google",
+    or: "or",
+    social: {
+      cancelled: "Sign-in was cancelled.",
+      expired: "That sign-in expired. Try again.",
+      unavailable: "That sign-in option is not set up yet.",
+      failed: "Could not sign you in. Try again.",
+      no_email: "Your account did not share an email address, so Ciciro cannot create an account.",
+      unverified_email: "Verify your email address with the provider, then try again.",
+    },
   },
   manuscripts: {
     title: "Manuscripts",

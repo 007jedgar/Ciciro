@@ -257,6 +257,22 @@ export type SignupRequest = {
   name?: string;
 };
 
+/** POST /api/auth/apple/native: the iOS Sign in with Apple sheet's result. */
+export type AppleNativeRequest = {
+  idToken: string;
+  /** The raw nonce; Apple's token carries its SHA-256. */
+  nonce: string;
+  authorizationCode?: string | null;
+  givenName?: string | null;
+  familyName?: string | null;
+};
+
+/** POST /api/auth/handoff: redeem a browser sign-in's one-time code. */
+export type HandoffRequest = {
+  code: string;
+  verifier: string;
+};
+
 export type SettingsResponse = {
   settings: AppSettings;
 };
