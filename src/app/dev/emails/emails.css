@@ -1,0 +1,136 @@
+.email-gallery {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+.email-gallery-nav {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: var(--space-6) var(--space-4);
+}
+
+.email-gallery-eyebrow {
+  margin: 0 0 var(--space-5);
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+.email-gallery-group + .email-gallery-group {
+  margin-top: var(--space-5);
+}
+
+.email-gallery-group-label {
+  margin: 0 0 var(--space-2);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.email-gallery-link {
+  display: block;
+  padding: 6px var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.email-gallery-link:hover {
+  background: var(--panel-2);
+  text-decoration: none;
+}
+
+.email-gallery-link[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.email-gallery-main {
+  min-width: 0;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.email-gallery-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.email-gallery-meta {
+  min-width: 0;
+}
+
+.email-gallery-subject {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.email-gallery-preview {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.email-gallery-views {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.email-gallery-view {
+  padding: 6px var(--space-3);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.email-gallery-view + .email-gallery-view {
+  border-left: 1px solid var(--line);
+}
+
+.email-gallery-view:hover {
+  text-decoration: none;
+  background: var(--panel-2);
+}
+
+.email-gallery-view[aria-current="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.email-gallery-frame {
+  width: 100%;
+  flex: 1;
+  min-height: 900px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.email-gallery-frame.dark {
+  background: #1a1713;
+}
+
+.email-gallery-raw {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 720px) {
+  .email-gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .email-gallery-nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
