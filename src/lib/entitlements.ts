@@ -34,6 +34,8 @@ export type Entitlement = {
   /** Whether AI use is capped. Only hosted accounts are; self-hosted use never is. */
   metered: boolean;
   limits: PlanLimits;
+  /** Every plan's allowance, so an upgrade screen can say what Pro adds. */
+  plans: Record<PlanId, PlanLimits>;
   usage: { period: string; aiRuns: number };
   /** What this server can sell: web Checkout (Stripe) and store purchases (RevenueCat). */
   billing: { web: boolean; store: boolean };
@@ -105,6 +107,7 @@ export function resolveEntitlement(
     cancelAtPeriodEnd: active?.cancelAtPeriodEnd ?? false,
     metered: opts.metered,
     limits: opts.metered ? planLimits(plan) : { aiRunsPerMonth: null },
+    plans: { free: planLimits("free"), pro: planLimits("pro") },
     usage: { period: usagePeriod(now), aiRuns },
     billing: { web: stripeSettings() !== null, store: revenueCatSettings() !== null },
     manageUrl: active ? storeManageUrl(active) : null,

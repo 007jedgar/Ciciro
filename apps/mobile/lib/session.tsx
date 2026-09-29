@@ -18,6 +18,7 @@ import { SessionContext } from "./session-context";
 import type { DeleteAccountRequest } from "./api/types";
 import type { BrowserProvider } from "./social-auth";
 import { appleSheetCredential, browserSignInCode } from "./social-sign-in";
+import { forgetPurchaser, identifyPurchaser } from "./purchases";
 import type { PublicUser } from "./types";
 
 export { useSession, type SessionState } from "./session-context";
@@ -83,6 +84,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [refresh]);
+
+  // RevenueCat follows the signed-in account: its app user id is the Ciciro
+  // user id, so a store purchase always lands on the right account.
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (userId) void identifyPurchaser(userId).catch(() => {});
+    else void forgetPurchaser();
+  }, [userId]);
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await ciciro.auth.login({ email, password });

@@ -20,6 +20,7 @@ export type ChatFailureCode =
   | "network"
   | "timeout"
   | "cancelled"
+  | "aiLimit"
   | "unknown";
 
 export type ChatFailure = {
@@ -30,6 +31,8 @@ export type ChatFailure = {
   detail: string;
   /** Whether sending the same turn again could plausibly work. */
   retryable: boolean;
+  /** For "aiLimit": the plan whose monthly allowance ran out. */
+  plan?: "free" | "pro";
 };
 
 const FOOTER = /\n*\[Ciciro error:\s*([\s\S]*?)\]\s*$/;
@@ -193,6 +196,23 @@ function errorBodyText(body: unknown, message: string): string {
   return Object.keys(rest).length > 0 ? JSON.stringify(rest) : "";
 }
 
+/**
+ * The server's "this month's AI allowance is used up" answer (402, code
+ * ai_limit_reached, see src/lib/entitlements.ts): not an error to retry, and
+ * not the provider billing failure a bare 402 otherwise means.
+ */
+function aiLimitFailure(status: number | null, body: unknown): ChatFailure | null {
+  const data = body as { code?: unknown; entitlement?: { plan?: unknown } } | null;
+  if (status !== 402 || !data || data.code !== "ai_limit_reached") return null;
+  return {
+    code: "aiLimit",
+    status,
+    detail: "",
+    retryable: false,
+    plan: data.entitlement?.plan === "pro" ? "pro" : "free",
+  };
+}
+
 /** Classify anything thrown by the API layer (ApiError, TypeError, abort). */
 export function failureFromError(error: unknown): ChatFailure {
   if (!error) return classifyChatFailure("");
@@ -200,6 +220,8 @@ export function failureFromError(error: unknown): ChatFailure {
     typeof (error as { status?: unknown }).status === "number"
       ? (error as { status: number }).status
       : null;
+  const limit = aiLimitFailure(status, (error as { body?: unknown }).body);
+  if (limit) return limit;
   const message = (error as { message?: unknown }).message;
   const messageText = typeof message === "string" ? message : "";
   const bodyText = errorBodyText((error as { body?: unknown }).body, messageText);
@@ -214,5 +236,6 @@ export function failureFromError(error: unknown): ChatFailure {
 
 /** i18n key for the one-sentence explanation shown in the chat. */
 export function failureMessageKey(failure: ChatFailure): string {
+  if (failure.code === "aiLimit" && failure.plan === "pro") return "ciciroTab.failure.aiLimitPro";
   return `ciciroTab.failure.${failure.code}`;
 }

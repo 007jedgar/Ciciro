@@ -235,9 +235,36 @@ export type HealthStatus = {
   time: string;
 };
 
+export type BillingSource = "stripe" | "app_store" | "play_store";
+
+/**
+ * The account's plan and this month's AI use, as the server decides them
+ * (src/lib/entitlements.ts). The app renders billing from this alone and
+ * never from what the store SDK says locally.
+ */
+export type Entitlement = {
+  plan: "free" | "pro";
+  planName: string;
+  source: BillingSource | null;
+  status: string | null;
+  interval: "month" | "year" | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  metered: boolean;
+  limits: { aiRunsPerMonth: number | null };
+  plans: { free: { aiRunsPerMonth: number | null }; pro: { aiRunsPerMonth: number | null } };
+  usage: { period: string; aiRuns: number };
+  billing: { web: boolean; store: boolean };
+  manageUrl: string | null;
+};
+
+export type EntitlementResponse = { entitlement: Entitlement };
+
 export type AuthMeResponse = {
   user: PublicUser | null;
   settings: AppSettings | null;
+  /** Absent from a server older than billing; null when billing could not be read. */
+  entitlement?: Entitlement | null;
   token?: string;
 };
 

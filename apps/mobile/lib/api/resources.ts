@@ -5,6 +5,7 @@ import type {
   AiInvolvementRequest,
   AppleNativeRequest,
   AuthMeResponse,
+  EntitlementResponse,
   AuthSessionResponse,
   AutowriteRequest,
   AutowriteStreamEvent,
@@ -182,6 +183,13 @@ export const ciciro = {
 
   models: {
     get: (opts?: RequestOpts) => api<ModelsResponse>("/api/models", opts),
+  },
+
+  billing: {
+    entitlement: (opts?: RequestOpts) => api<EntitlementResponse>("/api/billing/entitlement", opts),
+    /** Re-read this account's store purchases from RevenueCat (after a purchase or restore). */
+    sync: (opts?: RequestOpts) =>
+      api<EntitlementResponse>("/api/billing/sync", jsonInit("POST", undefined, opts)),
   },
 
   writing: {

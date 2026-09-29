@@ -39,7 +39,10 @@ jest.mock("../lib/writing-reminder-notifications", () => ({
   getReminderPermission: jest.fn(async () => "granted"),
 }));
 jest.mock("../lib/writing-reminder-store", () => ({ useWritingReminderList: () => [] }));
-jest.mock("../lib/api/hooks", () => ({ useModelsQuery: () => ({ data: undefined }) }));
+jest.mock("../lib/api/hooks", () => ({
+  useModelsQuery: () => ({ data: undefined }),
+  useEntitlementQuery: () => ({ data: undefined }),
+}));
 jest.mock("../lib/use-export-account-data", () => ({
   useExportAccountData: () => ({ busy: mockExportBusy, run: mockRunExport }),
 }));

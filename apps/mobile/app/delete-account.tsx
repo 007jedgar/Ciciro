@@ -5,7 +5,9 @@ import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
-import { ApiError } from "../lib/api";
+import { ApiError, useEntitlementQuery } from "../lib/api";
+import { storeLabelKey } from "../lib/billing";
+import { openStoreSubscriptions } from "../lib/purchases";
 import { useExportAccountData } from "../lib/use-export-account-data";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
@@ -35,6 +37,7 @@ export default function DeleteAccountScreen() {
   const { layout, colors } = useAppTheme();
   const headerHeight = useAppHeaderHeight();
   const exporter = useExportAccountData();
+  const { data: entitlement } = useEntitlementQuery({ enabled: Boolean(user) });
   const [proof, setProof] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -68,6 +71,8 @@ export default function DeleteAccountScreen() {
   const proofLabel = usesPassword
     ? t("account.passwordLabel")
     : t("account.confirmLabel", { word: DELETE_WORD });
+  const subscribed = entitlement && entitlement.plan !== "free" ? entitlement : null;
+  const storeKey = subscribed ? storeLabelKey(subscribed.source) : null;
 
   return (
     <View style={layout.screen}>
@@ -97,6 +102,45 @@ export default function DeleteAccountScreen() {
         <Text style={{ fontSize: 15, lineHeight: 22, color: colors.danger, marginBottom: 20 }}>
           {t("account.deleteWarning")}
         </Text>
+
+        {subscribed && storeKey ? (
+          // A store subscription outlives the account: only Apple or Google can stop it.
+          <View
+            style={{
+              backgroundColor: colors.panel,
+              borderColor: colors.danger,
+              borderWidth: 1,
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <Text style={{ fontSize: 17, color: colors.ink }}>{t("billing.deleteStoreTitle")}</Text>
+            <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
+              {t("billing.deleteStoreBody", { store: t(storeKey) })}
+            </Text>
+            <Pressable
+              onPress={() => void openStoreSubscriptions(subscribed.manageUrl)}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                marginTop: 12,
+                alignSelf: "flex-start",
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: colors.line,
+                paddingHorizontal: 14,
+                paddingVertical: 9,
+                backgroundColor: pressed ? colors.panel2 : colors.bg,
+              })}
+            >
+              <Text style={{ fontSize: 15, color: colors.ink }}>{t("billing.manage")}</Text>
+            </Pressable>
+          </View>
+        ) : subscribed ? (
+          <Text style={[layout.body, { fontSize: 15, lineHeight: 22, marginBottom: 20 }]}>
+            {t("billing.deleteWebBody")}
+          </Text>
+        ) : null}
 
         <View
           style={{

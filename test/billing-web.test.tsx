@@ -22,6 +22,7 @@ function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
     cancelAtPeriodEnd: false,
     metered: true,
     limits: { aiRunsPerMonth: 30 },
+    plans: { free: { aiRunsPerMonth: 30 }, pro: { aiRunsPerMonth: 1500 } },
     usage: { period: "2026-09", aiRuns: 30 },
     billing: { web: true, store: false },
     manageUrl: null,

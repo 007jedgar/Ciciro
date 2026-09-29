@@ -106,6 +106,24 @@ describe("failureFromError", () => {
     expect(classifyChatFailure("x".repeat(2000)).detail.length).toBeLessThanOrEqual(401);
   });
 
+  it("tells a used-up monthly allowance apart from a provider billing error", () => {
+    const limit = failureFromError(
+      new ApiError("You've used this month's free AI allowance.", 402, {
+        code: "ai_limit_reached",
+        entitlement: { plan: "free" },
+      })
+    );
+    expect(limit).toMatchObject({ code: "aiLimit", status: 402, retryable: false, plan: "free" });
+    expect(failureMessageKey(limit)).toBe("ciciroTab.failure.aiLimit");
+    const pro = failureFromError(
+      new ApiError("You've used this month's AI allowance.", 402, { code: "ai_limit_reached", entitlement: { plan: "pro" } })
+    );
+    expect(failureMessageKey(pro)).toBe("ciciroTab.failure.aiLimitPro");
+    expect(failureFromError(new ApiError("Payment required", 402, { error: "credit balance too low" })).code).not.toBe(
+      "aiLimit"
+    );
+  });
+
   it("treats an aborted turn as cancelled rather than failed", () => {
     const abort = Object.assign(new Error("Aborted"), { name: "AbortError" });
     expect(failureFromError(abort)).toMatchObject({ code: "cancelled", retryable: false });
