@@ -1,9 +1,13 @@
+import { PLAN_NAMES } from "@/lib/billing/config";
 import { sendEmail, type SendEmailResult } from "@/lib/email";
 import type { EmailContent } from "@/lib/email/content";
 import { renderEmail } from "@/lib/email/render";
 import {
   accountDeletedTemplate,
   passwordResetTemplate,
+  paymentFailedTemplate,
+  renewalReminderTemplate,
+  subscriptionCanceledTemplate,
   verifyEmailTemplate,
   welcomeTemplate,
 } from "@/lib/email/templates";
@@ -80,5 +84,97 @@ export function sendAccountDeletedEmail(
     accountDeletedTemplate({ name: account.name, email: account.email, deletedAt }),
     origin,
     `account-deleted/${account.id}`
+  );
+}
+
+// Billing emails for web (Stripe) subscribers. The Stripe webhook sends these
+// once per event (the event's idempotency claim guarantees it) and the event
+// id is the Resend idempotency key, so a redelivery never sends twice. Store
+// subscribers get these from Apple or Google, not from Ciciro.
+
+export type BillingEmailRecipient = { id: string; email: string; name: string };
+
+export type PaymentFailedNotice = {
+  eventId: string;
+  /** Formatted with its currency, e.g. "$12". */
+  amount: string;
+  attemptedAt: Date;
+  /** When Stripe will try the card again, if it will. */
+  nextAttemptAt: Date | null;
+  /** Where to fix the card: the pricing page's Manage billing opens the Customer Portal. */
+  updatePaymentUrl: string;
+};
+
+export type SubscriptionCanceledNotice = {
+  eventId: string;
+  /** When paid access ends: the end of the period, or now for an immediate cancel. */
+  endsAt: Date;
+  resubscribeUrl: string;
+};
+
+export type RenewalReminderNotice = {
+  eventId: string;
+  amount: string;
+  renewsAt: Date;
+  manageUrl: string;
+};
+
+const BILLING_PLAN_NAME = PLAN_NAMES.pro;
+
+function billingNameOf(user: BillingEmailRecipient): string | undefined {
+  return user.name.trim() || undefined;
+}
+
+export function sendPaymentFailedEmail(
+  user: BillingEmailRecipient,
+  notice: PaymentFailedNotice
+): Promise<SendEmailResult> {
+  return sendTemplateEmail(
+    user.email,
+    paymentFailedTemplate({
+      name: billingNameOf(user),
+      planName: BILLING_PLAN_NAME,
+      amount: notice.amount,
+      attemptedAt: notice.attemptedAt,
+      nextAttemptAt: notice.nextAttemptAt ?? undefined,
+      updatePaymentUrl: notice.updatePaymentUrl,
+    }),
+    new URL(notice.updatePaymentUrl).origin,
+    `billing/${notice.eventId}`
+  );
+}
+
+export function sendSubscriptionCanceledEmail(
+  user: BillingEmailRecipient,
+  notice: SubscriptionCanceledNotice
+): Promise<SendEmailResult> {
+  return sendTemplateEmail(
+    user.email,
+    subscriptionCanceledTemplate({
+      name: billingNameOf(user),
+      planName: BILLING_PLAN_NAME,
+      endsAt: notice.endsAt,
+      resubscribeUrl: notice.resubscribeUrl,
+    }),
+    new URL(notice.resubscribeUrl).origin,
+    `billing/${notice.eventId}`
+  );
+}
+
+export function sendRenewalReminderEmail(
+  user: BillingEmailRecipient,
+  notice: RenewalReminderNotice
+): Promise<SendEmailResult> {
+  return sendTemplateEmail(
+    user.email,
+    renewalReminderTemplate({
+      name: billingNameOf(user),
+      planName: BILLING_PLAN_NAME,
+      amount: notice.amount,
+      renewsAt: notice.renewsAt,
+      manageUrl: notice.manageUrl,
+    }),
+    new URL(notice.manageUrl).origin,
+    `billing/${notice.eventId}`
   );
 }

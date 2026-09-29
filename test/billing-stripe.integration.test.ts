@@ -5,7 +5,7 @@ import { SESSION_HEADER } from "@/lib/auth/constants";
 import { hashSessionToken } from "@/lib/auth/tokens";
 import { hashPassword } from "@/lib/auth/password";
 import { getEntitlement } from "@/lib/entitlements";
-import * as notify from "@/lib/billing/notify";
+import * as accountEmails from "@/lib/email/account-emails";
 import * as email from "@/lib/email";
 import { formatEmailDate } from "@/lib/email/templates";
 import { cancelStripeBilling } from "@/lib/billing/stripe";
@@ -146,7 +146,7 @@ describe("Stripe billing", () => {
 
     it("handles a redelivered event once", async () => {
       const { user, customer } = await subscribed(fake, "twice");
-      const failed = vi.spyOn(notify, "notifyPaymentFailed");
+      const failed = vi.spyOn(accountEmails, "sendPaymentFailedEmail");
       const event = fake.event("invoice.payment_failed", invoice(customer));
       const first = await deliver(fake, event);
       const second = await deliver(fake, event);
@@ -163,7 +163,7 @@ describe("Stripe billing", () => {
       // active in its payload) arrives after the "deleted".
       const live = fake.subscriptions.get(sub.id)!;
       live.status = "canceled";
-      const canceled = vi.spyOn(notify, "notifySubscriptionCanceled");
+      const canceled = vi.spyOn(accountEmails, "sendSubscriptionCanceledEmail");
       await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
       await deliver(fake, fake.event("customer.subscription.updated", { ...live, status: "active" }));
       expect((await getEntitlement(user.id)).plan).toBe("free");
@@ -275,15 +275,49 @@ describe("Stripe billing", () => {
       expect(sent()).toHaveLength(0);
     });
 
-    it("tells the author when a subscription ends at once", async () => {
-      const { user, customer, sub } = await subscribed(fake, "refunded");
+    it("sends no cancellation email for a subscription Ciciro ended over a full refund", async () => {
+      const { customer, sub } = await subscribed(fake, "refunded");
       const sent = captureEmails();
       await deliver(fake, fake.event("charge.refunded", { id: "ch_all", object: "charge", customer, refunded: true }));
-      await deliver(fake, fake.event("customer.subscription.deleted", { ...fake.subscriptions.get(sub.id)! }));
+      const ended = fake.subscriptions.get(sub.id)!;
+      expect(ended.cancellation_details.comment).toBe("charge_refunded");
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...ended }));
+      expect(sent()).toHaveLength(0);
+    });
+
+    it("sends no cancellation email for a subscription Ciciro ended over a dispute", async () => {
+      const { customer, sub } = await subscribed(fake, "disputed");
+      const sent = captureEmails();
+      fake.charges.set("ch_dis", { id: "ch_dis", object: "charge", customer, refunded: false });
+      await deliver(fake, fake.event("charge.dispute.created", { id: "dp_2", object: "dispute", charge: "ch_dis" }));
+      const ended = fake.subscriptions.get(sub.id)!;
+      expect(ended.cancellation_details.comment).toBe("charge_disputed");
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...ended }));
+      expect(sent()).toHaveLength(0);
+    });
+
+    it("tells the author when they cancel a subscription and it ends at once", async () => {
+      const { user, sub } = await subscribed(fake, "immediate");
+      const sent = captureEmails();
+      const live = fake.subscriptions.get(sub.id)!;
+      live.status = "canceled";
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
 
       expect(sent()).toHaveLength(1);
       expect(sent()[0]).toMatchObject({ to: user.email, category: "subscription_canceled" });
       expect(sent()[0].text).toContain(formatEmailDate(new Date()));
+    });
+
+    it("tells the author when retries run out and the subscription ends", async () => {
+      const { user, sub } = await subscribed(fake, "dunned");
+      const sent = captureEmails();
+      const live = fake.subscriptions.get(sub.id)!;
+      live.status = "canceled";
+      const details = { reason: "payment_failed", comment: null };
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...live, cancellation_details: details }));
+
+      expect(sent()).toHaveLength(1);
+      expect(sent()[0]).toMatchObject({ to: user.email, category: "subscription_canceled" });
     });
 
     it("sends no cancellation email for a subscription ended by deleting the account", async () => {

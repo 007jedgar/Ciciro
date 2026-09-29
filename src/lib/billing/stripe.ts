@@ -3,14 +3,14 @@ import { prisma } from "@/lib/db";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { stripeSettings, type BillingInterval, type StripeSettings } from "@/lib/billing/config";
 import { attributeBillingEvent, handleOnce } from "@/lib/billing/events";
-import {
-  notifyPaymentFailed,
-  notifyRenewalReminder,
-  notifySubscriptionCanceled,
-  type BillingEmailRecipient,
-} from "@/lib/billing/notify";
 import { formatPrice } from "@/lib/billing/prices";
 import { activeSubscription, getEntitlement } from "@/lib/entitlements";
+import {
+  sendPaymentFailedEmail,
+  sendRenewalReminderEmail,
+  sendSubscriptionCanceledEmail,
+  type BillingEmailRecipient,
+} from "@/lib/email/account-emails";
 import type { DeletingAccount, PreDeleteHook } from "@/lib/account/delete";
 
 // Web billing through Stripe: Checkout for new subscriptions, the Customer
@@ -56,6 +56,11 @@ const LIVE_STRIPE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"
 
 /** Marks a cancellation Ciciro made because the account is being deleted. */
 const ACCOUNT_DELETED = "account_deleted";
+/** Marks the cancellation Ciciro makes when a full refund reverses a payment. */
+const CHARGE_REFUNDED = "charge_refunded";
+/** Marks the cancellation Ciciro makes when a charge is disputed. */
+const CHARGE_DISPUTED = "charge_disputed";
+const CICIRO_CANCEL_COMMENTS = new Set([ACCOUNT_DELETED, CHARGE_REFUNDED, CHARGE_DISPUTED]);
 
 function fromUnix(seconds: number | null | undefined): Date | null {
   return typeof seconds === "number" ? new Date(seconds * 1000) : null;
@@ -191,11 +196,10 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event, or
   await attributeBillingEvent("stripe", event.id, user.id);
 
   // A full refund or a dispute takes the plan away: cancel now, not at period end.
-  if (
-    (event.type === "charge.refunded" && event.data.object.refunded) ||
-    event.type === "charge.dispute.created"
-  ) {
-    await cancelLiveSubscriptions(stripe, customerId);
+  if (event.type === "charge.refunded" && event.data.object.refunded) {
+    await cancelLiveSubscriptions(stripe, customerId, CHARGE_REFUNDED);
+  } else if (event.type === "charge.dispute.created") {
+    await cancelLiveSubscriptions(stripe, customerId, CHARGE_DISPUTED);
   }
 
   await syncStripeCustomer(stripe, customerId, user.id);
@@ -223,7 +227,7 @@ async function sendBillingEmail(event: Stripe.Event, user: BillingEmailRecipient
   switch (event.type) {
     case "invoice.payment_failed": {
       const invoice = event.data.object;
-      await notifyPaymentFailed(user, {
+      await sendPaymentFailedEmail(user, {
         eventId: event.id,
         amount: formatPrice(invoice.amount_due, invoice.currency),
         attemptedAt: fromUnix(event.created)!,
@@ -246,15 +250,20 @@ async function sendBillingEmail(event: Stripe.Event, user: BillingEmailRecipient
         items: sub.items,
       };
       if (scheduledEnd(before)) return;
-      await notifySubscriptionCanceled(user, { eventId: event.id, endsAt, resubscribeUrl: pricingUrl });
+      await sendSubscriptionCanceledEmail(user, { eventId: event.id, endsAt, resubscribeUrl: pricingUrl });
       return;
     }
     case "customer.subscription.deleted": {
-      // A scheduled cancellation was announced when it was scheduled, and an
-      // account being deleted gets the account-deleted email instead.
+      // A scheduled cancellation was announced when it was scheduled. A
+      // cancel Ciciro made itself (a refund, a dispute, account deletion) is
+      // not the author's choice, so "you keep it until today" would read
+      // wrong; an account being deleted gets the account-deleted email. A
+      // cancel from the portal or dashboard, or retries running out, is
+      // emailed.
       const sub = event.data.object;
-      if (scheduledEnd(sub) || sub.cancellation_details?.comment === ACCOUNT_DELETED) return;
-      await notifySubscriptionCanceled(user, {
+      const comment = sub.cancellation_details?.comment;
+      if (scheduledEnd(sub) || (comment && CICIRO_CANCEL_COMMENTS.has(comment))) return;
+      await sendSubscriptionCanceledEmail(user, {
         eventId: event.id,
         endsAt: fromUnix(sub.ended_at) ?? fromUnix(event.created)!,
         resubscribeUrl: pricingUrl,
@@ -271,7 +280,7 @@ async function sendBillingEmail(event: Stripe.Event, user: BillingEmailRecipient
       const row = await prisma.subscription.findUnique({ where: { externalId: subscriptionId } });
       if (!row || row.userId !== user.id || row.interval !== "year" || row.status !== "active") return;
       if (row.cancelAtPeriodEnd || !row.currentPeriodEnd) return;
-      await notifyRenewalReminder(user, {
+      await sendRenewalReminderEmail(user, {
         eventId: event.id,
         amount: formatPrice(invoice.amount_due, invoice.currency),
         renewsAt: row.currentPeriodEnd,
