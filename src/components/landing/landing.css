@@ -760,16 +760,198 @@
   font-weight: 400;
 }
 
-.landing-files {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 56px 26px;
+/* Each pain point is a card with its evidence from the real app beside it,
+   alternating sides down the page. */
+.landing-cases {
+  display: flex;
+  flex-direction: column;
+  gap: 88px;
   padding-top: 26px;
 }
+.landing-case {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 56px;
+}
+.landing-case:nth-child(even) .landing-file {
+  order: 1;
+}
 @media (max-width: 900px) {
-  .landing-files {
+  .landing-cases {
+    gap: 64px;
+  }
+  .landing-case {
     grid-template-columns: minmax(0, 1fr);
-    gap: 50px;
+    gap: 36px;
+  }
+  .landing-case:nth-child(even) .landing-file {
+    order: 0;
+  }
+}
+
+/* ---- Exhibits: screenshots and recordings of the real apps ---- */
+.landing-exhibit {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.landing-exhibit figcaption {
+  max-width: 440px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.landing-exhibit-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.landing-exhibit-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--exhibit-ratio);
+}
+.landing-exhibit-media picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@media (max-width: 640px) {
+  .landing-exhibit-media {
+    aspect-ratio: var(--exhibit-ratio-narrow, var(--exhibit-ratio));
+  }
+}
+.landing-exhibit-media img,
+.landing-phone-clip img,
+.landing-phone-clip video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* One of each pair shows, by the page's day or night. */
+:root:not([data-mode="dark"]) .landing-media-night,
+:root[data-mode="dark"] .landing-media-day {
+  display: none;
+}
+
+/* A piece of the phone app, taped into the file. */
+.landing-cutout {
+  position: relative;
+  width: min(100%, 360px);
+  border-radius: 14px;
+  overflow: visible;
+  box-shadow: var(--paper-shadow);
+  transform: rotate(-1.2deg);
+}
+.landing-cutout .landing-exhibit-media {
+  border-radius: 14px;
+  overflow: hidden;
+}
+.landing-cutout::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -12px;
+  left: 50%;
+  width: 96px;
+  height: 24px;
+  background: color-mix(in srgb, var(--butter) 70%, transparent);
+  transform: translateX(-50%) rotate(2deg);
+}
+
+/* The web app, in a plain browser window. */
+.landing-window {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: var(--paper-shadow);
+}
+.landing-window-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.landing-window-bar i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.landing-window-bar span {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+
+/* Two phones, the second a step lower, like they were set down on the desk. */
+.landing-phones {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  width: 100%;
+  padding-bottom: 36px;
+}
+.landing-phone-clip {
+  position: relative;
+  width: min(46%, 236px);
+  border: 7px solid #141414;
+  border-radius: 38px;
+  overflow: hidden;
+  background: #141414;
+  box-shadow: var(--paper-shadow);
+}
+.landing-phone-clip + .landing-phone-clip {
+  transform: translateY(36px);
+}
+.landing-phone-clip > div {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.landing-phone-clip video {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+.landing-phone-clip video[data-playing] {
+  opacity: 1;
+}
+:root[data-mode="dark"] .landing-phone-clip {
+  border-color: #2a2926;
+}
+
+/* The web editor, under the Why excerpt. */
+.landing-why-exhibit {
+  margin-top: 72px;
+}
+@media (max-width: 640px) {
+  .landing-phone-clip {
+    border-width: 5px;
+    border-radius: 28px;
+  }
+  .landing-why-exhibit {
+    margin-top: 48px;
   }
 }
 .landing-file {

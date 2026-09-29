@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/session", () => ({
 }));
 vi.mock("next/navigation", () => ({ permanentRedirect: nav.permanentRedirect }));
 
-import { middleware } from "@/middleware";
+import { config as middlewareConfig, middleware } from "@/middleware";
 import { homeShowsLibrary } from "@/lib/home";
 import LaunchPage from "@/app/launch/page";
 import { THEMES } from "@/lib/theme";
@@ -42,6 +42,14 @@ describe("the home screen", () => {
   it("still sends a signed-out visitor on a private page to sign in, and back", () => {
     const res = middleware(new NextRequest("http://localhost/project/abc"));
     expect(res.headers.get("location")).toBe("http://localhost/login?next=%2Fproject%2Fabc");
+  });
+
+  it("serves the landing page's screenshots and recordings to signed-out visitors", () => {
+    const gated = new RegExp(`^${middlewareConfig.matcher[0]}$`);
+    for (const file of ["/landing/workspace-day.webp", "/landing/phone-type-day.mp4", "/landing/phone-type-day.webm"]) {
+      expect(gated.test(file)).toBe(false);
+    }
+    expect(gated.test("/project/abc")).toBe(true);
   });
 
   it("shows the landing page without a valid session", async () => {
