@@ -126,7 +126,7 @@ export async function prepareEditorRun(input: EditorRunInput) {
     crypto.randomUUID();
 
   const existing = await findRun(turnId, input.projectId);
-  if (existing) return { run: existing, compactNotice: null as string | null, created: false };
+  if (existing) return { run: existing, compactNotice: null as string | null };
 
   const legacyRows = input.resumeTurnId
     ? await prisma.chatMessage.findMany({
@@ -192,11 +192,11 @@ export async function prepareEditorRun(input: EditorRunInput) {
     if (!isUniqueViolation(error)) throw error;
     const raced = await findRun(turnId, input.projectId);
     if (!raced) throw error;
-    return { run: raced, compactNotice: null as string | null, created: false };
+    return { run: raced, compactNotice: null as string | null };
   }
 
   if (legacyCompleted) {
-    return { run: created, compactNotice: null as string | null, created: true };
+    return { run: created, compactNotice: null as string | null };
   }
 
   let compactNotice: string | null = null;
@@ -317,7 +317,7 @@ export async function prepareEditorRun(input: EditorRunInput) {
         leaseExpiresAt: null,
       },
     });
-    return { run, compactNotice, created: true };
+    return { run, compactNotice };
   } catch (error) {
     await prisma.editorRun.update({
       where: { id: created.id },

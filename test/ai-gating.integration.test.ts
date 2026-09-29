@@ -206,6 +206,30 @@ describe("AI gating and metering", () => {
       expect(await runsUsed(a)).toBe(0);
     });
 
+    it("chat: a 409 then a retry with the same clientTurnId nets exactly one charge", async () => {
+      const a = await author("busy-retry");
+      const held = await prisma.editorRun.create({
+        data: {
+          projectId: a.projectId,
+          turnId: "t-busy-retry",
+          status: "queued",
+          lockToken: "other-worker",
+          leaseExpiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+      const send = () =>
+        chat(request("/api/chat", a.token, { projectId: a.projectId, message: "Hello", clientTurnId: "t-busy-retry" }));
+      expect((await send()).status).toBe(409);
+      expect(await runsUsed(a)).toBe(0);
+
+      await prisma.editorRun.update({ where: { id: held.id }, data: { leaseExpiresAt: new Date(Date.now() - 1000) } });
+      reply("Hi there.");
+      const res = await send();
+      expect(res.status).toBe(200);
+      await res.text();
+      expect(await runsUsed(a)).toBe(1);
+    });
+
     it("chat: a turn id that belongs to another project is refused without a charge", async () => {
       const a = await author("foreign");
       const other = await author("foreign-other");
