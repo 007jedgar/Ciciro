@@ -173,8 +173,15 @@ async function sessionTokens(request?: SessionRequest): Promise<string[]> {
   return tokens;
 }
 
-/** Resolve the current user from the session cookie, or null. Sweeps expiry. */
-export async function getSessionUser(request?: SessionRequest): Promise<PublicUser | null> {
+/**
+ * The current user and the raw token that proved it, or null. Sweeps expiry.
+ * Echo this token, never a raw header or cookie value: iOS can merge its
+ * cookie jar into the app's own Cookie header with a comma, which parses as
+ * one garbled value, and a client that stored that would be signed out.
+ */
+export async function getSession(
+  request?: SessionRequest
+): Promise<{ user: PublicUser; token: string } | null> {
   const now = Date.now();
   for (const token of await sessionTokens(request)) {
     const session = await prisma.session.findUnique({
@@ -186,9 +193,14 @@ export async function getSessionUser(request?: SessionRequest): Promise<PublicUs
       await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
       continue;
     }
-    return toPublicUser(session.user);
+    return { user: toPublicUser(session.user), token };
   }
   return null;
+}
+
+/** Resolve the current user from the session cookie, or null. Sweeps expiry. */
+export async function getSessionUser(request?: SessionRequest): Promise<PublicUser | null> {
+  return (await getSession(request))?.user ?? null;
 }
 
 /** Like getSessionUser but throws a 401 AuthError when unauthenticated. */
