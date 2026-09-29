@@ -17,7 +17,7 @@ The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `sr
 
 ## Patched native editor
 
-`apps/mobile` patches `react-native-enriched-html` (`paragraphSpacing`) through `patch-package` in `apps/mobile/patches/`. After editing `node_modules` for a fix, regenerate with `npx patch-package react-native-enriched-html`; any native change needs a rebuilt dev client.
+`apps/mobile` patches `react-native-enriched-html` (`paragraphSpacing`, both platforms) through `patch-package` in `apps/mobile/patches/`. `npx patch-package react-native-enriched-html` (diff mode) can silently drop hunks when `node_modules` is already patched from a prior run - reinstall the package fresh (`rm -rf node_modules/react-native-enriched-html && npm install react-native-enriched-html@<version> --no-save --ignore-scripts`) before regenerating, or hand-edit the patch file directly and apply it with `node node_modules/.bin/patch-package` (bare, no package arg) to verify it. Any native change needs a rebuilt dev client.
 
 ## Production D1 schema
 
