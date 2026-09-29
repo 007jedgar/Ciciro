@@ -107,6 +107,9 @@ describe("account data export", () => {
     });
     expect(JSON.parse(files["data/writing-days.json"])[0]).toMatchObject({ words: 500 });
     expect(JSON.parse(files["data/sign-in-sessions.json"])[0]).toMatchObject({ userAgent: "vitest" });
+    expect(JSON.parse(files["data/push-notification-devices.json"])[0]).toMatchObject({
+      platform: "ios",
+    });
     expect(JSON.parse(files["data/email-links.json"])[0]).toMatchObject({
       purpose: "verify_email",
       email: "mine@example.com",
@@ -122,6 +125,7 @@ describe("account data export", () => {
     expect(everything).not.toContain("mine-client-hash");
     expect(everything).not.toContain("tokenHash");
     expect(everything).not.toContain("lockToken");
+    expect(everything).not.toContain("ExponentPushToken");
 
     // The manuscript, readable without Ciciro.
     const folder = "manuscripts/The mine Book";

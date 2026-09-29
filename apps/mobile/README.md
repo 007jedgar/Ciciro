@@ -16,6 +16,8 @@ Dictation uses `expo-speech-recognition`, configured by its plugin in `app.json`
 
 Point `EXPO_PUBLIC_API_URL` at the deployed app, not at Anthropic. Account and secret setup is in [docs/setup-accounts.md](../../docs/setup-accounts.md).
 
+Builds, over-the-air updates, EAS Workflows, push notifications and the EAS environment variables that replace `.env` on EAS are in [docs/mobile-release.md](../../docs/mobile-release.md). `expo-updates` is a native module: a dev client built before it was added needs a rebuild.
+
 This is not an architecture spec. Do not copy unpublished `docs/mobile/` notes into this tree.
 
 ## Native stack

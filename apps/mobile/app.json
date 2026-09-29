@@ -7,6 +7,14 @@
     "icon": "./assets/icon.png",
     "scheme": "ciciro",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fec740f0-4e6e-4c53-8ac5-bc6d448fd1d8",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.ciciro.mobile",

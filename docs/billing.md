@@ -76,7 +76,9 @@ Server (`wrangler secret put <NAME>` on Cloudflare, or the container env):
 | `ANDROID_PACKAGE` | Defaults to `app.ciciro.mobile`; used for the Play "manage subscription" link. |
 | `STRIPE_API_BASE`, `REVENUECAT_API_BASE` | Tests and local stand-ins only. |
 
-App (`apps/mobile/.env`, baked into the build):
+App, baked into the build: `apps/mobile/.env` locally, EAS environment
+variables for EAS builds and updates (see
+[mobile release](mobile-release.md#environment-variables)):
 
 | Variable | Notes |
 |---|---|

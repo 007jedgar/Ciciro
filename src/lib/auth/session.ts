@@ -189,7 +189,7 @@ async function sessionTokens(request?: SessionRequest): Promise<string[]> {
  */
 export async function getSession(
   request?: SessionRequest
-): Promise<{ user: PublicUser; token: string } | null> {
+): Promise<{ user: PublicUser; token: string; sessionId: string } | null> {
   const now = Date.now();
   for (const token of await sessionTokens(request)) {
     const session = await prisma.session.findUnique({
@@ -198,12 +198,27 @@ export async function getSession(
     });
     if (!session) continue;
     if (session.expiresAt.getTime() < now) {
+      await forgetSessionPushTokens({ id: session.id });
       await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
       continue;
     }
-    return { user: toPublicUser(session.user), token };
+    return { user: toPublicUser(session.user), token, sessionId: session.id };
   }
   return null;
+}
+
+/**
+ * A sign-in's push tokens end with it (see PushToken), so a signed-out phone
+ * stops getting that account's notifications. Explicit rather than left to the
+ * foreign-key cascade, and never blocks the sign-out itself.
+ */
+async function forgetSessionPushTokens(session: { id: string } | { tokenHash: { in: string[] } }) {
+  await prisma
+    .$transaction([
+      prisma.pushTicket.deleteMany({ where: { pushToken: { session } } }),
+      prisma.pushToken.deleteMany({ where: { session } }),
+    ])
+    .catch(() => {});
 }
 
 /** Resolve the current user from the session cookie, or null. Sweeps expiry. */
@@ -291,9 +306,9 @@ export async function authorizeProject(
 export async function destroySession(request?: SessionRequest): Promise<void> {
   const tokens = await sessionTokens(request);
   if (tokens.length) {
-    await prisma.session
-      .deleteMany({ where: { tokenHash: { in: tokens.map(hashSessionToken) } } })
-      .catch(() => {});
+    const tokenHash = { in: tokens.map(hashSessionToken) };
+    await forgetSessionPushTokens({ tokenHash });
+    await prisma.session.deleteMany({ where: { tokenHash } }).catch(() => {});
   }
   try {
     const jar = await cookies();

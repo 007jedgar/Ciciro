@@ -203,6 +203,7 @@ data/<projectId>/bible/*.md   # story bible on disk (gitignored user content)
 - [Tracked changes](docs/tracked-changes.md) - suggestions: storage, accept/reject rules, desk and phone.
 - [Hosting](docs/hosting.md) - Cloudflare Workers, Docker, auth gate, and serverless databases.
 - [Billing](docs/billing.md) - Ciciro Pro on Stripe and the app stores, the AI allowance, and store setup.
+- [Mobile release](docs/mobile-release.md) - EAS builds, over-the-air updates, workflows, push notifications, and the app's EAS environment variables.
 - [Accounts and secrets](docs/setup-accounts.md) - operator checklist for Anthropic, databases, Wrangler, and the mobile API URL.
 
 ## Contributing

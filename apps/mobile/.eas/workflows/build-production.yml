@@ -1,0 +1,37 @@
+# A store build on demand, or when a mobile-v* tag is pushed. The build number
+# comes from EAS (appVersionSource: remote) and increments on every build.
+# Submission to the stores is a separate, manual step for now.
+#
+#   eas workflow:run .eas/workflows/build-production.yml -F platform=ios
+name: Build production
+
+on:
+  push:
+    tags: ['mobile-v*']
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Which store build to make (a tag push builds iOS)
+        options:
+          - ios
+          - android
+          - all
+        default: ios
+
+jobs:
+  build_ios:
+    name: Build iOS
+    if: ${{ (inputs.platform || 'ios') != 'android' }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  build_android:
+    name: Build Android
+    if: ${{ inputs.platform == 'android' || inputs.platform == 'all' }}
+    type: build
+    params:
+      platform: android
+      profile: production

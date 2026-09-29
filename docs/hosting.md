@@ -41,6 +41,7 @@ run coordinator.
 | `APPLE_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional | Sign in with Apple / Google. See [social sign-in](social-sign-in.md#configuration). |
 | `CICIRO_PUBLIC_URL` | Path A | The public origin, e.g. `https://ciciro.app`, for the Apple / Google callbacks and links in emails. Unset uses the request's origin, which is safe on Workers but lets a container that trusts a forwarded Host send reset links to someone else's site. |
 | `STRIPE_*`, `REVENUECAT_*`, `CICIRO_FREE_AI_RUNS_PER_MONTH`, `CICIRO_PRO_AI_RUNS_PER_MONTH` | optional | Ciciro Pro and the monthly AI allowance. Hosted servers meter AI use even without billing set up. See [billing](billing.md#environment-variables). |
+| `EXPO_ACCESS_TOKEN` | optional | Bearer token for the Expo Push API, required once enhanced push security is on for the EAS project. See [mobile release](mobile-release.md#push-notifications). |
 
 Never commit `.env`; set secrets through your platform (Cloudflare
 `wrangler secret put`, or container env).
@@ -266,6 +267,17 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-email-tokens.sql
 Run it before deploying the build that ships them. Sign-in keeps working
 without it, but account deletion and the data export also read `EmailToken`,
 so until it runs they fail with `no such table: EmailToken`.
+
+Push notification tokens need `PushToken` and `PushTicket` (see
+[mobile release](mobile-release.md#push-notifications)):
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-push-tokens.sql
+```
+
+Run it before deploying the build that ships them. Account deletion and the
+data export read both tables, so until it runs they fail with
+`no such table: PushToken`; sign-out keeps working.
 
 ## Authentication
 

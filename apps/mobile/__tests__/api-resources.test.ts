@@ -62,6 +62,20 @@ const RESOURCES: ResourceCase[] = [
   { name: "settings.get", run: () => ciciro.settings.get(), path: /\/api\/settings$/ },
   { name: "models.get", run: () => ciciro.models.get(), path: /\/api\/models$/ },
   {
+    name: "push.register",
+    run: () => ciciro.push.register({ token: "ExponentPushToken[abc]", platform: "ios" }),
+    method: "POST",
+    path: /\/api\/push\/tokens$/,
+    body: { token: "ExponentPushToken[abc]", platform: "ios" },
+  },
+  {
+    name: "push.unregister",
+    run: () => ciciro.push.unregister({ token: "ExponentPushToken[abc]" }),
+    method: "DELETE",
+    path: /\/api\/push\/tokens$/,
+    body: { token: "ExponentPushToken[abc]" },
+  },
+  {
     name: "settings.patch",
     run: () => ciciro.settings.patch({ theme: "ember" }),
     method: "PATCH",

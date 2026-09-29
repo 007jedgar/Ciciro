@@ -12,9 +12,11 @@ import { useOptionalAppTheme } from "../lib/app-theme-context";
 import { SettingsProvider } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
+import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
 import { StackPopTransition } from "../components/StackPopTransition";
+import { UpdateSync } from "../components/UpdateSync";
 import { POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
 import { WritingDayProvider } from "../lib/writing-day-session";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -131,7 +133,9 @@ export default function RootLayout() {
                 <WritingDayProvider>
                   <LastPlaceTracker />
                   <WritingReminderSync />
+                  <PushRegistrationSync />
                   <WritingWidgetSync />
+                  <UpdateSync />
                   <ThemedStack />
                 </WritingDayProvider>
               </SettingsProvider>

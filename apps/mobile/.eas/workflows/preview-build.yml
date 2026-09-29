@@ -1,0 +1,103 @@
+# An installable internal build of a pull request, for testers' registered
+# devices. Label the PR mobile-preview to start it (later pushes to a labeled
+# PR refresh it), or run it by hand. When a preview build with the same native
+# fingerprint exists, it is repacked with this commit's JavaScript instead of
+# rebuilt, which takes minutes rather than a full native build.
+#
+#   eas workflow:run .eas/workflows/preview-build.yml -F platform=ios
+name: Preview build
+
+on:
+  pull_request_labeled:
+    labels: ['mobile-preview']
+  pull_request:
+    branches: ['main']
+    types: ['synchronize']
+    paths: ['apps/mobile/**']
+    if: ${{ contains(toJSON(github.event.pull_request.labels), '"mobile-preview"') }}
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Which platform to build (pull requests build iOS)
+        options:
+          - ios
+          - android
+          - all
+        default: ios
+
+jobs:
+  fingerprint:
+    name: Fingerprint
+    type: fingerprint
+    environment: preview
+
+  get_ios_build:
+    name: Find a preview iOS build with this fingerprint
+    needs: [fingerprint]
+    if: ${{ (inputs.platform || 'ios') != 'android' }}
+    type: get-build
+    params:
+      platform: ios
+      profile: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  repack_ios:
+    name: Repack iOS with this commit's JavaScript
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: repack
+    environment: preview
+    env:
+      CICIRO_RELEASE: '1'
+    params:
+      build_id: ${{ needs.get_ios_build.outputs.build_id }}
+      profile: preview
+
+  build_ios:
+    name: Build iOS (native code changed)
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview
+
+  get_android_build:
+    name: Find a preview Android build with this fingerprint
+    needs: [fingerprint]
+    if: ${{ inputs.platform == 'android' || inputs.platform == 'all' }}
+    type: get-build
+    params:
+      platform: android
+      profile: preview
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  repack_android:
+    name: Repack Android with this commit's JavaScript
+    needs: [get_android_build]
+    if: ${{ needs.get_android_build.outputs.build_id }}
+    type: repack
+    environment: preview
+    env:
+      CICIRO_RELEASE: '1'
+    params:
+      build_id: ${{ needs.get_android_build.outputs.build_id }}
+      profile: preview
+
+  build_android:
+    name: Build Android (native code changed)
+    needs: [get_android_build]
+    if: ${{ !needs.get_android_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+
+  comment:
+    name: Link the builds on the pull request
+    after: [repack_ios, build_ios, repack_android, build_android]
+    if: ${{ github.event.pull_request.number }}
+    type: github-comment
