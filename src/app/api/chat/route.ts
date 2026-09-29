@@ -13,7 +13,7 @@ import {
 } from "@/lib/editor-run";
 import { getRunCoordinator } from "@/lib/durable/coordinator";
 import { archiveChat, loadChatSnapshot } from "@/lib/chat-history";
-import { assertAiAllowed, meterAiRun } from "@/lib/entitlements";
+import { assertAiAllowed, meterAiRun, refundAiRun } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -68,7 +68,10 @@ export async function POST(req: NextRequest) {
   }
 
   // A new message is one AI action; resuming a turn already paid for is not.
-  if (!input.resumeTurnId) {
+  // The charge stays only if this request creates the run: a retry that lands
+  // on an existing run, or any rejection before the run starts, is refunded.
+  const metered = !input.resumeTurnId;
+  if (metered) {
     try {
       await meterAiRun(user);
     } catch (error) {
@@ -77,16 +80,22 @@ export async function POST(req: NextRequest) {
       throw error;
     }
   }
+  const refund = async () => {
+    if (metered) await refundAiRun(user);
+  };
 
   let prepared;
   try {
     prepared = await prepareEditorRun(input);
   } catch (error) {
+    await refund();
     return json({ error: (error as Error).message }, 500);
   }
   if (!prepared) {
+    await refund();
     return json({ error: "Nothing to resume for that turn" }, 404);
   }
+  if (!prepared.created) await refund();
 
   const { run, compactNotice } = prepared;
   const status = run.status as EditorRunStatus;
@@ -110,6 +119,7 @@ export async function POST(req: NextRequest) {
   const coordinator = getRunCoordinator();
   const runLease = await coordinator.acquire(run.id, RUN_LOCK_TTL_MS);
   if (!runLease) {
+    if (prepared.created) await refund();
     return json(
       {
         error: "Editor run is already executing",
@@ -123,6 +133,7 @@ export async function POST(req: NextRequest) {
 
   const claim = await claimEditorRun(run.id);
   if (!claim) {
+    if (prepared.created) await refund();
     await coordinator.release(run.id, runLease.token);
     const latest = await prisma.editorRun.findUnique({ where: { id: run.id } });
     if (
