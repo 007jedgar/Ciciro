@@ -75,4 +75,4 @@ pairs with the check's findings highlighted, the editor's changes as a word
 diff, and the judges' verdicts, and `results.json` has the raw data. A real run
 refuses to start when its estimate is above `--max-usd` (default 25), and
 stops making calls once actual spend reaches it. With the defaults the estimate
-is about $7 (216 calls); the first real run cost $3.27.
+is about $7 (216 calls); real runs have cost $3.27 to $3.74.
