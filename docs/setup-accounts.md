@@ -200,6 +200,6 @@ The **`test`** workflow in `.github/workflows/ci.yml` runs lint, Vitest, and mob
 6. Open `/signup` on the deployed origin, create an account, then `/login` as a second check. Create a manuscript.
 7. Docker alternative to steps 4-5: `docker build -t ciciro .` and `docker run` with the same two env vars (auth is on in the image).
 8. Optional: Groq key as `GROQ_API_KEY`.
-9. Optional: Sign in with Apple and Google. Run `prisma/d1-social-sign-in.sql` on D1, then follow [Sign in with Apple and Google](social-sign-in.md).
+9. Optional: Sign in with Apple and Google. Run `prisma/d1-social-sign-in.sql` and `prisma/d1-email-verified.sql` on D1, then follow [Sign in with Apple and Google](social-sign-in.md).
 10. Mobile: `cd apps/mobile && npm install`. Set `EXPO_PUBLIC_API_URL` to the origin from step 5 or 7. Then `npx expo start`. Sign in against that host. The app never gets `ANTHROPIC_API_KEY`.
 11. Confirm the GitHub **`test`** check is required on `main` (Settings → Rulesets).

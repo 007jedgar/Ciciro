@@ -24,7 +24,7 @@ import {
   socialAvailability,
   type SocialProvider,
 } from "@/lib/auth/social-config";
-import { AuthError, createSession, type PublicUser } from "@/lib/auth/session";
+import { AuthError, createSession } from "@/lib/auth/session";
 
 // The browser flow for Sign in with Apple and Google, and the native Apple
 // sheet's token sign-in. Browser flow:
