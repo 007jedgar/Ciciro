@@ -2074,6 +2074,60 @@ textarea {
   color: var(--del);
   font-size: 13px;
 }
+/* Sign in with Apple / Google. Colors follow each brand's guidelines, not the
+   theme palette; light-dark() picks the variant from the theme's color-scheme. */
+.social-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: filter var(--duration-fast) var(--ease-out), transform var(--duration-press) var(--ease-out);
+}
+.social-btn:hover {
+  filter: brightness(0.94);
+}
+.social-btn:active {
+  transform: scale(var(--press-scale));
+}
+.social-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.social-apple {
+  background: light-dark(#000, #fff);
+  color: light-dark(#fff, #000);
+}
+.social-google {
+  background: light-dark(#fff, #131314);
+  color: light-dark(#1f1f1f, #e3e3e3);
+  border-color: light-dark(#747775, #8e918f);
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
 .auth-alt {
   margin: 4px 0 0;
   font-size: 13px;

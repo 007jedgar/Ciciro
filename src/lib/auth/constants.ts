@@ -110,3 +110,10 @@ export function sessionCookieOptions(expires = new Date(Date.now() + SESSION_TTL
 }
 
 export const MIN_PASSWORD_LENGTH = 8;
+
+/** A post-sign-in `next` path, same-origin only: `//host` and `/\host` leave the site. */
+export function safeNext(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.startsWith("/")) return "/";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
+  return raw;
+}

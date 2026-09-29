@@ -34,7 +34,7 @@ export class AuthError extends Error {
   }
 }
 
-function toPublicUser(user: {
+export function toPublicUser(user: {
   id: string;
   email: string;
   name: string;
@@ -76,8 +76,10 @@ export async function authenticate(input: {
   if (!email || typeof password !== "string") throw invalid;
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    // Spend comparable time so timing does not leak account existence.
+  // An Apple / Google account without a password stores "" (NO_PASSWORD).
+  if (!user || !user.passwordHash) {
+    // Spend comparable time so timing does not leak account existence (or
+    // which accounts have no password).
     await verifyPassword(password, "scrypt$16384$8$1$00$00");
     throw invalid;
   }

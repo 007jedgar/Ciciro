@@ -1,9 +1,23 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { createSession, registerUser } from "@/lib/auth/session";
 import { SESSION_HEADER } from "@/lib/auth/constants";
 import { GET } from "@/app/api/models/route";
+
+// The models resolve once, at import, and Prisma loads a developer's .env
+// before that. Blank overrides win (dotenv never replaces a set variable), so
+// this asserts the shipped defaults whatever .env says.
+vi.hoisted(() => {
+  for (const name of [
+    "CICIRO_EDITOR_MODEL",
+    "CICIRO_MODEL",
+    "CICIRO_DRAFTER_MODEL",
+    "CICIRO_DRAFTER_FAST_MODEL",
+  ]) {
+    process.env[name] = "";
+  }
+});
 
 describe("GET /api/models", () => {
   beforeEach(async () => {

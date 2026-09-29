@@ -59,6 +59,16 @@ describe("diffSchemas against the real Prisma schema", () => {
     ]);
   });
 
+  it("names the social sign-in script for missing Identity and AuthHandoff tables", () => {
+    const stale = liveFrom(expected, `DROP TABLE "AuthHandoff"; DROP TABLE "Identity";`);
+    const { errors, missing } = diffSchemas(expected, stale);
+    expect([...errors].sort()).toEqual(["missing table AuthHandoff", "missing table Identity"]);
+    const scripts = upgradeScriptsFor(join(root, "prisma"), missing);
+    expect(scripts).toEqual(["prisma/d1-social-sign-in.sql"]);
+    const fixed = liveFrom(stale, readFileSync(join(root, scripts[0]), "utf8"));
+    expect(diffSchemas(expected, fixed)).toEqual({ errors: [], warnings: [], missing: [] });
+  });
+
   it("ignores D1's own tables", () => {
     const live = liveFrom(expected, `CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB) WITHOUT ROWID;`);
     expect(diffSchemas(expected, live).errors).toEqual([]);
@@ -98,6 +108,15 @@ describe("diffSchemas rules", () => {
     const { errors, warnings } = diffSchemas(base, live);
     expect(errors).toEqual(["missing unique index on T(a)"]);
     expect(warnings).toEqual(["missing index on T(b)"]);
+  });
+
+  it("fails when D1 still requires a column Prisma made optional", () => {
+    const optional = `CREATE TABLE "T" ("id" TEXT NOT NULL PRIMARY KEY, "a" TEXT NOT NULL, "b" INTEGER);
+      CREATE UNIQUE INDEX "T_a_key" ON "T"("a");
+      CREATE INDEX "T_b_idx" ON "T"("b");`;
+    expect(diffSchemas(optional, base).errors).toEqual(["T.b is NOT NULL in D1 but optional in Prisma"]);
+    // The other way round is fine: Prisma always writes a required column.
+    expect(diffSchemas(base, optional).errors).toEqual([]);
   });
 
   it("fails on a leftover required column Prisma never writes", () => {
