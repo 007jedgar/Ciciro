@@ -48,7 +48,10 @@ stop once the allowance is used up.
 
 Usage is counted per account per calendar month in UTC (`UsageCounter`,
 period `YYYY-MM`). `meterAiRun` claims one action atomically before the work
-starts; a request that fails gives it back (`withAiRun`). Once the allowance
+starts; a request that fails gives it back (`withAiRun`). A chat message keeps
+its charge only when its claim starts a run that has never executed; a retry
+with the same `clientTurnId`, a replay of a finished turn, and a 409 are
+refunded, so a retry is never charged twice. Once the allowance
 is used, AI routes answer **402** with `code: "ai_limit_reached"` and the
 entitlement; the web shows `AiLimitDialog`, the app shows the limit notice in
 chat with a way to Pro. The manuscript, notes and story bible stay fully
