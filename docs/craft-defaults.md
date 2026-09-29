@@ -73,6 +73,6 @@ npm run demo:craft -- --samples 1 --scenes kitchen,noir
 Output goes to `.craft-demo/` (git-ignored): `index.html` shows the matched
 pairs with the check's findings highlighted, the editor's changes as a word
 diff, and the judges' verdicts, and `results.json` has the raw data. A real run
-refuses to start when its estimate is above `--max-usd` (default 25). With the
-defaults, the estimate is about $7 (216 calls). Opus thinking varies, so budget
-up to about $15.
+refuses to start when its estimate is above `--max-usd` (default 25), and
+stops making calls once actual spend reaches it. With the defaults the estimate
+is about $7 (216 calls); the first real run cost $3.27.

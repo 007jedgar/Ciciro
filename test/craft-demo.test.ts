@@ -89,6 +89,25 @@ describe("craft demo harness", () => {
     expect(failed[0].A.error ?? failed[0].B.error).toMatch(/spend reached the \$0.2 cap/);
   });
 
+  it("keeps the draft when the editor is cut off, as auto-draft does", async () => {
+    const base = mockClient();
+    const client = {
+      messages: {
+        create: async (req: Req) => {
+          const res = await base.messages.create(req);
+          return Array.isArray(req.system) ? { ...res, stop_reason: "max_tokens" } : res;
+        },
+      },
+    } as never;
+    const result = await runDemo({ client, scenes: [scene("office")], samples: 1, dryRun: true });
+    const { A, B } = result.scenes[0].pairs[0];
+    for (const run of [A, B]) {
+      expect(run.editCutOff).toBe(true);
+      expect(run.final).toBe(run.draft);
+    }
+    expect(renderPage(result)).toContain("edit cut off: draft kept");
+  });
+
   it("records a failed arm without judging the pair", async () => {
     const client = {
       messages: {
