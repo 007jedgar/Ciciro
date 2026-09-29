@@ -58,6 +58,7 @@ export type EditorRunInput = {
 export type EditorRunEvent =
   | { type: "text"; v: string; resume?: boolean }
   | { type: "tool"; v: string }
+  | { type: "progress"; v: string }
   | ({ type: string } & Record<string, unknown>);
 
 type Emit = (event: EditorRunEvent) => void;
@@ -65,6 +66,11 @@ type Emit = (event: EditorRunEvent) => void;
 const MAX_ITERATIONS_PER_SLICE = 6;
 const MAX_STREAM_RETRIES = 2;
 const LEASE_MS = 11 * 60_000;
+
+// Surfaces Opus 5.5's between-tool-call progress notes (otherwise empty
+// `thinking` blocks under the default display) as short "working" updates,
+// separate from the visible reply text. See src/lib/prompts.ts's tuning note.
+const THINKING_DISPLAY_UPDATES_BETA = "thinking-display-updates-2026-08-18";
 
 const CONTINUE_EXACTLY =
   "Continue exactly where you left off - mid-word if that is where it cut off. " +
@@ -599,15 +605,21 @@ export async function executeClaimedEditorRun(
         const beforeDelta = visibleDelta;
         let emittedThisAttempt = false;
         try {
-          const stream = anthropic.messages.stream({
-            model: EDITOR_MODEL,
-            max_tokens: requestProfile.maxTokens,
-            thinking: { type: "adaptive" },
-            output_config: { effort: requestProfile.effort },
-            system: editorSystem,
-            tools: EDITOR_TOOLS,
-            messages,
-          });
+          const stream = anthropic.messages.stream(
+            {
+              model: EDITOR_MODEL,
+              max_tokens: requestProfile.maxTokens,
+              thinking: {
+                type: "adaptive",
+                display: "updates",
+              } as unknown as Anthropic.ThinkingConfigParam,
+              output_config: { effort: requestProfile.effort },
+              system: editorSystem,
+              tools: EDITOR_TOOLS,
+              messages,
+            },
+            { headers: { "anthropic-beta": THINKING_DISPLAY_UPDATES_BETA } }
+          );
 
           for await (const event of stream) {
             if (
@@ -618,6 +630,15 @@ export async function executeClaimedEditorRun(
               visible += event.delta.text;
               visibleDelta += event.delta.text;
               emit({ type: "text", v: event.delta.text });
+            } else if (
+              event.type === "content_block_delta" &&
+              event.delta.type === "thinking_delta" &&
+              event.delta.thinking
+            ) {
+              // Ephemeral progress note, not part of the visible reply: a
+              // drop here is always safe to retry from scratch, so it does
+              // not count toward emittedThisAttempt.
+              emit({ type: "progress", v: event.delta.thinking });
             }
           }
           msg = await stream.finalMessage();

@@ -15,13 +15,18 @@ export function isTerminalRunStatus(status: EditorRunStatus | null | undefined):
 export type ChatStreamState = {
   text: string;
   tools: string[];
+  // Opus 5.5's between-tool-call progress notes (prompts.ts's narration
+  // cadence line) - a subtle, ephemeral working note, never part of the
+  // reply text or the persisted transcript. The last entry accumulates the
+  // in-flight note; a "tool" event seals it and starts the next one fresh.
+  progress: string[];
   turnId: string | null;
   runId: string | null;
   status: EditorRunStatus | null;
 };
 
 export function emptyChatStreamState(): ChatStreamState {
-  return { text: "", tools: [], turnId: null, runId: null, status: null };
+  return { text: "", tools: [], progress: [], turnId: null, runId: null, status: null };
 }
 
 export function applyChatStreamEvent(
@@ -39,7 +44,21 @@ export function applyChatStreamEvent(
     return { ...state, text: evt.resume ? evt.v : state.text + evt.v };
   }
   if (evt.type === "tool" && typeof evt.v === "string") {
-    return { ...state, tools: [...state.tools, evt.v] };
+    const sealed =
+      state.progress.length && state.progress[state.progress.length - 1] !== ""
+        ? [...state.progress, ""]
+        : state.progress;
+    return { ...state, tools: [...state.tools, evt.v], progress: sealed };
+  }
+  if (evt.type === "progress" && typeof evt.v === "string") {
+    const progress =
+      state.progress.length === 0
+        ? [evt.v]
+        : [
+            ...state.progress.slice(0, -1),
+            state.progress[state.progress.length - 1] + evt.v,
+          ];
+    return { ...state, progress };
   }
   if (evt.type === "phase" || evt.type === "done") {
     const status = typeof evt.status === "string" ? (evt.status as EditorRunStatus) : state.status;

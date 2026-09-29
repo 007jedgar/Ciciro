@@ -21,6 +21,11 @@ vi.mock("@/lib/anthropic", () => ({
                   type: "content_block_delta",
                   delta: { type: "text_delta", text: block.text },
                 };
+              } else if (block.type === "thinking" && block.thinking) {
+                yield {
+                  type: "content_block_delta",
+                  delta: { type: "thinking_delta", thinking: block.thinking },
+                };
               }
             }
           },
@@ -262,5 +267,41 @@ describe("durable editor lifecycle", () => {
     expect(persisted.mutationCount).toBe(0);
     expect(persisted.messagesJson).toContain("STALE REVISION");
     expect(persisted.messagesJson).toContain("Completion verification failed");
+  });
+
+  it("forwards thinking-summary deltas as progress events, leaving text deltas unchanged", async () => {
+    const project = await createProject();
+    const prepared = await prepareEditorRun({
+      projectId: project.id,
+      message: "What happened in chapter one?",
+      clientTurnId: "progress-turn",
+    });
+    model.responses.push(
+      response("end_turn", [
+        {
+          type: "thinking",
+          thinking: "Checking chapter one for continuity.",
+          signature: "sig-1",
+        },
+        { type: "text", text: "Chapter one is consistent.", citations: null },
+      ])
+    );
+
+    const events: Array<{ type: string; v?: unknown }> = [];
+    const claim = await claimEditorRun(prepared!.run.id);
+    await executeClaimedEditorRun(claim!, (event) => {
+      events.push(event as { type: string; v?: unknown });
+    });
+
+    const progressText = events
+      .filter((event) => event.type === "progress")
+      .map((event) => event.v)
+      .join("");
+    const textDeltas = events
+      .filter((event) => event.type === "text")
+      .map((event) => event.v)
+      .join("");
+    expect(progressText).toBe("Checking chapter one for continuity.");
+    expect(textDeltas).toBe("Chapter one is consistent.");
   });
 });

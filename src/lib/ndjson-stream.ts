@@ -14,6 +14,7 @@ export type NdjsonEvent =
   | { type: "turn"; id: string; runId: string }
   | { type: "text"; v: string; resume?: boolean }
   | { type: "tool"; v: string }
+  | { type: "progress"; v: string }
   | {
       type: "phase";
       status: EditorRunStatus;

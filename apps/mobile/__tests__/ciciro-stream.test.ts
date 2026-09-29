@@ -35,6 +35,20 @@ describe("applyChatStreamEvent", () => {
     expect(applyChatStreamEvent(state, { type: "ping" })).toEqual(state);
     expect(applyChatStreamEvent(state, { type: "ui", event: { type: "open_chapter" } })).toEqual(state);
   });
+
+  it("accumulates progress notes and seals them on the next tool call", () => {
+    let state = emptyChatStreamState();
+    state = applyChatStreamEvent(state, { type: "progress", v: "Checking " });
+    state = applyChatStreamEvent(state, { type: "progress", v: "continuity." });
+    expect(state.progress).toEqual(["Checking continuity."]);
+
+    state = applyChatStreamEvent(state, { type: "tool", v: "search_manuscript" });
+    expect(state.progress).toEqual(["Checking continuity.", ""]);
+
+    state = applyChatStreamEvent(state, { type: "progress", v: "Placing the scene." });
+    expect(state.progress).toEqual(["Checking continuity.", "Placing the scene."]);
+    expect(state.text).toBe("");
+  });
 });
 
 describe("hydrateChatMessages", () => {
@@ -114,6 +128,7 @@ describe("upsertStreamAssistant", () => {
     const local = upsertStreamAssistant([], {
       text: "Hello from stream",
       tools: [],
+      progress: [],
       turnId: "t1",
       runId: "r1",
       status: "completed",

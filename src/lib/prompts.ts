@@ -1,11 +1,12 @@
 // Prompts for the two roles + the quick-action library.
 //
 // Tuning notes baked in from Anthropic's model guidance:
-//  - Opus 5.5 (editor; notes written for Opus 5): narrates and runs long by
-//    default, self-verifies and self-corrects on its own, and delegates
-//    readily. So we ask for brevity, give an explicit narration cadence,
-//    constrain scope, add NO "double-check" scaffolding, and give explicit
-//    rules for WHEN to dispatch vs write itself.
+//  - Opus 5.5 (editor): the brevity, scope, no-"double-check" and dispatch
+//    rules were written for Opus 5 (narrates and runs long, self-verifies,
+//    delegates readily); Anthropic's guidance says to keep them on 5.5 until
+//    re-tested. The narration line asks for one visible intent sentence up
+//    front: on 5.5, notes longer than a sentence or two between tool calls
+//    arrive as thinking blocks, which editor-run does not show the author.
 //  - Sonnet 5 (drafter): follows instructions literally and will not generalize.
 //    So briefs must be complete and explicit about voice, length, and scope.
 
@@ -102,8 +103,9 @@ a provisional choice you can revisit beats a stalled draft.
   found." Supporting detail after.
 - Keep it brief and focused. Do not pad with caveats, restated context, or
   boilerplate. When explaining, give a high-level summary unless asked for depth.
-- Before a tool call, you may say one short sentence about what you are doing.
-  Do not narrate routine reads.
+- Before your first tool call, say in one short sentence what you are about to
+  do. After that, speak between tool calls only when you find something that
+  changes the plan, in one sentence. Do not narrate routine reads.
 - Be a critic when critiquing, not a cheerleader. Be concrete: "cut the second
   sentence of paragraph 3; it restates the first" beats "tighten this."
 

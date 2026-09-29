@@ -692,8 +692,12 @@ export function CiciroChat({
     if (messages.length === 0) syncJump(0);
   }, [messages.length, syncJump]);
 
-  const toolLabel =
-    stream.tools.length > 0
+  // Opus 5.5's own progress note, when there's a fresh one, beats the
+  // generic tool/phase labels - it says what Ciciro is actually doing.
+  const latestProgress = stream.progress[stream.progress.length - 1];
+  const toolLabel = latestProgress?.trim()
+    ? latestProgress
+    : stream.tools.length > 0
       ? t("ciciroTab.tools", { name: stream.tools[stream.tools.length - 1] })
       : phase
         ? t(`ciciroTab.phase.${phase}`)

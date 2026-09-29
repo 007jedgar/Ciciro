@@ -1410,6 +1410,27 @@ textarea {
   left: 2px;
   color: var(--accent);
 }
+.progress-trace {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.progress-line {
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-style: italic;
+  opacity: 0.75;
+  padding-left: 12px;
+  position: relative;
+}
+.progress-line::before {
+  content: "\22EF";
+  position: absolute;
+  left: 1px;
+  top: -1px;
+  color: var(--ink-soft);
+}
 .msg .bubble p {
   margin: 0 0 8px;
 }
