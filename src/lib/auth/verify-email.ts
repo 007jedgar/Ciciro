@@ -51,11 +51,7 @@ export async function afterPasswordSignup(userId: string, origin: string): Promi
 
 export type { VerifyOutcome };
 
-/**
- * Spend a verification link. The first click verifies the address and sends
- * the welcome email; any later click (or one on an older link) reports
- * `already_verified` rather than an error.
- */
+/** Why a link cannot be spent, as the page reports it. */
 async function failedOutcome(result: Extract<EmailTokenCheck, { ok: false }>): Promise<VerifyOutcome> {
   if (result.userId) {
     const user = await prisma.user.findUnique({
@@ -85,6 +81,12 @@ export async function peekVerification(token: unknown): Promise<VerifyOutcome | 
   return user.emailVerifiedAt ? "already_verified" : "pending";
 }
 
+/**
+ * Spend a verification link, from the page's Confirm button (never on GET).
+ * The first confirmation verifies the address and sends the welcome email;
+ * any later one (or one on an older link) reports `already_verified` rather
+ * than an error.
+ */
 export async function verifyEmail(token: unknown, origin: string): Promise<VerifyOutcome> {
   const result = await consumeEmailToken(token, "verify_email");
   if (!result.ok) return failedOutcome(result);
