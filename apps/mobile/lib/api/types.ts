@@ -11,6 +11,8 @@ export type PublicUser = {
    * deletion by typing DELETE. Absent from an older server: treat as true.
    */
   hasPassword?: boolean;
+  /** Whether the address is confirmed. Absent from servers that predate it. */
+  emailVerified?: boolean;
 };
 
 export type OkResponse = { ok: true };
@@ -246,6 +248,12 @@ export type AuthSessionResponse = {
   /** Set when this sign-in claimed an unverified password account. */
   takeover?: "apple" | "google" | null;
 };
+
+/** POST /api/auth/verify-email/resend. */
+export type ResendVerificationResponse = { ok: true; status: "sent" | "already_verified" };
+
+/** POST /api/auth/password/forgot. Answers the same whether or not the address has an account. */
+export type ForgotPasswordRequest = { email: string };
 
 export type LoginRequest = {
   email: string;
