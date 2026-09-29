@@ -35,6 +35,9 @@ run coordinator.
 | `CICIRO_REQUIRE_AUTH` | hosted | `true` enables the auth gate in middleware and API routes. |
 | `CICIRO_EDITOR_MODEL` / `CICIRO_DRAFTER_MODEL` / `CICIRO_DRAFTER_FAST_MODEL` | optional | Model overrides (see README). |
 | `CICIRO_STANDALONE` | build-time | `true` makes `next build` emit a standalone server (Docker path). |
+| `RESEND_API_KEY` | optional | Transactional email (see [Email](#email)). Unset logs instead of sending. |
+| `EMAIL_FROM` | for email | `"Name <address>"` the send comes from. Required once `RESEND_API_KEY` is set. |
+| `EMAIL_REPLY_TO` | optional | Reply-to address; overridable per send. |
 
 Never commit `.env`; set secrets through your platform (Cloudflare
 `wrangler secret put`, or container env).
@@ -92,6 +95,8 @@ Set secrets:
 ```bash
 wrangler secret put ANTHROPIC_API_KEY
 wrangler secret put DATABASE_URL
+wrangler secret put RESEND_API_KEY
+wrangler secret put EMAIL_FROM
 ```
 
 [`@opennextjs/cloudflare`]: https://opennext.js.org/cloudflare
@@ -229,3 +234,36 @@ lease. On Cloudflare, `EditorRunDO` adds a per-run serialization point:
 
 This preserves every guarantee in [`docs/editor-agent-runs.md`](editor-agent-runs.md)
 while making single-writer execution correct across many workers.
+
+## Email
+
+Transactional email goes through [Resend](https://resend.com) via
+`src/lib/email` (`sendEmail`), a plain `fetch` call to Resend's HTTP API rather
+than the `resend` SDK, so it needs no extra dependency and runs unmodified on
+the Workers path. With no `RESEND_API_KEY` set, it logs the message and
+returns instead of sending or throwing, so local dev and CI never need a real
+key. This module only sends; templates (the actual subject/HTML/text content
+per email) and any user-facing flow that triggers a send are separate,
+later work.
+
+**Account setup, once per environment:**
+
+1. In the Resend dashboard, add the sending domain (e.g. `ciciro.app`, or a
+   dedicated subdomain like `mail.ciciro.app` to keep bounces/complaints away
+   from the apex domain's reputation).
+2. Add the DNS records Resend generates for that domain: an SPF `TXT` record
+   (`v=spf1 include:amazonses.com ~all` merged into any existing SPF record —
+   a domain can only have one), the DKIM `CNAME`/`TXT` records Resend issues
+   for signing, and a DMARC `TXT` record at `_dmarc.<domain>` (start at
+   `p=none` to monitor, then move to `p=quarantine` once mail looks clean).
+3. Wait for Resend to show the domain as verified (DNS propagation can take
+   up to 24h, usually much less).
+4. Create an API key scoped to sending only, and set it as the
+   `RESEND_API_KEY` secret (`wrangler secret put RESEND_API_KEY` for the
+   Workers path, or your container's secret store for Path A). Set
+   `EMAIL_FROM` to an address on the verified domain, e.g.
+   `"Ciciro <hello@mail.ciciro.app>"`.
+
+**Not yet built:** a Resend webhook endpoint (delivery/bounce/complaint
+events, verified with Svix signatures) — add one when something needs to react
+to those events; there is no route today.
