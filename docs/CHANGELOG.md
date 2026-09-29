@@ -5,6 +5,10 @@ else stays in commit messages.
 
 ## Unreleased
 
+- Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5
+  (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed:
+  every drafter call already omits `thinking`, which runs adaptive on both models.
+
 - Settings (web and mobile) can now export all of your data as one zip and delete
   your account. `/account/delete` explains account deletion publicly, for the
   App Store and Google Play deletion requirements.

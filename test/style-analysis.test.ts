@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ create: vi.fn(), hasKey: true }));
 
 vi.mock("@/lib/anthropic", () => ({
-  DRAFTER_MODEL: "claude-sonnet-5",
+  DRAFTER_MODEL: "claude-sonnet-5-5",
   DRAFTER_FAST_MODEL: "claude-haiku-4-5",
   hasAnthropicKey: () => mocks.hasKey,
   getAnthropic: () => ({ messages: { create: mocks.create } }),
@@ -388,9 +388,16 @@ describe("analyzeStyle", () => {
     );
 
     const sent = mocks.create.mock.calls[0][0];
-    expect(sent.model).toBe("claude-sonnet-5");
+    expect(sent.model).toBe("claude-sonnet-5-5");
     expect(sent.messages[0].content).toContain("Mara said");
     expect(sent.messages[0].content).toContain("Named characters: Cole");
+    // Sonnet 5.5 migration: the request omits `thinking` (adaptive by
+    // default, unchanged from Sonnet 5) rather than disabling it, and
+    // carries none of the params the migration dropped (`budget_tokens`,
+    // a forced `tool_choice`).
+    expect(sent.thinking).toBeUndefined();
+    expect(sent.budget_tokens).toBeUndefined();
+    expect(sent.tool_choice).toBeUndefined();
   });
 
   it("refuses without enough written prose, without calling the model", async () => {

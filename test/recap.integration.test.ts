@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({ create: vi.fn(), hasKey: true }));
 
 vi.mock("@/lib/anthropic", () => ({
   DRAFTER_FAST_MODEL: "claude-haiku-4-5",
-  DRAFTER_MODEL: "claude-sonnet-5",
+  DRAFTER_MODEL: "claude-sonnet-5-5",
   hasAnthropicKey: () => mocks.hasKey,
   getAnthropic: () => ({ messages: { create: mocks.create } }),
 }));

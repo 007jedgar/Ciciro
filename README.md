@@ -151,7 +151,7 @@ sheet.
 Set in `.env` (all overridable):
 
 - `CICIRO_EDITOR_MODEL` = `claude-opus-5-5` - the one you talk to.
-- `CICIRO_DRAFTER_MODEL` = `claude-sonnet-5` - writes prose from briefs.
+- `CICIRO_DRAFTER_MODEL` = `claude-sonnet-5-5` - writes prose from briefs.
 - `CICIRO_DRAFTER_FAST_MODEL` = `claude-haiku-4-5` - the editor's "fast" mode.
 
 Settings (web and mobile) shows the models actually in effect, via `/api/models`.
