@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
-import { Literata, Source_Sans_3, JetBrains_Mono } from "next/font/google";
+import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/app/providers";
 
-const literata = Literata({
+// Newsreader carries display type and the manuscript (its optical sizes run
+// from the editor's text cut to the landing's light display cut), Instrument
+// Sans does the UI, JetBrains Mono writes the marginalia.
+const newsreader = Newsreader({
   subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
   variable: "--font-serif",
   display: "swap",
 });
 
-const sourceSans = Source_Sans_3({
+const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
@@ -29,7 +34,7 @@ export const metadata: Metadata = {
 const themeBoot = `
 (function () {
   try {
-    var themes = ["parchment", "sage", "ember", "walnut", "inkwell", "candle"];
+    var themes = ["parchment", "parchment-classic", "sage", "ember", "ember-classic", "walnut", "inkwell", "candle"];
     var id = null;
     var font = null;
     var size = null;
@@ -51,7 +56,7 @@ const themeBoot = `
     document.documentElement.setAttribute("data-theme", id);
     if (font) document.documentElement.setAttribute("data-editor-font", font);
     if (size) document.documentElement.style.setProperty("--editor-size", size + "px");
-    var dark = id === "ember" || id === "walnut" || id === "inkwell" || id === "candle";
+    var dark = id === "ember" || id === "ember-classic" || id === "walnut" || id === "inkwell" || id === "candle";
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch (e) {
     document.documentElement.setAttribute("data-theme", "parchment");
@@ -67,7 +72,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${literata.variable} ${sourceSans.variable} ${jetbrainsMono.variable}`}
+      className={`${newsreader.variable} ${instrumentSans.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

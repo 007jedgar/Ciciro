@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import BrandMark from "@/components/BrandMark";
 import BackLink from "@/app/privacy/BackLink";
 import { getSessionUser } from "@/lib/auth/session";
-import { authRequired } from "@/lib/auth/constants";
 import { planLimits, stripeSettings } from "@/lib/billing/config";
 import { getStripe } from "@/lib/billing/stripe";
 import { proPrices } from "@/lib/billing/prices";
@@ -36,16 +35,15 @@ export default async function PricingPage({
     proPrices(stripe, settings),
   ]);
   const entitlement = user ? await getEntitlement(user.id) : null;
-  const home = user || !authRequired() ? "/" : "/launch";
 
   return (
     <main className="privacy-page pricing-page">
       <header className="privacy-header">
-        <Link href={home} className="privacy-brand">
+        <Link href="/" className="privacy-brand">
           <BrandMark size={24} />
           <span className="privacy-wordmark">Ciciro</span>
         </Link>
-        <BackLink fallback={home} />
+        <BackLink fallback="/" />
       </header>
 
       <div className="pricing-body">
