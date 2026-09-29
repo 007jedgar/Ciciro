@@ -133,6 +133,7 @@ export async function verifyDeletionProof(
     if (typeof proof.password !== "string" || !proof.password) {
       throw new AuthError("Enter your password to delete your account.", 400);
     }
+    // Unthrottled, like login; a shared password-attempt limiter is a filed follow-up.
     if (!(await verifyPassword(proof.password, account.passwordHash))) {
       throw new AuthError("Incorrect password.", 403);
     }
