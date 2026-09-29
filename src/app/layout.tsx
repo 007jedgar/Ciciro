@@ -40,11 +40,13 @@ const themeBoot = `
     var size = null;
     try {
       var blob = JSON.parse(localStorage.getItem("ciciro-settings") || "null");
-      if (blob && themes.indexOf(blob.theme) !== -1) id = blob.theme;
+      // Settings still at the epoch were never chosen: the theme follows the OS.
+      var chosen = blob && blob.updatedAt !== "1970-01-01T00:00:00.000Z";
+      if (chosen && themes.indexOf(blob.theme) !== -1) id = blob.theme;
       if (blob && (blob.editorFont === "serif" || blob.editorFont === "sans")) font = blob.editorFont;
       if (blob && typeof blob.editorFontSize === "number") size = blob.editorFontSize;
     } catch (e) {}
-    if (!id) {
+    if (!id && !blob) {
       var stored = localStorage.getItem("ciciro-theme");
       id = themes.indexOf(stored) !== -1 ? stored : null;
     }
@@ -58,8 +60,10 @@ const themeBoot = `
     if (size) document.documentElement.style.setProperty("--editor-size", size + "px");
     var dark = id === "ember" || id === "ember-classic" || id === "walnut" || id === "inkwell" || id === "candle";
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    document.documentElement.setAttribute("data-mode", dark ? "dark" : "light");
   } catch (e) {
     document.documentElement.setAttribute("data-theme", "parchment");
+    document.documentElement.setAttribute("data-mode", "light");
   }
 })();
 `;

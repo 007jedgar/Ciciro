@@ -47,8 +47,10 @@ export function resolveTheme(stored: string | null): ThemeId {
 }
 
 export function applyTheme(id: ThemeId) {
+  const mode = THEMES.find((t) => t.id === id)?.mode ?? "light";
   document.documentElement.setAttribute("data-theme", id);
-  document.documentElement.style.colorScheme = THEMES.find((t) => t.id === id)?.mode ?? "light";
+  document.documentElement.setAttribute("data-mode", mode);
+  document.documentElement.style.colorScheme = mode;
 }
 
 export function getStoredTheme(): ThemeId | null {

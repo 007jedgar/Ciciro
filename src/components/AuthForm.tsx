@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import SocialButtons from "@/components/SocialButtons";
+import ThemeToggle from "@/components/ThemeToggle";
 import { safeNext } from "@/lib/auth/constants";
 import type { SocialProvider } from "@/lib/auth/social-config";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
@@ -93,6 +94,7 @@ export default function AuthForm({
 
   return (
     <div className="auth-wrap">
+      <ThemeToggle className="auth-theme-toggle" />
       <form className="auth-card" onSubmit={submit}>
         <BrandMark size={56} />
         <h1>{copy.title}</h1>

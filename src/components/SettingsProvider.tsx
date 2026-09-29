@@ -56,7 +56,12 @@ function readLocalSettings(): AppSettings {
   const defaults = defaultSettings();
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (raw) return normalizeSettings(JSON.parse(raw));
+    if (raw) {
+      const stored = normalizeSettings(JSON.parse(raw));
+      // Never chosen (still at the epoch): keep following the OS, as the
+      // pre-paint script in layout.tsx does.
+      return stored.updatedAt === SETTINGS_EPOCH ? { ...stored, theme: resolveTheme(null) } : stored;
+    }
   } catch {
     /* ignore */
   }

@@ -18,6 +18,7 @@ import { middleware } from "@/middleware";
 import { homeShowsLibrary } from "@/lib/home";
 import LaunchPage from "@/app/launch/page";
 import { THEMES } from "@/lib/theme";
+import { SETTINGS_EPOCH } from "@/lib/settings";
 import { MANUSCRIPT_KINDS } from "@/lib/manuscript-kind";
 import { MOTION_MS } from "@/lib/motion";
 import { nextStep } from "@/components/landing/CyclingWord";
@@ -83,6 +84,10 @@ describe("theme ids", () => {
     const dark = layout.match(/var dark = ([^;]*);/)?.[1] ?? "";
     const ids = [...dark.matchAll(/id === "([\w-]+)"/g)].map((m) => m[1]).sort();
     expect(ids).toEqual(THEMES.filter((t) => t.mode === "dark").map((t) => t.id).sort());
+  });
+
+  it("follows the OS until settings were chosen, as SettingsProvider does", () => {
+    expect(layout).toContain(`blob.updatedAt !== "${SETTINGS_EPOCH}"`);
   });
 
   it("keeps the ids every device already stores as the defaults", () => {
