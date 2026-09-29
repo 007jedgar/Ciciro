@@ -28,7 +28,37 @@ export const HERO = {
   chips: ["Reminders on your days", "Back at your last sentence", "No streak to break", "Your prose, your call"],
 };
 
-export type ValueProp = { tab: string; numeral: string; title: string; body: string };
+/** A screenshot of the real app, in a day and a night version. */
+export type Still = {
+  kind: "still";
+  day: string;
+  night: string;
+  width: number;
+  height: number;
+  alt: string;
+  /** "cutout": a piece of the phone app; "window": the web app in a browser. */
+  frame: "cutout" | "window";
+  /** A closer crop for phone-width screens, where the whole window is too small to read. */
+  narrow?: { day: string; night: string; width: number; height: number };
+};
+
+/** A short screen recording from the phone app, with the frame it rests on. */
+export type Clip = {
+  /** WebM (VP9) first for browsers without H.264, then MP4. */
+  day: { webm: string; mp4: string; poster: string };
+  night: { webm: string; mp4: string; poster: string };
+  width: number;
+  height: number;
+  alt: string;
+};
+
+export type Exhibit = {
+  label: string;
+  caption: string;
+  media: Still | { kind: "phones"; clips: Clip[] };
+};
+
+export type ValueProp = { tab: string; numeral: string; title: string; body: string; exhibit: Exhibit };
 
 export const HOW = {
   kicker: "What gets in the way",
@@ -41,6 +71,19 @@ export const HOW = {
       title: "“I only ever have twenty minutes.”",
       body:
         "Most novels get written around a day job, in short stolen sessions. Any words count as a writing day, and the phone app works offline, so a line on the train is saved and counted. Pick the days and time you want a reminder.",
+      exhibit: {
+        label: "Exhibit A / Phone app",
+        caption: "Which days, what time, how many words: a reminder for The Letter, four days a week.",
+        media: {
+          kind: "still",
+          day: "/landing/reminder-day.webp",
+          night: "/landing/reminder-night.webp",
+          width: 600,
+          height: 657,
+          alt: "The phone app's reminder form for The Letter: a 250-word goal at 8:00 AM on Monday, Wednesday, Thursday and Saturday.",
+          frame: "cutout",
+        },
+      },
     },
     {
       tab: "02 / Coming back",
@@ -48,6 +91,29 @@ export const HOW = {
       title: "“Every time I come back, I have to reread everything.”",
       body:
         "Twelve hours or more away, and Ciciro greets you with a short “previously on” of your recent chapters, and your cursor is waiting where you left it, desk or phone. The reminder itself shows the last sentence you wrote.",
+      exhibit: {
+        label: "Exhibit B / Phone app",
+        caption: "The reminder quotes the last lines and opens the book. Two more sentences, right where the desk left off.",
+        media: {
+          kind: "phones",
+          clips: [
+            {
+              day: { webm: "/landing/phone-reminder-day.webm", mp4: "/landing/phone-reminder-day.mp4", poster: "/landing/phone-reminder.webp" },
+              night: { webm: "/landing/phone-reminder-night.webm", mp4: "/landing/phone-reminder-night.mp4", poster: "/landing/phone-reminder.webp" },
+              width: 600,
+              height: 1304,
+              alt: "A reminder arrives on the phone: “Time to write The Letter”, quoting the last lines written. Tapping it opens the manuscript.",
+            },
+            {
+              day: { webm: "/landing/phone-type-day.webm", mp4: "/landing/phone-type-day.mp4", poster: "/landing/phone-type-day.webp" },
+              night: { webm: "/landing/phone-type-night.webm", mp4: "/landing/phone-type-night.mp4", poster: "/landing/phone-type-night.webp" },
+              width: 600,
+              height: 1304,
+              alt: "The phone editor open at the end of chapter five, where the writer adds: “She unfolded the letter. The first line was her brother's name.”",
+            },
+          ],
+        },
+      },
     },
     {
       tab: "03 / Guilt",
@@ -55,6 +121,19 @@ export const HOW = {
       title: "“I miss a day, then two...”",
       body:
         "There is no streak here. Choose how many days a week you're aiming for, and Ciciro shows how many of the last seven you wrote. Rest days are part of the plan, and nothing resets to zero.",
+      exhibit: {
+        label: "Exhibit C / Phone app, Settings",
+        caption: "A number of days to aim for, not a chain to keep unbroken.",
+        media: {
+          kind: "still",
+          day: "/landing/daily-day.webp",
+          night: "/landing/daily-night.webp",
+          width: 600,
+          height: 320,
+          alt: "The Daily words setting: five minutes is a session; aim for 4 of the last 7 days, and the rest are rest days, not a streak to protect. Word goal 250 words, 4 days per week.",
+          frame: "cutout",
+        },
+      },
     },
     {
       tab: "04 / The book",
@@ -62,6 +141,19 @@ export const HOW = {
       title: "“Wait, what color were her eyes?”",
       body:
         "Characters, places, timeline and canon live in a story bible beside the chapters. On the web, a continuity check reads a chapter or the whole book against it and flags contradictions without touching a word.",
+      exhibit: {
+        label: "Exhibit D / Web app",
+        caption: "Ines's eyes are grey in the story bible, one glance away from the chapter.",
+        media: {
+          kind: "still",
+          day: "/landing/bible-day.webp",
+          night: "/landing/bible-night.webp",
+          width: 1100,
+          height: 800,
+          alt: "The web app's story bible open beside chapter five of The Letter, showing Ines Lind's entry: seventy-one, Mara's aunt, grey eyes.",
+          frame: "window",
+        },
+      },
     },
   ] as ValueProp[],
 };
@@ -79,6 +171,21 @@ export const WHY = {
     "Chapters shared with beta readers by link, no account needed to comment",
   ],
   receiptTotal: ["Your exports", "Free"] as [string, string],
+  exhibit: {
+    label: "Exhibit E / Web app",
+    caption:
+      "Asked to tighten a paragraph, Ciciro marks three changes in the text. The writer takes them or leaves them, one at a time.",
+    media: {
+      kind: "still",
+      day: "/landing/workspace-day.webp",
+      night: "/landing/workspace-night.webp",
+      width: 1600,
+      height: 1000,
+      narrow: { day: "/landing/workspace-narrow-day.webp", night: "/landing/workspace-narrow-night.webp", width: 820, height: 590 },
+      alt: "The web editor on chapter five of The Letter, with three suggestions from Ciciro marked in the third paragraph, Accept all and Reject all above, and the chat where the writer asked for the paragraph to be tightened.",
+      frame: "window",
+    },
+  } as Exhibit,
 };
 
 export const CLOSING = {

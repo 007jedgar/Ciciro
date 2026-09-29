@@ -2,6 +2,7 @@ import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import CyclingWord from "./CyclingWord";
+import Exhibit from "./Exhibit";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
 import { CLOSING, HERO, HOW, PRICING, SCENE, WHY } from "./copy";
 import "./landing.css";
@@ -233,16 +234,19 @@ export default function Landing() {
         <h2 id="landing-how" className="landing-h2">
           {HOW.headingLead} <em>{HOW.headingKey}</em>
         </h2>
-        <div className="landing-files">
+        <div className="landing-cases">
           {HOW.items.map((item, i) => (
-            <article key={item.title} className={`landing-file landing-file-${i + 1}`}>
-              <span className="landing-file-tab">{item.tab}</span>
-              <span className="landing-file-num" aria-hidden>
-                {item.numeral}
-              </span>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-            </article>
+            <div key={item.title} className="landing-case">
+              <article className={`landing-file landing-file-${i + 1}`}>
+                <span className="landing-file-tab">{item.tab}</span>
+                <span className="landing-file-num" aria-hidden>
+                  {item.numeral}
+                </span>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </article>
+              <Exhibit exhibit={item.exhibit} />
+            </div>
           ))}
         </div>
       </section>
@@ -276,6 +280,9 @@ export default function Landing() {
               <span>{WHY.receiptTotal[1].toUpperCase()}</span>
             </span>
           </div>
+        </div>
+        <div className="landing-why-exhibit">
+          <Exhibit exhibit={WHY.exhibit} />
         </div>
       </section>
 

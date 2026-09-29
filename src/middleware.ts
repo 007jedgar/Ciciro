@@ -76,5 +76,5 @@ export function middleware(req: NextRequest) {
 
 // Exclude Next internals and static assets from the middleware.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp|mp4|webm)$).*)"],
 };
