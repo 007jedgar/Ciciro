@@ -166,6 +166,59 @@ describe("AI gating and metering", () => {
       expect(await runsUsed(a)).toBe(LIMIT);
     });
 
+    it("chat: a retry with the same clientTurnId is charged once", async () => {
+      const a = await author("retry");
+      await prisma.editorRun.create({
+        data: {
+          projectId: a.projectId,
+          turnId: "t-retry",
+          status: "completed",
+          visibleOutput: "Done.",
+          stopReason: "legacy_replay",
+        },
+      });
+      for (let i = 0; i < 2; i++) {
+        const res = await chat(
+          request("/api/chat", a.token, { projectId: a.projectId, message: "Hello", clientTurnId: "t-retry" })
+        );
+        expect(res.status).toBe(200);
+        await res.text();
+      }
+      expect(await runsUsed(a)).toBe(0);
+      expect(mocks.create).not.toHaveBeenCalled();
+    });
+
+    it("chat: a request rejected because the run is already executing leaves usage unchanged", async () => {
+      const a = await author("busy");
+      await prisma.editorRun.create({
+        data: {
+          projectId: a.projectId,
+          turnId: "t-busy",
+          status: "running",
+          lockToken: "other-worker",
+          leaseExpiresAt: new Date(Date.now() + 3_600_000),
+        },
+      });
+      const res = await chat(
+        request("/api/chat", a.token, { projectId: a.projectId, message: "Hello", clientTurnId: "t-busy" })
+      );
+      expect(res.status).toBe(409);
+      expect(await runsUsed(a)).toBe(0);
+    });
+
+    it("chat: a turn id that belongs to another project is refused without a charge", async () => {
+      const a = await author("foreign");
+      const other = await author("foreign-other");
+      await prisma.editorRun.create({
+        data: { projectId: other.projectId, turnId: "t-foreign", status: "completed" },
+      });
+      const res = await chat(
+        request("/api/chat", a.token, { projectId: a.projectId, message: "Hello", clientTurnId: "t-foreign" })
+      );
+      expect(res.status).toBe(500);
+      expect(await runsUsed(a)).toBe(0);
+    });
+
     it("chat: compacting needs AI left", async () => {
       const a = await author("compact");
       await useUp(a);
