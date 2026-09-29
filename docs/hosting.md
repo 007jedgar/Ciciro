@@ -252,7 +252,7 @@ later work.
    dedicated subdomain like `mail.ciciro.app` to keep bounces/complaints away
    from the apex domain's reputation).
 2. Add the DNS records Resend generates for that domain: an SPF `TXT` record
-   (`v=spf1 include:amazonses.com ~all` merged into any existing SPF record —
+   (`v=spf1 include:amazonses.com ~all` merged into any existing SPF record, since
    a domain can only have one), the DKIM `CNAME`/`TXT` records Resend issues
    for signing, and a DMARC `TXT` record at `_dmarc.<domain>` (start at
    `p=none` to monitor, then move to `p=quarantine` once mail looks clean).
@@ -265,5 +265,5 @@ later work.
    `"Ciciro <hello@mail.ciciro.app>"`.
 
 **Not yet built:** a Resend webhook endpoint (delivery/bounce/complaint
-events, verified with Svix signatures) — add one when something needs to react
+events, verified with Svix signatures); add one when something needs to react
 to those events; there is no route today.

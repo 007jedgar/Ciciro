@@ -18,6 +18,7 @@ describe("sendEmail", () => {
     delete process.env.RESEND_API_KEY;
     delete process.env.EMAIL_FROM;
     delete process.env.EMAIL_REPLY_TO;
+    delete process.env.CICIRO_REQUIRE_AUTH;
   });
 
   afterEach(() => {
@@ -38,6 +39,41 @@ describe("sendEmail", () => {
     expect(result).toEqual({ sent: false });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalled();
+  });
+
+  it("masks the recipient in the no-key log", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { sendEmail } = await import("@/lib/email");
+
+    await sendEmail({ to: "jane@example.com", subject: "Hello", html: "<p>Hi</p>", text: "Hi" });
+
+    const logged = JSON.stringify(logSpy.mock.calls);
+    expect(logged).toContain("j***@example.com");
+    expect(logged).not.toContain("jane@example.com");
+  });
+
+  it("logs at error level, without throwing, when hosted and the key is missing", async () => {
+    process.env.CICIRO_REQUIRE_AUTH = "true";
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { sendEmail } = await import("@/lib/email");
+
+    const result = await sendEmail({ to: "jane@example.com", subject: "Hello", html: "<p>Hi</p>", text: "Hi" });
+
+    expect(result).toEqual({ sent: false });
+    expect(errorSpy).toHaveBeenCalled();
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("jane@example.com");
+  });
+
+  it("throws when the key is missing and throwOnError is set", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { sendEmail } = await import("@/lib/email");
+
+    await expect(
+      sendEmail({ to: "jane@example.com", subject: "Hello", html: "<p>Hi</p>", text: "Hi", throwOnError: true })
+    ).rejects.toThrow("RESEND_API_KEY is not configured");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("sends through the Resend API when configured", async () => {
