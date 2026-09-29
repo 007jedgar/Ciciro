@@ -1,0 +1,175 @@
+import { prisma } from "@/lib/db";
+import { verifyPassword } from "@/lib/auth/password";
+import { AuthError } from "@/lib/auth/session";
+
+// Account deletion: re-authenticate, run the pre-delete hooks in order, then
+// purge every row the account owns in one batch. See docs/account-data.md.
+
+/** What a pre-delete hook sees: the account as it stands before the purge. */
+export type DeletingAccount = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+/**
+ * A step that must happen at an outside service before the account's rows go.
+ * Hooks run in list order, before anything is deleted. A hook that throws
+ * aborts the deletion with the account intact, so the author can retry rather
+ * than end up deleted here but still billed (or still linked) elsewhere. A
+ * hook whose failure should not block deletion catches its own errors.
+ */
+export type PreDeleteHook = {
+  name: string;
+  run: (account: DeletingAccount) => Promise<void>;
+};
+
+/**
+ * The ordered pre-delete hooks. Add new steps here rather than in the route:
+ *   - billing: cancel the Stripe subscription (web) and note the RevenueCat
+ *     entitlement (in-app purchases are cancelled by the author in the store),
+ *   - Sign in with Apple: revoke the Apple refresh token
+ *     (https://appleid.apple.com/auth/revoke), which App Store review requires
+ *     when an account that signed in with Apple is deleted.
+ */
+export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [];
+
+/**
+ * Every model that holds account data, in the order the purge deletes it
+ * (children before parents). The purge never relies on foreign-key cascades,
+ * so it is complete even on a database that does not enforce them;
+ * test/account-delete.integration.test.ts fails when a model is missing here.
+ */
+export const PURGED_MODELS = [
+  "EditorStep",
+  "EditorRun",
+  "ShareComment",
+  "ShareLink",
+  "ChapterOp",
+  "ChapterSnapshot",
+  "ManuscriptEdit",
+  "ReadingPosition",
+  "PlotPoint",
+  "Character",
+  "OpenQuestion",
+  "ChatMessage",
+  "ChatBlob",
+  "DraftInsertion",
+  "BibleFile",
+  "ManuscriptTarget",
+  "ScratchNote",
+  "ProjectRecap",
+  "WeeklyReview",
+  "Chapter",
+  "Project",
+  "Folder",
+  "WritingDay",
+  "WritingSession",
+  "Session",
+  "User",
+] as const;
+
+/**
+ * Delete every row the account owns, atomically. Rows hang off the account
+ * either through a manuscript it owns or directly by `userId`. One batch so a
+ * failure part-way leaves the account whole, and D1 can run it (no
+ * interactive transactions there).
+ */
+export async function purgeAccountData(userId: string): Promise<void> {
+  const ownProject = { project: { userId } };
+  await prisma.$transaction([
+    prisma.editorStep.deleteMany({ where: { run: ownProject } }),
+    prisma.editorRun.deleteMany({ where: ownProject }),
+    prisma.shareComment.deleteMany({ where: ownProject }),
+    prisma.shareLink.deleteMany({ where: ownProject }),
+    prisma.chapterOp.deleteMany({ where: ownProject }),
+    prisma.chapterSnapshot.deleteMany({ where: ownProject }),
+    prisma.manuscriptEdit.deleteMany({ where: { chapter: ownProject } }),
+    prisma.readingPosition.deleteMany({ where: { OR: [{ userId }, ownProject] } }),
+    prisma.plotPoint.deleteMany({ where: ownProject }),
+    prisma.character.deleteMany({ where: ownProject }),
+    prisma.openQuestion.deleteMany({ where: ownProject }),
+    prisma.chatMessage.deleteMany({ where: ownProject }),
+    prisma.chatBlob.deleteMany({ where: ownProject }),
+    prisma.draftInsertion.deleteMany({ where: ownProject }),
+    prisma.bibleFile.deleteMany({ where: ownProject }),
+    prisma.manuscriptTarget.deleteMany({ where: ownProject }),
+    prisma.scratchNote.deleteMany({ where: ownProject }),
+    prisma.projectRecap.deleteMany({ where: ownProject }),
+    prisma.weeklyReview.deleteMany({ where: ownProject }),
+    prisma.chapter.deleteMany({ where: ownProject }),
+    prisma.project.deleteMany({ where: { userId } }),
+    prisma.folder.deleteMany({ where: { userId } }),
+    prisma.writingDay.deleteMany({ where: { userId } }),
+    prisma.writingSession.deleteMany({ where: { userId } }),
+    prisma.session.deleteMany({ where: { userId } }),
+    prisma.user.deleteMany({ where: { id: userId } }),
+  ]);
+}
+
+/** Typed by an account with no password to confirm deletion. */
+export const DELETE_CONFIRMATION = "DELETE";
+
+export type DeletionProof = {
+  password?: unknown;
+  confirmation?: unknown;
+};
+
+/**
+ * Require the author to prove, right now, that they mean it: the account's
+ * password, or for an account with no password (social sign-in) the typed
+ * word DELETE. A session alone is not enough, since a device left signed in
+ * should not be able to erase a manuscript.
+ *
+ * When Sign in with Apple / Google lands, a fresh provider sign-in is the
+ * stronger proof for those accounts; accept its verified identity token here
+ * alongside (or instead of) the typed confirmation.
+ */
+export async function verifyDeletionProof(
+  account: { passwordHash: string | null },
+  proof: DeletionProof
+): Promise<void> {
+  if (account.passwordHash) {
+    if (typeof proof.password !== "string" || !proof.password) {
+      throw new AuthError("Enter your password to delete your account.", 400);
+    }
+    if (!(await verifyPassword(proof.password, account.passwordHash))) {
+      throw new AuthError("Incorrect password.", 403);
+    }
+    return;
+  }
+  const typed = typeof proof.confirmation === "string" ? proof.confirmation.trim() : "";
+  if (typed.toUpperCase() !== DELETE_CONFIRMATION) {
+    throw new AuthError(`Type ${DELETE_CONFIRMATION} to delete your account.`, 400);
+  }
+}
+
+/**
+ * Delete an account for good: prove intent, run the pre-delete hooks, purge.
+ * Throws AuthError (404 when the account is already gone, 400/403 on proof).
+ */
+export async function deleteAccount(
+  userId: string,
+  proof: DeletionProof,
+  hooks: readonly PreDeleteHook[] = PRE_DELETE_HOOKS
+): Promise<void> {
+  const account = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, passwordHash: true },
+  });
+  if (!account) throw new AuthError("Not found.", 404);
+  await verifyDeletionProof(account, proof);
+  const deleting: DeletingAccount = { id: account.id, email: account.email, name: account.name };
+  for (const hook of hooks) {
+    try {
+      await hook.run(deleting);
+    } catch (error) {
+      console.error(`account deletion: pre-delete hook "${hook.name}" failed`, error);
+      throw new AuthError(
+        "Could not finish deleting your account. Nothing was deleted; try again.",
+        502
+      );
+    }
+  }
+  await purgeAccountData(userId);
+}
