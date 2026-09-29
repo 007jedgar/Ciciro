@@ -1,8 +1,9 @@
 -- Shared password-attempt rate limiter (PasswordAttempt). Re-runnable.
 -- Apply with: wrangler d1 execute ciciro --remote --file=prisma/d1-password-attempts.sql
 --
--- Until this runs, login and account deletion keep working unthrottled, same
--- as before this change; nothing else is affected.
+-- Required before deploy: login and account deletion query this table on every
+-- attempt, so until it runs both fail with a 500. Apply it to production D1
+-- before merging to main.
 
 CREATE TABLE IF NOT EXISTS "PasswordAttempt" (
     "id" TEXT NOT NULL PRIMARY KEY,
