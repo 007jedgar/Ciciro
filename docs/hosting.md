@@ -9,8 +9,8 @@ run coordinator.
 ## What "hosted" adds
 
 - **Accounts + sessions** (`src/lib/auth/**`). Email + password with scrypt
-  hashing; opaque session cookies (only the token hash is stored). See
-  [Auth](#authentication).
+  hashing, plus Sign in with Apple and Google; opaque session cookies (only the
+  token hash is stored). See [Auth](#authentication).
 - **Auth enforcement** via `src/middleware.ts`, opt-in with
   `CICIRO_REQUIRE_AUTH=true`. Local development stays open by default.
 - **Owner-scoped projects**. `Project.userId` links a manuscript to its owner;
@@ -38,6 +38,7 @@ run coordinator.
 | `RESEND_API_KEY` | optional | Transactional email (see [Email](#email)). Unset logs instead of sending (at error level when `CICIRO_REQUIRE_AUTH` is set). |
 | `EMAIL_FROM` | for email | `"Name <address>"` the send comes from. Required once `RESEND_API_KEY` is set. |
 | `EMAIL_REPLY_TO` | optional | Reply-to address; overridable per send. |
+| `APPLE_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional | Sign in with Apple / Google. See [social sign-in](social-sign-in.md#configuration). |
 
 Never commit `.env`; set secrets through your platform (Cloudflare
 `wrangler secret put`, or container env).
@@ -196,12 +197,31 @@ Run it before deploying the build that ships the summary. Existing chapters'
 counters start at zero from the migration's run time, not their creation, so
 the UI notes that older acceptances predate tracking.
 
+Sign in with Apple and Google needs `Identity` and `AuthHandoff`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-social-sign-in.sql
+```
+
+Until it runs, email and password keep working and only the Apple and Google
+buttons fail.
+
+Never relax a column on `User` (or any table other tables reference) by
+rebuilding it on D1. D1 keeps foreign keys on, so the rebuild's `DROP TABLE`
+fires `ON DELETE CASCADE` and empties every child table. That is why a
+password-less account stores `passwordHash = ""` rather than NULL. The schema
+check flags a column that is NOT NULL in D1 but optional in Prisma.
+
 ## Authentication
 
 - `POST /api/auth/signup` — create an account and start a session.
 - `POST /api/auth/login` — verify credentials and start a session.
 - `POST /api/auth/logout` — end the current session.
 - `GET  /api/auth/me` — the current user (or `null`).
+- `GET  /api/auth/providers` — which Apple / Google buttons are configured.
+- `GET  /api/auth/oauth/:provider/start`, `.../callback` — the Apple / Google
+  browser flow; `POST /api/auth/apple/native` and `POST /api/auth/handoff` for
+  the app. See [Sign in with Apple and Google](social-sign-in.md).
 
 Sessions are httpOnly cookies (`ciciro_session`); the raw token never touches
 the database — only its SHA-256 hash is stored, and a TTL sweeps expired rows.

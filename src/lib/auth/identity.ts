@@ -50,7 +50,7 @@ async function fillEmptyName<T extends { id: string; email: string; name: string
  */
 export async function signInWithIdentity(
   identity: VerifiedIdentity,
-  extras: { name?: string; refreshToken?: string } = {}
+  extras: { name?: string; refreshToken?: { token: string; clientId: string } } = {}
 ): Promise<PublicUser> {
   const name = (extras.name?.trim() || identity.name).slice(0, 200);
   const where = {
@@ -59,9 +59,12 @@ export async function signInWithIdentity(
 
   const known = await prisma.identity.findUnique({ where, include: { user: true } });
   if (known) {
-    const changes: { email?: string; refreshToken?: string } = {};
+    const changes: { email?: string; refreshToken?: string; refreshTokenClientId?: string } = {};
     if (identity.email && identity.email !== known.email) changes.email = identity.email;
-    if (extras.refreshToken) changes.refreshToken = extras.refreshToken;
+    if (extras.refreshToken) {
+      changes.refreshToken = extras.refreshToken.token;
+      changes.refreshTokenClientId = extras.refreshToken.clientId;
+    }
     if (Object.keys(changes).length) {
       await prisma.identity.update({ where: { id: known.id }, data: changes });
     }
@@ -102,7 +105,8 @@ export async function signInWithIdentity(
         provider: identity.provider,
         subject: identity.subject,
         email,
-        refreshToken: extras.refreshToken ?? "",
+        refreshToken: extras.refreshToken?.token ?? "",
+        refreshTokenClientId: extras.refreshToken?.clientId ?? "",
       },
     });
   } catch (error) {

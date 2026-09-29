@@ -71,8 +71,11 @@ model Identity {
   // The email the provider last reported. Informational; linking uses User.email.
   email    String @default("")
   // Apple only: the refresh token from exchanging the authorization code, kept
-  // so deleting the account can revoke Ciciro's access (App Store 5.1.1(v)).
-  refreshToken String @default("")
+  // so deleting the account can revoke Ciciro's access (App Store 5.1.1(v)),
+  // and the client_id it was issued to (Services ID on the web, bundle ID on
+  // iOS), which the revoke call must repeat.
+  refreshToken         String @default("")
+  refreshTokenClientId String @default("")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
