@@ -79,14 +79,16 @@ export type RevenueCatSettings = {
   secretApiKey: string;
   /** The exact Authorization header value set on the RevenueCat webhook. */
   webhookAuthorization: string;
-  /** The RevenueCat entitlement that unlocks Pro. */
-  entitlementId: string;
   /** Store product ids that bill yearly; everything else is monthly. */
   yearlyProductIds: string[];
   apiBase: string;
 };
 
-/** RevenueCat settings, or null when store purchases are not set up. */
+/**
+ * RevenueCat settings, or null when store purchases are not set up. Ciciro
+ * sells nothing in the stores but Ciciro Pro, so every App Store or Google
+ * Play subscription RevenueCat reports counts as Pro.
+ */
 export function revenueCatSettings(): RevenueCatSettings | null {
   const secretApiKey = readEnv("REVENUECAT_SECRET_API_KEY");
   const webhookAuthorization = readEnv("REVENUECAT_WEBHOOK_AUTH");
@@ -94,7 +96,6 @@ export function revenueCatSettings(): RevenueCatSettings | null {
   return {
     secretApiKey,
     webhookAuthorization,
-    entitlementId: readEnv("REVENUECAT_ENTITLEMENT_ID") ?? "pro",
     yearlyProductIds: (readEnv("REVENUECAT_YEARLY_PRODUCT_IDS") ?? "")
       .split(",")
       .map((id) => id.trim())

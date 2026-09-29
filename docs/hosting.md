@@ -40,6 +40,7 @@ run coordinator.
 | `EMAIL_REPLY_TO` | optional | Reply-to address; overridable per send. |
 | `APPLE_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional | Sign in with Apple / Google. See [social sign-in](social-sign-in.md#configuration). |
 | `CICIRO_PUBLIC_URL` | Path A | The public origin, e.g. `https://ciciro.app`, for the Apple / Google callbacks and links in emails. Unset uses the request's origin, which is safe on Workers but lets a container that trusts a forwarded Host send reset links to someone else's site. |
+| `STRIPE_*`, `REVENUECAT_*`, `CICIRO_FREE_AI_RUNS_PER_MONTH`, `CICIRO_PRO_AI_RUNS_PER_MONTH` | optional | Ciciro Pro and the monthly AI allowance. Hosted servers meter AI use even without billing set up. See [billing](billing.md#environment-variables). |
 
 Never commit `.env`; set secrets through your platform (Cloudflare
 `wrangler secret put`, or container env).
@@ -236,6 +237,18 @@ Until it runs, every sign-in fails with `no such column: emailVerifiedAt`,
 because Prisma selects the column on each `User` query. Existing accounts stay
 unverified; a provider sign-in that matches one takes it over (see
 [social sign-in](social-sign-in.md)).
+
+Billing needs `Subscription`, `BillingEvent`, `UsageCounter` and
+`User.stripeCustomerId` (see [billing](billing.md)). Run the additive upgrade
+before deploying the build that ships it (a second run fails on the ALTER,
+which is harmless):
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-billing.sql
+```
+
+Until it runs, every signed-in request fails with
+`no such column: stripeCustomerId`, because Prisma selects every `User` column.
 
 Never relax a column on `User` (or any table other tables reference) by
 rebuilding it on D1. D1 keeps foreign keys on, so the rebuild's `DROP TABLE`
