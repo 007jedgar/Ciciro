@@ -40,6 +40,8 @@ export async function wipeDatabase(): Promise<void> {
   await prisma.user.deleteMany();
   await prisma.project.deleteMany();
   await prisma.folder.deleteMany();
+  // Webhook events no account claimed have no user to cascade from.
+  await prisma.billingEvent.deleteMany();
 }
 
 export async function seedAccount(label: string): Promise<SeededAccount> {
