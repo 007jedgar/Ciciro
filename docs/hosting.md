@@ -266,8 +266,9 @@ Beta reader links are the exception: `/read/:token` and `/api/read/:token/...`
 pass the gate without a session, because the share token is their credential.
 It opens only the chapters that link shares, and an unknown, revoked or expired
 token gets a plain 404. Reader comments are rate-limited per reader address
-using `cf-connecting-ip` on Cloudflare; without it every reader shares one
-budget (the per-link limits hold either way).
+using `cf-connecting-ip` on Cloudflare; other hosts need a proxy that sets
+`x-real-ip` or `x-forwarded-for`, or every reader shares one budget (the
+per-link limits hold either way).
 
 ## Run coordination on Cloudflare
 
