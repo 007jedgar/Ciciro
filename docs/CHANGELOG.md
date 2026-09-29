@@ -5,6 +5,11 @@ else stays in commit messages.
 
 ## Unreleased
 
+- Auto-draft and the chat's draft tool no longer put text that was cut off
+  mid-sentence into your chapter. A beat that runs past its length limit now
+  fails and can be retried, and Recap and chapter summaries keep their previous
+  version instead of saving a cut-off one.
+
 - The website has a new look, the Archive design language: paper texture, richer
   color, and a light/dark toggle on the public pages. `/` is now the landing page
   for signed-out visitors (the library for signed-in ones), with app screenshots
