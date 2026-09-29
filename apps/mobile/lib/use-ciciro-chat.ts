@@ -21,7 +21,8 @@ export type UseCiciroChat = {
   failure: ChatFailure | null;
   streaming: boolean;
   stream: ChatStreamState;
-  send: (input: EditorRunInput) => Promise<void>;
+  /** Resolves with the turn's failure when it never reached the editor, else null. */
+  send: (input: EditorRunInput) => Promise<ChatFailure | null>;
   /**
    * Abandons the turn in flight, keeping the words that already landed. The
    * server run is not cancelled — there is no endpoint for that — so the rest
@@ -112,10 +113,10 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   }, [reload]);
 
   const send = useCallback(
-    async (input: EditorRunInput) => {
-      if (!projectId || streamingRef.current) return;
+    async (input: EditorRunInput): Promise<ChatFailure | null> => {
+      if (!projectId || streamingRef.current) return null;
       const trimmed = input.message?.trim();
-      if (!input.resumeTurnId && !trimmed) return;
+      if (!input.resumeTurnId && !trimmed) return null;
 
       streamingRef.current = true;
       stopRequestedRef.current = false;
@@ -192,6 +193,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         // A run that died mid-flight still resolves here — its `[Ciciro error:]`
         // footer rides in the transcript, so the message itself carries the
         // failure and the bar below the composer stays clear.
+        return null;
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") {
           // Stopping is the author's call, not a failure: keep what Ciciro had
@@ -199,10 +201,12 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
           if (stopRequestedRef.current && next.text.trim()) {
             setMessages((current) => upsertStreamAssistant(current, next));
           }
-          return;
+          return null;
         }
-        setFailure(failureFromError(err));
+        const failed = failureFromError(err);
+        setFailure(failed);
         await reload({ keepFailure: true }).catch(() => {});
+        return failed;
       } finally {
         streamingRef.current = false;
         stopRequestedRef.current = false;

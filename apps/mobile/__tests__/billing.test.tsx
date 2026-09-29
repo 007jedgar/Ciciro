@@ -36,6 +36,7 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn() }),
   router: { push: (...args: unknown[]) => mockPush(...args) },
   Redirect: () => null,
+  useFocusEffect: () => {},
 }));
 jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backOr: jest.fn() }) }));
 jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
