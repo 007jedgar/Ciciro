@@ -1725,6 +1725,9 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.settings-unverified {
+  margin-bottom: 2px;
+}
 .settings-action {
   display: block;
   width: 100%;
@@ -2156,6 +2159,47 @@ textarea {
 }
 .auth-alt a {
   color: var(--accent);
+}
+.auth-lede {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.auth-lede strong {
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+/* A Link styled as the card's primary action. */
+.auth-card a.btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-size: 14px;
+}
+.auth-card a.btn.primary {
+  color: var(--on-accent);
+  margin-top: 4px;
+}
+.auth-card .btn {
+  font-size: 14px;
+  padding: 10px var(--space-3);
+}
+.auth-forgot {
+  align-self: flex-end;
+  margin: -4px 0 0;
+  font-size: 13px;
+}
+.auth-link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+}
+.auth-link-button:hover {
+  text-decoration: underline;
 }
 
 /* Account control on the manuscript list */

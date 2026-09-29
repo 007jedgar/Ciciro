@@ -97,6 +97,15 @@ export const EXPORT_TABLES: readonly Table[] = [
     shape: (row) => without(row, "codeHash", "challenge"),
   },
   {
+    model: "EmailToken",
+    file: "email-links",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.emailToken.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+    // What was sent where and when; the token hash is a credential.
+    shape: (row) => without(row, "tokenHash"),
+  },
+  {
     model: "Folder",
     file: "folders",
     take: 200,

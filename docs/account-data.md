@@ -55,10 +55,10 @@ mid-stream error leaves a truncated zip; one that won't open, or lacks
 `manifest.json`, means retry the export. The phone checks the zip's end record
 before sharing and reports a truncated download instead.
 
-Left out on purpose: password hash, session token hashes, the Apple refresh token,
-the codes and challenges of pending app sign-ins, share link tokens,
-the rate-limit hash of beta readers' IPs, editor-run lock tokens, and the
-hashed address on a `PasswordAttempt` row. A row from a login guess against
-this email before it matched an account has no `userId` to page by, so it
-purges (matched by email in `purgeAccountData`) but is never exported:
+Left out on purpose: password hash, session and email-link token hashes, the
+Apple refresh token, the codes and challenges of pending app sign-ins, share
+link tokens, the rate-limit hash of beta readers' IPs, editor-run lock tokens,
+and the hashed address on a `PasswordAttempt` row. A row from a login guess
+against this email before it matched an account has no `userId` to page by, so
+it purges (matched by email in `purgeAccountData`) but is never exported:
 `PasswordAttempt` export only reaches account-deletion attempts.

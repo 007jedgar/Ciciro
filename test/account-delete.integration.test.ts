@@ -141,7 +141,7 @@ describe("account deletion", () => {
       },
       { name: "apple", run: async () => void seen.push("apple") },
     ];
-    await deleteAccount(gone.userId, { password: gone.password }, hooks);
+    await deleteAccount(gone.userId, { password: gone.password }, { hooks });
     expect(seen).toEqual(["billing:gone@example.com", "apple"]);
     expect(await prisma.user.count({ where: { id: gone.userId } })).toBe(0);
   });
@@ -157,7 +157,7 @@ describe("account deletion", () => {
         },
       },
     ];
-    const error = await deleteAccount(gone.userId, { password: gone.password }, hooks).catch(
+    const error = await deleteAccount(gone.userId, { password: gone.password }, { hooks }).catch(
       (e: unknown) => e
     );
     expect(error).toMatchObject({ status: 502 });

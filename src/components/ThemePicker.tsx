@@ -7,8 +7,9 @@ import { useSettings } from "@/components/SettingsProvider";
 import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import { EXPORT_URL } from "@/lib/account/copy";
 import type { ModelSummary } from "@/lib/models";
+import { resendVerificationEmail } from "@/lib/verify-email-client";
 
-type Account = { email: string; hasPassword?: boolean };
+type Account = { email: string; hasPassword?: boolean; emailVerified?: boolean };
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
   const { settings, patch } = useSettings();
@@ -17,6 +18,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
   // undefined until asked; null when signed out (local-first has no account).
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [deleting, setDeleting] = useState(false);
+  const [verify, setVerify] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
   const rootRef = useRef<HTMLDivElement>(null);
   const theme = settings.theme;
 
@@ -51,6 +53,20 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
       cancelled = true;
     };
   }, [open, account]);
+
+  async function resendVerification() {
+    setVerify({ busy: true, note: null });
+    const result = await resendVerificationEmail();
+    if (result.ok && result.alreadyVerified) {
+      setAccount((current) => (current ? { ...current, emailVerified: true } : current));
+      setVerify({ busy: false, note: null });
+      return;
+    }
+    setVerify({
+      busy: false,
+      note: result.ok ? `Sent. Check ${account?.email ?? "your inbox"} for the link.` : result.message,
+    });
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -342,6 +358,21 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               <p className="settings-hint settings-account" title={account.email}>
                 {account.email}
               </p>
+              {account.emailVerified === false ? (
+                <>
+                  <p className="settings-hint settings-unverified" role={verify.note ? "status" : undefined}>
+                    {verify.note ?? "Email not confirmed yet."}
+                  </p>
+                  <button
+                    type="button"
+                    className="settings-action"
+                    onClick={() => void resendVerification()}
+                    disabled={verify.busy}
+                  >
+                    {verify.busy ? "Sending…" : "Resend confirmation email"}
+                  </button>
+                </>
+              ) : null}
               <a className="settings-action" href={EXPORT_URL} download>
                 Export my data
               </a>
