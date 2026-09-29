@@ -1,3 +1,5 @@
+import { Alert } from "react-native";
+import i18n from "i18next";
 import {
   useCallback,
   useEffect,
@@ -30,6 +32,12 @@ function beginAccount(user: PublicUser, token?: string): PublicUser {
   clearPersistedQueryCache();
   rememberUser(user);
   return user;
+}
+
+/** Tell the person once that their unverified password account now signs in with the provider. */
+function announceTakeover(provider: BrowserProvider): void {
+  const name = provider === "apple" ? "Apple" : "Google";
+  Alert.alert(i18n.t("auth.passwordRemovedTitle"), i18n.t("auth.passwordRemoved", { provider: name }));
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -99,15 +107,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const data = await ciciro.auth.appleNative(credential);
     const next = beginAccount(data.user, data.token);
     setUser(next);
+    if (data.takeover) announceTakeover(data.takeover);
     return next;
   }, []);
 
   const signInWithBrowser = useCallback(async (provider: BrowserProvider) => {
     const handoff = await browserSignInCode(provider);
     if (!handoff) return null;
-    const data = await ciciro.auth.handoff(handoff);
+    const data = await ciciro.auth.handoff({ code: handoff.code, verifier: handoff.verifier });
     const next = beginAccount(data.user, data.token);
     setUser(next);
+    if (handoff.takeover) announceTakeover(handoff.takeover);
     return next;
   }, []);
 

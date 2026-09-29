@@ -86,11 +86,16 @@ export class SocialSignInError extends Error {
 }
 
 /** Read the redirect the browser flow ended on. */
-export function parseRedirect(url: string): { code: string } | { error: SocialErrorKey } {
+export function parseRedirect(
+  url: string
+): { code: string; takeover?: BrowserProvider } | { error: SocialErrorKey } {
   const query = url.startsWith(NATIVE_REDIRECT) ? url.slice(NATIVE_REDIRECT.length) : "";
   const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : "");
   const code = params.get("code");
-  if (code) return { code };
+  if (code) {
+    const takeover = params.get("password_removed");
+    return takeover === "apple" || takeover === "google" ? { code, takeover } : { code };
+  }
   return { error: toSocialErrorKey(params.get("error")) };
 }
 

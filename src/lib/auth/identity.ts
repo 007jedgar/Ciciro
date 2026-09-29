@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { AuthError, toPublicUser, type PublicUser } from "@/lib/auth/session";
 import { pkceChallenge, randomToken, sha256Hex, type VerifiedIdentity } from "@/lib/auth/oidc";
+import type { SocialProvider } from "@/lib/auth/social-config";
 
 // Turning a verified Apple / Google identity into a Ciciro account, and the
 // one-time hand-off that carries a browser sign-in back to the phone.
@@ -23,6 +24,13 @@ export class SocialAuthError extends AuthError {
   }
 }
 
+/**
+ * A finished social sign-in. `takeover` names the provider when this sign-in
+ * claimed a password account nobody had verified: its password is gone and
+ * its old sessions are revoked, so the person is told once.
+ */
+export type SocialSignInResult = { user: PublicUser; takeover: SocialProvider | null };
+
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "P2002";
 }
@@ -40,7 +48,10 @@ async function fillEmptyName<T extends { id: string; email: string; name: string
  *
  * 1. A known provider subject signs into its user, whatever email it now has.
  * 2. Otherwise a verified email that matches a user links to that user. Apple
- *    private-relay addresses are ordinary emails here.
+ *    private-relay addresses are ordinary emails here. If that user is a
+ *    password account whose email was never verified, someone may have
+ *    registered another person's address, so the provider-verified owner takes
+ *    the account over: the password is cleared and every session revoked.
  * 3. Otherwise a verified email creates a password-less account.
  *
  * An unverified email never links or creates anything.
@@ -51,7 +62,7 @@ async function fillEmptyName<T extends { id: string; email: string; name: string
 export async function signInWithIdentity(
   identity: VerifiedIdentity,
   extras: { name?: string; refreshToken?: { token: string; clientId: string } } = {}
-): Promise<PublicUser> {
+): Promise<SocialSignInResult> {
   const name = (extras.name?.trim() || identity.name).slice(0, 200);
   const where = {
     provider_subject: { provider: identity.provider, subject: identity.subject },
@@ -68,7 +79,7 @@ export async function signInWithIdentity(
     if (Object.keys(changes).length) {
       await prisma.identity.update({ where: { id: known.id }, data: changes });
     }
-    return toPublicUser(await fillEmptyName(known.user, name));
+    return { user: toPublicUser(await fillEmptyName(known.user, name)), takeover: null };
   }
 
   if (!identity.email) {
@@ -89,12 +100,31 @@ export async function signInWithIdentity(
   let created = false;
   if (!user) {
     try {
-      user = await prisma.user.create({ data: { email, passwordHash: NO_PASSWORD, name } });
+      user = await prisma.user.create({
+        data: { email, passwordHash: NO_PASSWORD, name, emailVerifiedAt: new Date() },
+      });
       created = true;
     } catch (error) {
       // A concurrent sign-in or signup took the email first; link to it.
       if (!isUniqueViolation(error)) throw error;
       user = await prisma.user.findUniqueOrThrow({ where: { email } });
+    }
+  }
+
+  let takeover: SocialProvider | null = null;
+  if (!created && !user.emailVerifiedAt) {
+    // Revoke before linking, so a failure part-way never leaves the old
+    // password or a session alive next to the new identity.
+    takeover = user.passwordHash ? identity.provider : null;
+    if (takeover) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: NO_PASSWORD, emailVerifiedAt: new Date() },
+      });
+      await prisma.session.deleteMany({ where: { userId: user.id } });
+      await prisma.authHandoff.deleteMany({ where: { userId: user.id } });
+    } else {
+      await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     }
   }
 
@@ -116,9 +146,9 @@ export async function signInWithIdentity(
     if (!isUniqueViolation(error)) throw error;
     // The same identity signed in twice at once; the other request linked it.
     const winner = await prisma.identity.findUniqueOrThrow({ where, include: { user: true } });
-    return toPublicUser(winner.user);
+    return { user: toPublicUser(winner.user), takeover: null };
   }
-  return toPublicUser(await fillEmptyName(user, name));
+  return { user: toPublicUser(await fillEmptyName(user, name)), takeover };
 }
 
 /** How long the app has to redeem a browser sign-in. */

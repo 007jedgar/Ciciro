@@ -206,6 +206,19 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-social-sign-in.sql
 Until it runs, email and password keep working and only the Apple and Google
 buttons fail.
 
+Social sign-in also reads `User.emailVerifiedAt`, so run the additive upgrade
+before deploying the build that ships it (a second run fails on the ALTER,
+which is harmless):
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-email-verified.sql
+```
+
+Until it runs, every sign-in fails with `no such column: emailVerifiedAt`,
+because Prisma selects the column on each `User` query. Existing accounts stay
+unverified; a provider sign-in that matches one takes it over (see
+[social sign-in](social-sign-in.md)).
+
 Never relax a column on `User` (or any table other tables reference) by
 rebuilding it on D1. D1 keeps foreign keys on, so the rebuild's `DROP TABLE`
 fires `ON DELETE CASCADE` and empties every child table. That is why a

@@ -63,11 +63,19 @@ revoke it (below).
   goes (the tokens live on its `Identity` rows). It calls Apple's
   `/auth/revoke` with each token's own client_id and throws
   `AppleRevokeError` if Apple refuses any, so deletion can stop and retry.
-- **Email verification**: password signups do not verify their email yet. Until
-  they do, someone could register a password account under another person's
-  address before that person first uses Apple or Google with it, and linking
-  would then share the account. Once email verification exists, link only to
-  accounts whose email is verified.
+- **Password signups are not email-verified yet** (that belongs to the email
+  templates task). `User.emailVerifiedAt` is set only by a social sign-in, so
+  every password account starts unverified. When a provider-verified Apple or
+  Google sign-in matches an unverified password account, the provider-verified
+  owner takes it over: the identity is linked, `passwordHash` is cleared to
+  `NO_PASSWORD`, every session and pending hand-off for the user is deleted,
+  and `emailVerifiedAt` is set. That closes pre-hijacking, where someone
+  registers another person's address with a password before its owner first
+  uses Apple or Google. The person sees a one-time notice naming the provider
+  (`?password_removed=<provider>` on the web landing URL, the same parameter on
+  `ciciro://oauth`, and `takeover` in the native Apple response). Later provider
+  sign-ins into a verified account link normally and revoke nothing. Once
+  password signups verify their email, set `emailVerifiedAt` there too.
 - **Emailing Apple relay addresses**: register the sending domain under
   "Sign in with Apple for Email Communication" in the Apple Developer portal,
   or mail to `@privaterelay.appleid.com` bounces.

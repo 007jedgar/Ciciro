@@ -67,6 +67,8 @@ const hi: Translations = {
     continueWithApple: "Apple के साथ जारी रखें",
     continueWithGoogle: "Google के साथ जारी रखें",
     or: "या",
+    passwordRemovedTitle: "आपका खाता अब सुरक्षित है",
+    passwordRemoved: "आपकी सुरक्षा के लिए, यह खाता अब {{provider}} से साइन इन होता है; आपका पुराना पासवर्ड हटा दिया गया है।",
     social: {
       cancelled: "साइन इन रद्द कर दिया गया।",
       expired: "यह साइन इन समाप्त हो गया। फिर से कोशिश करें।",

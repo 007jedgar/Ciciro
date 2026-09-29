@@ -40,6 +40,14 @@ describe("parseRedirect", () => {
     expect(parseRedirect("ciciro://oauth")).toEqual({ error: "failed" });
   });
 
+  it("carries the provider that took over an unverified password account", () => {
+    expect(parseRedirect("ciciro://oauth?code=abc&password_removed=google")).toEqual({
+      code: "abc",
+      takeover: "google",
+    });
+    expect(parseRedirect("ciciro://oauth?code=abc&password_removed=evil")).toEqual({ code: "abc" });
+  });
+
   it("ignores a code on any other URL", () => {
     expect(parseRedirect("evil://oauth?code=abc")).toEqual({ error: "failed" });
   });

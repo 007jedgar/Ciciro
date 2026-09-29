@@ -238,6 +238,8 @@ export type AuthSessionResponse = {
   user: PublicUser;
   settings: AppSettings;
   token?: string;
+  /** Set when this sign-in claimed an unverified password account. */
+  takeover?: "apple" | "google" | null;
 };
 
 export type LoginRequest = {
