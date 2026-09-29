@@ -21,13 +21,16 @@ model User {
   // cascade-deletes every Project and Session. See NO_PASSWORD.
   passwordHash String
   name         String @default("")
-  // Set when Apple or Google vouched for this email (at social sign-up or
-  // link). Null for password signups, whose email nobody has verified yet.
+  // When the account holder proved they receive mail at `email`: Apple or
+  // Google vouched for it (social sign-up or link), they clicked a
+  // verification link, or they completed a password reset. Null means never.
+  // Sign-in never waits on it. See src/lib/auth/verify-email.ts.
   emailVerifiedAt DateTime?
 
   sessions          Session[]
   identities        Identity[]
   authHandoffs      AuthHandoff[]
+  emailTokens       EmailToken[]
   projects          Project[]
   folders           Folder[]
   readingPositions  ReadingPosition[]
@@ -103,6 +106,29 @@ model AuthHandoff {
 
   createdAt DateTime @default(now())
 
+  @@index([expiresAt])
+}
+
+// A one-time link emailed to an account: verify its address, or reset its
+// password. Like Session, only the SHA-256 of the raw token is stored. A link
+// is spent (usedAt) rather than deleted so a second click can say "already
+// used". Expired rows are swept when the next one is issued. See
+// src/lib/auth/email-tokens.ts.
+model EmailToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String // "verify_email" | "reset_password"
+  tokenHash String    @unique
+  // The address the link went to. A link only counts for the address it
+  // was sent to.
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, createdAt])
   @@index([expiresAt])
 }
 

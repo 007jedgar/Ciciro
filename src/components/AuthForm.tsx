@@ -124,6 +124,14 @@ export default function AuthForm({
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
           required
         />
+        {mode === "login" && (
+          <Link
+            className="auth-forgot"
+            href={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password"}
+          >
+            Forgot password?
+          </Link>
+        )}
         {error && (
           <p className="auth-error" role="alert">
             {error}

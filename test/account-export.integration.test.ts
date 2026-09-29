@@ -107,12 +107,17 @@ describe("account data export", () => {
     });
     expect(JSON.parse(files["data/writing-days.json"])[0]).toMatchObject({ words: 500 });
     expect(JSON.parse(files["data/sign-in-sessions.json"])[0]).toMatchObject({ userAgent: "vitest" });
+    expect(JSON.parse(files["data/email-links.json"])[0]).toMatchObject({
+      purpose: "verify_email",
+      email: "mine@example.com",
+    });
 
     // No secrets: password hash, session token hash, share token, reader IP hash.
     const everything = Object.values(files).join("\n");
     const row = await prisma.user.findUniqueOrThrow({ where: { id: me.userId } });
     expect(everything).not.toContain(row.passwordHash);
     expect(everything).not.toContain(hashSessionToken(me.sessionToken));
+    expect(everything).not.toContain(hashSessionToken("mine-email-token"));
     expect(everything).not.toContain("mine-share-token");
     expect(everything).not.toContain("mine-client-hash");
     expect(everything).not.toContain("tokenHash");

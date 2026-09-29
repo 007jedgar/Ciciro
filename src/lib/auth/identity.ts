@@ -35,7 +35,7 @@ function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "P2002";
 }
 
-type UserRow = { id: string; email: string; name: string; passwordHash: string };
+type UserRow = { id: string; email: string; name: string; passwordHash: string; emailVerifiedAt: Date | null };
 
 async function fillEmptyName(user: UserRow, name: string): Promise<UserRow> {
   if (user.name || !name) return user;

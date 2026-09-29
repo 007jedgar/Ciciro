@@ -12,11 +12,22 @@ import {
 
 // Paths that never require a session. Beta reader links (/read/:token and
 // /api/read/:token/...) carry their own credential, the share token.
-const PUBLIC_PATHS = ["/login", "/signup", "/launch", "/privacy", "/account/delete"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/launch",
+  "/privacy",
+  "/account/delete",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
 const PUBLIC_PREFIXES = ["/api/auth/", "/api/health", "/read/", "/api/read/"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
+  // Email previews: sample data only, and a 404 in production builds.
+  if (process.env.NODE_ENV !== "production" && pathname.startsWith("/dev/emails")) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 

@@ -4,9 +4,12 @@ import { AuthError } from "@/lib/auth/session";
 import { revokeAppleTokens } from "@/lib/auth/apple-revoke";
 import { DELETE_CONFIRMATION } from "@/lib/account/copy";
 import { assertAttemptAllowed, clearAttempts, recordFailedAttempt } from "@/lib/auth/rate-limit";
+import { sendAccountDeletedEmail } from "@/lib/email/account-emails";
+import { publicOrigin } from "@/lib/public-origin";
 
-// Account deletion: re-authenticate, run the pre-delete hooks in order, then
-// purge every row the account owns in one batch. See docs/account-data.md.
+// Account deletion: re-authenticate, run the pre-delete hooks in order, purge
+// every row the account owns in one batch, then email a confirmation. See
+// docs/account-data.md.
 
 /** What a pre-delete hook sees: the account as it stands before the purge. */
 export type DeletingAccount = {
@@ -82,6 +85,7 @@ export const PURGED_MODELS = [
   "WritingSession",
   "Identity",
   "AuthHandoff",
+  "EmailToken",
   "Session",
   "User",
 ] as const;
@@ -126,6 +130,7 @@ export async function purgeAccountData(userId: string, email: string): Promise<v
     prisma.writingSession.deleteMany({ where: { userId } }),
     prisma.identity.deleteMany({ where: { userId } }),
     prisma.authHandoff.deleteMany({ where: { userId } }),
+    prisma.emailToken.deleteMany({ where: { userId } }),
     prisma.session.deleteMany({ where: { userId } }),
     prisma.user.deleteMany({ where: { id: userId } }),
   ]);
@@ -174,16 +179,24 @@ export async function verifyDeletionProof(
   }
 }
 
+export type DeleteAccountOptions = {
+  hooks?: readonly PreDeleteHook[];
+  /** The caller's IP, for the password-attempt limit (see clientAddress). */
+  address?: string | null;
+  /** Public origin for the confirmation email's logo and links (see publicOrigin). */
+  origin?: string;
+};
+
 /**
- * Delete an account for good: prove intent, run the pre-delete hooks, purge.
- * Throws AuthError (404 when the account is already gone, 400/403 on proof,
- * 429 when the password check is locked out).
+ * Delete an account for good: prove intent, run the pre-delete hooks, purge,
+ * then email the address that the account is gone. The email is last and
+ * cannot fail the deletion. Throws AuthError (404 when the account is already
+ * gone, 400/403 on proof, 429 when the password check is locked out).
  */
 export async function deleteAccount(
   userId: string,
   proof: DeletionProof,
-  hooks: readonly PreDeleteHook[] = PRE_DELETE_HOOKS,
-  address: string | null = null
+  { hooks = PRE_DELETE_HOOKS, address = null, origin = publicOrigin("") }: DeleteAccountOptions = {}
 ): Promise<void> {
   const account = await prisma.user.findUnique({
     where: { id: userId },
@@ -204,4 +217,5 @@ export async function deleteAccount(
     }
   }
   await purgeAccountData(userId, account.email);
+  await sendAccountDeletedEmail(deleting, origin);
 }

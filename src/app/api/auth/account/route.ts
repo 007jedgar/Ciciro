@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { requireSessionUser } from "@/lib/auth/session";
-import { deleteAccount, PRE_DELETE_HOOKS } from "@/lib/account/delete";
+import { deleteAccount } from "@/lib/account/delete";
 import { clientAddress } from "@/lib/request-ip";
+import { publicOrigin } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 
 // DELETE /api/auth/account — delete the signed-in account and everything it
-// owns, then sign every device out. Body: { password } for a password account,
-// or { confirmation: "DELETE" } for one without a password.
+// owns, sign every device out, and email a confirmation. Body: { password }
+// for a password account, or { confirmation: "DELETE" } for one without one.
 export async function DELETE(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   try {
@@ -17,8 +18,7 @@ export async function DELETE(req: NextRequest) {
     await deleteAccount(
       user.id,
       { password: body.password, confirmation: body.confirmation },
-      PRE_DELETE_HOOKS,
-      clientAddress(req)
+      { address: clientAddress(req), origin: publicOrigin(req.nextUrl.origin) }
     );
   } catch (error) {
     const failure = responseFromAuthError(error) ?? responseFromDbError(error);

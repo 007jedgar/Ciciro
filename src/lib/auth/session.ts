@@ -23,6 +23,8 @@ export type PublicUser = {
   name: string;
   /** False for an Apple / Google account with no password (NO_PASSWORD). */
   hasPassword: boolean;
+  /** The address is proven (see src/lib/auth/verify-email.ts). Nothing is gated on it. */
+  emailVerified: boolean;
 };
 
 export class AuthError extends Error {
@@ -41,8 +43,15 @@ export function toPublicUser(user: {
   email: string;
   name: string;
   passwordHash: string;
+  emailVerifiedAt: Date | null;
 }): PublicUser {
-  return { id: user.id, email: user.email, name: user.name, hasPassword: Boolean(user.passwordHash) };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    hasPassword: Boolean(user.passwordHash),
+    emailVerified: Boolean(user.emailVerifiedAt),
+  };
 }
 
 /** Create a user, hashing the password. Throws AuthError on bad input/dupe. */
