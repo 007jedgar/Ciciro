@@ -64,6 +64,17 @@ const es: Translations = {
     newHere: "¿Nuevo por aquí?",
     createAnAccount: "Crea una cuenta",
     alreadyHaveAccount: "¿Ya tienes una cuenta?",
+    continueWithApple: "Continuar con Apple",
+    continueWithGoogle: "Continuar con Google",
+    or: "o",
+    social: {
+      cancelled: "Se canceló el inicio de sesión.",
+      expired: "Ese inicio de sesión caducó. Inténtalo de nuevo.",
+      unavailable: "Esa opción de inicio de sesión aún no está configurada.",
+      failed: "No se pudo iniciar sesión. Inténtalo de nuevo.",
+      no_email: "Tu cuenta no compartió un correo, así que Ciciro no puede crear una cuenta.",
+      unverified_email: "Verifica tu correo con el proveedor y vuelve a intentarlo.",
+    },
   },
   manuscripts: {
     title: "Manuscritos",

@@ -48,6 +48,8 @@ function ThemedStack() {
           name="signup"
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
+        {/* Android's landing for a browser sign-in's ciciro://oauth deep link. */}
+        <Stack.Screen name="oauth" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen name="manuscripts" options={{ title: t("manuscripts.title"), headerShown: false }} />
         <Stack.Screen
           name="new-manuscript"

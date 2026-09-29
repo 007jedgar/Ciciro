@@ -27,6 +27,7 @@ import { useStackBack } from "../lib/use-stack-back";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { BrandDots } from "./BrandDots";
+import { SocialSignIn } from "./SocialSignIn";
 import { ApiError } from "../lib/api";
 import {
   type AuthFieldErrorKey,
@@ -317,6 +318,13 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
             />
 
             <Animated.View style={[styles.content, contentStyle]}>
+              <SocialSignIn
+                disabled={busy}
+                onBusyChange={setBusy}
+                onError={setError}
+                onSignedIn={(user) => restoreLastPlace(router, user.id)}
+              />
+
               {/* name: only for account creation, sliding in and out */}
               <Animated.View
                 style={[styles.nameField, nameFieldStyle]}

@@ -14,6 +14,8 @@ import {
 } from "./session-store";
 import { SessionContext } from "./session-context";
 import type { DeleteAccountRequest } from "./api/types";
+import type { BrowserProvider } from "./social-auth";
+import { appleSheetCredential, browserSignInCode } from "./social-sign-in";
 import type { PublicUser } from "./types";
 
 export { useSession, type SessionState } from "./session-context";
@@ -91,6 +93,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const signInWithApple = useCallback(async () => {
+    const credential = await appleSheetCredential();
+    if (!credential) return null;
+    const data = await ciciro.auth.appleNative(credential);
+    const next = beginAccount(data.user, data.token);
+    setUser(next);
+    return next;
+  }, []);
+
+  const signInWithBrowser = useCallback(async (provider: BrowserProvider) => {
+    const handoff = await browserSignInCode(provider);
+    if (!handoff) return null;
+    const data = await ciciro.auth.handoff(handoff);
+    const next = beginAccount(data.user, data.token);
+    setUser(next);
+    return next;
+  }, []);
+
   const endAccount = useCallback(() => {
     setSessionToken(null);
     rememberUser(null);
@@ -126,8 +146,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, ready, refresh, login, signup, logout, deleteAccount }),
-    [user, ready, refresh, login, signup, logout, deleteAccount]
+    () => ({
+      user,
+      ready,
+      refresh,
+      login,
+      signup,
+      signInWithApple,
+      signInWithBrowser,
+      logout,
+      deleteAccount,
+    }),
+    [user, ready, refresh, login, signup, signInWithApple, signInWithBrowser, logout, deleteAccount]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

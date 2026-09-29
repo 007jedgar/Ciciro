@@ -1,7 +1,9 @@
 import { api, apiBlob, readNdjsonPost } from "./client";
 import { normalizeChatSnapshot } from "./types";
+import type { SocialProviders } from "../social-auth";
 import type {
   AiInvolvementRequest,
+  AppleNativeRequest,
   AuthMeResponse,
   AuthSessionResponse,
   AutowriteRequest,
@@ -34,6 +36,7 @@ import type {
   Folder,
   FolderCreateRequest,
   FolderPatchRequest,
+  HandoffRequest,
   HealthStatus,
   ImportResult,
   LoginRequest,
@@ -156,6 +159,11 @@ export const ciciro = {
       api<OkResponse>("/api/auth/logout", jsonInit("POST", undefined, opts)),
     deleteAccount: (body: DeleteAccountRequest, opts?: RequestOpts) =>
       api<OkResponse>("/api/auth/account", jsonInit("DELETE", body, opts)),
+    providers: (opts?: RequestOpts) => api<SocialProviders>("/api/auth/providers", opts),
+    appleNative: (body: AppleNativeRequest, opts?: RequestOpts) =>
+      api<AuthSessionResponse>("/api/auth/apple/native", jsonInit("POST", body, opts)),
+    handoff: (body: HandoffRequest, opts?: RequestOpts) =>
+      api<AuthSessionResponse>("/api/auth/handoff", jsonInit("POST", body, opts)),
   },
 
   settings: {

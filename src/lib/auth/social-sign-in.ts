@@ -123,7 +123,9 @@ export function authorizeUrl(flow: OAuthFlow, origin: string): string {
     params.set("code_challenge_method", "S256");
     params.set("prompt", "select_account");
   }
-  return `${AUTHORIZE_URL[flow.provider]}?${params}`;
+  // Spaces as %20, the form Apple documents (URLSearchParams writes "+", and
+  // encodes a literal "+" as %2B, so this only touches spaces).
+  return `${AUTHORIZE_URL[flow.provider]}?${params.toString().replace(/\+/g, "%20")}`;
 }
 
 /**
