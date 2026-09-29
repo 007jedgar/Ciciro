@@ -17,22 +17,52 @@ export function authRequired(): boolean {
   return process.env["CICIRO_REQUIRE_AUTH"] === "true";
 }
 
-/** Pull the session token out of a raw Cookie header (React Native / OpenNext). */
-export function tokenFromCookieHeader(raw: string | null | undefined): string | null {
-  if (!raw) return null;
+function decoded(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Every session token a header or cookie value can hold. iOS joins a cookie
+ * from its jar and the app's own Cookie header with a comma, so a `;`-only
+ * parser reads one value, `TOKEN,ciciro_session=TOKEN` (URL-encoded in the
+ * jar). A phone that stored that value sends it back in x-ciciro-session too.
+ * Tokens are base64url, so a comma, semicolon or `=` never belongs to one.
+ */
+export function sessionTokenCandidates(raw: string | null | undefined): string[] {
+  if (!raw) return [];
   const prefix = `${SESSION_COOKIE}=`;
-  for (const part of raw.split(";")) {
+  const tokens: string[] = [];
+  for (const part of decoded(raw).split(/[;,]/)) {
+    let token = part.trim();
+    if (token.startsWith(prefix)) token = token.slice(prefix.length).trim();
+    if (!token || token.includes("=") || tokens.includes(token)) continue;
+    tokens.push(token);
+  }
+  return tokens;
+}
+
+/** Every session token in a raw Cookie header (React Native / OpenNext), in order. */
+export function sessionTokensFromCookieHeader(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const prefix = `${SESSION_COOKIE}=`;
+  const tokens: string[] = [];
+  for (const part of raw.split(/[;,]/)) {
     const trimmed = part.trim();
     if (!trimmed.startsWith(prefix)) continue;
-    const value = trimmed.slice(prefix.length).trim();
-    if (!value) return null;
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return value;
+    for (const token of sessionTokenCandidates(trimmed.slice(prefix.length))) {
+      if (!tokens.includes(token)) tokens.push(token);
     }
   }
-  return null;
+  return tokens;
+}
+
+/** Pull the session token out of a raw Cookie header (React Native / OpenNext). */
+export function tokenFromCookieHeader(raw: string | null | undefined): string | null {
+  return sessionTokensFromCookieHeader(raw)[0] ?? null;
 }
 
 /** First session token found on the native header, Cookie header, or cookie jar. */
@@ -40,12 +70,12 @@ export function sessionTokenFromHeaders(
   headerStore: { get(name: string): string | null },
   cookieValue?: string | null
 ): string | null {
-  const header = headerStore.get(SESSION_HEADER)?.trim();
-  if (header) return header;
-  const fromCookieHeader = tokenFromCookieHeader(headerStore.get("cookie"));
-  if (fromCookieHeader) return fromCookieHeader;
-  const fromCookie = cookieValue?.trim();
-  return fromCookie || null;
+  return (
+    sessionTokenCandidates(headerStore.get(SESSION_HEADER))[0] ??
+    tokenFromCookieHeader(headerStore.get("cookie")) ??
+    sessionTokenCandidates(cookieValue)[0] ??
+    null
+  );
 }
 
 /** True when the request carries a session cookie or the native session header. */

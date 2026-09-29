@@ -15,6 +15,8 @@ import {
   isNativeClient,
   sessionResponseBody,
   tokenFromCookieHeader,
+  sessionTokenCandidates,
+  sessionTokenFromHeaders,
   hasRequestSession,
   requestWithSessionHeaders,
 } from "@/lib/auth/constants";
@@ -66,6 +68,16 @@ describe("native session delivery", () => {
     expect(tokenFromCookieHeader("other=1; ciciro_session=tok%2F2")).toBe("tok/2");
     expect(tokenFromCookieHeader("nope=1")).toBeNull();
     expect(tokenFromCookieHeader(null)).toBeNull();
+  });
+
+  it("reads each token out of cookies iOS merged with a comma", () => {
+    // The jar's (URL-encoded, already merged) cookie joined to the app's own.
+    const merged = "ciciro_session=old%2Cciciro_session%3Dold,ciciro_session=tok,ciciro_session=tok";
+    expect(tokenFromCookieHeader(merged)).toBe("old");
+    expect(sessionTokenCandidates("tok,ciciro_session=tok")).toEqual(["tok"]);
+    expect(sessionTokenCandidates("a, b; other=1")).toEqual(["a", "b"]);
+    expect(sessionTokenCandidates(null)).toEqual([]);
+    expect(sessionTokenFromHeaders(new Headers({ "x-ciciro-session": "tok,ciciro_session=tok" }))).toBe("tok");
   });
 
   it("treats the native session header as a signed-in request", () => {

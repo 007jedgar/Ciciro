@@ -6,7 +6,8 @@ import {
   SESSION_COOKIE,
   SESSION_HEADER,
   sessionCookieOptions,
-  tokenFromCookieHeader,
+  sessionTokenCandidates,
+  sessionTokensFromCookieHeader,
 } from "@/lib/auth/constants";
 import { peekRequestSession } from "@/lib/auth/session-binding";
 import {
@@ -129,8 +130,15 @@ export async function createSession(
 }
 
 function pushToken(tokens: string[], value: string | null | undefined): void {
-  const token = value?.trim();
-  if (token && !tokens.includes(token)) tokens.push(token);
+  for (const token of sessionTokenCandidates(value)) {
+    if (!tokens.includes(token)) tokens.push(token);
+  }
+}
+
+function pushCookieHeader(tokens: string[], value: string | null | undefined): void {
+  for (const token of sessionTokensFromCookieHeader(value)) {
+    if (!tokens.includes(token)) tokens.push(token);
+  }
 }
 
 export type SessionRequest = {
@@ -143,7 +151,7 @@ export type SessionRequest = {
 function pushTokensFromRequest(tokens: string[], request?: SessionRequest): void {
   if (!request) return;
   pushToken(tokens, request.headers.get(SESSION_HEADER));
-  pushToken(tokens, tokenFromCookieHeader(request.headers.get("cookie")));
+  pushCookieHeader(tokens, request.headers.get("cookie"));
   try {
     pushToken(tokens, request.cookies?.get(SESSION_COOKIE)?.value);
   } catch {
@@ -166,7 +174,7 @@ async function sessionTokens(request?: SessionRequest): Promise<string[]> {
   try {
     const h = await headers();
     pushToken(tokens, h.get(SESSION_HEADER));
-    pushToken(tokens, tokenFromCookieHeader(h.get("cookie")));
+    pushCookieHeader(tokens, h.get("cookie"));
   } catch {
     // No request headers.
   }
