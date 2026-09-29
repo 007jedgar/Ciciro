@@ -98,11 +98,29 @@ export default async function PrivacyPage() {
             <li>Writing stats: words written and time spent per day and per sitting</li>
             <li>Comments left on anything you&apos;ve shared, and the share links themselves</li>
             <li>Your account email and password hash - never the plain password</li>
+            <li>Your plan, its renewal date and which store it came from, and a count of AI actions used each month</li>
           </ul>
           <p>
             That&apos;s the whole point of the product: Ciciro is where your manuscript is
             supposed to live between sessions, not a pass-through to someone else&apos;s
             servers.
+          </p>
+        </section>
+
+        <section className="privacy-section">
+          <h2>Paying for Ciciro Pro</h2>
+          <p>
+            Ciciro never sees or stores your card. On the web, checkout and billing are run by{" "}
+            <a href="https://stripe.com/privacy" target="_blank" rel="noreferrer">
+              Stripe
+            </a>
+            , which receives your account email and the payment details you enter there. In the
+            iPhone and Android apps, Apple or Google take the payment, and{" "}
+            <a href="https://www.revenuecat.com/privacy/" target="_blank" rel="noreferrer">
+              RevenueCat
+            </a>{" "}
+            tells Ciciro that it happened; RevenueCat knows your purchases by your Ciciro account
+            id, not your name or email. None of them receive your writing.
           </p>
         </section>
 
@@ -133,7 +151,9 @@ export default async function PrivacyPage() {
           </p>
           <p>
             Deleting your account removes all of it at once: every manuscript and everything
-            listed above, your writing stats, settings, and the account itself.{" "}
+            listed above, your writing stats, settings, and the account itself. A web
+            subscription is cancelled at the same moment; one bought through Apple or Google has
+            to be cancelled with them.{" "}
             <Link href="/account/delete">Here&apos;s how</Link>. Before you do, Export my data
             in settings downloads a copy of everything Ciciro stores for you, with each
             manuscript as a Word document and as Markdown.

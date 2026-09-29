@@ -1749,6 +1749,52 @@ textarea {
 .settings-action.danger {
   color: var(--del);
 }
+.settings-action.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+.settings-action:disabled {
+  color: var(--ink-soft);
+  cursor: default;
+}
+.settings-error {
+  color: var(--del);
+}
+
+/* This month's AI use in the Settings plan section and the limit dialog. */
+.settings-usage {
+  margin: 2px 0 0;
+}
+.settings-usage-bar,
+.ai-limit-meter {
+  display: flex;
+  height: 4px;
+  margin: 0 2px 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.settings-usage-bar span,
+.ai-limit-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.settings-usage-bar.full span,
+.ai-limit-meter span {
+  background: var(--del);
+}
+.ai-limit-meter {
+  height: 6px;
+  margin: 4px 0 10px;
+}
+.ai-limit-count {
+  color: var(--ink-soft);
+}
+.account-dialog-actions .btn {
+  text-decoration: none;
+}
 
 .settings-model {
   color: var(--ink-soft);
@@ -2214,6 +2260,16 @@ textarea {
   align-items: center;
   gap: 10px;
 }
+.account-bar .account-upgrade {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+.account-bar .account-upgrade:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .account-bar .account-email {
   font-size: 13px;
   color: var(--ink-soft);
@@ -2429,6 +2485,23 @@ textarea {
 }
 .account-dialog-export .btn {
   flex: none;
+  text-decoration: none;
+}
+.account-dialog-billing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+}
+.account-dialog-billing p {
+  margin: 0;
+}
+.account-dialog-billing .btn {
   text-decoration: none;
 }
 .account-dialog-field {
@@ -3896,4 +3969,8 @@ textarea {
 }
 .ProseMirror .reading-aloud {
   animation: reading-in var(--duration-reading) ease-out both;
+}
+
+.nowrap {
+  white-space: nowrap;
 }

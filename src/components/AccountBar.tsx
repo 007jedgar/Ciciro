@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
+import type { Entitlement } from "@/lib/billing-client";
 
 type Me = { id: string; email: string; name: string } | null;
 
 export default function AccountBar() {
   const router = useRouter();
   const [me, setMe] = useState<Me>(null);
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -17,7 +19,9 @@ export default function AccountBar() {
     fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (active) setMe(d.user ?? null);
+        if (!active) return;
+        setMe(d.user ?? null);
+        setEntitlement(d.entitlement ?? null);
       })
       .catch(() => {})
       .finally(() => {
@@ -46,6 +50,11 @@ export default function AccountBar() {
     <div className="account-bar">
       {me ? (
         <>
+          {entitlement?.plan === "free" && entitlement.billing.web ? (
+            <Link className="account-upgrade" href="/pricing">
+              Upgrade
+            </Link>
+          ) : null}
           <span className="account-email" title={me.email}>
             {me.name || me.email}
           </span>

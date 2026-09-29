@@ -8,8 +8,15 @@ import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import { EXPORT_URL } from "@/lib/account/copy";
 import type { ModelSummary } from "@/lib/models";
 import { resendVerificationEmail } from "@/lib/verify-email-client";
+import SettingsBilling from "@/components/SettingsBilling";
+import type { Entitlement } from "@/lib/billing-client";
 
-type Account = { email: string; hasPassword?: boolean; emailVerified?: boolean };
+type Account = {
+  email: string;
+  hasPassword?: boolean;
+  emailVerified?: boolean;
+  entitlement: Entitlement | null;
+};
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
   const { settings, patch } = useSettings();
@@ -38,13 +45,32 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
     };
   }, [open, models]);
 
+  // Re-read on every open: this month's AI use and the plan change underneath.
   useEffect(() => {
-    if (!open || account !== undefined) return;
+    if (!open) return;
     let cancelled = false;
     void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
-      .then((res) => (res.ok ? (res.json() as Promise<{ user: Account | null }>) : null))
+      .then((res) =>
+        res.ok
+          ? (res.json() as Promise<{
+              user: { email: string; hasPassword?: boolean; emailVerified?: boolean } | null;
+              entitlement?: Entitlement | null;
+            }>)
+          : null
+      )
       .then((data) => {
-        if (!cancelled) setAccount(data?.user ?? null);
+        if (!cancelled) {
+          setAccount(
+            data?.user
+              ? {
+                  email: data.user.email,
+                  hasPassword: data.user.hasPassword,
+                  emailVerified: data.user.emailVerified,
+                  entitlement: data.entitlement ?? null,
+                }
+              : null
+          );
+        }
       })
       .catch(() => {
         /* offline - leave the section out */
@@ -52,7 +78,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
     return () => {
       cancelled = true;
     };
-  }, [open, account]);
+  }, [open]);
 
   async function resendVerification() {
     setVerify({ busy: true, note: null });
@@ -351,6 +377,8 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               ) : null}
             </>
           ) : null}
+
+          {account?.entitlement ? <SettingsBilling entitlement={account.entitlement} /> : null}
 
           {account ? (
             <>

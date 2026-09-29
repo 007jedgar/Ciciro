@@ -6,6 +6,7 @@ import Presence from "@/components/Presence";
 import { MOTION_MS } from "@/lib/motion";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 import { DELETE_CONFIRMATION, DELETED_WITH_ACCOUNT, EXPORT_URL } from "@/lib/account/copy";
+import { fetchEntitlement, storeName, type Entitlement } from "@/lib/billing-client";
 
 /**
  * The destructive confirmation for deleting an account: says what goes,
@@ -26,6 +27,7 @@ export default function DeleteAccountDialog({
   const [proof, setProof] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -36,6 +38,13 @@ export default function DeleteAccountDialog({
     setError(null);
     setBusy(false);
     inputRef.current?.focus();
+    // A paying account hears what happens to its subscription before it goes.
+    let cancelled = false;
+    void fetchEntitlement()
+      .then((next) => {
+        if (!cancelled) setEntitlement(next);
+      })
+      .catch(() => {});
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       // Claim the key so focus mode, which listens on window, does not also exit.
@@ -43,12 +52,17 @@ export default function DeleteAccountDialog({
       onCloseRef.current();
     }
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   const proofReady = hasPassword
     ? proof.length > 0
     : proof.trim().toUpperCase() === DELETE_CONFIRMATION;
+  const paid = entitlement?.plan === "pro";
+  const store = paid ? storeName(entitlement.source) : null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -107,6 +121,24 @@ export default function DeleteAccountDialog({
             to this account is signed out.
           </p>
         </div>
+        {paid && store ? (
+          <div className="account-dialog-billing" role="note">
+            <p>
+              <strong>Your Ciciro Pro subscription is billed through {store}.</strong> Deleting
+              your account doesn&apos;t cancel it: billing continues until you cancel it there.
+              Cancel it first.
+            </p>
+            {entitlement?.manageUrl ? (
+              <a className="btn small" href={entitlement.manageUrl} target="_blank" rel="noreferrer">
+                Manage subscription
+              </a>
+            ) : null}
+          </div>
+        ) : paid ? (
+          <div className="account-dialog-billing" role="note">
+            <p>Your Ciciro Pro subscription is cancelled at once, with no further charges.</p>
+          </div>
+        ) : null}
         <div className="account-dialog-export">
           <span>Want a copy first?</span>
           <a className="btn small" href={EXPORT_URL} download>
