@@ -327,7 +327,8 @@ Templates live in `src/lib/email/templates.ts` as typed content blocks that
 `layout.tsx`, light by default with an Ember dark palette for clients that
 honor `prefers-color-scheme`) and the plain-text part. `account-emails.ts`
 holds the sends the app makes: confirm your email (password signups), welcome
-(once the address is confirmed), password reset and account deleted. Each
+(when a password signup confirms its address, or when Apple or Google creates
+the account; never when one links to an existing account), password reset and account deleted. Each
 passes a Resend idempotency key so a retried request never sends twice, and
 none of them throw, so a failed send never fails the signup or deletion
 around it. The billing templates (payment failed, subscription canceled,

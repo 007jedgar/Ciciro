@@ -49,8 +49,9 @@ function linkProblem(problem: EmailTokenProblem): AuthError {
 /**
  * Set a new password from a reset link. Spends the link, retires any other
  * outstanding reset link, and deletes every session, so a device signed in by
- * whoever knew the old password is signed out. Following the link also proves
- * the address, so it counts as verifying it.
+ * whoever knew the old password is signed out, and forgets failed password
+ * attempts so an earlier lockout does not hold the new password back.
+ * Following the link also proves the address, so it counts as verifying it.
  */
 export async function resetPassword(token: unknown, password: unknown): Promise<void> {
   const passwordError = validatePassword(password);
@@ -77,5 +78,9 @@ export async function resetPassword(token: unknown, password: unknown): Promise<
     }),
     prisma.session.deleteMany({ where: { userId: user.id } }),
     prisma.emailToken.deleteMany({ where: { userId: user.id, purpose: "reset_password", usedAt: null } }),
+    // Failed guesses at the old password no longer lock the owner out of the new one.
+    prisma.passwordAttempt.deleteMany({
+      where: { OR: [{ scope: "login", key: user.email }, { scope: "delete", key: user.id }] },
+    }),
   ]);
 }

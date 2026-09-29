@@ -7,6 +7,9 @@ import { hashSessionToken } from "@/lib/auth/tokens";
 import { hashPassword } from "@/lib/auth/password";
 import { EMAIL_TOKEN_COOLDOWN_MS } from "@/lib/auth/email-tokens";
 import { verifyEmail } from "@/lib/auth/verify-email";
+import { signInWithIdentity } from "@/lib/auth/identity";
+import type { VerifiedIdentity } from "@/lib/auth/oidc";
+import { assertAttemptAllowed, recordFailedAttempt } from "@/lib/auth/rate-limit";
 import { POST as signup } from "@/app/api/auth/signup/route";
 import { GET as me } from "@/app/api/auth/me/route";
 import { POST as resendVerification } from "@/app/api/auth/verify-email/resend/route";
@@ -84,6 +87,7 @@ describe("account emails", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     await prisma.emailToken.deleteMany();
+    await prisma.passwordAttempt.deleteMany();
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
   });
@@ -282,6 +286,68 @@ describe("account emails", () => {
         request("/api/auth/password/reset", { body: { token, password: "long-enough-now" } })
       );
       expect(ok.status).toBe(200);
+    });
+  });
+
+  it("a completed reset lifts a login and deletion lockout", async () => {
+    const { user } = await passwordAccount();
+    const address = "203.0.113.9";
+    for (let i = 0; i < 5; i++) {
+      await recordFailedAttempt("login", "ada@example.com", address);
+      await recordFailedAttempt("delete", user.id, address, { userId: user.id });
+    }
+    await expect(assertAttemptAllowed("login", "ada@example.com", address)).rejects.toMatchObject({ status: 429 });
+    await expect(assertAttemptAllowed("delete", user.id, address)).rejects.toMatchObject({ status: 429 });
+
+    await forgotPassword(request("/api/auth/password/forgot", { body: { email: "ada@example.com" } }));
+    const token = linkIn(sent()[0], "/reset-password");
+    const res = await resetPasswordRoute(
+      request("/api/auth/password/reset", { body: { token, password: "brand-new-password" } })
+    );
+    expect(res.status).toBe(200);
+    await expect(assertAttemptAllowed("login", "ada@example.com", address)).resolves.toBeUndefined();
+    await expect(assertAttemptAllowed("delete", user.id, address)).resolves.toBeUndefined();
+  });
+
+  describe("social sign-in", () => {
+    const google = (overrides: Partial<VerifiedIdentity> = {}): VerifiedIdentity => ({
+      provider: "google",
+      subject: "g-1",
+      email: "ada@example.com",
+      emailVerified: true,
+      name: "Ada Lovelace",
+      ...overrides,
+    });
+
+    it("welcomes an account it creates, once", async () => {
+      const { user } = await signInWithIdentity(google(), { origin: ORIGIN });
+      expect(sent()).toHaveLength(1);
+      expect(sent()[0]).toMatchObject({
+        to: "ada@example.com",
+        category: "welcome",
+        idempotencyKey: `welcome/${user.id}`,
+      });
+      expect(sent()[0].text).toContain(`${ORIGIN}/`);
+
+      await signInWithIdentity(google(), { origin: ORIGIN });
+      expect(sent()).toHaveLength(1);
+    });
+
+    it("sends nothing when it links an existing account", async () => {
+      const { user } = await passwordAccount();
+      await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+      const { user: linked, takeover } = await signInWithIdentity(google(), { origin: ORIGIN });
+      expect(linked.id).toBe(user.id);
+      expect(takeover).toBeNull();
+      expect(sent()).toHaveLength(0);
+    });
+
+    it("sends nothing when it takes over an unverified password account", async () => {
+      const { user } = await passwordAccount();
+      const { user: linked, takeover } = await signInWithIdentity(google(), { origin: ORIGIN });
+      expect(linked.id).toBe(user.id);
+      expect(takeover).toBe("google");
+      expect(sent()).toHaveLength(0);
     });
   });
 

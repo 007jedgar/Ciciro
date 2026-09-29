@@ -46,6 +46,7 @@ describe("email tokens", () => {
       ok: false,
       problem: "used",
       userId: user.id,
+      email: user.email,
     });
   });
 

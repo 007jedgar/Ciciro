@@ -25,6 +25,7 @@ import {
   type SocialProvider,
 } from "@/lib/auth/social-config";
 import { AuthError, createSession } from "@/lib/auth/session";
+import { publicOrigin } from "@/lib/public-origin";
 
 // The browser flow for Sign in with Apple and Google, and the native Apple
 // sheet's token sign-in. Browser flow:
@@ -109,16 +110,6 @@ export function decodeFlow(raw: string | undefined): OAuthFlow | null {
   }
 }
 
-/**
- * The origin Apple and Google send people back to. The redirect_uri must match
- * the one registered with them exactly, so a host behind a TLS-terminating
- * proxy (which may see http://) sets CICIRO_PUBLIC_URL, e.g. https://ciciro.app.
- */
-export function publicOrigin(req: NextRequest): string {
-  const configured = (process.env["CICIRO_PUBLIC_URL"] ?? "").trim().replace(/\/+$/, "");
-  return configured || req.nextUrl.origin;
-}
-
 function callbackUrl(origin: string, provider: SocialProvider): string {
   return `${origin}/api/auth/oauth/${provider}/callback`;
 }
@@ -184,7 +175,9 @@ function clearFlowCookie(res: NextResponse, provider: SocialProvider): NextRespo
 
 /** GET /api/auth/oauth/:provider/start */
 export function startBrowserSignIn(req: NextRequest, provider: SocialProvider): NextResponse {
-  const origin = publicOrigin(req);
+  // The redirect_uri must match the one registered with Apple and Google
+  // exactly, so a host behind a TLS-terminating proxy sets CICIRO_PUBLIC_URL.
+  const origin = publicOrigin(req.nextUrl.origin);
   const params = req.nextUrl.searchParams;
   const native = params.get("client") === "native";
   const next = safeNext(params.get("next"));
@@ -276,7 +269,7 @@ async function identifyFromCallback(
       keys: deps.keys?.apple,
     });
     const refreshToken = await appleRefreshToken(params.code, config.servicesId, redirectUri, deps);
-    return signInWithIdentity(identity, { name: appleUserName(params.user), refreshToken });
+    return signInWithIdentity(identity, { name: appleUserName(params.user), refreshToken, origin });
   }
 
   const config = googleConfig();
@@ -297,7 +290,7 @@ async function identifyFromCallback(
     nonce: flow.nonce,
     keys: deps.keys?.google,
   });
-  return signInWithIdentity(identity);
+  return signInWithIdentity(identity, { origin });
 }
 
 function failureCode(error: unknown): SocialFailure {
@@ -312,7 +305,7 @@ export async function finishBrowserSignIn(
   params: CallbackParams,
   deps: SocialDeps = {}
 ): Promise<NextResponse> {
-  const origin = publicOrigin(req);
+  const origin = publicOrigin(req.nextUrl.origin);
   const flow = decodeFlow(req.cookies.get(OAUTH_COOKIE)?.value);
   const native = Boolean(flow?.challenge);
   const fail = (code: SocialFailure) =>
@@ -364,7 +357,15 @@ export async function finishBrowserSignIn(
  * a token lifted from elsewhere cannot be replayed without it.
  */
 export async function signInWithAppleNative(
-  input: { idToken: unknown; nonce: unknown; authorizationCode?: unknown; givenName?: unknown; familyName?: unknown },
+  input: {
+    idToken: unknown;
+    nonce: unknown;
+    authorizationCode?: unknown;
+    givenName?: unknown;
+    familyName?: unknown;
+    /** Public origin for the welcome email a new account gets (see publicOrigin). */
+    origin?: string;
+  },
   deps: SocialDeps = {}
 ): Promise<SocialSignInResult> {
   if (!socialAvailability().apple.native) {
@@ -390,5 +391,6 @@ export async function signInWithAppleNative(
   return signInWithIdentity(identity, {
     name: joinName(input.givenName, input.familyName),
     refreshToken,
+    origin: input.origin,
   });
 }
