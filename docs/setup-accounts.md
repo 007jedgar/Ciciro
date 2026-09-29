@@ -186,6 +186,11 @@ On a physical device, `localhost` is the phone. Use your machine's LAN IP or a t
 
 The client sends `credentials: 'include'` and, because React Native does not treat `httpOnly` cookies like a browser, also stores the `ciciro_session` value from `Set-Cookie` and sends it as a `Cookie` header. Cookie-jar quirks on some devices are a follow-up; the screens and `apps/mobile/lib/api.ts` are the contract.
 
+To sell Ciciro Pro in the app, add the RevenueCat public SDK keys
+(`EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`)
+and rebuild the dev client: `react-native-purchases` is native. Store and
+RevenueCat setup is in [billing](billing.md).
+
 ## GitHub CI
 
 The **`test`** workflow in `.github/workflows/ci.yml` runs lint, Vitest, and mobile Jest on every pull request. `main` requires that check before merge. See [CI](ci.md).

@@ -20,12 +20,15 @@ its `PasswordAttempt` D1 table). Then `deleteAccount`:
 1. runs `PRE_DELETE_HOOKS` in order. A hook that throws aborts everything, with
    the account intact, and the author sees a 502 to retry. This is where
    outside services plug in:
-   - billing: cancel the Stripe subscription (RevenueCat purchases are
-     cancelled by the author in the store),
-   - Sign in with Apple: `APPLE_REVOKE_HOOK` revokes the Apple refresh tokens
-     (`https://appleid.apple.com/auth/revoke`), which App Store review
+   - Sign in with Apple, first: `APPLE_REVOKE_HOOK` revokes the Apple refresh
+     tokens (`https://appleid.apple.com/auth/revoke`), which App Store review
      requires (docs/social-sign-in.md). Accepting a fresh provider sign-in as
      proof in `verifyDeletionProof` is a follow-up.
+   - billing: cancel the Stripe subscription at once, and delete the
+     RevenueCat customer. A store subscription can only be cancelled by the
+     author, with Apple or Google, so the web dialog and the phone's screen
+     say billing continues until they do, with a manage link (see
+     [billing](billing.md#account-deletion)).
 2. deletes every owned row in one `$transaction([...])` batch (D1 has no
    interactive transactions), children first, sessions included.
 

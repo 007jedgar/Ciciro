@@ -53,6 +53,10 @@ On Android, `useReanimatedKeyboardAnimation()`'s `progress` is boolean (0/1 on t
 
 A quick action (`src/lib/prompts.ts`) can be `kind: "panel"` instead of the default `"chat"`: `ChatPanel` calls a callback prop instead of sending a chat prompt, so the chip can open a dedicated drawer with its own API route and lib module (see `continuity-check` / `src/lib/continuity.ts` + `continuity-view.ts`, alongside `RepetitionPanel`/`WeeklyReview`) rather than routing through the agentic editor chat. A finding's exact quote becomes a jump-to link by opening `SearchPanel` pre-filled with that text (`onInspect` in `Workspace.tsx`) rather than building new anchor/scroll plumbing. Keep the LLM-facing side of such a check bounded and cheap: one non-agentic `DRAFTER_MODEL` call per unit of work (not the `EDITOR_MODEL` chat loop), sending only the bible files relevant to what's being checked, and re-verify any quoted text is an actual substring of what was sent before surfacing it (a model can still paraphrase despite instructions not to).
 
+## AI allowance and billing
+
+Every AI entry point is metered on a hosted server (`src/lib/entitlements.ts`, see `docs/billing.md`): a user-initiated action claims one run with `meterAiRun` or `withAiRun` (which refunds on failure), and background or free work checks `aiAllowed`/`assertAiAllowed` so it stops at the limit. A new AI route or lib caller needs one of these, or it bypasses the allowance. Billing UI, web and mobile, renders only the server's entitlement, never Stripe or RevenueCat client state.
+
 ## Model defaults
 
 `src/lib/anthropic.ts` and `src/lib/fast-lane.ts` pin the models Ciciro runs on; `src/lib/models.ts` resolves them (env override or default) for the `/api/models` endpoint that Settings (web and mobile) reads. Changing a default requires a line in `docs/CHANGELOG.md` recording the new default, since Settings is a user's only visibility into which model they're on.
