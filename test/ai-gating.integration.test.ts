@@ -47,7 +47,7 @@ async function author(label: string) {
   });
   const project = await prisma.project.create({ data: { userId: user.id, title: "Tides" } });
   const chapter = await prisma.chapter.create({ data: { projectId: project.id, title: "One", order: 0, content: PROSE } });
-  const publicUser = { id: user.id, email: user.email, name: user.name, hasPassword: false };
+  const publicUser = { id: user.id, email: user.email, name: user.name, hasPassword: false, emailVerified: false };
   return { user: publicUser, token, projectId: project.id, chapterId: chapter.id };
 }
 

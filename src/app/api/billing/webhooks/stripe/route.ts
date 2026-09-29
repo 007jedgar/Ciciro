@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { publicOrigin } from "@/lib/auth/social-sign-in";
+import { publicOrigin } from "@/lib/public-origin";
 import { handleStripeWebhook } from "@/lib/billing/stripe";
 
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const payload = await req.text();
   try {
-    const result = await handleStripeWebhook(payload, req.headers.get("stripe-signature"), publicOrigin(req));
+    const result = await handleStripeWebhook(payload, req.headers.get("stripe-signature"), publicOrigin(req.nextUrl.origin));
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("[billing] Stripe webhook failed", error);
