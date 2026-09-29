@@ -59,6 +59,17 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     },
   });
+  await prisma.identity.create({
+    data: { userId: user.id, provider: "google", subject: `${label}-google-sub`, email },
+  });
+  await prisma.authHandoff.create({
+    data: {
+      userId: user.id,
+      codeHash: `${label}-code-hash`,
+      challenge: `${label}-challenge`,
+      expiresAt: new Date(Date.now() + 60_000),
+    },
+  });
   const folder = await prisma.folder.create({
     data: { userId: user.id, name: `${label} folder`, notes: "Folder notes" },
   });

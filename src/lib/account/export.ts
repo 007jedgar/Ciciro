@@ -79,6 +79,24 @@ export const EXPORT_TABLES: readonly Table[] = [
     shape: (row) => without(row, "tokenHash"),
   },
   {
+    model: "Identity",
+    file: "linked-sign-ins",
+    take: 50,
+    page: (userId, id, take) =>
+      prisma.identity.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+    // Which provider and email are linked; the Apple refresh token is a credential.
+    shape: (row) => without(row, "refreshToken", "refreshTokenClientId"),
+  },
+  {
+    model: "AuthHandoff",
+    file: "pending-app-sign-ins",
+    take: 50,
+    page: (userId, id, take) =>
+      prisma.authHandoff.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+    // The code hash and PKCE challenge only redeem a sign-in.
+    shape: (row) => without(row, "codeHash", "challenge"),
+  },
+  {
     model: "Folder",
     file: "folders",
     take: 200,
@@ -322,7 +340,8 @@ manifest.json
   Written last, with the record count for each file in data/. A zip that
   will not open, or has no manifest.json, is incomplete: export again.
 
-Left out on purpose: your password hash, sign-in session tokens, share link
+Left out on purpose: your password hash, sign-in session tokens, Apple
+sign-in refresh token, pending app sign-in codes, share link
 tokens (the links are listed, but not the secret that opens them), and the
 hashed IP address kept for rate-limiting beta reader comments.
 `;
