@@ -355,7 +355,8 @@ each manuscript as Word and as Markdown with its story bible and scratchpad,
 plus every record (chapters, archived ones included, snapshots, the edit log,
 chat, notes, stats, settings) as JSON. On the web it is in settings (the
 appearance button at the top right); on the phone, at the foot of Settings,
-where it opens the share sheet so you can Save to Files.
+where it opens the share sheet so you can Save to Files. If the zip won't open,
+or has no `manifest.json` inside, the download was cut short: export again.
 
 **Delete account**, beside it, removes the account and everything in it after
 you confirm your password, and signs out every device. It can't be undone, so

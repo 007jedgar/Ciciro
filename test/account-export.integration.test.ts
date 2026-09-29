@@ -158,6 +158,20 @@ describe("account data export", () => {
     expect(Object.keys(files).every((name) => !name.includes(".."))).toBe(true);
   });
 
+  it("ends with a manifest that counts every data file", async () => {
+    const me = await seedAccount("mine");
+    const files = unzipText((await readAll(accountExportStream(me.userId))).bytes);
+    const names = Object.keys(files);
+    expect(names[names.length - 1]).toBe("manifest.json");
+    const manifest = JSON.parse(files["manifest.json"]);
+    expect(manifest.completed).toBe(true);
+    for (const [file, count] of Object.entries(manifest.records as Record<string, number>)) {
+      const data = JSON.parse(files[`data/${file}.json`]);
+      expect(Array.isArray(data) ? data.length : 1, file).toBe(count);
+    }
+    expect(manifest.records.chapters).toBeGreaterThan(0);
+  });
+
   it("streams a large account in bounded chunks", async () => {
     const me = await seedAccount("mine");
     const CHAPTERS = 240;

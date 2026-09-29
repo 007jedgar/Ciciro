@@ -318,6 +318,10 @@ data/
   editor runs, recaps, weekly reviews, share links, beta reader comments,
   folders, reading positions, and your writing days and sessions.
 
+manifest.json
+  Written last, with the record count for each file in data/. A zip that
+  will not open, or has no manifest.json, is incomplete: export again.
+
 Left out on purpose: your password hash, sign-in session tokens, share link
 tokens (the links are listed, but not the secret that opens them), and the
 hashed IP address kept for rate-limiting beta reader comments.
@@ -327,6 +331,7 @@ hashed IP address kept for rate-limiting beta reader comments.
 type ManuscriptSummary = { id: string; title: string; author: string };
 
 async function* writeTable(zip: ZipWriter, table: Table, userId: string) {
+  let count = 0;
   const entry = zip.entry(`data/${table.file}.json`);
   entry.write("[");
   let cursor: string | undefined;
@@ -338,6 +343,7 @@ async function* writeTable(zip: ZipWriter, table: Table, userId: string) {
     for (const row of rows) {
       text += `${first ? "\n" : ",\n"}${JSON.stringify(table.shape ? table.shape(row) : row)}`;
       first = false;
+      count += 1;
     }
     entry.write(text);
     const chunk = zip.drain();
@@ -347,6 +353,7 @@ async function* writeTable(zip: ZipWriter, table: Table, userId: string) {
   }
   entry.write(first ? "]\n" : "\n]\n");
   entry.close();
+  return count;
 }
 
 async function* writeManuscript(
@@ -442,7 +449,8 @@ async function* writeAccountExport(userId: string, exportedAt: Date) {
     `${JSON.stringify({ ...profile, settings: parsed(user.settingsJson), exportedAt }, null, 2)}\n`
   );
 
-  for (const table of EXPORT_TABLES) yield* writeTable(zip, table, userId);
+  const counts: Record<string, number> = { account: 1 };
+  for (const table of EXPORT_TABLES) counts[table.file] = yield* writeTable(zip, table, userId);
 
   const manuscripts = await prisma.project.findMany({
     where: { userId },
@@ -455,6 +463,10 @@ async function* writeAccountExport(userId: string, exportedAt: Date) {
     yield* writeManuscript(zip, project, folder);
   }
 
+  zip.file(
+    "manifest.json",
+    `${JSON.stringify({ completed: true, exportedAt, manuscripts: manuscripts.length, records: counts }, null, 2)}\n`
+  );
   zip.end();
   const tail = zip.drain();
   if (tail) yield tail;

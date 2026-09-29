@@ -46,5 +46,11 @@ the account (sized for a Worker's 128 MB). The Word builder is the exception: it
 holds a whole manuscript, so manuscripts over `DOCX_WORD_BUDGET` words ship as
 Markdown only.
 
+`manifest.json` is the last entry: `completed: true` plus a record count per
+data file. The response is already a 200 by the time a query can fail, so a
+mid-stream error leaves a truncated zip; one that won't open, or lacks
+`manifest.json`, means retry the export. The phone checks the zip's end record
+before sharing and reports a truncated download instead.
+
 Left out on purpose: password hash, session token hashes, share link tokens,
 the rate-limit hash of beta readers' IPs, and editor-run lock tokens.
