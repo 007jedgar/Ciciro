@@ -392,46 +392,104 @@ select:focus {
 textarea {
   resize: vertical;
 }
+input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
 
 /* ---------- Home ---------- */
 .home {
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 64px 24px;
+  padding: 40px 24px 72px;
+}
+.home-wordmark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+.home-heading {
+  margin: 40px 0 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.home-kicker {
+  margin: 0 0 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 .home h1 {
   font-family: var(--serif);
-  font-size: 44px;
-  font-weight: 620;
-  letter-spacing: -0.02em;
-  margin: 0 0 4px;
+  font-size: clamp(36px, 6vw, 52px);
+  font-weight: 300;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-variation-settings: "opsz" 72;
+  margin: 0 0 10px;
+}
+.home h1 em {
+  font-weight: 400;
 }
 .home .tag {
   color: var(--ink-soft);
-  margin: 0 0 32px;
-  font-style: italic;
+  margin: 0 0 28px;
+  font-size: 15px;
 }
+.home-heading .tag {
+  margin: 0;
+}
+/* A manuscript is a sheet: a red margin rule, a serif title, mono metadata. */
 .project-card {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  background:
+    linear-gradient(
+      to right,
+      transparent 20px,
+      var(--margin-rule) 20px,
+      var(--margin-rule) 21px,
+      transparent 21px
+    ),
+    var(--panel);
+  border-radius: 3px;
+  padding: 16px 18px 16px 36px;
+  margin-bottom: 12px;
+  box-shadow: var(--paper-shadow);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 .project-card:hover {
-  border-color: var(--ink-soft);
+  transform: translateY(var(--hover-lift));
 }
 .project-card h3 {
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   font-family: var(--serif);
-  font-size: 18px;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .project-card .meta {
   color: var(--ink-soft);
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .project-card-main {
   flex: 1;
@@ -443,28 +501,53 @@ textarea {
   color: inherit;
   cursor: pointer;
 }
+/* A form section is a file folder: the heading is its tab. */
 .new-form {
-  border: 1px dashed var(--line);
-  border-radius: 12px;
-  padding: 18px;
-  margin-top: 24px;
+  position: relative;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+  border-radius: 0 6px 6px 6px;
+  padding: 20px 18px 18px;
+  margin-top: 52px;
   display: grid;
   gap: 10px;
 }
+.new-form-tab {
+  position: absolute;
+  left: -1px;
+  top: -27px;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: inherit;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
 .shelf-heading {
-  font-family: var(--serif);
-  font-size: 20px;
-  font-weight: 620;
-  margin: 8px 0 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 24px 0 12px;
 }
 
 .folder-block {
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 82%, transparent);
-  border-radius: 14px;
-  padding: 14px 14px 10px;
-  margin-bottom: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg));
+  border-radius: 0 8px 8px 8px;
+  padding: 16px 14px 10px;
+  margin-bottom: 22px;
+  border-top: 4px solid var(--accent);
 }
 
 .folder-head {
@@ -477,8 +560,10 @@ textarea {
 
 .folder-head h2 {
   font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 620;
+  font-style: italic;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -492,7 +577,9 @@ textarea {
 .folder-count,
 .folder-empty {
   color: var(--ink-soft);
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
   margin: 4px 0 8px;
 }
 
@@ -583,8 +670,10 @@ textarea {
 }
 .topbar .title {
   font-family: var(--serif);
-  font-size: 16px;
-  font-weight: 600;
+  font-style: italic;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -708,8 +797,10 @@ textarea {
   .open-in-app h1 {
     margin: 0;
     font-family: var(--serif);
-    font-size: 26px;
-    font-weight: 620;
+    font-size: 30px;
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
     text-wrap: balance;
   }
   .open-in-app p {
@@ -806,10 +897,14 @@ textarea {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px 6px;
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
+}
+.sidebar .section-head button {
+  font-family: var(--sans);
 }
 .chapter-item {
   padding: 8px 14px;
@@ -824,14 +919,16 @@ textarea {
 }
 .chapter-item.active {
   background: var(--panel-2);
-  border-left-color: var(--accent);
+  border-left-color: var(--vermilion);
 }
 .chapter-item .ct {
   font-size: 13px;
   font-weight: 500;
 }
 .chapter-item .cm {
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
   color: var(--ink-soft);
 }
 
@@ -905,15 +1002,46 @@ textarea {
   display: flex;
   justify-content: center;
 }
+/* The manuscript sits on a sheet with a red margin rule. */
 .editor-inner {
   width: 100%;
-  max-width: 720px;
-  padding: 48px 40px 200px;
+  max-width: 760px;
+  margin: 28px 24px 72px;
+  padding: 52px 56px 200px 76px;
+  background:
+    linear-gradient(
+      to right,
+      transparent 48px,
+      var(--margin-rule) 48px,
+      var(--margin-rule) 49px,
+      transparent 49px
+    ),
+    var(--panel);
+  border-radius: 2px;
+  box-shadow: var(--paper-shadow);
+  align-self: flex-start;
+  min-height: calc(100% - 100px);
+}
+@media (max-width: 900px) {
+  .editor-inner {
+    margin: 16px 12px 48px;
+    padding: 40px 28px 160px 48px;
+    background:
+      linear-gradient(
+        to right,
+        transparent 28px,
+        var(--margin-rule) 28px,
+        var(--margin-rule) 29px,
+        transparent 29px
+      ),
+      var(--panel);
+  }
 }
 .editor-title {
   font-family: var(--editor-font-family, var(--serif));
-  font-size: calc(var(--editor-size, 19px) * 1.58);
-  font-weight: 600;
+  font-size: calc(var(--editor-size, 19px) * 1.68);
+  font-weight: 400;
+  letter-spacing: -0.015em;
   border: none;
   background: transparent;
   padding: 0;
@@ -1188,19 +1316,30 @@ textarea {
   gap: var(--space-2);
   margin: -16px 0 20px;
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: var(--butter);
+  border: 0;
+  border-radius: 2px;
+  box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.45);
   font-size: 12px;
-  color: var(--ink-soft);
+  color: #141414;
 }
 .suggestion-bar .spacer {
   flex: 1;
 }
 .suggestion-bar-count {
-  color: var(--ink);
-  font-weight: 500;
+  color: #141414;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
+}
+.suggestion-bar .btn.ghost {
+  color: #141414;
+}
+.suggestion-bar .btn.ghost:hover {
+  background: rgba(20, 20, 20, 0.08);
 }
 .suggestion-bar .btn.ghost[aria-label$="suggestion"] {
   display: inline-flex;
@@ -1213,7 +1352,7 @@ textarea {
   padding: 0 var(--space-2);
 }
 .suggestion-bar-who {
-  color: var(--ink-soft);
+  color: #3b3a36;
   font-weight: 400;
 }
 .suggestion-card {
@@ -1223,8 +1362,9 @@ textarea {
   max-width: 100%;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  border-top: 4px solid var(--butter);
+  border-radius: 2px;
+  box-shadow: var(--paper-shadow), 0 10px 28px rgba(0, 0, 0, 0.12);
   padding: 10px 12px;
   font-family: var(--sans);
   font-size: 13px;
@@ -1237,11 +1377,16 @@ textarea {
   margin-bottom: 6px;
 }
 .suggestion-card-who {
+  font-family: var(--mono);
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .suggestion-card-when {
   color: var(--ink-soft);
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
 }
 .suggestion-card-body {
   line-height: 1.5;
@@ -1299,7 +1444,9 @@ textarea {
 }
 .chat-head h2 {
   font-family: var(--serif);
-  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 19px;
   margin: 0;
 }
 .quick-actions {
@@ -1310,14 +1457,15 @@ textarea {
   border-bottom: 1px solid var(--line);
 }
 .chip {
-  border: 1px solid var(--line);
-  background: var(--panel-2);
+  border: 1px dashed color-mix(in srgb, var(--ink) 30%, transparent);
+  background: transparent;
   color: var(--ink);
   font-size: 11.5px;
   padding: var(--space-1) var(--space-2);
   border-radius: 999px;
 }
 .chip:hover {
+  border-style: solid;
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1338,7 +1486,8 @@ textarea {
   line-height: 1.55;
 }
 .msg .who {
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-soft);
@@ -1609,6 +1758,10 @@ textarea {
 .drawer-head h2 {
   margin: 0;
   font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 24px;
+  letter-spacing: -0.01em;
 }
 .drawer h2 {
   font-family: var(--serif);
@@ -1697,17 +1850,28 @@ textarea {
   overscroll-behavior: contain;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-top: 4px solid var(--accent);
+  border-radius: 2px;
   padding: 10px;
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: var(--paper-shadow), 0 12px 32px color-mix(in srgb, var(--ink) 14%, transparent);
   z-index: 50;
 }
 .theme-menu-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-soft);
-  margin: 6px 4px 6px;
+  margin: 14px 4px 8px;
+}
+.theme-menu-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
 }
 .theme-menu-label:first-child {
   margin-top: 0;
@@ -1762,8 +1926,8 @@ textarea {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
   font-size: 12px;
 }
 .settings-seg button.active,
@@ -1985,6 +2149,7 @@ textarea {
 
 .home-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
@@ -2012,8 +2177,8 @@ textarea {
   height: 100%;
 }
 .auth-card .brand-mark {
-  align-self: center;
-  margin: 0 0 8px;
+  align-self: flex-start;
+  margin: 18px 0 8px;
 }
 
 /* ---------- Writing loader (pen sketch) ---------- */
@@ -2171,26 +2336,79 @@ textarea {
   place-items: center;
   padding: 24px;
 }
+/* Account forms are a punched sheet: holes and a red margin on the left, a
+   mono form number on top. */
 .auth-card {
+  position: relative;
   width: 100%;
-  max-width: 360px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 28px 24px;
-  box-shadow: 0 8px 30px var(--glow);
+  background:
+    radial-gradient(circle at 20px 64px, color-mix(in srgb, var(--bg) 88%, var(--ink)) 5px, transparent 5.5px),
+    radial-gradient(
+      circle at 20px calc(100% - 64px),
+      color-mix(in srgb, var(--bg) 88%, var(--ink)) 5px,
+      transparent 5.5px
+    ),
+    linear-gradient(
+      to right,
+      transparent 38px,
+      var(--margin-rule) 38px,
+      var(--margin-rule) 39px,
+      transparent 39px
+    ),
+    var(--panel);
+  border-radius: 2px;
+  padding: 44px 28px 30px 58px;
+  box-shadow: var(--paper-shadow);
+}
+.auth-card::before {
+  content: "Ciciro / Account";
+  position: absolute;
+  top: 16px;
+  left: 58px;
+  right: 28px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 .auth-card h1 {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 72;
+}
+@media (max-width: 420px) {
+  .auth-card {
+    padding: 44px 20px 26px 44px;
+    background:
+      linear-gradient(
+        to right,
+        transparent 28px,
+        var(--margin-rule) 28px,
+        var(--margin-rule) 29px,
+        transparent 29px
+      ),
+      var(--panel);
+  }
+  .auth-card::before {
+    left: 44px;
+    right: 20px;
+  }
 }
 .auth-card input {
   width: 100%;
   border: 1px solid var(--line);
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 60%, var(--panel));
   color: var(--ink);
   padding: var(--space-2) var(--space-3);
   border-radius: 8px;
@@ -2223,7 +2441,7 @@ textarea {
   justify-content: center;
   gap: 10px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px solid transparent;
   font-size: 14px;
   font-weight: 500;
@@ -2317,8 +2535,11 @@ textarea {
 /* Account control on the manuscript list */
 .account-bar {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
 .account-bar .account-upgrade {
   font-size: 13px;
@@ -2501,7 +2722,8 @@ textarea {
   overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-top: 4px solid var(--accent);
+  border-radius: 2px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
   z-index: 41;
   padding: 22px 22px 18px;
@@ -2512,7 +2734,10 @@ textarea {
 .account-dialog h2 {
   margin: 0 0 10px;
   font-family: var(--serif);
-  font-size: 20px;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 24px;
+  letter-spacing: -0.01em;
 }
 .account-dialog p {
   margin: 0 0 8px;
@@ -3076,20 +3301,22 @@ textarea {
   margin: 8px 0;
 }
 .beta-group-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
   color: var(--ink-soft);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   margin: 16px 0 8px;
 }
 .beta-comment,
 .beta-link {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 10px 12px;
   margin-bottom: 8px;
-  background: var(--panel-2);
+  background: var(--panel);
+  box-shadow: 0 6px 12px -10px color-mix(in srgb, var(--ink) 50%, transparent);
 }
 .beta-comment.focused {
   border-color: var(--accent);
@@ -3098,7 +3325,7 @@ textarea {
 .beta-quote {
   margin: 0 0 6px;
   padding-left: 10px;
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--vermilion);
   font-family: var(--serif);
   font-size: 13px;
   color: var(--ink-soft);
@@ -3114,7 +3341,8 @@ textarea {
   overflow-wrap: anywhere;
 }
 .beta-meta {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
   color: var(--ink-soft);
 }
 .beta-actions {
@@ -3315,15 +3543,17 @@ textarea {
   justify-content: flex-start;
   text-align: left;
   border: 1px solid var(--line);
-  background: transparent;
-  border-radius: 10px;
+  background: var(--panel);
+  border-radius: 4px;
   padding: 10px 12px;
   color: var(--ink);
   cursor: pointer;
 }
 .kind-option strong {
   display: block;
-  font-size: 14px;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 500;
 }
 .kind-option span {
   display: block;

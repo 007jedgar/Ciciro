@@ -151,7 +151,7 @@ export default function WritingMeter() {
       {mounted ? (
         <div className="writing-history-menu" role="dialog" aria-label="Writing history" data-state={state}>
           {rangeDays != null && maxWords === 0 && (
-            <p className="settings-hint">Write today to start your streak</p>
+            <p className="settings-hint">A few words today make it a writing day.</p>
           )}
           <div className="theme-menu-label">Last 28 days</div>
           <div className="writing-heatmap" aria-hidden={loading}>
