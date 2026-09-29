@@ -100,10 +100,14 @@ App (`apps/mobile/.env`, baked into the build):
    `https://ciciro.app/api/billing/webhooks/stripe`, listening to
    `checkout.session.completed`, `customer.subscription.created`,
    `customer.subscription.updated`, `customer.subscription.deleted`,
-   `invoice.paid`, `invoice.payment_failed`, `charge.refunded` and
-   `charge.dispute.created`. Its signing secret is `STRIPE_WEBHOOK_SECRET`.
-4. **Emails.** Turn on Stripe's receipts and its failed-payment emails, or
-   leave them to Ciciro's (see [Emails](#emails)).
+   `invoice.paid`, `invoice.payment_failed`, `invoice.upcoming`,
+   `charge.refunded` and `charge.dispute.created`. Its signing secret is
+   `STRIPE_WEBHOOK_SECRET`.
+4. **Emails** (Settings → Billing → Subscriptions and emails). Turn on
+   Stripe's receipts. Leave its failed-payment, cancellation and upcoming
+   renewal emails off, since Ciciro sends those (see [Emails](#emails)), but
+   turn on "Send upcoming renewal events" at 7 days: that is what fires
+   `invoice.upcoming`.
 5. **Test mode first.** Use test keys and prices, then locally:
    `stripe listen --forward-to localhost:3000/api/billing/webhooks/stripe`
    (it prints the `whsec_…` to use) and pay with `4242 4242 4242 4242`.
@@ -246,11 +250,21 @@ revoke:
 
 ## Emails
 
-`src/lib/billing/notify.ts` is called when a payment fails
-(`invoice.payment_failed`) and when a subscription ends
-(`customer.subscription.deleted`). Wire those to the payment-failed and
-subscription-canceled templates, sending with the Stripe event id as the
-idempotency key, once they are on `main`.
+Web subscribers get three emails from the Stripe webhook, through
+`src/lib/billing/notify.ts` and the templates in `src/lib/email/templates.ts`.
+Each is sent after the event is applied, with `billing/<event id>` as the
+Resend idempotency key, so a redelivered event never sends twice, and a failed
+send is logged without failing the webhook. Their links go to `/pricing`,
+whose Manage billing opens the Customer Portal.
+
+| Email | Sent on | Not sent when |
+| --- | --- | --- |
+| Payment failed | `invoice.payment_failed`, with the amount and Stripe's next retry date | |
+| Subscription canceled | `customer.subscription.updated` that schedules a cancellation (the portal's Cancel), with the date Pro ends | the subscription was already scheduled to cancel, or is no longer billing |
+| Subscription canceled | `customer.subscription.deleted`, dated when it ended: a cancellation that takes effect at once (refund, dispute, cancelled from the dashboard, retries exhausted) | it had been scheduled (the author already heard), or Ciciro cancelled it because the account is being deleted (`cancellation_details.comment` is `account_deleted`) |
+| Renewal reminder | `invoice.upcoming`, for an active yearly subscription not set to cancel | the plan is monthly |
+
+Store subscribers get these from Apple and Google, not from Ciciro.
 
 ## Production D1
 

@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 // (see getSession), so a phone always stores a valid one.
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  if (!session) return NextResponse.json({ user: null, settings: null, entitlement: null });
+  if (!session) return NextResponse.json({ user: null, settings: null });
   const [settings, entitlement] = await Promise.all([
     getUserSettings(session.user.id),
     getEntitlement(session.user.id).catch((error) => {

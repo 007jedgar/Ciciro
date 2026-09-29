@@ -3,7 +3,13 @@ import { prisma } from "@/lib/db";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { stripeSettings, type BillingInterval, type StripeSettings } from "@/lib/billing/config";
 import { attributeBillingEvent, handleOnce } from "@/lib/billing/events";
-import { notifyPaymentFailed, notifySubscriptionCanceled } from "@/lib/billing/notify";
+import {
+  notifyPaymentFailed,
+  notifyRenewalReminder,
+  notifySubscriptionCanceled,
+  type BillingEmailRecipient,
+} from "@/lib/billing/notify";
+import { formatPrice } from "@/lib/billing/prices";
 import { activeSubscription, getEntitlement } from "@/lib/entitlements";
 import type { DeletingAccount, PreDeleteHook } from "@/lib/account/delete";
 
@@ -48,11 +54,23 @@ function idOf(ref: string | { id: string } | null | undefined): string | null {
 /** Statuses that still bill: canceling one of these stops future charges. */
 const LIVE_STRIPE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]);
 
+/** Marks a cancellation Ciciro made because the account is being deleted. */
+const ACCOUNT_DELETED = "account_deleted";
+
+function fromUnix(seconds: number | null | undefined): Date | null {
+  return typeof seconds === "number" ? new Date(seconds * 1000) : null;
+}
+
+/** The end of the period paid for: the latest of the items' period ends. */
+function periodEnd(sub: Pick<Stripe.Subscription, "items">): Date | null {
+  const ends = sub.items.data.map((i) => i.current_period_end).filter((n) => typeof n === "number");
+  return ends.length ? new Date(Math.max(...ends) * 1000) : null;
+}
+
 /** Copy one Stripe subscription onto its Subscription row. */
 async function upsertStripeSubscription(userId: string, sub: Stripe.Subscription): Promise<void> {
   const item = sub.items.data[0];
-  const periodEnds = sub.items.data.map((i) => i.current_period_end).filter((n) => typeof n === "number");
-  const currentPeriodEnd = periodEnds.length ? new Date(Math.max(...periodEnds) * 1000) : null;
+  const currentPeriodEnd = periodEnd(sub);
   const interval = item?.price?.recurring?.interval;
   const data = {
     userId,
@@ -105,10 +123,15 @@ async function accountForCustomer(
   return { id: user.id, email: user.email, name: user.name };
 }
 
-/** Stop every subscription the customer is still billed for, immediately. */
-async function cancelLiveSubscriptions(stripe: Stripe, customerId: string): Promise<void> {
+/**
+ * Stop every subscription the customer is still billed for, immediately.
+ * `comment` lands on the subscription's cancellation_details, where the
+ * webhook reads it back.
+ */
+async function cancelLiveSubscriptions(stripe: Stripe, customerId: string, comment?: string): Promise<void> {
   for await (const sub of stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 })) {
-    if (LIVE_STRIPE_STATUSES.has(sub.status)) await stripe.subscriptions.cancel(sub.id);
+    if (!LIVE_STRIPE_STATUSES.has(sub.status)) continue;
+    await stripe.subscriptions.cancel(sub.id, comment ? { cancellation_details: { comment } } : undefined);
   }
 }
 
@@ -130,6 +153,7 @@ async function eventCustomer(
     }
     case "invoice.paid":
     case "invoice.payment_failed":
+    case "invoice.upcoming":
       return { customerId: idOf(event.data.object.customer) };
     case "charge.refunded":
       return { customerId: idOf(event.data.object.customer) };
@@ -151,6 +175,7 @@ export const HANDLED_STRIPE_EVENTS = [
   "customer.subscription.deleted",
   "invoice.paid",
   "invoice.payment_failed",
+  "invoice.upcoming",
   "charge.refunded",
   "charge.dispute.created",
 ] as const;
@@ -174,17 +199,88 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event, or
   }
 
   await syncStripeCustomer(stripe, customerId, user.id);
+  // The event is applied; an email that cannot be built must not make Stripe
+  // redeliver it.
+  await sendBillingEmail(event, user, origin).catch((error) =>
+    console.error(`[billing] no email for ${event.type} ${event.id}`, error)
+  );
+}
 
-  if (event.type === "invoice.payment_failed") {
-    await notifyPaymentFailed(user, { eventId: event.id, manageUrl: `${origin}/pricing` });
-  }
-  if (event.type === "customer.subscription.deleted") {
-    const sub = event.data.object;
-    await notifySubscriptionCanceled(user, {
-      eventId: event.id,
-      endedAt: sub.ended_at ? new Date(sub.ended_at * 1000) : null,
-      resubscribeUrl: `${origin}/pricing`,
-    });
+/** When a scheduled cancellation takes effect, or null when none is scheduled. */
+function scheduledEnd(sub: Pick<Stripe.Subscription, "cancel_at" | "cancel_at_period_end" | "items">): Date | null {
+  if (sub.cancel_at) return fromUnix(sub.cancel_at);
+  return sub.cancel_at_period_end ? periodEnd(sub) : null;
+}
+
+/**
+ * The email an event owes the subscriber, if any. Runs after the sync, so a
+ * failed sync (which Stripe retries) never leaves an email sent for an event
+ * that was not applied. Every link goes to the pricing page, whose Manage
+ * billing opens the Customer Portal.
+ */
+async function sendBillingEmail(event: Stripe.Event, user: BillingEmailRecipient, origin: string): Promise<void> {
+  const pricingUrl = `${origin}/pricing`;
+  switch (event.type) {
+    case "invoice.payment_failed": {
+      const invoice = event.data.object;
+      await notifyPaymentFailed(user, {
+        eventId: event.id,
+        amount: formatPrice(invoice.amount_due, invoice.currency),
+        attemptedAt: fromUnix(event.created)!,
+        nextAttemptAt: fromUnix(invoice.next_payment_attempt),
+        updatePaymentUrl: pricingUrl,
+      });
+      return;
+    }
+    case "customer.subscription.updated": {
+      // Scheduling a cancellation (the portal's Cancel) is when the author
+      // cancels, so that is when they hear about it, with the date Pro ends.
+      const sub = event.data.object;
+      const endsAt = scheduledEnd(sub);
+      if (!endsAt || !LIVE_STRIPE_STATUSES.has(sub.status)) return;
+      const previous = event.data.previous_attributes ?? {};
+      const before = {
+        cancel_at: "cancel_at" in previous ? (previous.cancel_at ?? null) : sub.cancel_at,
+        cancel_at_period_end:
+          "cancel_at_period_end" in previous ? Boolean(previous.cancel_at_period_end) : sub.cancel_at_period_end,
+        items: sub.items,
+      };
+      if (scheduledEnd(before)) return;
+      await notifySubscriptionCanceled(user, { eventId: event.id, endsAt, resubscribeUrl: pricingUrl });
+      return;
+    }
+    case "customer.subscription.deleted": {
+      // A scheduled cancellation was announced when it was scheduled, and an
+      // account being deleted gets the account-deleted email instead.
+      const sub = event.data.object;
+      if (scheduledEnd(sub) || sub.cancellation_details?.comment === ACCOUNT_DELETED) return;
+      await notifySubscriptionCanceled(user, {
+        eventId: event.id,
+        endsAt: fromUnix(sub.ended_at) ?? fromUnix(event.created)!,
+        resubscribeUrl: pricingUrl,
+      });
+      return;
+    }
+    case "invoice.upcoming": {
+      // Yearly renewals only: a year is long enough to forget a subscription,
+      // and card-network rules expect notice before a long-term renewal. A
+      // monthly reminder would arrive every month.
+      const invoice = event.data.object;
+      const subscriptionId = idOf(invoice.parent?.subscription_details?.subscription);
+      if (!subscriptionId) return;
+      const row = await prisma.subscription.findUnique({ where: { externalId: subscriptionId } });
+      if (!row || row.userId !== user.id || row.interval !== "year" || row.status !== "active") return;
+      if (row.cancelAtPeriodEnd || !row.currentPeriodEnd) return;
+      await notifyRenewalReminder(user, {
+        eventId: event.id,
+        amount: formatPrice(invoice.amount_due, invoice.currency),
+        renewsAt: row.currentPeriodEnd,
+        manageUrl: pricingUrl,
+      });
+      return;
+    }
+    default:
+      return;
   }
 }
 
@@ -332,7 +428,7 @@ export async function cancelStripeBilling(account: DeletingAccount): Promise<voi
     if (activeSubscription(subs)) throw new Error("Stripe is not configured; cannot cancel the subscription.");
     return;
   }
-  await cancelLiveSubscriptions(stripe, row.stripeCustomerId);
+  await cancelLiveSubscriptions(stripe, row.stripeCustomerId, ACCOUNT_DELETED);
 }
 
 export const STRIPE_PRE_DELETE_HOOK: PreDeleteHook = {

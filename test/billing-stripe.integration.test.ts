@@ -6,6 +6,9 @@ import { hashSessionToken } from "@/lib/auth/tokens";
 import { hashPassword } from "@/lib/auth/password";
 import { getEntitlement } from "@/lib/entitlements";
 import * as notify from "@/lib/billing/notify";
+import * as email from "@/lib/email";
+import { formatEmailDate } from "@/lib/email/templates";
+import { cancelStripeBilling } from "@/lib/billing/stripe";
 import { POST as webhook } from "@/app/api/billing/webhooks/stripe/route";
 import { POST as checkout } from "@/app/api/billing/checkout/route";
 import { POST as portal } from "@/app/api/billing/portal/route";
@@ -49,13 +52,33 @@ async function deliver(fake: FakeStripe, event: Record<string, unknown>, signatu
 }
 
 /** An account already paying through Stripe, as the webhook would leave it. */
-async function subscribed(fake: FakeStripe, label: string) {
+async function subscribed(fake: FakeStripe, label: string, interval: "month" | "year" = "month") {
   const user = await account(label);
   const customer = fake.addCustomer(user.id);
   await prisma.user.update({ where: { id: user.id }, data: { stripeCustomerId: customer } });
-  const sub = fake.addSubscription(customer, { userId: user.id });
+  const sub = fake.addSubscription(customer, { userId: user.id, interval });
   await deliver(fake, fake.event("customer.subscription.created", sub));
   return { user, customer, sub };
+}
+
+/** A Stripe invoice as its events carry it. */
+function invoice(customer: string, extra: Record<string, unknown> = {}) {
+  return { object: "invoice", customer, amount_due: 1200, currency: "usd", next_payment_attempt: null, ...extra };
+}
+
+type Sent = { to: string; category: string | undefined; subject: string; text: string; idempotencyKey?: string };
+
+/** Capture what the billing emails hand to Resend, without sending. */
+function captureEmails(): () => Sent[] {
+  const spy = vi.spyOn(email, "sendEmail").mockResolvedValue({ sent: true });
+  return () =>
+    spy.mock.calls.map(([options]) => ({
+      to: options.to as string,
+      category: options.tags?.find((t) => t.name === "category")?.value,
+      subject: options.subject,
+      text: options.text,
+      idempotencyKey: options.idempotencyKey,
+    }));
 }
 
 describe("Stripe billing", () => {
@@ -124,7 +147,7 @@ describe("Stripe billing", () => {
     it("handles a redelivered event once", async () => {
       const { user, customer } = await subscribed(fake, "twice");
       const failed = vi.spyOn(notify, "notifyPaymentFailed");
-      const event = fake.event("invoice.payment_failed", { object: "invoice", customer });
+      const event = fake.event("invoice.payment_failed", invoice(customer));
       const first = await deliver(fake, event);
       const second = await deliver(fake, event);
       expect(first.body).toEqual({ received: true, duplicate: false });
@@ -150,7 +173,7 @@ describe("Stripe billing", () => {
     it("keeps Pro through a failed payment while Stripe retries (past_due)", async () => {
       const { user, sub } = await subscribed(fake, "pastdue");
       fake.subscriptions.get(sub.id)!.status = "past_due";
-      await deliver(fake, fake.event("invoice.payment_failed", { object: "invoice", customer: sub.customer }));
+      await deliver(fake, fake.event("invoice.payment_failed", invoice(sub.customer)));
       expect(await getEntitlement(user.id)).toMatchObject({ plan: "pro", status: "past_due" });
     });
 
@@ -201,6 +224,118 @@ describe("Stripe billing", () => {
       const unknown = await deliver(fake, fake.event("invoice.paid", { object: "invoice", customer: stranger }));
       expect(unknown.status).toBe(200);
       expect(await prisma.subscription.count()).toBe(0);
+    });
+  });
+
+  describe("emails", () => {
+    const DAY = 86_400;
+
+    it("tells the author a payment failed, with the amount and the next try, once", async () => {
+      const { user, customer } = await subscribed(fake, "declined");
+      const sent = captureEmails();
+      const nextTry = Math.floor(Date.now() / 1000) + 3 * DAY;
+      const event = fake.event("invoice.payment_failed", invoice(customer, { next_payment_attempt: nextTry }));
+      await deliver(fake, event);
+      await deliver(fake, event);
+
+      expect(sent()).toHaveLength(1);
+      const [mail] = sent();
+      expect(mail).toMatchObject({ to: user.email, category: "payment_failed", idempotencyKey: `billing/${event.id}` });
+      expect(mail.text).toContain("$12");
+      expect(mail.text).toContain(formatEmailDate(new Date(nextTry * 1000)));
+      expect(mail.text).toContain("http://localhost/pricing");
+    });
+
+    it("announces a scheduled cancellation when it is made, and not again when it takes effect", async () => {
+      const { user, sub } = await subscribed(fake, "leaving");
+      const sent = captureEmails();
+      const live = fake.subscriptions.get(sub.id)!;
+      const endsAt = live.items.data[0].current_period_end;
+      live.cancel_at_period_end = true;
+      live.cancel_at = endsAt;
+      const scheduled = { cancel_at_period_end: false, cancel_at: null };
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, scheduled));
+      // A later change (a new card, say) to the still-cancelling subscription.
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, { default_payment_method: null }));
+      live.status = "canceled";
+      live.ended_at = endsAt;
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
+
+      expect(sent().map((m) => m.category)).toEqual(["subscription_canceled"]);
+      expect(sent()[0].to).toBe(user.email);
+      expect(sent()[0].text).toContain(formatEmailDate(new Date(endsAt * 1000)));
+    });
+
+    it("sends nothing when a scheduled cancellation is undone", async () => {
+      const { sub } = await subscribed(fake, "stays");
+      const sent = captureEmails();
+      const live = fake.subscriptions.get(sub.id)!;
+      const undone = { cancel_at_period_end: true, cancel_at: 1 };
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, undone));
+      expect(sent()).toHaveLength(0);
+    });
+
+    it("tells the author when a subscription ends at once", async () => {
+      const { user, customer, sub } = await subscribed(fake, "refunded");
+      const sent = captureEmails();
+      await deliver(fake, fake.event("charge.refunded", { id: "ch_all", object: "charge", customer, refunded: true }));
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...fake.subscriptions.get(sub.id)! }));
+
+      expect(sent()).toHaveLength(1);
+      expect(sent()[0]).toMatchObject({ to: user.email, category: "subscription_canceled" });
+      expect(sent()[0].text).toContain(formatEmailDate(new Date()));
+    });
+
+    it("sends no cancellation email for a subscription ended by deleting the account", async () => {
+      const { user, sub } = await subscribed(fake, "deleting");
+      const sent = captureEmails();
+      await cancelStripeBilling({ id: user.id, email: user.email } as Parameters<typeof cancelStripeBilling>[0]);
+      const ended = fake.subscriptions.get(sub.id)!;
+      expect(ended.cancellation_details.comment).toBe("account_deleted");
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...ended }));
+      expect(sent()).toHaveLength(0);
+    });
+
+    it("reminds a yearly subscriber of the renewal, and no one else", async () => {
+      const yearly = await subscribed(fake, "yearly", "year");
+      const monthly = await subscribed(fake, "monthly", "month");
+      const cancelling = await subscribed(fake, "lapsing", "year");
+      const live = fake.subscriptions.get(cancelling.sub.id)!;
+      live.cancel_at_period_end = true;
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }));
+      const sent = captureEmails();
+
+      const upcoming = (s: { customer: string; sub: { id: string } }) =>
+        fake.event(
+          "invoice.upcoming",
+          invoice(s.customer, { amount_due: 9600, parent: { subscription_details: { subscription: s.sub.id } } })
+        );
+      const reminder = upcoming(yearly);
+      await deliver(fake, reminder);
+      await deliver(fake, upcoming(monthly));
+      await deliver(fake, upcoming(cancelling));
+
+      expect(sent()).toHaveLength(1);
+      const [mail] = sent();
+      expect(mail).toMatchObject({
+        to: yearly.user.email,
+        category: "renewal_reminder",
+        idempotencyKey: `billing/${reminder.id}`,
+      });
+      expect(mail.text).toContain("$96");
+      const renewsAt = new Date(fake.subscriptions.get(yearly.sub.id)!.items.data[0].current_period_end * 1000);
+      expect(mail.subject).toContain(formatEmailDate(renewsAt));
+    });
+
+    it("never fails the webhook over an email", async () => {
+      const { user, customer } = await subscribed(fake, "badmail");
+      captureEmails();
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const broken = invoice(customer, { currency: "not a currency" });
+      const { status, body } = await deliver(fake, fake.event("invoice.payment_failed", broken));
+      expect(status).toBe(200);
+      expect(body).toEqual({ received: true, duplicate: false });
+      expect((await getEntitlement(user.id)).plan).toBe("pro");
     });
   });
 
