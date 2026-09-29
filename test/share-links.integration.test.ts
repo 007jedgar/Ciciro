@@ -539,6 +539,23 @@ describe("beta reader share links", () => {
       expect(other.status).toBe(201);
     });
 
+    it("rate-limits readers per forwarded address when there is no cf-connecting-ip", async () => {
+      const { user, project, first } = await author("ada@example.com");
+      await write(first.id, user, "<p>The hall was cold.</p>");
+      const link = await createShareLink(project.id, user, {});
+      const blockId = await blockIdOf(first.id, "cold");
+      const forwarded = (ip: string) => ({ "x-forwarded-for": `${ip}, 10.0.0.1` });
+
+      for (let i = 0; i < COMMENT_LIMITS.burst.max; i++) {
+        expect((await commentRequest(link.token, comment(first.id, blockId), forwarded("203.0.113.1"))).status).toBe(201);
+      }
+      expect((await commentRequest(link.token, comment(first.id, blockId), forwarded("203.0.113.1"))).status).toBe(429);
+      expect((await commentRequest(link.token, comment(first.id, blockId), forwarded("203.0.113.2"))).status).toBe(201);
+      expect(
+        (await commentRequest(link.token, comment(first.id, blockId), { "x-real-ip": "203.0.113.3" })).status
+      ).toBe(201);
+    });
+
     it("rejects oversized and malformed comment requests", async () => {
       const { user, project, first } = await author("ada@example.com");
       await write(first.id, user, "<p>The hall was cold.</p>");
