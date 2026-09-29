@@ -37,12 +37,14 @@ function kindOf(req: Req): CallKind {
  */
 export function estimateUsage(req: Req): { input_tokens: number; output_tokens: number } {
   const input = Math.ceil(chars(req) / 3.6);
-  const words = Number(String(req.messages[0]?.content).match(/about (\d+) words/)?.[1] || 0);
-  const target = Math.max(250, Math.round((req.max_tokens || 1200) / 3.5));
+  const content = String(req.messages[0]?.content);
+  // A draft asks for "about N words"; an edit returns about as many words as the draft it gets.
+  const asked = Number(content.match(/about (\d+) words/)?.[1] || 0);
+  const drafted = content.match(/<draft>\n([\s\S]*?)\n<\/draft>/)?.[1]?.split(/\s+/).length || 0;
   const output: Record<CallKind, number> = {
-    draft: Math.round((words || target) * 1.4) + 400,
+    draft: Math.round((asked || 350) * 1.4) + 400,
     check: 350 + 300,
-    edit: Math.round(target * 1.4) + 2000,
+    edit: Math.round((drafted || 350) * 1.4) + 2000,
     judge: 250 + 2500,
   };
   return { input_tokens: input, output_tokens: output[kindOf(req)] };
