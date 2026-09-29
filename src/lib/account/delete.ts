@@ -65,6 +65,8 @@ export const PURGED_MODELS = [
   "Folder",
   "WritingDay",
   "WritingSession",
+  "Identity",
+  "AuthHandoff",
   "Session",
   "User",
 ] as const;
@@ -102,6 +104,8 @@ export async function purgeAccountData(userId: string): Promise<void> {
     prisma.folder.deleteMany({ where: { userId } }),
     prisma.writingDay.deleteMany({ where: { userId } }),
     prisma.writingSession.deleteMany({ where: { userId } }),
+    prisma.identity.deleteMany({ where: { userId } }),
+    prisma.authHandoff.deleteMany({ where: { userId } }),
     prisma.session.deleteMany({ where: { userId } }),
     prisma.user.deleteMany({ where: { id: userId } }),
   ]);
