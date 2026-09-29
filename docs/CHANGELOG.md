@@ -5,6 +5,12 @@ else stays in commit messages.
 
 ## Unreleased
 
+- The website has a new look, the Archive design language: paper texture, richer
+  color, and a light/dark toggle on the public pages. `/` is now the landing page
+  for signed-out visitors (the library for signed-in ones), with app screenshots
+  and short demos, and `/launch` redirects there. The pricing page shows an
+  early-access discount when one is set up (see `docs/billing.md`).
+
 - Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5
   (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed.
   Anthropic's migration guidance for Sonnet 5.5 is: "`thinking: {type: "disabled"}`
