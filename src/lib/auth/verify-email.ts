@@ -55,9 +55,12 @@ export async function verifyEmail(token: unknown, origin: string): Promise<Verif
     if (result.userId) {
       const user = await prisma.user.findUnique({
         where: { id: result.userId },
-        select: { emailVerifiedAt: true },
+        select: { email: true, emailVerifiedAt: true },
       });
       if (user?.emailVerifiedAt) return "already_verified";
+      // Spent on this same address: the click that spent it confirms it, and
+      // may still be doing so (a double-click), so this one is not "invalid".
+      if (result.problem === "used" && user?.email === result.email) return "already_verified";
     }
     return result.problem === "expired" ? "expired" : "invalid";
   }

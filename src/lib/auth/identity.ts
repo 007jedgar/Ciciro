@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { AuthError, toPublicUser, type PublicUser } from "@/lib/auth/session";
 import { pkceChallenge, randomToken, sha256Hex, type VerifiedIdentity } from "@/lib/auth/oidc";
 import type { SocialProvider } from "@/lib/auth/social-config";
+import { sendWelcomeEmail } from "@/lib/email/account-emails";
+import { publicOrigin } from "@/lib/public-origin";
 
 // Turning a verified Apple / Google identity into a Ciciro account, and the
 // one-time hand-off that carries a browser sign-in back to the phone.
@@ -51,16 +53,20 @@ async function fillEmptyName(user: UserRow, name: string): Promise<UserRow> {
  *    password account whose email was never verified, someone may have
  *    registered another person's address, so the provider-verified owner takes
  *    the account over: the password is cleared and every session revoked.
- * 3. Otherwise a verified email creates a password-less account.
+ * 3. Otherwise a verified email creates a password-less account, and emails
+ *    it the welcome. Linking an existing account never does: a password
+ *    account got its welcome when it confirmed its address.
  *
  * An unverified email never links or creates anything.
  *
  * `name` is Apple's name, which arrives from the client and only on the first
  * authorization; it is unsigned, so it only ever fills an empty name.
+ * `origin` is the public origin for the welcome email's links (see
+ * publicOrigin).
  */
 export async function signInWithIdentity(
   identity: VerifiedIdentity,
-  extras: { name?: string; refreshToken?: { token: string; clientId: string } } = {}
+  extras: { name?: string; refreshToken?: { token: string; clientId: string }; origin?: string } = {}
 ): Promise<SocialSignInResult> {
   const name = (extras.name?.trim() || identity.name).slice(0, 200);
   const where = {
@@ -147,7 +153,9 @@ export async function signInWithIdentity(
     const winner = await prisma.identity.findUniqueOrThrow({ where, include: { user: true } });
     return { user: toPublicUser(winner.user), takeover: null };
   }
-  return { user: toPublicUser(await fillEmptyName(user, name)), takeover };
+  const signedIn = await fillEmptyName(user, name);
+  if (created) await sendWelcomeEmail(signedIn, publicOrigin(extras.origin ?? ""));
+  return { user: toPublicUser(signedIn), takeover };
 }
 
 /** How long the app has to redeem a browser sign-in. */

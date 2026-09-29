@@ -29,7 +29,7 @@ Every Prisma model must be both purged by account deletion and written by the da
 
 ## Password-attempt rate limiting
 
-`src/lib/auth/rate-limit.ts` is the one limiter for every password check (login, and the password proof in account deletion): call `assertAttemptAllowed` before verifying the password, `recordFailedAttempt` on a wrong one, `clearAttempts` on success. It counts `PasswordAttempt` rows (D1, not in-memory, so it works across Worker isolates) per account+IP pair, per account, and per hashed IP (`docs/hosting.md` has the limits); a new password-checking endpoint (password reset, verify-email) must go through it too. `PasswordAttempt` is required, not optional, like the other `prisma/d1-*.sql` upgrades — see `docs/hosting.md`.
+`src/lib/auth/rate-limit.ts` is the one limiter for every password check (login, and the password proof in account deletion): call `assertAttemptAllowed` before verifying the password, `recordFailedAttempt` on a wrong one, `clearAttempts` on success. It counts `PasswordAttempt` rows (D1, not in-memory, so it works across Worker isolates) per account+IP pair, per account, and per hashed IP (`docs/hosting.md` has the limits); a new endpoint that checks a password must go through it too. The email-link endpoints (forgot password, resend verification, reset) check no password: they use the per-account cooldown and single-use tokens in `src/lib/auth/email-tokens.ts`, and a completed reset clears the account's attempts. `PasswordAttempt` is required, not optional, like the other `prisma/d1-*.sql` upgrades (see `docs/hosting.md`).
 
 ## Email
 

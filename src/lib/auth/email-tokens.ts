@@ -71,7 +71,7 @@ export type EmailTokenProblem = "invalid" | "expired" | "used";
 
 export type EmailTokenCheck =
   | { ok: true; id: string; userId: string; email: string }
-  | { ok: false; problem: EmailTokenProblem; userId?: string };
+  | { ok: false; problem: EmailTokenProblem; userId?: string; email?: string };
 
 async function findToken(token: unknown, purpose: EmailTokenPurpose) {
   if (typeof token !== "string" || !token || token.length > 200) return null;
@@ -87,8 +87,10 @@ export async function checkEmailToken(
 ): Promise<EmailTokenCheck> {
   const row = await findToken(token, purpose);
   if (!row) return { ok: false, problem: "invalid" };
-  if (row.usedAt) return { ok: false, problem: "used", userId: row.userId };
-  if (row.expiresAt.getTime() <= now) return { ok: false, problem: "expired", userId: row.userId };
+  if (row.usedAt) return { ok: false, problem: "used", userId: row.userId, email: row.email };
+  if (row.expiresAt.getTime() <= now) {
+    return { ok: false, problem: "expired", userId: row.userId, email: row.email };
+  }
   return { ok: true, id: row.id, userId: row.userId, email: row.email };
 }
 
@@ -107,6 +109,6 @@ export async function consumeEmailToken(
     where: { id: check.id, usedAt: null, expiresAt: { gt: new Date(now) } },
     data: { usedAt: new Date(now) },
   });
-  if (count === 0) return { ok: false, problem: "used", userId: check.userId };
+  if (count === 0) return { ok: false, problem: "used", userId: check.userId, email: check.email };
   return check;
 }

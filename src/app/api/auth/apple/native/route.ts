@@ -3,6 +3,7 @@ import { isNativeClient } from "@/lib/auth/constants";
 import { jsonWithSession, responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { createSession } from "@/lib/auth/session";
 import { signInWithAppleNative } from "@/lib/auth/social-sign-in";
+import { publicOrigin } from "@/lib/public-origin";
 import { getUserSettings } from "@/lib/user-settings";
 
 export const runtime = "nodejs";
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
       authorizationCode: body.authorizationCode,
       givenName: body.givenName,
       familyName: body.familyName,
+      origin: publicOrigin(req.nextUrl.origin),
     });
     const token = await createSession(user.id, req.headers.get("user-agent") || "");
     const settings = await getUserSettings(user.id);
