@@ -224,6 +224,7 @@ const zh: Translations = {
     exportFirst: "想先留一份副本？",
     exportFirstHint: "一个 zip 文件，包含每部稿件的 Word 和 Markdown 版本，以及 Ciciro 为你保存的其他全部内容。",
     passwordLabel: "输入密码以确认",
+    confirmLabel: "输入 {{word}} 以确认",
     deleteButton: "删除账户",
     deleting: "正在删除…",
     deleteFailed: "无法删除你的账户，请重试。",

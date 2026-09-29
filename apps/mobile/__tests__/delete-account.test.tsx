@@ -9,6 +9,10 @@ import { makeLayout, THEME_PALETTES } from "../lib/theme";
 const mockReplace = jest.fn();
 const mockDeleteAccount = jest.fn();
 const mockRunExport = jest.fn();
+let mockUser: { id: string; email: string; hasPassword?: boolean } = {
+  id: "u1",
+  email: "writer@example.com",
+};
 
 jest.mock("expo-haptics", () => ({
   notificationAsync: jest.fn(async () => {}),
@@ -21,7 +25,7 @@ jest.mock("expo-router", () => ({
 jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backOr: jest.fn() }) }));
 jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
 jest.mock("../lib/session", () => ({
-  useSession: () => ({ user: { id: "u1", email: "writer@example.com" }, ready: true, deleteAccount: mockDeleteAccount }),
+  useSession: () => ({ user: mockUser, ready: true, deleteAccount: mockDeleteAccount }),
 }));
 jest.mock("../lib/use-export-account-data", () => ({
   useExportAccountData: () => ({ busy: false, run: mockRunExport }),
@@ -59,6 +63,7 @@ describe("DeleteAccountScreen", () => {
   beforeEach(() => {
     mockDeleteAccount.mockReset();
     mockReplace.mockReset();
+    mockUser = { id: "u1", email: "writer@example.com" };
   });
 
   it("says what is deleted, that it is permanent, and offers the export first", () => {
@@ -89,5 +94,20 @@ describe("DeleteAccountScreen", () => {
     await act(async () => fireEvent.press(deleteButton()));
     expect(screen.getByText("Incorrect password.")).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("asks an Apple / Google account without a password to type DELETE", async () => {
+    mockUser = { id: "u1", email: "writer@icloud.com", hasPassword: false };
+    mockDeleteAccount.mockResolvedValue(undefined);
+    renderScreen();
+    expect(screen.queryByLabelText("Enter your password to confirm")).toBeNull();
+    const field = screen.getByLabelText("Type DELETE to confirm");
+    fireEvent.changeText(field, "delet");
+    expect(deleteButton().props.accessibilityState.disabled).toBe(true);
+    fireEvent.changeText(field, "delete");
+    expect(deleteButton().props.accessibilityState.disabled).toBe(false);
+    await act(async () => fireEvent.press(deleteButton()));
+    expect(mockDeleteAccount).toHaveBeenCalledWith({ confirmation: "delete" });
+    expect(mockReplace).toHaveBeenCalledWith("/");
   });
 });

@@ -20,11 +20,10 @@ typed word `DELETE` (`verifyDeletionProof`). Then `deleteAccount`:
    outside services plug in:
    - billing: cancel the Stripe subscription (RevenueCat purchases are
      cancelled by the author in the store),
-   - Sign in with Apple: revoke the Apple token
+   - Sign in with Apple: `APPLE_REVOKE_HOOK` revokes the Apple refresh tokens
      (`https://appleid.apple.com/auth/revoke`), which App Store review
-     requires. When social sign-in lands, also accept a fresh provider sign-in
-     as proof in `verifyDeletionProof`, and give the delete dialog/screen the
-     typed-confirmation path for accounts without a password.
+     requires (docs/social-sign-in.md). Accepting a fresh provider sign-in as
+     proof in `verifyDeletionProof` is a follow-up.
 2. deletes every owned row in one `$transaction([...])` batch (D1 has no
    interactive transactions), children first, sessions included.
 
@@ -34,7 +33,9 @@ place afterwards (`apps/mobile/lib/account-data.ts`).
 
 The web dialog is `src/components/DeleteAccountDialog.tsx` (settings popover
 and the public `/account/delete` page, which the app stores link to); the
-phone's is `apps/mobile/app/delete-account.tsx`.
+phone's is `apps/mobile/app/delete-account.tsx`. Both read
+`PublicUser.hasPassword` and ask an Apple / Google account without a password
+to type `DELETE`.
 
 ## Export
 

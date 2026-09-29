@@ -5,22 +5,25 @@ import { createPortal } from "react-dom";
 import Presence from "@/components/Presence";
 import { MOTION_MS } from "@/lib/motion";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
-import { DELETED_WITH_ACCOUNT, EXPORT_URL } from "@/lib/account/copy";
+import { DELETE_CONFIRMATION, DELETED_WITH_ACCOUNT, EXPORT_URL } from "@/lib/account/copy";
 
 /**
  * The destructive confirmation for deleting an account: says what goes,
- * offers the export first, and needs the password before it will act.
+ * offers the export first, and needs proof before it will act: the password,
+ * or for an Apple / Google account without one, typing DELETE.
  */
 export default function DeleteAccountDialog({
   open,
   email,
+  hasPassword,
   onClose,
 }: {
   open: boolean;
   email: string;
+  hasPassword: boolean;
   onClose: () => void;
 }) {
-  const [password, setPassword] = useState("");
+  const [proof, setProof] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +32,7 @@ export default function DeleteAccountDialog({
 
   useEffect(() => {
     if (!open) return;
-    setPassword("");
+    setProof("");
     setError(null);
     setBusy(false);
     inputRef.current?.focus();
@@ -43,9 +46,13 @@ export default function DeleteAccountDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
+  const proofReady = hasPassword
+    ? proof.length > 0
+    : proof.trim().toUpperCase() === DELETE_CONFIRMATION;
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!password || busy) return;
+    if (!proofReady || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -54,7 +61,7 @@ export default function DeleteAccountDialog({
         credentials: "include",
         cache: "no-store",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify(hasPassword ? { password: proof } : { confirmation: proof }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -107,13 +114,17 @@ export default function DeleteAccountDialog({
           </a>
         </div>
         <label className="account-dialog-field">
-          <span>Enter your password to confirm</span>
+          <span>
+            {hasPassword ? "Enter your password to confirm" : `Type ${DELETE_CONFIRMATION} to confirm`}
+          </span>
           <input
             ref={inputRef}
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type={hasPassword ? "password" : "text"}
+            autoComplete={hasPassword ? "current-password" : "off"}
+            autoCapitalize={hasPassword ? undefined : "characters"}
+            spellCheck={false}
+            value={proof}
+            onChange={(e) => setProof(e.target.value)}
             disabled={busy}
           />
         </label>
@@ -126,7 +137,7 @@ export default function DeleteAccountDialog({
           <button type="button" className="btn" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="submit" className="btn danger" disabled={!password || busy}>
+          <button type="submit" className="btn danger" disabled={!proofReady || busy}>
             {busy ? "Deleting…" : "Delete account"}
           </button>
         </div>

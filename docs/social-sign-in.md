@@ -53,18 +53,27 @@ Apple sends the person's name only on the first authorization. The app and the
 web callback forward it, and it only ever fills an empty name.
 
 Apple sign-ins also exchange the authorization code for a refresh token, stored
-on the `Identity` with the client_id it was issued to. Account deletion must
-revoke it (below).
+on the `Identity` with the client_id it was issued to.
+
+### Account deletion
+
+App Store guideline 5.1.1(v) requires revoking Sign in with Apple when the
+account is deleted. `APPLE_REVOKE_HOOK` in `src/lib/account/delete.ts` runs
+`revokeAppleTokens(userId)` (`src/lib/auth/apple-revoke.ts`) as a pre-delete
+hook, before the purge removes the `Identity` rows holding the tokens. It calls
+Apple's `/auth/revoke` with each token's own client_id; if Apple refuses any,
+or the Apple key env vars are gone, deletion stops with the account intact so
+the person can retry (docs/account-data.md).
+
+An account without a password (`PublicUser.hasPassword` is false) confirms
+deletion by typing `DELETE` instead of a password, on the web dialog and the
+phone's screen.
 
 ### Follow-ups
 
-- **Account deletion (App Store guideline 5.1.1(v))**: Ciciro has no in-app
-  account deletion yet, and the App Store requires it for apps that create
-  accounts. Revocation is ready for it: run `revokeAppleTokens(userId)`
-  (`src/lib/auth/apple-revoke.ts`) as a pre-delete hook, before the user row
-  goes (the tokens live on its `Identity` rows). It calls Apple's
-  `/auth/revoke` with each token's own client_id and throws
-  `AppleRevokeError` if Apple refuses any, so deletion can stop and retry.
+- **Fresh provider sign-in as deletion proof**: a password-less account types
+  `DELETE`. Accepting a freshly verified Apple / Google ID token in
+  `verifyDeletionProof` would be stronger proof than a session plus a typed word.
 - **Password signups are not email-verified yet** (that belongs to the email
   templates task). `User.emailVerifiedAt` is set only by a social sign-in, so
   every password account starts unverified. When a provider-verified Apple or

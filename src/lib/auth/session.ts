@@ -21,6 +21,8 @@ export type PublicUser = {
   id: string;
   email: string;
   name: string;
+  /** False for an Apple / Google account with no password (NO_PASSWORD). */
+  hasPassword: boolean;
 };
 
 export class AuthError extends Error {
@@ -38,8 +40,9 @@ export function toPublicUser(user: {
   id: string;
   email: string;
   name: string;
+  passwordHash: string;
 }): PublicUser {
-  return { id: user.id, email: user.email, name: user.name };
+  return { id: user.id, email: user.email, name: user.name, hasPassword: Boolean(user.passwordHash) };
 }
 
 /** Create a user, hashing the password. Throws AuthError on bad input/dupe. */

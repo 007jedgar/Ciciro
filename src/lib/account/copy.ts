@@ -10,5 +10,8 @@ export const DELETED_WITH_ACCOUNT = [
   "Folders, reading positions, writing stats and settings",
 ] as const;
 
+/** Typed by an account with no password (Apple / Google) to confirm deletion. */
+export const DELETE_CONFIRMATION = "DELETE";
+
 /** GET: the signed-in account's data as one zip (src/app/api/account/export). */
 export const EXPORT_URL = "/api/account/export";

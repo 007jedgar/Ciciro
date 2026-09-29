@@ -8,7 +8,7 @@ import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import { EXPORT_URL } from "@/lib/account/copy";
 import type { ModelSummary } from "@/lib/models";
 
-type Account = { email: string };
+type Account = { email: string; hasPassword?: boolean };
 
 export default function ThemePicker({ compact = false }: { compact?: boolean }) {
   const { settings, patch } = useSettings();
@@ -363,6 +363,8 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
         <DeleteAccountDialog
           open={deleting}
           email={account.email}
+          // Absent from an older server: treat as a password account.
+          hasPassword={account.hasPassword !== false}
           onClose={() => setDeleting(false)}
         />
       ) : null}

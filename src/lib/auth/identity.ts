@@ -35,10 +35,9 @@ function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "P2002";
 }
 
-async function fillEmptyName<T extends { id: string; email: string; name: string }>(
-  user: T,
-  name: string
-): Promise<{ id: string; email: string; name: string }> {
+type UserRow = { id: string; email: string; name: string; passwordHash: string };
+
+async function fillEmptyName(user: UserRow, name: string): Promise<UserRow> {
   if (user.name || !name) return user;
   return prisma.user.update({ where: { id: user.id }, data: { name } });
 }
@@ -117,7 +116,7 @@ export async function signInWithIdentity(
     // password or a session alive next to the new identity.
     takeover = user.passwordHash ? identity.provider : null;
     if (takeover) {
-      await prisma.user.update({
+      user = await prisma.user.update({
         where: { id: user.id },
         data: { passwordHash: NO_PASSWORD, emailVerifiedAt: new Date() },
       });

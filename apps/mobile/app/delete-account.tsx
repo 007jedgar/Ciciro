@@ -11,6 +11,9 @@ import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
 
+/** The word an account without a password types to confirm (the server checks it). */
+const DELETE_WORD = "DELETE";
+
 const DELETED_ITEMS = [
   "account.deletedManuscripts",
   "account.deletedBible",
@@ -21,7 +24,8 @@ const DELETED_ITEMS = [
 
 /**
  * The destructive confirmation for deleting the account: what goes, that it is
- * permanent, a way to export first, and the password before anything happens.
+ * permanent, a way to export first, and proof before anything happens: the
+ * password, or for an Apple / Google account without one, typing DELETE.
  */
 export default function DeleteAccountScreen() {
   const router = useRouter();
@@ -31,7 +35,7 @@ export default function DeleteAccountScreen() {
   const { layout, colors } = useAppTheme();
   const headerHeight = useAppHeaderHeight();
   const exporter = useExportAccountData();
-  const [password, setPassword] = useState("");
+  const [proof, setProof] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,12 +43,18 @@ export default function DeleteAccountScreen() {
   if (!ready) return null;
   if (!user && !busy) return <Redirect href="/login" />;
 
+  // An older server omits hasPassword; every account it knows has a password.
+  const usesPassword = user?.hasPassword !== false;
+  const proofReady = usesPassword
+    ? proof.length > 0
+    : proof.trim().toUpperCase() === DELETE_WORD;
+
   async function submit() {
-    if (!password || busy) return;
+    if (!proofReady || busy) return;
     setBusy(true);
     setError(null);
     try {
-      await deleteAccount({ password });
+      await deleteAccount(usesPassword ? { password: proof } : { confirmation: proof });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
     } catch (e) {
@@ -54,7 +64,10 @@ export default function DeleteAccountScreen() {
     }
   }
 
-  const canDelete = password.length > 0 && !busy;
+  const canDelete = proofReady && !busy;
+  const proofLabel = usesPassword
+    ? t("account.passwordLabel")
+    : t("account.confirmLabel", { word: DELETE_WORD });
 
   return (
     <View style={layout.screen}>
@@ -126,21 +139,21 @@ export default function DeleteAccountScreen() {
         </View>
 
         <Text style={{ fontSize: 13, color: colors.inkSoft, marginBottom: 8 }}>
-          {t("account.passwordLabel")}
+          {proofLabel}
         </Text>
         <TextInput
           style={[layout.input, { borderRadius: 12 }]}
-          aria-label={t("account.passwordLabel")}
-          secureTextEntry
-          autoComplete="current-password"
-          textContentType="password"
-          autoCapitalize="none"
+          aria-label={proofLabel}
+          secureTextEntry={usesPassword}
+          autoComplete={usesPassword ? "current-password" : "off"}
+          textContentType={usesPassword ? "password" : "none"}
+          autoCapitalize={usesPassword ? "none" : "characters"}
           autoCorrect={false}
           spellCheck={false}
           editable={!busy}
-          value={password}
+          value={proof}
           onChangeText={(next) => {
-            setPassword(next);
+            setProof(next);
             if (error) setError(null);
           }}
           returnKeyType="go"

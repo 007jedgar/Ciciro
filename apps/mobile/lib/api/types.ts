@@ -6,6 +6,11 @@ export type PublicUser = {
   id: string;
   email: string;
   name: string;
+  /**
+   * False for an Apple / Google account with no password, which confirms
+   * deletion by typing DELETE. Absent from an older server: treat as true.
+   */
+  hasPassword?: boolean;
 };
 
 export type OkResponse = { ok: true };

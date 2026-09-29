@@ -11,7 +11,8 @@ else stays in commit messages.
 
 - Sign in with Apple and Google on the web and in the app, next to email and
   password. A verified email that matches an existing account signs into it.
-  See `docs/social-sign-in.md`.
+  An account without a password confirms deletion by typing DELETE, and deleting
+  it revokes Ciciro's Sign in with Apple access. See `docs/social-sign-in.md`.
 
 - Settings (web and mobile) now shows the models Ciciro is actually running: Editor,
   Drafter, Quick drafts, and the Groq router when configured. Current defaults, set in
