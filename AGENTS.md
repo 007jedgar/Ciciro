@@ -53,6 +53,8 @@ A quick action (`src/lib/prompts.ts`) can be `kind: "panel"` instead of the defa
 
 `src/lib/anthropic.ts` and `src/lib/fast-lane.ts` pin the models Ciciro runs on; `src/lib/models.ts` resolves them (env override or default) for the `/api/models` endpoint that Settings (web and mobile) reads. Changing a default requires a line in `docs/CHANGELOG.md` recording the new default, since Settings is a user's only visibility into which model they're on.
 
+`src/lib/prompts.ts`'s header comment tracks which per-model tuning notes are still live; re-check it against Anthropic's current migration guidance whenever the pinned model changes. On Opus 5.5+, a between-tool-call note longer than a sentence or two arrives as an otherwise-empty `thinking` block - `editor-run.ts`'s stream loop requests `display: "updates"` (beta `thinking-display-updates-2026-08-18`) and forwards non-empty `thinking_delta`s as `progress` events so authors see them. `ChatPanel.tsx` (web) and `ciciro-stream.ts`/`CiciroChat.tsx` (mobile) render these as an ephemeral, subtly-styled line, never added to the visible reply or the persisted transcript.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

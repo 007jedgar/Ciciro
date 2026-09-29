@@ -228,6 +228,10 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState("");
   const [streamTools, setStreamTools] = useState<string[]>([]);
+  // Opus 5.5's between-tool-call progress notes (prompts.ts's narration
+  // cadence line) - a subtle, ephemeral working note, never part of the
+  // reply text or the persisted transcript.
+  const [streamProgress, setStreamProgress] = useState<string[]>([]);
   const [streamMsgId, setStreamMsgId] = useState<string | null>(null);
   const [selection, setSelection] = useState("");
   const [autoMode, setAutoMode] = useState(false);
@@ -394,6 +398,21 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         } else if (evt.type === "tool" && typeof evt.v === "string") {
           tools.push(evt.v);
           setStreamTools([...tools]);
+          // A tool call always follows the progress note that introduced it,
+          // so seal the in-flight note and start the next one fresh.
+          setStreamProgress((current) =>
+            current.length && current[current.length - 1] !== ""
+              ? [...current, ""]
+              : current
+          );
+        } else if (evt.type === "progress" && typeof evt.v === "string") {
+          const delta = evt.v;
+          setStreamProgress((current) => {
+            if (current.length === 0) return [delta];
+            const next = current.slice(0, -1);
+            next.push(current[current.length - 1] + delta);
+            return next;
+          });
         } else if (evt.type === "phase") {
           const phase = evt as {
             status: EditorRunStatus;
@@ -669,6 +688,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     setStreaming(true);
     setStreamText(turn.partialText || "");
     setStreamTools(isResume ? ["Resuming saved work…"] : []);
+    setStreamProgress([]);
     setStreamMsgId(assistantId);
     streamTurnIdRef.current = turn.turnId;
     setActivePhase(turn.status || "queued");
@@ -761,6 +781,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     } finally {
       setStreamText("");
       setStreamTools([]);
+      setStreamProgress([]);
       setStreamMsgId(null);
       streamTurnIdRef.current = null;
       setActivePhase(null);
@@ -1076,6 +1097,17 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                 ))}
               </div>
             )}
+            {streamProgress.some((p) => p.trim()) && (
+              <div className="progress-trace">
+                {streamProgress
+                  .filter((p) => p.trim())
+                  .map((p, i) => (
+                    <div key={i} className="progress-line">
+                      {p}
+                    </div>
+                  ))}
+              </div>
+            )}
             <div className="bubble">
               {streamText
                 ? renderBody(
@@ -1110,9 +1142,11 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                               ? "Verifying the result…"
                               : activePhase === "continuing"
                                 ? "Starting the next saved slice…"
-                            : streamTools.length > 0
-                              ? "Working through it…"
-                              : "Thinking…"
+                            : streamProgress[streamProgress.length - 1]?.trim()
+                              ? streamProgress[streamProgress.length - 1]
+                              : streamTools.length > 0
+                                ? "Working through it…"
+                                : "Thinking…"
                       }
                     />
                   )}
