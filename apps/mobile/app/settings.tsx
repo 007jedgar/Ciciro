@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { useModelsQuery } from "../lib/api/hooks";
-import type { ModelRole } from "../lib/api/types";
+import { useEntitlementQuery, useModelsQuery } from "../lib/api/hooks";
+import type { Entitlement, ModelRole } from "../lib/api/types";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -20,6 +20,8 @@ import { getReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
 import { useExportAccountData } from "../lib/use-export-account-data";
+import { allowanceResetsOn, billingDate, canOfferPro, storeLabelKey, syncStorePurchases } from "../lib/billing";
+import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePurchasesAvailable } from "../lib/purchases";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
@@ -254,6 +256,191 @@ function OptionRow({
   );
 }
 
+function SectionHeader({ label, colors }: { label: string; colors: ColorTokens }) {
+  return (
+    <Text
+      accessibilityRole="header"
+      style={{
+        marginHorizontal: 16,
+        marginBottom: 8,
+        fontSize: 12,
+        fontWeight: "600",
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        color: colors.inkSoft,
+      }}
+    >
+      {label}
+    </Text>
+  );
+}
+
+function ActionRow({
+  label,
+  onPress,
+  colors,
+  tone = "accent",
+  busyLabel,
+  busy = false,
+  last,
+}: {
+  label: string;
+  onPress: () => void;
+  colors: ColorTokens;
+  tone?: "accent" | "ink";
+  busyLabel?: string;
+  busy?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <>
+      <Pressable
+        onPress={onPress}
+        disabled={busy}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ busy }}
+        style={({ pressed }) => ({
+          minHeight: 52,
+          paddingHorizontal: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          backgroundColor: pressed ? colors.panel2 : "transparent",
+        })}
+      >
+        <Text style={{ flex: 1, fontSize: 17, color: tone === "accent" ? colors.accent : colors.ink }}>{label}</Text>
+        {busy ? (
+          <>
+            {busyLabel ? <Text style={{ fontSize: 16, color: colors.inkSoft }}>{busyLabel}</Text> : null}
+            <ActivityIndicator size="small" color={colors.inkSoft} />
+          </>
+        ) : null}
+      </Pressable>
+      {last ? null : <Hairline colors={colors} />}
+    </>
+  );
+}
+
+/**
+ * The account's plan, this month's AI use, and the one next step: upgrade in
+ * the app, manage the store subscription, or a pointer to the web for a web
+ * subscriber (never a second way to pay). Hidden when nothing is metered or
+ * for sale.
+ */
+function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: ColorTokens }) {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const [restoring, setRestoring] = useState(false);
+  const [restoreNote, setRestoreNote] = useState<{ key: string; error: boolean } | null>(null);
+  const locale = currentLocale();
+  const paid = entitlement.plan !== "free";
+  const storeKey = storeLabelKey(entitlement.source);
+  const offer = canOfferPro(entitlement);
+  const storeBilling = storePurchasesAvailable() && (entitlement.billing.store || billingPreview());
+  const canRestore = storeBilling && entitlement.source !== "stripe";
+  const cap = entitlement.limits.aiRunsPerMonth;
+  if (!paid && cap === null && !offer) return null;
+
+  async function restore() {
+    setRestoring(true);
+    setRestoreNote(null);
+    try {
+      await restoreStorePurchases();
+      const latest = await syncStorePurchases({ attempts: 1 });
+      setRestoreNote(latest.plan === "free" ? { key: "billing.restoredNothing", error: false } : null);
+    } catch {
+      setRestoreNote({ key: "billing.restoreFailed", error: true });
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  const used = cap === null ? entitlement.usage.aiRuns : Math.min(entitlement.usage.aiRuns, cap);
+  const fill = cap ? Math.min(1, entitlement.usage.aiRuns / cap) : 0;
+  const renewal =
+    paid && entitlement.currentPeriodEnd
+      ? t(entitlement.cancelAtPeriodEnd ? "billing.ends" : "billing.renews", {
+          date: billingDate(entitlement.currentPeriodEnd, locale),
+        })
+      : null;
+  const actions: (Omit<Parameters<typeof ActionRow>[0], "colors" | "last"> & { key: string })[] = [];
+  if (paid && storeKey) {
+    actions.push({ key: "manage", label: t("billing.manage"), onPress: () => void openStoreSubscriptions(entitlement.manageUrl) });
+  }
+  if (offer) {
+    actions.push({ key: "upgrade", label: t("billing.upgrade"), onPress: () => router.push("/paywall") });
+  }
+  if (canRestore) {
+    actions.push({
+      key: "restore",
+      label: t("billing.restore"),
+      onPress: () => void restore(),
+      busy: restoring,
+      busyLabel: t("billing.restoring"),
+      tone: "ink",
+    });
+  }
+
+  return (
+    <>
+      <SectionHeader label={t("billing.plan")} colors={colors} />
+      <Group colors={colors}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 12 }}>
+            <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{entitlement.planName}</Text>
+            {renewal ? <Text style={{ fontSize: 15, color: colors.inkSoft }}>{renewal}</Text> : null}
+          </View>
+          {cap !== null || entitlement.metered ? (
+            <>
+              {cap !== null ? (
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={{ marginTop: 12, height: 6, borderRadius: 3, backgroundColor: colors.panel2, overflow: "hidden" }}
+                >
+                  <View
+                    style={{
+                      width: `${fill * 100}%`,
+                      height: "100%",
+                      borderRadius: 3,
+                      backgroundColor: fill >= 1 ? colors.danger : colors.accent,
+                    }}
+                  />
+                </View>
+              ) : null}
+              <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
+                {cap === null
+                  ? t("billing.usageUnlimited", { used: used.toLocaleString(locale) })
+                  : t("billing.usage", { used: used.toLocaleString(locale), cap: cap.toLocaleString(locale) })}
+                {" · "}
+                {t("billing.resets", { date: allowanceResetsOn(entitlement.usage.period, locale) })}
+              </Text>
+            </>
+          ) : null}
+          {paid ? (
+            <Text style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
+              {storeKey ? t("billing.subscribedStore", { store: t(storeKey) }) : t("billing.subscribedWeb")}
+            </Text>
+          ) : null}
+          {restoreNote ? (
+            <Text
+              role="alert"
+              style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: restoreNote.error ? colors.danger : colors.inkSoft }}
+            >
+              {t(restoreNote.key)}
+            </Text>
+          ) : null}
+        </View>
+        {actions.length > 0 ? <Hairline colors={colors} /> : null}
+        {actions.map(({ key, ...action }, index) => (
+          <ActionRow key={key} {...action} colors={colors} last={index === actions.length - 1} />
+        ))}
+      </Group>
+    </>
+  );
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { backOr } = useStackBack();
@@ -261,6 +448,7 @@ export default function SettingsScreen() {
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
+  const { data: entitlement } = useEntitlementQuery({ enabled: Boolean(user) });
   const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
@@ -480,22 +668,11 @@ export default function SettingsScreen() {
           ) : null}
         </Group>
 
+        {entitlement ? <PlanGroup entitlement={entitlement} colors={colors} /> : null}
+
         {models ? (
           <>
-            <Text
-              accessibilityRole="header"
-              style={{
-                marginHorizontal: 16,
-                marginBottom: 8,
-                fontSize: 12,
-                fontWeight: "600",
-                letterSpacing: 0.6,
-                textTransform: "uppercase",
-                color: colors.inkSoft,
-              }}
-            >
-              {t("settings.models")}
-            </Text>
+            <SectionHeader label={t("settings.models")} colors={colors} />
             <Group colors={colors}>
               {models.slots.map((slot, index) => (
                 <InfoRow

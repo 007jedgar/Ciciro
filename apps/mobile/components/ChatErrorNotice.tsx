@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
+import { router } from "expo-router";
 import { failureMessageKey, type ChatFailure } from "../lib/chat-errors";
+import { storePurchasesAvailable } from "../lib/purchases";
 import type { ColorTokens } from "../lib/theme";
 import { AlertIcon } from "./icons";
 
@@ -26,6 +28,8 @@ export function ChatErrorNotice({
   const code = [failure.status, failure.code === "unknown" ? null : failure.code]
     .filter(Boolean)
     .join(" · ");
+  // The monthly allowance ran out on the free plan: the one way forward is Pro.
+  const offerPro = failure.code === "aiLimit" && failure.plan !== "pro" && storePurchasesAvailable();
 
   return (
     <Animated.View
@@ -41,6 +45,19 @@ export function ChatErrorNotice({
       </View>
 
       <View style={styles.actions}>
+        {offerPro ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("billing.seePro")}
+            onPress={() => router.push("/paywall")}
+            style={({ pressed }) => [
+              styles.retry,
+              { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={[styles.retryLabel, { color: colors.panel }]}>{t("billing.seePro")}</Text>
+          </Pressable>
+        ) : null}
         {failure.retryable && onRetry ? (
           <Pressable
             accessibilityRole="button"

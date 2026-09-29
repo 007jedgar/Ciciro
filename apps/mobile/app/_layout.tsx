@@ -84,6 +84,10 @@ function ThemedStack() {
           options={{ title: t("account.deleteAccount"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
         />
         <Stack.Screen
+          name="paywall"
+          options={{ title: t("billing.title"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
+        />
+        <Stack.Screen
           name="writing-reminder"
           options={{
             title: t("reminders.title"),

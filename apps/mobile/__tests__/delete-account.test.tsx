@@ -38,7 +38,7 @@ jest.mock("../lib/api", () => {
       this.status = status;
     }
   }
-  return { ApiError };
+  return { ApiError, useEntitlementQuery: () => ({ data: undefined }) };
 });
 
 function renderScreen() {

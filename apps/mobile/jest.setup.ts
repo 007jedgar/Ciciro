@@ -46,6 +46,26 @@ jest.mock("react-native-keyboard-controller", () =>
 
 jest.mock("react-native-enriched-html");
 
+// RevenueCat is a native module. Tests that care about purchases override these.
+jest.mock("react-native-purchases", () => ({
+  __esModule: true,
+  default: {
+    configure: jest.fn(),
+    isConfigured: jest.fn(async () => false),
+    isAnonymous: jest.fn(async () => false),
+    logIn: jest.fn(async () => ({ customerInfo: {}, created: false })),
+    logOut: jest.fn(async () => ({})),
+    setLogLevel: jest.fn(async () => {}),
+    getOfferings: jest.fn(async () => ({ current: null, all: {} })),
+    purchasePackage: jest.fn(async () => ({})),
+    restorePurchases: jest.fn(async () => ({})),
+    showManageSubscriptions: jest.fn(async () => {}),
+  },
+  LOG_LEVEL: { WARN: "WARN" },
+  PACKAGE_TYPE: { MONTHLY: "MONTHLY", ANNUAL: "ANNUAL" },
+  PURCHASES_ERROR_CODE: { PURCHASE_CANCELLED_ERROR: "1" },
+}));
+
 jest.mock("@react-native-community/netinfo", () => ({
   addEventListener: jest.fn(() => jest.fn()),
   fetch: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),

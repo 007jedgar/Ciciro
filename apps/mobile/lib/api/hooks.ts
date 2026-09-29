@@ -186,6 +186,16 @@ export function useSettingsQuery(options?: Enabled) {
   });
 }
 
+/** The account's plan and AI use. Refetched on focus so usage stays current. */
+export function useEntitlementQuery(options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.entitlement,
+    queryFn: async () => (await ciciro.billing.entitlement()).entitlement,
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+  });
+}
+
 export function useModelsQuery(options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.models,
