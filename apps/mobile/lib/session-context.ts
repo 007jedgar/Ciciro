@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { PublicUser } from "./api/types";
+import type { DeleteAccountRequest, PublicUser } from "./api/types";
 
 export type SessionState = {
   user: PublicUser | null;
@@ -8,6 +8,8 @@ export type SessionState = {
   login: (email: string, password: string) => Promise<PublicUser>;
   signup: (input: { email: string; password: string; name?: string }) => Promise<PublicUser>;
   logout: () => Promise<void>;
+  /** Delete the account on the server, then forget it on this phone. Throws ApiError. */
+  deleteAccount: (proof: DeleteAccountRequest) => Promise<void>;
 };
 
 /** Leaf module so Metro/inline-requires cannot split provider and consumer. */

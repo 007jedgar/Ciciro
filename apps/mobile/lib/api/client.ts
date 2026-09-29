@@ -106,6 +106,18 @@ async function nativeHeaders(init: RequestInit = {}): Promise<Headers> {
 }
 
 /**
+ * The headers `request` sends, as a plain record, for native transfers that
+ * bypass fetch (a download streamed straight to disk).
+ */
+export async function sessionHeaderRecord(): Promise<Record<string, string>> {
+  const record: Record<string, string> = {};
+  (await nativeHeaders()).forEach((value, key) => {
+    record[key] = value;
+  });
+  return record;
+}
+
+/**
  * Fetch helper for the hosted Ciciro API.
  *
  * Hosted auth is an httpOnly `ciciro_session` cookie. Browsers send that with

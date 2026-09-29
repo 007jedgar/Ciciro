@@ -39,6 +39,13 @@ const RESOURCES: ResourceCase[] = [
     body: { email: "ada@example.com", password: "secret-pw", name: "Ada" },
   },
   { name: "auth.logout", run: () => ciciro.auth.logout(), method: "POST", path: /\/api\/auth\/logout$/ },
+  {
+    name: "auth.deleteAccount",
+    run: () => ciciro.auth.deleteAccount({ password: "secret-pw" }),
+    method: "DELETE",
+    path: /\/api\/auth\/account$/,
+    body: { password: "secret-pw" },
+  },
   { name: "settings.get", run: () => ciciro.settings.get(), path: /\/api\/settings$/ },
   { name: "models.get", run: () => ciciro.models.get(), path: /\/api\/models$/ },
   {

@@ -200,6 +200,25 @@ export async function ensureReplica(): Promise<DB> {
   return db;
 }
 
+/** Every replica table, read from SCHEMA so a new table is never missed. */
+const REPLICA_TABLES = SCHEMA.flatMap((sql) => {
+  const name = /^CREATE TABLE IF NOT EXISTS (\w+)/.exec(sql)?.[1];
+  return name ? [name] : [];
+});
+
+/**
+ * Empty the replica: prose, op log, story bible, positions, writing days and
+ * anything still waiting to sync. Used when the account is deleted, so none
+ * of it outlives the account on this phone.
+ */
+export async function clearReplica(): Promise<void> {
+  if (Platform.OS === "web") return;
+  const db = await ensureReplica();
+  for (const table of REPLICA_TABLES) {
+    await db.execute(`DELETE FROM "${table}"`);
+  }
+}
+
 type RowObject = Record<string, unknown>;
 
 async function query<T>(db: DB, sql: string, params: Scalar[] = []): Promise<T[]> {

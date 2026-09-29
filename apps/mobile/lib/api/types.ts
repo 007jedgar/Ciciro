@@ -245,6 +245,12 @@ export type LoginRequest = {
   password: string;
 };
 
+/** DELETE /api/auth/account: the password, or `confirmation: "DELETE"` for an account without one. */
+export type DeleteAccountRequest = {
+  password?: string;
+  confirmation?: string;
+};
+
 export type SignupRequest = {
   email: string;
   password: string;

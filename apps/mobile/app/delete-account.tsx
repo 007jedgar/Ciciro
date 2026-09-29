@@ -1,0 +1,186 @@
+import { useState } from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { Redirect, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import * as Haptics from "expo-haptics";
+import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { ApiError } from "../lib/api";
+import { useExportAccountData } from "../lib/use-export-account-data";
+import { useSession } from "../lib/session";
+import { useAppTheme } from "../lib/settings";
+import { useStackBack } from "../lib/use-stack-back";
+import { fonts } from "../lib/theme";
+
+const DELETED_ITEMS = [
+  "account.deletedManuscripts",
+  "account.deletedBible",
+  "account.deletedChat",
+  "account.deletedSharing",
+  "account.deletedStats",
+] as const;
+
+/**
+ * The destructive confirmation for deleting the account: what goes, that it is
+ * permanent, a way to export first, and the password before anything happens.
+ */
+export default function DeleteAccountScreen() {
+  const router = useRouter();
+  const { backOr } = useStackBack();
+  const { t } = useTranslation();
+  const { user, ready, deleteAccount } = useSession();
+  const { layout, colors } = useAppTheme();
+  const headerHeight = useAppHeaderHeight();
+  const exporter = useExportAccountData();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Once the account is gone `user` clears; the submit handler navigates away.
+  if (!ready) return null;
+  if (!user && !busy) return <Redirect href="/login" />;
+
+  async function submit() {
+    if (!password || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount({ password });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t("account.deleteFailed"));
+      setBusy(false);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }
+
+  const canDelete = password.length > 0 && !busy;
+
+  return (
+    <View style={layout.screen}>
+      <AppHeader
+        title={t("account.deleteAccount")}
+        onBack={() => backOr("/settings")}
+        floating
+      />
+      <KeyboardAwareScrollView
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 12, paddingBottom: 48 }}
+        scrollIndicatorInsets={{ top: headerHeight }}
+      >
+        <Text
+          accessibilityRole="header"
+          style={{ fontFamily: fonts.serif, fontSize: 26, color: colors.ink, marginBottom: 12 }}
+        >
+          {t("account.deleteTitle")}
+        </Text>
+        <Text style={[layout.body, { color: colors.ink, marginBottom: 10 }]}>
+          {t("account.deleteIntro", { email: user?.email ?? "" })}
+        </Text>
+        <View style={{ marginBottom: 14, gap: 6 }}>
+          {DELETED_ITEMS.map((key) => (
+            <View key={key} style={{ flexDirection: "row", gap: 10, paddingRight: 8 }}>
+              <Text style={[layout.body, { lineHeight: 22 }]}>•</Text>
+              <Text style={[layout.body, { flex: 1, fontSize: 15, lineHeight: 22 }]}>{t(key)}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={{ fontSize: 15, lineHeight: 22, color: colors.danger, marginBottom: 20 }}>
+          {t("account.deleteWarning")}
+        </Text>
+
+        <View
+          style={{
+            backgroundColor: colors.panel,
+            borderColor: colors.line,
+            borderWidth: 1,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 24,
+          }}
+        >
+          <Text style={{ fontSize: 17, color: colors.ink }}>{t("account.exportFirst")}</Text>
+          <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
+            {t("account.exportFirstHint")}
+          </Text>
+          <Pressable
+            onPress={exporter.run}
+            disabled={exporter.busy || busy}
+            accessibilityRole="button"
+            accessibilityState={{ busy: exporter.busy, disabled: exporter.busy || busy }}
+            style={({ pressed }) => ({
+              marginTop: 12,
+              alignSelf: "flex-start",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: colors.line,
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              backgroundColor: pressed ? colors.panel2 : colors.bg,
+            })}
+          >
+            {exporter.busy ? <ActivityIndicator size="small" color={colors.inkSoft} /> : null}
+            <Text style={{ fontSize: 15, color: colors.ink }}>
+              {exporter.busy ? t("account.exporting") : t("account.exportData")}
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={{ fontSize: 13, color: colors.inkSoft, marginBottom: 8 }}>
+          {t("account.passwordLabel")}
+        </Text>
+        <TextInput
+          style={[layout.input, { borderRadius: 12 }]}
+          aria-label={t("account.passwordLabel")}
+          secureTextEntry
+          autoComplete="current-password"
+          textContentType="password"
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          editable={!busy}
+          value={password}
+          onChangeText={(next) => {
+            setPassword(next);
+            if (error) setError(null);
+          }}
+          returnKeyType="go"
+          onSubmitEditing={() => void submit()}
+        />
+        {error ? (
+          <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+            {error}
+          </Text>
+        ) : null}
+
+        <Pressable
+          onPress={() => void submit()}
+          disabled={!canDelete}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canDelete, busy }}
+          style={({ pressed }) => ({
+            marginTop: 4,
+            minHeight: 52,
+            borderRadius: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "row",
+            gap: 8,
+            backgroundColor: colors.danger,
+            opacity: canDelete ? (pressed ? 0.85 : 1) : 0.45,
+          })}
+        >
+          {busy ? <ActivityIndicator size="small" color={colors.panel} /> : null}
+          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.panel }}>
+            {busy ? t("account.deleting") : t("account.deleteButton")}
+          </Text>
+        </Pressable>
+      </KeyboardAwareScrollView>
+    </View>
+  );
+}

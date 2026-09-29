@@ -224,7 +224,7 @@ export function unloadLastPlace(): void {
   hydrated = false;
 }
 
-/** Drop in-memory + disk state. Used by tests. */
+/** Drop in-memory + disk state. Used when an account is deleted, and by tests. */
 export function resetLastPlace(): void {
   unloadLastPlace();
   writeDisk(null);

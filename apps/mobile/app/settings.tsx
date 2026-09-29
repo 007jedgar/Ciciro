@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useModelsQuery } from "../lib/api/hooks";
 import type { ModelRole } from "../lib/api/types";
@@ -18,6 +18,7 @@ import { setFocusMode, useFocusMode } from "../lib/focus-mode";
 import { getReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
+import { useExportAccountData } from "../lib/use-export-account-data";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
@@ -59,19 +60,21 @@ function SheetRow({
   onPress,
   colors,
   last,
+  tone,
 }: {
   label: string;
   value: string;
   onPress: () => void;
   colors: ColorTokens;
   last?: boolean;
+  tone?: "danger";
 }) {
   return (
     <>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${label}, ${value}`}
+        accessibilityLabel={value ? `${label}, ${value}` : label}
         style={({ pressed }) => ({
           minHeight: 52,
           paddingHorizontal: 16,
@@ -82,10 +85,14 @@ function SheetRow({
           backgroundColor: pressed ? colors.panel2 : "transparent",
         })}
       >
-        <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{label}</Text>
-        <Text style={{ fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
-          {value}
+        <Text style={{ flex: 1, fontSize: 17, color: tone === "danger" ? colors.danger : colors.ink }}>
+          {label}
         </Text>
+        {value ? (
+          <Text style={{ fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
+            {value}
+          </Text>
+        ) : null}
         <ChevronRightIcon color={colors.inkSoft} size={16} />
       </Pressable>
       {last ? null : <Hairline colors={colors} />}
@@ -256,6 +263,7 @@ export default function SettingsScreen() {
   const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
+  const exporter = useExportAccountData();
   const reminders = useWritingReminderList(user?.id ?? null);
   const [notificationPermission, setNotificationPermission] = useState<
     "granted" | "denied" | "undetermined" | "unavailable" | null
@@ -507,6 +515,30 @@ export default function SettingsScreen() {
           </Pressable>
           <Hairline colors={colors} />
           <Pressable
+            onPress={exporter.run}
+            disabled={exporter.busy}
+            accessibilityRole="button"
+            accessibilityLabel={t("account.exportData")}
+            accessibilityState={{ busy: exporter.busy }}
+            style={({ pressed }) => ({
+              minHeight: 52,
+              paddingHorizontal: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              backgroundColor: pressed ? colors.panel2 : "transparent",
+            })}
+          >
+            <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{t("account.exportData")}</Text>
+            {exporter.busy ? (
+              <>
+                <Text style={{ fontSize: 16, color: colors.inkSoft }}>{t("account.exporting")}</Text>
+                <ActivityIndicator size="small" color={colors.inkSoft} />
+              </>
+            ) : null}
+          </Pressable>
+          <Hairline colors={colors} />
+          <Pressable
             onPress={() => void logout().then(() => router.replace("/"))}
             accessibilityRole="button"
             style={({ pressed }) => ({
@@ -518,6 +550,17 @@ export default function SettingsScreen() {
           >
             <Text style={{ fontSize: 17, color: colors.danger }}>{t("settings.signOut")}</Text>
           </Pressable>
+        </Group>
+
+        <Group colors={colors}>
+          <SheetRow
+            label={t("account.deleteAccount")}
+            value=""
+            onPress={() => router.push("/delete-account")}
+            colors={colors}
+            tone="danger"
+            last
+          />
         </Group>
       </ScrollView>
 
