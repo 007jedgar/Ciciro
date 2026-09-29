@@ -266,6 +266,9 @@ so until it runs they fail with `no such table: EmailToken`.
   the app. See [Sign in with Apple and Google](social-sign-in.md).
 - `POST /api/auth/verify-email/resend`: email the signed-in user a new
   confirmation link (`429` with `Retry-After` inside the per-account cooldown).
+- `POST /api/auth/verify-email`: spend a confirmation link (`{ token }`). The
+  `/verify-email` page only looks the link up and shows a button that posts
+  here, so a mail scanner opening the link verifies nothing.
 - `POST /api/auth/password/forgot`: email a reset link. Answers the same
   whether or not the address has an account.
 - `POST /api/auth/password/reset`: set a new password from a reset link and
@@ -274,8 +277,10 @@ so until it runs they fail with `no such table: EmailToken`.
 The links land on `/verify-email` and `/reset-password` (requested from
 `/forgot-password`), which pass the auth gate. Link tokens follow the session
 rule: only a SHA-256 hash is stored (`EmailToken`), each link works once, a
-confirmation link lasts 48 hours and a reset link one hour, and a new reset
-link retires older unused ones. Sign-in never waits on verification;
+confirmation link lasts 48 hours and a reset link one hour, and a
+completed reset retires the rest. An account is sent at most 5 reset emails
+per rolling 24 hours (and one per minute), and the forgot-password answer is
+the same whether or not one went out. Sign-in never waits on verification;
 `User.emailVerifiedAt` records it, and a completed reset sets it too, since
 the reset proved the address.
 

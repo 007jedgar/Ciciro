@@ -1,10 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import {
+  EMAIL_TOKEN_CAP_WINDOW_MS,
   EMAIL_TOKEN_COOLDOWN_MS,
   EMAIL_TOKEN_TTL_MS,
   checkEmailToken,
   consumeEmailToken,
+  RESET_EMAIL_CAP,
   issueEmailToken,
   type EmailTokenPurpose,
 } from "@/lib/auth/email-tokens";
@@ -118,21 +120,33 @@ describe("email tokens", () => {
     ).resolves.toMatchObject({ ok: true });
   });
 
-  it("a newer reset link retires the older one, but verification links stay valid", async () => {
+  it("a newer reset link leaves earlier ones valid", async () => {
     const user = await makeUser();
     const start = Date.now();
     const firstReset = await issue(user, "reset_password", start);
-    const firstVerify = await issue(user, "verify_email", start);
     const later = start + EMAIL_TOKEN_COOLDOWN_MS;
     const secondReset = await issue(user, "reset_password", later);
-    await issue(user, "verify_email", later);
 
-    await expect(checkEmailToken(firstReset.token, "reset_password", later)).resolves.toEqual({
-      ok: false,
-      problem: "invalid",
-    });
+    await expect(checkEmailToken(firstReset.token, "reset_password", later)).resolves.toMatchObject({ ok: true });
     await expect(checkEmailToken(secondReset.token, "reset_password", later)).resolves.toMatchObject({ ok: true });
-    await expect(checkEmailToken(firstVerify.token, "verify_email", later)).resolves.toMatchObject({ ok: true });
+  });
+
+  it("caps reset emails per account per rolling day", async () => {
+    const user = await makeUser();
+    const other = await makeUser("grace@example.com");
+    const start = Date.now();
+    for (let i = 0; i < RESET_EMAIL_CAP; i++) {
+      await issue(user, "reset_password", start + i * EMAIL_TOKEN_COOLDOWN_MS);
+    }
+    const next = start + RESET_EMAIL_CAP * EMAIL_TOKEN_COOLDOWN_MS;
+    await expect(issueEmailToken(user, "reset_password", next)).resolves.toEqual({
+      ok: false,
+      retryAfterMs: start + EMAIL_TOKEN_CAP_WINDOW_MS - next,
+    });
+    await expect(issueEmailToken(other, "reset_password", next)).resolves.toMatchObject({ ok: true });
+    await expect(
+      issueEmailToken(user, "reset_password", start + EMAIL_TOKEN_CAP_WINDOW_MS + 1)
+    ).resolves.toMatchObject({ ok: true });
   });
 
   it("sweeps expired links when issuing a new one", async () => {
@@ -140,6 +154,8 @@ describe("email tokens", () => {
     const start = Date.now();
     await issue(user, "verify_email", start);
     await issue(user, "verify_email", start + EMAIL_TOKEN_TTL_MS.verify_email + 1);
-    expect(await prisma.emailToken.count()).toBe(1);
+    expect(await prisma.emailToken.count()).toBe(2);
+    await issue(user, "verify_email", start + EMAIL_TOKEN_TTL_MS.verify_email + EMAIL_TOKEN_CAP_WINDOW_MS + 2);
+    expect(await prisma.emailToken.count()).toBe(2);
   });
 });
