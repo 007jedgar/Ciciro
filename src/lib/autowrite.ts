@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, EDITOR_MODEL, DRAFTER_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { editorSystemFor, drafterSystemFor, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
+import { editorSystemFor, drafterSystemFor, PROSE_MAX_TOKENS, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
 import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
@@ -27,16 +27,18 @@ async function kindOf(projectId: string): Promise<ManuscriptKind> {
   return normalizeKind(row?.kind);
 }
 
-function clamp(n: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, n));
-}
-
 function textBlocks(res: Anthropic.Message): string {
   return res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("")
     .trim();
+}
+
+/** The reply's text, refusing one that stopped at its token limit: a cut-off beat must never reach the chapter. */
+function finishedText(res: Anthropic.Message, what: string): string {
+  if (res.stop_reason === "max_tokens") throw new Error(`the ${what} ran past its length limit`);
+  return textBlocks(res);
 }
 
 function tailWords(text: string, n = 180): string {
@@ -70,7 +72,7 @@ later.`;
 
   const res = await anthropic.messages.create({
     model: EDITOR_MODEL,
-    max_tokens: 6000,
+    max_tokens: PROSE_MAX_TOKENS,
     thinking: { type: "adaptive" },
     output_config: {
       effort: "high",
@@ -115,7 +117,7 @@ later.`;
     messages: [{ role: "user", content: `<context>\n${context}\n</context>\n\n${instruction}` }],
   } as Anthropic.MessageCreateParamsNonStreaming);
 
-  const parsed = JSON.parse(textBlocks(res)) as {
+  const parsed = JSON.parse(finishedText(res, "plan")) as {
     beats: Beat[];
     openQuestions?: PlanQuestion[];
   };
@@ -137,11 +139,11 @@ async function draftBeat(
     : `Continue seamlessly from this; do not repeat it:\n<continuity>\n${tail}\n</continuity>`;
   const res = await anthropic.messages.create({
     model: DRAFTER_MODEL,
-    max_tokens: clamp(beat.wordTarget * 3, 800, 4000),
+    max_tokens: PROSE_MAX_TOKENS,
     system: drafterSystemFor(kind),
     messages: [{ role: "user", content: `${beat.brief}\n\n${continuity}\n\nTarget length: about ${beat.wordTarget} words.` }],
   });
-  return textBlocks(res);
+  return finishedText(res, "draft");
 }
 
 async function editBeatToFinal(
@@ -162,13 +164,13 @@ Return ONLY the final edited prose for this beat - no commentary, no headings, n
 
   const res = await anthropic.messages.create({
     model: EDITOR_MODEL,
-    max_tokens: clamp(beat.wordTarget * 4, 1000, 5000),
+    max_tokens: PROSE_MAX_TOKENS,
     thinking: { type: "adaptive" },
     output_config: { effort: "high" },
     system: editorSys(await kindOf(projectId)),
     messages: [{ role: "user", content: `<context>\n${context}\n</context>\n\n${instruction}` }],
   } as Anthropic.MessageCreateParamsNonStreaming);
-  return textBlocks(res);
+  return finishedText(res, "edit");
 }
 
 /**

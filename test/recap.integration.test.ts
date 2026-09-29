@@ -20,7 +20,7 @@ import {
   RECAP_ABSENCE_MS,
 } from "@/lib/recap-view";
 
-const reply = (text: string) => ({ content: [{ type: "text", text }] });
+const reply = (text: string, stop_reason = "end_turn") => ({ content: [{ type: "text", text }], stop_reason });
 const prose = (word: string) => `<p>${Array.from({ length: 150 }, () => word).join(" ")}</p>`;
 
 const write = (id: string, content: string) =>
@@ -79,6 +79,19 @@ describe("previously-on recap and stuck prompts", () => {
 
     mocks.hasKey = false;
     expect((await getRecap(project.id, user)).recap?.text).toBe("Old recap.");
+  });
+
+  it("keeps the stale recap instead of caching one cut off at its token limit", async () => {
+    const { user, project, chapter } = await seed();
+    await write(chapter.id, prose("tide"));
+    mocks.create.mockResolvedValueOnce(reply("Old recap."));
+    await getRecap(project.id, user);
+
+    await write(chapter.id, prose("moon"));
+    mocks.create.mockResolvedValue(reply("You left Marta at d", "max_tokens"));
+    expect((await getRecap(project.id, user)).recap?.text).toBe("Old recap.");
+    const cached = await prisma.projectRecap.findUnique({ where: { projectId: project.id } });
+    expect(cached?.content).toBe("Old recap.");
   });
 
   it("marks the chapter edited last, even when it comes earlier in the story", async () => {

@@ -265,6 +265,16 @@ export function drafterSystemFor(kind: ManuscriptKind): string {
   return directive ? `${DRAFTER_SYSTEM}\n\n${directive}` : DRAFTER_SYSTEM;
 }
 
+/**
+ * max_tokens for a request that writes prose or a plan. Current models think
+ * before they answer, and thinking spends the same budget, so a cap sized to
+ * the expected words (the old wordTarget * 4) cut Opus's beat edits off
+ * mid-sentence. Only tokens actually generated are billed, so the headroom is
+ * free; 16000 stays under the SDK's non-streaming limit. Callers must still
+ * treat stop_reason "max_tokens" as a cut-off reply, not a finished one.
+ */
+export const PROSE_MAX_TOKENS = 16000;
+
 export type QuickAction = {
   id: string;
   label: string;
