@@ -5,7 +5,7 @@ import { publicOrigin } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 
-// GET /dev/emails/:id — one template rendered with sample data, exactly as it
+// GET /dev/emails/:id: one template rendered with sample data, exactly as it
 // would be sent (?format=text for the plain-text part). Local development only.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (process.env.NODE_ENV === "production") return new NextResponse(null, { status: 404 });

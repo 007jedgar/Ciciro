@@ -31,6 +31,10 @@ Every Prisma model must be both purged by account deletion and written by the da
 
 `src/lib/auth/rate-limit.ts` is the one limiter for every password check (login, and the password proof in account deletion): call `assertAttemptAllowed` before verifying the password, `recordFailedAttempt` on a wrong one, `clearAttempts` on success. It counts `PasswordAttempt` rows (D1, not in-memory, so it works across Worker isolates) per account+IP pair, per account, and per hashed IP (`docs/hosting.md` has the limits); a new password-checking endpoint (password reset, verify-email) must go through it too. `PasswordAttempt` is required, not optional, like the other `prisma/d1-*.sql` upgrades — see `docs/hosting.md`.
 
+## Email
+
+A new email is a template in `src/lib/email/templates.ts`, also listed in `emailPreviews` so `/dev/emails` shows it, plus a send in `src/lib/email/account-emails.ts` that never throws and passes an idempotency key (see `docs/hosting.md#email`). Links in emails use `publicOrigin` (`src/lib/public-origin.ts`), never a raw request Host.
+
 ## Web motion
 
 Durations and easings are tokens in `src/app/globals.css`, all scaled by `--motion`, which the reduce-motion setting and the OS preference set to 0; build on them, not on literal `ms`. JS waits on the exit times in `src/lib/motion.ts` (`test/motion.test.ts` fails when they drift from the tokens). A surface that animates out mounts through `Presence` or `usePresence`. Deleting something uses `useSnackbar` with `onCommit`, so the server hears about it only once Undo has lapsed.

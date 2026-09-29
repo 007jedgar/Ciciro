@@ -5,7 +5,7 @@ import { publicOrigin } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 
-// POST /api/auth/password/forgot — { email }. Emails a reset link when the
+// POST /api/auth/password/forgot: { email }. Emails a reset link when the
 // address has an account. Answers { ok: true } either way, so it never says
 // whether an address is registered.
 export async function POST(req: NextRequest) {

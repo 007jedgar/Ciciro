@@ -8,7 +8,7 @@ import { getUserSettings } from "@/lib/user-settings";
 
 export const runtime = "nodejs";
 
-// POST /api/auth/signup — create an account, start a session, and email a
+// POST /api/auth/signup: create an account, start a session, and email a
 // link to verify the address (the welcome email follows once it is verified).
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));

@@ -6,7 +6,7 @@ import { publicOrigin } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 
-// POST /api/auth/verify-email/resend — email the signed-in account a fresh
+// POST /api/auth/verify-email/resend: email the signed-in account a fresh
 // link to verify its address. 429 with Retry-After inside the cooldown.
 export async function POST(req: NextRequest) {
   try {
