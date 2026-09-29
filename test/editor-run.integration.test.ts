@@ -4,13 +4,27 @@ import fixture from "./fixtures/malformed-manuscript.json";
 
 const model = vi.hoisted(() => ({
   responses: [] as Anthropic.Message[],
+  calls: [] as Array<{ params: Record<string, unknown>; options?: unknown }>,
+  rejectDisplayOnce: false,
+  editorModel: "claude-opus-5-5",
 }));
 
 vi.mock("@/lib/anthropic", () => ({
-  EDITOR_MODEL: "mock-editor",
+  get EDITOR_MODEL() {
+    return model.editorModel;
+  },
   getAnthropic: () => ({
     messages: {
-      stream: () => {
+      stream: (params: Record<string, unknown>, options?: unknown) => {
+        model.calls.push({ params, options });
+        const thinking = params.thinking as { display?: string } | undefined;
+        if (model.rejectDisplayOnce && thinking?.display) {
+          model.rejectDisplayOnce = false;
+          throw Object.assign(
+            new Error("400 thinking.display: unsupported value"),
+            { status: 400 }
+          );
+        }
         const response = model.responses.shift();
         if (!response) throw new Error("No deterministic model response queued.");
         return {
@@ -77,7 +91,7 @@ function response(
     id: crypto.randomUUID(),
     type: "message",
     role: "assistant",
-    model: "mock-editor",
+    model: "claude-opus-5-5",
     content,
     stop_reason: stopReason,
     stop_sequence: null,
@@ -108,6 +122,9 @@ async function createProject(withFixture = false) {
 describe("durable editor lifecycle", () => {
   beforeEach(async () => {
     model.responses.length = 0;
+    model.calls.length = 0;
+    model.rejectDisplayOnce = false;
+    model.editorModel = "claude-opus-5-5";
     await prisma.project.deleteMany();
   });
 
@@ -303,5 +320,55 @@ describe("durable editor lifecycle", () => {
       .join("");
     expect(progressText).toBe("Checking chapter one for continuity.");
     expect(textDeltas).toBe("Chapter one is consistent.");
+  });
+
+  async function runOnce(clientTurnId: string) {
+    const project = await createProject();
+    const prepared = await prepareEditorRun({
+      projectId: project.id,
+      message: "What happened in chapter one?",
+      clientTurnId,
+    });
+    model.responses.push(
+      response("end_turn", [
+        { type: "text", text: "Chapter one is consistent.", citations: null },
+      ])
+    );
+    const claim = await claimEditorRun(prepared!.run.id);
+    await executeClaimedEditorRun(claim!, () => {});
+  }
+
+  it("requests progress notes on a model documented to support them", async () => {
+    await runOnce("display-supported");
+    expect(model.calls).toHaveLength(1);
+    expect(model.calls[0].params.thinking).toEqual({
+      type: "adaptive",
+      display: "updates",
+    });
+    expect(model.calls[0].options).toEqual({
+      headers: { "anthropic-beta": "thinking-display-updates-2026-08-18" },
+    });
+  });
+
+  it("sends plain adaptive thinking and no beta header on other models", async () => {
+    model.editorModel = "claude-opus-4-8";
+    await runOnce("display-unsupported");
+    expect(model.calls).toHaveLength(1);
+    expect(model.calls[0].params.thinking).toEqual({ type: "adaptive" });
+    expect(model.calls[0].options).toBeUndefined();
+  });
+
+  it("retries once without progress notes when the API rejects thinking.display", async () => {
+    model.rejectDisplayOnce = true;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await runOnce("display-rejected");
+    warn.mockRestore();
+    expect(model.calls).toHaveLength(2);
+    expect(model.calls[0].params.thinking).toEqual({
+      type: "adaptive",
+      display: "updates",
+    });
+    expect(model.calls[1].params.thinking).toEqual({ type: "adaptive" });
+    expect(model.calls[1].options).toBeUndefined();
   });
 });

@@ -4,6 +4,12 @@ import { getAnthropic, EDITOR_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { editorSystemFor } from "@/lib/prompts";
+import {
+  adaptiveThinking,
+  isThinkingDisplayRejection,
+  supportsThinkingUpdates,
+  thinkingUpdatesRequestOptions,
+} from "@/lib/thinking-display";
 import { normalizeKind } from "@/lib/manuscript-kind";
 import { EDITOR_TOOLS, executeEditorTool, toolUiEvents } from "@/lib/tools";
 import { ensureBible } from "@/lib/bible";
@@ -66,11 +72,6 @@ type Emit = (event: EditorRunEvent) => void;
 const MAX_ITERATIONS_PER_SLICE = 6;
 const MAX_STREAM_RETRIES = 2;
 const LEASE_MS = 11 * 60_000;
-
-// Surfaces Opus 5.5's between-tool-call progress notes (otherwise empty
-// `thinking` blocks under the default display) as short "working" updates,
-// separate from the visible reply text. See src/lib/prompts.ts's tuning note.
-const THINKING_DISPLAY_UPDATES_BETA = "thinking-display-updates-2026-08-18";
 
 const CONTINUE_EXACTLY =
   "Continue exactly where you left off - mid-word if that is where it cut off. " +
@@ -587,6 +588,7 @@ export async function executeClaimedEditorRun(
   let totalMutations = claim.mutationCount;
   let completedIterations = claim.iterationCount;
   let persistedIterations = claim.iterationCount;
+  let progressNotes = supportsThinkingUpdates(EDITOR_MODEL);
 
   try {
     if (claim.status === "verifying") {
@@ -609,16 +611,13 @@ export async function executeClaimedEditorRun(
             {
               model: EDITOR_MODEL,
               max_tokens: requestProfile.maxTokens,
-              thinking: {
-                type: "adaptive",
-                display: "updates",
-              } as unknown as Anthropic.ThinkingConfigParam,
+              thinking: adaptiveThinking(progressNotes),
               output_config: { effort: requestProfile.effort },
               system: editorSystem,
               tools: EDITOR_TOOLS,
               messages,
             },
-            { headers: { "anthropic-beta": THINKING_DISPLAY_UPDATES_BETA } }
+            thinkingUpdatesRequestOptions(progressNotes)
           );
 
           for await (const event of stream) {
@@ -644,6 +643,15 @@ export async function executeClaimedEditorRun(
           msg = await stream.finalMessage();
           break;
         } catch (error) {
+          if (progressNotes && isThinkingDisplayRejection(error)) {
+            console.warn(
+              "Editor progress notes rejected by the API; retrying without thinking.display:",
+              (error as Error).message
+            );
+            progressNotes = false;
+            attempt--;
+            continue;
+          }
           if (
             !emittedThisAttempt &&
             attempt < MAX_STREAM_RETRIES &&
