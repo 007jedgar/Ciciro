@@ -17,4 +17,5 @@ CREATE TABLE IF NOT EXISTS "PasswordAttempt" (
 
 CREATE INDEX IF NOT EXISTS "PasswordAttempt_scope_key_createdAt_idx" ON "PasswordAttempt"("scope", "key", "createdAt");
 CREATE INDEX IF NOT EXISTS "PasswordAttempt_ipHash_createdAt_idx" ON "PasswordAttempt"("ipHash", "createdAt");
+CREATE INDEX IF NOT EXISTS "PasswordAttempt_createdAt_idx" ON "PasswordAttempt"("createdAt");
 CREATE INDEX IF NOT EXISTS "PasswordAttempt_userId_idx" ON "PasswordAttempt"("userId");

@@ -697,5 +697,6 @@ model PasswordAttempt {
 
   @@index([scope, key, createdAt])
   @@index([ipHash, createdAt])
+  @@index([createdAt])
   @@index([userId])
 }
