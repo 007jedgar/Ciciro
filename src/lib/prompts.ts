@@ -7,7 +7,7 @@
 //    re-tested. The narration line asks for one visible intent sentence up
 //    front: on 5.5, notes longer than a sentence or two between tool calls
 //    arrive as thinking blocks, which editor-run does not show the author.
-//  - Sonnet 5 (drafter): follows instructions literally and will not generalize.
+//  - Sonnet 5.5 (drafter): follows instructions literally and will not generalize.
 //    So briefs must be complete and explicit about voice, length, and scope.
 
 export const EDITOR_SYSTEM = `You are Ciciro, the editor and director of a novel. The author talks only to you.

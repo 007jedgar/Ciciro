@@ -6,7 +6,7 @@ An AI book-writing assistant and manuscript editor. You write in a distraction-f
 editor with chapter navigation, and you talk to **one** partner - Ciciro, the editor
 (Claude Opus 5.5). It holds the story's canon, plans, critiques, tracks plot points and
 loose ends, and decides what gets written. When prose needs writing, it briefs a
-faster model (Claude Sonnet 5) behind the scenes; you only ever see the editor.
+faster model (Claude Sonnet 5.5) behind the scenes; you only ever see the editor.
 Manuscripts import from Word, Google Docs, Markdown and Scrivener, and export to
 standard (Shunn-style) `.docx`, Markdown, EPUB, and PDF. Search and find-and-replace work
 across every chapter.
@@ -73,7 +73,7 @@ aligned: [Story bible](docs/story-bible.md).
 - **Story bible = markdown files on disk** (`data/<projectId>/bible/`) - the shared
   memory the editor reads and writes.
 - **@anthropic-ai/sdk** - the editor (Opus 5.5) runs an agentic tool loop; the drafter
-  (Sonnet 5, or Haiku for fast drafts) is dispatched as a tool.
+  (Sonnet 5.5, or Haiku for fast drafts) is dispatched as a tool.
 - **docx** - manuscript-format Word export; **JSZip** and **pdf-lib** for EPUB and PDF.
 
 ## The architecture
@@ -85,7 +85,7 @@ context and makes the calls. When you ask for prose, it:
 1. Reads the relevant bible files and prior text (retrieval tools).
 2. Writes a self-contained **brief** - POV, the beat to land, canon constraints,
    voice notes, a continuity excerpt, target length, a "do NOT" list.
-3. Calls `dispatch_draft`, which runs the **drafter** (Sonnet 5) server-side on just
+3. Calls `dispatch_draft`, which runs the **drafter** (Sonnet 5.5) server-side on just
    that brief - never the whole book, so its context stays tiny and cheap.
 4. Edits the returned prose against canon and hands it to you as an insertable
    `<draft>`.
@@ -159,7 +159,7 @@ Default changes are recorded in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 Prompts are tuned to each model's documented behavior (`src/lib/prompts.ts`): the
 editor prompt asks for brevity, a set narration cadence, tight scope, and explicit
-rules for when to dispatch vs. write itself; the drafter prompt leans on Sonnet 5's
+rules for when to dispatch vs. write itself; the drafter prompt leans on Sonnet 5.5's
 literal instruction-following (complete, explicit briefs).
 
 ## Project layout
