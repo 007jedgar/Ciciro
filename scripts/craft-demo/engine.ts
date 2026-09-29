@@ -295,6 +295,8 @@ export async function runDemo(opts: {
   samples: number;
   dryRun: boolean;
   concurrency?: number;
+  /** Refuse new calls once spend reaches this many USD (calls already in flight still finish). */
+  maxUsd?: number;
   onProgress?: (line: string) => void;
 }): Promise<DemoResult> {
   const startedAt = new Date().toISOString();
@@ -302,15 +304,28 @@ export async function runDemo(opts: {
   const record: Recorder = (model, res) => {
     usage.push({ model, input: res.usage?.input_tokens ?? 0, output: res.usage?.output_tokens ?? 0 });
   };
+  const { maxUsd } = opts;
+  const client: Client = maxUsd
+    ? {
+        messages: {
+          create: ((req: Anthropic.MessageCreateParamsNonStreaming) => {
+            if (costOf(usage).total >= maxUsd) {
+              return Promise.reject(new Error(`Stopped: spend reached the $${maxUsd} cap.`));
+            }
+            return opts.client.messages.create(req);
+          }) as unknown as Client["messages"]["create"],
+        } as Client["messages"],
+      }
+    : opts.client;
   const jobs = opts.scenes.flatMap((scene) =>
     Array.from({ length: opts.samples }, (_, sample) => async () => {
       const [A, B] = await Promise.all(
-        (["A", "B"] as Arm[]).map((arm) => runArm(opts.client, scene, arm, record).catch(failedArm))
+        (["A", "B"] as Arm[]).map((arm) => runArm(client, scene, arm, record).catch(failedArm))
       );
       const pair: PairRun = { sample: sample + 1, A, B, judgments: [] };
       if (!A.error && !B.error) {
         pair.judgments = await Promise.all(
-          (["A", "B"] as Arm[]).map((first) => judge(opts.client, scene, pair, first, record))
+          (["A", "B"] as Arm[]).map((first) => judge(client, scene, pair, first, record))
         );
       }
       opts.onProgress?.(`${scene.id} sample ${sample + 1} done`);

@@ -80,6 +80,15 @@ describe("craft demo harness", () => {
     expect([second.quality, second.voice, second.brief]).toEqual(["B", "A", "tie"]);
   });
 
+  it("stops making calls once spend reaches the cap", async () => {
+    const client = mockClient();
+    const result = await runDemo({ client, scenes: SCENES, samples: 1, dryRun: true, concurrency: 1, maxUsd: 0.2 });
+    expect(costOf(result.usage).total).toBeLessThan(0.6);
+    const failed = result.scenes.flatMap((s) => s.pairs).filter((p) => p.A.error || p.B.error);
+    expect(failed.length).toBeGreaterThan(0);
+    expect(failed[0].A.error ?? failed[0].B.error).toMatch(/spend reached the \$0.2 cap/);
+  });
+
   it("records a failed arm without judging the pair", async () => {
     const client = {
       messages: {
