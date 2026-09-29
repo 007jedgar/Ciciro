@@ -35,7 +35,7 @@ run coordinator.
 | `CICIRO_REQUIRE_AUTH` | hosted | `true` enables the auth gate in middleware and API routes. |
 | `CICIRO_EDITOR_MODEL` / `CICIRO_DRAFTER_MODEL` / `CICIRO_DRAFTER_FAST_MODEL` | optional | Model overrides (see README). |
 | `CICIRO_STANDALONE` | build-time | `true` makes `next build` emit a standalone server (Docker path). |
-| `RESEND_API_KEY` | optional | Transactional email (see [Email](#email)). Unset logs instead of sending. |
+| `RESEND_API_KEY` | optional | Transactional email (see [Email](#email)). Unset logs instead of sending (at error level when `CICIRO_REQUIRE_AUTH` is set). |
 | `EMAIL_FROM` | for email | `"Name <address>"` the send comes from. Required once `RESEND_API_KEY` is set. |
 | `EMAIL_REPLY_TO` | optional | Reply-to address; overridable per send. |
 
@@ -242,7 +242,9 @@ Transactional email goes through [Resend](https://resend.com) via
 than the `resend` SDK, so it needs no extra dependency and runs unmodified on
 the Workers path. With no `RESEND_API_KEY` set, it logs the message and
 returns instead of sending or throwing, so local dev and CI never need a real
-key. This module only sends; templates (the actual subject/HTML/text content
+key. Recipients are masked in that log, which is written at error level on a
+hosted deploy (`CICIRO_REQUIRE_AUTH`) so a forgotten secret shows up. A caller
+passing `throwOnError` gets a thrown error for a missing key too. This module only sends; templates (the actual subject/HTML/text content
 per email) and any user-facing flow that triggers a send are separate,
 later work.
 
