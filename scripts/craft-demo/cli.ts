@@ -7,7 +7,8 @@
 //   --scenes a,b     only these scene ids (default: all)
 //   --out DIR        output directory (default .craft-demo)
 //   --concurrency N  scene samples in flight at once (default 4)
-//   --max-usd N      refuse a real run whose estimate is above N (default 25)
+//   --max-usd N      refuse a real run whose estimate is above N, and stop making
+//                    calls once actual spend reaches N (default 25)
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -56,6 +57,7 @@ export async function main(args: string[]): Promise<number> {
       samples,
       dryRun: false,
       concurrency,
+      maxUsd,
       onProgress: (line) => console.log(line),
     });
   }
