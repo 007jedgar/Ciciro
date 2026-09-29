@@ -8,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
-import { API_URL } from "../lib/api/client";
+import { ApiError, API_URL } from "../lib/api/client";
+import { ciciro } from "../lib/api";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize, type FormatChrome } from "../lib/app-settings";
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
@@ -257,7 +258,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { backOr } = useStackBack();
   const { t } = useTranslation();
-  const { user, ready, logout } = useSession();
+  const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
   const focusMode = useFocusMode();
@@ -265,9 +266,34 @@ export default function SettingsScreen() {
   const [sheet, setSheet] = useState<SheetId | null>(null);
   const exporter = useExportAccountData();
   const reminders = useWritingReminderList(user?.id ?? null);
+  const [verify, setVerify] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
   const [notificationPermission, setNotificationPermission] = useState<
     "granted" | "denied" | "undetermined" | "unavailable" | null
   >(null);
+
+  // Pick up a confirmation made in the browser since the session was loaded.
+  useEffect(() => {
+    if (user?.emailVerified === false) void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function resendVerification() {
+    if (verify.busy || !user) return;
+    setVerify({ busy: true, note: null });
+    try {
+      const result = await ciciro.auth.resendVerification();
+      if (result.status === "already_verified") {
+        await refresh();
+        setVerify({ busy: false, note: null });
+        return;
+      }
+      setVerify({ busy: false, note: t("account.verificationSent", { email: user.email }) });
+    } catch (error) {
+      const note =
+        error instanceof ApiError && error.status === 429 ? t("account.resendCooldown") : t("account.resendFailed");
+      setVerify({ busy: false, note });
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -497,9 +523,43 @@ export default function SettingsScreen() {
         <Group colors={colors}>
           <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
             <Text style={{ fontSize: 17, color: colors.ink }}>{user.email}</Text>
-            <Text style={{ marginTop: 3, fontSize: 13, color: colors.inkSoft }}>{t("settings.signedIn")}</Text>
+            <Text style={{ marginTop: 3, fontSize: 13, color: colors.inkSoft }}>
+              {user.emailVerified === false ? t("account.emailUnverified") : t("settings.signedIn")}
+            </Text>
           </View>
           <Hairline colors={colors} />
+          {user.emailVerified === false ? (
+            <>
+              <Pressable
+                onPress={() => void resendVerification()}
+                disabled={verify.busy}
+                accessibilityRole="button"
+                accessibilityLabel={t("account.resendVerification")}
+                accessibilityState={{ busy: verify.busy }}
+                style={({ pressed }) => ({
+                  minHeight: 52,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  justifyContent: "center",
+                  backgroundColor: pressed ? colors.panel2 : "transparent",
+                })}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <Text style={{ flex: 1, fontSize: 17, color: colors.accent }}>{t("account.resendVerification")}</Text>
+                  {verify.busy ? <ActivityIndicator size="small" color={colors.inkSoft} /> : null}
+                </View>
+                {verify.note ? (
+                  <Text
+                    style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {verify.note}
+                  </Text>
+                ) : null}
+              </Pressable>
+              <Hairline colors={colors} />
+            </>
+          ) : null}
           <Pressable
             onPress={() => void Linking.openURL(`${API_URL}/privacy`)}
             accessibilityRole="button"

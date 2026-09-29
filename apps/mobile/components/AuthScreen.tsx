@@ -391,6 +391,18 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                   {authFieldMessage(t, errors.password)}
                 </Text>
               ) : null}
+              {isSignup ? null : (
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: "/forgot-password", params: email.trim() ? { email: email.trim() } : {} })
+                  }
+                  accessibilityRole="link"
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.forgot, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <Text style={[styles.forgotText, { color: colors.accent }]}>{t("auth.forgotPassword")}</Text>
+                </Pressable>
+              )}
               {error ? (
                 <View style={[styles.formError, { borderColor: colors.danger }]}>
                   <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.danger, opacity: 0.1 }]} />
@@ -516,6 +528,8 @@ const styles = StyleSheet.create({
   nameMeasure: { position: "absolute", left: 0, right: 0, top: 0 },
   btnLabel: { height: 20, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   footer: { marginTop: 16, alignSelf: "stretch" },
+  forgot: { alignSelf: "flex-end", marginTop: -4, marginBottom: 10 },
+  forgotText: { fontSize: 14 },
   footerLabel: { height: 22, alignItems: "center", justifyContent: "center" },
   cornerMark: { position: "absolute", alignItems: "center", justifyContent: "center" },
   brandUnderHeader: { position: "absolute", zIndex: 8 },

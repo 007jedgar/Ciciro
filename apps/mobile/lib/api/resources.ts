@@ -9,6 +9,8 @@ import type {
   AutowriteRequest,
   AutowriteStreamEvent,
   DeleteAccountRequest,
+  ForgotPasswordRequest,
+  ResendVerificationResponse,
   BibleEntry,
   BibleFile,
   BibleNewCharacterRequest,
@@ -164,6 +166,10 @@ export const ciciro = {
       api<AuthSessionResponse>("/api/auth/apple/native", jsonInit("POST", body, opts)),
     handoff: (body: HandoffRequest, opts?: RequestOpts) =>
       api<AuthSessionResponse>("/api/auth/handoff", jsonInit("POST", body, opts)),
+    forgotPassword: (body: ForgotPasswordRequest, opts?: RequestOpts) =>
+      api<OkResponse>("/api/auth/password/forgot", jsonInit("POST", body, opts)),
+    resendVerification: (opts?: RequestOpts) =>
+      api<ResendVerificationResponse>("/api/auth/verify-email/resend", jsonInit("POST", undefined, opts)),
   },
 
   settings: {

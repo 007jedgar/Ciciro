@@ -46,6 +46,19 @@ const RESOURCES: ResourceCase[] = [
     path: /\/api\/auth\/account$/,
     body: { password: "secret-pw" },
   },
+  {
+    name: "auth.forgotPassword",
+    run: () => ciciro.auth.forgotPassword({ email: "ada@example.com" }),
+    method: "POST",
+    path: /\/api\/auth\/password\/forgot$/,
+    body: { email: "ada@example.com" },
+  },
+  {
+    name: "auth.resendVerification",
+    run: () => ciciro.auth.resendVerification(),
+    method: "POST",
+    path: /\/api\/auth\/verify-email\/resend$/,
+  },
   { name: "settings.get", run: () => ciciro.settings.get(), path: /\/api\/settings$/ },
   { name: "models.get", run: () => ciciro.models.get(), path: /\/api\/models$/ },
   {

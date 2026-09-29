@@ -7,6 +7,9 @@ import "../lib/i18n";
 import { makeLayout, THEME_PALETTES } from "../lib/theme";
 
 const mockPush = jest.fn();
+const mockRefresh = jest.fn(async () => {});
+const mockResend = jest.fn();
+let mockUser: { id: string; email: string; emailVerified?: boolean } = { id: "u1", email: "writer@example.com" };
 const mockRunExport = jest.fn();
 let mockExportBusy = false;
 
@@ -26,8 +29,12 @@ jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backOr: jest.
 jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
 jest.mock("../components/GlassSheet", () => ({ GlassSheet: () => null }));
 jest.mock("../lib/session", () => ({
-  useSession: () => ({ user: { id: "u1", email: "writer@example.com" }, ready: true, logout: jest.fn() }),
+  useSession: () => ({ user: mockUser, ready: true, logout: jest.fn(), refresh: mockRefresh }),
 }));
+jest.mock("../lib/api", () => {
+  const actual = jest.requireActual("../lib/api/client");
+  return { ApiError: actual.ApiError, ciciro: { auth: { resendVerification: () => mockResend() } } };
+});
 jest.mock("../lib/writing-reminder-notifications", () => ({
   getReminderPermission: jest.fn(async () => "granted"),
 }));
@@ -55,6 +62,9 @@ describe("Settings account rows", () => {
   });
   beforeEach(() => {
     mockExportBusy = false;
+    mockUser = { id: "u1", email: "writer@example.com" };
+    mockResend.mockReset();
+    mockRefresh.mockClear();
   });
 
   it("exports the account's data from its row", async () => {
@@ -76,5 +86,40 @@ describe("Settings account rows", () => {
     await act(async () => {});
     fireEvent.press(screen.getByRole("button", { name: "Delete account" }));
     expect(mockPush).toHaveBeenCalledWith("/delete-account");
+  });
+
+  it("hides the confirmation row once the address is confirmed", async () => {
+    mockUser = { ...mockUser, emailVerified: true };
+    renderSettings();
+    await act(async () => {});
+    expect(screen.queryByRole("button", { name: "Resend confirmation email" })).toBeNull();
+    expect(screen.getByText("Signed in to Ciciro")).toBeTruthy();
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("offers to resend the confirmation email to an unconfirmed address", async () => {
+    mockUser = { ...mockUser, emailVerified: false };
+    mockResend.mockResolvedValue({ ok: true, status: "sent" });
+    renderSettings();
+    await act(async () => {});
+    expect(screen.getByText("Email not confirmed yet")).toBeTruthy();
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Resend confirmation email" }));
+    });
+    expect(mockResend).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Sent. Check writer@example.com for the link.")).toBeTruthy();
+  });
+
+  it("explains the cooldown instead of the server's message", async () => {
+    const { ApiError } = jest.requireActual("../lib/api/client");
+    mockUser = { ...mockUser, emailVerified: false };
+    mockResend.mockRejectedValue(new ApiError("A link just went out.", 429));
+    renderSettings();
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Resend confirmation email" }));
+    });
+    expect(screen.getByText("A link just went out. Try again in a minute.")).toBeTruthy();
   });
 });
