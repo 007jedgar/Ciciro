@@ -56,13 +56,24 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
       settingsJson: JSON.stringify({ theme: "night", editorFontSize: 19 }),
     },
   });
-  await prisma.session.create({
+  const session = await prisma.session.create({
     data: {
       userId: user.id,
       tokenHash: hashSessionToken(sessionToken),
       userAgent: "vitest",
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     },
+  });
+  const pushToken = await prisma.pushToken.create({
+    data: {
+      userId: user.id,
+      sessionId: session.id,
+      token: `ExponentPushToken[${label}-push]`,
+      platform: "ios",
+    },
+  });
+  await prisma.pushTicket.create({
+    data: { id: `${label}-push-ticket`, pushTokenId: pushToken.id },
   });
   await prisma.identity.create({
     data: { userId: user.id, provider: "google", subject: `${label}-google-sub`, email },

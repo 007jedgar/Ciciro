@@ -106,6 +106,22 @@ export const EXPORT_TABLES: readonly Table[] = [
     shape: (row) => without(row, "tokenHash"),
   },
   {
+    model: "PushToken",
+    file: "push-notification-devices",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.pushToken.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+    // Which platform and when; the token itself can send to that phone.
+    shape: (row) => without(row, "token"),
+  },
+  {
+    model: "PushTicket",
+    file: "push-notification-receipts",
+    take: 500,
+    page: (userId, id, take) =>
+      prisma.pushTicket.findMany({ where: { pushToken: { userId }, ...after(id) }, ...byId, take }),
+  },
+  {
     model: "Folder",
     file: "folders",
     take: 200,
@@ -377,8 +393,8 @@ data/
   characters, plot points, open questions, scratch notes, chat messages and
   editor runs, recaps, weekly reviews, share links, beta reader comments,
   folders, reading positions, your writing days and sessions, failed
-  account-deletion password attempts, and your subscriptions, billing events
-  and monthly AI usage.
+  account-deletion password attempts, the phones registered for
+  notifications, and your subscriptions, billing events and monthly AI usage.
 
 manifest.json
   Written last, with the record count for each file in data/. A zip that

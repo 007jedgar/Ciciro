@@ -15,7 +15,7 @@ Copy names exactly. Do not commit `.env` or Wrangler secrets.
 | [Cloudflare](https://dash.cloudflare.com/) | Yes, for the Workers path | Wrangler deploy + Durable Object |
 | Docker + a Node host | Alternative to Cloudflare | `Dockerfile` standalone server |
 | [Groq](https://console.groq.com/) | Optional | Cheap chat-search ranking only |
-| [Expo](https://expo.dev/) | For the mobile app | EAS / device builds later |
+| [Expo](https://expo.dev/) | For the mobile app | EAS Build, Update, Workflows, push ([mobile release](mobile-release.md)) |
 | GitHub | If you protect `main` | Required check `test` once CI lands |
 | [Apple Developer](https://developer.apple.com/account) | Optional | Sign in with Apple |
 | [Google Cloud](https://console.cloud.google.com/) | Optional | Sign in with Google |
@@ -170,7 +170,7 @@ The app is a client of the **hosted** HTTP API. It must not ship model keys.
 
 1. Expo account at https://expo.dev/ (needed for EAS device builds; `npx expo start` works without one)
 2. In `apps/mobile`, `npm install` (this tree uses `legacy-peer-deps` so Expo's React pin does not fight the Next.js install above it)
-3. In `apps/mobile/.env` (or your shell):
+3. In `apps/mobile/.env` (or your shell). This is for local development only: EAS builds and updates read EAS environment variables instead (see [mobile release](mobile-release.md#environment-variables)):
 
 ```bash
 EXPO_PUBLIC_API_URL=https://your-ciciro-host.example

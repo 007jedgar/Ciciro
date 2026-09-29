@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { requestPushRegistrationSync } from "./push-registration";
 import {
   commitNotificationIds,
   loadNotificationIds,
@@ -180,7 +181,9 @@ export async function requestReminderPermission(
   try {
     const current = await client.getPermission();
     if (current === "granted") return "granted";
-    return await client.requestPermission();
+    const answer = await client.requestPermission();
+    requestPushRegistrationSync();
+    return answer;
   } catch {
     return "unavailable";
   }

@@ -43,6 +43,7 @@ model User {
   subscriptions     Subscription[]
   billingEvents     BillingEvent[]
   usageCounters     UsageCounter[]
+  pushTokens        PushToken[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -67,6 +68,8 @@ model Session {
   expiresAt DateTime
 
   createdAt DateTime @default(now())
+
+  pushTokens PushToken[]
 
   @@index([userId])
   @@index([expiresAt])
@@ -136,6 +139,46 @@ model EmailToken {
 
   @@index([userId, purpose, createdAt])
   @@index([expiresAt])
+}
+
+// A phone's Expo push token (ExponentPushToken[...]), registered by the app
+// once the author has allowed notifications. It belongs to the sign-in that
+// registered it: signing out, or the session expiring, removes it, so a
+// shared phone never gets another account's notifications. Registering the
+// same token from another sign-in moves it there.
+// See src/lib/push/ and docs/mobile-release.md#push-notifications.
+model PushToken {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  token     String  @unique
+  platform  String // "ios" | "android"
+
+  tickets PushTicket[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+}
+
+// An Expo push ticket waiting for its receipt. The receipt says whether Apple
+// or Google took the notification, and whether the device is gone
+// (DeviceNotRegistered, so the token is dropped). Expo keeps receipts for a
+// day; checkPushReceipts reads them after 15 minutes and deletes the row.
+model PushTicket {
+  // The ticket id Expo returned, which is also the receipt id.
+  id          String    @id
+  pushTokenId String
+  pushToken   PushToken @relation(fields: [pushTokenId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([pushTokenId])
+  @@index([createdAt])
 }
 
 model Project {

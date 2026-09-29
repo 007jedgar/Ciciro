@@ -1,0 +1,44 @@
+# A development client (expo-dev-client) to run Metro against. Rebuild it
+# whenever native code changes: a new native module, a config plugin, the
+# patched editor, or an Expo SDK upgrade. The simulator build needs no device
+# registration; a device build needs the phone registered with
+# `eas device:create` first.
+#
+#   eas workflow:run .eas/workflows/development-build.yml -F target=simulator
+name: Development build
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        description: iOS simulator, or registered iOS devices and Android
+        options:
+          - simulator
+          - device
+        default: simulator
+
+jobs:
+  build_ios_simulator:
+    name: Build iOS simulator dev client
+    if: ${{ inputs.target != 'device' }}
+    type: build
+    params:
+      platform: ios
+      profile: development-simulator
+
+  build_ios_device:
+    name: Build iOS device dev client
+    if: ${{ inputs.target == 'device' }}
+    type: build
+    params:
+      platform: ios
+      profile: development
+
+  build_android:
+    name: Build Android dev client
+    if: ${{ inputs.target == 'device' }}
+    type: build
+    params:
+      platform: android
+      profile: development

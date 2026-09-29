@@ -605,6 +605,16 @@ export type ReminderNudgeResponse = {
   body: string | null;
 };
 
+/** An Expo push token for this phone (see the server's src/lib/push/tokens.ts). */
+export type PushTokenRegisterRequest = {
+  token: string;
+  platform: "ios" | "android";
+};
+
+export type PushTokenUnregisterRequest = {
+  token: string;
+};
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

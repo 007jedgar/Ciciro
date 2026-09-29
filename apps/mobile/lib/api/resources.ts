@@ -11,6 +11,8 @@ import type {
   AutowriteStreamEvent,
   DeleteAccountRequest,
   ForgotPasswordRequest,
+  PushTokenRegisterRequest,
+  PushTokenUnregisterRequest,
   ResendVerificationResponse,
   BibleEntry,
   BibleFile,
@@ -183,6 +185,15 @@ export const ciciro = {
 
   models: {
     get: (opts?: RequestOpts) => api<ModelsResponse>("/api/models", opts),
+  },
+
+  push: {
+    /** Let the server send this phone notifications for the signed-in account. */
+    register: (body: PushTokenRegisterRequest, opts?: RequestOpts) =>
+      api<OkResponse>("/api/push/tokens", jsonInit("POST", body, opts)),
+    /** Stop: the author turned notifications off. Signing out also stops them. */
+    unregister: (body: PushTokenUnregisterRequest, opts?: RequestOpts) =>
+      api<OkResponse>("/api/push/tokens", jsonInit("DELETE", body, opts)),
   },
 
   billing: {

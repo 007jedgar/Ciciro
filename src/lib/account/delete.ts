@@ -101,6 +101,8 @@ export const PURGED_MODELS = [
   "Identity",
   "AuthHandoff",
   "EmailToken",
+  "PushTicket",
+  "PushToken",
   "Session",
   "User",
 ] as const;
@@ -149,6 +151,8 @@ export async function purgeAccountData(userId: string, email: string): Promise<v
     prisma.identity.deleteMany({ where: { userId } }),
     prisma.authHandoff.deleteMany({ where: { userId } }),
     prisma.emailToken.deleteMany({ where: { userId } }),
+    prisma.pushTicket.deleteMany({ where: { pushToken: { userId } } }),
+    prisma.pushToken.deleteMany({ where: { userId } }),
     prisma.session.deleteMany({ where: { userId } }),
     prisma.user.deleteMany({ where: { id: userId } }),
   ]);
