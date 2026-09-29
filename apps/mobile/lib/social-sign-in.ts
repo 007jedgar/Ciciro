@@ -75,7 +75,7 @@ export async function appleSheetAvailable(): Promise<boolean> {
  */
 export async function browserSignInCode(
   provider: BrowserProvider
-): Promise<{ code: string; verifier: string } | null> {
+): Promise<{ code: string; verifier: string; takeover?: BrowserProvider } | null> {
   const verifier = randomUrlSafe();
   const challenge = base64Url(
     await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, {
@@ -92,5 +92,5 @@ export async function browserSignInCode(
     if (parsed.error === "cancelled") return null;
     throw new SocialSignInError(parsed.error);
   }
-  return { code: parsed.code, verifier };
+  return { code: parsed.code, verifier, takeover: parsed.takeover };
 }

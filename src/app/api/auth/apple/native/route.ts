@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   try {
-    const user = await signInWithAppleNative({
+    const { user, takeover } = await signInWithAppleNative({
       idToken: body.idToken,
       nonce: body.nonce,
       authorizationCode: body.authorizationCode,
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     });
     const token = await createSession(user.id, req.headers.get("user-agent") || "");
     const settings = await getUserSettings(user.id);
-    return jsonWithSession({ user, settings }, token, isNativeClient(req));
+    return jsonWithSession({ user, settings, takeover }, token, isNativeClient(req));
   } catch (error) {
     const mapped = responseFromAuthError(error) ?? responseFromDbError(error);
     if (mapped) return mapped;

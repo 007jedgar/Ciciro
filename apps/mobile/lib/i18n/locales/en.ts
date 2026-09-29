@@ -65,6 +65,8 @@ const en = {
     continueWithApple: "Continue with Apple",
     continueWithGoogle: "Continue with Google",
     or: "or",
+    passwordRemovedTitle: "Your account is now protected",
+    passwordRemoved: "For your security, this account now signs in with {{provider}}; your old password was removed.",
     social: {
       cancelled: "Sign-in was cancelled.",
       expired: "That sign-in expired. Try again.",

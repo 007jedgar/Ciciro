@@ -67,6 +67,8 @@ const zh: Translations = {
     continueWithApple: "通过 Apple 继续",
     continueWithGoogle: "通过 Google 继续",
     or: "或",
+    passwordRemovedTitle: "你的账户现已受到保护",
+    passwordRemoved: "为了你的安全,此账户现在通过 {{provider}} 登录;你的旧密码已被移除。",
     social: {
       cancelled: "已取消登录。",
       expired: "此次登录已过期，请重试。",

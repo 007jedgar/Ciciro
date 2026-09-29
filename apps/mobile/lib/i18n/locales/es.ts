@@ -67,6 +67,8 @@ const es: Translations = {
     continueWithApple: "Continuar con Apple",
     continueWithGoogle: "Continuar con Google",
     or: "o",
+    passwordRemovedTitle: "Tu cuenta ahora está protegida",
+    passwordRemoved: "Por tu seguridad, esta cuenta ahora inicia sesión con {{provider}}; se eliminó tu contraseña anterior.",
     social: {
       cancelled: "Se canceló el inicio de sesión.",
       expired: "Ese inicio de sesión caducó. Inténtalo de nuevo.",

@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { JWTVerifyGetKey } from "jose";
 import { safeNext, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/constants";
-import { createHandoff, signInWithIdentity, SocialAuthError } from "@/lib/auth/identity";
+import {
+  createHandoff,
+  signInWithIdentity,
+  SocialAuthError,
+  type SocialSignInResult,
+} from "@/lib/auth/identity";
 import {
   appleClientSecret,
   AUTHORIZE_URL,
@@ -34,6 +39,13 @@ import { AuthError, createSession, type PublicUser } from "@/lib/auth/session";
 
 /** Where the browser flow returns to the app. Matches `scheme` in app.json. */
 export const NATIVE_REDIRECT = "ciciro://oauth";
+
+/**
+ * The query parameter, on the web landing URL and on ciciro://oauth, that names
+ * the provider which took over an unverified password account. It only drives
+ * a one-time notice; the takeover itself already happened on the server.
+ */
+export const TAKEOVER_PARAM = "password_removed";
 
 export const OAUTH_COOKIE = "ciciro_oauth";
 const OAUTH_COOKIE_PATH = "/api/auth/oauth";
@@ -254,7 +266,7 @@ async function identifyFromCallback(
   params: CallbackParams,
   origin: string,
   deps: SocialDeps
-): Promise<PublicUser> {
+): Promise<SocialSignInResult> {
   const redirectUri = callbackUrl(origin, flow.provider);
   if (flow.provider === "apple") {
     const config = appleConfig();
@@ -318,9 +330,9 @@ export async function finishBrowserSignIn(
   }
   if (!browserFlowEnabled(provider)) return fail("unavailable");
 
-  let user: PublicUser;
+  let result: SocialSignInResult;
   try {
-    user = await identifyFromCallback(flow, params, origin, deps);
+    result = await identifyFromCallback(flow, params, origin, deps);
   } catch (error) {
     if (!(error instanceof SocialAuthError)) {
       console.error(`${provider} sign-in failed:`, error instanceof Error ? error.message : error);
@@ -328,16 +340,20 @@ export async function finishBrowserSignIn(
     return fail(failureCode(error));
   }
 
+  const { user, takeover } = result;
   if (flow.challenge) {
     const code = await createHandoff(user.id, flow.challenge);
+    const notice = takeover ? `&${TAKEOVER_PARAM}=${takeover}` : "";
     return clearFlowCookie(
-      NextResponse.redirect(`${NATIVE_REDIRECT}?code=${encodeURIComponent(code)}`, 303),
+      NextResponse.redirect(`${NATIVE_REDIRECT}?code=${encodeURIComponent(code)}${notice}`, 303),
       provider
     );
   }
 
   const token = await createSession(user.id, req.headers.get("user-agent") || "");
-  const res = NextResponse.redirect(new URL(flow.next, origin), 303);
+  const landing = new URL(flow.next, origin);
+  if (takeover) landing.searchParams.set(TAKEOVER_PARAM, takeover);
+  const res = NextResponse.redirect(landing, 303);
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
   return clearFlowCookie(res, provider);
 }
@@ -350,7 +366,7 @@ export async function finishBrowserSignIn(
 export async function signInWithAppleNative(
   input: { idToken: unknown; nonce: unknown; authorizationCode?: unknown; givenName?: unknown; familyName?: unknown },
   deps: SocialDeps = {}
-): Promise<PublicUser> {
+): Promise<SocialSignInResult> {
   if (!socialAvailability().apple.native) {
     throw new AuthError("Sign in with Apple is not set up on this server.", 503);
   }

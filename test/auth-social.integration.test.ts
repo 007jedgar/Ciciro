@@ -5,7 +5,7 @@ import { AppleRevokeError, revokeAppleTokens } from "@/lib/auth/apple-revoke";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { NO_PASSWORD, redeemHandoff, signInWithIdentity, SocialAuthError } from "@/lib/auth/identity";
 import { pkceChallenge, randomToken, sha256Hex, type VerifiedIdentity } from "@/lib/auth/oidc";
-import { authenticate, getSessionUser, registerUser } from "@/lib/auth/session";
+import { authenticate, createSession, getSessionUser, registerUser } from "@/lib/auth/session";
 import { socialAvailability } from "@/lib/auth/social-config";
 import {
   finishBrowserSignIn,
@@ -27,6 +27,14 @@ async function resetDb() {
   await prisma.user.deleteMany();
 }
 
+async function userForSession(token: string) {
+  const session = await prisma.session.findUnique({
+    where: { tokenHash: hashSessionToken(token) },
+    include: { user: true },
+  });
+  return session?.user ?? null;
+}
+
 function google(overrides: Partial<VerifiedIdentity> = {}): VerifiedIdentity {
   return {
     provider: "google",
@@ -45,10 +53,12 @@ describe("signInWithIdentity", () => {
   });
 
   it("creates a password-less account for a new verified email", async () => {
-    const user = await signInWithIdentity(google({ name: "Ada" }));
+    const { user, takeover } = await signInWithIdentity(google({ name: "Ada" }));
+    expect(takeover).toBeNull();
     expect(user).toMatchObject({ email: "writer@gmail.com", name: "Ada" });
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.passwordHash).toBe(NO_PASSWORD);
+    expect(row.emailVerifiedAt).toBeInstanceOf(Date);
     const identities = await prisma.identity.findMany({ where: { userId: user.id } });
     expect(identities).toMatchObject([{ provider: "google", subject: "g-1", email: "writer@gmail.com" }]);
   });
@@ -64,8 +74,8 @@ describe("signInWithIdentity", () => {
   });
 
   it("keeps signing a known subject into its account after the email changes", async () => {
-    const first = await signInWithIdentity(google());
-    const again = await signInWithIdentity(google({ email: "renamed@gmail.com" }));
+    const { user: first } = await signInWithIdentity(google());
+    const { user: again } = await signInWithIdentity(google({ email: "renamed@gmail.com" }));
     expect(again.id).toBe(first.id);
     // The account email stays; only the identity's record of it moves.
     expect(again.email).toBe("writer@gmail.com");
@@ -73,19 +83,101 @@ describe("signInWithIdentity", () => {
     expect(identity.email).toBe("renamed@gmail.com");
   });
 
-  it("links a verified email to an existing password account, which keeps its password", async () => {
-    const existing = await registerUser({ email: "Writer@Gmail.com", password: "long-enough-pw" });
-    const user = await signInWithIdentity(google());
-    expect(user.id).toBe(existing.id);
-    await expect(
-      authenticate({ email: "writer@gmail.com", password: "long-enough-pw" })
-    ).resolves.toMatchObject({ id: existing.id });
-    expect(await prisma.user.count()).toBe(1);
+  describe("a provider-verified email that matches a password account", () => {
+    async function attackerRegisters() {
+      const attacker = await registerUser({ email: "Writer@Gmail.com", password: "attackers-pw-123" });
+      const sessionToken = await createSession(attacker.id);
+      return { attacker, sessionToken };
+    }
+
+    it("takes over an account whose email was never verified", async () => {
+      const { attacker, sessionToken } = await attackerRegisters();
+      await prisma.authHandoff.create({
+        data: {
+          userId: attacker.id,
+          codeHash: sha256Hex("pending"),
+          challenge: "c",
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+
+      const { user, takeover } = await signInWithIdentity(google());
+
+      expect(user.id).toBe(attacker.id);
+      expect(takeover).toBe("google");
+      await expect(
+        authenticate({ email: "writer@gmail.com", password: "attackers-pw-123" })
+      ).rejects.toMatchObject({ status: 401 });
+      expect(await userForSession(sessionToken)).toBeNull();
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+      expect(await prisma.authHandoff.count({ where: { userId: user.id } })).toBe(0);
+      const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      expect(row.passwordHash).toBe(NO_PASSWORD);
+      expect(row.emailVerifiedAt).toBeInstanceOf(Date);
+      expect(await prisma.identity.count({ where: { userId: user.id } })).toBe(1);
+      expect(await prisma.user.count()).toBe(1);
+    });
+
+    it("does not revoke sessions again on a later provider sign-in", async () => {
+      await attackerRegisters();
+      await signInWithIdentity(google());
+      const session = await createSession((await prisma.user.findFirstOrThrow()).id);
+
+      const apple = await signInWithIdentity(
+        google({ provider: "apple", subject: "001.apple", email: "writer@gmail.com" })
+      );
+      expect(apple.takeover).toBeNull();
+      expect((await userForSession(session))?.email).toBe("writer@gmail.com");
+
+      const again = await signInWithIdentity(google());
+      expect(again.takeover).toBeNull();
+      expect((await userForSession(session))?.email).toBe("writer@gmail.com");
+    });
+
+    it("links without a takeover once the email is verified", async () => {
+      const { attacker } = await attackerRegisters();
+      await prisma.user.update({ where: { id: attacker.id }, data: { emailVerifiedAt: new Date() } });
+      const session = await createSession(attacker.id);
+
+      const { user, takeover } = await signInWithIdentity(google());
+
+      expect(takeover).toBeNull();
+      expect(user.id).toBe(attacker.id);
+      expect((await userForSession(session))?.id).toBe(attacker.id);
+      await expect(
+        authenticate({ email: "writer@gmail.com", password: "attackers-pw-123" })
+      ).resolves.toMatchObject({ id: attacker.id });
+    });
+
+    it("marks a legacy password-less account verified without a takeover", async () => {
+      const legacy = await prisma.user.create({
+        data: { email: "writer@gmail.com", passwordHash: NO_PASSWORD },
+      });
+      const session = await createSession(legacy.id);
+
+      const { takeover } = await signInWithIdentity(google());
+
+      expect(takeover).toBeNull();
+      expect((await userForSession(session))?.id).toBe(legacy.id);
+      const row = await prisma.user.findUniqueOrThrow({ where: { id: legacy.id } });
+      expect(row.emailVerifiedAt).toBeInstanceOf(Date);
+    });
+
+    it("never takes over on an unverified provider email", async () => {
+      const { attacker, sessionToken } = await attackerRegisters();
+      await expect(signInWithIdentity(google({ emailVerified: false }))).rejects.toMatchObject({
+        code: "unverified_email",
+      });
+      expect((await userForSession(sessionToken))?.id).toBe(attacker.id);
+      await expect(
+        authenticate({ email: "writer@gmail.com", password: "attackers-pw-123" })
+      ).resolves.toMatchObject({ id: attacker.id });
+    });
   });
 
   it("links Apple and Google to one account through the shared email", async () => {
-    const viaGoogle = await signInWithIdentity(google());
-    const viaApple = await signInWithIdentity(
+    const { user: viaGoogle } = await signInWithIdentity(google());
+    const { user: viaApple } = await signInWithIdentity(
       google({ provider: "apple", subject: "001.apple", email: "writer@gmail.com" })
     );
     expect(viaApple.id).toBe(viaGoogle.id);
@@ -112,8 +204,8 @@ describe("signInWithIdentity", () => {
   });
 
   it("signs a known subject in even when a later token omits the email", async () => {
-    const first = await signInWithIdentity(google({ provider: "apple", subject: "001.a" }));
-    const again = await signInWithIdentity(
+    const { user: first } = await signInWithIdentity(google({ provider: "apple", subject: "001.a" }));
+    const { user: again } = await signInWithIdentity(
       google({ provider: "apple", subject: "001.a", email: null, emailVerified: false })
     );
     expect(again.id).toBe(first.id);
@@ -121,7 +213,7 @@ describe("signInWithIdentity", () => {
 
   it("treats an Apple private-relay email as an ordinary email", async () => {
     const relay = "x7yq@privaterelay.appleid.com";
-    const user = await signInWithIdentity(
+    const { user } = await signInWithIdentity(
       google({ provider: "apple", subject: "001.relay", email: relay })
     );
     expect(user.email).toBe(relay);
@@ -129,11 +221,11 @@ describe("signInWithIdentity", () => {
 
   it("uses Apple's first-sign-in name only to fill an empty name", async () => {
     const identity = google({ provider: "apple", subject: "001.name" });
-    const first = await signInWithIdentity(identity, { name: " Ada Lovelace " });
+    const { user: first } = await signInWithIdentity(identity, { name: " Ada Lovelace " });
     expect(first.name).toBe("Ada Lovelace");
     // Apple never sends the name again, and a client cannot rename the account.
-    expect((await signInWithIdentity(identity)).name).toBe("Ada Lovelace");
-    expect((await signInWithIdentity(identity, { name: "Mallory" })).name).toBe("Ada Lovelace");
+    expect((await signInWithIdentity(identity)).user.name).toBe("Ada Lovelace");
+    expect((await signInWithIdentity(identity, { name: "Mallory" })).user.name).toBe("Ada Lovelace");
   });
 
   it("stores and refreshes the Apple refresh token", async () => {
@@ -153,7 +245,7 @@ describe("signInWithIdentity", () => {
 
   it("links concurrent first sign-ins to one account", async () => {
     const [a, b] = await Promise.all([signInWithIdentity(google()), signInWithIdentity(google())]);
-    expect(a.id).toBe(b.id);
+    expect(a.user.id).toBe(b.user.id);
     expect(await prisma.user.count()).toBe(1);
     expect(await prisma.identity.count()).toBe(1);
   });
@@ -274,6 +366,32 @@ describe("browser and native sign-in flows", () => {
     expect(await sessionUserFor(token)).toMatchObject({ email: "writer@gmail.com", name: "Ada Writer" });
     // The flow cookie is spent.
     expect(res.cookies.get(OAUTH_COOKIE)?.value).toBe("");
+  });
+
+  it("a takeover lands on next with the one-time notice parameter and a fresh session", async () => {
+    const attacker = await registerUser({ email: "writer@gmail.com", password: "attackers-pw-123" });
+    const stale = await createSession(attacker.id);
+    const { location, cookie } = start("/api/auth/oauth/google/start?next=/project/p1");
+    const idToken = await googleIdp.mint({
+      sub: "g-owner",
+      aud: "web-client.apps.googleusercontent.com",
+      email: "writer@gmail.com",
+      email_verified: true,
+      nonce: location.searchParams.get("nonce"),
+    });
+    const res = await callback(
+      "google",
+      cookie?.value,
+      { state: location.searchParams.get("state"), code: "c" },
+      { fetch: tokenEndpoint(() => ({ id_token: idToken })).fetch, keys: { google: googleIdp.keys } }
+    );
+    expect(res.headers.get("location")).toBe(`${ORIGIN}/project/p1?password_removed=google`);
+    expect(await userForSession(stale)).toBeNull();
+    const fresh = await sessionUserFor(res.cookies.get(SESSION_COOKIE)?.value ?? "");
+    expect(fresh?.id).toBe(attacker.id);
+    await expect(
+      authenticate({ email: "writer@gmail.com", password: "attackers-pw-123" })
+    ).rejects.toMatchObject({ status: 401 });
   });
 
   it("the signed-in web session resolves through getSessionUser", async () => {
@@ -490,6 +608,19 @@ describe("browser and native sign-in flows", () => {
       await expect(redeemHandoff(code, verifier)).rejects.toMatchObject({ status: 401 });
     });
 
+    it("flags a takeover on the app redirect only", async () => {
+      const first = await nativeSignIn();
+      expect(first.back.searchParams.has("password_removed")).toBe(false);
+
+      await resetDb();
+      await registerUser({ email: "phone@gmail.com", password: "attackers-pw-123" });
+      const takeover = await nativeSignIn();
+      expect(takeover.back.searchParams.get("password_removed")).toBe("google");
+      await expect(
+        redeemHandoff(takeover.back.searchParams.get("code"), takeover.verifier)
+      ).resolves.toMatchObject({ email: "phone@gmail.com" });
+    });
+
     it("a stolen code is useless without the verifier, and the wrong one burns it", async () => {
       const { back, verifier } = await nativeSignIn();
       const code = back.searchParams.get("code") ?? "";
@@ -536,7 +667,7 @@ describe("browser and native sign-in flows", () => {
         nonce: sha256Hex(rawNonce),
       });
       const endpoint = tokenEndpoint(() => ({ refresh_token: "ios-rt" }));
-      const user = await signInWithAppleNative(
+      const { user } = await signInWithAppleNative(
         { idToken, nonce: rawNonce, authorizationCode: "ios-code", givenName: "Grace", familyName: "Hopper" },
         { fetch: endpoint.fetch, keys: { apple: appleIdp.keys } }
       );
@@ -548,6 +679,26 @@ describe("browser and native sign-in flows", () => {
       refreshToken: "ios-rt",
       refreshTokenClientId: "app.ciciro.mobile",
     });
+    });
+
+    it("reports a takeover of an unverified password account", async () => {
+      await registerUser({ email: "ios@icloud.com", password: "attackers-pw-123" });
+      const rawNonce = randomToken();
+      const idToken = await appleIdp.mint({
+        sub: "001.ios",
+        aud: "app.ciciro.mobile",
+        email: "ios@icloud.com",
+        email_verified: true,
+        nonce: sha256Hex(rawNonce),
+      });
+      const { takeover } = await signInWithAppleNative(
+        { idToken, nonce: rawNonce },
+        { keys: { apple: appleIdp.keys } }
+      );
+      expect(takeover).toBe("apple");
+      await expect(
+        authenticate({ email: "ios@icloud.com", password: "attackers-pw-123" })
+      ).rejects.toMatchObject({ status: 401 });
     });
 
     it("rejects a replayed token without the raw nonce", async () => {
@@ -614,7 +765,7 @@ describe("revokeAppleTokens", () => {
   });
 
   async function appleUser() {
-    const user = await signInWithIdentity(google({ provider: "apple", subject: "001.web" }), {
+    const { user } = await signInWithIdentity(google({ provider: "apple", subject: "001.web" }), {
       refreshToken: { token: "web-rt", clientId: "app.ciciro.web" },
     });
     await prisma.identity.create({
@@ -663,7 +814,7 @@ describe("revokeAppleTokens", () => {
   });
 
   it("does nothing for a user without Apple tokens", async () => {
-    const user = await signInWithIdentity(google());
+    const { user } = await signInWithIdentity(google());
     const fetchStub = vi.fn();
     await expect(revokeAppleTokens(user.id, fetchStub as unknown as typeof fetch)).resolves.toBe(0);
     expect(fetchStub).not.toHaveBeenCalled();

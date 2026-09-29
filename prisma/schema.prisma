@@ -21,6 +21,9 @@ model User {
   // cascade-deletes every Project and Session. See NO_PASSWORD.
   passwordHash String
   name         String @default("")
+  // Set when Apple or Google vouched for this email (at social sign-up or
+  // link). Null for password signups, whose email nobody has verified yet.
+  emailVerifiedAt DateTime?
 
   sessions          Session[]
   identities        Identity[]
