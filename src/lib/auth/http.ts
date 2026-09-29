@@ -34,7 +34,12 @@ export function responseFromAuthError(error: unknown): NextResponse | null {
   const status = typeof err.status === "number" ? err.status : 400;
   const payload =
     err.body && typeof err.body === "object" ? err.body : { error: err.message };
-  return NextResponse.json(payload, { status });
+  const res = NextResponse.json(payload, { status });
+  if (status === 429) {
+    const retryAfter = (payload as { retryAfter?: unknown }).retryAfter;
+    res.headers.set("retry-after", String(typeof retryAfter === "number" ? retryAfter : 60));
+  }
+  return res;
 }
 
 export function jsonWithSession<T extends Record<string, unknown>>(

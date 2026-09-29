@@ -13,7 +13,9 @@ deleted and exported:
 
 `DELETE /api/auth/account` (`src/app/api/auth/account/route.ts`) needs a
 session plus fresh proof: the password, or for an account without one the
-typed word `DELETE` (`verifyDeletionProof`). Then `deleteAccount`:
+typed word `DELETE` (`verifyDeletionProof`). The password check shares the
+login rate limiter (`src/lib/auth/rate-limit.ts`; see `docs/hosting.md` for
+its `PasswordAttempt` D1 table). Then `deleteAccount`:
 
 1. runs `PRE_DELETE_HOOKS` in order. A hook that throws aborts everything, with
    the account intact, and the author sees a 502 to retry. This is where
@@ -55,4 +57,8 @@ before sharing and reports a truncated download instead.
 
 Left out on purpose: password hash, session token hashes, the Apple refresh token,
 the codes and challenges of pending app sign-ins, share link tokens,
-the rate-limit hash of beta readers' IPs, and editor-run lock tokens.
+the rate-limit hash of beta readers' IPs, editor-run lock tokens, and the
+hashed address on a `PasswordAttempt` row. A row from a login guess against
+this email before it matched an account has no `userId` to page by, so it
+purges (matched by email in `purgeAccountData`) but is never exported:
+`PasswordAttempt` export only reaches account-deletion attempts.

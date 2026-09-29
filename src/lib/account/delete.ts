@@ -3,6 +3,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { AuthError } from "@/lib/auth/session";
 import { revokeAppleTokens } from "@/lib/auth/apple-revoke";
 import { DELETE_CONFIRMATION } from "@/lib/account/copy";
+import { assertAttemptAllowed, clearAttempts, recordFailedAttempt } from "@/lib/auth/rate-limit";
 
 // Account deletion: re-authenticate, run the pre-delete hooks in order, then
 // purge every row the account owns in one batch. See docs/account-data.md.
@@ -54,6 +55,7 @@ export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [APPLE_REVOKE_HOOK];
  * test/account-delete.integration.test.ts fails when a model is missing here.
  */
 export const PURGED_MODELS = [
+  "PasswordAttempt",
   "EditorStep",
   "EditorRun",
   "ShareComment",
@@ -88,11 +90,16 @@ export const PURGED_MODELS = [
  * Delete every row the account owns, atomically. Rows hang off the account
  * either through a manuscript it owns or directly by `userId`. One batch so a
  * failure part-way leaves the account whole, and D1 can run it (no
- * interactive transactions there).
+ * interactive transactions there). `email` also purges this account's login
+ * rate-limit rows, which have no `userId` to tag them with (see
+ * PasswordAttempt).
  */
-export async function purgeAccountData(userId: string): Promise<void> {
+export async function purgeAccountData(userId: string, email: string): Promise<void> {
   const ownProject = { project: { userId } };
   await prisma.$transaction([
+    prisma.passwordAttempt.deleteMany({
+      where: { OR: [{ userId }, { scope: "login", key: email }] },
+    }),
     prisma.editorStep.deleteMany({ where: { run: ownProject } }),
     prisma.editorRun.deleteMany({ where: ownProject }),
     prisma.shareComment.deleteMany({ where: ownProject }),
@@ -137,22 +144,28 @@ export type DeletionProof = {
  * word DELETE. A session alone is not enough, since a device left signed in
  * should not be able to erase a manuscript.
  *
+ * The password check shares the login limiter (src/lib/auth/rate-limit.ts),
+ * keyed by userId since deletion always has one.
+ *
  * A fresh Apple / Google sign-in would be the stronger proof for a
  * password-less account; accepting its verified ID token here is a follow-up
  * (docs/account-data.md).
  */
 export async function verifyDeletionProof(
-  account: { passwordHash: string | null },
-  proof: DeletionProof
+  account: { id: string; passwordHash: string | null },
+  proof: DeletionProof,
+  address: string
 ): Promise<void> {
   if (account.passwordHash) {
     if (typeof proof.password !== "string" || !proof.password) {
       throw new AuthError("Enter your password to delete your account.", 400);
     }
-    // Unthrottled, like login; a shared password-attempt limiter is a filed follow-up.
+    await assertAttemptAllowed("delete", account.id, address);
     if (!(await verifyPassword(proof.password, account.passwordHash))) {
+      await recordFailedAttempt("delete", account.id, address, { userId: account.id });
       throw new AuthError("Incorrect password.", 403);
     }
+    await clearAttempts("delete", account.id);
     return;
   }
   const typed = typeof proof.confirmation === "string" ? proof.confirmation.trim() : "";
@@ -163,19 +176,21 @@ export async function verifyDeletionProof(
 
 /**
  * Delete an account for good: prove intent, run the pre-delete hooks, purge.
- * Throws AuthError (404 when the account is already gone, 400/403 on proof).
+ * Throws AuthError (404 when the account is already gone, 400/403 on proof,
+ * 429 when the password check is locked out).
  */
 export async function deleteAccount(
   userId: string,
   proof: DeletionProof,
-  hooks: readonly PreDeleteHook[] = PRE_DELETE_HOOKS
+  hooks: readonly PreDeleteHook[] = PRE_DELETE_HOOKS,
+  address = "unknown"
 ): Promise<void> {
   const account = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, name: true, passwordHash: true },
   });
   if (!account) throw new AuthError("Not found.", 404);
-  await verifyDeletionProof(account, proof);
+  await verifyDeletionProof(account, proof, address);
   const deleting: DeletingAccount = { id: account.id, email: account.email, name: account.name };
   for (const hook of hooks) {
     try {
@@ -188,5 +203,5 @@ export async function deleteAccount(
       );
     }
   }
-  await purgeAccountData(userId);
+  await purgeAccountData(userId, account.email);
 }

@@ -76,7 +76,7 @@ describe("account deletion", () => {
     );
     expect(Number(foreign_keys)).toBe(0);
 
-    await purgeAccountData(gone.userId);
+    await purgeAccountData(gone.userId, gone.email);
     expect(await countAllModels()).toEqual(before);
     expect(await prisma.user.findUnique({ where: { id: keep.userId } })).not.toBeNull();
   });
@@ -161,7 +161,9 @@ describe("account deletion", () => {
       (e: unknown) => e
     );
     expect(error).toMatchObject({ status: 502 });
-    expect(await countAllModels()).toEqual(before);
+    // The proof check runs (and clears its own rate-limit row) before the
+    // hooks; only the purge itself is what a failed hook leaves untouched.
+    expect(await countAllModels()).toEqual({ ...before, PasswordAttempt: before.PasswordAttempt - 1 });
   });
 });
 

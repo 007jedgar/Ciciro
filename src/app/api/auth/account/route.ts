@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { requireSessionUser } from "@/lib/auth/session";
-import { deleteAccount } from "@/lib/account/delete";
+import { deleteAccount, PRE_DELETE_HOOKS } from "@/lib/account/delete";
+import { clientAddress } from "@/lib/request-ip";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,12 @@ export async function DELETE(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   try {
     const user = await requireSessionUser(req);
-    await deleteAccount(user.id, { password: body.password, confirmation: body.confirmation });
+    await deleteAccount(
+      user.id,
+      { password: body.password, confirmation: body.confirmation },
+      PRE_DELETE_HOOKS,
+      clientAddress(req)
+    );
   } catch (error) {
     const failure = responseFromAuthError(error) ?? responseFromDbError(error);
     if (failure) return failure;

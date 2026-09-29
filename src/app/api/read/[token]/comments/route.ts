@@ -2,27 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { postReaderComment } from "@/lib/shares";
 import { COMMENT_REQUEST_MAX_BYTES } from "@/lib/share-view";
+import { clientAddress } from "@/lib/request-ip";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ token: string }> };
 
 const NO_STORE = { "cache-control": "no-store" };
-
-/**
- * The reader's address, for rate limiting. Cloudflare sets cf-connecting-ip
- * and overwrites any a client sent; the others are for other hosts, where a
- * proxy in front must set them. Without one, readers share a single budget,
- * and the per-link limits still hold.
- */
-function clientAddress(req: NextRequest): string {
-  const cf = req.headers.get("cf-connecting-ip")?.trim();
-  if (cf) return cf;
-  const real = req.headers.get("x-real-ip")?.trim();
-  if (real) return real;
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || "unknown";
-}
 
 // POST /api/read/:token/comments — a beta reader comments on a passage. No
 // session: the token is the credential. Body: { chapterId, blockId, quote,
