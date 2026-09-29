@@ -31,6 +31,12 @@
   color: var(--ink);
 }
 
+.privacy-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .privacy-back {
   font-size: 0.9rem;
   color: var(--ink-soft);

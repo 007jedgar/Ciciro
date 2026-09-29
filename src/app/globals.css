@@ -2336,10 +2336,16 @@ input[type="file"]::file-selector-button {
 
 /* ---------- Auth (login / signup) ---------- */
 .auth-wrap {
+  position: relative;
   min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
+}
+.auth-theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
 }
 /* Account forms are a punched sheet: holes and a red margin on the left, a
    mono form number on top. */
@@ -2535,6 +2541,56 @@ input[type="file"]::file-selector-button {
 }
 .auth-link-button:hover {
   text-decoration: underline;
+}
+
+/* Day / night switch on the public pages (ThemeToggle). Both icons share one
+   cell; the root's data-mode, set before paint, picks which one shows. */
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.theme-toggle:hover {
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-toggle svg {
+  grid-area: 1 / 1;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+/* Day shows the moon (the way to night); night shows the sun. */
+.theme-toggle-sun,
+:root[data-mode="dark"] .theme-toggle-moon {
+  opacity: 0;
+  transform: rotate(-60deg) scale(0.6);
+}
+:root[data-mode="dark"] .theme-toggle-sun {
+  opacity: 1;
+  transform: none;
 }
 
 /* Account control on the manuscript list */

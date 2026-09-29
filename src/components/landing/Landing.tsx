@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
+import ThemeToggle from "@/components/ThemeToggle";
 import CyclingWord from "./CyclingWord";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
 import { CLOSING, HERO, HOW, PRICING, SCENE, WHY } from "./copy";
@@ -176,6 +177,7 @@ export default function Landing() {
               <Link href="/login" className="landing-plain-link">
                 Sign in
               </Link>
+              <ThemeToggle className="landing-theme-toggle" />
               <Link href="/signup" className="landing-btn landing-btn-light landing-btn-small">
                 Get early access <Arrow />
               </Link>

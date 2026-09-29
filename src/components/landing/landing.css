@@ -153,6 +153,9 @@
   align-items: center;
   gap: 22px;
 }
+.landing-theme-toggle {
+  color: var(--band-ink);
+}
 .landing-plain-link {
   color: var(--band-ink);
   font-weight: 500;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BrandMark from "@/components/BrandMark";
+import ThemeToggle from "@/components/ThemeToggle";
 import BackLink from "@/app/privacy/BackLink";
 import { getSessionUser } from "@/lib/auth/session";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
@@ -49,7 +50,10 @@ export default async function PricingPage({
           <BrandMark size={24} />
           <span className="privacy-wordmark">Ciciro</span>
         </Link>
-        <BackLink fallback="/" />
+        <div className="privacy-header-actions">
+          <ThemeToggle />
+          <BackLink fallback="/" />
+        </div>
       </header>
 
       <div className="pricing-body">

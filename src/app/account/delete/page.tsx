@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
+import ThemeToggle from "@/components/ThemeToggle";
 import { DELETED_WITH_ACCOUNT } from "@/lib/account/copy";
 import { getSessionUser } from "@/lib/auth/session";
 import BackLink from "../../privacy/BackLink";
@@ -27,7 +28,10 @@ export default async function AccountDeletePage({ searchParams }: Props) {
           <BrandMark size={24} />
           <span className="privacy-wordmark">Ciciro</span>
         </Link>
-        <BackLink fallback="/" />
+        <div className="privacy-header-actions">
+          <ThemeToggle />
+          <BackLink fallback="/" />
+        </div>
       </header>
 
       <article className="privacy-body">

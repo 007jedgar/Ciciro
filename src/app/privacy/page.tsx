@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
+import ThemeToggle from "@/components/ThemeToggle";
 import BackLink from "./BackLink";
 import "./privacy.css";
 
@@ -17,7 +18,10 @@ export default async function PrivacyPage() {
           <BrandMark size={24} />
           <span className="privacy-wordmark">Ciciro</span>
         </Link>
-        <BackLink fallback="/" />
+        <div className="privacy-header-actions">
+          <ThemeToggle />
+          <BackLink fallback="/" />
+        </div>
       </header>
 
       <article className="privacy-body">
