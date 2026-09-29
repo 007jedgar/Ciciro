@@ -18,7 +18,10 @@ import { middleware } from "@/middleware";
 import { homeShowsLibrary } from "@/lib/home";
 import LaunchPage from "@/app/launch/page";
 import { THEMES } from "@/lib/theme";
-import { CLOSING, HERO, HOW, LANDING_METADATA, SCENE, WHY } from "@/components/landing/copy";
+import { MANUSCRIPT_KINDS } from "@/lib/manuscript-kind";
+import { MOTION_MS } from "@/lib/motion";
+import { nextStep } from "@/components/landing/CyclingWord";
+import { CLOSING, HERO, HOW, LANDING_METADATA, PRICING, SCENE, WHY } from "@/components/landing/copy";
 
 describe("the home screen", () => {
   beforeEach(() => {
@@ -89,7 +92,7 @@ describe("theme ids", () => {
 });
 
 describe("landing copy", () => {
-  const strings = JSON.stringify([LANDING_METADATA, HERO, HOW, WHY, CLOSING, SCENE]);
+  const strings = JSON.stringify([LANDING_METADATA, HERO, HOW, WHY, CLOSING, SCENE, PRICING, PRICING.free(30)]);
 
   it("never uses an em or en dash", () => {
     expect(strings).not.toMatch(/[–—]/);
@@ -97,5 +100,39 @@ describe("landing copy", () => {
 
   it("never promises a streak", () => {
     expect(strings.toLowerCase()).not.toMatch(/day \d+ of your streak|keep your streak/);
+  });
+});
+
+describe("the headline's retyped subject", () => {
+  const words = HERO.headlineSubjects;
+
+  it("starts on novels and names only forms Ciciro is built for", () => {
+    expect(words[0]).toBe("novels");
+    expect(MANUSCRIPT_KINDS).toEqual(["novel", "screenplay", "blog", "journal"]);
+    // Plural nouns the sentence reads right with: "Most ___ don't stall".
+    for (const word of words) expect(word).toMatch(/^[a-z]+s$/);
+  });
+
+  it("rests on a word, erases it a key at a time, then types the next", () => {
+    let state = { index: 0, erasing: true, text: "novels" };
+    const shown: string[] = [];
+    const delays = new Set<number>();
+    for (let i = 0; i < 40 && !(state.index === 1 && state.text === "journals" && state.erasing); i++) {
+      const next = nextStep(words, state.index, state.text, state.erasing);
+      state = { index: next.index, erasing: next.erasing, text: next.step.text };
+      shown.push(next.step.text);
+      delays.add(next.step.delay);
+    }
+    expect(shown.slice(0, 6)).toEqual(["novel", "nove", "nov", "no", "n", ""]);
+    expect(shown.slice(6, 14)).toEqual(["j", "jo", "jou", "jour", "journ", "journa", "journal", "journals"]);
+    expect(shown.at(-1)).toBe("journals");
+    expect([...delays].sort((a, b) => a - b)).toEqual(
+      [MOTION_MS.keyErase, MOTION_MS.keyType, MOTION_MS.keyType * 3, MOTION_MS.wordHold].sort((a, b) => a - b)
+    );
+  });
+
+  it("comes back round to the first word", () => {
+    const last = words.length - 1;
+    expect(nextStep(words, last, "", true)).toMatchObject({ index: 0, step: { text: "n" } });
   });
 });

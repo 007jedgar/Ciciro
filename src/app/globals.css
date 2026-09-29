@@ -218,6 +218,11 @@
      second. Both are loops, so reduced motion also sets animation: none. */
   --duration-scene: calc(9000ms * var(--motion));
   --duration-caret: calc(1000ms * var(--motion));
+  /* The landing headline retyping its subject: one key, one erased key, and
+     how long each word stays. */
+  --duration-key-type: calc(90ms * var(--motion));
+  --duration-key-erase: calc(45ms * var(--motion));
+  --duration-word-hold: calc(2200ms * var(--motion));
   --press-scale: 0.98;
   --hover-lift: -1px;
   --enter-shift: 24px;

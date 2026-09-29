@@ -8,7 +8,9 @@ import { getEntitlement } from "@/lib/entitlements";
 import * as accountEmails from "@/lib/email/account-emails";
 import * as email from "@/lib/email";
 import { formatEmailDate } from "@/lib/email/templates";
-import { cancelStripeBilling } from "@/lib/billing/stripe";
+import { cancelStripeBilling, getStripe } from "@/lib/billing/stripe";
+import { openEarlyAccess, stripeSettings } from "@/lib/billing/config";
+import { earlyAccessOffer, proPrices } from "@/lib/billing/prices";
 import { POST as webhook } from "@/app/api/billing/webhooks/stripe/route";
 import { POST as checkout } from "@/app/api/billing/checkout/route";
 import { POST as portal } from "@/app/api/billing/portal/route";
@@ -445,6 +447,81 @@ describe("Stripe billing", () => {
       expect((await checkout(post("/api/billing/checkout", user.token, { interval: "week" }))).status).toBe(400);
       delete process.env.STRIPE_PRICE_PRO_YEARLY;
       expect((await checkout(post("/api/billing/checkout", user.token, { interval: "month" }))).status).toBe(404);
+    });
+  });
+
+  describe("the early-access offer", () => {
+    const sessionParams = () => fake.requests.find((r) => r.path === "/v1/checkout/sessions")!.params;
+
+    beforeEach(() => {
+      process.env.STRIPE_EARLY_ACCESS_COUPON = "early_access";
+    });
+
+    it("applies the coupon to an account's first subscription while early access is open", async () => {
+      process.env.CICIRO_EARLY_ACCESS_ENDS = new Date(Date.now() + 86_400_000).toISOString();
+      const user = await account("founding");
+      expect((await checkout(post("/api/billing/checkout", user.token, { interval: "month" }))).status).toBe(200);
+      expect(sessionParams()["discounts[0][coupon]"]).toBe("early_access");
+      // Stripe refuses a set discount together with the promotion code box.
+      expect(sessionParams().allow_promotion_codes).toBeUndefined();
+    });
+
+    it("offers the promotion code box instead once early access has closed", async () => {
+      process.env.CICIRO_EARLY_ACCESS_ENDS = new Date(Date.now() - 1000).toISOString();
+      const user = await account("late");
+      await checkout(post("/api/billing/checkout", user.token, { interval: "year" }));
+      expect(sessionParams()["discounts[0][coupon]"]).toBeUndefined();
+      expect(sessionParams().allow_promotion_codes).toBe("true");
+    });
+
+    it("is for a first subscription only, from any store", async () => {
+      const user = await account("returning");
+      await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          source: "play_store",
+          externalId: `revenuecat:${user.id}:pro:monthly`,
+          productId: "pro:monthly",
+          status: "expired",
+          currentPeriodEnd: new Date(Date.now() - 86_400_000),
+        },
+      });
+      expect((await checkout(post("/api/billing/checkout", user.token, { interval: "month" }))).status).toBe(200);
+      expect(sessionParams()["discounts[0][coupon]"]).toBeUndefined();
+    });
+
+    it("still sells Pro at full price when Stripe rejects the coupon", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      process.env.STRIPE_EARLY_ACCESS_COUPON = "deleted_coupon";
+      const user = await account("nocoupon");
+      const res = await checkout(post("/api/billing/checkout", user.token, { interval: "month" }));
+      expect(res.status).toBe(200);
+      const sessions = fake.requests.filter((r) => r.path === "/v1/checkout/sessions");
+      expect(sessions.at(-1)!.params["discounts[0][coupon]"]).toBeUndefined();
+      expect(sessions.at(-1)!.params.allow_promotion_codes).toBe("true");
+    });
+
+    it("shows the discounted prices from the coupon Checkout will apply", async () => {
+      const settings = stripeSettings()!;
+      const stripe = getStripe(settings)!;
+      const offer = await earlyAccessOffer(stripe, openEarlyAccess()!, await proPrices(stripe, settings));
+      expect(offer).toEqual({
+        percentOff: 50,
+        duration: 12,
+        endsAt: null,
+        prices: {
+          month: { interval: "month", amount: 600, currency: "usd", label: "$6" },
+          year: { interval: "year", amount: 4800, currency: "usd", label: "$48" },
+        },
+      });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      process.env.STRIPE_EARLY_ACCESS_COUPON = "deleted_coupon";
+      expect(await earlyAccessOffer(stripe, openEarlyAccess()!, {})).toBeNull();
+    });
+
+    it("ignores an end date it cannot read, rather than guess", () => {
+      process.env.CICIRO_EARLY_ACCESS_ENDS = "next spring";
+      expect(openEarlyAccess()).toBeNull();
     });
   });
 

@@ -19,6 +19,9 @@ export const MOTION_MS = {
   drop: 120,
   typewriter: 120,
   suggestionCollapse: 160,
+  keyType: 90,
+  keyErase: 45,
+  wordHold: 2200,
 } as const;
 
 /** The writer's reduce-motion setting, or the OS one. */

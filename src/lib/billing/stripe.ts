@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
-import { stripeSettings, type BillingInterval, type StripeSettings } from "@/lib/billing/config";
+import { openEarlyAccess, stripeSettings, type BillingInterval, type StripeSettings } from "@/lib/billing/config";
 import { attributeBillingEvent, handleOnce } from "@/lib/billing/events";
 import { formatPrice } from "@/lib/billing/prices";
 import { activeSubscription, getEntitlement } from "@/lib/entitlements";
@@ -378,6 +378,19 @@ function taxMode(): TaxMode {
   return raw === "automatic_tax" || raw === "none" ? raw : "managed_payments";
 }
 
+/**
+ * Whether Checkout applies the early-access coupon for this account: the offer
+ * is open and the account has never had Pro from any source, as the stores'
+ * introductory offers work. Call after `assertNotSubscribed`, which re-reads
+ * the account's Stripe subscriptions first.
+ */
+export async function earlyAccessApplies(userId: string, now: Date = new Date()): Promise<string | null> {
+  const offer = openEarlyAccess(now);
+  if (!offer) return null;
+  const before = await prisma.subscription.count({ where: { userId } });
+  return before === 0 ? offer.couponId : null;
+}
+
 /** Start web Checkout for Ciciro Pro. Returns the hosted Checkout URL. */
 export async function createCheckoutSession(
   user: PublicUser,
@@ -389,23 +402,37 @@ export async function createCheckoutSession(
   await assertNotSubscribed(stripe, user, existing?.stripeCustomerId ?? null);
   const customer = await ensureCustomer(stripe, user);
 
+  const coupon = await earlyAccessApplies(user.id);
+
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
     customer,
     client_reference_id: user.id,
     line_items: [{ price: settings.prices[interval], quantity: 1 }],
     subscription_data: { metadata: { userId: user.id } },
-    allow_promotion_codes: true,
     success_url: `${origin}/pricing?checkout=success`,
     cancel_url: `${origin}/pricing`,
   };
+  // Stripe takes either a set discount or a promotion code box, not both.
+  if (coupon) params.discounts = [{ coupon }];
+  else params.allow_promotion_codes = true;
   const mode = taxMode();
   if (mode === "managed_payments") params.managed_payments = { enabled: true };
   if (mode === "automatic_tax") {
     params.automatic_tax = { enabled: true };
     params.customer_update = { address: "auto", name: "auto" };
   }
-  const session = await stripe.checkout.sessions.create(params);
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.create(params);
+  } catch (error) {
+    // A deleted or expired coupon must not stop someone paying full price.
+    if (!coupon || !(error instanceof Stripe.errors.StripeInvalidRequestError)) throw error;
+    console.error("[billing] early-access coupon rejected; Checkout without it", error);
+    delete params.discounts;
+    params.allow_promotion_codes = true;
+    session = await stripe.checkout.sessions.create(params);
+  }
   if (!session.url) throw new AuthError("Stripe did not return a Checkout page.", 502);
   return session.url;
 }
