@@ -25,13 +25,13 @@ async function handle(
   }
 }
 
-// POST /api/push/tokens { token, platform } — this phone may be sent push
+// POST /api/push/tokens { token, platform }: this phone may be sent push
 // notifications for the signed-in account until it signs out.
 export async function POST(req: NextRequest) {
   return handle(req, (owner, body) => registerPushToken(owner, body));
 }
 
-// DELETE /api/push/tokens { token } — stop sending to this phone (the author
+// DELETE /api/push/tokens { token }: stop sending to this phone (the author
 // turned notifications off).
 export async function DELETE(req: NextRequest) {
   return handle(req, (owner, body) => unregisterPushToken(owner.userId, body));

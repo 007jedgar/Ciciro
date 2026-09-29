@@ -39,6 +39,10 @@ A new email is a template in `src/lib/email/templates.ts`, also listed in `email
 
 Durations and easings are tokens in `src/app/globals.css`, all scaled by `--motion`, which the reduce-motion setting and the OS preference set to 0; build on them, not on literal `ms`. JS waits on the exit times in `src/lib/motion.ts` (`test/motion.test.ts` fails when they drift from the tokens). A surface that animates out mounts through `Presence` or `usePresence`. Deleting something uses `useSnackbar` with `onCommit`, so the server hears about it only once Undo has lapsed.
 
+## Mobile releases and push
+
+`apps/mobile` ships through EAS (`docs/mobile-release.md`). `runtimeVersion` is the fingerprint policy, and `.eas/workflows/deploy-production.yml` publishes every mobile push to `main` as an over-the-air update to production users when a production build with the same fingerprint exists (a new build otherwise), so merged mobile JS reaches authors on their next launch. EAS builds and updates read EAS environment variables, never `.env`; `app.config.ts` refuses a release bundle without a hosted https `EXPO_PUBLIC_API_URL`. A server-sent notification goes through `sendPushToUser` (`src/lib/push/send.ts`), which owns batching, receipts and dead-token cleanup; tokens belong to the session that registered them.
+
 ## Mobile motion
 
 Pass numbers into Reanimated worklets as arguments or same-scope locals: a default parameter or imported constant used inside one can be missing on the UI runtime. A throw there stops every animation until the app restarts, so if motion "does nothing" on the simulator, read Metro's log and relaunch before debugging the code. The same applies to functions: Reanimated only auto-workletizes the callback passed directly to a hook like `useAnimatedStyle`, not a plain function imported from another module and called inside that callback - give the imported function its own `"worklet"` directive, or it crashes every animation with `[Worklets] Tried to synchronously call a Remote Function`.
