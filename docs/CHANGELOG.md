@@ -5,6 +5,9 @@ else stays in commit messages.
 
 ## Unreleased
 
+- Settings (web and mobile) can now export all of your data as one zip and delete
+  your account. `/account/delete` explains account deletion publicly, for the
+  App Store and Google Play deletion requirements.
 - Settings (web and mobile) now shows the models Ciciro is actually running: Editor,
   Drafter, Quick drafts, and the Groq router when configured. Current defaults, set in
   `src/lib/anthropic.ts` and `src/lib/fast-lane.ts`:
