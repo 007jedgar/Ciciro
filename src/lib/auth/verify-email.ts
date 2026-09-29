@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/db";
 import { AuthError } from "@/lib/auth/session";
-import { EMAIL_TOKEN_TTL_MS, consumeEmailToken, issueEmailToken } from "@/lib/auth/email-tokens";
+import {
+  EMAIL_TOKEN_TTL_MS,
+  checkEmailToken,
+  consumeEmailToken,
+  issueEmailToken,
+  type EmailTokenCheck,
+} from "@/lib/auth/email-tokens";
+import type { VerifyOutcome } from "@/lib/auth/verify-email-copy";
 import { sendVerifyEmail, sendWelcomeEmail } from "@/lib/email/account-emails";
 
 // Proving an account's email address. A password signup gets a link; clicking
@@ -42,28 +49,45 @@ export async function afterPasswordSignup(userId: string, origin: string): Promi
   }
 }
 
-export type VerifyOutcome = "verified" | "already_verified" | "expired" | "invalid";
+export type { VerifyOutcome };
 
 /**
  * Spend a verification link. The first click verifies the address and sends
  * the welcome email; any later click (or one on an older link) reports
  * `already_verified` rather than an error.
  */
+async function failedOutcome(result: Extract<EmailTokenCheck, { ok: false }>): Promise<VerifyOutcome> {
+  if (result.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: result.userId },
+      select: { email: true, emailVerifiedAt: true },
+    });
+    if (user?.emailVerifiedAt) return "already_verified";
+    // Spent on this same address: the click that spent it confirms it, and
+    // may still be doing so (a double-click), so this one is not "invalid".
+    if (result.problem === "used" && user?.email === result.email) return "already_verified";
+  }
+  return result.problem === "expired" ? "expired" : "invalid";
+}
+
+/**
+ * Look a verification link up without spending it, for the page the email
+ * opens. `pending` means it can still be confirmed.
+ */
+export async function peekVerification(token: unknown): Promise<VerifyOutcome | "pending"> {
+  const check = await checkEmailToken(token, "verify_email");
+  if (!check.ok) return failedOutcome(check);
+  const user = await prisma.user.findUnique({
+    where: { id: check.userId },
+    select: { email: true, emailVerifiedAt: true },
+  });
+  if (!user || user.email !== check.email) return "invalid";
+  return user.emailVerifiedAt ? "already_verified" : "pending";
+}
+
 export async function verifyEmail(token: unknown, origin: string): Promise<VerifyOutcome> {
   const result = await consumeEmailToken(token, "verify_email");
-  if (!result.ok) {
-    if (result.userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: result.userId },
-        select: { email: true, emailVerifiedAt: true },
-      });
-      if (user?.emailVerifiedAt) return "already_verified";
-      // Spent on this same address: the click that spent it confirms it, and
-      // may still be doing so (a double-click), so this one is not "invalid".
-      if (result.problem === "used" && user?.email === result.email) return "already_verified";
-    }
-    return result.problem === "expired" ? "expired" : "invalid";
-  }
+  if (!result.ok) return failedOutcome(result);
 
   const user = await prisma.user.findUnique({
     where: { id: result.userId },

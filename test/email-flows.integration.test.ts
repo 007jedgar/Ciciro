@@ -6,12 +6,13 @@ import { authenticate, getSessionUser } from "@/lib/auth/session";
 import { hashSessionToken } from "@/lib/auth/tokens";
 import { hashPassword } from "@/lib/auth/password";
 import { EMAIL_TOKEN_COOLDOWN_MS } from "@/lib/auth/email-tokens";
-import { verifyEmail } from "@/lib/auth/verify-email";
+import { peekVerification, verifyEmail } from "@/lib/auth/verify-email";
 import { signInWithIdentity } from "@/lib/auth/identity";
 import type { VerifiedIdentity } from "@/lib/auth/oidc";
 import { assertAttemptAllowed, recordFailedAttempt } from "@/lib/auth/rate-limit";
 import { POST as signup } from "@/app/api/auth/signup/route";
 import { GET as me } from "@/app/api/auth/me/route";
+import { POST as verifyEmailRoute } from "@/app/api/auth/verify-email/route";
 import { POST as resendVerification } from "@/app/api/auth/verify-email/resend/route";
 import { POST as forgotPassword } from "@/app/api/auth/password/forgot/route";
 import { POST as resetPasswordRoute } from "@/app/api/auth/password/reset/route";
@@ -127,6 +128,22 @@ describe("account emails", () => {
       expect(sent()).toHaveLength(2);
     });
 
+    it("looking the link up leaves the account unverified and the link unspent", async () => {
+      await signup(request("/api/auth/signup", { body: { email: "ada@example.com", password: "long-enough-pw" } }));
+      const token = linkIn(sent()[0], "/verify-email");
+      await expect(peekVerification(token)).resolves.toBe("pending");
+      await expect(peekVerification(token)).resolves.toBe("pending");
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: "ada@example.com" } });
+      expect(user.emailVerifiedAt).toBeNull();
+      expect(await prisma.emailToken.count({ where: { userId: user.id, usedAt: { not: null } } })).toBe(0);
+      expect(sent()).toHaveLength(1);
+
+      const res = await verifyEmailRoute(request("/api/auth/verify-email", { body: { token } }));
+      expect(await res.json()).toEqual({ ok: true, outcome: "verified" });
+      await expect(peekVerification(token)).resolves.toBe("already_verified");
+      await expect(peekVerification("not-a-token")).resolves.toBe("invalid");
+    });
+
     it("two racing clicks send one welcome", async () => {
       await signup(request("/api/auth/signup", { body: { email: "ada@example.com", password: "long-enough-pw" } }));
       const token = linkIn(sent()[0], "/verify-email");
@@ -227,6 +244,39 @@ describe("account emails", () => {
       expect(sent()).toHaveLength(1);
       expect(sent()[0]).toMatchObject({ to: "ada@example.com", category: "password_reset" });
       expect(sent()[0].idempotencyKey).toMatch(/^password-reset\//);
+    });
+
+    it("an earlier reset link still works after a second request", async () => {
+      await passwordAccount();
+      await forgotPassword(request("/api/auth/password/forgot", { body: { email: "ada@example.com" } }));
+      await prisma.emailToken.updateMany({ data: { createdAt: new Date(Date.now() - EMAIL_TOKEN_COOLDOWN_MS - 1) } });
+      await forgotPassword(request("/api/auth/password/forgot", { body: { email: "ada@example.com" } }));
+      expect(sent()).toHaveLength(2);
+      const res = await resetPasswordRoute(
+        request("/api/auth/password/reset", {
+          body: { token: linkIn(sent()[0], "/reset-password"), password: "brand-new-password" },
+        })
+      );
+      expect(res.status).toBe(200);
+      // Completing a reset retires every other outstanding link.
+      const other = await resetPasswordRoute(
+        request("/api/auth/password/reset", {
+          body: { token: linkIn(sent()[1], "/reset-password"), password: "yet-another-password" },
+        })
+      );
+      expect(other.status).toBe(400);
+      expect(await other.json()).toMatchObject({ problem: "invalid" });
+    });
+
+    it("sends at most five reset emails a day and answers the same", async () => {
+      await passwordAccount();
+      for (let i = 0; i < 6; i++) {
+        await prisma.emailToken.updateMany({ data: { createdAt: new Date(Date.now() - EMAIL_TOKEN_COOLDOWN_MS - 1) } });
+        const res = await forgotPassword(request("/api/auth/password/forgot", { body: { email: "ada@example.com" } }));
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({ ok: true });
+      }
+      expect(sent()).toHaveLength(5);
     });
 
     it("sets the new password, revokes every session, and spends the link", async () => {

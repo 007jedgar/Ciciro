@@ -18,6 +18,10 @@ export const EMAIL_TOKEN_TTL_MS: Record<EmailTokenPurpose, number> = {
  */
 export const EMAIL_TOKEN_COOLDOWN_MS = 60 * 1000;
 
+/** Reset emails one account can be sent in a rolling EMAIL_TOKEN_CAP_WINDOW_MS. */
+export const RESET_EMAIL_CAP = 5;
+export const EMAIL_TOKEN_CAP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export type IssuedEmailToken = { id: string; token: string; expiresAt: Date };
 
 export type EmailTokenIssue =
@@ -26,9 +30,9 @@ export type EmailTokenIssue =
 
 /**
  * Create a link for `purpose`, unless the account got one less than
- * EMAIL_TOKEN_COOLDOWN_MS ago. A new reset link retires any earlier unused
- * one, so only the newest reset email works; verification links stay valid
- * side by side, since any of them proves the same thing.
+ * EMAIL_TOKEN_COOLDOWN_MS ago, or (for reset links) the account already got
+ * RESET_EMAIL_CAP in the last day. Earlier unused links stay valid side by
+ * side, so a stranger requesting resets cannot kill the one the owner holds.
  */
 export async function issueEmailToken(
   user: { id: string; email: string },
@@ -45,11 +49,24 @@ export async function issueEmailToken(
     if (wait > 0) return { ok: false, retryAfterMs: wait };
   }
 
-  // Best effort: a failed sweep only leaves dead rows behind.
-  await prisma.emailToken.deleteMany({ where: { expiresAt: { lt: new Date(now) } } }).catch(() => {});
   if (purpose === "reset_password") {
-    await prisma.emailToken.deleteMany({ where: { userId: user.id, purpose, usedAt: null } });
+    const recent = await prisma.emailToken.findMany({
+      where: { userId: user.id, purpose, createdAt: { gt: new Date(now - EMAIL_TOKEN_CAP_WINDOW_MS) } },
+      orderBy: { createdAt: "desc" },
+      take: RESET_EMAIL_CAP,
+      select: { createdAt: true },
+    });
+    if (recent.length >= RESET_EMAIL_CAP) {
+      const oldest = recent[recent.length - 1].createdAt.getTime();
+      return { ok: false, retryAfterMs: oldest + EMAIL_TOKEN_CAP_WINDOW_MS - now };
+    }
   }
+
+  // Best effort: a failed sweep only leaves dead rows behind. Rows are kept a
+  // day past expiry so the reset cap still sees every email sent in its window.
+  await prisma.emailToken
+    .deleteMany({ where: { expiresAt: { lt: new Date(now - EMAIL_TOKEN_CAP_WINDOW_MS) } } })
+    .catch(() => {});
 
   const token = generateSessionToken();
   const expiresAt = new Date(now + EMAIL_TOKEN_TTL_MS[purpose]);
