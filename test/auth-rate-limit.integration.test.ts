@@ -15,10 +15,13 @@ import { DELETE as deleteAccountRoute } from "@/app/api/auth/account/route";
 // The shared limiter used by /api/auth/login and the password check in
 // DELETE /api/auth/account. See src/lib/auth/rate-limit.ts.
 
-function loginRequest(body: unknown, address = "1.1.1.1") {
+function loginRequest(body: unknown, address: string | null = "1.1.1.1") {
   return new NextRequest("http://localhost/api/auth/login", {
     method: "POST",
-    headers: { "content-type": "application/json", "cf-connecting-ip": address },
+    headers: {
+      "content-type": "application/json",
+      ...(address ? { "cf-connecting-ip": address } : {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -108,6 +111,56 @@ describe("password-attempt rate limiter (unit)", () => {
     await expect(
       assertAttemptAllowed("login", "reset@example.com", "9.9.9.9")
     ).resolves.toBeUndefined();
+  });
+
+  it("scopes the tight lockout to the account and address pair", async () => {
+    for (let i = 0; i < 5; i++) {
+      await recordFailedAttempt("login", "pair@example.com", "9.9.9.9");
+    }
+    await expect(
+      assertAttemptAllowed("login", "pair@example.com", "9.9.9.9")
+    ).rejects.toMatchObject({ status: 429 });
+    await expect(
+      assertAttemptAllowed("login", "pair@example.com", "2.2.2.2")
+    ).resolves.toBeUndefined();
+  });
+
+  it("caps an account across many addresses with the looser account-wide ceiling", async () => {
+    for (let i = 0; i < 50; i++) {
+      await recordFailedAttempt("login", "dist@example.com", `10.0.${Math.floor(i / 4)}.${i % 4}`);
+    }
+    await expect(
+      assertAttemptAllowed("login", "dist@example.com", "10.9.9.9")
+    ).rejects.toMatchObject({ status: 429 });
+    await expect(
+      assertAttemptAllowed("login", "dist@example.com", null)
+    ).rejects.toMatchObject({ status: 429 });
+    await expect(
+      assertAttemptAllowed("login", "dist-other@example.com", "10.9.9.9")
+    ).resolves.toBeUndefined();
+  });
+
+  it("with no address, skips the pair and IP windows and counts only the account ceiling", async () => {
+    for (let i = 0; i < 25; i++) {
+      await recordFailedAttempt("login", `noaddr-${i}@example.com`, null);
+    }
+    // 25 unknown-address failures do not pool into a shared IP bucket.
+    await expect(
+      assertAttemptAllowed("login", "noaddr-fresh@example.com", null)
+    ).resolves.toBeUndefined();
+    for (let i = 0; i < 6; i++) {
+      await recordFailedAttempt("login", "noaddr-one@example.com", null);
+    }
+    // More than the pair limit for one key, still under the account ceiling.
+    await expect(
+      assertAttemptAllowed("login", "noaddr-one@example.com", null)
+    ).resolves.toBeUndefined();
+    for (let i = 0; i < 44; i++) {
+      await recordFailedAttempt("login", "noaddr-one@example.com", null);
+    }
+    await expect(
+      assertAttemptAllowed("login", "noaddr-one@example.com", null)
+    ).rejects.toMatchObject({ status: 429 });
   });
 
   it("caps one address across many different keys, looser than the account limit", async () => {
@@ -211,6 +264,45 @@ describe("login route rate limiting", () => {
     // Both sequences end the same way: five 401s, then locked out.
     expect(realAttempts).toEqual([401, 401, 401, 401, 401, 429]);
     expect(ghostAttempts).toEqual([401, 401, 401, 401, 401, 429]);
+  });
+
+  it("does not IP-limit requests without cf-connecting-ip, but still account-limits them", async () => {
+    for (let i = 0; i < 25; i++) {
+      const res = await login(
+        loginRequest({ email: `noip-${i}@example.com`, password: "wrong" }, null)
+      );
+      expect(res.status).toBe(401);
+    }
+    await registerUser({ email: "noip-real@example.com", password: "the-right-password" });
+    const ok = await login(
+      loginRequest({ email: "noip-real@example.com", password: "the-right-password" }, null)
+    );
+    expect(ok.status).toBe(200);
+    for (let i = 0; i < 50; i++) {
+      await recordFailedAttempt("login", "noip-real@example.com", null);
+    }
+    const locked = await login(
+      loginRequest({ email: "noip-real@example.com", password: "the-right-password" }, null)
+    );
+    expect(locked.status).toBe(429);
+  });
+
+  it("does not let one address lock the owner out from another", async () => {
+    await registerUser({ email: "owner@example.com", password: "the-right-password" });
+    for (let i = 0; i < 5; i++) {
+      const res = await login(
+        loginRequest({ email: "owner@example.com", password: "wrong" }, "66.66.66.66")
+      );
+      expect(res.status).toBe(401);
+    }
+    const attacker = await login(
+      loginRequest({ email: "owner@example.com", password: "wrong" }, "66.66.66.66")
+    );
+    expect(attacker.status).toBe(429);
+    const owner = await login(
+      loginRequest({ email: "owner@example.com", password: "the-right-password" }, "77.77.77.77")
+    );
+    expect(owner.status).toBe(200);
   });
 
   it("applies a looser cap per IP across many different emails", async () => {

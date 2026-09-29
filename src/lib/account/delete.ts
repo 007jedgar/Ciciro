@@ -154,7 +154,7 @@ export type DeletionProof = {
 export async function verifyDeletionProof(
   account: { id: string; passwordHash: string | null },
   proof: DeletionProof,
-  address: string
+  address: string | null
 ): Promise<void> {
   if (account.passwordHash) {
     if (typeof proof.password !== "string" || !proof.password) {
@@ -183,7 +183,7 @@ export async function deleteAccount(
   userId: string,
   proof: DeletionProof,
   hooks: readonly PreDeleteHook[] = PRE_DELETE_HOOKS,
-  address = "unknown"
+  address: string | null = null
 ): Promise<void> {
   const account = await prisma.user.findUnique({
     where: { id: userId },

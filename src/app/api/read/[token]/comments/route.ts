@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
   try {
     const receipt = await postReaderComment(token, body as Record<string, unknown>, {
-      address: clientAddress(req),
+      address: clientAddress(req) ?? "unknown",
     });
     return NextResponse.json(receipt, { status: 201, headers: NO_STORE });
   } catch (error) {

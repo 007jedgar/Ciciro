@@ -169,6 +169,12 @@ Unlike the other upgrades above, this one is not optional: both routes query
 this table on every attempt, so until it runs, sign-in and account deletion
 500 in production. Apply it before merging.
 
+Login and deletion lock a password guess per account and address (5 in 15
+minutes), cap an account across all addresses (50 per hour) and an address
+across accounts (20 per 15 minutes). The address comes only from
+`cf-connecting-ip`; a host without a trusted proxy that sets a real client-IP
+header gets the account-wide ceiling alone.
+
 The weekly review needs `WeeklyReview`:
 
 ```bash
@@ -260,9 +266,8 @@ Beta reader links are the exception: `/read/:token` and `/api/read/:token/...`
 pass the gate without a session, because the share token is their credential.
 It opens only the chapters that link shares, and an unknown, revoked or expired
 token gets a plain 404. Reader comments are rate-limited per reader address
-using `cf-connecting-ip` on Cloudflare; other hosts need a proxy that sets
-`x-real-ip` or `x-forwarded-for`, or every reader shares one budget (the
-per-link limits hold either way).
+using `cf-connecting-ip` on Cloudflare; without it every reader shares one
+budget (the per-link limits hold either way).
 
 ## Run coordination on Cloudflare
 
