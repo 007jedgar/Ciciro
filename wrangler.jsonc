@@ -73,5 +73,8 @@
 
   // Secrets (set with `wrangler secret put <NAME>`), not committed:
   //   ANTHROPIC_API_KEY   - required for the editor/drafter models
+  //   RESEND_API_KEY      - transactional email; unset logs instead of sending
+  //   EMAIL_FROM          - "Name <address>" the send comes from
+  //   EMAIL_REPLY_TO      - optional reply-to override
   // Hosted auth/session data lives in the D1 binding above, not DATABASE_URL.
 }
