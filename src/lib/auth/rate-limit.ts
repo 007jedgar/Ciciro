@@ -97,7 +97,9 @@ export async function assertAttemptAllowed(
  * Record a failed attempt so it counts against the account, pair and IP
  * limits. Pass `userId` when the key resolves to a real account (always for
  * `delete`; `login` leaves it unset — see purgeAccountData, which purges a
- * login key by its email instead) so account deletion purges the row.
+ * login key by its email instead) so account deletion purges the row. Rows
+ * older than the longest window can no longer affect a check, so each record
+ * prunes them.
  */
 export async function recordFailedAttempt(
   scope: AttemptScope,
@@ -106,6 +108,9 @@ export async function recordFailedAttempt(
   opts: { userId?: string; now?: Date } = {}
 ): Promise<void> {
   const { userId, now = new Date() } = opts;
+  await prisma.passwordAttempt.deleteMany({
+    where: { createdAt: { lt: new Date(now.getTime() - ACCOUNT_WINDOW_MS) } },
+  });
   await prisma.passwordAttempt.create({
     data: { scope, key, userId, ipHash: ipHash(scope, address), createdAt: now },
   });

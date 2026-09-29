@@ -77,6 +77,16 @@ describe("password-attempt rate limiter (unit)", () => {
     expect(body?.retryAfter).toBeLessThanOrEqual(15 * 60);
   });
 
+  it("prunes rows older than the longest window when recording a failure", async () => {
+    const old = new Date("2026-01-01T00:00:00Z");
+    await recordFailedAttempt("login", "stale-a@example.com", "9.9.9.9", { now: old });
+    await recordFailedAttempt("login", "stale-b@example.com", null, { now: old });
+    const later = new Date(old.getTime() + 61 * 60 * 1000);
+    await recordFailedAttempt("login", "fresh@example.com", "9.9.9.9", { now: later });
+    const keys = (await prisma.passwordAttempt.findMany()).map((r) => r.key);
+    expect(keys).toEqual(["fresh@example.com"]);
+  });
+
   it("does not let a lockout on one key block a different key", async () => {
     for (let i = 0; i < 5; i++) {
       await recordFailedAttempt("login", "locked@example.com", "9.9.9.9");
