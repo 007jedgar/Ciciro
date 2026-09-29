@@ -283,7 +283,7 @@ const en = {
     appStore: "the App Store",
     googlePlay: "Google Play",
     disclosureIos:
-      "Ciciro Pro, {{period}} subscription, {{price}}. Payment is charged to your Apple ID account when you confirm the purchase. The subscription renews automatically unless it is canceled at least 24 hours before the end of the current period, and your account is charged for the renewal within 24 hours before the period ends. Manage or cancel it in your App Store account settings.",
+      "Ciciro Pro, {{period}} subscription, {{price}}. Payment is charged to your Apple ID account when you confirm the purchase. The subscription renews automatically unless it is cancelled at least 24 hours before the end of the current period, and your account is charged for the renewal within 24 hours before the period ends. Manage or cancel it in your App Store account settings.",
     disclosureAndroid:
       "Ciciro Pro, {{period}} subscription, {{price}}. Payment is charged to your Google Play account when you confirm the purchase. The subscription renews automatically until you cancel it, which you can do at any time in the Play Store under Payments & subscriptions.",
     periodMonth: "monthly",
@@ -308,7 +308,7 @@ const en = {
     deleteStoreTitle: "Cancel your subscription first",
     deleteStoreBody:
       "Your Ciciro Pro subscription is billed through {{store}}. Deleting your account doesn't cancel it: billing continues until you cancel it there.",
-    deleteWebBody: "Your Ciciro Pro subscription is canceled at once, with no further charges.",
+    deleteWebBody: "Your Ciciro Pro subscription is cancelled at once, with no further charges.",
   },
   themes: {
     parchment: "Parchment",
