@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { DRAFTER_FAST_MODEL, DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { aiAllowed, withAiRun } from "@/lib/entitlements";
 import { RECAP_SYSTEM, STUCK_SYSTEM } from "@/lib/prompts";
 import { readBibleFile } from "@/lib/bible";
 import { visibleChapterWhere } from "@/lib/chapters";
@@ -79,7 +80,9 @@ export async function getRecap(
     generatedAt: row.generatedAt.toISOString(),
   });
   if (cached && cached.fingerprint === fingerprint) return { recap: asRecap(cached) };
-  if (!hasAnthropicKey()) return { recap: cached ? asRecap(cached) : null };
+  // A recap is background help, not an author's request: it is not charged to
+  // the monthly allowance, but stops being refreshed once that is used up.
+  if (!hasAnthropicKey() || !(await aiAllowed(user))) return { recap: cached ? asRecap(cached) : null };
 
   try {
     const res = await getAnthropic().messages.create({
@@ -153,18 +156,20 @@ export async function getStuckPrompts(
     parts.push(text ? tail(text, STUCK_TAIL_CHARS) : "(empty so far)");
   }
 
-  let prompts: string[] = [];
-  try {
-    const res = await getAnthropic().messages.create({
-      model: DRAFTER_MODEL,
-      max_tokens: 600,
-      system: STUCK_SYSTEM,
-      messages: [{ role: "user", content: parts.join("\n") }],
-    });
-    prompts = parseStuckPrompts(textOf(res));
-  } catch {
-    throw new AuthError("Could not get ideas right now. Try again.", 502);
-  }
-  if (!prompts.length) throw new AuthError("Could not get ideas right now. Try again.", 502);
-  return { prompts };
+  return withAiRun(user, async () => {
+    let prompts: string[] = [];
+    try {
+      const res = await getAnthropic().messages.create({
+        model: DRAFTER_MODEL,
+        max_tokens: 600,
+        system: STUCK_SYSTEM,
+        messages: [{ role: "user", content: parts.join("\n") }],
+      });
+      prompts = parseStuckPrompts(textOf(res));
+    } catch {
+      throw new AuthError("Could not get ideas right now. Try again.", 502);
+    }
+    if (!prompts.length) throw new AuthError("Could not get ideas right now. Try again.", 502);
+    return { prompts };
+  });
 }

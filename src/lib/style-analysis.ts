@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { withAiRun } from "@/lib/entitlements";
 import { STYLE_ANALYSIS_SYSTEM } from "@/lib/prompts";
 import { ensureBible, getBibleFile, listBibleFiles, type BibleFileRecord } from "@/lib/bible";
 import { visibleChapterWhere } from "@/lib/chapters";
@@ -134,26 +135,28 @@ export async function analyzeStyle(
     `Named characters: ${characterNames.length ? characterNames.join(", ") : "(none yet)"}`,
   ].join("\n");
 
-  let text: string;
-  try {
-    const res = await getAnthropic().messages.create({
-      model: DRAFTER_MODEL,
-      max_tokens: 2000,
-      system: STYLE_ANALYSIS_SYSTEM,
-      messages: [{ role: "user", content: input }],
-    });
-    text = textOf(res);
-  } catch {
-    throw new AuthError("Couldn't analyze style right now. Try again.", 502);
-  }
-
-  const parsed = parseStyleAnalysisJson(text, { sampleText, characterNames });
-  if (!parsed || parsed.traits.length === 0) {
-    throw new AuthError(
-      "Couldn't draft a style proposal from what's written yet. Try again once there's more prose.",
-      502
-    );
-  }
+  const parsed = await withAiRun(user, async () => {
+    let text: string;
+    try {
+      const res = await getAnthropic().messages.create({
+        model: DRAFTER_MODEL,
+        max_tokens: 2000,
+        system: STYLE_ANALYSIS_SYSTEM,
+        messages: [{ role: "user", content: input }],
+      });
+      text = textOf(res);
+    } catch {
+      throw new AuthError("Couldn't analyze style right now. Try again.", 502);
+    }
+    const result = parseStyleAnalysisJson(text, { sampleText, characterNames });
+    if (!result || result.traits.length === 0) {
+      throw new AuthError(
+        "Couldn't draft a style proposal from what's written yet. Try again once there's more prose.",
+        502
+      );
+    }
+    return result;
+  });
 
   const byName = new Map(characterFiles.map((c) => [c.name.toLowerCase(), c]));
   const characters: CharacterVoiceProposal[] = [];

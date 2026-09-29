@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { withAiRun } from "@/lib/entitlements";
 import { WEEKLY_REVIEW_SYSTEM } from "@/lib/prompts";
 import { readBibleFile } from "@/lib/bible";
 import { visibleChapterWhere } from "@/lib/chapters";
@@ -277,7 +278,8 @@ export async function generateWeeklyReview(
     throw new AuthError("Weekly reviews need an ANTHROPIC_API_KEY.", 503);
   }
   const stats = await gatherStats(projectId, user, window);
-  const content = await askEditor(await reviewInput(projectId, stats, window));
+  const input = await reviewInput(projectId, stats, window);
+  const content = await withAiRun(user, () => askEditor(input));
   const row = await prisma.weeklyReview.create({
     data: {
       projectId,

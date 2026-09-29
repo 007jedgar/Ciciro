@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { getAnthropic, DRAFTER_FAST_MODEL } from "@/lib/anthropic";
 import { chapterPlainText } from "@/lib/text";
 import { SUMMARIZER_SYSTEM } from "@/lib/prompts";
+import { aiAllowed } from "@/lib/entitlements";
+import type { PublicUser } from "@/lib/auth/session";
 
 const MIN_CHARS = 200; // not worth summarizing a near-empty chapter
 const COOLDOWN_MS = 20_000; // don't re-summarize on every autosave in a typing burst
@@ -12,7 +14,9 @@ const lastTriggered = new Map<string, number>();
 // Regenerate a chapter's beat summary with Haiku after its content is saved.
 // This is continuity bookkeeping, not creative judgment, so the cheap/fast
 // model is the right fit - see the editor/drafter split in lib/anthropic.ts.
-export async function summarizeChapter(chapterId: string): Promise<void> {
+// Background help for `user`: not charged to the monthly AI allowance, but
+// skipped once it is used up.
+export async function summarizeChapter(chapterId: string, user: PublicUser | null): Promise<void> {
   const now = Date.now();
   const last = lastTriggered.get(chapterId) ?? 0;
   if (now - last < COOLDOWN_MS) return;
@@ -29,6 +33,7 @@ export async function summarizeChapter(chapterId: string): Promise<void> {
     return;
   }
 
+  if (!(await aiAllowed(user))) return;
   const anthropic = getAnthropic();
   const res = await anthropic.messages.create({
     model: DRAFTER_FAST_MODEL,

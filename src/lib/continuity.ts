@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { withAiRun } from "@/lib/entitlements";
 import { CONTINUITY_CHECK_SYSTEM } from "@/lib/prompts";
 import { listBible, readBibleFile, type BibleEntry } from "@/lib/bible";
 import { chapterPlainText } from "@/lib/text";
@@ -174,10 +175,12 @@ export async function runContinuityCheck(
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(BOOK_CONCURRENCY, chapters.length) }, worker));
-
-  const firstError = perChapter.find((c) => c.error !== undefined)?.error;
-  if (firstError !== undefined && !perChapter.some((c) => c.status === "checked")) throw firstError;
+  // One check is one AI action, whatever its scope; refunded if nothing came back.
+  await withAiRun(user, async () => {
+    await Promise.all(Array.from({ length: Math.min(BOOK_CONCURRENCY, chapters.length) }, worker));
+    const firstError = perChapter.find((c) => c.error !== undefined)?.error;
+    if (firstError !== undefined && !perChapter.some((c) => c.status === "checked")) throw firstError;
+  });
 
   return {
     scope,

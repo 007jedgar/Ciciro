@@ -69,6 +69,27 @@ describe("diffSchemas against the real Prisma schema", () => {
     expect(diffSchemas(expected, fixed)).toEqual({ errors: [], warnings: [], missing: [] });
   });
 
+  it("names the billing script for missing billing tables and User.stripeCustomerId", () => {
+    const stale = liveFrom(
+      expected,
+      `DROP TABLE "Subscription"; DROP TABLE "BillingEvent"; DROP TABLE "UsageCounter";
+       DROP INDEX "User_stripeCustomerId_key"; ALTER TABLE "User" DROP COLUMN "stripeCustomerId";`
+    );
+    const { errors, missing } = diffSchemas(expected, stale);
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        "missing table Subscription",
+        "missing table BillingEvent",
+        "missing table UsageCounter",
+        "missing column User.stripeCustomerId",
+      ])
+    );
+    const scripts = upgradeScriptsFor(join(root, "prisma"), missing);
+    expect(scripts).toEqual(["prisma/d1-billing.sql"]);
+    const fixed = liveFrom(stale, readFileSync(join(root, scripts[0]), "utf8"));
+    expect(diffSchemas(expected, fixed)).toEqual({ errors: [], warnings: [], missing: [] });
+  });
+
   it("ignores D1's own tables", () => {
     const live = liveFrom(expected, `CREATE TABLE _cf_KV (key TEXT PRIMARY KEY, value BLOB) WITHOUT ROWID;`);
     expect(diffSchemas(expected, live).errors).toEqual([]);

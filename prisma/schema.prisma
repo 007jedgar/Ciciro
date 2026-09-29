@@ -26,6 +26,9 @@ model User {
   // verification link, or they completed a password reset. Null means never.
   // Sign-in never waits on it. See src/lib/auth/verify-email.ts.
   emailVerifiedAt DateTime?
+  // The Stripe Customer this account pays through on the web, created by its
+  // first Checkout. See src/lib/billing/stripe.ts.
+  stripeCustomerId String? @unique
 
   sessions          Session[]
   identities        Identity[]
@@ -37,6 +40,9 @@ model User {
   writingDays       WritingDay[]
   writingSessions   WritingSession[]
   passwordAttempts  PasswordAttempt[]
+  subscriptions     Subscription[]
+  billingEvents     BillingEvent[]
+  usageCounters     UsageCounter[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -486,6 +492,68 @@ model WritingSession {
   createdAt DateTime @default(now())
 
   @@index([userId, startedAt])
+}
+
+// A paid subscription, from whichever store sold it. The server is the one
+// entitlement authority: Stripe and RevenueCat webhooks both land here after
+// re-fetching the subscription from its source, and getEntitlement reads only
+// these rows. See src/lib/entitlements.ts and docs/billing.md.
+model Subscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // "stripe" | "app_store" | "play_store"
+  source     String
+  // The Stripe subscription id, or "revenuecat:<appUserId>:<productId>".
+  externalId String @unique
+  productId  String @default("")
+  plan       String @default("pro")
+  // "month" | "year", or "" when unknown.
+  interval   String @default("")
+  // Stripe's status words for every source: active, trialing, past_due,
+  // canceled, unpaid, incomplete, incomplete_expired, paused, expired.
+  status            String
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  // A store sandbox purchase (TestFlight, App Review, Play license testers).
+  sandbox           Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// One processed billing webhook, so a redelivered event is acknowledged
+// without running twice. `userId` is set once the event is tied to an account.
+model BillingEvent {
+  id      String  @id @default(cuid())
+  // "stripe" | "revenuecat"
+  source  String
+  eventId String
+  type    String
+  userId  String?
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  receivedAt DateTime @default(now())
+
+  @@unique([source, eventId])
+  @@index([userId])
+}
+
+// AI use per account per calendar month (UTC), metered against the plan's
+// allowance. `period` is "YYYY-MM". See src/lib/entitlements.ts.
+model UsageCounter {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period String
+  aiRuns Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, period])
 }
 
 // The cached "Previously on" recap for one manuscript. `fingerprint` hashes the
