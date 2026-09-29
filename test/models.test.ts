@@ -20,7 +20,7 @@ describe("getModelSummary", () => {
     const summary = getModelSummary();
     expect(summary.slots).toEqual([
       { key: "editor", role: "Editor", id: "claude-opus-5-5", name: "Claude Opus 5.5" },
-      { key: "drafter", role: "Drafter", id: "claude-sonnet-5", name: "Claude Sonnet 5" },
+      { key: "drafter", role: "Drafter", id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
       { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
     ]);
     expect(summary.router).toBeNull();
@@ -49,6 +49,17 @@ describe("getModelSummary", () => {
       role: "Editor",
       id: "claude-opus-5",
       name: "Claude Opus 5",
+    });
+  });
+
+  it("keeps the friendly name for a drafter pinned to the previous default, and honors an override", async () => {
+    process.env.CICIRO_DRAFTER_MODEL = "claude-sonnet-5";
+    const { getModelSummary } = await import("@/lib/models");
+    expect(getModelSummary().slots[1]).toEqual({
+      key: "drafter",
+      role: "Drafter",
+      id: "claude-sonnet-5",
+      name: "Claude Sonnet 5",
     });
   });
 
