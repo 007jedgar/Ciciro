@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
   }
 
   // A new message is one AI action; resuming a turn already paid for is not.
-  // The charge stays only if this request creates the run: a retry that lands
-  // on an existing run, or any rejection before the run starts, is refunded.
+  // The charge stays only if this request claims a run that has never started:
+  // a replay, a rejection, or a claim on a run that already executed is refunded.
   const metered = !input.resumeTurnId;
   if (metered) {
     try {
@@ -95,7 +95,6 @@ export async function POST(req: NextRequest) {
     await refund();
     return json({ error: "Nothing to resume for that turn" }, 404);
   }
-  if (!prepared.created) await refund();
 
   const { run, compactNotice } = prepared;
   const status = run.status as EditorRunStatus;
@@ -104,6 +103,7 @@ export async function POST(req: NextRequest) {
     status === "failed" ||
     status === "cancelled"
   ) {
+    await refund();
     return replayRun({
       id: run.id,
       turnId: run.turnId,
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
   const coordinator = getRunCoordinator();
   const runLease = await coordinator.acquire(run.id, RUN_LOCK_TTL_MS);
   if (!runLease) {
-    if (prepared.created) await refund();
+    await refund();
     return json(
       {
         error: "Editor run is already executing",
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
 
   const claim = await claimEditorRun(run.id);
   if (!claim) {
-    if (prepared.created) await refund();
+    await refund();
     await coordinator.release(run.id, runLease.token);
     const latest = await prisma.editorRun.findUnique({ where: { id: run.id } });
     if (
@@ -158,6 +158,8 @@ export async function POST(req: NextRequest) {
       409
     );
   }
+
+  if (run.startedAt) await refund();
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
