@@ -2090,6 +2090,12 @@ textarea {
   border-radius: 8px;
   font-size: 14px;
 }
+/* Under 16px, iOS Safari zooms into a focused field and stays zoomed. */
+@media (pointer: coarse) {
+  .auth-card input {
+    font-size: 16px;
+  }
+}
 .auth-card .btn.primary {
   margin-top: 4px;
 }

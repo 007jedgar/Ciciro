@@ -13,6 +13,7 @@ import {
 import {
   applyTheme,
   getStoredTheme,
+  resolveTheme,
   THEME_STORAGE_KEY,
 } from "@/lib/theme";
 import {
@@ -61,8 +62,10 @@ function readLocalSettings(): AppSettings {
   }
   const legacy = readLegacyLocal();
   const hasLegacy = Object.keys(legacy).length > 0;
+  // A first visit follows the OS, as the pre-paint script in layout.tsx does.
   return {
     ...defaults,
+    theme: resolveTheme(null),
     ...legacy,
     updatedAt: hasLegacy ? defaults.updatedAt : SETTINGS_EPOCH,
   };
