@@ -89,12 +89,22 @@ function chapterToMarkdown(chapter: BookChapter, chapterIndex: number): string {
   return `${title}\n\n${body}\n`;
 }
 
-export function buildMarkdown(project: BookProject): string {
+/**
+ * The title and byline that open a manuscript's Markdown. `buildMarkdown` is
+ * this, then each chapter's `buildChapterMarkdown(...).trimEnd()` after a
+ * blank line, then a final newline; the account export streams it that way.
+ */
+export function markdownTitleBlock(project: Pick<BookProject, "title" | "author">): string {
   const sections: string[] = [heading(1, escapeInline(project.title.trim()))];
   const author = project.author?.trim();
   if (author) {
     sections.push(`**By ${escapeInline(author)}**`);
   }
+  return sections.join("\n\n");
+}
+
+export function buildMarkdown(project: BookProject): string {
+  const sections: string[] = [markdownTitleBlock(project)];
   sortedChapters(project).forEach((chapter, i) => {
     sections.push(chapterToMarkdown(chapter, i).trimEnd());
   });
