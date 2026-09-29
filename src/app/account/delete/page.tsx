@@ -96,6 +96,16 @@ export default async function AccountDeletePage({ searchParams }: Props) {
         </section>
 
         <section className="privacy-section">
+          <h2>If you pay for Ciciro Pro</h2>
+          <p>
+            A subscription you bought on the web is cancelled the moment the account is deleted,
+            with no further charges. One bought in the iPhone or Android app is billed by Apple or
+            Google, and deleting your account doesn&apos;t stop it: cancel it first in your App
+            Store or Google Play subscriptions, or billing continues.
+          </p>
+        </section>
+
+        <section className="privacy-section">
           <h2>Keep a copy first</h2>
           <p>
             Export my data, in the same settings, downloads one zip with every manuscript as a

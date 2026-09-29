@@ -284,7 +284,7 @@ describe("billing in the app", () => {
     it("tells a web subscriber the subscription ends with the account", async () => {
       showing(pro({ source: "stripe", manageUrl: null }));
       withTheme(<DeleteAccountScreen />);
-      expect(screen.getByText("Your Ciciro Pro subscription is canceled at once, with no further charges.")).toBeTruthy();
+      expect(screen.getByText("Your Ciciro Pro subscription is cancelled at once, with no further charges.")).toBeTruthy();
     });
   });
 
