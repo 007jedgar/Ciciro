@@ -41,6 +41,9 @@ export async function summarizeChapter(chapterId: string, user: PublicUser | nul
     system: SUMMARIZER_SYSTEM,
     messages: [{ role: "user", content: text }],
   });
+  // A summary cut off at its token limit is not the summary: leave the chapter's as is.
+  if (res.stop_reason === "max_tokens") return;
+
   const summary = res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)

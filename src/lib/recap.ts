@@ -92,7 +92,8 @@ export async function getRecap(
       messages: [{ role: "user", content: source }],
     });
     const content = textOf(res);
-    if (!content) return { recap: cached ? asRecap(cached) : null };
+    // A recap cut off at its token limit is not the recap: keep whatever is cached.
+    if (!content || res.stop_reason === "max_tokens") return { recap: cached ? asRecap(cached) : null };
     const generatedAt = new Date();
     await prisma.projectRecap.upsert({
       where: { projectId },

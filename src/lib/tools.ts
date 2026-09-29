@@ -7,7 +7,7 @@ import {
   writeBibleFile,
   appendCanon,
 } from "@/lib/bible";
-import { drafterSystemFor } from "@/lib/prompts";
+import { drafterSystemFor, PROSE_MAX_TOKENS } from "@/lib/prompts";
 import {
   assistantTextToHtml,
   elementOfHtml,
@@ -1992,7 +1992,7 @@ export async function executeEditorTool(
         });
         const res = await anthropic.messages.create({
           model,
-          max_tokens: 3000,
+          max_tokens: PROSE_MAX_TOKENS,
           system: drafterSystemFor(normalizeKind(kindRow?.kind)),
           messages: [{ role: "user", content: brief }],
         });
@@ -2001,9 +2001,16 @@ export async function executeEditorTool(
           .map((b) => b.text)
           .join("")
           .trim();
+        if (!prose) {
+          return { status: backstageLine("dispatch_draft"), content: "(drafter returned nothing)" };
+        }
+        const cutOff =
+          res.stop_reason === "max_tokens"
+            ? "\n\n(The drafter hit its length limit, so this draft stops mid-passage. Finish or trim it in your edit.)"
+            : "";
         return {
           status: backstageLine("dispatch_draft"),
-          content: prose || "(drafter returned nothing)",
+          content: `${prose}${cutOff}`,
         };
       } catch (e) {
         return { status: "draft failed", content: `Error: ${(e as Error).message}` };
