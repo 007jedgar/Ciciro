@@ -363,6 +363,27 @@ describe("browser and native sign-in flows", () => {
     expect(res.headers.get("location")).toBe(`${ORIGIN}/login?error=unverified_email`);
   });
 
+  it("builds the callback from CICIRO_PUBLIC_URL when a proxy hides the origin", async () => {
+    vi.stubEnv("CICIRO_PUBLIC_URL", "https://ciciro.app/");
+    const { location, cookie } = start("/api/auth/oauth/google/start");
+    expect(location.searchParams.get("redirect_uri")).toBe(
+      "https://ciciro.app/api/auth/oauth/google/callback"
+    );
+    const endpoint = tokenEndpoint(() => ({ id_token: "" }));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await callback(
+      "google",
+      cookie?.value,
+      { state: location.searchParams.get("state"), code: "c" },
+      { fetch: endpoint.fetch, keys: { google: googleIdp.keys } }
+    );
+    // The code exchange repeats the same redirect_uri, and failures land on it too.
+    expect(endpoint.calls[0].body.get("redirect_uri")).toBe(
+      "https://ciciro.app/api/auth/oauth/google/callback"
+    );
+    expect(res.headers.get("location")).toBe("https://ciciro.app/login?error=failed");
+  });
+
   it("sends a provider that is not configured back with `unavailable`", () => {
     vi.stubEnv("GOOGLE_CLIENT_SECRET", "");
     const { location } = start("/api/auth/oauth/google/start");

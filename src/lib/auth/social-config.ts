@@ -4,8 +4,6 @@
 
 export type SocialProvider = "apple" | "google";
 
-export const SOCIAL_PROVIDERS: readonly SocialProvider[] = ["apple", "google"];
-
 export function isSocialProvider(value: unknown): value is SocialProvider {
   return value === "apple" || value === "google";
 }

@@ -83,6 +83,7 @@ revoke it (below).
 | `APPLE_PRIVATE_KEY` | All Apple | The `.p8` file's contents. A one-line value with literal `\n` works too. |
 | `GOOGLE_CLIENT_ID` | All Google | The **Web application** OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | All Google | That client's secret |
+| `CICIRO_PUBLIC_URL` | Optional | The public origin, e.g. `https://ciciro.app`. Set it when a proxy in front of Ciciro makes requests look like `http://` or another host: the callback URL sent to Apple and Google is built from it and must match the registered one exactly. Defaults to the request's origin. |
 
 The app needs no provider configuration of its own: it asks the server which
 buttons to show, and Google runs through the server's web client.

@@ -39,6 +39,7 @@ Copy [`.env.example`](../.env.example) to `.env` in the repo root (the Next.js a
 | `CICIRO_ROUTER_MODEL` | No | Groq ranker model; default `llama-3.1-8b-instant` |
 | `APPLE_SERVICES_ID`, `APPLE_BUNDLE_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | No | Sign in with Apple (`src/lib/auth/social-config.ts`) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | No | Sign in with Google (`src/lib/auth/social-config.ts`) |
+| `CICIRO_PUBLIC_URL` | No | Public origin for the Apple / Google callbacks when a proxy hides it (`src/lib/auth/social-sign-in.ts`) |
 
 `.env.example` does not list `CICIRO_REQUIRE_AUTH`. Local single-author use stays open when it is unset or anything other than `true`. For a local rehearsal of hosted mode:
 
