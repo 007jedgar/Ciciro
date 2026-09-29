@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const result = await updateChapter(id, user, body);
     if (result.contentChanged) {
-      after(() => summarizeChapter(id).catch(() => {}));
+      after(() => summarizeChapter(id, user).catch(() => {}));
     }
     return NextResponse.json(result.chapter);
   } catch (error) {

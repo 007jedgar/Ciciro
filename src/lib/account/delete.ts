@@ -6,6 +6,8 @@ import { DELETE_CONFIRMATION } from "@/lib/account/copy";
 import { assertAttemptAllowed, clearAttempts, recordFailedAttempt } from "@/lib/auth/rate-limit";
 import { sendAccountDeletedEmail } from "@/lib/email/account-emails";
 import { publicOrigin } from "@/lib/public-origin";
+import { STRIPE_PRE_DELETE_HOOK } from "@/lib/billing/stripe";
+import { deleteRevenueCatCustomer } from "@/lib/billing/revenuecat";
 
 // Account deletion: re-authenticate, run the pre-delete hooks in order, purge
 // every row the account owns in one batch, then email a confirmation. See
@@ -31,6 +33,7 @@ export type PreDeleteHook = {
 };
 
 /**
+/**
  * Sign in with Apple: revoke every Apple refresh token the account holds
  * (https://appleid.apple.com/auth/revoke), which App Store review requires when
  * an account that signed in with Apple is deleted. It runs before the purge
@@ -45,11 +48,20 @@ export const APPLE_REVOKE_HOOK: PreDeleteHook = {
 };
 
 /**
- * The ordered pre-delete hooks. Add new steps here rather than in the route;
- * billing (cancel the Stripe subscription on the web, note the RevenueCat
- * entitlement, which the author cancels in the store) goes here too.
+ * The ordered pre-delete hooks. Add new steps here rather than in the route.
+ * The Apple revoke goes first: if a later step fails and the account stays,
+ * a revoked token only means signing in with Apple again, while a cancelled
+ * subscription could not be taken back.
+ *   - billing: cancel the Stripe subscription now, so a deleted account is
+ *     never charged again (store purchases are cancelled by the author with
+ *     Apple or Google; the apps say so before deleting), then drop the
+ *     RevenueCat customer record.
  */
-export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [APPLE_REVOKE_HOOK];
+export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [
+  APPLE_REVOKE_HOOK,
+  STRIPE_PRE_DELETE_HOOK,
+  { name: "revenuecat-delete-customer", run: deleteRevenueCatCustomer },
+];
 
 /**
  * Every model that holds account data, in the order the purge deletes it
@@ -83,6 +95,9 @@ export const PURGED_MODELS = [
   "Folder",
   "WritingDay",
   "WritingSession",
+  "UsageCounter",
+  "BillingEvent",
+  "Subscription",
   "Identity",
   "AuthHandoff",
   "EmailToken",
@@ -128,6 +143,9 @@ export async function purgeAccountData(userId: string, email: string): Promise<v
     prisma.folder.deleteMany({ where: { userId } }),
     prisma.writingDay.deleteMany({ where: { userId } }),
     prisma.writingSession.deleteMany({ where: { userId } }),
+    prisma.usageCounter.deleteMany({ where: { userId } }),
+    prisma.billingEvent.deleteMany({ where: { userId } }),
+    prisma.subscription.deleteMany({ where: { userId } }),
     prisma.identity.deleteMany({ where: { userId } }),
     prisma.authHandoff.deleteMany({ where: { userId } }),
     prisma.emailToken.deleteMany({ where: { userId } }),

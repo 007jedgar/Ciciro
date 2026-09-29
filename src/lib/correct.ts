@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { DRAFTER_FAST_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { aiAllowed } from "@/lib/entitlements";
 import { CORRECT_SYSTEM } from "@/lib/prompts";
 import { getUserSettings } from "@/lib/user-settings";
 
@@ -117,7 +118,8 @@ export async function correctBlock(user: PublicUser | null, body: unknown): Prom
   await authorizeOwnedChapter(parsed.chapterId, user);
 
   const settings = await getUserSettings(user.id);
-  if (!settings.autoCorrect || !parsed.text.trim() || !hasAnthropicKey()) {
+  // Spelling is background help: free of the monthly allowance, off once it is used up.
+  if (!settings.autoCorrect || !parsed.text.trim() || !hasAnthropicKey() || !(await aiAllowed(user))) {
     return emptyResult(parsed);
   }
 

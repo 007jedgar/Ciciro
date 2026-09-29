@@ -178,6 +178,21 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
   await prisma.manuscriptEdit.create({
     data: { chapterId: chapter.id, find: "begins", replace: "starts" },
   });
+  await prisma.subscription.create({
+    data: {
+      userId: user.id,
+      source: "app_store",
+      externalId: `revenuecat:${user.id}:ciciro_pro_monthly`,
+      productId: "ciciro_pro_monthly",
+      interval: "month",
+      status: "active",
+      currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.billingEvent.create({
+    data: { userId: user.id, source: "revenuecat", eventId: `${label}-rc-event`, type: "INITIAL_PURCHASE" },
+  });
+  await prisma.usageCounter.create({ data: { userId: user.id, period: "2026-09", aiRuns: 3 } });
   await prisma.character.create({ data: { projectId: project.id, name: "Hero" } });
   await prisma.plotPoint.create({
     data: { projectId: project.id, chapterId: chapter.id, title: "Inciting incident" },

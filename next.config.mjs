@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ["@prisma/client", ".prisma/client", "@anthropic-ai/sdk"],
+  // "stripe" stays external so the OpenNext build resolves its `workerd` export.
+  serverExternalPackages: ["@prisma/client", ".prisma/client", "@anthropic-ai/sdk", "stripe"],
   // This project has its own lockfile; pin the tracing root to avoid Next.js
   // walking up to a parent lockfile in the home directory.
   outputFileTracingRoot: import.meta.dirname,

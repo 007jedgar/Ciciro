@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropic } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
-import { authorizeProject } from "@/lib/auth/session";
+import { authorizeProject, authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { maybeCompactChat } from "@/lib/compact";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/lib/editor-run";
 import { getRunCoordinator } from "@/lib/durable/coordinator";
 import { archiveChat, loadChatSnapshot } from "@/lib/chat-history";
+import { assertAiAllowed, meterAiRun } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -33,8 +34,9 @@ export async function POST(req: NextRequest) {
     return json({ error: "projectId required" }, 400);
   }
 
+  const user = await getSessionUser(req);
   try {
-    await authorizeProject(input.projectId, req);
+    await authorizeProjectId(input.projectId, user);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -43,10 +45,14 @@ export async function POST(req: NextRequest) {
 
   if (input.compactOnly) {
     try {
+      // Housekeeping for the next turn: needs AI left, but is not a turn itself.
+      await assertAiAllowed(user);
       getAnthropic();
       const result = await maybeCompactChat(input.projectId, true);
       return json(result, 200);
     } catch (error) {
+      const failure = responseFromAuthError(error);
+      if (failure) return failure;
       return json({ error: (error as Error).message }, 500);
     }
   }
@@ -59,6 +65,17 @@ export async function POST(req: NextRequest) {
     getAnthropic();
   } catch (error) {
     return json({ error: (error as Error).message }, 500);
+  }
+
+  // A new message is one AI action; resuming a turn already paid for is not.
+  if (!input.resumeTurnId) {
+    try {
+      await meterAiRun(user);
+    } catch (error) {
+      const failure = responseFromAuthError(error);
+      if (failure) return failure;
+      throw error;
+    }
   }
 
   let prepared;

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       target,
     });
     for (const chapter of result.chapters) {
-      after(() => summarizeChapter(chapter.id).catch(() => {}));
+      after(() => summarizeChapter(chapter.id, user).catch(() => {}));
     }
     return NextResponse.json(result);
   } catch (error) {

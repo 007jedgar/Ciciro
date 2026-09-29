@@ -298,6 +298,27 @@ export const EXPORT_TABLES: readonly Table[] = [
       prisma.passwordAttempt.findMany({ where: { userId, ...after(id) }, ...byId, take }),
     shape: (row) => without(row, "ipHash", "key"),
   },
+  {
+    model: "Subscription",
+    file: "subscriptions",
+    take: 100,
+    page: (userId, id, take) =>
+      prisma.subscription.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "BillingEvent",
+    file: "billing-events",
+    take: 500,
+    page: (userId, id, take) =>
+      prisma.billingEvent.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "UsageCounter",
+    file: "ai-usage",
+    take: 500,
+    page: (userId, id, take) =>
+      prisma.usageCounter.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+  },
 ];
 
 /** Every model the export covers: the tables above plus the account itself. */
@@ -355,8 +376,9 @@ data/
   suggestion markup), the chapter edit log and snapshots, story bible files,
   characters, plot points, open questions, scratch notes, chat messages and
   editor runs, recaps, weekly reviews, share links, beta reader comments,
-  folders, reading positions, your writing days and sessions, and failed
-  account-deletion password attempts.
+  folders, reading positions, your writing days and sessions, failed
+  account-deletion password attempts, and your subscriptions, billing events
+  and monthly AI usage.
 
 manifest.json
   Written last, with the record count for each file in data/. A zip that

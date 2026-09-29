@@ -12,17 +12,21 @@ import {
 
 // Paths that never require a session. Beta reader links (/read/:token and
 // /api/read/:token/...) carry their own credential, the share token.
+// Billing webhooks authenticate by signature (Stripe) or shared secret
+// (RevenueCat) instead of a session.
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/launch",
   "/privacy",
+  "/terms",
+  "/pricing",
   "/account/delete",
   "/forgot-password",
   "/reset-password",
   "/verify-email",
 ];
-const PUBLIC_PREFIXES = ["/api/auth/", "/api/health", "/read/", "/api/read/"];
+const PUBLIC_PREFIXES = ["/api/auth/", "/api/health", "/read/", "/api/read/", "/api/billing/webhooks/"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

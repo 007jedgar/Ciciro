@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { prisma } from "@/lib/db";
 import { getReadingPosition } from "@/lib/reading-position";
+import { aiAllowed } from "@/lib/entitlements";
 import {
   buildReminderNudgePrompt,
   composeSceneReminderBody,
@@ -27,6 +28,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
     const position = await getReadingPosition(projectId, user);
     if (!position) return NextResponse.json({ body: null });
+    // Background help: free of the allowance, generic once it is used up.
+    if (!(await aiAllowed(user))) return NextResponse.json({ body: null });
 
     const [chapter, project] = await Promise.all([
       prisma.chapter.findUnique({

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const user = await getSessionUser(req);
   try {
     const result = await restoreSnapshot(id, snapshotId, user);
-    after(() => summarizeChapter(id).catch(() => {}));
+    after(() => summarizeChapter(id, user).catch(() => {}));
     return NextResponse.json(result);
   } catch (error) {
     const failure = responseFromAuthError(error);

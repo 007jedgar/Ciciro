@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { runAutoWrite } from "@/lib/autowrite";
 import { getAnthropic } from "@/lib/anthropic";
-import { authorizeProject } from "@/lib/auth/session";
+import { authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { ensureBible } from "@/lib/bible";
+import { meterAiRun } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -20,8 +21,9 @@ export async function POST(req: NextRequest) {
   if (!projectId || !chapterId) {
     return json({ error: "projectId and chapterId required" }, 400);
   }
+  const user = await getSessionUser(req);
   try {
-    await authorizeProject(projectId, req);
+    await authorizeProjectId(projectId, user);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -31,6 +33,13 @@ export async function POST(req: NextRequest) {
     getAnthropic();
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
+  }
+  try {
+    await meterAiRun(user);
+  } catch (error) {
+    const failure = responseFromAuthError(error);
+    if (failure) return failure;
+    throw error;
   }
   await ensureBible(projectId);
 
