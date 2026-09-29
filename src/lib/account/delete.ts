@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { AuthError } from "@/lib/auth/session";
+import { revokeAppleTokens } from "@/lib/auth/apple-revoke";
+import { DELETE_CONFIRMATION } from "@/lib/account/copy";
 
 // Account deletion: re-authenticate, run the pre-delete hooks in order, then
 // purge every row the account owns in one batch. See docs/account-data.md.
@@ -25,14 +27,25 @@ export type PreDeleteHook = {
 };
 
 /**
- * The ordered pre-delete hooks. Add new steps here rather than in the route:
- *   - billing: cancel the Stripe subscription (web) and note the RevenueCat
- *     entitlement (in-app purchases are cancelled by the author in the store),
- *   - Sign in with Apple: revoke the Apple refresh token
- *     (https://appleid.apple.com/auth/revoke), which App Store review requires
- *     when an account that signed in with Apple is deleted.
+ * Sign in with Apple: revoke every Apple refresh token the account holds
+ * (https://appleid.apple.com/auth/revoke), which App Store review requires when
+ * an account that signed in with Apple is deleted. It runs before the purge
+ * because the tokens live on the Identity rows the purge removes, and a failed
+ * revoke blocks the deletion so it can be retried. A no-op for everyone else.
  */
-export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [];
+export const APPLE_REVOKE_HOOK: PreDeleteHook = {
+  name: "apple-revoke",
+  run: async (account) => {
+    await revokeAppleTokens(account.id);
+  },
+};
+
+/**
+ * The ordered pre-delete hooks. Add new steps here rather than in the route;
+ * billing (cancel the Stripe subscription on the web, note the RevenueCat
+ * entitlement, which the author cancels in the store) goes here too.
+ */
+export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [APPLE_REVOKE_HOOK];
 
 /**
  * Every model that holds account data, in the order the purge deletes it
@@ -111,8 +124,7 @@ export async function purgeAccountData(userId: string): Promise<void> {
   ]);
 }
 
-/** Typed by an account with no password to confirm deletion. */
-export const DELETE_CONFIRMATION = "DELETE";
+export { DELETE_CONFIRMATION };
 
 export type DeletionProof = {
   password?: unknown;
@@ -125,9 +137,9 @@ export type DeletionProof = {
  * word DELETE. A session alone is not enough, since a device left signed in
  * should not be able to erase a manuscript.
  *
- * When Sign in with Apple / Google lands, a fresh provider sign-in is the
- * stronger proof for those accounts; accept its verified identity token here
- * alongside (or instead of) the typed confirmation.
+ * A fresh Apple / Google sign-in would be the stronger proof for a
+ * password-less account; accepting its verified ID token here is a follow-up
+ * (docs/account-data.md).
  */
 export async function verifyDeletionProof(
   account: { passwordHash: string | null },

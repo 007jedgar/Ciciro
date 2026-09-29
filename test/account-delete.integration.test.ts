@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/constants";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/account/delete";
 import { DELETE } from "@/app/api/auth/account/route";
 import { allModelNames, countAllModels, seedAccount, wipeDatabase } from "./account-fixture";
+import { fakeAppleSigningKey } from "./helpers/fake-idp";
 
 function deleteRequest(token: string | null, body: unknown) {
   return new NextRequest("http://localhost/api/auth/account", {
@@ -161,5 +162,86 @@ describe("account deletion", () => {
     );
     expect(error).toMatchObject({ status: 502 });
     expect(await countAllModels()).toEqual(before);
+  });
+});
+
+describe("account deletion with Sign in with Apple", () => {
+  let applePem = "";
+
+  beforeAll(async () => {
+    applePem = (await fakeAppleSigningKey()).pem;
+  });
+
+  beforeEach(async () => {
+    await wipeDatabase();
+    vi.stubEnv("APPLE_TEAM_ID", "TEAM123456");
+    vi.stubEnv("APPLE_KEY_ID", "KEY1234567");
+    vi.stubEnv("APPLE_PRIVATE_KEY", applePem);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  /** A password-less account that signed in with Apple, holding a refresh token. */
+  async function appleAccount() {
+    const gone = await seedAccount("gone");
+    await prisma.user.update({ where: { id: gone.userId }, data: { passwordHash: "" } });
+    await prisma.identity.create({
+      data: {
+        userId: gone.userId,
+        provider: "apple",
+        subject: "001.gone",
+        refreshToken: "gone-rt",
+        refreshTokenClientId: "app.ciciro.mobile",
+      },
+    });
+    return gone;
+  }
+
+  it("revokes the Apple token before the purge", async () => {
+    const gone = await appleAccount();
+    const revoked: URLSearchParams[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        expect(String(url)).toBe("https://appleid.apple.com/auth/revoke");
+        // Still there: the token lives on the Identity row the purge removes.
+        expect(await prisma.user.count({ where: { id: gone.userId } })).toBe(1);
+        revoked.push(new URLSearchParams(String(init?.body)));
+        return new Response(null, { status: 200 });
+      })
+    );
+    const res = await DELETE(deleteRequest(gone.sessionToken, { confirmation: "DELETE" }));
+    expect(res.status).toBe(200);
+    expect(revoked.map((body) => [body.get("token"), body.get("client_id")])).toEqual([
+      ["gone-rt", "app.ciciro.mobile"],
+    ]);
+    expect(await prisma.user.count({ where: { id: gone.userId } })).toBe(0);
+  });
+
+  it("keeps the account whole when Apple does not confirm the revoke", async () => {
+    const gone = await appleAccount();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 503 })));
+    const before = await countAllModels();
+    const res = await DELETE(deleteRequest(gone.sessionToken, { confirmation: "DELETE" }));
+    expect(res.status).toBe(502);
+    expect(await countAllModels()).toEqual(before);
+    const identity = await prisma.identity.findFirstOrThrow({ where: { provider: "apple" } });
+    expect(identity.refreshToken).toBe("gone-rt");
+  });
+
+  it("does not call Apple for an account without an Apple token", async () => {
+    const gone = await seedAccount("gone");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await deleteAccount(gone.userId, { password: gone.password });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await prisma.user.count({ where: { id: gone.userId } })).toBe(0);
   });
 });

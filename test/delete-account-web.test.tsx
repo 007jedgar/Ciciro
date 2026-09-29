@@ -22,8 +22,8 @@ function button(label: string) {
   )!;
 }
 
-async function typePassword(value: string) {
-  const input = dialog().querySelector<HTMLInputElement>('input[type="password"]')!;
+async function typePassword(value: string, selector = 'input[type="password"]') {
+  const input = dialog().querySelector<HTMLInputElement>(selector)!;
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
   await act(async () => {
     setter.call(input, value);
@@ -31,9 +31,11 @@ async function typePassword(value: string) {
   });
 }
 
-async function render(onClose = vi.fn()) {
+async function render(onClose = vi.fn(), hasPassword = true) {
   await act(async () => {
-    root.render(<DeleteAccountDialog open email="ada@example.com" onClose={onClose} />);
+    root.render(
+      <DeleteAccountDialog open email="ada@example.com" hasPassword={hasPassword} onClose={onClose} />
+    );
   });
   return onClose;
 }
@@ -92,6 +94,25 @@ describe("DeleteAccountDialog", () => {
     expect(dialog().querySelector('[role="alert"]')?.textContent).toBe("Incorrect password.");
     expect(assign).not.toHaveBeenCalled();
     expect(button("Delete account").disabled).toBe(false);
+  });
+
+  it("asks an Apple / Google account without a password to type DELETE", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true })));
+    vi.stubGlobal("fetch", fetchMock);
+    await render(vi.fn(), false);
+    expect(dialog().querySelector('input[type="password"]')).toBeNull();
+    expect(dialog().textContent).toContain("Type DELETE to confirm");
+    await typePassword("delet", 'input[type="text"]');
+    expect(button("Delete account").disabled).toBe(true);
+    await typePassword("delete", 'input[type="text"]');
+    expect(button("Delete account").disabled).toBe(false);
+    await act(async () => button("Delete account").click());
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/account",
+      expect.objectContaining({ body: JSON.stringify({ confirmation: "delete" }) })
+    );
+    expect(assign).toHaveBeenCalledWith("/account/delete?deleted=1");
   });
 
   it("closes on Escape and Cancel", async () => {

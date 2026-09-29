@@ -32,7 +32,7 @@ vi.mock("@/lib/auth/access", () => ({
 import { AuthError } from "@/lib/auth/session";
 import { correctBlock, parseCorrectBody, parseCorrectionSpans } from "@/lib/correct";
 
-const user = { id: "u1", email: "ada@example.com", name: "Ada" };
+const user = { id: "u1", email: "ada@example.com", name: "Ada", hasPassword: true };
 const body = {
   chapterId: "c1",
   blockId: "b1",

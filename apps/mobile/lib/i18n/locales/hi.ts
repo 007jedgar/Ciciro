@@ -226,6 +226,7 @@ const hi: Translations = {
     exportFirst: "पहले एक कॉपी चाहिए?",
     exportFirstHint: "एक zip जिसमें हर पांडुलिपि Word और Markdown में है, और बाकी सब कुछ जो Ciciro आपके लिए रखता है।",
     passwordLabel: "पुष्टि के लिए अपना पासवर्ड डालें",
+    confirmLabel: "पुष्टि के लिए {{word}} लिखें",
     deleteButton: "खाता हटाएँ",
     deleting: "हटाया जा रहा है…",
     deleteFailed: "आपका खाता नहीं हटाया जा सका। फिर से कोशिश करें।",

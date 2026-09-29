@@ -227,6 +227,7 @@ const es: Translations = {
     exportFirst: "¿Quieres una copia antes?",
     exportFirstHint: "Un zip con cada manuscrito en Word y Markdown, y todo lo demás que Ciciro guarda para ti.",
     passwordLabel: "Escribe tu contraseña para confirmar",
+    confirmLabel: "Escribe {{word}} para confirmar",
     deleteButton: "Eliminar cuenta",
     deleting: "Eliminando…",
     deleteFailed: "No se pudo eliminar tu cuenta. Inténtalo de nuevo.",

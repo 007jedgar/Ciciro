@@ -64,8 +64,11 @@ export default async function AccountDeletePage({ searchParams }: Props) {
               top right, and choose Delete account. You can also do it right here.
             </li>
           </ul>
-          <p>You&apos;ll be asked for your password to confirm.</p>
-          {user ? <AccountDeleteActions email={user.email} /> : null}
+          <p>
+            You&apos;ll be asked for your password to confirm. If you sign in with Apple or Google
+            and have no Ciciro password, you type DELETE instead.
+          </p>
+          {user ? <AccountDeleteActions email={user.email} hasPassword={user.hasPassword} /> : null}
           {!user && !justDeleted ? (
             <div className="account-delete-actions">
               <Link className="btn primary" href="/login?next=/account/delete">
@@ -82,6 +85,10 @@ export default async function AccountDeletePage({ searchParams }: Props) {
               <li key={item}>{item}</li>
             ))}
             <li>Your account itself: your email address, name and password</li>
+            <li>
+              Its link to Sign in with Apple or Google. If you signed in with Apple, Ciciro also
+              revokes its access at Apple, so it leaves the list of apps using your Apple Account.
+            </li>
           </ul>
           <p>
             Beta readers lose access to anything you shared the moment the account is deleted.

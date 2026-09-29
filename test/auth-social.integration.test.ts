@@ -55,7 +55,7 @@ describe("signInWithIdentity", () => {
   it("creates a password-less account for a new verified email", async () => {
     const { user, takeover } = await signInWithIdentity(google({ name: "Ada" }));
     expect(takeover).toBeNull();
-    expect(user).toMatchObject({ email: "writer@gmail.com", name: "Ada" });
+    expect(user).toMatchObject({ email: "writer@gmail.com", name: "Ada", hasPassword: false });
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.passwordHash).toBe(NO_PASSWORD);
     expect(row.emailVerifiedAt).toBeInstanceOf(Date);
@@ -105,6 +105,8 @@ describe("signInWithIdentity", () => {
 
       expect(user.id).toBe(attacker.id);
       expect(takeover).toBe("google");
+      // Reports the password as gone, so delete-account asks for DELETE instead.
+      expect(user.hasPassword).toBe(false);
       await expect(
         authenticate({ email: "writer@gmail.com", password: "attackers-pw-123" })
       ).rejects.toMatchObject({ status: 401 });

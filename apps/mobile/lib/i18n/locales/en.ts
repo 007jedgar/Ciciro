@@ -225,6 +225,7 @@ const en = {
     exportFirst: "Want a copy first?",
     exportFirstHint: "One zip with every manuscript as Word and Markdown, and everything else Ciciro keeps for you.",
     passwordLabel: "Enter your password to confirm",
+    confirmLabel: "Type {{word}} to confirm",
     deleteButton: "Delete account",
     deleting: "Deleting…",
     deleteFailed: "Couldn't delete your account. Try again.",
