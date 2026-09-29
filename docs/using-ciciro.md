@@ -348,6 +348,20 @@ them and they are not a share of the current text. It is a self-report to help
 you disclose AI assistance honestly, not a guarantee of compliance with KDP or
 any AI detector.
 
+## Your data and your account
+
+**Export my data** takes everything Ciciro keeps for your account in one zip:
+each manuscript as Word and as Markdown with its story bible and scratchpad,
+plus every record (chapters, archived ones included, snapshots, the edit log,
+chat, notes, stats, settings) as JSON. On the web it is in settings (the
+appearance button at the top right); on the phone, at the foot of Settings,
+where it opens the share sheet so you can Save to Files.
+
+**Delete account**, beside it, removes the account and everything in it after
+you confirm your password, and signs out every device. It can't be undone, so
+it offers the export first. The public page at `/account/delete` explains the
+same steps for anyone who is not signed in.
+
 ## Other kinds of writing
 
 When you start a manuscript, on the web or the phone, choose what you are writing. The default is a novel, exactly as before.
