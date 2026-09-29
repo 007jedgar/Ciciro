@@ -97,6 +97,16 @@ export function decodeFlow(raw: string | undefined): OAuthFlow | null {
   }
 }
 
+/**
+ * The origin Apple and Google send people back to. The redirect_uri must match
+ * the one registered with them exactly, so a host behind a TLS-terminating
+ * proxy (which may see http://) sets CICIRO_PUBLIC_URL, e.g. https://ciciro.app.
+ */
+export function publicOrigin(req: NextRequest): string {
+  const configured = (process.env["CICIRO_PUBLIC_URL"] ?? "").trim().replace(/\/+$/, "");
+  return configured || req.nextUrl.origin;
+}
+
 function callbackUrl(origin: string, provider: SocialProvider): string {
   return `${origin}/api/auth/oauth/${provider}/callback`;
 }
@@ -162,7 +172,7 @@ function clearFlowCookie(res: NextResponse, provider: SocialProvider): NextRespo
 
 /** GET /api/auth/oauth/:provider/start */
 export function startBrowserSignIn(req: NextRequest, provider: SocialProvider): NextResponse {
-  const origin = req.nextUrl.origin;
+  const origin = publicOrigin(req);
   const params = req.nextUrl.searchParams;
   const native = params.get("client") === "native";
   const next = safeNext(params.get("next"));
@@ -290,7 +300,7 @@ export async function finishBrowserSignIn(
   params: CallbackParams,
   deps: SocialDeps = {}
 ): Promise<NextResponse> {
-  const origin = req.nextUrl.origin;
+  const origin = publicOrigin(req);
   const flow = decodeFlow(req.cookies.get(OAUTH_COOKIE)?.value);
   const native = Boolean(flow?.challenge);
   const fail = (code: SocialFailure) =>
