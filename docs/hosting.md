@@ -351,7 +351,7 @@ account deleted. Each passes a Resend idempotency key so a retried request never
 none of them throw, so a failed send never fails the signup or deletion
 around it. The billing templates (payment failed, subscription canceled,
 renewal reminder) are sent by the Stripe webhook, from
-`src/lib/billing/notify.ts` (see [billing](billing.md#emails)).
+`src/lib/email/account-emails.ts` (see [billing](billing.md#emails)).
 
 To see every template, run `npm run dev` and open `/dev/emails`, which shows
 each one in light, dark and plain text (`/dev/emails/<id>` serves the raw

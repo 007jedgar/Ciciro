@@ -251,7 +251,7 @@ revoke:
 ## Emails
 
 Web subscribers get three emails from the Stripe webhook, through
-`src/lib/billing/notify.ts` and the templates in `src/lib/email/templates.ts`.
+`src/lib/email/account-emails.ts` and the templates in `src/lib/email/templates.ts`.
 Each is sent after the event is applied, with `billing/<event id>` as the
 Resend idempotency key, so a redelivered event never sends twice, and a failed
 send is logged without failing the webhook. Their links go to `/pricing`,
@@ -261,7 +261,7 @@ whose Manage billing opens the Customer Portal.
 | --- | --- | --- |
 | Payment failed | `invoice.payment_failed`, with the amount and Stripe's next retry date | |
 | Subscription canceled | `customer.subscription.updated` that schedules a cancellation (the portal's Cancel), with the date Pro ends | the subscription was already scheduled to cancel, or is no longer billing |
-| Subscription canceled | `customer.subscription.deleted`, dated when it ended: a cancellation that takes effect at once (refund, dispute, cancelled from the dashboard, retries exhausted) | it had been scheduled (the author already heard), or Ciciro cancelled it because the account is being deleted (`cancellation_details.comment` is `account_deleted`) |
+| Subscription canceled | `customer.subscription.deleted`, dated when it ended: a cancellation that takes effect at once (cancelled from the portal or dashboard, retries exhausted) | it had been scheduled (the author already heard), or Ciciro cancelled it itself: a full refund, a dispute or account deletion (`cancellation_details.comment` is `charge_refunded`, `charge_disputed` or `account_deleted`) |
 | Renewal reminder | `invoice.upcoming`, for an active yearly subscription not set to cancel | the plan is monthly |
 
 Store subscribers get these from Apple and Google, not from Ciciro.
