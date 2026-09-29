@@ -6,11 +6,10 @@
  * occupying far less space than a real keyboard, which pins `keyboard.progress` at 1 with no
  * keyboard actually covering the bar. Driving the hide amount from the measured height keeps
  * the bar shown unless a real keyboard is up.
- */
-/**
- * How far the floating tab bar should tuck away for a keyboard of this height, from 0 (shown)
- * to 1 (hidden). Ramps continuously between the two height thresholds so opening or closing
- * a real keyboard never snaps the bar, while a floating IME add-on stays at 0.
+ *
+ * Returns how far the bar should tuck away, from 0 (shown) to 1 (hidden). It ramps
+ * continuously between the two thresholds so opening or closing a real keyboard never snaps
+ * the bar.
  *
  * Called from `ManuscriptTabBar`'s `useAnimatedStyle` worklet, which runs on the UI thread;
  * an imported function needs its own `"worklet"` directive there, since Reanimated only
