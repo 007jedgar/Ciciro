@@ -55,7 +55,7 @@ On Android, `useReanimatedKeyboardAnimation()`'s `progress` is boolean (0/1 on t
 
 ## Craft defaults
 
-Model-written prose goes through the craft defaults (`src/lib/craft-defaults.ts`, see `docs/craft-defaults.md`): a new path that drafts prose builds its system prompt with `drafterSystemFor(kind, { emDashes })`, reading `emDashesAllowed` from the project's `style.md` (the drafter cannot see it), and runs `checkDraft` on the result so the editor gets a CRAFT CHECK before the author sees anything. The defaults never apply to the author's own prose. `craft: false` exists only for the demo's baseline arm (`npm run demo:craft`).
+Craft defaults (`src/lib/craft-defaults.ts`, see `docs/craft-defaults.md`) are the opt-in "Experimental writing prompt" setting (`craftDefaults`, off by default), and with it off every prompt must stay byte for byte what it was (`test/craft-defaults.test.ts` pins them). A new path that drafts prose reads `proseOptions(projectId)` (`src/lib/craft-options.ts`: the owner's setting plus the `style.md` em-dash switch, which the drafter cannot see), builds its prompt with `drafterSystemFor(kind, { emDashes, craft })`, and only when `craft` is on runs `checkDraft` so the editor gets a CRAFT CHECK. The em-dash switch works with craft on or off. The defaults never apply to the author's own prose.
 
 ## Checks with structured findings
 

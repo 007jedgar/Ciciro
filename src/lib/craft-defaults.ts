@@ -104,6 +104,10 @@ export function craftHabitsFor(kind: ManuscriptKind): CraftHabit[] {
 const VOICE_WINS =
   "The author's voice wins: when the voice notes or the continuity excerpt show the author doing any of these on purpose, do what the author does.";
 
+/** Shared by the drafter, the editor, and the check: a default never cuts what the brief asks for. */
+export const BRIEF_WINS =
+  "Anything the brief explicitly asks for outranks these defaults: a required beat, line, or ending stays, even where a default says otherwise.";
+
 /** The block appended to the drafter's system prompt, or "" for a kind with no craft defaults. */
 export function drafterCraftDefaults(kind: ManuscriptKind): string {
   const habits = craftHabitsFor(kind);
@@ -112,7 +116,7 @@ export function drafterCraftDefaults(kind: ManuscriptKind): string {
     kind === "blog"
       ? "Craft defaults:"
       : "Craft defaults (for narration and action; dialogue may break them when the character would talk that way):";
-  return [scope, ...habits.map((h) => `- ${h.rule}`), VOICE_WINS].join("\n");
+  return [scope, ...habits.map((h) => `- ${h.rule}`), VOICE_WINS, BRIEF_WINS].join("\n");
 }
 
 /** The section appended to the editor's system prompt so it can hold the drafter to the defaults. */
@@ -124,7 +128,8 @@ export function editorCraftSection(kind: ManuscriptKind): string {
         .join(", ")}. The author's voice outranks them:\n`
     : "";
   return `# Craft defaults for drafted prose
-${list}- In a brief's voice notes, name anything the author does on purpose (from style.md and the manuscript) that a careful editor might otherwise cut, so the drafter keeps it.
+${list}- Anything the author or a brief explicitly asks for outranks these defaults: a required beat, line, or ending stays in the draft and in your edit, even where a default or a CRAFT CHECK says otherwise.
+- In a brief's voice notes, name anything the author does on purpose (from style.md and the manuscript) that a careful editor might otherwise cut, so the drafter keeps it.
 - A dispatch_draft result can end with a CRAFT CHECK list of quoted spots. In your edit, fix each one, or keep it when it is the author's voice or the brief asked for it. Do not mention the list to the author.
 - These defaults are for prose you and the drafter write. Do not apply them to the author's own prose unless the author asks for that kind of edit.`;
 }

@@ -2,8 +2,24 @@
 
 Craft defaults steer the prose Ciciro writes away from habits common in
 model-written text, without touching the author's own prose or overriding
-their voice. The user-facing description is in
+their voice or the brief. They are opt-in: the **Experimental writing prompt**
+setting (`craftDefaults` in the synced settings, off by default) turns the
+craft rules and the post-draft check on or off together. The user-facing
+description is in
 [Using Ciciro](using-ciciro.md#craft-defaults-and-em-dashes).
+
+## The setting
+
+`craftDefaults` lives in the account's synced settings (`src/lib/settings.ts`,
+mirrored in `apps/mobile/lib/app-settings.ts`), so the web and the phone read
+and change the same value through `/api/settings`. Server code reads the
+project owner's value with `craftDefaultsOn` or `proseOptions`
+(`src/lib/craft-options.ts`) and passes `craft` into the prompt builders, whose
+default is off. Off, every prompt and call is what it was before craft
+defaults: `test/craft-defaults.test.ts` pins the drafter and beat-edit prompts
+byte for byte, and the integration tests check that no check call runs and
+`dispatch_draft` returns the prose alone. The em-dash switch below is separate
+and works either way.
 
 ## Where they come from
 
@@ -32,11 +48,11 @@ detectors is not a goal.
 
 | Stage | What changes |
 |---|---|
-| Drafter system prompt | `drafterSystemFor(kind, { emDashes })` in `src/lib/prompts.ts` appends the kind's craft block and the rule that the author's voice wins. |
-| Editor system prompt | `editorSystemFor` appends a "Craft defaults for drafted prose" section: the habit names, "put the author's deliberate habits in the voice notes", and how to treat a CRAFT CHECK. |
+| Drafter system prompt | `drafterSystemFor(kind, { emDashes, craft })` in `src/lib/prompts.ts` appends the kind's craft block, the rule that the author's voice wins, and `BRIEF_WINS`: anything the brief explicitly asks for outranks the defaults. |
+| Editor system prompt | `editorSystemFor(kind, extra, { craft })` appends a "Craft defaults for drafted prose" section: the habit names, that what the author or a brief asks for outranks them, "put the author's deliberate habits in the voice notes", and how to treat a CRAFT CHECK. |
 | After each draft | `checkDraft` in `src/lib/prose-tells.ts` runs mechanical checks (em dashes when style.md keeps them off, three sentences in a row opening on the same word) and one low-effort `DRAFTER_MODEL` call for the habits that need judgment. Every quote must be an exact substring of the draft. `formatCraftCheck` turns the findings into the CRAFT CHECK block. |
 | `dispatch_draft` (`src/lib/tools.ts`) | The CRAFT CHECK is appended to the tool result the editor reads. The fast drafter gets the mechanical checks only. |
-| Auto-draft (`src/lib/autowrite.ts`) | Each beat's CRAFT CHECK goes into `editBeatInstruction`, before the editor edits the beat to final. |
+| Auto-draft (`src/lib/autowrite.ts`) | The beat's brief (with `BRIEF_WINS`) and its CRAFT CHECK go into `editBeatInstruction` before the editor edits the beat to final. Without the brief, the edit only sees the beat's one-line goal, and in the first demo runs the craft-aware editor cut a beat the brief required. |
 
 The check is part of an AI run that is already metered, so it claims nothing
 itself. It never throws: with no key or a failed call, the mechanical findings

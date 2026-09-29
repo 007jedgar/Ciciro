@@ -255,12 +255,13 @@ continue. Do the work, then report faithfully: state plainly what you drafted. R
 exactly what each step asks for and nothing else - no preamble, no meta-commentary.`;
 
 import { drafterDirective, kindDirective, type ManuscriptKind } from "@/lib/manuscript-kind";
-import { craftHabitsFor, drafterCraftDefaults, editorCraftSection } from "@/lib/craft-defaults";
+import { BRIEF_WINS, craftHabitsFor, drafterCraftDefaults, editorCraftSection } from "@/lib/craft-defaults";
 
 /**
- * Craft defaults (src/lib/craft-defaults.ts) are on everywhere Ciciro writes.
- * `craft: false` exists for the side-by-side demo's baseline arm
- * (scripts/craft-demo), which must reproduce the prompts as they were before.
+ * Craft defaults (src/lib/craft-defaults.ts) are the opt-in "Experimental
+ * writing prompt" setting (`craftDefaults`, read per project by
+ * src/lib/craft-options.ts). Off, every prompt here is exactly what it was
+ * before craft defaults existed, which test/craft-defaults.test.ts pins.
  */
 export type CraftOptions = { craft?: boolean };
 
@@ -268,7 +269,7 @@ export type CraftOptions = { craft?: boolean };
 export function editorSystemFor(
   kind: ManuscriptKind,
   extra = "",
-  { craft = true }: CraftOptions = {}
+  { craft = false }: CraftOptions = {}
 ): { type: "text"; text: string; cache_control: { type: "ephemeral" } }[] {
   const directive = kindDirective(kind);
   const craftSection = craft ? editorCraftSection(kind) : "";
@@ -283,7 +284,7 @@ export function editorSystemFor(
  */
 export function drafterSystemFor(
   kind: ManuscriptKind,
-  { emDashes = false, craft = true }: CraftOptions & { emDashes?: boolean } = {}
+  { emDashes = false, craft = false }: CraftOptions & { emDashes?: boolean } = {}
 ): string {
   const base = `${DRAFTER_RULES}\n${emDashes ? DRAFTER_DASHES : DRAFTER_NO_DASHES}`;
   const craftBlock = craft ? drafterCraftDefaults(kind) : "";
@@ -298,18 +299,27 @@ export function beatDraftMessage(brief: string, tail: string, isOpening: boolean
   return `${brief}\n\n${continuity}\n\nTarget length: about ${wordTarget} words.`;
 }
 
+/** What the beat edit adds when craft defaults are on: the beat's brief, and the post-draft check's findings. */
+export type BeatCraft = { brief: string; check: string };
+
 /**
- * What the editor is asked when it edits one auto-draft beat to final. A
- * CRAFT CHECK from the post-draft check (formatCraftCheck in prose-tells.ts)
- * goes just before the return instruction.
+ * What the editor is asked when it edits one auto-draft beat to final. With
+ * craft defaults on, the edit also sees the brief the beat was drafted from
+ * (so a craft default never cuts what it asked for) and the CRAFT CHECK from
+ * the post-draft check (formatCraftCheck in prose-tells.ts), both just before
+ * the return instruction.
  */
-export function editBeatInstruction(goal: string, draft: string, tail: string, craftCheck = ""): string {
+export function editBeatInstruction(goal: string, draft: string, tail: string, craft?: BeatCraft): string {
+  const brief = craft?.brief.trim()
+    ? `The beat was drafted from this brief. ${BRIEF_WINS}\n<brief>\n${craft.brief.trim()}\n</brief>\n\n`
+    : "";
+  const check = craft?.check.trim() ? `${craft.check.trim()}\n\n` : "";
   return `You are editing one drafted beat of the chapter to final. Enforce the story's voice,
 POV, tense, and canon; tighten prose; fix any drift or continuity break with the text
 before it. Beat goal: ${goal}.
 ${tail ? `It follows this text:\n<before>\n${tail}\n</before>\n` : ""}
 Here is the draft to edit:\n<draft>\n${draft}\n</draft>\n
-${craftCheck ? `${craftCheck.trim()}\n\n` : ""}Return ONLY the final edited prose for this beat - no commentary, no headings, no draft tags.`;
+${brief}${check}Return ONLY the final edited prose for this beat - no commentary, no headings, no draft tags.`;
 }
 
 /**
@@ -328,7 +338,7 @@ export function proseCheckSystemFor(kind: ManuscriptKind): string {
 Report a finding only for a clear instance of one of these habits:
 ${habits.map((h) => `- ${h.name}: ${h.rule}`).join("\n")}
 
-${scope} If the brief's voice or the surrounding prose plainly does something on purpose, it is not a finding. Prefer no finding to a weak one.
+${scope} If the brief's voice or the surrounding prose plainly does something on purpose, it is not a finding, and neither is anything the brief explicitly asks for. Prefer no finding to a weak one.
 
 Reply with JSON only: {"findings":[{"quote":"...","habit":"...","note":"..."}]}
 - quote: copied verbatim from the passage, an exact substring, the shortest span that shows the habit (at most one sentence). Never paraphrase it.

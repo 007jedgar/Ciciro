@@ -4,6 +4,7 @@ import { getAnthropic, EDITOR_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
 import { editorSystemFor } from "@/lib/prompts";
+import { craftDefaultsOn } from "@/lib/craft-options";
 import {
   adaptiveThinking,
   isThinkingDisplayRejection,
@@ -595,7 +596,11 @@ export async function executeClaimedEditorRun(
       return finalizeVerification(claim, messages);
     }
 
-    const editorSystem = editorSystemFor(await projectKind(claim.projectId));
+    const [kind, craft] = await Promise.all([
+      projectKind(claim.projectId),
+      craftDefaultsOn(claim.projectId),
+    ]);
+    const editorSystem = editorSystemFor(kind, "", { craft });
 
     for (let sliceIndex = 0; sliceIndex < MAX_ITERATIONS_PER_SLICE; sliceIndex++) {
       let msg: Anthropic.Message | undefined;

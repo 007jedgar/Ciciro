@@ -8,7 +8,7 @@ import {
   appendCanon,
 } from "@/lib/bible";
 import { drafterSystemFor, PROSE_MAX_TOKENS } from "@/lib/prompts";
-import { emDashesAllowed } from "@/lib/craft-defaults";
+import { proseOptions } from "@/lib/craft-options";
 import { checkDraft, formatCraftCheck } from "@/lib/prose-tells";
 import {
   assistantTextToHtml,
@@ -1988,16 +1988,15 @@ export async function executeEditorTool(
       const model = mode === "fast" ? DRAFTER_FAST_MODEL : DRAFTER_MODEL;
       try {
         const anthropic = getAnthropic();
-        const [kindRow, styleMd] = await Promise.all([
+        const [kindRow, { craft, emDashes }] = await Promise.all([
           prisma.project.findUnique({ where: { id: projectId }, select: { kind: true } }),
-          readBibleFile(projectId, "style.md"),
+          proseOptions(projectId),
         ]);
         const kind = normalizeKind(kindRow?.kind);
-        const emDashes = emDashesAllowed(styleMd);
         const res = await anthropic.messages.create({
           model,
           max_tokens: PROSE_MAX_TOKENS,
-          system: drafterSystemFor(kind, { emDashes }),
+          system: drafterSystemFor(kind, { emDashes, craft }),
           messages: [{ role: "user", content: brief }],
         });
         const prose = res.content
@@ -2012,9 +2011,11 @@ export async function executeEditorTool(
           res.stop_reason === "max_tokens"
             ? "\n\n(The drafter hit its length limit, so this draft stops mid-passage. Finish or trim it in your edit.)"
             : "";
-        // The fast drafter is for rough bulk text; it gets the free mechanical checks only.
-        const findings = await checkDraft(prose, { kind, emDashes, brief, model: mode === "quality" });
-        const craftCheck = formatCraftCheck(findings);
+        // Craft defaults are opt-in ("Experimental writing prompt"). The fast
+        // drafter is for rough bulk text; it gets the free mechanical checks only.
+        const craftCheck = craft
+          ? formatCraftCheck(await checkDraft(prose, { kind, emDashes, brief, model: mode === "quality" }))
+          : "";
         return {
           status: backstageLine("dispatch_draft"),
           content: [`${prose}${cutOff}`, craftCheck].filter(Boolean).join("\n\n"),

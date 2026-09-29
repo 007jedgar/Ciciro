@@ -192,6 +192,8 @@ const en = {
     exitFocus: "Exit focus",
     aiSuggestions: "Ciciro suggests edits",
     aiSuggestionsHint: "Line edits arrive as tracked changes you accept or reject.",
+    craftDefaults: "Experimental writing prompt",
+    craftDefaultsHint: "Ciciro drafts with rules against common AI writing habits, then checks each draft.",
     dailyGoal: "Daily words",
     dailyGoalHint:
       "Five minutes is a session. Aim for {{count}} of the last 7 days — the rest are rest days, not a streak to protect.",

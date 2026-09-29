@@ -16,12 +16,16 @@ else stays in commit messages.
   and short demos, and `/launch` redirects there. The pricing page shows an
   early-access discount when one is set up (see `docs/billing.md`).
 
-- Ciciro's drafts now follow craft defaults that avoid habits common in
-  model-written prose (feelings mirrored by the weather, stated themes,
-  "not X but Y" contrasts, tidy endings), and a check after each draft points
-  the editor at any that slipped through. Your `style.md` and voice notes
-  still win. Em dashes stay off by default; a `- Em dashes: allowed` line in
-  `style.md` switches them on.
+- New opt-in setting, **Experimental writing prompt** (Settings, web and
+  phone, off by default): Ciciro's drafts follow craft defaults that avoid
+  habits common in model-written prose (feelings mirrored by the weather,
+  stated themes, "not X but Y" contrasts, tidy endings), and a check after
+  each draft points the editor at any that slipped through. Your `style.md`,
+  your voice notes, and anything a brief asks for still win. Off, drafting
+  works exactly as before.
+
+- Em dashes stay off by default; a `- Em dashes: allowed` line in `style.md`
+  switches them on for drafts, with or without the experimental setting.
 
 - Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5
   (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed.

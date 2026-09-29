@@ -30,20 +30,24 @@ describe("craft demo harness", () => {
     const drafts = client.calls.filter((r) => r.model === "claude-sonnet-5-5" && !systemText(r).startsWith("You check"));
     const systems = drafts.map(systemText);
     expect(systems).toContain(drafterSystemFor("novel", { craft: false }));
-    expect(systems).toContain(drafterSystemFor("novel"));
+    expect(systems).toContain(drafterSystemFor("novel", { craft: true }));
     // Only the craft arm honours the author's style.md dash switch.
-    expect(systems).toContain(drafterSystemFor("novel", { emDashes: true }));
+    expect(systems).toContain(drafterSystemFor("novel", { craft: true, emDashes: true }));
     expect(systems.filter((s) => s.includes("Em dashes are allowed"))).toHaveLength(1);
 
     const edits = client.calls.filter((r) => Array.isArray(r.system));
     const baselineEditor = editorSystemFor("novel", AUTONOMOUS_DIRECTIVE, { craft: false })[0].text;
-    const craftEditor = editorSystemFor("novel", AUTONOMOUS_DIRECTIVE)[0].text;
+    const craftEditor = editorSystemFor("novel", AUTONOMOUS_DIRECTIVE, { craft: true })[0].text;
     const baselineEdits = edits.filter((r) => systemText(r) === baselineEditor);
     const craftEdits = edits.filter((r) => systemText(r) === craftEditor);
     expect(baselineEdits).toHaveLength(2);
     expect(craftEdits).toHaveLength(2);
-    for (const r of baselineEdits) expect(String(r.messages[0].content)).not.toContain("CRAFT CHECK");
+    for (const r of baselineEdits) {
+      expect(String(r.messages[0].content)).not.toContain("CRAFT CHECK");
+      expect(String(r.messages[0].content)).not.toContain("<brief>");
+    }
     expect(craftEdits.some((r) => String(r.messages[0].content).includes("CRAFT CHECK"))).toBe(true);
+    for (const r of craftEdits) expect(String(r.messages[0].content)).toContain("<brief>");
 
     const pair = result.scenes[0].pairs[0];
     expect(pair.judgments.map((j) => j.firstShown)).toEqual(["A", "B"]);

@@ -193,6 +193,8 @@ const zh: Translations = {
     exitFocus: "退出专注",
     aiSuggestions: "Ciciro 提出修改建议",
     aiSuggestionsHint: "逐句修改以修订标记的形式出现，由你接受或拒绝。",
+    craftDefaults: "实验性写作提示",
+    craftDefaultsHint: "Ciciro 起草时遵循避开常见 AI 写作习惯的规则，并检查每份草稿。",
     dailyGoal: "每日字数",
     dailyGoalHint:
       "五分钟就是一次写作。目标是近 7 天里写 {{count}} 天——其余是休息日，不是要维持的连续天数。",
