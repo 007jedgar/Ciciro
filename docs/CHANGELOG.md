@@ -6,8 +6,18 @@ else stays in commit messages.
 ## Unreleased
 
 - Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5
-  (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed:
-  every drafter call already omits `thinking`, which runs adaptive on both models.
+  (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed.
+  Anthropic's migration guidance for Sonnet 5.5 is: "`thinking: {type: "disabled"}`
+  returns a 400 - to turn thinking off, send `thinking: {type: "between_tools"}`"
+  (a breaking change from Sonnet 5, which accepted `{type: "disabled"}`). But that
+  only affects callers that explicitly disabled thinking. Per Anthropic's own
+  thinking/effort reference table, *omitting* `thinking` already ran adaptive
+  (thinking on) on Sonnet 5 - "Omitting `thinking`: Runs adaptive" - and continues
+  to run adaptive on Sonnet 5.5 - "Omitting `thinking`: Runs **adaptive**". Every
+  Ciciro drafter call (`recap.ts`, `continuity.ts`, `weekly-review.ts`,
+  `style-analysis.ts`, `tools.ts` dispatch_draft, `autowrite.ts` draftBeat) omits
+  `thinking` rather than disabling it, so the `between_tools` note does not apply
+  and behavior is unchanged.
 
 - Settings (web and mobile) can now export all of your data as one zip and delete
   your account. `/account/delete` explains account deletion publicly, for the
