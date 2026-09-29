@@ -158,6 +158,17 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-project-recap.sql
 
 Until it runs, everything else keeps working and the recap simply does not appear.
 
+The shared password-attempt rate limiter (`src/lib/auth/rate-limit.ts`, used by
+login and account deletion) needs `PasswordAttempt`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-password-attempts.sql
+```
+
+Unlike the other upgrades above, this one is not optional: both routes query
+this table on every attempt, so until it runs, sign-in and account deletion
+500 in production. Apply it before merging.
+
 The weekly review needs `WeeklyReview`:
 
 ```bash

@@ -277,6 +277,18 @@ export const EXPORT_TABLES: readonly Table[] = [
     page: (userId, id, take) =>
       prisma.writingSession.findMany({ where: { userId, ...after(id) }, ...byId, take }),
   },
+  {
+    model: "PasswordAttempt",
+    file: "account-deletion-attempts",
+    take: 200,
+    // Only rows tied to this account (failed account-deletion password
+    // checks): a login attempt against this email before it was known to be
+    // this account has no userId to page by, same as the rate-limit hash of
+    // beta readers' IPs below.
+    page: (userId, id, take) =>
+      prisma.passwordAttempt.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+    shape: (row) => without(row, "ipHash", "key"),
+  },
 ];
 
 /** Every model the export covers: the tables above plus the account itself. */
@@ -334,7 +346,8 @@ data/
   suggestion markup), the chapter edit log and snapshots, story bible files,
   characters, plot points, open questions, scratch notes, chat messages and
   editor runs, recaps, weekly reviews, share links, beta reader comments,
-  folders, reading positions, and your writing days and sessions.
+  folders, reading positions, your writing days and sessions, and failed
+  account-deletion password attempts.
 
 manifest.json
   Written last, with the record count for each file in data/. A zip that
@@ -343,7 +356,9 @@ manifest.json
 Left out on purpose: your password hash, sign-in session tokens, Apple
 sign-in refresh token, pending app sign-in codes, share link
 tokens (the links are listed, but not the secret that opens them), and the
-hashed IP address kept for rate-limiting beta reader comments.
+hashed addresses kept for rate-limiting beta reader comments and password
+attempts (sign-in and account-deletion). A login attempt against your email
+before it matched an account is not included either, for the same reason.
 `;
 }
 

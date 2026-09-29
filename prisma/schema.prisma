@@ -33,6 +33,7 @@ model User {
   readingPositions  ReadingPosition[]
   writingDays       WritingDay[]
   writingSessions   WritingSession[]
+  passwordAttempts  PasswordAttempt[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -672,4 +673,29 @@ model DraftInsertion {
   @@unique([turnId, segmentIndex])
   @@index([projectId])
   @@index([turnId])
+}
+
+// One failed sign-in or account-deletion password attempt, for the shared
+// rate limiter (src/lib/auth/rate-limit.ts). A window's worth of rows is
+// counted per key; a success clears its key's rows. `key` is the normalized
+// email for a login attempt (an account need not exist yet to be counted, so
+// a guess against an unregistered address is throttled the same way — no
+// enumeration signal) or the userId for a deletion attempt. `userId` is set
+// only when the attempt is tied to a real account (deletion always; login
+// only via the email match in purgeAccountData), so account deletion purges
+// every row it owns without relying on cascades. `ipHash` is
+// sha256(scope + address); the address itself is never stored.
+model PasswordAttempt {
+  id     String  @id @default(cuid())
+  scope  String // "login" | "delete"
+  key    String
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipHash String
+
+  createdAt DateTime @default(now())
+
+  @@index([scope, key, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([userId])
 }

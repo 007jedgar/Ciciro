@@ -34,6 +34,9 @@ export async function countAllModels(): Promise<Record<string, number>> {
 
 /** Wipe every table, children first so it works with or without cascades. */
 export async function wipeDatabase(): Promise<void> {
+  // Not FK-owned by User/Project/Folder when it records a login attempt
+  // against an email with no account, so cascades do not reach it.
+  await prisma.passwordAttempt.deleteMany();
   await prisma.user.deleteMany();
   await prisma.project.deleteMany();
   await prisma.folder.deleteMany();
@@ -187,6 +190,9 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
   });
   await prisma.draftInsertion.create({
     data: { projectId: project.id, turnId: `${label}-turn`, segmentIndex: 0, chapterId: chapter.id },
+  });
+  await prisma.passwordAttempt.create({
+    data: { scope: "delete", key: user.id, userId: user.id, ipHash: `${label}-ip-hash` },
   });
   return {
     userId: user.id,
