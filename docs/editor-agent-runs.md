@@ -109,6 +109,9 @@ Events are:
 - `{"type":"text","v":delta}` appends visible output.
 - `{"type":"text","v":fullText,"resume":true}` replaces the client's current seed
   during replay/resume.
+- `{"type":"progress","v":note}` is an ephemeral working note from the model's
+  thinking. Clients show it transiently; it is never part of the reply or the
+  persisted transcript.
 - Existing tool and chapter UI events retain their shapes.
 - `{"type":"done","status":status,"runId":runId,"stopReason":reason}` closes the
   slice. `status` is a durable run state, not an HTTP-request outcome.
