@@ -196,7 +196,7 @@ const en = {
     craftDefaultsHint: "Ciciro drafts with rules against common AI writing habits, then checks each draft.",
     dailyGoal: "Daily words",
     dailyGoalHint:
-      "Five minutes is a session. Aim for {{count}} of the last 7 days — the rest are rest days, not a streak to protect.",
+      "Five minutes is a session. Aim for {{count}} of the last 7 days. The rest are rest days, not a streak to protect.",
     wordGoal: "Word goal",
     weeklyTarget: "Days per week",
     weeklyTargetValue_one: "{{count}} day",
