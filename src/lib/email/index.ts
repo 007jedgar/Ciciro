@@ -3,6 +3,8 @@
 // on Workers (see src/lib/fast-lane.ts) and to avoid a dependency of unclear
 // workerd compatibility for a single POST.
 
+import { authRequired } from "@/lib/auth/constants";
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 // Bracket access so Next.js cannot replace these with empty strings from the
@@ -51,14 +53,27 @@ function fail(message: string, code: string | undefined, throwOnError: boolean |
   return { sent: false, error: { message, code } };
 }
 
+function maskAddress(address: string): string {
+  const at = address.lastIndexOf("@");
+  if (at < 1) return "***";
+  return `${address[0]}***${address.slice(at)}`;
+}
+
+function maskRecipients(to: string | string[]): string[] {
+  return (Array.isArray(to) ? to : [to]).map(maskAddress);
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
   const apiKey = readEnv("RESEND_API_KEY");
   if (!apiKey) {
-    console.log("[email] RESEND_API_KEY not set; logging instead of sending:", {
-      to: options.to,
-      subject: options.subject,
-      tags: options.tags,
-    });
+    const message = "RESEND_API_KEY is not configured";
+    if (options.throwOnError) return fail(message, undefined, true);
+    const detail = { to: maskRecipients(options.to), subject: options.subject, tags: options.tags };
+    if (authRequired()) {
+      console.error(`[email] ${message}; email not sent:`, detail);
+    } else {
+      console.log(`[email] ${message}; logging instead of sending:`, detail);
+    }
     return { sent: false };
   }
 
