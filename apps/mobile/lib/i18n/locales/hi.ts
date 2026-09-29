@@ -202,7 +202,6 @@ const hi: Translations = {
     exportRetry: "अपना कनेक्शन जाँचें और फिर से कोशिश करें।",
     exportUnavailable: "इस डिवाइस पर साझा करना उपलब्ध नहीं है।",
     deleteAccount: "खाता हटाएँ",
-    deleteTitle: "अपना खाता हटाएँ?",
     deleteIntro: "इससे {{email}} और उसमें मौजूद सब कुछ हमेशा के लिए हट जाएगा:",
     deletedManuscripts: "हर पांडुलिपि, उसके अध्याय, स्नैपशॉट और बदलावों का इतिहास",
     deletedBible: "कहानी बाइबल, पात्र, कथानक बिंदु और नोट्स",

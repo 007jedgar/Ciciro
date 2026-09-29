@@ -201,7 +201,6 @@ const zh: Translations = {
     exportRetry: "请检查网络连接后重试。",
     exportUnavailable: "此设备无法使用分享功能。",
     deleteAccount: "删除账户",
-    deleteTitle: "删除你的账户？",
     deleteIntro: "这会永久删除 {{email}} 及其中的全部内容：",
     deletedManuscripts: "每一部稿件，及其章节、快照和修改历史",
     deletedBible: "故事设定集、人物、情节点和便笺",

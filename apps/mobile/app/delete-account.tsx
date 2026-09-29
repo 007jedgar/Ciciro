@@ -10,7 +10,6 @@ import { useExportAccountData } from "../lib/use-export-account-data";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
-import { fonts } from "../lib/theme";
 
 const DELETED_ITEMS = [
   "account.deletedManuscripts",
@@ -65,18 +64,13 @@ export default function DeleteAccountScreen() {
         floating
       />
       <KeyboardAwareScrollView
-        bottomOffset={24}
+        // Room for the Delete button under the field, so it stays tappable over the keyboard.
+        bottomOffset={96}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 12, paddingBottom: 48 }}
+        contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 8, paddingBottom: 48 }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >
-        <Text
-          accessibilityRole="header"
-          style={{ fontFamily: fonts.serif, fontSize: 26, color: colors.ink, marginBottom: 12 }}
-        >
-          {t("account.deleteTitle")}
-        </Text>
-        <Text style={[layout.body, { color: colors.ink, marginBottom: 10 }]}>
+        <Text style={[layout.body, { fontSize: 17, color: colors.ink, marginBottom: 12 }]}>
           {t("account.deleteIntro", { email: user?.email ?? "" })}
         </Text>
         <View style={{ marginBottom: 14, gap: 6 }}>
