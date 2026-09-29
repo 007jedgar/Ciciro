@@ -624,6 +624,13 @@ export default function SettingsScreen() {
             colors={colors}
           />
           <ToggleRow
+            label={t("settings.craftDefaults")}
+            hint={t("settings.craftDefaultsHint")}
+            value={settings.craftDefaults}
+            onValueChange={(craftDefaults) => patch({ craftDefaults })}
+            colors={colors}
+          />
+          <ToggleRow
             label={t("settings.dailyGoal")}
             hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
             value={settings.showDailyGoal}

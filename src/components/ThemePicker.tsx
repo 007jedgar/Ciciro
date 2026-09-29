@@ -303,6 +303,19 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               ? "Line edits arrive as tracked changes you accept or reject."
               : "Line edits change the prose directly."}
           </p>
+          <div className="settings-row">
+            <span>Experimental writing prompt</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.craftDefaults}
+              className={`settings-switch ${settings.craftDefaults ? "on" : ""}`}
+              onClick={() => patch({ craftDefaults: !settings.craftDefaults })}
+            >
+              {settings.craftDefaults ? "On" : "Off"}
+            </button>
+          </div>
+          <p className="settings-hint">Ciciro drafts with rules against common AI writing habits, then checks each draft.</p>
 
           <div className="theme-menu-label">Daily words</div>
           <p className="settings-hint">

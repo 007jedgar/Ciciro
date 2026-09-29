@@ -136,6 +136,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               showDailyGoal: body.showDailyGoal,
               typewriterMode: body.typewriterMode,
               aiSuggestions: body.aiSuggestions,
+              craftDefaults: body.craftDefaults,
             };
       void fetch("/api/settings", {
         method,

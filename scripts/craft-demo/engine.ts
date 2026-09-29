@@ -5,9 +5,10 @@
 // exercises every step without an API key.
 //
 // Arm A uses the `craft: false` prompts, which test/craft-defaults.test.ts pins
-// byte for byte to the prompts as they were before craft defaults. The one
-// shared difference is EDITOR_SYSTEM's dash rule, which now also says how an
-// author switches dashes on; with style.md leaving them off it changes nothing.
+// byte for byte to the prompts as they were before craft defaults (the
+// "Experimental writing prompt" setting off). The one shared difference is
+// EDITOR_SYSTEM's dash rule, which now also says how an author switches dashes
+// on; with style.md leaving them off it changes nothing.
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { DRAFTER_MODEL, EDITOR_MODEL } from "@/lib/anthropic";
@@ -163,6 +164,7 @@ async function runArm(client: Client, scene: DemoScene, arm: Arm, record: Record
     ? await checkDraft(draft, { kind: scene.kind, emDashes, brief: scene.brief, client: recording(client, record) })
     : [];
   const craftCheck = formatCraftCheck(findings);
+  const beatCraft = craft ? { brief: scene.brief, check: craftCheck } : undefined;
 
   const editRes = await call(
     client,
@@ -175,7 +177,7 @@ async function runArm(client: Client, scene: DemoScene, arm: Arm, record: Record
       messages: [
         {
           role: "user",
-          content: `<context>\n${sceneContext(scene)}\n</context>\n\n${editBeatInstruction(scene.goal, draft, scene.continuity, craftCheck)}`,
+          content: `<context>\n${sceneContext(scene)}\n</context>\n\n${editBeatInstruction(scene.goal, draft, scene.continuity, beatCraft)}`,
         },
       ],
     } as Anthropic.MessageCreateParamsNonStreaming,

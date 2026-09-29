@@ -2,9 +2,16 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, EDITOR_MODEL, DRAFTER_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { editorSystemFor, drafterSystemFor, editBeatInstruction, beatDraftMessage, PROSE_MAX_TOKENS, AUTONOMOUS_DIRECTIVE } from "@/lib/prompts";
-import { emDashesAllowed } from "@/lib/craft-defaults";
-import { readBibleFile } from "@/lib/bible";
+import {
+  editorSystemFor,
+  drafterSystemFor,
+  editBeatInstruction,
+  beatDraftMessage,
+  PROSE_MAX_TOKENS,
+  AUTONOMOUS_DIRECTIVE,
+  type BeatCraft,
+} from "@/lib/prompts";
+import { proseOptions, type ProseOptions } from "@/lib/craft-options";
 import { checkDraft, formatCraftCheck } from "@/lib/prose-tells";
 import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
@@ -21,8 +28,8 @@ type PlanQuestion = { question: string; provisional: string; affects: string };
 type Emit = (event: Record<string, unknown>) => void;
 
 const MAX_BEATS = 8;
-function editorSys(kind: ManuscriptKind) {
-  return editorSystemFor(kind, AUTONOMOUS_DIRECTIVE);
+function editorSys(kind: ManuscriptKind, craft: boolean) {
+  return editorSystemFor(kind, AUTONOMOUS_DIRECTIVE, { craft });
 }
 
 async function kindOf(projectId: string): Promise<ManuscriptKind> {
@@ -53,7 +60,8 @@ async function planChapter(
   projectId: string,
   chapterId: string,
   targetWords: number,
-  guidance: string
+  guidance: string,
+  craft: boolean
 ): Promise<{ beats: Beat[]; openQuestions: PlanQuestion[] }> {
   const context = await buildEditorContext(projectId, chapterId);
   const anthropic = getAnthropic();
@@ -116,7 +124,7 @@ later.`;
         },
       },
     },
-    system: editorSys(await kindOf(projectId)),
+    system: editorSys(await kindOf(projectId), craft),
     messages: [{ role: "user", content: `<context>\n${context}\n</context>\n\n${instruction}` }],
   } as Anthropic.MessageCreateParamsNonStreaming);
 
@@ -132,7 +140,7 @@ later.`;
 
 async function draftBeat(
   kind: ManuscriptKind,
-  emDashes: boolean,
+  { craft, emDashes }: ProseOptions,
   beat: Beat,
   tail: string,
   isOpening: boolean
@@ -141,7 +149,7 @@ async function draftBeat(
   const res = await anthropic.messages.create({
     model: DRAFTER_MODEL,
     max_tokens: PROSE_MAX_TOKENS,
-    system: drafterSystemFor(kind, { emDashes }),
+    system: drafterSystemFor(kind, { emDashes, craft }),
     messages: [{ role: "user", content: beatDraftMessage(beat.brief, tail, isOpening, beat.wordTarget) }],
   });
   return finishedText(res, "draft");
@@ -153,18 +161,18 @@ async function editBeatToFinal(
   beat: Beat,
   draft: string,
   tail: string,
-  craftCheck: string
+  craft: BeatCraft | undefined
 ): Promise<string> {
   const context = await buildEditorContext(projectId, chapterId);
   const anthropic = getAnthropic();
-  const instruction = editBeatInstruction(beat.goal, draft, tail, craftCheck);
+  const instruction = editBeatInstruction(beat.goal, draft, tail, craft);
 
   const res = await anthropic.messages.create({
     model: EDITOR_MODEL,
     max_tokens: PROSE_MAX_TOKENS,
     thinking: { type: "adaptive" },
     output_config: { effort: "high" },
-    system: editorSys(await kindOf(projectId)),
+    system: editorSys(await kindOf(projectId), craft !== undefined),
     messages: [{ role: "user", content: `<context>\n${context}\n</context>\n\n${instruction}` }],
   } as Anthropic.MessageCreateParamsNonStreaming);
   return finishedText(res, "edit");
@@ -221,13 +229,13 @@ export async function runAutoWrite(opts: {
   }
 
   const kind = await kindOf(projectId);
-  const emDashes = emDashesAllowed(await readBibleFile(projectId, "style.md"));
+  const options = await proseOptions(projectId);
 
   emit({ type: "phase", v: "planning" });
   let beats: Beat[];
   let planQuestions: PlanQuestion[] = [];
   try {
-    const plan = await planChapter(projectId, chapterId, targetWords, guidance);
+    const plan = await planChapter(projectId, chapterId, targetWords, guidance, options.craft);
     beats = plan.beats;
     planQuestions = plan.openQuestions;
   } catch (e) {
@@ -272,7 +280,7 @@ export async function runAutoWrite(opts: {
     emit({ type: "beat", i: i + 1, n: beats.length, status: "drafting", goal: beat.goal });
     let prose: string;
     try {
-      prose = await draftBeat(kind, emDashes, beat, tail, isOpening);
+      prose = await draftBeat(kind, options, beat, tail, isOpening);
     } catch (e) {
       emit({ type: "note", v: `Beat ${i + 1} draft failed: ${(e as Error).message}` });
       continue;
@@ -280,8 +288,17 @@ export async function runAutoWrite(opts: {
 
     emit({ type: "beat", i: i + 1, n: beats.length, status: "editing", goal: beat.goal });
     try {
-      const findings = await checkDraft(prose, { kind, emDashes, brief: beat.brief });
-      const edited = await editBeatToFinal(projectId, chapterId, beat, prose, tail, formatCraftCheck(findings));
+      // Craft defaults are opt-in ("Experimental writing prompt"); off, the edit
+      // gets no brief, no check, and no extra call.
+      const craft = options.craft
+        ? {
+            brief: beat.brief,
+            check: formatCraftCheck(
+              await checkDraft(prose, { kind, emDashes: options.emDashes, brief: beat.brief })
+            ),
+          }
+        : undefined;
+      const edited = await editBeatToFinal(projectId, chapterId, beat, prose, tail, craft);
       if (edited.trim()) prose = edited;
     } catch (e) {
       emit({ type: "note", v: `Beat ${i + 1} edit skipped: ${(e as Error).message}` });

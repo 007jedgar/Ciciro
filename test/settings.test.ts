@@ -92,6 +92,16 @@ describe("app settings", () => {
     expect(settingsEqual(defaultSettings(), { ...defaultSettings(), aiSuggestions: false })).toBe(false);
   });
 
+  it("keeps the Experimental writing prompt off until the author turns it on", () => {
+    expect(defaultSettings().craftDefaults).toBe(false);
+    expect(normalizeSettings({}).craftDefaults).toBe(false);
+    expect(normalizeSettings({ craftDefaults: true }).craftDefaults).toBe(true);
+    expect(normalizeSettings({ craftDefaults: "on" }).craftDefaults).toBe(false);
+    expect(parseSettingsPatch({ craftDefaults: true })).toEqual({ craftDefaults: true });
+    expect(parseSettingsPatch({ craftDefaults: 1 })).toEqual({ error: "craftDefaults must be a boolean." });
+    expect(settingsEqual(defaultSettings(), { ...defaultSettings(), craftDefaults: true })).toBe(false);
+  });
+
   it("picks the newer document and applies patches", () => {
     const older = { ...defaultSettings(new Date("2026-01-01T00:00:00.000Z")), theme: "parchment" as const };
     const newer = { ...defaultSettings(new Date("2026-02-01T00:00:00.000Z")), theme: "inkwell" as const };

@@ -56,7 +56,8 @@ stays aligned.
 
 ## Craft defaults and em dashes
 
-New prose from Ciciro follows a set of craft defaults that steer it away from
+**Experimental writing prompt** (Settings, on the web and the phone; off by
+default) turns on a set of craft defaults that steer new prose from Ciciro away from
 habits common in model-written fiction: a mood mirrored by the weather, a
 closing line that explains the scene, "not X but Y" contrasts, lines built to
 sound wise, an earnest or lyrical tone you did not ask for, long balanced
@@ -68,11 +69,15 @@ draft still does one of these, and the editor fixes it or keeps it on purpose
 before you see the `<draft>`. The check only looks at new drafts, never at
 your own prose.
 
-Your voice outranks the defaults. If you write lyrical prose on purpose, or
-end scenes on a turn of feeling, say so in `style.md` (or in the character's
-Voice section) and the editor carries it into every brief.
+Your voice outranks the defaults, and so does anything you or a brief asks
+for: a beat the brief requires stays in the scene even where a default would
+cut it. If you write lyrical prose on purpose, or end scenes on a turn of
+feeling, say so in `style.md` (or in the character's Voice section) and the
+editor carries it into every brief. With the setting off, Ciciro drafts
+exactly as it did before, with no extra check.
 
-Ciciro writes no em dashes by default. If you write with them, change the line
+Ciciro writes no em dashes by default, whether or not the experimental
+setting is on. If you write with them, change the line
 in `style.md` to:
 
 ```

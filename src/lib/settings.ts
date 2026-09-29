@@ -40,6 +40,11 @@ export type AppSettings = {
   typewriterMode: boolean;
   /** Ciciro's line edits arrive as tracked suggestions to accept or reject. */
   aiSuggestions: boolean;
+  /**
+   * "Experimental writing prompt": prose Ciciro drafts follows the craft
+   * defaults and gets a post-draft check (src/lib/craft-defaults.ts). Opt-in.
+   */
+  craftDefaults: boolean;
   updatedAt: string;
 };
 
@@ -61,6 +66,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     showDailyGoal: true,
     typewriterMode: false,
     aiSuggestions: true,
+    craftDefaults: false,
     updatedAt: now.toISOString(),
   };
 }
@@ -136,6 +142,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
   const typewriterMode =
     typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode;
   const aiSuggestions = typeof src.aiSuggestions === "boolean" ? src.aiSuggestions : defaults.aiSuggestions;
+  const craftDefaults = typeof src.craftDefaults === "boolean" ? src.craftDefaults : defaults.craftDefaults;
   return {
     theme,
     editorFont,
@@ -149,6 +156,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     showDailyGoal,
     typewriterMode,
     aiSuggestions,
+    craftDefaults,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
 }
@@ -247,6 +255,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.aiSuggestions = src.aiSuggestions;
   }
+  if ("craftDefaults" in src) {
+    if (typeof src.craftDefaults !== "boolean") {
+      return { error: "craftDefaults must be a boolean." };
+    }
+    patch.craftDefaults = src.craftDefaults;
+  }
 
   return patch;
 }
@@ -277,7 +291,8 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.weeklyDayTarget === b.weeklyDayTarget &&
     a.showDailyGoal === b.showDailyGoal &&
     a.typewriterMode === b.typewriterMode &&
-    a.aiSuggestions === b.aiSuggestions
+    a.aiSuggestions === b.aiSuggestions &&
+    a.craftDefaults === b.craftDefaults
   );
 }
 

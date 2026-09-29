@@ -77,6 +77,9 @@ vi.mock("@/lib/fast-lane", () => ({
 }));
 
 import { prisma } from "@/lib/db";
+import { registerUser } from "@/lib/auth/session";
+import { updateUserSettings } from "@/lib/user-settings";
+import { editorSystemFor } from "@/lib/prompts";
 import {
   claimEditorRun,
   executeClaimedEditorRun,
@@ -126,6 +129,8 @@ describe("durable editor lifecycle", () => {
     model.rejectDisplayOnce = false;
     model.editorModel = "claude-opus-5-5";
     await prisma.project.deleteMany();
+    await prisma.session.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   afterAll(async () => {
@@ -337,6 +342,25 @@ describe("durable editor lifecycle", () => {
     const claim = await claimEditorRun(prepared!.run.id);
     await executeClaimedEditorRun(claim!, () => {});
   }
+
+  it.each([false, true])(
+    "builds the editor prompt with craft defaults only when the owner's setting is on (%s)",
+    async (craftDefaults) => {
+      const owner = await registerUser({ email: `craft-${craftDefaults}@example.com`, password: "long-enough-pw" });
+      if (craftDefaults) await updateUserSettings(owner.id, { craftDefaults });
+      const project = await prisma.project.create({ data: { title: "Craft", userId: owner.id } });
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "What happened in chapter one?",
+        clientTurnId: `craft-${craftDefaults}`,
+      });
+      model.responses.push(response("end_turn", [{ type: "text", text: "Nothing yet.", citations: null }]));
+      await executeClaimedEditorRun((await claimEditorRun(prepared!.run.id))!, () => {});
+
+      expect(model.calls[0].params.system).toEqual(editorSystemFor("novel", "", { craft: craftDefaults }));
+      expect(JSON.stringify(model.calls[0].params.system).includes("# Craft defaults")).toBe(craftDefaults);
+    }
+  );
 
   it("requests progress notes on a model documented to support them", async () => {
     await runOnce("display-supported");

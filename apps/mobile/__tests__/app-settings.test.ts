@@ -58,6 +58,14 @@ describe("app settings", () => {
     expect(settingsEqual(defaultSettings(), { ...defaultSettings(), aiSuggestions: false })).toBe(false);
   });
 
+  it("keeps the Experimental writing prompt off until the author turns it on", () => {
+    expect(defaultSettings().craftDefaults).toBe(false);
+    expect(normalizeSettings({}).craftDefaults).toBe(false);
+    expect(normalizeSettings({ craftDefaults: true }).craftDefaults).toBe(true);
+    expect(normalizeSettings({ craftDefaults: "on" }).craftDefaults).toBe(false);
+    expect(settingsEqual(defaultSettings(), { ...defaultSettings(), craftDefaults: true })).toBe(false);
+  });
+
   it("applies patches without dropping other fields", () => {
     const older = defaultSettings();
     const patched = applyPatch(older, { editorFont: "sans", autoCorrect: false });
