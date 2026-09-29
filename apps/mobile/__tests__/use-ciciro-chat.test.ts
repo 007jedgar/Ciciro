@@ -144,6 +144,27 @@ describe("useCiciroChat", () => {
     expect(posts[0]!.clientTurnId).not.toBe(posts[1]!.clientTurnId);
     unmount();
   });
+  it("hands back an allowance-used-up failure so the screen can keep the author's words", async () => {
+    mockFetch(async (input, init) => {
+      if ((init?.method ?? "GET") !== "POST") return jsonResponse({ messages: [], runs: [] });
+      return jsonResponse(
+        { error: "You've used this month's free AI allowance.", code: "ai_limit_reached", entitlement: { plan: "free" } },
+        { status: 402 }
+      );
+    });
+
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let failure: unknown;
+    await act(async () => {
+      failure = await result.current.send({ projectId: "p1", message: "What next?" });
+    });
+    expect(failure).toMatchObject({ code: "aiLimit", retryable: false, plan: "free" });
+    expect(result.current.failure).toMatchObject({ code: "aiLimit" });
+    unmount();
+  });
+
   it("reloads the transcript on retry when loading it was what failed", async () => {
     let gets = 0;
     let posts = 0;

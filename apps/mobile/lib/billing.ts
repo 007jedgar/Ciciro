@@ -1,10 +1,28 @@
-import { ciciro, queryClient, queryKeys, type Entitlement } from "./api";
+import { useCallback } from "react";
+import { useFocusEffect } from "expo-router";
+import { ciciro, queryClient, queryKeys, useEntitlementQuery, type Entitlement } from "./api";
 import { billingPreview, storePurchasesAvailable } from "./purchases";
 
 /**
  * What the app shows about billing, decided from the server's entitlement
  * (src/lib/entitlements.ts) and never from the store SDK's local state.
  */
+
+/**
+ * The server's entitlement, re-read whenever the screen showing it comes into
+ * focus: usage moves with every AI action, and the plan can change on the web
+ * or in the store while the app is open.
+ */
+export function useEntitlement(enabled: boolean) {
+  const query = useEntitlementQuery({ enabled });
+  const { refetch } = query;
+  useFocusEffect(
+    useCallback(() => {
+      if (enabled) void refetch();
+    }, [enabled, refetch])
+  );
+  return query;
+}
 
 /** i18n key naming the store a subscription is billed through, or null for the web / no subscription. */
 export function storeLabelKey(source: Entitlement["source"]): "billing.appStore" | "billing.googlePlay" | null {

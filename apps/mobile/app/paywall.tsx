@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { CheckIcon, InfoIcon } from "../components/icons";
-import { ciciro, useEntitlementQuery, type Entitlement } from "../lib/api";
+import { ciciro, type Entitlement } from "../lib/api";
 import { API_URL } from "../lib/api/client";
 import {
   billingDate,
@@ -15,6 +15,7 @@ import {
   rememberEntitlement,
   storeLabelKey,
   syncStorePurchases,
+  useEntitlement,
 } from "../lib/billing";
 import {
   billingPreview,
@@ -45,7 +46,7 @@ export default function PaywallScreen() {
   const { layout, colors } = useAppTheme();
   const headerHeight = useAppHeaderHeight();
   const insets = useSafeAreaInsets();
-  const entitlementQuery = useEntitlementQuery({ enabled: Boolean(user) });
+  const entitlementQuery = useEntitlement(Boolean(user));
   const entitlement = entitlementQuery.data ?? null;
   const offer = canOfferPro(entitlement);
   const preview = billingPreview();
@@ -144,7 +145,7 @@ export default function PaywallScreen() {
         }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >
-        {preview ? (
+        {preview && offer && !welcome ? (
           <View
             style={{
               flexDirection: "row",

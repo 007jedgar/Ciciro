@@ -186,13 +186,17 @@ export function useSettingsQuery(options?: Enabled) {
   });
 }
 
-/** The account's plan and AI use. Refetched on focus so usage stays current. */
+/**
+ * The account's plan and AI use. Always stale, so every screen that shows it
+ * re-reads the server on open (usage moves with each AI action) while the
+ * cached value renders meanwhile.
+ */
 export function useEntitlementQuery(options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.entitlement,
     queryFn: async () => (await ciciro.billing.entitlement()).entitlement,
     enabled: options?.enabled ?? true,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }
 

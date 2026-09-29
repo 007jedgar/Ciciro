@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { useEntitlementQuery, useModelsQuery } from "../lib/api/hooks";
+import { useModelsQuery } from "../lib/api/hooks";
 import type { Entitlement, ModelRole } from "../lib/api/types";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
@@ -20,7 +20,14 @@ import { getReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
 import { useExportAccountData } from "../lib/use-export-account-data";
-import { allowanceResetsOn, billingDate, canOfferPro, storeLabelKey, syncStorePurchases } from "../lib/billing";
+import {
+  allowanceResetsOn,
+  billingDate,
+  canOfferPro,
+  storeLabelKey,
+  syncStorePurchases,
+  useEntitlement,
+} from "../lib/billing";
 import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePurchasesAvailable } from "../lib/purchases";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
@@ -397,7 +404,7 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
                 <View
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
-                  style={{ marginTop: 12, height: 6, borderRadius: 3, backgroundColor: colors.panel2, overflow: "hidden" }}
+                  style={{ marginTop: 12, height: 6, borderRadius: 3, backgroundColor: colors.line, overflow: "hidden" }}
                 >
                   <View
                     style={{
@@ -448,7 +455,7 @@ export default function SettingsScreen() {
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
-  const { data: entitlement } = useEntitlementQuery({ enabled: Boolean(user) });
+  const { data: entitlement } = useEntitlement(Boolean(user));
   const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);

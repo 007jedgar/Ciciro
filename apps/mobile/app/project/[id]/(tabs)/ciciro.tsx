@@ -74,8 +74,13 @@ export default function CiciroScreen() {
       chapterId: selectedChapterId,
     });
     if (!input) return;
+    const typed = composer;
     setComposer("");
-    void chat.send(input);
+    void chat.send(input).then((failure) => {
+      // The allowance is used up: the server kept nothing, so give the author
+      // their words back rather than make them type it again next month.
+      if (failure?.code === "aiLimit") setComposer((current) => current || typed);
+    });
   }, [chat.send, chat.streaming, composer, projectId, selectedChapterId]);
 
   const answerQuestion = useCallback(
