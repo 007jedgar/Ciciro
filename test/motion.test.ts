@@ -36,6 +36,9 @@ describe("motion tokens", () => {
       drop: tokens.get("duration-drop"),
       typewriter: tokens.get("duration-typewriter"),
       suggestionCollapse: tokens.get("duration-suggestion-fold"),
+      keyType: tokens.get("duration-key-type"),
+      keyErase: tokens.get("duration-key-erase"),
+      wordHold: tokens.get("duration-word-hold"),
     }).toEqual(MOTION_MS);
   });
 });

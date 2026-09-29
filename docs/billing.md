@@ -36,7 +36,36 @@ launches.
 - `CICIRO_FREE_AI_RUNS_PER_MONTH`: defaults to **30**.
 - `CICIRO_PRO_AI_RUNS_PER_MONTH`: defaults to **1500**.
 - The prices themselves: set them in Stripe, App Store Connect and Play
-  Console. Keep the same list price in the app and on the web.
+  Console. Keep the same list price in the app and on the web. The
+  recommendation is $12 a month or $96 a year, under the AI-included
+  writing tools it competes with.
+
+## Early-access offer
+
+While early access is open, an account's **first** Pro subscription gets a
+discount, the same on the web and in the apps, at the same list price. The
+offer is half price for the first year: the most generous discount the stores'
+introductory offers can match exactly (a lifetime discount cannot be made in
+the stores without a cheaper product), and a year is long enough for the
+writing habit to form.
+
+- **Web**: create a Stripe coupon (Products → Coupons), e.g. 50% off,
+  duration "multiple months", 12 months, and put its id in
+  `STRIPE_EARLY_ACCESS_COUPON`. Checkout applies it to an account that has
+  never had a subscription from any source (`earlyAccessApplies`), instead of
+  the promotion code box, and still sells at full price if Stripe rejects it.
+  The pricing page reads the percent and months from the coupon, so it can
+  never promise more than Checkout gives.
+- **iOS**: on both subscriptions, an introductory offer with the same terms
+  (monthly: pay as you go, 50%, 12 periods; yearly: pay up front, 50%, 1 year).
+  Apple gives an introductory offer once per subscription group, which matches
+  the first-subscription rule.
+- **Android**: an introductory offer on each base plan with the matching
+  discounted phase.
+- **Closing it**: set `CICIRO_EARLY_ACCESS_ENDS` (ISO date) and end the store
+  offers on the same day, or remove the coupon variable. Existing discounts run
+  their course. The Terms describe the offer in general terms, so changing its
+  size or length needs no Terms change.
 
 ## The AI allowance
 
@@ -69,6 +98,8 @@ Server (`wrangler secret put <NAME>` on Cloudflare, or the container env):
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` from the webhook endpoint below. |
 | `STRIPE_PRICE_PRO_MONTHLY` | `price_…` of the monthly Pro price. |
 | `STRIPE_PRICE_PRO_YEARLY` | `price_…` of the yearly Pro price. |
+| `STRIPE_EARLY_ACCESS_COUPON` | Optional. The coupon id of the [early-access offer](#early-access-offer). |
+| `CICIRO_EARLY_ACCESS_ENDS` | Optional. ISO date the early-access offer closes; unset keeps it open while the coupon is set. |
 | `STRIPE_TAX_MODE` | `managed_payments` (default), `automatic_tax`, or `none`. See [Tax](#tax). |
 | `REVENUECAT_SECRET_API_KEY` | RevenueCat secret API key (v1, `sk_…`), for re-reading a customer. |
 | `REVENUECAT_WEBHOOK_AUTH` | The exact Authorization header value set on the RevenueCat webhook. |

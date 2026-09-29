@@ -1,6 +1,8 @@
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
-import { CLOSING, HERO, HOW, SCENE, WHY } from "./copy";
+import CyclingWord from "./CyclingWord";
+import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
+import { CLOSING, HERO, HOW, PRICING, SCENE, WHY } from "./copy";
 import "./landing.css";
 
 function Arrow() {
@@ -116,7 +118,44 @@ function Scene() {
   );
 }
 
+/** Free and Pro at a glance. Amounts live in Stripe, so this links to them
+    rather than fetching them on every visit. */
+function Pricing({ offerOpen }: { offerOpen: boolean }) {
+  return (
+    <section className="landing-wrap landing-block" aria-labelledby="landing-pricing">
+      <p className="landing-kicker">{PRICING.kicker} / Form CI-02</p>
+      <div className="landing-pricing">
+        <div>
+          <h2 id="landing-pricing" className="landing-h2">
+            {PRICING.headingLead} <em>{PRICING.headingKey}</em>
+          </h2>
+          <p className="landing-pricing-body">{PRICING.body}</p>
+        </div>
+        <div className="landing-price-sheet">
+          <div className="landing-price-row">
+            <span>Free</span>
+            <b>$0, always</b>
+          </div>
+          <p>{PRICING.free(planLimits("free").aiRunsPerMonth)}</p>
+          <div className="landing-price-row">
+            <span>Ciciro Pro</span>
+            <b>Monthly or yearly</b>
+          </div>
+          <p>{PRICING.pro}</p>
+          {offerOpen ? <p className="landing-price-offer">{PRICING.offer}</p> : null}
+          <Link href="/pricing" className="landing-btn">
+            See pricing <Arrow />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Landing() {
+  // /pricing exists only where the web sells Pro (docs/billing.md).
+  const selling = stripeSettings() !== null;
+  const offerOpen = selling && openEarlyAccess() !== null;
   return (
     <main className="landing">
       <div className="landing-band">
@@ -129,6 +168,11 @@ export default function Landing() {
           <header className="landing-header">
             <Brand />
             <nav className="landing-nav" aria-label="Account">
+              {selling ? (
+                <Link href="/pricing" className="landing-plain-link">
+                  Pricing
+                </Link>
+              ) : null}
               <Link href="/login" className="landing-plain-link">
                 Sign in
               </Link>
@@ -141,7 +185,13 @@ export default function Landing() {
             <div>
               <p className="landing-eyebrow">{HERO.eyebrow}</p>
               <h1 id="landing-headline" className="landing-h1">
-                {HERO.headlineLead} <em>{HERO.headlineKey}</em>
+                <span className="landing-sr">
+                  {`${HERO.headlineStart} ${HERO.headlineSubjects[0]} ${HERO.headlineLead} ${HERO.headlineKey}`}
+                </span>
+                <span aria-hidden>
+                  {HERO.headlineStart} <CyclingWord words={HERO.headlineSubjects} /> {HERO.headlineLead}{" "}
+                  <em>{HERO.headlineKey}</em>
+                </span>
               </h1>
             </div>
             <p className="landing-side-note">
@@ -227,6 +277,8 @@ export default function Landing() {
         </div>
       </section>
 
+      {selling ? <Pricing offerOpen={offerOpen} /> : null}
+
       <div className="landing-closing">
         <div className="landing-wrap">
           <section className="landing-closing-inner" aria-labelledby="landing-closing">
@@ -265,6 +317,7 @@ export default function Landing() {
             <nav className="landing-footer-nav" aria-label="Footer">
               <Link href="/login">Sign in</Link>
               <Link href="/signup">Get early access</Link>
+              {selling ? <Link href="/pricing">Pricing</Link> : null}
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
             </nav>

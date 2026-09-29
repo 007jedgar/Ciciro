@@ -15,7 +15,11 @@ export const LANDING_METADATA: Metadata = {
 
 export const HERO = {
   eyebrow: "For writers who keep meaning to get back to it",
-  headlineLead: "Most novels don't stall from writer's block. They stall from",
+  headlineStart: "Most",
+  /** The subject the headline retypes, first word first. Plural, and only the
+      forms Ciciro is built for (see src/lib/manuscript-kind.ts). */
+  headlineSubjects: ["novels", "journals", "screenplays", "blogs", "memoirs", "newsletters", "scripts"],
+  headlineLead: "don't stall from writer's block. They stall from",
   headlineKey: "silence.",
   sideNoteTitle: "Unfinished. Not abandoned.",
   sideNote: "Reminders on the days you pick. Five minutes counts. Rest days are built in.",
@@ -48,7 +52,7 @@ export const HOW = {
     {
       tab: "03 / Guilt",
       numeral: "iii.",
-      title: "“I missed a day, so why bother.”",
+      title: "“I miss a day, then two...”",
       body:
         "There is no streak here. Choose how many days a week you're aiming for, and Ciciro shows how many of the last seven you wrote. Rest days are part of the plan, and nothing resets to zero.",
     },
@@ -82,6 +86,20 @@ export const CLOSING = {
   headingLead: "Start the habit",
   headingKey: "tonight.",
   sub: "Early access is open, and your manuscripts, story bible and exports are free. Bring the sentence you already started.",
+};
+
+export const PRICING = {
+  kicker: "Pricing",
+  headingLead: "Free to write in.",
+  headingKey: "Pro when you want more.",
+  body:
+    "Your manuscripts, story bible, reminders, exports and sync cost nothing, now or later. Ciciro Pro adds more of the AI editor each month, for less than most writing tools with AI built in.",
+  free: (runs: number | null) =>
+    runs === null
+      ? "The whole editor, the phone app, and the AI editor."
+      : `The whole editor, the phone app, and ${runs} AI actions a month.`,
+  pro: "A far bigger AI allowance, one subscription for the web and the apps. Cancel any time.",
+  offer: "Writing with us in early access? Your first Pro subscription comes with a founding discount.",
 };
 
 /** The reminder the phone in the hero shows: a real reminder's shape. */

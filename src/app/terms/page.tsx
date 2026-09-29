@@ -71,6 +71,14 @@ export default async function TermsPage() {
               renews automatically at the end of each period until you cancel.
             </li>
             <li>
+              Early-access offer: while early access is open, your first Ciciro Pro subscription
+              on your account, on the web or in the apps, may come with a discount. The{" "}
+              <Link href="/pricing">pricing</Link> page and checkout show how much and for how
+              long before you buy; after that, Pro renews at the list price until you cancel. It
+              is one per account, and it can end for new subscriptions at any time without
+              changing a discount you already have.
+            </li>
+            <li>
               Bought on the web: payment is handled by Stripe. Cancel any time from Settings,
               under Manage billing. Pro stays on until the end of the period you paid for.
             </li>

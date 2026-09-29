@@ -11,6 +11,12 @@
   padding: 48px 24px 96px;
 }
 
+.pricing-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+}
+
 .pricing-lede {
   max-width: 620px;
   font-size: 1.05rem;
@@ -28,6 +34,92 @@
   background: var(--panel);
   font-size: 0.95rem;
   line-height: 1.55;
+}
+
+/* Early access: a butter slip with a rubber stamp on it. */
+.pricing-offer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 0 0 28px;
+  padding: 22px 24px;
+  border-radius: 2px;
+  background: var(--butter);
+  color: #141414;
+  box-shadow: var(--paper-shadow);
+}
+
+.pricing-offer-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.pricing-offer-kicker {
+  margin: 0 0 12px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pricing-offer h2 {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.pricing-offer p {
+  margin: 0;
+  max-width: 560px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.pricing-offer-stamp {
+  flex: none;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: 96px;
+  height: 96px;
+  border: 3px double #8f2414;
+  border-radius: 50%;
+  color: #8f2414;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  transform: rotate(-10deg);
+}
+
+.pricing-offer-stamp b {
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.pricing-offer-stamp span {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+
+.pricing-price s {
+  font-size: 0.55em;
+  color: var(--ink-soft);
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--vermilion);
+}
+
+.pricing-offer-term {
+  margin: -8px 0 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
 }
 
 .pricing-toggle {
@@ -222,5 +314,31 @@
   }
   .pricing-plans {
     grid-template-columns: minmax(0, 1fr);
+  }
+  /* The stamp moves onto the slip's bottom edge so the copy keeps the width. */
+  .pricing-offer {
+    display: block;
+    padding: 20px 18px 44px;
+    margin-bottom: 44px;
+  }
+  .pricing-offer-stamp {
+    position: absolute;
+    right: 16px;
+    bottom: -28px;
+    background: var(--butter);
+  }
+  .pricing-offer h2 {
+    font-size: 1.4rem;
+  }
+  .pricing-offer-kicker {
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+  }
+  .pricing-offer-stamp {
+    width: 72px;
+    height: 72px;
+  }
+  .pricing-offer-stamp b {
+    font-size: 1.15rem;
   }
 }

@@ -74,6 +74,36 @@ export function stripeSettings(): StripeSettings | null {
   };
 }
 
+export type EarlyAccessSettings = {
+  /** The Stripe coupon Checkout applies, e.g. a percent off for some months. */
+  couponId: string;
+  /** When the offer closes; null keeps it open until the coupon is unset. */
+  endsAt: Date | null;
+};
+
+/**
+ * The early-access offer, or null when there is none: a Stripe coupon that
+ * Checkout applies to an account's first Pro subscription while early access
+ * is open. The coupon itself (percent and months) lives in Stripe, like the
+ * prices, and the same offer is set up as an introductory offer in App Store
+ * Connect and Play Console. See docs/billing.md.
+ */
+export function earlyAccessSettings(): EarlyAccessSettings | null {
+  const couponId = readEnv("STRIPE_EARLY_ACCESS_COUPON");
+  if (!couponId) return null;
+  const rawEnd = readEnv("CICIRO_EARLY_ACCESS_ENDS");
+  const endsAt = rawEnd ? new Date(rawEnd) : null;
+  if (endsAt && Number.isNaN(endsAt.getTime())) return null;
+  return { couponId, endsAt };
+}
+
+/** The offer while it is open at `now`, or null once it has closed. */
+export function openEarlyAccess(now: Date = new Date()): EarlyAccessSettings | null {
+  const offer = earlyAccessSettings();
+  if (!offer) return null;
+  return offer.endsAt && offer.endsAt.getTime() <= now.getTime() ? null : offer;
+}
+
 export type RevenueCatSettings = {
   /** RevenueCat secret API key (v1), for re-fetching a customer server-side. */
   secretApiKey: string;

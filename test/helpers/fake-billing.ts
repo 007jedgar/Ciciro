@@ -85,6 +85,17 @@ export type FakeStripe = {
     string,
     { id: string; object: "price"; currency: string; unit_amount: number; recurring: { interval: string } }
   >;
+  coupons: Map<
+    string,
+    {
+      id: string;
+      object: "coupon";
+      percent_off: number | null;
+      duration: "once" | "repeating" | "forever";
+      duration_in_months: number | null;
+      valid: boolean;
+    }
+  >;
   /** Answer the next `times` requests to `path` with a 500 (the SDK retries twice). */
   failNext: (path: string, times?: number) => void;
   addCustomer: (userId: string) => string;
@@ -119,6 +130,19 @@ export async function fakeStripe(
       },
     ])
   );
+  const coupons: FakeStripe["coupons"] = new Map([
+    [
+      "early_access",
+      {
+        id: "early_access",
+        object: "coupon" as const,
+        percent_off: 50,
+        duration: "repeating" as const,
+        duration_in_months: 12,
+        valid: true,
+      },
+    ],
+  ]);
   const failing = new Failures();
 
   const handle: Handler = ({ method, path, params }) => {
@@ -151,6 +175,13 @@ export async function fakeStripe(
       return { body: sub };
     }
     if (method === "POST" && path === "/v1/checkout/sessions") {
+      const coupon = params["discounts[0][coupon]"];
+      if (coupon && !coupons.get(coupon)?.valid) {
+        return {
+          status: 400,
+          body: { error: { type: "invalid_request_error", message: `No such coupon: '${coupon}'` } },
+        };
+      }
       const id = nextId("cs_test");
       const url = options.checkoutUrl?.(id) ?? `https://checkout.stripe.test/c/pay/${id}`;
       return { body: { id, object: "checkout.session", url } };
@@ -161,6 +192,10 @@ export async function fakeStripe(
     if (method === "GET" && (m = path.match(/^\/v1\/prices\/([^/]+)$/))) {
       const price = prices.get(m[1]);
       return price ? { body: price } : null;
+    }
+    if (method === "GET" && (m = path.match(/^\/v1\/coupons\/([^/]+)$/))) {
+      const coupon = coupons.get(m[1]);
+      return coupon ? { body: coupon } : null;
     }
     if (method === "GET" && (m = path.match(/^\/v1\/charges\/([^/]+)$/))) {
       const charge = charges.get(m[1]);
@@ -181,6 +216,7 @@ export async function fakeStripe(
     subscriptions,
     charges,
     prices,
+    coupons,
     failNext: (path, times = 1) => failing.add(path, times),
     addCustomer: (userId) => {
       const customer = { id: nextId("cus"), object: "customer" as const, email: "", metadata: { userId } };
@@ -299,6 +335,8 @@ const BILLING_ENV = [
   "STRIPE_PRICE_PRO_YEARLY",
   "STRIPE_API_BASE",
   "STRIPE_TAX_MODE",
+  "STRIPE_EARLY_ACCESS_COUPON",
+  "CICIRO_EARLY_ACCESS_ENDS",
   "REVENUECAT_SECRET_API_KEY",
   "REVENUECAT_WEBHOOK_AUTH",
   "REVENUECAT_API_BASE",

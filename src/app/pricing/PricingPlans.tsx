@@ -10,7 +10,7 @@ import {
   storeName,
   type Entitlement,
 } from "@/lib/billing-client";
-import type { DisplayPrice } from "@/lib/billing/prices";
+import { offerHeadline, offerTerm, type DisplayOffer, type DisplayPrice } from "@/lib/billing/prices";
 
 type Interval = "month" | "year";
 
@@ -29,16 +29,65 @@ function yearlySaving(prices: Partial<Record<Interval, DisplayPrice>>): number |
   return saving > 0 ? saving : null;
 }
 
+/** "$6 a month or $48 for your first year": what the offer costs, per interval. */
+function offerPrices(offer: DisplayOffer): string {
+  const parts: string[] = [];
+  if (offer.prices.month) parts.push(`${offer.prices.month.label} a month`);
+  if (offer.prices.year) parts.push(`${offer.prices.year.label} for the year`);
+  return parts.join(" or ");
+}
+
+/** "$12 a month or $96 a year": the list prices the offer renews at. */
+function listPrices(prices: Partial<Record<Interval, DisplayPrice>>): string {
+  const parts: string[] = [];
+  if (prices.month) parts.push(`${prices.month.label} a month`);
+  if (prices.year) parts.push(`${prices.year.label} a year`);
+  return parts.join(" or ");
+}
+
+function EarlyAccess({
+  offer,
+  prices,
+  interval,
+}: {
+  offer: DisplayOffer;
+  prices: Partial<Record<Interval, DisplayPrice>>;
+  interval: Interval;
+}) {
+  const head = offerHeadline(offer);
+  const term = offerTerm(offer, interval);
+  const title = offer.duration === "forever" ? `${head} Ciciro Pro ${term}.` : `${head} ${term} of Ciciro Pro.`;
+  const until = offer.endsAt ? `until ${billingDate(offer.endsAt)}` : "while early access lasts";
+  return (
+    <aside className="pricing-offer" aria-labelledby="pricing-offer-title">
+      <div className="pricing-offer-copy">
+        <p className="pricing-offer-kicker">Early access / Founding writers</p>
+        <h2 id="pricing-offer-title">{title}</h2>
+        <p>
+          {offerPrices(offer)}, then {listPrices(prices)}. A thank-you for writing with Ciciro
+          this early: one per account, on the web or in the apps, {until}.
+        </p>
+      </div>
+      <span className="pricing-offer-stamp" aria-hidden>
+        <b>{offer.percentOff}%</b>
+        <span>off</span>
+      </span>
+    </aside>
+  );
+}
+
 export default function PricingPlans({
   signedIn,
   entitlement: initial,
   prices,
+  offer,
   limits,
   justSubscribed,
 }: {
   signedIn: boolean;
   entitlement: Entitlement | null;
   prices: Partial<Record<Interval, DisplayPrice>>;
+  offer: DisplayOffer | null;
   limits: { free: number | null; pro: number | null };
   justSubscribed: boolean;
 }) {
@@ -70,6 +119,9 @@ export default function PricingPlans({
   const price = prices[interval];
   const saving = yearlySaving(prices);
   const store = storeName(entitlement?.source ?? null);
+  // Never offer the early-access price to someone already on Pro.
+  const deal = plan === "pro" ? null : offer;
+  const dealPrice = deal?.prices[interval] ?? null;
 
   async function go(action: () => ReturnType<typeof startCheckout>) {
     setBusy(true);
@@ -110,7 +162,7 @@ export default function PricingPlans({
         disabled={busy || !price}
         onClick={() => go(() => startCheckout(interval))}
       >
-        {busy ? "Opening checkout…" : "Upgrade to Ciciro Pro"}
+        {busy ? "Opening checkout…" : dealPrice ? "Upgrade at the early-access price" : "Upgrade to Ciciro Pro"}
       </button>
     );
   }
@@ -126,6 +178,8 @@ export default function PricingPlans({
           Finishing your subscription with Stripe…
         </div>
       ) : null}
+
+      {deal ? <EarlyAccess offer={deal} prices={prices} interval={interval} /> : null}
 
       {prices.month && prices.year && plan !== "pro" ? (
         <div className="pricing-toggle" role="radiogroup" aria-label="Billing period">
@@ -173,9 +227,22 @@ export default function PricingPlans({
             {plan === "pro" ? <span className="pricing-badge">Your plan</span> : null}
           </div>
           <p className="pricing-price">
-            {price ? price.label : "—"}
+            {dealPrice && price ? (
+              <>
+                <s aria-label={`was ${price.label}`}>{price.label}</s> {dealPrice.label}
+              </>
+            ) : price ? (
+              price.label
+            ) : (
+              "—"
+            )}
             <span>{interval === "month" ? " / month" : " / year"}</span>
           </p>
+          {deal && dealPrice && price ? (
+            <p className="pricing-offer-term">
+              Early access, {offerTerm(deal, interval)}. Then {price.label} a {interval}.
+            </p>
+          ) : null}
           <ul>
             <li>Everything in Free</li>
             <li>{allowance(limits.pro)} with Ciciro</li>
