@@ -203,7 +203,6 @@ const es: Translations = {
     exportRetry: "Revisa tu conexión e inténtalo de nuevo.",
     exportUnavailable: "Compartir no está disponible en este dispositivo.",
     deleteAccount: "Eliminar cuenta",
-    deleteTitle: "¿Eliminar tu cuenta?",
     deleteIntro: "Esto elimina para siempre {{email}} y todo lo que contiene:",
     deletedManuscripts: "Cada manuscrito, con sus capítulos, instantáneas e historial de cambios",
     deletedBible: "Biblias de la historia, personajes, puntos de trama y notas",

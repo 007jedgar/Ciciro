@@ -201,7 +201,6 @@ const en = {
     exportRetry: "Check your connection and try again.",
     exportUnavailable: "Sharing isn't available on this device.",
     deleteAccount: "Delete account",
-    deleteTitle: "Delete your account?",
     deleteIntro: "This permanently deletes {{email}} and everything in it:",
     deletedManuscripts: "Every manuscript, with its chapters, snapshots and edit history",
     deletedBible: "Story bibles, characters, plot points and scratch notes",
