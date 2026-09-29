@@ -92,10 +92,16 @@ export function diffSchemas(expectedSql, liveSql) {
       missing.push(table);
       continue;
     }
-    for (const column of want.columns.keys()) {
-      if (!have.columns.has(column)) {
+    for (const [column, info] of want.columns) {
+      const live = have.columns.get(column);
+      if (!live) {
         errors.push(`missing column ${table}.${column}`);
         missing.push(`${table}.${column}`);
+      } else if (live.notnull && !info.notnull) {
+        // Prisma writes NULL there and D1 refuses it. SQLite can only drop
+        // NOT NULL by rebuilding the table, and on D1 (foreign keys always on)
+        // dropping a parent table cascade-deletes its children.
+        errors.push(`${table}.${column} is NOT NULL in D1 but optional in Prisma`);
       }
     }
     // A required column Prisma no longer knows about makes every insert fail.

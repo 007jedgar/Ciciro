@@ -10,15 +10,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// A hosted account. Auth is email + password (scrypt hash). Sessions are
-// opaque cookie tokens; only the token hash is stored (see Session).
+// A hosted account. Auth is email + password (scrypt hash) and/or Sign in
+// with Apple or Google (see Identity). Sessions are opaque cookie tokens; only
+// the token hash is stored (see Session).
 model User {
   id           String @id @default(cuid())
   email        String @unique
+  // "" for an account that only signs in with Apple or Google. Kept NOT NULL
+  // because D1 can only relax it by rebuilding User, and dropping User there
+  // cascade-deletes every Project and Session. See NO_PASSWORD.
   passwordHash String
   name         String @default("")
 
   sessions          Session[]
+  identities        Identity[]
+  authHandoffs      AuthHandoff[]
   projects          Project[]
   folders           Folder[]
   readingPositions  ReadingPosition[]
@@ -50,6 +56,46 @@ model Session {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+// A Sign in with Apple / Google identity linked to a User. `subject` is the
+// provider's stable `sub` claim, so the pair identifies one person for good
+// even when their email changes. See src/lib/auth/identity.ts.
+model Identity {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider String // "apple" | "google"
+  subject  String
+  // The email the provider last reported. Informational; linking uses User.email.
+  email    String @default("")
+  // Apple only: the refresh token from exchanging the authorization code, kept
+  // so deleting the account can revoke Ciciro's access (App Store 5.1.1(v)).
+  refreshToken String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+// A one-time hand-off from a browser sign-in back to the phone. The app starts
+// the provider flow in a system browser with a PKCE challenge; the callback
+// stores the code's hash here and redirects to the app, which redeems the code
+// with the matching verifier for a session. Rows live for minutes.
+model AuthHandoff {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String   @unique
+  // base64url SHA-256 of the app's verifier (PKCE S256).
+  challenge String
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
   @@index([expiresAt])
 }
 
