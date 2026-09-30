@@ -415,7 +415,12 @@ actually on (`EmailPreference`), is idempotent per `(userId, key)` via
 `MarketingEmailLog`, and attaches the RFC 8058 one-click unsubscribe headers
 (`List-Unsubscribe` / `List-Unsubscribe-Post: List-Unsubscribe=One-Click`)
 every marketing email must carry for the 2024 Gmail/Yahoo bulk-sender rules,
-plus the manage-preferences and unsubscribe footer links.
+plus the manage-preferences and unsubscribe footer links. The footer's
+`GET /api/email/unsubscribe` never changes state (mail scanners and link
+prefetchers fetch every link): it redirects to the public preferences page with
+`?confirm=<topic>`, whose button POSTs to the same one-click endpoint. Turning
+the opt-in on from Settings sends welcome step 1 just as signup does; the
+per-user `MarketingEmailLog` key keeps it from being resent.
 
 **Manual setup, once per environment (the captain does this, not a build):**
 
