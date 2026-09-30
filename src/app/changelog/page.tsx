@@ -29,7 +29,7 @@ export default function ChangelogPage() {
       </header>
 
       <article className="privacy-body">
-        <p className="privacy-eyebrow">What's new</p>
+        <p className="privacy-eyebrow">What&apos;s new</p>
         <h1 className="privacy-title">Changes to Ciciro, newest first</h1>
 
         {CHANGELOG_ENTRIES.length === 0 ? (
