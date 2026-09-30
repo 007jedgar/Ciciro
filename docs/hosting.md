@@ -407,7 +407,7 @@ to those events; there is no route today.
 ### Marketing email
 
 Marketing sends (the welcome sequence, the weekly changelog digest, and the
-allowance-upgrade nudge — all in `src/lib/email`, triggered by
+allowance-upgrade nudge, all in `src/lib/email`, triggered by
 `src/worker/index.ts`'s `scheduled` handler and `entitlements.ts`'s
 `meterAiRun`) go through `sendMarketingEmail` (`marketing-send.ts`), never
 `sendEmail` directly. It is the one place that checks the recipient's topic is
@@ -421,13 +421,13 @@ plus the manage-preferences and unsubscribe footer links.
 
 1. In Resend, add a **second** sending domain or subdomain dedicated to
    marketing (e.g. `news.ciciro.app`), separate from the transactional
-   `EMAIL_FROM` domain — a spam complaint on a marketing send should never
+   `EMAIL_FROM` domain, since a spam complaint on a marketing send should never
    touch the transactional domain's reputation. Verify it with its own SPF,
    DKIM and DMARC records, the same way as the [transactional
    setup](#email) above.
 2. Set `MARKETING_EMAIL_FROM` (`wrangler secret put MARKETING_EMAIL_FROM`) to
    an address on that domain, e.g. `"Ciciro <news@news.ciciro.app>"`. Unset,
-   marketing sends fall back to `EMAIL_FROM` — fine for local dev or a
+   marketing sends fall back to `EMAIL_FROM`; fine for local dev or a
    single-domain setup, not for production once volume grows.
 3. In Resend's dashboard, create a **Topic** (or the equivalent list/audience
    feature) per entry in `EMAIL_TOPICS` (`src/lib/email/topics.ts`:
@@ -437,12 +437,12 @@ plus the manage-preferences and unsubscribe footer links.
    Resend Topics are for its dashboard and deliverability tooling, not
    authoritative here.
 4. The Cloudflare Cron Trigger (`wrangler.jsonc`'s `triggers.crons`, currently
-   daily at 14:00 UTC) needs `CICIRO_PUBLIC_URL` set — a scheduled invocation
+   daily at 14:00 UTC) needs `CICIRO_PUBLIC_URL` set, because a scheduled invocation
    has no request to read an origin from, unlike every other email send.
 
 Steps 1-3 are safe to skip in the short term: every marketing send just falls
 back to the transactional sender (or logs instead of sending, with no
 `RESEND_API_KEY`). `CICIRO_PUBLIC_URL` (step 4) is not skippable once the cron
-trigger is live — without it, every link in a cron-sent email is a bare path
+trigger is live: without it, every link in a cron-sent email is a bare path
 like `/changelog` with no host, so set it before enabling `triggers.crons` for
 real users.
