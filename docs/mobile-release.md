@@ -77,7 +77,7 @@ hand with `eas workflow:run .eas/workflows/<file>.yml`.
 | File | Trigger | What it does |
 |---|---|---|
 | `deploy-production.yml` | push to `main` touching `apps/mobile/**` | Fingerprints the app. If a production iOS build with that fingerprint exists, publishes the commit as an update to the `production` channel. If not (native code changed), makes a new production iOS build instead. |
-| `build-production.yml` | a `mobile-v*` tag, or by hand (`-F platform=ios\|android\|all`) | A store build. Submission to the App Store is a separate step for now. |
+| `build-production.yml` | a `mobile-v*` tag, or by hand (`-F platform=ios\|android\|all`) | A store build. An iOS build also submits to TestFlight (see [TestFlight](#testflight)); Android submission is still a separate step. |
 | `preview-build.yml` | a PR labeled `mobile-preview` (and every later push to it), or by hand | Fingerprints the PR. Repacks an existing preview build with the PR's JavaScript when the native layer is unchanged (minutes, not a full build), builds otherwise, and comments the install links on the PR. |
 | `development-build.yml` | by hand (`-F target=simulator\|device`) | A dev client, for when native code changes. |
 
@@ -192,6 +192,57 @@ the app's log) and post it to Expo:
 curl -H "Content-Type: application/json" -X POST https://exp.host/--/api/v2/push/send \
   -d '{"to": "ExponentPushToken[...]", "title": "Ciciro", "body": "Test"}'
 ```
+
+## TestFlight
+
+`apps/mobile/eas.json` has a `submit.production.ios` profile (`ascAppId`,
+`appleTeamId`). It deliberately holds no API key fields: the App Store
+Connect API key used to authenticate `eas submit` lives in EAS credentials
+(`eas credentials -p ios`), not in the repo, so no `.p8` file is ever
+committed. `usesNonExemptEncryption: false` is set on `ios.config` in
+`app.json` - the app only uses HTTPS and OS-provided hashing/keychain APIs
+(`expo-crypto`, `expo-secure-store`), no custom cryptography - so App Store
+Connect stops asking the export-compliance question on every build.
+
+One-time captain steps, each done once from `apps/mobile`:
+
+1. **Apple Developer membership** and an **App Store Connect app record** for
+   `app.ciciro.mobile` (the captain is creating both, along with the widget
+   bundle ID `app.ciciro.mobile.widgets` and the App Group
+   `group.app.ciciro.mobile`).
+2. Fill in `submit.production.ios` in `eas.json`:
+   - `ascAppId`: App Store Connect > the app > **App Information** > **General
+     Information** > **Apple ID** (a numeric ID, not the bundle identifier).
+   - `appleTeamId`: the 10-character Team ID from the Apple Developer account
+     (Membership details).
+3. **App Store Connect API key**: App Store Connect > Users and Access > Keys,
+   create a key with the **App Manager** role, then run `eas credentials -p
+   ios` and choose the App Store Connect API key option so EAS stores it
+   (rather than setting `ascApiKeyPath`/`ascApiKeyId`/`ascApiKeyIssuerId` in
+   `eas.json`, which would require the `.p8` file locally). Workflows submit
+   non-interactively, so this must exist before the first automatic submit.
+4. **Internal vs. external testers**: internal testers (up to 100, added by
+   App Store Connect role) get a build as soon as it finishes processing, no
+   review. External testers (up to 10,000, via a public or named group) need
+   **Beta App Review** the first time a build is submitted to that group -
+   plan for review turnaround before a wider external test.
+
+Once credentials and `ascAppId`/`appleTeamId` are in place, ship to TestFlight
+either way:
+
+- **By hand:**
+
+  ```bash
+  cd apps/mobile
+  eas build -p ios --profile production --auto-submit
+  ```
+
+- **Through the workflow:** `build-production.yml`'s `submit_ios` job runs
+  after `build_ios` and submits that build with the `production` submit
+  profile, so every store build made by a `mobile-v*` tag push or a manual
+  `workflow:run` (`-F platform=ios` or `all`) reaches TestFlight without a
+  separate step. Android stays build-only; there is no Android submit profile
+  yet.
 
 ## One-time setup
 
