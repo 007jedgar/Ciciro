@@ -77,7 +77,9 @@ export async function registerUser(input: {
   const user = await prisma.user.create({
     data: { email, passwordHash, name },
   });
-  if (input.marketingOptIn === true) await setMarketingOptIn(user.id, true);
+  if (input.marketingOptIn === true) {
+    await setMarketingOptIn(user.id, true).catch((error) => console.error("marketing opt-in failed", error));
+  }
   return toPublicUser(user);
 }
 

@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/db";
 import type { Entitlement } from "@/lib/entitlements";
 import { sendMarketingEmail } from "@/lib/email/marketing-send";
 import { allowanceNudgeTemplate } from "@/lib/email/templates";
@@ -36,12 +37,19 @@ export async function maybeSendAllowanceNudge(
   const cap = entitlement.limits.aiRunsPerMonth;
   if (!cap || entitlement.usage.aiRuns / cap < NUDGE_THRESHOLD) return;
 
+  const key = `allowance-nudge:${entitlement.usage.period}`;
+  const alreadyClaimed = await prisma.marketingEmailLog.findUnique({
+    where: { userId_key: { userId, key } },
+    select: { id: true },
+  });
+  if (alreadyClaimed) return;
+
   const headline = await earlyAccessHeadline(userId);
   await sendMarketingEmail({
     userId,
     email,
     topic: "offers",
-    key: `allowance-nudge:${entitlement.usage.period}`,
+    key,
     origin,
     buildContent: (unsubscribe) => ({
       ...allowanceNudgeTemplate({

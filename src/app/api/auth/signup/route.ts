@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
     const token = await createSession(user.id, req.headers.get("user-agent") || "");
     const origin = publicOrigin(req.nextUrl.origin);
     await afterPasswordSignup(user.id, origin);
-    if (body.marketingOptIn === true) await sendWelcomeStep1(user, origin);
+    if (body.marketingOptIn === true) {
+      await sendWelcomeStep1(user, origin).catch((error) => console.error("welcome step 1 failed", error));
+    }
     const settings = await getUserSettings(user.id);
     return jsonWithSession({ user, settings }, token, isNativeClient(req), { status: 201 });
   } catch (error) {
