@@ -7,13 +7,18 @@ import {
   updateTopics,
   type EmailTopic,
 } from "@/lib/email/preferences";
+import { sendWelcomeStep1 } from "@/lib/email/welcome-sequence";
+import { publicOrigin } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 
 // Settings (web and mobile): the signed-in author's own marketing-email
-// topics. The combined opt-in checkbox itself is set at signup or from
-// Settings' "Marketing email" toggle (POST), not here — this route only
-// changes topics once it is on. See src/app/email/preferences for the public,
+// topics, and the combined opt-in checkbox itself. A false -> true flip here
+// starts the welcome sequence exactly like signup does: step 1 goes out at
+// once (best-effort; sendMarketingEmail's own MarketingEmailLog key means a
+// writer who already has step 1 never gets a second one), and
+// setMarketingOptIn's marketingOptInAt stamp is what steps 2-4 count their
+// day-3/7/14 windows from. See src/app/email/preferences for the public,
 // no-session equivalent every marketing email's footer links to.
 
 function shape(pref: { marketingOptIn: boolean; productUpdates: boolean; weeklyEmail: boolean; offers: boolean } | null) {
@@ -39,7 +44,13 @@ export async function PATCH(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (typeof body.marketingOptIn === "boolean") {
+    const before = await getEmailPreference(user.id);
     await setMarketingOptIn(user.id, body.marketingOptIn);
+    if (body.marketingOptIn === true && !before?.marketingOptIn) {
+      await sendWelcomeStep1(user, publicOrigin(req.nextUrl.origin)).catch((error) =>
+        console.error("welcome step 1 failed", error)
+      );
+    }
   }
   const patch: Partial<Record<EmailTopic, boolean>> = {};
   for (const topic of EMAIL_TOPICS) {

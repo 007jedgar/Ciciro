@@ -23,12 +23,19 @@ async function save(token: string, patch: Partial<Prefs>): Promise<Prefs | null>
   return res.json();
 }
 
+/** The one-click POST every marketing email's List-Unsubscribe header targets. */
+async function confirmUnsubscribe(token: string, topic: EmailTopic): Promise<void> {
+  await fetch(`/api/email/unsubscribe?t=${encodeURIComponent(token)}&topic=${topic}`, { method: "POST" });
+}
+
 export default function EmailPreferencesForm() {
   const params = useSearchParams();
   const token = params.get("t") ?? "";
   const justUnsubscribed = params.get("unsubscribed");
+  const confirmTopic = params.get("confirm") as EmailTopic | null;
   const [prefs, setPrefs] = useState<Prefs | "invalid" | "loading">("loading");
   const [saving, setSaving] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -51,6 +58,15 @@ export default function EmailPreferencesForm() {
     setSaving(true);
     const next = await save(token, { marketingOptIn: false });
     if (next) setPrefs(next);
+    setSaving(false);
+  }
+
+  async function confirmClick(topic: EmailTopic) {
+    setSaving(true);
+    await confirmUnsubscribe(token, topic);
+    const next = await load(token);
+    if (next) setPrefs(next);
+    setConfirmed(true);
     setSaving(false);
   }
 
@@ -78,6 +94,24 @@ export default function EmailPreferencesForm() {
       {justUnsubscribed && (
         <p className="auth-lede" role="status">
           You&apos;re unsubscribed from {TOPIC_LABELS[justUnsubscribed as EmailTopic]?.title ?? "that email"}.
+        </p>
+      )}
+      {confirmTopic && TOPIC_LABELS[confirmTopic] && prefs.marketingOptIn && prefs[confirmTopic] && !confirmed && (
+        <p className="auth-lede" role="alert">
+          Unsubscribe from {TOPIC_LABELS[confirmTopic].title}?{" "}
+          <button
+            type="button"
+            className="auth-link-button"
+            onClick={() => confirmClick(confirmTopic)}
+            disabled={saving}
+          >
+            Yes, unsubscribe
+          </button>
+        </p>
+      )}
+      {confirmTopic && confirmed && (
+        <p className="auth-lede" role="status">
+          You&apos;re unsubscribed from {TOPIC_LABELS[confirmTopic]?.title ?? "that email"}.
         </p>
       )}
       {!prefs.marketingOptIn ? (
