@@ -60,7 +60,7 @@ describe("SocialSignIn", () => {
     const props = renderButtons();
     fireEvent.press(screen.getByLabelText("Continue with Google"));
     await waitFor(() => expect(props.onSignedIn).toHaveBeenCalledWith(user));
-    expect(mockSignInWithBrowser).toHaveBeenCalledWith("google");
+    expect(mockSignInWithBrowser).toHaveBeenCalledWith("google", false);
     expect(props.onBusyChange).toHaveBeenCalledWith(true);
   });
 
@@ -70,7 +70,7 @@ describe("SocialSignIn", () => {
     fireEvent.press(screen.getByLabelText("Continue with Apple"));
     // Backing out is not an error; the form just becomes usable again.
     await waitFor(() => expect(props.onBusyChange).toHaveBeenLastCalledWith(false));
-    expect(mockSignInWithBrowser).toHaveBeenCalledWith("apple");
+    expect(mockSignInWithBrowser).toHaveBeenCalledWith("apple", false);
     expect(props.onError).toHaveBeenLastCalledWith(null);
     expect(props.onSignedIn).not.toHaveBeenCalled();
   });

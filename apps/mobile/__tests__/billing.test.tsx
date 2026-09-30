@@ -59,6 +59,8 @@ jest.mock("../lib/use-export-account-data", () => ({
 jest.mock("../lib/api/hooks", () => ({
   useModelsQuery: () => ({ data: undefined }),
   useEntitlementQuery: (...args: unknown[]) => mockEntitlementQuery(...args),
+  useEmailPreferencesQuery: () => ({ data: undefined }),
+  usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 jest.mock("../lib/api", () => ({
   ApiError: class ApiError extends Error {},
@@ -71,6 +73,8 @@ jest.mock("../lib/api", () => ({
   queryClient: { setQueryData: jest.fn() },
   queryKeys: { entitlement: ["billing", "entitlement"] },
   useEntitlementQuery: (...args: unknown[]) => mockEntitlementQuery(...args),
+  useEmailPreferencesQuery: () => ({ data: undefined }),
+  usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 jest.mock("../lib/purchases", () => ({
   billingPreview: () => false,
