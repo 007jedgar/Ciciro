@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
       givenName: body.givenName,
       familyName: body.familyName,
       origin: publicOrigin(req.nextUrl.origin),
+      marketingOptIn: body.marketingOptIn,
     });
     const token = await createSession(user.id, req.headers.get("user-agent") || "");
     const settings = await getUserSettings(user.id);

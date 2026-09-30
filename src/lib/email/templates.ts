@@ -244,9 +244,138 @@ export function renewalReminderTemplate(props: {
   };
 }
 
+// ---- Marketing (built for src/lib/email/cron.ts and entitlements.ts's allowance nudge) --------
+//
+// None of these set `unsubscribe` — sendMarketingEmail (marketing-send.ts)
+// attaches it after calling the template, so these stay pure and previewable
+// without a real EmailPreference row.
+
+export function welcomeStep1Template(props: { changelogUrl: string }): EmailContent {
+  return {
+    category: "welcome_1",
+    subject: "What Ciciro actually does for your draft",
+    preview: "Roughly one email a week, mostly about your own writing.",
+    heading: "What Ciciro actually does for your draft",
+    blocks: [
+      {
+        kind: "paragraph",
+        text: "Thanks for opting in. Expect roughly one email a week from here, mostly about your own writing, plus the occasional product update. Nothing else.",
+      },
+      { kind: "button", label: "See what's new", href: props.changelogUrl },
+    ],
+    footer: "You're getting this because you opted into email from Ciciro.",
+  };
+}
+
+export function welcomeStep2Template(props: { appUrl: string }): EmailContent {
+  return {
+    category: "welcome_2",
+    subject: "Most writers start here",
+    preview: "One thing worth doing before chapter one.",
+    heading: "Most writers start here",
+    blocks: [
+      {
+        kind: "paragraph",
+        text: "If you haven't started a manuscript yet, that's the one thing worth doing next. Start from a blank page, or import one from Word, Google Docs, Scrivener or Markdown — Ciciro keeps your formatting.",
+      },
+      { kind: "button", label: "Start or import a manuscript", href: props.appUrl },
+    ],
+    footer: "You're getting this because you opted into email from Ciciro.",
+  };
+}
+
+export function welcomeStep3Template(props: { appUrl: string }): EmailContent {
+  return {
+    category: "welcome_3",
+    subject: "Ask Ciciro to read your latest scene",
+    preview: "The AI editor reads along and suggests, it never rewrites without asking.",
+    heading: "Ask Ciciro to read your latest scene",
+    blocks: [
+      {
+        kind: "paragraph",
+        text: "Open your manuscript's latest scene and ask Ciciro to check it, tighten it, or just tell you what's working. Its changes arrive as suggestions — you accept or reject every one, nothing is rewritten behind your back.",
+      },
+      { kind: "button", label: "Try it on your current scene", href: props.appUrl },
+    ],
+    footer: "You're getting this because you opted into email from Ciciro.",
+  };
+}
+
+export function welcomeStep4Template(props: { appUrl: string }): EmailContent {
+  return {
+    category: "welcome_4",
+    subject: "The story bible: worth the five minutes",
+    preview: "Characters, plot and canon, so Ciciro keeps them in mind as you write.",
+    heading: "The story bible: worth the five minutes",
+    blocks: [
+      {
+        kind: "paragraph",
+        text: "A few minutes filling in your story bible — main characters, the plot so far, anything Ciciro should never contradict — pays off every time you ask for a suggestion afterward.",
+      },
+      { kind: "button", label: "Fill in your story bible", href: props.appUrl },
+    ],
+    footer: "You're getting this because you opted into email from Ciciro.",
+  };
+}
+
+export function allowanceNudgeTemplate(props: {
+  name?: string;
+  planName: string;
+  percentUsed: number;
+  pricingUrl: string;
+  /** "Half price your first year", when early access is still open; otherwise omit. */
+  earlyAccessHeadline?: string;
+}): EmailContent {
+  return {
+    category: "allowance_nudge",
+    subject: `You've used ${props.percentUsed}% of this month's free AI`,
+    preview: props.earlyAccessHeadline
+      ? `${props.earlyAccessHeadline} of ${props.planName}.`
+      : `Upgrade to ${props.planName} for more AI every month.`,
+    heading: "Getting close to this month's free AI",
+    blocks: [
+      ...greeting(props.name),
+      {
+        kind: "paragraph",
+        text: `You've used ${props.percentUsed}% of this month's free AI actions. Nothing changes until you hit the limit, and it resets next month either way.`,
+      },
+      {
+        kind: "paragraph",
+        text: props.earlyAccessHeadline
+          ? `${props.earlyAccessHeadline} of ${props.planName} for a lot more AI every month, while it's still open.`
+          : `${props.planName} adds a lot more AI every month, if you'd rather not think about the limit.`,
+      },
+      { kind: "button", label: "See Ciciro Pro", href: props.pricingUrl },
+    ],
+    footer: "You're getting this because you opted into offers from Ciciro.",
+  };
+}
+
+export function changelogDigestTemplate(props: {
+  entries: { id: string; summary: string }[];
+  changelogUrl: string;
+}): EmailContent {
+  return {
+    category: "changelog_digest",
+    subject: props.entries.length === 1 ? "What's new in Ciciro" : `${props.entries.length} things new in Ciciro`,
+    preview: props.entries[0]?.summary ?? "New in Ciciro this week.",
+    heading: "What's new in Ciciro",
+    blocks: [
+      { kind: "list", items: props.entries.map((entry) => entry.summary) },
+      { kind: "button", label: "Read the full changelog", href: props.changelogUrl },
+    ],
+    footer: "You're getting this because you opted into the weekly email from Ciciro.",
+  };
+}
+
 // ---- Previews -------------------------------------------------------------------
 
-export type EmailPreview = { id: string; title: string; group: "Account" | "Billing"; content: EmailContent };
+export type EmailPreview = {
+  id: string;
+  title: string;
+  group: "Account" | "Billing" | "Marketing";
+  content: EmailContent;
+};
 
 /** Every template with sample data, for /dev/emails and the template tests. */
 export function emailPreviews(origin: string, now = new Date()): EmailPreview[] {
@@ -321,5 +450,70 @@ export function emailPreviews(origin: string, now = new Date()): EmailPreview[] 
         manageUrl: `${origin}/settings/billing`,
       }),
     },
+    {
+      id: "welcome-1",
+      title: "Welcome sequence, 1 of 4",
+      group: "Marketing",
+      content: withUnsubscribePreview(welcomeStep1Template({ changelogUrl: `${origin}/changelog` }), origin),
+    },
+    {
+      id: "welcome-2",
+      title: "Welcome sequence, 2 of 4",
+      group: "Marketing",
+      content: withUnsubscribePreview(welcomeStep2Template({ appUrl: `${origin}/` }), origin),
+    },
+    {
+      id: "welcome-3",
+      title: "Welcome sequence, 3 of 4",
+      group: "Marketing",
+      content: withUnsubscribePreview(welcomeStep3Template({ appUrl: `${origin}/` }), origin),
+    },
+    {
+      id: "welcome-4",
+      title: "Welcome sequence, 4 of 4",
+      group: "Marketing",
+      content: withUnsubscribePreview(welcomeStep4Template({ appUrl: `${origin}/` }), origin),
+    },
+    {
+      id: "allowance-nudge",
+      title: "Allowance nudge",
+      group: "Marketing",
+      content: withUnsubscribePreview(
+        allowanceNudgeTemplate({
+          name: "Ada Lovelace",
+          planName: "Ciciro Pro",
+          percentUsed: 80,
+          pricingUrl: `${origin}/pricing`,
+          earlyAccessHeadline: "Half price your first year",
+        }),
+        origin
+      ),
+    },
+    {
+      id: "changelog-digest",
+      title: "Changelog digest",
+      group: "Marketing",
+      content: withUnsubscribePreview(
+        changelogDigestTemplate({
+          entries: [
+            { id: "sample-1", summary: "Auto-draft no longer commits text cut off mid-sentence." },
+            { id: "sample-2", summary: "The website has a new look: paper texture and a light/dark toggle." },
+          ],
+          changelogUrl: `${origin}/changelog`,
+        }),
+        origin
+      ),
+    },
   ];
+}
+
+/** Preview-only: a marketing template's real send always gets this from sendMarketingEmail. */
+function withUnsubscribePreview(content: EmailContent, origin: string): EmailContent {
+  return {
+    ...content,
+    unsubscribe: {
+      manageUrl: `${origin}/email/preferences?t=sample-token`,
+      unsubscribeUrl: `${origin}/api/email/unsubscribe?t=sample-token&topic=productUpdates`,
+    },
+  };
 }

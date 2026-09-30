@@ -327,6 +327,7 @@ export default function Landing() {
               <Link href="/login">Sign in</Link>
               <Link href="/signup">Get early access</Link>
               {selling ? <Link href="/pricing">Pricing</Link> : null}
+              <Link href="/changelog">What's new</Link>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
             </nav>

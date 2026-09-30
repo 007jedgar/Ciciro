@@ -25,8 +25,10 @@ function run(command, args, extraEnv = {}) {
 if (workersCi && !nested) {
   // Previews share the production D1 but serve no users, so drift only warns.
   run("node", ["scripts/check-d1-schema.mjs", ...(production ? [] : ["--warn-only"])]);
+  run("node", ["scripts/generate-changelog-data.ts"]);
   run("npx", ["opennextjs-cloudflare", "build"], { CICIRO_OPENNEXT: "1" });
 } else {
+  run("node", ["scripts/generate-changelog-data.ts"]);
   run("npx", ["prisma", "generate"]);
   run("npx", ["next", "build"]);
 }

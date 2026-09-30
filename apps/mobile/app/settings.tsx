@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { useModelsQuery } from "../lib/api/hooks";
-import type { Entitlement, ModelRole } from "../lib/api/types";
+import { useEmailPreferencesQuery, useModelsQuery, usePatchEmailPreferencesMutation } from "../lib/api/hooks";
+import type { EmailTopic, Entitlement, ModelRole } from "../lib/api/types";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -448,6 +448,50 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
   );
 }
 
+const EMAIL_TOPIC_KEYS: Record<EmailTopic, { label: string; hint: string }> = {
+  productUpdates: { label: "settings.emailTopicProductUpdates", hint: "settings.emailTopicProductUpdatesHint" },
+  weeklyEmail: { label: "settings.emailTopicWeeklyEmail", hint: "settings.emailTopicWeeklyEmailHint" },
+  offers: { label: "settings.emailTopicOffers", hint: "settings.emailTopicOffersHint" },
+};
+
+/** The email section: the marketing checkbox, and once it's on, its topics. */
+function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
+  const { t } = useTranslation();
+  const { data: prefs } = useEmailPreferencesQuery();
+  const patch = usePatchEmailPreferencesMutation();
+  if (!prefs) return null;
+
+  const topics = Object.keys(EMAIL_TOPIC_KEYS) as EmailTopic[];
+  return (
+    <>
+      <SectionHeader label={t("settings.email")} colors={colors} />
+      <Group colors={colors}>
+        <ToggleRow
+          label={t("settings.emailMarketing")}
+          hint={t("settings.emailMarketingHint")}
+          value={prefs.marketingOptIn}
+          onValueChange={(value) => patch.mutate({ marketingOptIn: value })}
+          colors={colors}
+          last={!prefs.marketingOptIn}
+        />
+        {prefs.marketingOptIn
+          ? topics.map((topic, index) => (
+              <ToggleRow
+                key={topic}
+                label={t(EMAIL_TOPIC_KEYS[topic].label)}
+                hint={t(EMAIL_TOPIC_KEYS[topic].hint)}
+                value={prefs[topic]}
+                onValueChange={(value) => patch.mutate({ [topic]: value })}
+                colors={colors}
+                last={index === topics.length - 1}
+              />
+            ))
+          : null}
+      </Group>
+    </>
+  );
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { backOr } = useStackBack();
@@ -683,6 +727,8 @@ export default function SettingsScreen() {
         </Group>
 
         {entitlement ? <PlanGroup entitlement={entitlement} colors={colors} /> : null}
+
+        <EmailPreferencesGroup colors={colors} />
 
         {models ? (
           <>

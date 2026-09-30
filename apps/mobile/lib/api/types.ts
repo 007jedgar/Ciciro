@@ -297,6 +297,8 @@ export type SignupRequest = {
   email: string;
   password: string;
   name?: string;
+  /** The signup screen's marketing checkbox. */
+  marketingOptIn?: boolean;
 };
 
 /** POST /api/auth/apple/native: the iOS Sign in with Apple sheet's result. */
@@ -307,6 +309,8 @@ export type AppleNativeRequest = {
   authorizationCode?: string | null;
   givenName?: string | null;
   familyName?: string | null;
+  /** The signup screen's marketing checkbox; only applied to a new account. */
+  marketingOptIn?: boolean;
 };
 
 /** POST /api/auth/handoff: redeem a browser sign-in's one-time code. */
@@ -314,6 +318,14 @@ export type HandoffRequest = {
   code: string;
   verifier: string;
 };
+
+/** The three marketing topics the combined opt-in unlocks (see EmailPreference). */
+export type EmailTopic = "productUpdates" | "weeklyEmail" | "offers";
+
+/** GET/PATCH /api/account/email-preferences */
+export type EmailPreferencesResponse = { marketingOptIn: boolean } & Record<EmailTopic, boolean>;
+
+export type EmailPreferencesPatch = Partial<EmailPreferencesResponse>;
 
 export type SettingsResponse = {
   settings: AppSettings;

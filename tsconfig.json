@@ -10,6 +10,10 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // scripts/generate-changelog-data.ts runs directly under plain `node`
+    // (Node's native TypeScript support), which needs an explicit ".ts" in
+    // its relative import; safe alongside noEmit, which is already set.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,

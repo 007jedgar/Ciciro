@@ -7,11 +7,16 @@ export type SessionState = {
   ready: boolean;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<PublicUser>;
-  signup: (input: { email: string; password: string; name?: string }) => Promise<PublicUser>;
+  signup: (input: {
+    email: string;
+    password: string;
+    name?: string;
+    marketingOptIn?: boolean;
+  }) => Promise<PublicUser>;
   /** The iOS Sign in with Apple sheet. Null when the person backs out. */
-  signInWithApple: () => Promise<PublicUser | null>;
+  signInWithApple: (marketingOptIn?: boolean) => Promise<PublicUser | null>;
   /** Apple or Google in a system browser. Null when the person backs out. */
-  signInWithBrowser: (provider: BrowserProvider) => Promise<PublicUser | null>;
+  signInWithBrowser: (provider: BrowserProvider, marketingOptIn?: boolean) => Promise<PublicUser | null>;
   logout: () => Promise<void>;
   /** Delete the account on the server, then forget it on this phone. Throws ApiError. */
   deleteAccount: (proof: DeleteAccountRequest) => Promise<void>;

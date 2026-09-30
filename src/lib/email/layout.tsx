@@ -293,6 +293,17 @@ export function EmailLayout({ content, origin }: { content: EmailContent; origin
                   </>
                 ) : null}
               </Text>
+              {content.unsubscribe ? (
+                <Text className="em-soft" style={{ ...soft, fontSize: "13px", lineHeight: "20px", textAlign: "center", margin: "8px 0 0" }}>
+                  <Link href={content.unsubscribe.manageUrl} className="em-link" style={{ color: LIGHT.accent }}>
+                    Manage email preferences
+                  </Link>
+                  {" · "}
+                  <Link href={content.unsubscribe.unsubscribeUrl} className="em-link" style={{ color: LIGHT.accent }}>
+                    Unsubscribe
+                  </Link>
+                </Text>
+              ) : null}
             </Section>
           </Container>
         </Section>

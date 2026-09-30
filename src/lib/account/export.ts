@@ -335,6 +335,22 @@ export const EXPORT_TABLES: readonly Table[] = [
     page: (userId, id, take) =>
       prisma.usageCounter.findMany({ where: { userId, ...after(id) }, ...byId, take }),
   },
+  {
+    model: "EmailPreference",
+    file: "email-preferences",
+    take: 10,
+    page: (userId, id, take) =>
+      prisma.emailPreference.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+    // The unsubscribe token is a link credential (see marketing-send.ts).
+    shape: (row) => without(row, "unsubscribeToken"),
+  },
+  {
+    model: "MarketingEmailLog",
+    file: "marketing-emails-sent",
+    take: 500,
+    page: (userId, id, take) =>
+      prisma.marketingEmailLog.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+  },
 ];
 
 /** Every model the export covers: the tables above plus the account itself. */
@@ -394,7 +410,8 @@ data/
   editor runs, recaps, weekly reviews, share links, beta reader comments,
   folders, reading positions, your writing days and sessions, failed
   account-deletion password attempts, the phones registered for
-  notifications, and your subscriptions, billing events and monthly AI usage.
+  notifications, your subscriptions, billing events and monthly AI usage,
+  and your email preferences and the marketing emails sent to you.
 
 manifest.json
   Written last, with the record count for each file in data/. A zip that
@@ -402,10 +419,11 @@ manifest.json
 
 Left out on purpose: your password hash, sign-in session tokens, Apple
 sign-in refresh token, pending app sign-in codes, share link
-tokens (the links are listed, but not the secret that opens them), and the
-hashed addresses kept for rate-limiting beta reader comments and password
-attempts (sign-in and account-deletion). A login attempt against your email
-before it matched an account is not included either, for the same reason.
+tokens (the links are listed, but not the secret that opens them), your
+email-preferences unsubscribe link's token, and the hashed addresses kept
+for rate-limiting beta reader comments and password attempts (sign-in and
+account-deletion). A login attempt against your email before it matched an
+account is not included either, for the same reason.
 `;
 }
 

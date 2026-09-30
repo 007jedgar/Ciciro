@@ -9,6 +9,7 @@ import { EXPORT_URL } from "@/lib/account/copy";
 import type { ModelSummary } from "@/lib/models";
 import { resendVerificationEmail } from "@/lib/verify-email-client";
 import SettingsBilling from "@/components/SettingsBilling";
+import SettingsEmailPreferences from "@/components/SettingsEmailPreferences";
 import type { Entitlement } from "@/lib/billing-client";
 
 type Account = {
@@ -392,6 +393,8 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
           ) : null}
 
           {account?.entitlement ? <SettingsBilling entitlement={account.entitlement} /> : null}
+
+          {account ? <SettingsEmailPreferences /> : null}
 
           {account ? (
             <>

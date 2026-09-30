@@ -32,6 +32,14 @@ export interface SendEmailOptions {
   tags?: EmailTag[];
   idempotencyKey?: string;
   replyTo?: string;
+  /**
+   * Raw email headers, e.g. RFC 8058's List-Unsubscribe and
+   * List-Unsubscribe-Post on a marketing send (marketing-send.ts). Distinct
+   * from this function's own HTTP request headers to Resend's API below.
+   */
+  headers?: Record<string, string>;
+  /** Overrides EMAIL_FROM: a marketing send's own sending identity/subdomain. */
+  from?: string;
   /** Rethrow instead of returning a failed result. Default: false. */
   throwOnError?: boolean;
 }
@@ -77,7 +85,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     return { sent: false };
   }
 
-  const from = readEnv("EMAIL_FROM");
+  const from = options.from ?? readEnv("EMAIL_FROM");
   if (!from) {
     return fail("EMAIL_FROM is not configured", undefined, options.throwOnError);
   }
@@ -93,6 +101,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   };
   if (replyTo) body.reply_to = replyTo;
   if (options.tags?.length) body.tags = options.tags;
+  if (options.headers && Object.keys(options.headers).length) body.headers = options.headers;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,

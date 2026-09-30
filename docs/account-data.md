@@ -61,8 +61,10 @@ before sharing and reports a truncated download instead.
 Left out on purpose: password hash, session and email-link token hashes, the
 Apple refresh token, the codes and challenges of pending app sign-ins, share
 link tokens, the rate-limit hash of beta readers' IPs, editor-run lock tokens,
-the Expo push token itself (it can send to that phone), and the hashed
-address on a `PasswordAttempt` row. A row from a login guess
-against this email before it matched an account has no `userId` to page by, so
-it purges (matched by email in `purgeAccountData`) but is never exported:
-`PasswordAttempt` export only reaches account-deletion attempts.
+the Expo push token itself (it can send to that phone), the hashed
+address on a `PasswordAttempt` row, and `EmailPreference.unsubscribeToken`
+(it authenticates the public, no-session preferences link, like a session
+token). A row from a login guess against this email before it matched an
+account has no `userId` to page by, so it purges (matched by email in
+`purgeAccountData`) but is never exported: `PasswordAttempt` export only
+reaches account-deletion attempts.

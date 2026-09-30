@@ -58,6 +58,7 @@ export default function AuthForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [error, setError] = useState<string | null>(
     socialError ? (SOCIAL_ERRORS[socialError] ?? SOCIAL_ERRORS.failed) : null
   );
@@ -75,7 +76,7 @@ export default function AuthForm({
         credentials: "include",
         cache: "no-store",
         body: JSON.stringify(
-          mode === "signup" ? { email, password, name } : { email, password }
+          mode === "signup" ? { email, password, name, marketingOptIn } : { email, password }
         ),
       });
       const data = await res.json().catch(() => ({}));
@@ -98,7 +99,7 @@ export default function AuthForm({
       <form className="auth-card" onSubmit={submit}>
         <BrandMark size={56} />
         <h1>{copy.title}</h1>
-        <SocialButtons providers={providers} next={next} />
+        <SocialButtons providers={providers} next={next} marketingOptIn={mode === "signup" ? marketingOptIn : false} />
         {mode === "signup" && (
           <input
             aria-label="Name"
@@ -133,6 +134,16 @@ export default function AuthForm({
           >
             Forgot password?
           </Link>
+        )}
+        {mode === "signup" && (
+          <label className="auth-checkbox">
+            <input
+              type="checkbox"
+              checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+            />
+            <span>Send me writing tips and product news. You can turn this off anytime in Settings.</span>
+          </label>
         )}
         {error && (
           <p className="auth-error" role="alert">

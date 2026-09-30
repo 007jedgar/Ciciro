@@ -23,6 +23,14 @@ export type EmailContent = {
   blocks: EmailBlock[];
   /** Why the recipient is getting this email. */
   footer: string;
+  /**
+   * Only on a marketing email (never a transactional one): the manage-
+   * preferences and one-click-unsubscribe links every such email carries,
+   * from src/lib/email/preferences.ts. `sendMarketingEmail`
+   * (marketing-send.ts) also turns `unsubscribeUrl` into the RFC 8058
+   * List-Unsubscribe / List-Unsubscribe-Post headers.
+   */
+  unsubscribe?: { manageUrl: string; unsubscribeUrl: string };
 };
 
 export const FALLBACK_LINK_LABEL = "If the button doesn't work, paste this link into your browser:";
@@ -52,5 +60,10 @@ export function plainText(content: EmailContent, origin: string): string {
     ...content.blocks.map(textBlock).filter(Boolean),
     `--\n${content.footer}\nCiciro${origin ? ` · ${origin}` : ""}`,
   ];
+  if (content.unsubscribe) {
+    parts.push(
+      `Manage email preferences: ${content.unsubscribe.manageUrl}\nUnsubscribe: ${content.unsubscribe.unsubscribeUrl}`
+    );
+  }
   return `${parts.join("\n\n")}\n`;
 }

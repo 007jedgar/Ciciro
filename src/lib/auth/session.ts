@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { setMarketingOptIn } from "@/lib/email/preferences";
 import {
   authRequired,
   SESSION_COOKIE,
@@ -60,6 +61,8 @@ export async function registerUser(input: {
   email: unknown;
   password: unknown;
   name?: unknown;
+  /** The signup form's marketing checkbox: off unless explicitly true. */
+  marketingOptIn?: unknown;
 }): Promise<PublicUser> {
   const email = normalizeEmail(input.email);
   if (!email) throw new AuthError("Enter a valid email address.");
@@ -74,6 +77,7 @@ export async function registerUser(input: {
   const user = await prisma.user.create({
     data: { email, passwordHash, name },
   });
+  if (input.marketingOptIn === true) await setMarketingOptIn(user.id, true);
   return toPublicUser(user);
 }
 

@@ -74,7 +74,8 @@ export async function appleSheetAvailable(): Promise<boolean> {
  * that redeems it.
  */
 export async function browserSignInCode(
-  provider: BrowserProvider
+  provider: BrowserProvider,
+  marketingOptIn = false
 ): Promise<{ code: string; verifier: string; takeover?: BrowserProvider } | null> {
   const verifier = randomUrlSafe();
   const challenge = base64Url(
@@ -83,7 +84,7 @@ export async function browserSignInCode(
     })
   );
   const result = await WebBrowser.openAuthSessionAsync(
-    browserStartUrl(API_URL, provider, challenge),
+    browserStartUrl(API_URL, provider, challenge, marketingOptIn),
     NATIVE_REDIRECT
   );
   if (result.type !== "success") return null;

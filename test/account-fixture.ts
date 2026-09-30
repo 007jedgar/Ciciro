@@ -231,6 +231,10 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
   await prisma.passwordAttempt.create({
     data: { scope: "delete", key: user.id, userId: user.id, ipHash: `${label}-ip-hash` },
   });
+  await prisma.emailPreference.create({
+    data: { userId: user.id, marketingOptIn: true, marketingOptInAt: new Date(), unsubscribeToken: `${label}-unsub-token` },
+  });
+  await prisma.marketingEmailLog.create({ data: { userId: user.id, key: "welcome-2" } });
   return {
     userId: user.id,
     email,

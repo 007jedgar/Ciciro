@@ -44,6 +44,8 @@ model User {
   billingEvents     BillingEvent[]
   usageCounters     UsageCounter[]
   pushTokens        PushToken[]
+  emailPreference   EmailPreference?
+  marketingEmailLogs MarketingEmailLog[]
 
   // JSON blob of synced chrome prefs (theme, editor font, size, autocorrect,
   // chat width). Empty object means defaults. See src/lib/settings.ts.
@@ -836,4 +838,49 @@ model PasswordAttempt {
   @@index([ipHash, createdAt])
   @@index([createdAt])
   @@index([userId])
+}
+
+// Marketing-email consent: the single opt-in checkbox plus the topics it
+// unlocks. One row per user, created the first time marketingOptIn turns on
+// (signup, or Settings); no row means "never opted in" (every send is
+// gated off). Ciciro owns this, not Resend, so account deletion and export
+// cover it (see docs/account-data.md). `unsubscribeToken` keys the public,
+// no-session preferences page and the one-click List-Unsubscribe link every
+// marketing email carries (src/lib/email/preferences.ts) — not a security
+// credential, so it is a plain id, not hashed.
+model EmailPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  marketingOptIn   Boolean   @default(false)
+  marketingOptInAt DateTime?
+  productUpdates   Boolean   @default(true)
+  weeklyEmail      Boolean   @default(true)
+  offers           Boolean   @default(true)
+
+  unsubscribeToken String @unique
+
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// One row per marketing email actually sent to an account: idempotency (a
+// cron run that fires twice, or is retried, must never repeat a send) and a
+// record support can read. `key` names the specific send — a welcome-
+// sequence step ("welcome-2"), an allowance-nudge period
+// ("allowance-nudge:2026-03"), or one changelog entry ("changelog:<entryId>",
+// also used to tell which docs/CHANGELOG.md entries have ever been announced
+// to anyone — see src/lib/email/cron.ts). See src/lib/email/marketing-send.ts.
+model MarketingEmailLog {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  sentAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@index([key])
 }

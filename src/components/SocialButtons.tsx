@@ -5,6 +5,8 @@ export type SocialButtonsProps = {
   providers: Record<SocialProvider, boolean>;
   /** Where to land after signing in. */
   next: string;
+  /** The signup form's marketing checkbox; only applied when this sign-in creates an account. */
+  marketingOptIn?: boolean;
 };
 
 function AppleLogo() {
@@ -41,29 +43,34 @@ function GoogleLogo() {
   );
 }
 
-function startHref(provider: SocialProvider, next: string): string {
-  const query = next && next !== "/" ? `?next=${encodeURIComponent(next)}` : "";
-  return `/api/auth/oauth/${provider}/start${query}`;
+function startHref(provider: SocialProvider, next: string, marketingOptIn: boolean): string {
+  const params = new URLSearchParams();
+  if (next && next !== "/") params.set("next", next);
+  if (marketingOptIn) params.set("marketingOptIn", "1");
+  const query = params.toString();
+  return `/api/auth/oauth/${provider}/start${query ? `?${query}` : ""}`;
 }
 
 /**
  * "Continue with Apple / Google", above the email form. Plain links: the start
  * route redirects to the provider, so this works before hydration and without
- * JavaScript. Renders nothing when neither provider is configured.
+ * JavaScript — `marketingOptIn` only changes the href, still computed on every
+ * render from the checkbox's own state, so no JS is needed for it either.
+ * Renders nothing when neither provider is configured.
  */
-export default function SocialButtons({ providers, next }: SocialButtonsProps) {
+export default function SocialButtons({ providers, next, marketingOptIn = false }: SocialButtonsProps) {
   if (!providers.apple && !providers.google) return null;
   return (
     <>
       <div className="social-buttons">
         {providers.apple && (
-          <a className="social-btn social-apple" href={startHref("apple", next)}>
+          <a className="social-btn social-apple" href={startHref("apple", next, marketingOptIn)}>
             <AppleLogo />
             <span>Continue with Apple</span>
           </a>
         )}
         {providers.google && (
-          <a className="social-btn social-google" href={startHref("google", next)}>
+          <a className="social-btn social-google" href={startHref("google", next, marketingOptIn)}>
             <GoogleLogo />
             <span>Continue with Google</span>
           </a>

@@ -5,6 +5,7 @@ import { AuthError, createSession, registerUser } from "@/lib/auth/session";
 import { afterPasswordSignup } from "@/lib/auth/verify-email";
 import { publicOrigin } from "@/lib/public-origin";
 import { getUserSettings } from "@/lib/user-settings";
+import { sendWelcomeStep1 } from "@/lib/email/welcome-sequence";
 
 export const runtime = "nodejs";
 
@@ -17,9 +18,12 @@ export async function POST(req: NextRequest) {
       email: body.email,
       password: body.password,
       name: body.name,
+      marketingOptIn: body.marketingOptIn,
     });
     const token = await createSession(user.id, req.headers.get("user-agent") || "");
-    await afterPasswordSignup(user.id, publicOrigin(req.nextUrl.origin));
+    const origin = publicOrigin(req.nextUrl.origin);
+    await afterPasswordSignup(user.id, origin);
+    if (body.marketingOptIn === true) await sendWelcomeStep1(user, origin);
     const settings = await getUserSettings(user.id);
     return jsonWithSession({ user, settings }, token, isNativeClient(req), { status: 201 });
   } catch (error) {

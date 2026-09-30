@@ -1917,6 +1917,16 @@ input[type="file"]::file-selector-button {
 .settings-row-stack {
   align-items: flex-start;
 }
+.settings-toggle-row {
+  cursor: pointer;
+}
+.settings-toggle-row input {
+  accent-color: var(--accent);
+}
+.settings-subrow {
+  padding-left: var(--space-3);
+  color: var(--ink-soft);
+}
 .settings-seg {
   display: flex;
   align-items: center;
@@ -2531,6 +2541,42 @@ input[type="file"]::file-selector-button {
   align-self: flex-end;
   margin: -4px 0 0;
   font-size: 13px;
+}
+.auth-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+  cursor: pointer;
+}
+.auth-checkbox input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+.email-prefs-topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin: 4px 0 16px;
+}
+.email-prefs-topic {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.email-prefs-topic input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.email-prefs-topic strong {
+  color: var(--ink);
 }
 .auth-link-button {
   border: 0;
