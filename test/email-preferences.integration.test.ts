@@ -171,13 +171,19 @@ describe("email consent gating and unsubscribe", () => {
       expect(res.status).toBe(400);
     });
 
-    it("GET redirects to the preferences page after unsubscribing", async () => {
-      await seedPref("finn@example.com");
+    it("GET never mutates: it only redirects to a confirm prompt", async () => {
+      const pref = await seedPref("finn@example.com");
       const res = await unsubscribeGet(
         request("/api/email/unsubscribe?t=click-token&topic=offers", { method: "GET" })
       );
       expect(res.status).toBe(303);
-      expect(res.headers.get("location")).toContain("/email/preferences");
+      const location = res.headers.get("location") ?? "";
+      expect(location).toContain("/email/preferences");
+      expect(location).toContain("confirm=offers");
+      // A scanner or link-prefetcher that only ever GETs must never unsubscribe anyone.
+      const after = await prisma.emailPreference.findUniqueOrThrow({ where: { userId: pref.userId } });
+      expect(after.offers).toBe(true);
+      expect(after.marketingOptIn).toBe(true);
     });
 
     it("a marketing send carries List-Unsubscribe and the RFC 8058 one-click header", async () => {
@@ -231,9 +237,48 @@ describe("email consent gating and unsubscribe", () => {
       expect(body.marketingOptIn).toBe(true);
       expect(body.offers).toBe(false);
 
-      // Turning it on from Settings never sends welcome-1 — that only fires
-      // from the signup paths themselves.
-      const welcome1 = fetchMock.mock.calls.some(([, init]) => JSON.parse(init.body).tags?.some((t: { value: string }) => t.value === "welcome_1"));
+      // Turning marketing on from Settings starts the welcome sequence just
+      // like signup does, so it always begins at step 1.
+      const welcome1 = fetchMock.mock.calls.filter(
+        ([, init]) => JSON.parse(init.body).tags?.some((t: { value: string }) => t.value === "welcome_1")
+      );
+      expect(welcome1).toHaveLength(1);
+      const pref = await prisma.emailPreference.findUniqueOrThrow({ where: { userId: user.id } });
+      expect(pref.marketingOptInAt).not.toBeNull();
+    });
+
+    it("does not resend welcome-1 to someone who already received it", async () => {
+      const user = await prisma.user.create({
+        data: { email: "ivo@example.com", name: "Ivo", passwordHash: await hashPassword("pw-long-enough") },
+      });
+      const token = await sessionFor(user.id, "ivo-session");
+
+      // Already opted in and already sent step 1 (e.g. from signup).
+      await prisma.emailPreference.create({
+        data: {
+          userId: user.id,
+          unsubscribeToken: "ivo-token",
+          marketingOptIn: true,
+          marketingOptInAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+          productUpdates: true,
+          weeklyEmail: true,
+          offers: true,
+        },
+      });
+      await prisma.marketingEmailLog.create({ data: { userId: user.id, key: "welcome-1" } });
+
+      // Toggle off, then back on from Settings.
+      await patchSettingsPrefs(
+        request("/api/account/email-preferences", { method: "PATCH", session: token, body: { marketingOptIn: false } })
+      );
+      fetchMock.mockClear();
+      await patchSettingsPrefs(
+        request("/api/account/email-preferences", { method: "PATCH", session: token, body: { marketingOptIn: true } })
+      );
+
+      const welcome1 = fetchMock.mock.calls.some(
+        ([, init]) => JSON.parse(init.body).tags?.some((t: { value: string }) => t.value === "welcome_1")
+      );
       expect(welcome1).toBe(false);
     });
   });
