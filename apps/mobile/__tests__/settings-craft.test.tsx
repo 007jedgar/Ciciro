@@ -50,6 +50,8 @@ jest.mock("../lib/writing-reminder-store", () => ({
 jest.mock("../lib/api/hooks", () => ({
   useModelsQuery: () => ({ data: undefined }),
   useEntitlementQuery: () => ({ data: undefined }),
+  useEmailPreferencesQuery: () => ({ data: undefined }),
+  usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 
 function renderSettings(overrides: Partial<AppSettings> = {}) {

@@ -52,6 +52,8 @@ jest.mock("../lib/writing-reminder-store", () => ({
 jest.mock("../lib/api/hooks", () => ({
   useModelsQuery: jest.fn(),
   useEntitlementQuery: () => ({ data: undefined }),
+  useEmailPreferencesQuery: () => ({ data: undefined }),
+  usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 
 const useModelsQueryMock = useModelsQuery as jest.MockedFunction<typeof useModelsQuery>;
