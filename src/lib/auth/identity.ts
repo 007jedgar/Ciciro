@@ -166,8 +166,12 @@ export async function signInWithIdentity(
     const origin = publicOrigin(extras.origin ?? "");
     await sendWelcomeEmail(signedIn, origin);
     if (extras.marketingOptIn === true) {
-      await setMarketingOptIn(signedIn.id, true);
-      await sendWelcomeStep1(signedIn, origin);
+      try {
+        await setMarketingOptIn(signedIn.id, true);
+        await sendWelcomeStep1(signedIn, origin);
+      } catch (error) {
+        console.error("marketing opt-in failed", error);
+      }
     }
   }
   return { user: toPublicUser(signedIn), takeover };

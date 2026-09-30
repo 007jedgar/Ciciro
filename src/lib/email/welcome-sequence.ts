@@ -56,39 +56,67 @@ async function hasManuscript(userId: string): Promise<boolean> {
   return (await prisma.project.count({ where: { userId }, take: 1 })) > 0;
 }
 
+const STEP_KEYS = ["welcome-2", "welcome-3", "welcome-4"];
+
 /** Run daily: sends whichever of steps 2-4 a candidate has newly become due for. */
 export async function runWelcomeSequenceCron(now: Date, origin: string): Promise<void> {
-  for (const candidate of await eligibleCandidates()) {
-    const days = Math.floor((now.getTime() - candidate.marketingOptInAt.getTime()) / DAY_MS);
-    if (days >= 3 && !(await hasChapter(candidate.id))) {
-      await sendMarketingEmail({
-        userId: candidate.id,
-        email: candidate.email,
-        topic: "productUpdates",
-        key: "welcome-2",
-        origin,
-        buildContent: (unsubscribe) => ({ ...welcomeStep2Template({ appUrl: `${origin}/` }), unsubscribe }),
-      });
+  const candidates = await eligibleCandidates();
+  if (!candidates.length) return;
+  const logged = await prisma.marketingEmailLog.findMany({
+    where: { userId: { in: candidates.map((c) => c.id) }, key: { in: STEP_KEYS } },
+    select: { userId: true, key: true },
+  });
+  const sentByUser = new Map<string, Set<string>>();
+  for (const row of logged) {
+    const set = sentByUser.get(row.userId) ?? new Set<string>();
+    set.add(row.key);
+    sentByUser.set(row.userId, set);
+  }
+
+  for (const candidate of candidates) {
+    try {
+      await runCandidate(candidate, now, origin, sentByUser.get(candidate.id) ?? new Set());
+    } catch (error) {
+      console.error("welcome sequence failed for a user", error);
     }
-    if (days >= 7 && (await hasManuscript(candidate.id))) {
-      await sendMarketingEmail({
-        userId: candidate.id,
-        email: candidate.email,
-        topic: "productUpdates",
-        key: "welcome-3",
-        origin,
-        buildContent: (unsubscribe) => ({ ...welcomeStep3Template({ appUrl: `${origin}/` }), unsubscribe }),
-      });
-    }
-    if (days >= 14) {
-      await sendMarketingEmail({
-        userId: candidate.id,
-        email: candidate.email,
-        topic: "productUpdates",
-        key: "welcome-4",
-        origin,
-        buildContent: (unsubscribe) => ({ ...welcomeStep4Template({ appUrl: `${origin}/` }), unsubscribe }),
-      });
-    }
+  }
+}
+
+async function runCandidate(
+  candidate: Candidate,
+  now: Date,
+  origin: string,
+  sent: Set<string>
+): Promise<void> {
+  const days = Math.floor((now.getTime() - candidate.marketingOptInAt.getTime()) / DAY_MS);
+  if (days >= 3 && !sent.has("welcome-2") && !(await hasChapter(candidate.id))) {
+    await sendMarketingEmail({
+      userId: candidate.id,
+      email: candidate.email,
+      topic: "productUpdates",
+      key: "welcome-2",
+      origin,
+      buildContent: (unsubscribe) => ({ ...welcomeStep2Template({ appUrl: `${origin}/` }), unsubscribe }),
+    });
+  }
+  if (days >= 7 && !sent.has("welcome-3") && (await hasManuscript(candidate.id))) {
+    await sendMarketingEmail({
+      userId: candidate.id,
+      email: candidate.email,
+      topic: "productUpdates",
+      key: "welcome-3",
+      origin,
+      buildContent: (unsubscribe) => ({ ...welcomeStep3Template({ appUrl: `${origin}/` }), unsubscribe }),
+    });
+  }
+  if (days >= 14 && !sent.has("welcome-4")) {
+    await sendMarketingEmail({
+      userId: candidate.id,
+      email: candidate.email,
+      topic: "productUpdates",
+      key: "welcome-4",
+      origin,
+      buildContent: (unsubscribe) => ({ ...welcomeStep4Template({ appUrl: `${origin}/` }), unsubscribe }),
+    });
   }
 }

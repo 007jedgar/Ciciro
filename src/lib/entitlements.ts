@@ -200,7 +200,7 @@ export async function meterAiRun(user: PublicUser | null): Promise<void> {
     user.email,
     { ...entitlement, usage: { period, aiRuns: counter.aiRuns } },
     publicOrigin("")
-  );
+  ).catch((error) => console.error("allowance nudge failed", error));
 }
 
 /** Give back an AI action that failed before the author got anything from it. */
