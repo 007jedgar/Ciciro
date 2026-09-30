@@ -4,6 +4,8 @@ import { AuthError, toPublicUser, type PublicUser } from "@/lib/auth/session";
 import { pkceChallenge, randomToken, sha256Hex, type VerifiedIdentity } from "@/lib/auth/oidc";
 import type { SocialProvider } from "@/lib/auth/social-config";
 import { sendWelcomeEmail } from "@/lib/email/account-emails";
+import { setMarketingOptIn } from "@/lib/email/preferences";
+import { sendWelcomeStep1 } from "@/lib/email/welcome-sequence";
 import { publicOrigin } from "@/lib/public-origin";
 
 // Turning a verified Apple / Google identity into a Ciciro account, and the
@@ -66,7 +68,13 @@ async function fillEmptyName(user: UserRow, name: string): Promise<UserRow> {
  */
 export async function signInWithIdentity(
   identity: VerifiedIdentity,
-  extras: { name?: string; refreshToken?: { token: string; clientId: string }; origin?: string } = {}
+  extras: {
+    name?: string;
+    refreshToken?: { token: string; clientId: string };
+    origin?: string;
+    /** The signup form's marketing checkbox. Only ever applied to a new account. */
+    marketingOptIn?: boolean;
+  } = {}
 ): Promise<SocialSignInResult> {
   const name = (extras.name?.trim() || identity.name).slice(0, 200);
   const where = {
@@ -154,7 +162,14 @@ export async function signInWithIdentity(
     return { user: toPublicUser(winner.user), takeover: null };
   }
   const signedIn = await fillEmptyName(user, name);
-  if (created) await sendWelcomeEmail(signedIn, publicOrigin(extras.origin ?? ""));
+  if (created) {
+    const origin = publicOrigin(extras.origin ?? "");
+    await sendWelcomeEmail(signedIn, origin);
+    if (extras.marketingOptIn === true) {
+      await setMarketingOptIn(signedIn.id, true);
+      await sendWelcomeStep1(signedIn, origin);
+    }
+  }
   return { user: toPublicUser(signedIn), takeover };
 }
 

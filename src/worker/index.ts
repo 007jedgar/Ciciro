@@ -21,6 +21,7 @@
 import { EditorRunDO } from "./run-do";
 import { setD1Database } from "../lib/d1-binding";
 import { runWithRequestPrisma } from "../lib/db";
+import { runScheduledEmailJobs } from "../lib/email/cron";
 import {
   setRunDurableObjectNamespace,
   type RunDurableObjectNamespace,
@@ -70,5 +71,17 @@ export default {
         openNextHandler.fetch(forwarded, env, ctx)
       );
     return env.DB ? runWithRequestPrisma(env.DB, handle) : handle();
+  },
+
+  // The daily Cron Trigger (wrangler.jsonc's `triggers.crons`): welcome-
+  // sequence day-eligibility and the Monday-gated changelog digest, both in
+  // src/lib/email/cron.ts. `scheduledTime` is the tick's own clock, not
+  // `Date.now()`, so a delayed invocation still evaluates day-N thresholds
+  // against the time it was due.
+  async scheduled(event: { scheduledTime: number }, env: Env): Promise<void> {
+    publishStringEnv(env);
+    if (env.DB) setD1Database(env.DB);
+    const run = () => runScheduledEmailJobs(new Date(event.scheduledTime));
+    await (env.DB ? runWithRequestPrisma(env.DB, run) : run());
   },
 };

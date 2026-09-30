@@ -102,6 +102,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nameH, setNameH] = useState(NAME_ROW_FALLBACK);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const isSignup = mode === "signup";
 
@@ -121,7 +122,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
     setBusy(true);
     try {
       const user = isSignup
-        ? await signup({ email: email.trim(), password, name: name.trim() || undefined })
+        ? await signup({ email: email.trim(), password, name: name.trim() || undefined, marketingOptIn })
         : await login(email.trim(), password);
       signedIn(user);
     } catch (err) {
@@ -328,6 +329,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 onBusyChange={setBusy}
                 onError={setError}
                 onSignedIn={signedIn}
+                marketingOptIn={marketingOptIn}
               />
 
               {/* name: only for account creation, sliding in and out */}
@@ -390,6 +392,30 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
                 <Text style={[layout.error, styles.fieldError]} role="alert">
                   {authFieldMessage(t, errors.password)}
                 </Text>
+              ) : null}
+              {isSignup ? (
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: marketingOptIn }}
+                  accessibilityLabel={t("auth.marketingOptIn")}
+                  onPress={() => setMarketingOptIn((v) => !v)}
+                  style={styles.marketingRow}
+                >
+                  <View
+                    style={[
+                      styles.marketingBox,
+                      {
+                        borderColor: marketingOptIn ? colors.accent : colors.inkSoft,
+                        backgroundColor: marketingOptIn ? colors.accent : "transparent",
+                      },
+                    ]}
+                  >
+                    {marketingOptIn ? <Text style={[styles.marketingTick, { color: colors.panel }]}>✓</Text> : null}
+                  </View>
+                  <Text style={[layout.body, styles.marketingText, { color: colors.inkSoft }]}>
+                    {t("auth.marketingOptIn")}
+                  </Text>
+                </Pressable>
               ) : null}
               {isSignup ? null : (
                 <Pressable
@@ -516,6 +542,18 @@ const styles = StyleSheet.create({
   content: { padding: 24 },
   nameField: { overflow: "hidden" },
   fieldError: { marginTop: 4, marginBottom: 4, fontSize: 13 },
+  marketingRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 6, marginTop: 2 },
+  marketingBox: {
+    width: 20,
+    height: 20,
+    marginTop: 1,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  marketingTick: { fontSize: 13, fontWeight: "700", lineHeight: 16 },
+  marketingText: { flex: 1, marginBottom: 0, fontSize: 13, lineHeight: 18 },
   formError: {
     marginTop: 12,
     borderWidth: StyleSheet.hairlineWidth,

@@ -5,8 +5,9 @@
   "license": "MIT",
   "description": "Ciciro — an AI book-writing assistant and manuscript editor",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/generate-changelog-data.ts && next dev",
     "build": "node scripts/build.mjs",
+    "changelog:generate": "node scripts/generate-changelog-data.ts",
     "test": "node run-vitest.mjs",
     "start": "next start",
     "lint": "next lint",
@@ -21,7 +22,7 @@
     "typecheck:mobile": "npm run typecheck --prefix apps/mobile",
     "test:mobile": "npm test --prefix apps/mobile",
     "mobile:start": "npm run start --prefix apps/mobile",
-    "cf:build": "prisma generate && opennextjs-cloudflare build",
+    "cf:build": "node scripts/generate-changelog-data.ts && prisma generate && opennextjs-cloudflare build",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:deploy": "npm run db:check:d1 && npm run cf:build && opennextjs-cloudflare deploy"
   },

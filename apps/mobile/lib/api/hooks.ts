@@ -14,6 +14,8 @@ import type {
   Character,
   CharacterCreateRequest,
   DraftInsertionCreateRequest,
+  EmailPreferencesPatch,
+  EmailPreferencesResponse,
   Folder,
   FolderCreateRequest,
   LoginRequest,
@@ -197,6 +199,24 @@ export function useEntitlementQuery(options?: Enabled) {
     queryFn: async () => (await ciciro.billing.entitlement()).entitlement,
     enabled: options?.enabled ?? true,
     staleTime: 0,
+  });
+}
+
+/** Settings' email section: the marketing checkbox and its topics. */
+export function useEmailPreferencesQuery(options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.emailPreferences,
+    queryFn: () => ciciro.account.emailPreferences.get(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function usePatchEmailPreferencesMutation() {
+  return useMutation({
+    mutationFn: (body: EmailPreferencesPatch) => ciciro.account.emailPreferences.patch(body),
+    onSuccess: (data: EmailPreferencesResponse) => {
+      queryClient.setQueryData(queryKeys.emailPreferences, data);
+    },
   });
 }
 

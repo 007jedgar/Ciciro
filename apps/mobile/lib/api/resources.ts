@@ -10,6 +10,8 @@ import type {
   AutowriteRequest,
   AutowriteStreamEvent,
   DeleteAccountRequest,
+  EmailPreferencesPatch,
+  EmailPreferencesResponse,
   ForgotPasswordRequest,
   PushTokenRegisterRequest,
   PushTokenUnregisterRequest,
@@ -185,6 +187,14 @@ export const ciciro = {
 
   models: {
     get: (opts?: RequestOpts) => api<ModelsResponse>("/api/models", opts),
+  },
+
+  account: {
+    emailPreferences: {
+      get: (opts?: RequestOpts) => api<EmailPreferencesResponse>("/api/account/email-preferences", opts),
+      patch: (body: EmailPreferencesPatch, opts?: RequestOpts) =>
+        api<EmailPreferencesResponse>("/api/account/email-preferences", jsonInit("PATCH", body, opts)),
+    },
   },
 
   push: {

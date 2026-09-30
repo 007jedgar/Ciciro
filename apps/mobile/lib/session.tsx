@@ -101,7 +101,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signup = useCallback(
-    async (input: { email: string; password: string; name?: string }) => {
+    async (input: { email: string; password: string; name?: string; marketingOptIn?: boolean }) => {
       const data = await ciciro.auth.signup(input);
       const next = beginAccount(data.user, data.token);
       setUser(next);
@@ -110,18 +110,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const signInWithApple = useCallback(async () => {
+  const signInWithApple = useCallback(async (marketingOptIn = false) => {
     const credential = await appleSheetCredential();
     if (!credential) return null;
-    const data = await ciciro.auth.appleNative(credential);
+    const data = await ciciro.auth.appleNative({ ...credential, marketingOptIn });
     const next = beginAccount(data.user, data.token);
     setUser(next);
     if (data.takeover) announceTakeover(data.takeover);
     return next;
   }, []);
 
-  const signInWithBrowser = useCallback(async (provider: BrowserProvider) => {
-    const handoff = await browserSignInCode(provider);
+  const signInWithBrowser = useCallback(async (provider: BrowserProvider, marketingOptIn = false) => {
+    const handoff = await browserSignInCode(provider, marketingOptIn);
     if (!handoff) return null;
     const data = await ciciro.auth.handoff({ code: handoff.code, verifier: handoff.verifier });
     const next = beginAccount(data.user, data.token);

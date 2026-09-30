@@ -52,6 +52,13 @@
     "enabled": true
   },
 
+  // Daily at 14:00 UTC: src/worker/index.ts's `scheduled` handler runs the
+  // welcome sequence and (Mondays only) the changelog digest. See
+  // src/lib/email/cron.ts.
+  "triggers": {
+    "crons": ["0 14 * * *"]
+  },
+
   "vars": {
     "CICIRO_REQUIRE_AUTH": "true"
   },
@@ -72,11 +79,15 @@
   ]
 
   // Secrets (set with `wrangler secret put <NAME>`), not committed:
-  //   ANTHROPIC_API_KEY   - required for the editor/drafter models
-  //   RESEND_API_KEY      - transactional email; unset logs instead of sending
-  //   EMAIL_FROM          - "Name <address>" the send comes from
-  //   EMAIL_REPLY_TO      - optional reply-to override
-  //   EXPO_ACCESS_TOKEN   - optional; Expo Push API token once enhanced push
-  //                         security is on (docs/mobile-release.md)
+  //   ANTHROPIC_API_KEY      - required for the editor/drafter models
+  //   RESEND_API_KEY         - transactional email; unset logs instead of sending
+  //   EMAIL_FROM             - "Name <address>" the send comes from
+  //   EMAIL_REPLY_TO         - optional reply-to override
+  //   MARKETING_EMAIL_FROM   - marketing sends' "Name <address>"; falls back to
+  //                            EMAIL_FROM if unset (see docs/hosting.md#email)
+  //   CICIRO_PUBLIC_URL      - required for the scheduled handler above, which
+  //                            has no request to read an origin from
+  //   EXPO_ACCESS_TOKEN      - optional; Expo Push API token once enhanced push
+  //                            security is on (docs/mobile-release.md)
   // Hosted auth/session data lives in the D1 binding above, not DATABASE_URL.
 }

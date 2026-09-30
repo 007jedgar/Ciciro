@@ -49,8 +49,14 @@ export function socialButtons(
 }
 
 /** Where the system browser starts the server's flow. */
-export function browserStartUrl(apiUrl: string, provider: BrowserProvider, challenge: string): string {
-  return `${apiUrl}/api/auth/oauth/${provider}/start?client=native&challenge=${encodeURIComponent(challenge)}`;
+export function browserStartUrl(
+  apiUrl: string,
+  provider: BrowserProvider,
+  challenge: string,
+  marketingOptIn = false
+): string {
+  const opt = marketingOptIn ? "&marketingOptIn=1" : "";
+  return `${apiUrl}/api/auth/oauth/${provider}/start?client=native&challenge=${encodeURIComponent(challenge)}${opt}`;
 }
 
 /** Every `?error=` the server's flow can send back (SocialFailure there). */

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { authRequired } from "@/lib/auth/constants";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
+import { publicOrigin } from "@/lib/public-origin";
+import { maybeSendAllowanceNudge } from "@/lib/email/allowance-nudge";
 import {
   PLAN_NAMES,
   androidPackage,
@@ -193,6 +195,12 @@ export async function meterAiRun(user: PublicUser | null): Promise<void> {
     });
     throw new AiLimitError({ ...entitlement, usage: { period, aiRuns: counter.aiRuns - 1 } });
   }
+  await maybeSendAllowanceNudge(
+    user.id,
+    user.email,
+    { ...entitlement, usage: { period, aiRuns: counter.aiRuns } },
+    publicOrigin("")
+  );
 }
 
 /** Give back an AI action that failed before the author got anything from it. */

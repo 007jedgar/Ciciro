@@ -78,6 +78,8 @@ export type OAuthFlow = {
   next: string;
   /** Native: the app's PKCE challenge for the hand-off. */
   challenge?: string;
+  /** The signup screen's marketing checkbox, carried across the redirect. */
+  marketingOptIn?: boolean;
 };
 
 export function encodeFlow(flow: OAuthFlow): string {
@@ -104,6 +106,7 @@ export function decodeFlow(raw: string | undefined): OAuthFlow | null {
       verifier: flow.verifier,
       next: safeNext(flow.next),
       challenge: typeof flow.challenge === "string" ? flow.challenge : undefined,
+      marketingOptIn: flow.marketingOptIn === true,
     };
   } catch {
     return null;
@@ -196,6 +199,7 @@ export function startBrowserSignIn(req: NextRequest, provider: SocialProvider): 
     verifier: randomToken(),
     next,
     challenge: native ? challenge : undefined,
+    marketingOptIn: params.get("marketingOptIn") === "1",
   };
   const res = NextResponse.redirect(authorizeUrl(flow, origin), 303);
   res.cookies.set(OAUTH_COOKIE, encodeFlow(flow), flowCookieOptions(provider));
@@ -269,7 +273,12 @@ async function identifyFromCallback(
       keys: deps.keys?.apple,
     });
     const refreshToken = await appleRefreshToken(params.code, config.servicesId, redirectUri, deps);
-    return signInWithIdentity(identity, { name: appleUserName(params.user), refreshToken, origin });
+    return signInWithIdentity(identity, {
+      name: appleUserName(params.user),
+      refreshToken,
+      origin,
+      marketingOptIn: flow.marketingOptIn,
+    });
   }
 
   const config = googleConfig();
@@ -290,7 +299,7 @@ async function identifyFromCallback(
     nonce: flow.nonce,
     keys: deps.keys?.google,
   });
-  return signInWithIdentity(identity, { origin });
+  return signInWithIdentity(identity, { origin, marketingOptIn: flow.marketingOptIn });
 }
 
 function failureCode(error: unknown): SocialFailure {
@@ -365,6 +374,8 @@ export async function signInWithAppleNative(
     familyName?: unknown;
     /** Public origin for the welcome email a new account gets (see publicOrigin). */
     origin?: string;
+    /** The app's signup screen marketing checkbox. */
+    marketingOptIn?: unknown;
   },
   deps: SocialDeps = {}
 ): Promise<SocialSignInResult> {
@@ -392,5 +403,6 @@ export async function signInWithAppleNative(
     name: joinName(input.givenName, input.familyName),
     refreshToken,
     origin: input.origin,
+    marketingOptIn: input.marketingOptIn === true,
   });
 }

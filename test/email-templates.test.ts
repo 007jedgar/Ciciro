@@ -30,7 +30,7 @@ function decode(html: string): string {
 describe("email templates", () => {
   const previews = emailPreviews(ORIGIN, new Date("2026-10-01T12:00:00Z"));
 
-  it("covers the account and billing emails", () => {
+  it("covers the account, billing and marketing emails", () => {
     expect(previews.map((p) => p.id)).toEqual([
       "verify-email",
       "welcome",
@@ -39,6 +39,12 @@ describe("email templates", () => {
       "payment-failed",
       "subscription-canceled",
       "renewal-reminder",
+      "welcome-1",
+      "welcome-2",
+      "welcome-3",
+      "welcome-4",
+      "allowance-nudge",
+      "changelog-digest",
     ]);
   });
 
