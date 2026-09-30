@@ -15,6 +15,16 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     "text": "The website has a new look, the Archive design language: paper texture, richer color, and a light/dark toggle on the public pages. `/` is now the landing page for signed-out visitors (the library for signed-in ones), with app screenshots and short demos, and `/launch` redirects there. The pricing page shows an early-access discount when one is set up (see `docs/billing.md`)."
   },
   {
+    "id": "8e0e1e55b2fd",
+    "summary": "New opt-in setting, **Experimental writing prompt** (Settings, web and phone, off by default): Ciciro's drafts follow craft defaults that avoid habits common i…",
+    "text": "New opt-in setting, **Experimental writing prompt** (Settings, web and phone, off by default): Ciciro's drafts follow craft defaults that avoid habits common in model-written prose (feelings mirrored by the weather, stated themes, \"not X but Y\" contrasts, tidy endings), and a check after each draft points the editor at any that slipped through. Your `style.md`, your voice notes, and anything a brief asks for still win. Off, drafting works exactly as before."
+  },
+  {
+    "id": "85c87257d317",
+    "summary": "Em dashes stay off by default; a `- Em dashes: allowed` line in `style.md` switches them on for drafts, with or without the experimental setting.",
+    "text": "Em dashes stay off by default; a `- Em dashes: allowed` line in `style.md` switches them on for drafts, with or without the experimental setting."
+  },
+  {
     "id": "e3e7ea752d34",
     "summary": "Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5 (`claude-sonnet-5`).",
     "text": "Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5 (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed. Anthropic's migration guidance for Sonnet 5.5 is: \"`thinking: {type: \"disabled\"}` returns a 400 - to turn thinking off, send `thinking: {type: \"between_tools\"}`\" (a breaking change from Sonnet 5, which accepted `{type: \"disabled\"}`). But that only affects callers that explicitly disabled thinking. Per Anthropic's own thinking/effort reference table, *omitting* `thinking` already ran adaptive (thinking on) on Sonnet 5 - \"Omitting `thinking`: Runs adaptive\" - and continues to run adaptive on Sonnet 5.5 - \"Omitting `thinking`: Runs **adaptive**\". Every Ciciro drafter call (`recap.ts`, `continuity.ts`, `weekly-review.ts`, `style-analysis.ts`, `tools.ts` dispatch_draft, `autowrite.ts` draftBeat) omits `thinking` rather than disabling it, so the `between_tools` note does not apply and behavior is unchanged."
