@@ -37,5 +37,13 @@
         "CICIRO_RELEASE": "1"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "<APP_STORE_CONNECT_APP_ID>",
+        "appleTeamId": "<APPLE_TEAM_ID>"
+      }
+    }
   }
 }
