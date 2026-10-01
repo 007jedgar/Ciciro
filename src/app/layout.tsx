@@ -29,6 +29,16 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Ciciro",
   description: "An AI book-writing assistant and manuscript editor.",
+  icons: {
+    // The file-convention icon.png/apple-icon.png cover most consumers on
+    // their own; this explicitly adds icon.svg too, since Next.js otherwise
+    // only links one icon.* file and silently prefers the PNG over it.
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 const themeBoot = `
