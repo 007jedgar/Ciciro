@@ -3,8 +3,9 @@ import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import CyclingWord from "./CyclingWord";
 import Exhibit from "./Exhibit";
+import Scene from "./Scene";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
-import { CLOSING, HERO, HOW, PRICING, SCENE, WHY } from "./copy";
+import { CLOSING, HERO, HOW, PRICING, WHY } from "./copy";
 import "./landing.css";
 
 function Arrow() {
@@ -21,102 +22,6 @@ function Brand() {
       <BrandMark size={34} />
       <span className="landing-wordmark">Ciciro</span>
     </Link>
-  );
-}
-
-/** The desk-to-phone handoff: a punched manuscript sheet in a cobalt folder,
-    the phone that picks the sentence up, and the nudge that brought you back. */
-function Scene() {
-  return (
-    <div className="landing-folder">
-      <div className="landing-tabs" aria-hidden>
-        <span className="landing-tab landing-tab-v">Chapter 12</span>
-        <span className="landing-tab landing-tab-b">Characters</span>
-        <span className="landing-tab landing-tab-y">Outline</span>
-      </div>
-      <div className="landing-scene" aria-hidden>
-        <div className="landing-sheet">
-          <div className="landing-holes">
-            <i />
-            <i />
-            <i />
-          </div>
-          <div className="landing-sheet-head">
-            <span className="landing-sheet-title">The Letter</span>
-            <span className="landing-file-no">CH. 12</span>
-          </div>
-          <p className="landing-ms">
-            The harbour had gone quiet by the time she reached the steps, and the lamps were only
-            just coming on along the wall.
-          </p>
-          <p className="landing-ms landing-ms-live">
-            Mara took the letter from her coat pocket, the paper gone soft at the folds. She
-            didn&apos;t need to unfold it, only to feel the
-            <span className="landing-caret landing-caret-desk" />
-          </p>
-          <div className="landing-sheet-foot">
-            <span>Last kept: desk, 9:12 pm</span>
-            <span>p. 214</span>
-          </div>
-        </div>
-        <div className="landing-phone">
-          <div className="landing-screen">
-            <div className="landing-screen-meta">
-              <span>Thursday</span>
-              <span>9:41</span>
-            </div>
-            <div className="landing-reminder">
-              <span className="landing-reminder-app">
-                <span className="landing-reminder-icon">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                Ciciro
-              </span>
-              <b>{SCENE.reminderTitle}</b>
-              <span>{SCENE.reminderBody}</span>
-              <span className="landing-reminder-nudge">{SCENE.reminderNudge}</span>
-            </div>
-            <p>
-              ...only to feel the{" "}
-              <span className="landing-type-in">weight of it, warm from her pocket.</span>
-              <span className="landing-caret landing-caret-phone" />
-            </p>
-          </div>
-        </div>
-        <div className="landing-receipt">
-          <span className="landing-receipt-big">THIS WEEK</span>
-          Aiming for 4 days.
-          <br />
-          Rest days are part of it.
-          <span className="landing-receipt-row">
-            <span>LAST 7 DAYS</span>
-            <span>3 WRITTEN</span>
-          </span>
-          <span className="landing-receipt-row">
-            <span>STREAK</span>
-            <span>NONE KEPT</span>
-          </span>
-        </div>
-        <svg className="landing-clip" viewBox="0 0 20 56">
-          <path d="M6 44 V10 a4 4 0 0 1 8 0 V48 a6 6 0 0 1 -12 0 V14" />
-        </svg>
-        <svg className="landing-stamp" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="56" strokeWidth="3" />
-          <circle cx="60" cy="60" r="40" strokeWidth="1.5" />
-          <defs>
-            <path id="landing-stamp-ring" d="M60 60 m-48 0 a48 48 0 1 1 96 0 a48 48 0 1 1 -96 0" />
-          </defs>
-          <text>
-            <textPath href="#landing-stamp-ring">COUNTED · CICIRO · COUNTED · CICIRO ·</textPath>
-          </text>
-          <text x="60" y="66" textAnchor="middle" className="landing-stamp-center">
-            5 MIN
-          </text>
-        </svg>
-      </div>
-    </div>
   );
 }
 

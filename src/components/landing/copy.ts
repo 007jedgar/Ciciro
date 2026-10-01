@@ -215,3 +215,49 @@ export const SCENE = {
   reminderBody: "She didn't need to unfold it, only to feel the weight of it.",
   reminderNudge: "Mara still hasn't said who sent it.",
 };
+
+/** The three binder tabs beside the folder. Clicking one swaps the sheet for
+    a static mock of that real Ciciro screen, all in the world of The Letter,
+    so the tabs read as one manuscript. See Scene.tsx. */
+export const SCENE_TABS = {
+  chapters: { label: "Chapter 12" },
+  characters: {
+    label: "Characters",
+    fileCount: "2 FILES",
+    subhead: "Markdown files Ciciro reads to plan, and writes decisions back to.",
+    items: [
+      {
+        file: "characters/mara.md",
+        summary: "Keeps the letter folded in her coat pocket. Hasn't told anyone who sent it.",
+      },
+      {
+        file: "characters/ines-lind.md",
+        summary: "Mara's aunt, seventy-one, grey eyes. Raised her after the harbour fire.",
+      },
+    ],
+    footNote: "2 files",
+  },
+  outline: {
+    label: "Outline",
+    fileCount: "CH. 11-12",
+    hint: "Drag a chapter to reorder, or use the arrows.",
+    chapters: [
+      {
+        number: 11,
+        title: "What the Dockmaster Knew",
+        blurb: "He says a name. It isn't the one she expected.",
+        words: "1,940 words",
+        status: "Revised",
+      },
+      {
+        number: 12,
+        title: "The Letter",
+        blurb: "The paper's gone soft at the folds. She still hasn't opened it.",
+        words: "860 words",
+        status: "Draft",
+        active: true,
+      },
+    ],
+    footNote: "12 of 13",
+  },
+};
