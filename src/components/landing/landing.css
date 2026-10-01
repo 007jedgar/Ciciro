@@ -498,17 +498,6 @@
   border: 1px solid currentColor;
   padding: 0.5cqw 1cqw;
 }
-.landing-ms {
-  margin: 0 0 1.6cqw;
-  max-width: 44ch;
-  font-family: var(--serif);
-  font-size: 2.15cqw;
-  line-height: 1.62;
-  color: var(--ink-soft);
-}
-.landing-ms-live {
-  color: var(--ink);
-}
 .landing-caret {
   display: inline-block;
   width: 2px;
@@ -523,24 +512,10 @@
     opacity: 0;
   }
 }
-/* The caret leaves the desk as the sentence reaches the phone. */
-.landing-caret-desk {
-  animation:
-    landing-blink var(--duration-caret) steps(1) infinite,
-    landing-caret-desk var(--duration-scene) step-end infinite;
-}
 .landing-caret-phone {
   animation:
     landing-blink var(--duration-caret) steps(1) infinite,
     landing-caret-phone var(--duration-scene) step-end infinite;
-}
-@keyframes landing-caret-desk {
-  0% {
-    visibility: visible;
-  }
-  30% {
-    visibility: hidden;
-  }
 }
 @keyframes landing-caret-phone {
   0% {
@@ -568,10 +543,7 @@
   box-shadow: 0 0 0 2px var(--band), 0 0 0 4px var(--butter);
 }
 .landing-sheet-head,
-.landing-ms,
-.landing-bible-list,
-.landing-bible-add,
-.landing-outline-list {
+.landing-sheet-shot {
   animation: landing-sheet-in var(--duration-base) var(--ease-out);
 }
 @keyframes landing-sheet-in {
@@ -583,96 +555,34 @@
   }
 }
 
-/* ---------- Characters and Outline tabs: mocks inside the sheet ---------- */
-.landing-bible-list,
-.landing-outline-list {
-  margin: 0 0 1.8cqw;
-  padding: 0;
-  list-style: none;
-  max-width: 40ch;
-}
-.landing-bible-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2cqw;
-  padding: 1.1cqw 0;
-  border-top: 1px solid var(--line);
-}
-.landing-bible-item:first-child {
-  border-top: none;
-}
-.landing-bible-file {
-  font-family: var(--mono);
-  font-size: 1.5cqw;
-  color: var(--accent);
-}
-.landing-bible-summary {
-  font-family: var(--serif);
-  font-size: 1.75cqw;
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-.landing-bible-add {
-  margin: 0 0 1.6cqw;
-  font-family: var(--mono);
-  font-size: 1.4cqw;
-  color: var(--ink-soft);
-  border: 1px dashed color-mix(in srgb, var(--ink-soft) 50%, transparent);
+/* ---------- Characters and Outline tabs: real screenshots, pinned to the sheet ---------- */
+.landing-sheet-shot {
+  position: relative;
+  width: 42cqw;
+  max-width: 100%;
+  aspect-ratio: var(--shot-ratio);
   border-radius: 3px;
-  padding: 0.9cqw 1.2cqw;
-  display: inline-block;
-}
-.landing-outline-card {
-  display: flex;
-  gap: 1.4cqw;
-  padding: 1.3cqw 0;
-  border-top: 1px solid var(--line);
-}
-.landing-outline-card:first-child {
-  border-top: none;
-}
-.landing-outline-card.is-active .landing-outline-title {
-  color: var(--accent);
-}
-.landing-outline-num {
-  flex: none;
-  width: 3.2cqw;
-  height: 3.2cqw;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 1.4cqw;
-  color: var(--ink-soft);
+  overflow: hidden;
   border: 1px solid var(--line);
+  box-shadow: var(--paper-shadow);
 }
-.landing-outline-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3cqw;
-  min-width: 0;
+.landing-sheet-shot picture,
+.landing-screen-shot picture {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-.landing-outline-title {
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 1.9cqw;
-  color: var(--ink);
+.landing-sheet-shot img,
+.landing-screen-shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
 }
-.landing-outline-blurb {
-  font-family: var(--serif);
-  font-size: 1.55cqw;
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-.landing-outline-meta {
-  display: flex;
-  gap: 1.2cqw;
-  font-family: var(--mono);
-  font-size: 1.15cqw;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+
+.landing-screen-shot {
+  padding: 0;
 }
 
 .landing-phone {
@@ -1455,9 +1365,6 @@
   .landing-type-in {
     background-size: 0 100%;
   }
-  .landing-caret-desk {
-    visibility: hidden;
-  }
 }
 :root[data-reduce-motion="true"] .landing-caret,
 :root[data-reduce-motion="true"] .landing-type-in,
@@ -1469,7 +1376,4 @@
 }
 :root[data-reduce-motion="true"] .landing-cycle-caret {
   display: none;
-}
-:root[data-reduce-motion="true"] .landing-caret-desk {
-  visibility: hidden;
 }

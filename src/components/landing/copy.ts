@@ -216,48 +216,55 @@ export const SCENE = {
   reminderNudge: "Mara still hasn't said who sent it.",
 };
 
-/** The three binder tabs beside the folder. Clicking one swaps the sheet for
-    a static mock of that real Ciciro screen, all in the world of The Letter,
+/** A screenshot pair (day/night) of a real Ciciro screen, cropped to sit on
+    the landing folder's paper sheet. See docs/landing-scene-shots.md for how
+    these were captured. */
+export type SceneShot = { day: string; night: string; width: number; height: number; alt: string };
+
+/** The three binder tabs beside the folder. Clicking one swaps the sheet, and
+    the phone beside it, for real Ciciro screens in the world of The Letter,
     so the tabs read as one manuscript. See Scene.tsx. */
-export const SCENE_TABS = {
-  chapters: { label: "Chapter 12" },
+export const SCENE_TABS: Record<
+  "chapters" | "characters" | "outline",
+  { label: string; tag: string; title: string; footNote: string; sheet: SceneShot; phone?: SceneShot }
+> = {
+  chapters: {
+    label: "Chapter 12",
+    tag: "CH. 12",
+    title: "The Letter",
+    footNote: "p. 214",
+    sheet: {
+      day: "/landing/scene-chapters-day.webp",
+      night: "/landing/scene-chapters-night.webp",
+      width: 545,
+      height: 480,
+      alt: 'The chapter editor open on Chapter 12, "The Letter": the harbour had gone quiet, and Mara took the letter from her coat pocket.',
+    },
+  },
   characters: {
     label: "Characters",
-    fileCount: "2 FILES",
-    subhead: "Markdown files Ciciro reads to plan, and writes decisions back to.",
-    items: [
-      {
-        file: "characters/mara.md",
-        summary: "Keeps the letter folded in her coat pocket. Hasn't told anyone who sent it.",
-      },
-      {
-        file: "characters/ines-lind.md",
-        summary: "Mara's aunt, seventy-one, grey eyes. Raised her after the harbour fire.",
-      },
-    ],
-    footNote: "2 files",
+    tag: "3 FILES",
+    title: "Story Bible",
+    footNote: "3 files",
+    sheet: {
+      day: "/landing/scene-characters-day.webp",
+      night: "/landing/scene-characters-night.webp",
+      width: 438,
+      height: 430,
+      alt: "The Story Bible drawer listing canon.md and the character files for Mara, Ines Lind and the Dockmaster.",
+    },
   },
   outline: {
     label: "Outline",
-    fileCount: "CH. 11-12",
-    hint: "Drag a chapter to reorder, or use the arrows.",
-    chapters: [
-      {
-        number: 11,
-        title: "What the Dockmaster Knew",
-        blurb: "He says a name. It isn't the one she expected.",
-        words: "1,940 words",
-        status: "Revised",
-      },
-      {
-        number: 12,
-        title: "The Letter",
-        blurb: "The paper's gone soft at the folds. She still hasn't opened it.",
-        words: "860 words",
-        status: "Draft",
-        active: true,
-      },
-    ],
-    footNote: "12 of 13",
+    tag: "CH. 8-12",
+    title: "Outline",
+    footNote: "12 chapters",
+    sheet: {
+      day: "/landing/scene-outline-day.webp",
+      night: "/landing/scene-outline-night.webp",
+      width: 632,
+      height: 555,
+      alt: 'The Outline panel listing Mara\'s chapters, ending on Chapter 12, "The Letter".',
+    },
   },
 };
