@@ -352,6 +352,28 @@
   font-family: var(--serif);
   font-size: 0.95rem;
   color: #141414;
+  border: none;
+  cursor: pointer;
+  opacity: 0.74;
+  transform: translateX(0);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.landing-tab.is-active {
+  opacity: 1;
+  transform: translateX(-6px);
+  box-shadow: -6px 4px 14px -6px rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+.landing-tab:hover {
+  opacity: 0.92;
+}
+.landing-tab:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--band), 0 0 0 4px var(--butter);
 }
 .landing-tab-v {
   background: var(--vermilion);
@@ -372,13 +394,34 @@
   .landing-tab {
     border-radius: 8px 0 0 8px;
   }
+  .landing-tab.is-active {
+    transform: translateX(6px);
+    box-shadow: 6px 4px 14px -6px rgba(0, 0, 0, 0.4);
+  }
 }
 @media (max-width: 640px) {
   .landing-tabs {
-    display: none;
+    position: static;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .landing-tab {
+    writing-mode: horizontal-tb;
+    width: auto;
+    height: auto;
+    padding: 7px 13px;
+    border-radius: 7px;
+    font-size: 0.8rem;
+    transform: translateY(0);
+  }
+  .landing-tab.is-active {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.4);
   }
   .landing-folder {
-    padding: 28px 0;
+    padding: 20px 0 28px;
     border-radius: 6px;
   }
 }
@@ -518,6 +561,117 @@
   border-top: 1px solid var(--line);
   font-family: var(--mono);
   font-size: 1.2cqw;
+  color: var(--ink-soft);
+}
+.landing-sheet:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--band), 0 0 0 4px var(--butter);
+}
+.landing-sheet-head,
+.landing-ms,
+.landing-bible-list,
+.landing-bible-add,
+.landing-outline-list {
+  animation: landing-sheet-in var(--duration-base) var(--ease-out);
+}
+@keyframes landing-sheet-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- Characters and Outline tabs: mocks inside the sheet ---------- */
+.landing-bible-list,
+.landing-outline-list {
+  margin: 0 0 1.8cqw;
+  padding: 0;
+  list-style: none;
+  max-width: 40ch;
+}
+.landing-bible-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2cqw;
+  padding: 1.1cqw 0;
+  border-top: 1px solid var(--line);
+}
+.landing-bible-item:first-child {
+  border-top: none;
+}
+.landing-bible-file {
+  font-family: var(--mono);
+  font-size: 1.5cqw;
+  color: var(--accent);
+}
+.landing-bible-summary {
+  font-family: var(--serif);
+  font-size: 1.75cqw;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.landing-bible-add {
+  margin: 0 0 1.6cqw;
+  font-family: var(--mono);
+  font-size: 1.4cqw;
+  color: var(--ink-soft);
+  border: 1px dashed color-mix(in srgb, var(--ink-soft) 50%, transparent);
+  border-radius: 3px;
+  padding: 0.9cqw 1.2cqw;
+  display: inline-block;
+}
+.landing-outline-card {
+  display: flex;
+  gap: 1.4cqw;
+  padding: 1.3cqw 0;
+  border-top: 1px solid var(--line);
+}
+.landing-outline-card:first-child {
+  border-top: none;
+}
+.landing-outline-card.is-active .landing-outline-title {
+  color: var(--accent);
+}
+.landing-outline-num {
+  flex: none;
+  width: 3.2cqw;
+  height: 3.2cqw;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 1.4cqw;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+.landing-outline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3cqw;
+  min-width: 0;
+}
+.landing-outline-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.9cqw;
+  color: var(--ink);
+}
+.landing-outline-blurb {
+  font-family: var(--serif);
+  font-size: 1.55cqw;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.landing-outline-meta {
+  display: flex;
+  gap: 1.2cqw;
+  font-family: var(--mono);
+  font-size: 1.15cqw;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ink-soft);
 }
 
