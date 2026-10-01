@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 /**
@@ -12,7 +13,7 @@ import sharp from "sharp";
  * Run with: node scripts/generate-brand-icons.mjs
  */
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const INK = "#141414";
 const BAND_INK = "#f3efe6";
@@ -61,8 +62,8 @@ async function main() {
 
   // Web favicon: SVG source (scales crisply in the tab bar) plus PNG
   // fallbacks for browsers/contexts that don't support SVG favicons.
-  writeFileSync(join(ROOT, "src/app/icon.svg"), badge);
-  console.log("wrote src/app/icon.svg");
+  writeFileSync(join(ROOT, "src/app/icon1.svg"), badge);
+  console.log("wrote src/app/icon1.svg");
   await renderPng(badge, 512, join(ROOT, "src/app/icon.png"), { opaque: true });
   await renderPng(badge, 180, join(ROOT, "src/app/apple-icon.png"), { opaque: true });
 
