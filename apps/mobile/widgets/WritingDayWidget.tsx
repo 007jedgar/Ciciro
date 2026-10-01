@@ -38,7 +38,10 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
       <Circle
         modifiers={[
           frame({ width: sealSize, height: sealSize }),
-          strokeBorder({ content: ink, style: { lineWidth: sealStroke } }),
+          // strokeBorder overlays a stroked shape (a rectangle unless told otherwise) and leaves
+          // the Circle's own fill in place, so clear the fill and stroke a circle.
+          foregroundStyle("#00000000"),
+          strokeBorder({ content: ink, style: { lineWidth: sealStroke }, shape: "circle" }),
         ]}
       />
       <HStack spacing={sealGap} modifiers={[frame({ width: sealSize, height: sealSize })]}>
