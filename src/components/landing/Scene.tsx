@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type KeyboardEvent } from "react";
-import { SCENE, SCENE_TABS } from "./copy";
+import { SCENE, SCENE_TABS, type SceneShot } from "./copy";
 
 type TabKey = "chapters" | "characters" | "outline";
 
@@ -76,35 +76,37 @@ export default function Scene() {
             <i />
             <i />
           </div>
-          {active === "chapters" && <ChaptersPanel />}
-          {active === "characters" && <CharactersPanel />}
-          {active === "outline" && <OutlinePanel />}
+          <SheetPanel active={active} key={active} />
         </div>
-        <div className="landing-phone" key={cycle} aria-hidden>
-          <div className="landing-screen">
-            <div className="landing-screen-meta">
-              <span>Thursday</span>
-              <span>9:41</span>
-            </div>
-            <div className="landing-reminder">
-              <span className="landing-reminder-app">
-                <span className="landing-reminder-icon">
-                  <i />
-                  <i />
-                  <i />
+        <div className="landing-phone" aria-hidden>
+          {SCENE_TABS[active].phone ? (
+            <PhoneShot shot={SCENE_TABS[active].phone as SceneShot} />
+          ) : (
+            <div className="landing-screen" key={cycle}>
+              <div className="landing-screen-meta">
+                <span>Thursday</span>
+                <span>9:41</span>
+              </div>
+              <div className="landing-reminder">
+                <span className="landing-reminder-app">
+                  <span className="landing-reminder-icon">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  Ciciro
                 </span>
-                Ciciro
-              </span>
-              <b>{SCENE.reminderTitle}</b>
-              <span>{SCENE.reminderBody}</span>
-              <span className="landing-reminder-nudge">{SCENE.reminderNudge}</span>
+                <b>{SCENE.reminderTitle}</b>
+                <span>{SCENE.reminderBody}</span>
+                <span className="landing-reminder-nudge">{SCENE.reminderNudge}</span>
+              </div>
+              <p>
+                ...only to feel the{" "}
+                <span className="landing-type-in">weight of it, warm from her pocket.</span>
+                <span className="landing-caret landing-caret-phone" />
+              </p>
             </div>
-            <p>
-              ...only to feel the{" "}
-              <span className="landing-type-in">weight of it, warm from her pocket.</span>
-              <span className="landing-caret landing-caret-phone" />
-            </p>
-          </div>
+          )}
         </div>
         <div className="landing-receipt" aria-hidden>
           <span className="landing-receipt-big">THIS WEEK</span>
@@ -141,83 +143,52 @@ export default function Scene() {
   );
 }
 
-function ChaptersPanel() {
+/** One screenshot, day and night, cropped from the real app. CSS on the
+    root's data-mode shows one and leaves the other display: none, unloaded. */
+function Shot({ shot, className }: { shot: SceneShot; className?: string }) {
   return (
     <>
-      <div className="landing-sheet-head">
-        <span className="landing-sheet-title">The Letter</span>
-        <span className="landing-file-no">CH. 12</span>
-      </div>
-      <p className="landing-ms">
-        The harbour had gone quiet by the time she reached the steps, and the lamps were only just
-        coming on along the wall.
-      </p>
-      <p className="landing-ms landing-ms-live">
-        Mara took the letter from her coat pocket, the paper gone soft at the folds. She
-        didn&apos;t need to unfold it, only to feel the
-        <span className="landing-caret landing-caret-desk" />
-      </p>
-      <div className="landing-sheet-foot">
-        <span>Last kept: desk, 9:12 pm</span>
-        <span>p. 214</span>
-      </div>
+      {(["day", "night"] as const).map((mode) => (
+        <picture key={mode} className={`landing-media-${mode}`}>
+          <img
+            className={className}
+            src={shot[mode]}
+            alt={shot.alt}
+            width={shot.width}
+            height={shot.height}
+            loading="lazy"
+            decoding="async"
+          />
+        </picture>
+      ))}
     </>
   );
 }
 
-function CharactersPanel() {
-  const data = SCENE_TABS.characters;
+function PhoneShot({ shot }: { shot: SceneShot }) {
   return (
-    <>
-      <div className="landing-sheet-head">
-        <span className="landing-sheet-title">Story Bible</span>
-        <span className="landing-file-no">{data.fileCount}</span>
-      </div>
-      <p className="landing-ms">{data.subhead}</p>
-      <ul className="landing-bible-list">
-        {data.items.map((item) => (
-          <li key={item.file} className="landing-bible-item">
-            <span className="landing-bible-file">{item.file}</span>
-            <span className="landing-bible-summary">{item.summary}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="landing-bible-add">+ New character</p>
-      <div className="landing-sheet-foot">
-        <span>Last kept: desk, 9:12 pm</span>
-        <span>{data.footNote}</span>
-      </div>
-    </>
+    <div className="landing-screen landing-screen-shot">
+      <Shot shot={shot} />
+    </div>
   );
 }
 
-function OutlinePanel() {
-  const data = SCENE_TABS.outline;
+/** The sheet for the active tab: a real screenshot, pinned under the file's
+    title and tag, with the same "last kept" ledger line every tab shares. */
+function SheetPanel({ active }: { active: TabKey }) {
+  const data = SCENE_TABS[active];
   return (
     <>
       <div className="landing-sheet-head">
-        <span className="landing-sheet-title">Outline</span>
-        <span className="landing-file-no">{data.fileCount}</span>
+        <span className="landing-sheet-title">{data.title}</span>
+        <span className="landing-file-no">{data.tag}</span>
       </div>
-      <p className="landing-ms">{data.hint}</p>
-      <ul className="landing-outline-list">
-        {data.chapters.map((chapter) => (
-          <li
-            key={chapter.number}
-            className={`landing-outline-card${chapter.active ? " is-active" : ""}`}
-          >
-            <span className="landing-outline-num">{chapter.number}</span>
-            <span className="landing-outline-body">
-              <span className="landing-outline-title">{chapter.title}</span>
-              <span className="landing-outline-blurb">{chapter.blurb}</span>
-              <span className="landing-outline-meta">
-                <span>{chapter.words}</span>
-                <span>{chapter.status}</span>
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+      <div
+        className="landing-sheet-shot"
+        style={{ "--shot-ratio": `${data.sheet.width} / ${data.sheet.height}` } as React.CSSProperties}
+      >
+        <Shot shot={data.sheet} />
+      </div>
       <div className="landing-sheet-foot">
         <span>Last kept: desk, 9:12 pm</span>
         <span>{data.footNote}</span>
