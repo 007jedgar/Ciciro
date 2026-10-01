@@ -16,28 +16,6 @@ export type WritingDayWidgetProps = {
   openUrl: string;
 };
 
-// The landing page's seal mark (src/components/BrandMark.tsx), drawn natively so it stays
-// crisp and themeable: a thin ink ring around three vermilion dots.
-const SealMark = ({ ink, vermilion, size = 14 }: { ink: string; vermilion: string; size?: number }) => {
-  "widget";
-  const dot = size * 0.22;
-  return (
-    <ZStack modifiers={[frame({ width: size, height: size })]}>
-      <Circle
-        modifiers={[
-          frame({ width: size, height: size }),
-          strokeBorder({ content: ink, style: { lineWidth: Math.max(1, size * 0.08) } }),
-        ]}
-      />
-      <HStack spacing={dot * 0.55} modifiers={[frame({ width: size, height: size })]}>
-        <Circle modifiers={[frame({ width: dot, height: dot }), foregroundStyle(vermilion)]} />
-        <Circle modifiers={[frame({ width: dot, height: dot }), foregroundStyle(vermilion)]} />
-        <Circle modifiers={[frame({ width: dot, height: dot }), foregroundStyle(vermilion)]} />
-      </HStack>
-    </ZStack>
-  );
-};
-
 const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetEnvironment) => {
   "widget";
   const words = Math.max(0, Math.floor(props.words));
@@ -48,6 +26,26 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
   const ink = environment.colorScheme === "dark" ? "#F4EDE3" : "#2C241B";
   const soft = environment.colorScheme === "dark" ? "#C9B8A4" : "#6B5B4D";
   const vermilion = environment.colorScheme === "dark" ? "#FF5A40" : "#E8442C";
+  // The landing page's seal mark (src/components/BrandMark.tsx): a thin ink ring around
+  // three vermilion dots. Inlined (not a separate component) since the widget runtime only
+  // captures the single tagged function passed to createWidget.
+  const sealSize = 14;
+  const sealDot = sealSize * 0.22;
+  const sealMark = (
+    <ZStack modifiers={[frame({ width: sealSize, height: sealSize })]}>
+      <Circle
+        modifiers={[
+          frame({ width: sealSize, height: sealSize }),
+          strokeBorder({ content: ink, style: { lineWidth: Math.max(1, sealSize * 0.08) } }),
+        ]}
+      />
+      <HStack spacing={sealDot * 0.55} modifiers={[frame({ width: sealSize, height: sealSize })]}>
+        <Circle modifiers={[frame({ width: sealDot, height: sealDot }), foregroundStyle(vermilion)]} />
+        <Circle modifiers={[frame({ width: sealDot, height: sealDot }), foregroundStyle(vermilion)]} />
+        <Circle modifiers={[frame({ width: sealDot, height: sealDot }), foregroundStyle(vermilion)]} />
+      </HStack>
+    </ZStack>
+  );
 
   if (family === "accessoryInline") {
     return (
@@ -98,7 +96,7 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
           padding({ top: 10, trailing: 10 }),
         ]}
       >
-        <SealMark ink={ink} vermilion={vermilion} />
+        {sealMark}
       </VStack>
     </ZStack>
   );
