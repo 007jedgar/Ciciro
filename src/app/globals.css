@@ -2552,6 +2552,8 @@ input[type="file"]::file-selector-button {
   cursor: pointer;
 }
 .auth-checkbox input {
+  width: auto;
+  flex: none;
   margin-top: 2px;
   accent-color: var(--accent);
 }
