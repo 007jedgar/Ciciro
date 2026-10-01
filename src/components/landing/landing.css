@@ -589,16 +589,17 @@
   right: 1%;
   top: 13%;
   width: 29%;
-  height: 84%;
   padding: 1.1cqw;
   border-radius: 4.4cqw;
   background: #0c0c0c;
   box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.6);
   transform: rotate(2.5deg);
 }
+/* The screen has the phone screenshots' own shape (520 x 959), so they show
+   whole at every width instead of being cropped at the sides. */
 .landing-screen {
   position: relative;
-  height: 100%;
+  aspect-ratio: 520 / 959;
   overflow: hidden;
   padding: 8.5cqw 2.8cqw 2.8cqw;
   border-radius: 3.4cqw;
@@ -711,8 +712,8 @@
 }
 
 .landing-receipt {
-  left: 47%;
-  top: 64%;
+  left: 37.5%;
+  top: -7%;
   width: 22%;
   padding: 2.6cqw 2cqw 2.4cqw;
   background: var(--butter);
@@ -740,11 +741,21 @@
   border-top: 1px dashed rgba(20, 20, 20, 0.5);
 }
 .landing-clip {
-  left: 62%;
-  top: 59%;
+  left: 52.5%;
+  top: -12%;
   width: 3.2cqw;
   height: 9cqw;
   transform: rotate(18deg);
+}
+/* On phones the tabs sit right above the sheet, so the receipt and its clip
+   drop below the screenshot instead of hanging over the top edge. */
+@media (max-width: 640px) {
+  .landing-receipt {
+    top: 69%;
+  }
+  .landing-clip {
+    top: 64%;
+  }
 }
 .landing-clip path {
   fill: none;
@@ -753,8 +764,8 @@
   stroke-linecap: round;
 }
 .landing-stamp {
-  left: 27%;
-  top: 72%;
+  left: 55.5%;
+  top: 50%;
   width: 13cqw;
   height: 13cqw;
   color: var(--stamp);
