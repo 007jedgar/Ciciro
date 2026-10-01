@@ -217,8 +217,7 @@ export const SCENE = {
 };
 
 /** A screenshot pair (day/night) of a real Ciciro screen, cropped to sit on
-    the landing folder's paper sheet. See docs/landing-scene-shots.md for how
-    these were captured. */
+    the landing folder's paper sheet. */
 export type SceneShot = { day: string; night: string; width: number; height: number; alt: string };
 
 /** The three binder tabs beside the folder. Clicking one swaps the sheet, and
