@@ -29,17 +29,19 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
   // The landing page's seal mark (src/components/BrandMark.tsx): a thin ink ring around
   // three vermilion dots. Inlined (not a separate component) since the widget runtime only
   // captures the single tagged function passed to createWidget.
-  const sealSize = 14;
-  const sealDot = sealSize * 0.22;
+  const sealSize = 18;
+  const sealDot = (sealSize * 7.2) / 48;
+  const sealGap = (sealSize * (9.5 - 7.2)) / 48;
+  const sealStroke = Math.max(1, (sealSize * 2) / 48);
   const sealMark = (
     <ZStack modifiers={[frame({ width: sealSize, height: sealSize })]}>
       <Circle
         modifiers={[
           frame({ width: sealSize, height: sealSize }),
-          strokeBorder({ content: ink, style: { lineWidth: Math.max(1, sealSize * 0.08) } }),
+          strokeBorder({ content: ink, style: { lineWidth: sealStroke } }),
         ]}
       />
-      <HStack spacing={sealDot * 0.55} modifiers={[frame({ width: sealSize, height: sealSize })]}>
+      <HStack spacing={sealGap} modifiers={[frame({ width: sealSize, height: sealSize })]}>
         <Circle modifiers={[frame({ width: sealDot, height: sealDot }), foregroundStyle(vermilion)]} />
         <Circle modifiers={[frame({ width: sealDot, height: sealDot }), foregroundStyle(vermilion)]} />
         <Circle modifiers={[frame({ width: sealDot, height: sealDot }), foregroundStyle(vermilion)]} />
