@@ -367,7 +367,7 @@
   box-shadow: -6px 4px 14px -6px rgba(0, 0, 0, 0.4);
   z-index: 1;
 }
-.landing-tab:hover {
+.landing-tab:not(.is-active):hover {
   opacity: 0.92;
 }
 .landing-tab:focus-visible {

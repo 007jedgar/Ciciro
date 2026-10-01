@@ -16,7 +16,14 @@ const TAB_COLOR: Record<TabKey, string> = { chapters: "v", characters: "b", outl
     folder never changes size when you switch. */
 export default function Scene() {
   const [active, setActive] = useState<TabKey>("chapters");
+  const [cycle, setCycle] = useState(0);
   const baseId = useId();
+
+  const select = (key: TabKey) => {
+    if (key === active) return;
+    if (key === "chapters") setCycle((n) => n + 1);
+    setActive(key);
+  };
 
   const focusTab = (key: TabKey) => {
     document.getElementById(`${baseId}-tab-${key}`)?.focus();
@@ -32,7 +39,7 @@ export default function Scene() {
     if (nextIndex === null) return;
     event.preventDefault();
     const next = TAB_ORDER[nextIndex];
-    setActive(next);
+    select(next);
     focusTab(next);
   };
 
@@ -49,7 +56,7 @@ export default function Scene() {
             aria-selected={active === key}
             aria-controls={`${baseId}-panel`}
             tabIndex={active === key ? 0 : -1}
-            onClick={() => setActive(key)}
+            onClick={() => select(key)}
             onKeyDown={(event) => onKeyDown(event, index)}
           >
             {SCENE_TABS[key].label}
@@ -73,7 +80,7 @@ export default function Scene() {
           {active === "characters" && <CharactersPanel />}
           {active === "outline" && <OutlinePanel />}
         </div>
-        <div className="landing-phone" aria-hidden>
+        <div className="landing-phone" key={cycle} aria-hidden>
           <div className="landing-screen">
             <div className="landing-screen-meta">
               <span>Thursday</span>
