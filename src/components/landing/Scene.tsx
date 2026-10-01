@@ -10,9 +10,11 @@ const TAB_COLOR: Record<TabKey, string> = { chapters: "v", characters: "b", outl
 
 /** The desk-to-phone handoff: a punched manuscript sheet in a cobalt folder,
     the phone that picks the sentence up, and the nudge that brought you back.
-    The three binder tabs are real tabs: each swaps the sheet for a static
-    mock of that screen, in the same world as the chapter (Mara, the letter,
-    the harbour), while the phone, receipt, clip and stamp stay put so the
+    The three binder tabs are real tabs: each swaps the sheet for a screenshot
+    of that screen from the real app, in the same world as the chapter (Mara,
+    the letter, the harbour). The phone shows that tab's mobile screenshot, or
+    the typing animation when the tab has none (Chapters). The receipt, clip
+    and stamp stay put, and every screenshot sits in a fixed-size slot, so the
     folder never changes size when you switch. */
 export default function Scene() {
   const [active, setActive] = useState<TabKey>("chapters");
