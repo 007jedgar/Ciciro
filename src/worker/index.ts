@@ -10,7 +10,8 @@
 //      poke hub on each request, so durable editor-run slices are serialized
 //      fleet-wide and a head that moves in one isolate reaches the streams held
 //      open by the others, and
-//   3. bind D1 + a request-scoped Prisma client (never a process singleton),
+//   3. bind D1 for the request. Route handlers take a Prisma client from the
+//      OpenNext request context (one per request, not the isolate singleton),
 //   4. copy string vars/secrets onto process.env so Next.js route handlers can
 //      read ANTHROPIC_API_KEY (OpenNext + a custom entry does not always do this),
 //   5. copy x-ciciro-session onto Cookie and publish the token in ALS so
@@ -19,7 +20,7 @@
 // wrangler.jsonc `main` points at this file.
 
 import { EditorRunDO } from "./run-do";
-import { setD1Database } from "../lib/d1-binding";
+import { runWithD1Database, setD1Database } from "../lib/d1-binding";
 import { runWithRequestPrisma } from "../lib/db";
 import { runScheduledEmailJobs } from "../lib/email/cron";
 import {
@@ -70,7 +71,10 @@ export default {
       runWithRequestSession(sessionTokenFromHeaders(forwarded.headers), () =>
         openNextHandler.fetch(forwarded, env, ctx)
       );
-    return env.DB ? runWithRequestPrisma(env.DB, handle) : handle();
+    // Prisma is created inside the handler, on the OpenNext request context.
+    // Wrapping fetch with a client here either shares one isolate client
+    // across requests or builds an engine the handler never sees.
+    return env.DB ? runWithD1Database(env.DB, handle) : handle();
   },
 
   // The daily Cron Trigger (wrangler.jsonc's `triggers.crons`): welcome-
