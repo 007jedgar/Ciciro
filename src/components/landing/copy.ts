@@ -253,6 +253,13 @@ export const SCENE_TABS: Record<
       height: 430,
       alt: "The Story Bible drawer listing canon.md and the character files for Mara, Ines Lind and the Dockmaster.",
     },
+    phone: {
+      day: "/landing/scene-characters-phone-day.webp",
+      night: "/landing/scene-characters-phone-night.webp",
+      width: 520,
+      height: 959,
+      alt: "The mobile Story Bible screen listing the same character files for Mara, Ines Lind and the Dockmaster.",
+    },
   },
   outline: {
     label: "Outline",
@@ -265,6 +272,13 @@ export const SCENE_TABS: Record<
       width: 632,
       height: 555,
       alt: 'The Outline panel listing Mara\'s chapters, ending on Chapter 12, "The Letter".',
+    },
+    phone: {
+      day: "/landing/scene-outline-phone-day.webp",
+      night: "/landing/scene-outline-phone-night.webp",
+      width: 520,
+      height: 959,
+      alt: "The mobile Outline screen listing the same chapters of Mara's story.",
     },
   },
 };
