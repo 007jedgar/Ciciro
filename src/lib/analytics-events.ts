@@ -60,7 +60,15 @@ export type EventCatalog = {
     currency?: string;
   };
   subscription_renewed: { plan: string; platform: Platform; interval?: "month" | "year" };
+  // Two distinct moments, not one: subscription_canceled is "auto-renew just
+  // turned off, Pro stays active until the period ends" (store CANCELLATION;
+  // Stripe customer.subscription.updated newly scheduling an end).
+  // subscription_ended is "access is actually gone now" (store EXPIRATION;
+  // Stripe customer.subscription.deleted). A churn/Lifecycle insight that
+  // mixes the two compares different moments across platforms - see
+  // docs/analytics.md.
   subscription_canceled: { plan: string; platform: Platform };
+  subscription_ended: { plan: string; platform: Platform };
 
   // Manuscript lifecycle
   project_created: { kind: string; isFirstProject: boolean };
@@ -119,8 +127,13 @@ export interface AnalyticsAdapter {
   identify(userId: string, properties?: PersonProperties): void;
   /** Forget the current identity. Call on sign-out, before any next identify(). */
   reset(): void;
-  /** Record one typed event. */
-  track<E extends EventName>(event: E, properties: EventProperties<E>): void;
+  /**
+   * Record one typed event. `options.beacon` asks the transport to survive
+   * the page or app being torn down right now (e.g. a browser's Beacon API),
+   * for an event fired from a visibilitychange/pagehide or backgrounding
+   * handler. A provider that has no such concern (server, native) ignores it.
+   */
+  track<E extends EventName>(event: E, properties: EventProperties<E>, options?: { beacon?: boolean }): void;
   /** Record a screen or page view. */
   screen(name: string, properties?: Record<string, unknown>): void;
   /** Properties stamped on every subsequent event (platform, app version, release). */
@@ -147,7 +160,11 @@ export class NoopAnalyticsAdapter implements AnalyticsAdapter {
 }
 
 export type RecordedIdentify = { userId: string; properties?: PersonProperties };
-export type RecordedTrack = { event: EventName; properties: Record<string, unknown> };
+export type RecordedTrack = {
+  event: EventName;
+  properties: Record<string, unknown>;
+  options?: { beacon?: boolean };
+};
 export type RecordedScreen = { name: string; properties?: Record<string, unknown> };
 
 /**
@@ -171,8 +188,12 @@ export class MemoryAnalyticsAdapter implements AnalyticsAdapter {
   reset(): void {
     this.resetCount += 1;
   }
-  track<E extends EventName>(event: E, properties: EventProperties<E>): void {
-    this.tracks.push({ event, properties: properties as Record<string, unknown> });
+  track<E extends EventName>(
+    event: E,
+    properties: EventProperties<E>,
+    options?: { beacon?: boolean }
+  ): void {
+    this.tracks.push({ event, properties: properties as Record<string, unknown>, options });
   }
   screen(name: string, properties?: Record<string, unknown>): void {
     this.screens.push({ name, properties });
@@ -206,25 +227,68 @@ export function followIdentity(
   return next;
 }
 
+/** A screen view's controls: see trackScreenView. */
+export type ScreenView = {
+  /** The screen was left for good (route change, unmount). Ends the view. */
+  leave: () => void;
+  /**
+   * The screen is no longer visible but may come back (tab hidden, app
+   * backgrounded): commits the duration so far, with a beacon-safe send,
+   * since this can fire right before the page or process goes away.
+   */
+  pause: () => void;
+  /** The screen is visible again after a pause: restarts the clock. */
+  resume: () => void;
+};
+
 /**
- * Track a screen view and return a function to call when the screen is left,
- * which records its view duration (screen_duration). Shared by web (route
- * changes) and mobile (navigation state changes) so "average time per
- * screen" is queryable the same way on both platforms. Safe to call the
- * returned function more than once; only the first call records.
+ * Track a screen view. Shared by web (route changes) and mobile (navigation
+ * state changes) so "average time per screen" is queryable the same way on
+ * both platforms.
+ *
+ * A screen_duration fired only on route change would lose the very last
+ * screen of a session (closing a tab or the app never runs that cleanup) and
+ * would inflate across any time spent backgrounded (a tab left open
+ * overnight). The caller is expected to wire pause()/resume() to its
+ * platform's visibility signal (web: visibilitychange/pagehide; mobile:
+ * AppState) so each committed segment is actual visible time. Calling
+ * leave(), pause(), or resume() out of turn (e.g. leave() twice) is safe and
+ * a no-op past the first effective call.
  */
 export function trackScreenView(
   adapter: AnalyticsAdapter,
   screen: string,
   properties?: Record<string, unknown>,
   now: () => number = Date.now
-): () => void {
-  const startedAt = now();
+): ScreenView {
   adapter.screen(screen, properties);
+  let segmentStart = now();
   let ended = false;
-  return () => {
-    if (ended) return;
-    ended = true;
-    adapter.track("screen_duration", { screen, durationMs: Math.max(0, now() - startedAt) });
+  let paused = false;
+
+  function commit(beacon: boolean): void {
+    adapter.track(
+      "screen_duration",
+      { screen, durationMs: Math.max(0, now() - segmentStart) },
+      beacon ? { beacon: true } : undefined
+    );
+  }
+
+  return {
+    leave(): void {
+      if (ended || paused) return;
+      ended = true;
+      commit(false);
+    },
+    pause(): void {
+      if (ended || paused) return;
+      paused = true;
+      commit(true);
+    },
+    resume(): void {
+      if (ended || !paused) return;
+      paused = false;
+      segmentStart = now();
+    },
   };
 }

@@ -226,6 +226,29 @@ function scheduledEnd(sub: Pick<Stripe.Subscription, "cancel_at" | "cancel_at_pe
 }
 
 /**
+ * The moment a cancellation is newly scheduled by this update - not one
+ * already scheduled before it (a later, unrelated change to the same
+ * subscription) and not one just undone. Null unless this update is that
+ * moment. Shared by the cancellation email and the subscription_canceled
+ * analytics event, which both fire at this same moment (auto-renew just
+ * turned off; Pro still runs until endsAt) - see docs/analytics.md.
+ */
+function newlyScheduledCancellation(event: Stripe.Event): Date | null {
+  if (event.type !== "customer.subscription.updated") return null;
+  const sub = event.data.object;
+  const endsAt = scheduledEnd(sub);
+  if (!endsAt || !LIVE_STRIPE_STATUSES.has(sub.status)) return null;
+  const previous = event.data.previous_attributes ?? {};
+  const before = {
+    cancel_at: "cancel_at" in previous ? (previous.cancel_at ?? null) : sub.cancel_at,
+    cancel_at_period_end:
+      "cancel_at_period_end" in previous ? Boolean(previous.cancel_at_period_end) : sub.cancel_at_period_end,
+    items: sub.items,
+  };
+  return scheduledEnd(before) ? null : endsAt;
+}
+
+/**
  * The analytics event a webhook delivery owes, if any. Runs after the sync,
  * same as the email: only a change Ciciro actually applied gets counted.
  * Web billing only - RevenueCat's own webhook covers store purchases.
@@ -256,8 +279,16 @@ async function captureBillingAnalytics(event: Stripe.Event, userId: string): Pro
     );
     return;
   }
-  if (event.type === "customer.subscription.deleted") {
+  // "Canceled" is the moment auto-renew turns off, Pro still active until
+  // the period ends - matching RevenueCat's CANCELLATION.
+  if (event.type === "customer.subscription.updated") {
+    if (!newlyScheduledCancellation(event)) return;
     waitUntilRequest(captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform: "web" }));
+    return;
+  }
+  // "Ended" is access actually gone now - matching RevenueCat's EXPIRATION.
+  if (event.type === "customer.subscription.deleted") {
+    waitUntilRequest(captureServerEvent(userId, "subscription_ended", { plan: "pro", platform: "web" }));
   }
 }
 
@@ -284,17 +315,8 @@ async function sendBillingEmail(event: Stripe.Event, user: BillingEmailRecipient
     case "customer.subscription.updated": {
       // Scheduling a cancellation (the portal's Cancel) is when the author
       // cancels, so that is when they hear about it, with the date Pro ends.
-      const sub = event.data.object;
-      const endsAt = scheduledEnd(sub);
-      if (!endsAt || !LIVE_STRIPE_STATUSES.has(sub.status)) return;
-      const previous = event.data.previous_attributes ?? {};
-      const before = {
-        cancel_at: "cancel_at" in previous ? (previous.cancel_at ?? null) : sub.cancel_at,
-        cancel_at_period_end:
-          "cancel_at_period_end" in previous ? Boolean(previous.cancel_at_period_end) : sub.cancel_at_period_end,
-        items: sub.items,
-      };
-      if (scheduledEnd(before)) return;
+      const endsAt = newlyScheduledCancellation(event);
+      if (!endsAt) return;
       await sendSubscriptionCanceledEmail(user, { eventId: event.id, endsAt, resubscribeUrl: pricingUrl });
       return;
     }

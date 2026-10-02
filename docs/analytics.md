@@ -32,13 +32,22 @@ catalog, never a vendor SDK:
 - Server sends never block or fail a request: they go through
   `waitUntilRequest` (`src/lib/db.ts`) and `captureServerEvent` swallows every
   error internally.
-- Screen tracking: `trackScreenView` in the catalog file returns a `leave()`
-  closure that fires `screen_duration` with the elapsed time, called from
-  `src/components/AnalyticsProvider.tsx` (web, on `usePathname()` change,
-  starting only once `/api/auth/me` has answered so `/` is never miscounted
-  as `landing` for a signed-in author) and
-  `apps/mobile/components/AnalyticsSync.tsx` (mobile, same pattern over
-  expo-router).
+- Screen tracking: `trackScreenView` in the catalog file returns a
+  `{ leave, pause, resume }` `ScreenView`. `leave()` fires `screen_duration`
+  on a route change; `pause()`/`resume()` commit and restart the clock when
+  the screen stops or starts being actually visible, since a screen_duration
+  fired only on route change would lose the very last screen of a session
+  (closing a tab or the app never runs that cleanup) and would inflate
+  across time spent backgrounded. Web (`src/components/AnalyticsProvider.tsx`)
+  wires `pause`/`resume` to `visibilitychange`/`pagehide`, starting screen
+  tracking only once `/api/auth/me` has answered so `/` is never miscounted
+  as `landing` for a signed-in author; a `pause()`-triggered send asks the
+  adapter for a beacon-safe transport (`track(..., { beacon: true })`,
+  `posthog-js`'s `sendBeacon`) since it can fire right before the tab closes.
+  Mobile (`apps/mobile/components/AnalyticsSync.tsx`) wires them to
+  `AppState` background/inactive and active, through the same
+  inject-the-listener pattern as `listenWhenActive` in `sync-engine.ts`
+  (`pauseResumeOnAppState`), for testability without mocking React Native.
 
 ## Privacy rules
 
@@ -98,7 +107,7 @@ that answers it. "Trends" and "Funnels" are PostHog's own insight types.
 | Time to first manuscript | `account_created` -> `project_created` (`isFirstProject: true`) | Funnel with "time to convert" between the two steps |
 | Days to set up a reminder | `account_created` -> `reminder_enabled` | Funnel with "time to convert", bucketed in days |
 | Feature usage, any feature | the feature-usage events below | Trends: count per event, breakdown by event name; or a Funnel from `account_created` to first use of a given feature, for adoption |
-| Subscription lifecycle | `subscription_purchased` / `subscription_renewed` / `subscription_canceled` (`plan`, `platform`, `interval?`) | Trends over time, breakdown by `plan`/`platform`; a Lifecycle insight for net new/churned |
+| Subscription lifecycle | `subscription_purchased` / `subscription_renewed` / `subscription_canceled` / `subscription_ended` (`plan`, `platform`, `interval?`) | Trends over time, breakdown by `plan`/`platform`; a Lifecycle insight for net new/churned |
 | Retention | any event, typically `screen_duration` or `chat_message_sent` as the "active" signal | Retention insight, cohorted by `account_created` week |
 | Impact of a change on usability/retention/subscriptions | any of the above, filtered or broken down by the `release` super property | Trends/Funnel/Retention with a `release` breakdown or filter, comparing before/after a `CICIRO_RELEASE` value |
 
@@ -146,10 +155,22 @@ property shape.
 Identity, lifecycle, conversion, and billing events (`account_created`,
 `signed_in`, `signed_out`, `paywall_viewed`, `paywall_cta_clicked`,
 `checkout_started`, `purchase_cancelled`, `subscription_purchased`,
-`subscription_renewed`, `subscription_canceled`, `reminder_enabled`,
-`reminder_disabled`, `account_exported`) are covered by the identity,
-billing-webhook, and settings code paths directly; see the catalog file's
-comments for exactly where each fires.
+`subscription_renewed`, `subscription_canceled`, `subscription_ended`,
+`reminder_enabled`, `reminder_disabled`, `account_exported`) are covered by
+the identity, billing-webhook, and settings code paths directly; see the
+catalog file's comments for exactly where each fires.
+
+`subscription_canceled` and `subscription_ended` are two distinct moments,
+not one, because they mean different things on each store: `subscription_canceled`
+fires when auto-renew turns off and Pro keeps running until the period ends
+(RevenueCat `CANCELLATION`; Stripe `customer.subscription.updated` newly
+scheduling an end, via `newlyScheduledCancellation` in `src/lib/billing/stripe.ts`,
+the same moment the cancellation email fires). `subscription_ended` fires
+when access is actually gone (RevenueCat `EXPIRATION`; Stripe
+`customer.subscription.deleted`). A web user who turns off auto-renew
+without later finishing the period, and a store `EXPIRATION`, now both fire
+the event that matches what actually happened, so a Lifecycle insight
+compares the same moment across platforms.
 
 ## Known gaps (documented, not fixed in this pass)
 
@@ -191,6 +212,13 @@ comments for exactly where each fires.
 5. `CICIRO_RELEASE` is optional but worth setting from CI (e.g. the git SHA)
    once this ships, so a before/after release comparison is possible from
    day one rather than retrofitted later.
+6. Confirm the RevenueCat webhook (Project settings -> Integrations ->
+   Webhooks) is configured to deliver `EXPIRATION` events, not just purchase
+   and cancellation ones - `subscription_ended` on iOS/Android depends on it,
+   and this repo cannot verify or change that dashboard setting itself. The
+   Stripe side needs no equivalent check: `customer.subscription.updated` and
+   `customer.subscription.deleted` are already handled events the webhook
+   endpoint receives today.
 
 ## App Store privacy label notes
 

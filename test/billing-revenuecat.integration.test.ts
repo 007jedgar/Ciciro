@@ -6,6 +6,7 @@ import { hashSessionToken } from "@/lib/auth/tokens";
 import { hashPassword } from "@/lib/auth/password";
 import { getEntitlement } from "@/lib/entitlements";
 import { storeStatus } from "@/lib/billing/revenuecat";
+import * as analyticsServer from "@/lib/analytics-server";
 import { POST as webhook } from "@/app/api/billing/webhooks/revenuecat/route";
 import { POST as sync } from "@/app/api/billing/sync/route";
 import { DELETE as deleteAccountRoute } from "@/app/api/auth/account/route";
@@ -31,6 +32,19 @@ async function account(label: string) {
 let eventCount = 0;
 function rcEvent(type: string, appUserId: string, extra: Record<string, unknown> = {}) {
   return { api_version: "1.0", event: { id: `rc-evt-${eventCount++}`, type, app_user_id: appUserId, ...extra } };
+}
+
+type Captured = { userId: string; event: string; properties: Record<string, unknown> };
+
+/** Capture the analytics events a webhook hands off, without sending them. */
+function captureAnalytics(): () => Captured[] {
+  const spy = vi.spyOn(analyticsServer, "captureServerEvent").mockResolvedValue(undefined);
+  return () =>
+    spy.mock.calls.map(([userId, event, properties]) => ({
+      userId,
+      event,
+      properties: properties as Record<string, unknown>,
+    }));
 }
 
 async function deliver(fake: FakeRevenueCat, payload: unknown, authorization: string | null = fake.webhookAuthorization) {
@@ -129,6 +143,21 @@ describe("RevenueCat billing", () => {
     await deliver(fake, rcEvent("EXPIRATION", user.id));
     const row = await prisma.subscription.findFirstOrThrow({ where: { userId: user.id } });
     expect(row.status).toBe("expired");
+  });
+
+  it("fires subscription_canceled on auto-renew off, and subscription_ended once access is actually gone", async () => {
+    const user = await account("lifecycle-analytics");
+    fake.subscribers.set(user.id, { ciciro_pro_monthly: { store: "app_store", expires_date: future() } });
+    await deliver(fake, rcEvent("INITIAL_PURCHASE", user.id));
+    const captured = captureAnalytics();
+
+    await deliver(fake, rcEvent("CANCELLATION", user.id, { cancel_reason: "CUSTOMER_SUPPORT" }));
+    await deliver(fake, rcEvent("EXPIRATION", user.id));
+
+    expect(captured()).toEqual([
+      { userId: user.id, event: "subscription_canceled", properties: { plan: "pro", platform: "ios" } },
+      { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "ios" } },
+    ]);
   });
 
   it("keeps Pro through a billing issue and a turned-off auto-renew", async () => {
