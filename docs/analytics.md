@@ -173,7 +173,8 @@ the cancellation email fires); or Stripe `customer.subscription.deleted` when
 no end was scheduled beforehand, in which case it fires right before
 `subscription_ended`, at the same instant. `subscription_ended` fires when
 access is actually gone (RevenueCat `EXPIRATION`; Stripe
-`customer.subscription.deleted`). Its `reason` says why:
+`customer.subscription.deleted`). `subscription_canceled`'s `reason` says
+why:
 
 - `voluntary`: the subscriber turned off auto-renew (Stripe's scheduled
   cancellation; RevenueCat `cancel_reason` `UNSUBSCRIBE`).
