@@ -89,5 +89,9 @@
   //                            has no request to read an origin from
   //   EXPO_ACCESS_TOKEN      - optional; Expo Push API token once enhanced push
   //                            security is on (docs/mobile-release.md)
+  //   POSTHOG_PROJECT_API_KEY - optional; server-side analytics capture
+  //   POSTHOG_PERSONAL_API_KEY,
+  //   POSTHOG_PROJECT_ID      - optional; let account deletion ask PostHog to
+  //                             forget the person (docs/analytics.md)
   // Hosted auth/session data lives in the D1 binding above, not DATABASE_URL.
 }

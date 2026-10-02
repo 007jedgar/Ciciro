@@ -58,6 +58,19 @@ mid-stream error leaves a truncated zip; one that won't open, or lacks
 `manifest.json`, means retry the export. The phone checks the zip's end record
 before sharing and reports a truncated download instead.
 
+## Analytics
+
+Product analytics (`src/lib/analytics-server.ts`, see
+[docs/analytics.md](analytics.md)) is not a Prisma model, so it is out of
+scope for `PURGED_MODELS`/`EXPORT_TABLES`, but it still holds data about the
+account: events keyed by the internal user id, with properties that are
+counts, enum-like strings, and flags, never email, name, or manuscript/chat
+content. The `posthog-delete-person` `PRE_DELETE_HOOK` (step 1 above) asks
+PostHog to forget the person and their events; it is best-effort (catches its
+own errors, so a PostHog outage never blocks deletion) and unset
+`POSTHOG_PERSONAL_API_KEY`/`POSTHOG_PROJECT_ID` makes it a no-op, same as
+every other analytics call in that case.
+
 Left out on purpose: password hash, session and email-link token hashes, the
 Apple refresh token, the codes and challenges of pending app sign-ins, share
 link tokens, the rate-limit hash of beta readers' IPs, editor-run lock tokens,
