@@ -73,7 +73,13 @@ export async function createProject(
     title: readTrimmed(input.title),
     today: parseYmd(input.today) ?? undefined,
   });
-  return prisma.project.create({
+  // Counted before the create, atomically with it from the caller's view -
+  // the API response is the only place isFirstProject is computed, so
+  // callers never race against their own, possibly stale, project list.
+  const existingCount = await prisma.project.count({
+    where: { userId: user?.id ?? null },
+  });
+  const project = await prisma.project.create({
     data: {
       userId: user?.id ?? null,
       folderId: folderId ?? null,
@@ -88,6 +94,7 @@ export async function createProject(
     },
     include: { chapters: { orderBy: { order: "asc" } } },
   });
+  return { ...project, isFirstProject: existingCount === 0 };
 }
 
 export async function getProject(id: string, user: PublicUser | null) {

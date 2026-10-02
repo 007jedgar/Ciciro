@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { createManuscript } from "../lib/manuscripts";
+import { getAnalytics } from "../lib/analytics-client";
 import { MANUSCRIPT_KINDS, type ManuscriptKind } from "../lib/manuscript-kind";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
@@ -41,6 +42,10 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
         ...(kind !== "novel" ? { kind } : {}),
         ...(kind === "blog" && subtitle.trim() ? { logline: subtitle } : {}),
         ...(folderId ? { folderId } : {}),
+      });
+      getAnalytics().track("project_created", {
+        kind: project.kind ?? "novel",
+        isFirstProject: project.isFirstProject,
       });
       onCreated(project);
     } catch (err) {

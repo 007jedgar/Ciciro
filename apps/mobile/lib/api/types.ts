@@ -92,6 +92,7 @@ export type ProjectDetail = ProjectRecord & {
 
 export type ProjectCreated = ProjectRecord & {
   chapters: Chapter[];
+  isFirstProject: boolean;
 };
 
 export type Folder = {

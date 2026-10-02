@@ -91,13 +91,11 @@ that answers it. "Trends" and "Funnels" are PostHog's own insight types.
 | Retention | any event, typically `screen_duration` or `chat_message_sent` as the "active" signal | Retention insight, cohorted by `account_created` week |
 | Impact of a change on usability/retention/subscriptions | any of the above, filtered or broken down by the `release` super property | Trends/Funnel/Retention with a `release` breakdown or filter, comparing before/after a `CICIRO_RELEASE` value |
 
-`cta_clicked` and `project_created` are declared in the catalog but have no
-call site yet: `cta_clicked` needs a per-button survey of marketing surfaces
-(landing page, pricing page) to decide which buttons count as a CTA, and
-`project_created` needs wiring into the "new manuscript" flow. Both are
-deliberately scoped out of this pass to avoid guessing at marketing copy;
-wiring them is a small, isolated follow-up against the existing catalog
-entries.
+`cta_clicked` is declared in the catalog but has no call site yet: it needs a
+per-button survey of marketing surfaces (landing page, pricing page) to
+decide which buttons count as a CTA, which is deliberately scoped out of
+this pass to avoid guessing at marketing copy. Wiring it is a small,
+isolated follow-up against the existing catalog entry.
 
 ## Feature-usage event inventory
 
@@ -107,6 +105,7 @@ property shape.
 
 | Event | Fires on | Platform |
 | --- | --- | --- |
+| `project_created` (`kind`, `isFirstProject`) | Creating a new (non-imported) manuscript. `isFirstProject` is computed server-side in `createProject` (a count of the account's existing projects taken atomically with the create), never client-side, so neither platform races its own project list | Both |
 | `chat_message_sent` | Sending a typed chat message (not quick actions, not resumed turns) | Both |
 | `quick_action_used` (`action`, `kind`) | Running a quick-action chip. Web's `action` is the shared `src/lib/prompts.ts` action id; mobile's is its own smaller `continue`/`rewrite`/`describe` set - the two are not the same vocabulary | Both |
 | `autowrite_used` | Starting an Auto-draft run | Web only (no mobile Autowrite UI exists; see AGENTS.md) |
@@ -143,7 +142,7 @@ comments for exactly where each fires.
 
 ## Known gaps (documented, not fixed in this pass)
 
-- **`cta_clicked` and `project_created`** are declared but unused; see above.
+- **`cta_clicked`** is declared but unused; see above.
 - **Email link clicks and widget glances have no event.** Email templates
   carry no attribution query param, and `apps/mobile/lib/writing-widget.ts`'s
   deep link is byte-identical to any other navigation to the same route, so
