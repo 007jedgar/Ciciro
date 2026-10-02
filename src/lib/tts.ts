@@ -45,9 +45,9 @@ export function splitSentences(text: string): SentenceRange[] {
   return out;
 }
 
-/** First two letters, lowercased, of a BCP-47 tag like "en-US" or "en". */
+/** Primary language subtag, lowercased, of a BCP-47 tag like "en-US", "fil-PH" or "en". */
 export function languagePrefix(lang: string | undefined | null): string {
-  return (lang ?? "").slice(0, 2).toLowerCase();
+  return (lang ?? "").split(/[-_]/)[0].toLowerCase();
 }
 
 /** Keep only voices whose language matches `language` (e.g. the browser's `navigator.language`). */

@@ -35,6 +35,7 @@ export default function ReadAloud({
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<ReaderState>("idle");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   const [progress, setProgress] = useState({ index: 0, total: 0, selection: false });
   const readerRef = useRef<SpeechReader<SpeechSynthesisUtterance> | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
@@ -49,7 +50,12 @@ export default function ReadAloud({
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     setSupported(true);
     const synth = window.speechSynthesis;
-    const load = () => setVoices(sortVoices(filterVoicesByLanguage(synth.getVoices(), currentLanguage())));
+    const load = () => {
+      const all = synth.getVoices();
+      if (all.length === 0) return;
+      setVoices(sortVoices(filterVoicesByLanguage(all, currentLanguage())));
+      setVoicesLoaded(true);
+    };
     load();
     synth.addEventListener("voiceschanged", load);
     const reader = new SpeechReader<SpeechSynthesisUtterance>(
@@ -77,10 +83,10 @@ export default function ReadAloud({
   // A voice picked under a different language no longer matches the filtered
   // list; drop it rather than leaving a stale, invisible selection in place.
   useEffect(() => {
-    if (!prefs.voiceURI) return;
+    if (!voicesLoaded || !prefs.voiceURI) return;
     if (voices.some((v) => v.voiceURI === prefs.voiceURI)) return;
     setTtsPrefs({ voiceURI: null });
-  }, [voices, prefs.voiceURI]);
+  }, [voicesLoaded, voices, prefs.voiceURI]);
 
   const play = useCallback(() => {
     const reader = readerRef.current;
@@ -160,7 +166,7 @@ export default function ReadAloud({
         </label>
         <label>
           Voice{" "}
-          {voices.length === 0 ? (
+          {voicesLoaded && voices.length === 0 ? (
             <span className="read-aloud-empty">No voices for {currentLanguage()} on this device</span>
           ) : (
             <select
