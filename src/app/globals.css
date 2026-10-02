@@ -1697,6 +1697,18 @@ input[type="file"]::file-selector-button {
   min-height: 42px;
   max-height: 160px;
 }
+/* Send, Stop and Stopping… share one width (the widest label, kept as a
+   hidden sizer) so the textarea never reflows when the label changes. */
+.composer-action {
+  display: inline-grid;
+  justify-items: center;
+}
+.composer-action > span {
+  grid-area: 1 / 1;
+}
+.composer-action > span[aria-hidden="true"] {
+  visibility: hidden;
+}
 .selection-note {
   font-size: 11px;
   color: var(--accent);
