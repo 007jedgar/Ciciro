@@ -23,7 +23,7 @@ export type EmailPreferenceRow = {
 const DEFAULT_TOPICS = { productUpdates: true, weeklyEmail: true, offers: true };
 
 function newToken(): string {
-  return randomBytes(24).toString("base64url");
+  return Buffer.from(randomBytes(24)).toString("base64url");
 }
 
 /** Get a user's row, or the defaults a missing row implies (marketing off). */
