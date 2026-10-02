@@ -25,6 +25,7 @@ import { runWithD1Database, setD1Database } from "../lib/d1-binding";
 import { disposeRequestPrisma, runWithRequestPrisma } from "../lib/db";
 import { runWithRequestLifetime } from "./request-lifetime";
 import { runScheduledEmailJobs } from "../lib/email/cron";
+import { runScheduledPushJobs } from "../lib/push/cron";
 import {
   setRunDurableObjectNamespace,
   type RunDurableObjectNamespace,
@@ -87,14 +88,19 @@ export default {
   },
 
   // The daily Cron Trigger (wrangler.jsonc's `triggers.crons`): welcome-
-  // sequence day-eligibility and the Monday-gated changelog digest, both in
-  // src/lib/email/cron.ts. `scheduledTime` is the tick's own clock, not
-  // `Date.now()`, so a delayed invocation still evaluates day-N thresholds
-  // against the time it was due.
+  // sequence day-eligibility and the Monday-gated changelog digest (both in
+  // src/lib/email/cron.ts), then the push cron jobs (src/lib/push/cron.ts:
+  // today just the writing-nudge). `scheduledTime` is the tick's own clock,
+  // not `Date.now()`, so a delayed invocation still evaluates day-N
+  // thresholds against the time it was due.
   async scheduled(event: { scheduledTime: number }, env: Env): Promise<void> {
     publishStringEnv(env);
     if (env.DB) setD1Database(env.DB);
-    const run = () => runScheduledEmailJobs(new Date(event.scheduledTime));
+    const run = async () => {
+      const now = new Date(event.scheduledTime);
+      await runScheduledEmailJobs(now);
+      await runScheduledPushJobs(now);
+    };
     await (env.DB ? runWithRequestPrisma(env.DB, run) : run());
   },
 };

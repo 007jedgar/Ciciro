@@ -6,6 +6,7 @@ import { authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { ensureBible } from "@/lib/bible";
 import { meterAiRun } from "@/lib/entitlements";
+import { notifyAutowriteFinished } from "@/lib/push/run-finished";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -49,11 +50,14 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      let disconnected = false;
+      let completed = false;
       const emit = (event: Record<string, unknown>) => {
+        if (event.type === "done") completed = true;
         try {
           controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
         } catch {
-          /* controller closed */
+          disconnected = true;
         }
       };
       // Keepalives so a quiet planning/drafting stretch doesn't look like a dead link.
@@ -72,7 +76,17 @@ export async function POST(req: NextRequest) {
           emit({ type: "error", v: (e as Error).message });
         } finally {
           clearInterval(pingTimer);
-          controller.close();
+          // The "done" emit above already tried to reach the client: a
+          // disconnect caught there (or earlier) means nobody was watching
+          // this draft finish.
+          if (disconnected && completed && user) {
+            await notifyAutowriteFinished(user.id, projectId, chapterId);
+          }
+          try {
+            controller.close();
+          } catch {
+            // The client may have disconnected; the chapter was still saved.
+          }
         }
       };
       const work = execute();

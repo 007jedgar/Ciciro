@@ -15,6 +15,7 @@ import { getRunCoordinator } from "@/lib/durable/coordinator";
 import { archiveChat, loadChatSnapshot } from "@/lib/chat-history";
 import { assertAiAllowed, meterAiRun, refundAiRun } from "@/lib/entitlements";
 import { captureServerEvent } from "@/lib/analytics-server";
+import { notifyChatFinished } from "@/lib/push/run-finished";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -220,6 +221,12 @@ export async function POST(req: NextRequest) {
             iterationCount: final.iterationCount,
             mutationCount: final.mutationCount,
           });
+          // `emit` above already tried to reach the client: `closed` is only
+          // true here if that attempt (or an earlier one) failed, so this is
+          // "nobody was there to see it finish", not "a run just ended".
+          if (closed && user && final.status === "completed") {
+            await notifyChatFinished(user.id, input.projectId, claim.turnId);
+          }
           try {
             controller.close();
           } catch {
