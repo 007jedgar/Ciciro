@@ -11,6 +11,17 @@ export const SESSION_COOKIE = "ciciro_session";
 export const NATIVE_CLIENT_HEADER = "x-ciciro-client";
 export const NATIVE_CLIENT_VALUE = "native";
 export const SESSION_HEADER = "x-ciciro-session";
+// Native clients also send their OS ("ios" | "android") so server-side
+// analytics can label the platform.
+export const CLIENT_PLATFORM_HEADER = "x-ciciro-platform";
+
+export type ClientPlatform = "web" | "ios" | "android";
+export type NativePlatform = Exclude<ClientPlatform, "web">;
+
+/** A native OS name from a header or query value; anything else (an older app build) reads as iOS. */
+export function nativePlatform(value: string | null | undefined): NativePlatform {
+  return value?.toLowerCase() === "android" ? "android" : "ios";
+}
 
 /** Hosted deployments set this so anonymous traffic cannot list every manuscript. */
 export function authRequired(): boolean {
@@ -114,6 +125,12 @@ export function requestWithSessionHeaders(request: Request): Request {
 
 export function isNativeClient(req: { headers: Headers }): boolean {
   return req.headers.get(NATIVE_CLIENT_HEADER)?.toLowerCase() === NATIVE_CLIENT_VALUE;
+}
+
+/** Which client sent the request: the browser, or the native app on iOS or Android. */
+export function clientPlatform(req: { headers: Headers }): ClientPlatform {
+  if (!isNativeClient(req)) return "web";
+  return nativePlatform(req.headers.get(CLIENT_PLATFORM_HEADER));
 }
 
 /** Native apps persist this token; browsers keep using the httpOnly cookie only. */

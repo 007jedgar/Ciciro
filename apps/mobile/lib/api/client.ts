@@ -1,4 +1,6 @@
+import { Platform } from "react-native";
 import {
+  CLIENT_PLATFORM_HEADER,
   ensureSessionToken,
   NATIVE_CLIENT_HEADER,
   NATIVE_CLIENT_VALUE,
@@ -101,6 +103,9 @@ async function nativeHeaders(init: RequestInit = {}): Promise<Headers> {
   }
   if (!headers.has(NATIVE_CLIENT_HEADER)) {
     headers.set(NATIVE_CLIENT_HEADER, NATIVE_CLIENT_VALUE);
+  }
+  if (!headers.has(CLIENT_PLATFORM_HEADER)) {
+    headers.set(CLIENT_PLATFORM_HEADER, Platform.OS);
   }
   const token = await ensureSessionToken();
   if (token) {

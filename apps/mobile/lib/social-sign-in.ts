@@ -1,6 +1,7 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 import { API_URL } from "./api/client";
 import {
   base64Url,
@@ -87,7 +88,7 @@ export async function browserSignInCode(
     })
   );
   const result = await WebBrowser.openAuthSessionAsync(
-    browserStartUrl(API_URL, provider, challenge, marketingOptIn),
+    browserStartUrl(API_URL, provider, challenge, Platform.OS, marketingOptIn),
     NATIVE_REDIRECT
   );
   if (result.type !== "success") return null;

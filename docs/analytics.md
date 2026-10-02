@@ -52,13 +52,20 @@ These are enforced in code, not just convention:
   mobile never installs the separate session-replay plugin package.
 - **Autocapture of input values is off.** Web's `posthog-js` autocapture is
   scoped to `click`/`submit` DOM events only (`dom_event_allowlist`), so form
-  field contents are never captured incidentally.
+  field contents are never captured incidentally, and it masks every
+  element's text and attributes (`mask_all_text`, `mask_all_element_attributes`),
+  since a clicked project card or button can show a title or prose. Mobile
+  has no autocapture at all.
 - **Reset on sign-out, alias on sign-up.** `reset()` runs before the signed-out
   state is applied (`AccountBar.tsx` web, `session.tsx`'s `logout()` mobile),
   so the next identity doesn't inherit the previous person's anonymous
   activity. PostHog's own anonymous-to-identified aliasing on the next
   `identify()` ties pre-signup activity (landing page views, `cta_clicked`) to
-  the account once it exists.
+  the account once it exists. Nothing else resets: `followIdentity` (in
+  `analytics-events.ts`) resets only on a real signed-in to signed-out (or
+  account-switch) change, never for an anonymous visitor, and both PostHog
+  adapters re-register the super properties (`platform`, `release`) after a
+  reset.
 - **Opt-out, not opt-in, and on by default.** `analyticsEnabled` in
   `AppSettings` (web `src/lib/settings.ts`, mobile `apps/mobile/lib/app-settings.ts`)
   defaults to `true`. This is first-party product analytics about how the

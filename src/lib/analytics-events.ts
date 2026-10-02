@@ -189,6 +189,24 @@ export class MemoryAnalyticsAdapter implements AnalyticsAdapter {
 }
 
 /**
+ * Point the adapter at whichever account is signed in now. Identifies a new
+ * signed-in id, and resets only when an account actually signs out or
+ * switches: an anonymous visitor is never reset, so their activity before
+ * signing up stays joined to the account they create. Returns the id to
+ * pass as `previous` next time.
+ */
+export function followIdentity(
+  adapter: AnalyticsAdapter,
+  previous: string | null,
+  next: string | null
+): string | null {
+  if (previous === next) return next;
+  if (previous) adapter.reset();
+  if (next) adapter.identify(next);
+  return next;
+}
+
+/**
  * Track a screen view and return a function to call when the screen is left,
  * which records its view duration (screen_duration). Shared by web (route
  * changes) and mobile (navigation state changes) so "average time per

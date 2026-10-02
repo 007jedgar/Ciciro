@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { JWTVerifyGetKey } from "jose";
-import { safeNext, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/constants";
+import { nativePlatform, safeNext, SESSION_COOKIE, sessionCookieOptions, type NativePlatform } from "@/lib/auth/constants";
 import { captureServerEvent } from "@/lib/analytics-server";
 import { waitUntilRequest } from "@/lib/db";
 import {
@@ -89,6 +89,8 @@ export type OAuthFlow = {
   next: string;
   /** Native: the app's PKCE challenge for the hand-off. */
   challenge?: string;
+  /** Native: the app's OS, for analytics. */
+  platform?: NativePlatform;
   /** The signup screen's marketing checkbox, carried across the redirect. */
   marketingOptIn?: boolean;
 };
@@ -117,6 +119,7 @@ export function decodeFlow(raw: string | undefined): OAuthFlow | null {
       verifier: flow.verifier,
       next: safeNext(flow.next),
       challenge: typeof flow.challenge === "string" ? flow.challenge : undefined,
+      platform: typeof flow.challenge === "string" ? nativePlatform(flow.platform) : undefined,
       marketingOptIn: flow.marketingOptIn === true,
     };
   } catch {
@@ -210,6 +213,7 @@ export function startBrowserSignIn(req: NextRequest, provider: SocialProvider): 
     verifier: randomToken(),
     next,
     challenge: native ? challenge : undefined,
+    platform: native ? nativePlatform(params.get("platform")) : undefined,
     marketingOptIn: params.get("marketingOptIn") === "1",
   };
   const res = NextResponse.redirect(authorizeUrl(flow, origin), 303);
@@ -358,7 +362,7 @@ export async function finishBrowserSignIn(
     waitUntilRequest(
       captureServerEvent(user.id, "account_created", {
         method: provider,
-        platform: flow.challenge ? "ios" : "web",
+        platform: flow.challenge ? nativePlatform(flow.platform) : "web",
       })
     );
   }
