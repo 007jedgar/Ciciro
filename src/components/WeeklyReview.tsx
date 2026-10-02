@@ -11,6 +11,7 @@ import {
   type WeeklyReview as Review,
 } from "@/lib/weekly-review-view";
 import { reportAiLimit } from "@/lib/billing-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   projectId: string;
@@ -144,6 +145,7 @@ export default function WeeklyReview({ projectId, open: openProp, onOpenChange, 
       if (!res.ok) throw new Error(data.error || "Couldn't write the review.");
       const review = data as Review;
       setReviews((prev) => [review, ...(prev ?? [])]);
+      getAnalytics().track("weekly_review_viewed", {});
       setSelectedId(review.id);
       setDue(false);
     } catch (e) {

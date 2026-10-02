@@ -12,6 +12,7 @@ import {
 import DrawerHead from "@/components/DrawerHead";
 import { useSnackbar } from "@/components/Snackbar";
 import { useLeavingIds } from "@/lib/motion";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   projectId: string;
@@ -334,6 +335,7 @@ export default function Scratchpad({ projectId, onClose }: Props) {
       if (!res.ok) throw new Error(data.error || "Couldn't add a note.");
       const note = data as ScratchNote;
       writes.current += 1;
+      getAnalytics().track("scratchpad_used", {});
       setNotes((prev) => [note, ...(prev ?? [])]);
       setActiveId(note.id);
       activeRef.current = note.id;

@@ -20,6 +20,7 @@ import {
   type ActiveSprint,
   type SprintDurationMin,
 } from "../../../lib/writing-sprint";
+import { getAnalytics } from "../../../lib/analytics-client";
 
 async function scheduleSprintEndNotification(endsAt: number, title: string, body: string): Promise<void> {
   try {
@@ -79,6 +80,7 @@ export default function SprintScreen() {
       void cancelSprintEndNotification();
       const words = sprintWordsWritten(sprint.startWords, day.words);
       closeSprintSitting(sprint.projectId, sprint.startedAt, words);
+      getAnalytics().track("writing_sprint_completed", { durationMinutes: sprint.durationMin });
       setActiveSprint(null);
       setPhase({ kind: "done", durationMin: sprint.durationMin, words });
       finishingRef.current = false;

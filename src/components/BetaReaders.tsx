@@ -21,6 +21,7 @@ import {
 import DrawerHead from "@/components/DrawerHead";
 import { useSnackbar } from "@/components/Snackbar";
 import { useLeavingIds } from "@/lib/motion";
+import { getAnalytics } from "@/lib/analytics-client";
 
 // Placeholder rows while the first fetch is in flight.
 function ListSkeleton({ label }: { label: string }) {
@@ -397,6 +398,7 @@ function LinksTab({
         expiresInDays: expiry,
       });
       setLinks((list) => [link, ...(list ?? [])]);
+      getAnalytics().track("share_link_created", {});
       setLabel("");
       setPicked(new Set());
       setScope("all");

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { EditorHandle } from "@/components/Editor";
 import { RATE_STEPS, SpeechReader, type ReaderState } from "@/lib/tts";
 import { setTtsPrefs, useTtsPrefs } from "@/lib/tts-prefs";
+import { getAnalytics } from "@/lib/analytics-client";
 
 function sortVoices(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
   const lang = (typeof navigator !== "undefined" ? navigator.language : "en").slice(0, 2).toLowerCase();
@@ -78,6 +79,7 @@ export default function ReadAloud({
       reader.resume();
       return;
     }
+    getAnalytics().track("read_aloud_used", {});
     const { sentences, selection } = handle.beginReadAloud();
     setProgress({ index: 0, total: sentences.length, selection });
     reader.start(

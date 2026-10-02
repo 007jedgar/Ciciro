@@ -9,6 +9,7 @@ import {
   type SpeechRecognitionLike,
 } from "@/lib/dictation";
 import { MOTION_MS, usePresence } from "@/lib/motion";
+import { getAnalytics } from "@/lib/analytics-client";
 
 /** How long an error stays before it dismisses itself. */
 export const DICTATION_ERROR_MS = 5000;
@@ -100,6 +101,7 @@ export default function DictationButton({ onPhrase, resetKey }: Props) {
     try {
       rec.start();
       setListening(true);
+      getAnalytics().track("dictation_used", {});
     } catch {
       stop();
     }

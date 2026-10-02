@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSnackbar } from "@/components/Snackbar";
 import { downloadExport, type ExportFormat } from "@/lib/export-client";
+import { getAnalytics } from "@/lib/analytics-client";
 import { MOTION_MS, usePresence } from "@/lib/motion";
 import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
 import type { Chapter } from "@/lib/types";
@@ -51,6 +52,7 @@ export default function ExportMenu({ projectId, chapters }: { projectId: string;
     try {
       await downloadExport(projectId, format);
       setOpen(false);
+      getAnalytics().track("export_completed", { format });
       notify({ message: "Downloaded" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't prepare the export. Try again.");

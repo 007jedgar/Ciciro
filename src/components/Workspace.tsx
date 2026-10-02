@@ -34,6 +34,7 @@ import {
   useSuggestionAuthor,
 } from "@/components/TrackChanges";
 import { useSettings } from "@/components/SettingsProvider";
+import { getAnalytics } from "@/lib/analytics-client";
 import {
   aiInvolvement,
   aiInvolvementPercentLabel,
@@ -51,7 +52,7 @@ import { restoreChapter, saveChapter, type SaveHint } from "@/lib/chapter-save";
 import { createHeldWrites } from "@/lib/held-writes";
 import { positiveWordDelta } from "@/lib/writing-day";
 import { noteWritingStroke, noteWritingWords } from "@/lib/writing-day-client";
-import { uploadImport } from "@/lib/import-client";
+import { importSourceFromFilename, uploadImport } from "@/lib/import-client";
 import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import type { ReplaceUndoResult } from "@/components/SearchPanel";
 import { makeReplaceUndo } from "@/lib/replace-undo";
@@ -748,6 +749,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   async function importChapters(file: File) {
     const result = await uploadImport(file, { projectId: project.id });
+    getAnalytics().track("import_completed", { source: importSourceFromFilename(file.name) });
     const res = await fetch(`/api/chapters?projectId=${encodeURIComponent(project.id)}`, {
       cache: "no-store",
     });
@@ -839,6 +841,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   // Reorders go out one at a time so the server ends on the latest order.
   function reorderChapters(ids: string[]) {
+    getAnalytics().track("outline_reordered", {});
     reorderEpochRef.current += 1;
     reorderPendingRef.current += 1;
     setProject((p) => ({ ...p, chapters: applyChapterOrder(p.chapters, ids) }));

@@ -13,6 +13,7 @@ import {
 } from "../lib/search";
 import { useAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
+import { getAnalytics } from "../lib/analytics-client";
 
 const DEBOUNCE_MS = 300;
 
@@ -46,6 +47,7 @@ export function ManuscriptSearch({
       try {
         const found = await ciciro.search.find(projectId, query, { matchCase, wholeWord }, { signal });
         setResult(found);
+        getAnalytics().track("search_performed", {});
         setError(null);
       } catch (err) {
         if (signal?.aborted) return;

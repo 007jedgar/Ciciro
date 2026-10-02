@@ -20,6 +20,7 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { SkeletonList } from "./Skeleton";
 import { PressableCard } from "./PressableCard";
+import { getAnalytics } from "../lib/analytics-client";
 
 const STAGGER_MS = 40;
 
@@ -57,8 +58,10 @@ export function StoryBibleIndex({
         kind === "character"
           ? await createCharacter.mutateAsync({ projectId, newCharacter: name })
           : await createPlot.mutateAsync({ projectId, newPlot: name });
-      if (kind === "character") setNewChar("");
-      else setNewPlot("");
+      if (kind === "character") {
+        setNewChar("");
+        getAnalytics().track("character_created", {});
+      } else setNewPlot("");
       onOpenFile(created.path);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("bible.saveError"));

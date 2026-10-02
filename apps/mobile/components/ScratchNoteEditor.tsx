@@ -14,6 +14,7 @@ import {
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { SkeletonList } from "./Skeleton";
+import { getAnalytics } from "../lib/analytics-client";
 
 /**
  * One scratch note: a title and free text, saved a moment after typing stops.
@@ -95,6 +96,7 @@ export function ScratchNoteEditor({
           body: { ...sent, expectedRevision: revision.current },
         });
         revision.current = saved.revision;
+        getAnalytics().track("scratchpad_used", {});
         const same =
           draft.current.title === sent.title && draft.current.content === sent.content;
         if (same) {

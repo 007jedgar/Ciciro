@@ -10,6 +10,7 @@ import {
   type StyleTrait,
 } from "@/lib/style-analysis-client";
 import { replaceVoiceSection, STYLE_TRAIT_LABELS } from "@/lib/style-analysis-view";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   projectId: string;
@@ -57,6 +58,7 @@ export default function StyleAnalysisPanel({ projectId, onClose }: Props) {
     try {
       const found = await runStyleAnalysis(projectId);
       setProposal(found);
+      getAnalytics().track("style_analysis_viewed", {});
       setStyleDraft(found.proposedStyleMd);
       setStyleState("idle");
       setStyleRevision(found.currentStyleMdRevision);

@@ -24,6 +24,7 @@ import {
   type SpeechEngine,
   type VoiceOption,
 } from "../lib/read-aloud";
+import { getAnalytics } from "../lib/analytics-client";
 
 export type ReadAloudVoice = VoiceOption;
 
@@ -129,6 +130,7 @@ export function ReadAloud({
     const reader = readerRef.current;
     if (!reader) return;
     if (reader.current.state === "paused") return reader.resume();
+    getAnalytics().track("read_aloud_used", {});
     const sentences = readAloudSentences(plain, selection);
     setActive(sentences);
     setReadingSelection(Boolean(selection));

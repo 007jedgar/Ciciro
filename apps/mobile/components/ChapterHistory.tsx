@@ -32,6 +32,7 @@ import {
 } from "../lib/snapshots";
 import { fonts } from "../lib/theme";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+import { getAnalytics } from "../lib/analytics-client";
 import { alpha } from "./Glass";
 import { SkeletonList } from "./Skeleton";
 import { Snackbar } from "./Snackbar";
@@ -128,6 +129,7 @@ export function ChapterHistory({
         return;
       }
       const result = await restoreMutation.mutateAsync({ chapterId, snapshotId: snapshot.id });
+      if (!undo) getAnalytics().track("snapshot_restored", {});
       setSelectedId(null);
       // The list dips and comes back with the restored version in it, so the
       // swap reads as one change rather than a jump.

@@ -1,6 +1,7 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { ciciro, type ExportFormat } from "./api";
+import { getAnalytics } from "./analytics-client";
 
 export type { ExportFormat };
 
@@ -51,6 +52,7 @@ export async function exportManuscript(
     ...SHARE_TYPES[format],
     dialogTitle: filename,
   });
+  getAnalytics().track("export_completed", { format });
 }
 
 /**
@@ -73,4 +75,5 @@ export async function exportChapter(
     ...SHARE_TYPES[format],
     dialogTitle: filename,
   });
+  getAnalytics().track("export_completed", { format });
 }

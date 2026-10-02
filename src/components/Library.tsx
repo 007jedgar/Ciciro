@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
 import BrandMark from "@/components/BrandMark";
-import { IMPORT_ACCEPT, uploadImport } from "@/lib/import-client";
+import { IMPORT_ACCEPT, importSourceFromFilename, uploadImport } from "@/lib/import-client";
+import { getAnalytics } from "@/lib/analytics-client";
 import {
   KIND_INFO,
   MANUSCRIPT_KINDS,
@@ -249,6 +250,7 @@ export default function Library() {
         author,
         ...(folderId ? { folderId } : {}),
       });
+      getAnalytics().track("import_completed", { source: importSourceFromFilename(importFile.name) });
       router.push(`/project/${result.projectId}`);
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "Import failed.");

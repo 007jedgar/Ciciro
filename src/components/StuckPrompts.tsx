@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { StuckResponse } from "@/lib/recap-view";
 import { MOTION_MS, usePresence } from "@/lib/motion";
 import { reportAiLimit } from "@/lib/billing-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   projectId: string;
@@ -39,6 +40,7 @@ export default function StuckPrompts({ projectId, chapterId, onUse }: Props) {
       if (!res.ok || !data.prompts) throw new Error(data.error || "Could not get ideas.");
       if (request !== latest.current) return;
       setPrompts(data.prompts);
+      getAnalytics().track("recap_viewed", {});
     } catch (e) {
       if (request !== latest.current) return;
       setPrompts([]);

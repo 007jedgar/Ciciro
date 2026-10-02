@@ -15,6 +15,7 @@ import {
   type ChapterSnapshotSummary,
 } from "@/lib/snapshot-view";
 import type { Chapter } from "@/lib/types";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   chapterId: string;
@@ -158,6 +159,7 @@ export default function ChapterHistory({
       if (!res.ok) throw new Error(await readError(res, "Couldn't restore that version."));
       const result = (await res.json()) as RestoreResponse;
       onRestored(result.chapter);
+      if (!undo) getAnalytics().track("snapshot_restored", {});
       const backup = result.backup;
       notify(
         undo

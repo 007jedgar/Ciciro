@@ -24,6 +24,7 @@ import { SkeletonList } from "../../../../components/Skeleton";
 import { SuggestionsPill, SuggestionsSheet } from "../../../../components/SuggestionsReview";
 import { ciciro } from "../../../../lib/api";
 import type { SyncOp } from "../../../../lib/api/types";
+import { getAnalytics } from "../../../../lib/analytics-client";
 import {
   applyOpsToDoc,
   CARET_FLUSH_MS,
@@ -481,6 +482,7 @@ export default function ManuscriptScreen() {
         action === "accept" ? ciciroAcceptedWordCount(current.content, ids ?? null) : 0;
       const next = resolveSuggestions(current.content, action, ids ?? null);
       if (next === current.content) return;
+      getAnalytics().track(action === "accept" ? "suggestion_accepted" : "suggestion_rejected", {});
       commitOps(diffHtmlToOps(current.content, next, current.revision));
       if (acceptedWords > 0) {
         void ciciro.chapters

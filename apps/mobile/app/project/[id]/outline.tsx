@@ -9,6 +9,7 @@ import { useProject } from "../../../lib/project";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
 import { useStackBack } from "../../../lib/use-stack-back";
+import { getAnalytics } from "../../../lib/analytics-client";
 
 function OutlineBody({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -50,7 +51,10 @@ function OutlineBody({ projectId }: { projectId: string }) {
             setSelectedChapterId(chapter.id);
             router.navigate(`/project/${projectId}/manuscript`);
           }}
-          onReorder={(chapterIds) => reorder.mutate({ projectId, chapterIds })}
+          onReorder={(chapterIds) => {
+            getAnalytics().track("outline_reordered", {});
+            reorder.mutate({ projectId, chapterIds });
+          }}
         />
       )}
     </View>

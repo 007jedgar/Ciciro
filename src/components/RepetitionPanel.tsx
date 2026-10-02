@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
 import { fetchRepetitionReport, type ManuscriptRepetitionReport, type RepetitionFlag } from "@/lib/repetition-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Scope = "chapter" | "manuscript";
 
@@ -64,6 +65,7 @@ export default function RepetitionPanel({ projectId, activeChapterId, onClose, o
       try {
         const found = await fetchRepetitionReport(projectId, signal);
         setReport(found);
+        getAnalytics().track("repetition_report_viewed", {});
       } catch (e) {
         if ((e as Error).name !== "AbortError") setError((e as Error).message);
       } finally {
