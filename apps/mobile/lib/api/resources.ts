@@ -13,6 +13,8 @@ import type {
   EmailPreferencesPatch,
   EmailPreferencesResponse,
   ForgotPasswordRequest,
+  PushPreferencesPatch,
+  PushPreferencesResponse,
   PushTokenRegisterRequest,
   PushTokenUnregisterRequest,
   ResendVerificationResponse,
@@ -205,6 +207,11 @@ export const ciciro = {
     /** Stop: the author turned notifications off. Signing out also stops them. */
     unregister: (body: PushTokenUnregisterRequest, opts?: RequestOpts) =>
       api<OkResponse>("/api/push/tokens", jsonInit("DELETE", body, opts)),
+    preferences: {
+      get: (opts?: RequestOpts) => api<PushPreferencesResponse>("/api/push/preferences", opts),
+      put: (body: PushPreferencesPatch, opts?: RequestOpts) =>
+        api<PushPreferencesResponse>("/api/push/preferences", jsonInit("PUT", body, opts)),
+    },
   },
 
   billing: {

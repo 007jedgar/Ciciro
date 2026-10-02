@@ -1,8 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { useEmailPreferencesQuery, useModelsQuery, usePatchEmailPreferencesMutation } from "../lib/api/hooks";
-import type { EmailTopic, Entitlement, ModelRole } from "../lib/api/types";
+import {
+  useEmailPreferencesQuery,
+  useModelsQuery,
+  usePatchEmailPreferencesMutation,
+  usePatchPushPreferencesMutation,
+  usePushPreferencesQuery,
+} from "../lib/api/hooks";
+import type { EmailTopic, Entitlement, ModelRole, PushCategory } from "../lib/api/types";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -16,7 +22,7 @@ import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
 import { setFocusMode, useFocusMode } from "../lib/focus-mode";
-import { getReminderPermission } from "../lib/writing-reminder-notifications";
+import { getReminderPermission, requestReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
 import { useExportAccountData } from "../lib/use-export-account-data";
@@ -462,6 +468,85 @@ const EMAIL_TOPIC_KEYS: Record<EmailTopic, { label: string; hint: string }> = {
   offers: { label: "settings.emailTopicOffers", hint: "settings.emailTopicOffersHint" },
 };
 
+const PUSH_CATEGORY_KEYS: Record<PushCategory, { label: string; hint: string }> = {
+  shareComments: { label: "settings.pushShareComments", hint: "settings.pushShareCommentsHint" },
+  writingNudge: { label: "settings.pushWritingNudge", hint: "settings.pushWritingNudgeHint" },
+  chatFinished: { label: "settings.pushChatFinished", hint: "settings.pushChatFinishedHint" },
+};
+const PUSH_CATEGORIES = Object.keys(PUSH_CATEGORY_KEYS) as PushCategory[];
+
+/**
+ * Notifications: per-category server-push toggles. This is the one place in
+ * the app besides the writing-reminder screens that asks for OS notification
+ * permission (`requestReminderPermission` — named for reminders, but the
+ * permission itself is shared by every notification kind the phone gets).
+ */
+function NotificationsGroup({ colors }: { colors: ColorTokens }) {
+  const { t } = useTranslation();
+  const { data: prefs } = usePushPreferencesQuery();
+  const patch = usePatchPushPreferencesMutation();
+  const [permission, setPermission] = useState<
+    "granted" | "denied" | "undetermined" | "unavailable" | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getReminderPermission(t("reminders.channel")).then((status) => {
+      if (!cancelled) setPermission(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  async function enable() {
+    setPermission(await requestReminderPermission(t("reminders.channel")));
+  }
+
+  if (!prefs || permission == null || permission === "unavailable") return null;
+
+  if (permission !== "granted") {
+    return (
+      <Group colors={colors}>
+        <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+          <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{t("settings.pushOffHint")}</Text>
+        </View>
+        <Pressable
+          onPress={() => void (permission === "denied" ? Linking.openSettings() : enable())}
+          accessibilityRole="button"
+          accessibilityLabel={permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
+          style={({ pressed }) => ({
+            minHeight: 52,
+            paddingHorizontal: 16,
+            justifyContent: "center",
+            backgroundColor: pressed ? colors.panel2 : "transparent",
+          })}
+        >
+          <Text style={{ fontSize: 17, color: colors.accent }}>
+            {permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
+          </Text>
+        </Pressable>
+      </Group>
+    );
+  }
+
+  return (
+    <Group colors={colors}>
+      {PUSH_CATEGORIES.map((category, index) => (
+        <ToggleRow
+          key={category}
+          label={t(PUSH_CATEGORY_KEYS[category].label)}
+          hint={t(PUSH_CATEGORY_KEYS[category].hint)}
+          value={prefs[category]}
+          onValueChange={(value) => patch.mutate({ [category]: value })}
+          colors={colors}
+          last={index === PUSH_CATEGORIES.length - 1}
+        />
+      ))}
+    </Group>
+  );
+}
+
 /** The email section: the marketing checkbox, and once it's on, its topics. */
 function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
   const { t } = useTranslation();
@@ -715,6 +800,9 @@ export default function SettingsScreen() {
             </>
           ) : null}
         </Group>
+
+        <SectionHeader label={t("settings.notifications")} colors={colors} />
+        <NotificationsGroup colors={colors} />
 
         <Group colors={colors}>
           <SheetRow

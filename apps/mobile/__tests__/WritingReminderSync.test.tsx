@@ -138,6 +138,41 @@ describe("writing-reminder-sync helpers", () => {
     expect(openHref).toHaveBeenNthCalledWith(2, "/manuscripts");
   });
 
+  it("navigates on a tap of a server-sent push, not just a writing reminder", () => {
+    const openHref = jest.fn();
+    const api = fakeNotificationsApi();
+    wireReminderNotificationTaps(api, openHref, { current: false });
+
+    const response = {
+      actionIdentifier: "default",
+      notification: {
+        request: {
+          identifier: "t1",
+          content: { data: { kind: "share-comment", href: "/project/p1/beta-readers" } },
+        },
+      },
+    };
+    for (const listener of api.listeners) listener(response);
+
+    expect(openHref).toHaveBeenCalledWith("/project/p1/beta-readers");
+  });
+
+  it("ignores a notification kind it does not recognize", () => {
+    const openHref = jest.fn();
+    const api = fakeNotificationsApi();
+    wireReminderNotificationTaps(api, openHref, { current: false });
+
+    const response = {
+      actionIdentifier: "default",
+      notification: {
+        request: { identifier: "t1", content: { data: { kind: "something-else", href: "/manuscripts" } } },
+      },
+    };
+    for (const listener of api.listeners) listener(response);
+
+    expect(openHref).not.toHaveBeenCalled();
+  });
+
   it("does not open the launch response twice", () => {
     const openHref = jest.fn();
     const last = {

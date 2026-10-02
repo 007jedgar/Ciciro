@@ -42,12 +42,15 @@ jest.mock("../lib/api", () => {
 });
 jest.mock("../lib/writing-reminder-notifications", () => ({
   getReminderPermission: jest.fn(async () => "granted"),
+  requestReminderPermission: jest.fn(async () => "granted"),
 }));
 jest.mock("../lib/writing-reminder-store", () => ({ useWritingReminderList: () => [] }));
 jest.mock("../lib/api/hooks", () => ({
   useModelsQuery: () => ({ data: undefined }),
   useEmailPreferencesQuery: () => ({ data: undefined }),
   usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
+  usePushPreferencesQuery: () => ({ data: undefined }),
+  usePatchPushPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 jest.mock("../lib/use-export-account-data", () => ({
   useExportAccountData: () => ({ busy: mockExportBusy, run: mockRunExport }),

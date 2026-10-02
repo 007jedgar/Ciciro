@@ -41,6 +41,7 @@ jest.mock("../lib/session", () => ({
 
 jest.mock("../lib/writing-reminder-notifications", () => ({
   getReminderPermission: jest.fn(async () => "granted"),
+  requestReminderPermission: jest.fn(async () => "granted"),
 }));
 
 jest.mock("../lib/writing-reminder-store", () => ({
@@ -52,6 +53,8 @@ jest.mock("../lib/api/hooks", () => ({
   useEntitlementQuery: () => ({ data: undefined }),
   useEmailPreferencesQuery: () => ({ data: undefined }),
   usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
+  usePushPreferencesQuery: () => ({ data: undefined }),
+  usePatchPushPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 
 function renderSettings(overrides: Partial<AppSettings> = {}) {
