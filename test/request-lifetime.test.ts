@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runWithRequestLifetime } from "@/worker/request-lifetime";
 
 /** A stand-in for the Worker's ExecutionContext that keeps waitUntil promises. */
@@ -220,7 +220,15 @@ describe("runWithRequestLifetime", () => {
   });
 
   describe("when the body neither finishes nor is cancelled", () => {
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const quietMs = 60;
     const encode = (text: string) => new TextEncoder().encode(text);
 
     /** A body whose reader takes one chunk and then stops reading, never cancelling. */
@@ -238,7 +246,7 @@ describe("runWithRequestLifetime", () => {
           return new Response(source);
         },
         finish,
-        { quietMs: 60 }
+        { quietMs }
       );
       push.enqueue(encode("first"));
       const reader = response.body!.getReader();
@@ -251,8 +259,10 @@ describe("runWithRequestLifetime", () => {
       const finish = vi.fn(async () => {});
       await stalledBody(worker, finish);
 
-      await sleep(20);
+      await vi.advanceTimersByTimeAsync(quietMs - 1);
       expect(finish).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(finish).toHaveBeenCalledTimes(1);
       await worker.drain();
       expect(finish).toHaveBeenCalledTimes(1);
     });
@@ -263,7 +273,7 @@ describe("runWithRequestLifetime", () => {
       const producer = deferred();
       await stalledBody(worker, finish, (ctx) => ctx.waitUntil(producer.promise));
 
-      await sleep(120);
+      await vi.advanceTimersByTimeAsync(quietMs * 2);
       expect(finish).not.toHaveBeenCalled();
       producer.resolve();
       await worker.drain();
@@ -279,14 +289,14 @@ describe("runWithRequestLifetime", () => {
           push = controller;
         },
       });
-      const response = await runWithRequestLifetime(worker.ctx, async () => new Response(source), finish, { quietMs: 60 });
+      const response = await runWithRequestLifetime(worker.ctx, async () => new Response(source), finish, { quietMs });
       const reader = response.body!.getReader();
 
       // Slower than the quiet period in total, but never quiet for that long.
       for (let i = 0; i < 6; i++) {
         push.enqueue(encode(`chunk ${i}`));
         await reader.read();
-        await sleep(30);
+        await vi.advanceTimersByTimeAsync(quietMs / 2);
       }
       expect(finish).not.toHaveBeenCalled();
 
@@ -300,7 +310,7 @@ describe("runWithRequestLifetime", () => {
       const worker = workerContext();
       const finish = vi.fn(async () => {});
       const { push, reader } = await stalledBody(worker, finish);
-      await worker.drain();
+      await vi.advanceTimersByTimeAsync(quietMs);
       expect(finish).toHaveBeenCalledTimes(1);
 
       push.enqueue(encode("late"));
