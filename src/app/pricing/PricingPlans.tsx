@@ -132,6 +132,7 @@ export default function PricingPlans({
 
   async function startCheckoutFlow() {
     getAnalytics().track("paywall_cta_clicked", { surface: "pricing", plan: "pro" });
+    getAnalytics().track("cta_clicked", { cta: "upgrade_to_pro", surface: "pricing" });
     setBusy(true);
     setProblem(null);
     const result = await startCheckout(interval);
@@ -159,7 +160,11 @@ export default function PricingPlans({
   let proAction;
   if (!signedIn) {
     proAction = (
-      <Link className="btn primary pricing-cta" href={SIGNUP}>
+      <Link
+        className="btn primary pricing-cta"
+        href={SIGNUP}
+        onClick={() => getAnalytics().track("cta_clicked", { cta: "create_account_to_subscribe", surface: "pricing" })}
+      >
         Create an account to subscribe
       </Link>
     );
@@ -236,7 +241,11 @@ export default function PricingPlans({
             <li>{allowance(limits.free)} with Ciciro</li>
           </ul>
           {!signedIn ? (
-            <Link className="btn pricing-cta" href={SIGNUP}>
+            <Link
+              className="btn pricing-cta"
+              href={SIGNUP}
+              onClick={() => getAnalytics().track("cta_clicked", { cta: "start_writing_free", surface: "pricing" })}
+            >
               Start writing free
             </Link>
           ) : null}

@@ -9,6 +9,7 @@ import {
   storeName,
   type Entitlement,
 } from "@/lib/billing-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 /**
  * The Settings popover's plan section: the plan, this month's AI use, and the
@@ -76,7 +77,11 @@ export default function SettingsBilling({ entitlement }: { entitlement: Entitlem
         </button>
       ) : null}
       {!paid && entitlement.billing.web ? (
-        <Link className="settings-action accent" href="/pricing">
+        <Link
+          className="settings-action accent"
+          href="/pricing"
+          onClick={() => getAnalytics().track("cta_clicked", { cta: "upgrade_to_pro", surface: "settings" })}
+        >
           Upgrade to Ciciro Pro
         </Link>
       ) : null}

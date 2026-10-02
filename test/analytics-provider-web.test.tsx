@@ -188,6 +188,68 @@ describe("AnalyticsProvider screen tracking", () => {
       { event: "screen_duration", properties: expect.objectContaining({ screen: "library" }), options: { beacon: true } },
     ]);
   });
+
+  it("records cta_clicked for an email's link, source email, and strips src/cta from the URL", async () => {
+    meReturns("user_1");
+    window.history.replaceState(null, "", "/pricing?src=email&cta=allowance_nudge");
+    route.pathname = "/pricing";
+    act(() => root.render(<AnalyticsProvider />));
+    await flush();
+
+    expect(analytics.adapter.tracks.filter((t) => t.event === "cta_clicked")).toEqual([
+      { event: "cta_clicked", properties: { cta: "allowance_nudge", surface: "paywall", source: "email" }, options: undefined },
+    ]);
+    expect(window.location.search).toBe("");
+  });
+
+  it("does nothing when a page opens with no email src/cta", async () => {
+    meReturns("user_1");
+    window.history.replaceState(null, "", "/");
+    route.pathname = "/";
+    act(() => root.render(<AnalyticsProvider />));
+    await flush();
+
+    expect(analytics.adapter.tracks.filter((t) => t.event === "cta_clicked")).toEqual([]);
+  });
+});
+
+describe("AccountBar", () => {
+  let root: Root;
+  let host: HTMLDivElement;
+
+  beforeEach(() => {
+    analytics.adapter = new MemoryAnalyticsAdapter();
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("fires cta_clicked when a free account clicks Upgrade", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async () =>
+        new Response(
+          JSON.stringify({
+            user: { id: "user_1", email: "a@b.c", name: "A" },
+            entitlement: { plan: "free", billing: { web: true } },
+          })
+        )
+    );
+    act(() => root.render(<AccountBar />));
+    await flush();
+    const upgrade = host.querySelector<HTMLAnchorElement>(".account-upgrade")!;
+    expect(upgrade.textContent).toBe("Upgrade");
+    await act(async () => upgrade.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+    expect(analytics.adapter.tracks).toEqual([
+      { event: "cta_clicked", properties: { cta: "upgrade_to_pro", surface: "account_bar" }, options: undefined },
+    ]);
+  });
 });
 
 describe("PostHog web adapter opt-in", () => {

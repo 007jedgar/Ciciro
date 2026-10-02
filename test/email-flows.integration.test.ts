@@ -46,7 +46,9 @@ function sent(): SentEmail[] {
 }
 
 function linkIn(email: SentEmail, path: string): string {
-  const match = email.text.match(new RegExp(`${ORIGIN}${path}\\?token=([^\\s]+)`));
+  // The token is the first query param, but withSource (templates.ts) tags
+  // the link with trailing &src=/&cta= params, so stop at the next & too.
+  const match = email.text.match(new RegExp(`${ORIGIN}${path}\\?token=([^&\\s]+)`));
   if (!match) throw new Error(`no ${path} link in:\n${email.text}`);
   return decodeURIComponent(match[1]);
 }

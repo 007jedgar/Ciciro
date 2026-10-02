@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
+import TrackedLink from "@/components/TrackedLink";
 import CyclingWord from "./CyclingWord";
 import Exhibit from "./Exhibit";
 import Scene from "./Scene";
@@ -50,9 +51,9 @@ function Pricing({ offerOpen }: { offerOpen: boolean }) {
           </div>
           <p>{PRICING.pro}</p>
           {offerOpen ? <p className="landing-price-offer">{PRICING.offer}</p> : null}
-          <Link href="/pricing" className="landing-btn">
+          <TrackedLink href="/pricing" className="landing-btn" cta="see_pricing" surface="landing">
             See pricing <Arrow />
-          </Link>
+          </TrackedLink>
         </div>
       </div>
     </section>
@@ -80,13 +81,18 @@ export default function Landing() {
                   Pricing
                 </Link>
               ) : null}
-              <Link href="/login" className="landing-plain-link">
+              <TrackedLink href="/login" className="landing-plain-link" cta="sign_in_nav" surface="landing">
                 Sign in
-              </Link>
+              </TrackedLink>
               <ThemeToggle className="landing-theme-toggle" />
-              <Link href="/signup" className="landing-btn landing-btn-light landing-btn-small">
+              <TrackedLink
+                href="/signup"
+                className="landing-btn landing-btn-light landing-btn-small"
+                cta="get_early_access_nav"
+                surface="landing"
+              >
                 Get early access <Arrow />
-              </Link>
+              </TrackedLink>
             </nav>
           </header>
           <section className="landing-hero" aria-labelledby="landing-headline">
@@ -117,12 +123,17 @@ export default function Landing() {
               </ul>
             </div>
             <div className="landing-actions">
-              <Link href="/signup" className="landing-btn">
+              <TrackedLink href="/signup" className="landing-btn" cta="get_early_access_hero" surface="landing">
                 Get early access <Arrow />
-              </Link>
-              <Link href="/login" className="landing-btn landing-btn-outline">
+              </TrackedLink>
+              <TrackedLink
+                href="/login"
+                className="landing-btn landing-btn-outline"
+                cta="sign_in_hero"
+                surface="landing"
+              >
                 Sign in
-              </Link>
+              </TrackedLink>
             </div>
           </div>
         </div>
@@ -217,12 +228,17 @@ export default function Landing() {
                 <em>five minutes, tonight</em>
               </div>
               <div className="landing-form-actions">
-                <Link href="/signup" className="landing-btn">
+                <TrackedLink href="/signup" className="landing-btn" cta="get_early_access_closing" surface="landing">
                   Get early access <Arrow />
-                </Link>
-                <Link href="/login" className="landing-inline-link">
+                </TrackedLink>
+                <TrackedLink
+                  href="/login"
+                  className="landing-inline-link"
+                  cta="sign_in_closing"
+                  surface="landing"
+                >
                   I already have an account
-                </Link>
+                </TrackedLink>
               </div>
             </div>
           </section>

@@ -106,6 +106,20 @@ describe("email templates", () => {
       ORIGIN
     );
     expect(text).toContain("The link works for 48 hours.");
-    expect(text).toContain("Confirm my email: https://x/v");
+    expect(text).toContain("Confirm my email: https://x/v?src=email&cta=verify_email");
+  });
+
+  it("tags every template's primary link for email click-through, never the unsubscribe links", () => {
+    for (const preview of previews) {
+      for (const block of preview.content.blocks) {
+        if (block.kind !== "button" && block.kind !== "fallback-link") continue;
+        const url = new URL(block.href);
+        expect(url.searchParams.get("src"), `${preview.id} button`).toBe("email");
+        expect(url.searchParams.get("cta"), `${preview.id} button`).toBe(preview.content.category);
+      }
+    }
+    const marketing = previews.find((p) => p.id === "welcome-1")!;
+    expect(marketing.content.unsubscribe?.manageUrl).not.toContain("src=email");
+    expect(marketing.content.unsubscribe?.unsubscribeUrl).not.toContain("src=email");
   });
 });

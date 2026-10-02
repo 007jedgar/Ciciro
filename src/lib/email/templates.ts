@@ -19,6 +19,24 @@ function hoursLabel(ms: number): string {
   return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
+/**
+ * Tags a template's primary link so a click is attributable to this email:
+ * AnalyticsProvider reads src/cta off the landing page and records
+ * cta_clicked with source "email" (see docs/analytics.md). Never applied to
+ * the unsubscribe/preference links, which withUnsubscribePreview and
+ * sendMarketingEmail attach separately.
+ */
+function withSource(url: string, cta: string): string {
+  try {
+    const tagged = new URL(url);
+    tagged.searchParams.set("src", "email");
+    tagged.searchParams.set("cta", cta);
+    return tagged.toString();
+  } catch {
+    return url;
+  }
+}
+
 // ---- Account ----------------------------------------------------------------
 
 export function verifyEmailTemplate(props: {
@@ -27,6 +45,7 @@ export function verifyEmailTemplate(props: {
   /** How long the link works, in ms. */
   expiresInMs: number;
 }): EmailContent {
+  const verifyUrl = withSource(props.verifyUrl, "verify_email");
   return {
     category: "verify_email",
     subject: "Confirm your email for Ciciro",
@@ -38,8 +57,8 @@ export function verifyEmailTemplate(props: {
         kind: "paragraph",
         text: "Welcome to Ciciro. Confirm that this address is yours so we can reach you about your account, for instance if you ever need to reset your password.",
       },
-      { kind: "button", label: "Confirm my email", href: props.verifyUrl },
-      { kind: "fallback-link", href: props.verifyUrl },
+      { kind: "button", label: "Confirm my email", href: verifyUrl },
+      { kind: "fallback-link", href: verifyUrl },
       {
         kind: "note",
         text: `The link works for ${hoursLabel(props.expiresInMs)}. Keep writing in the meantime; nothing waits on it.`,
@@ -68,7 +87,7 @@ export function welcomeTemplate(props: { name?: string; appUrl: string }): Email
           "Pick up where you left off on your phone: your work syncs with the Ciciro app.",
         ],
       },
-      { kind: "button", label: "Open Ciciro", href: props.appUrl },
+      { kind: "button", label: "Open Ciciro", href: withSource(props.appUrl, "welcome") },
       {
         kind: "note",
         text: "What you write stays yours. You can export all of it, or delete your account, from settings at any time.",
@@ -84,6 +103,7 @@ export function passwordResetTemplate(props: {
   /** How long the link works, in ms. */
   expiresInMs: number;
 }): EmailContent {
+  const resetUrl = withSource(props.resetUrl, "password_reset");
   return {
     category: "password_reset",
     subject: "Reset your Ciciro password",
@@ -94,8 +114,8 @@ export function passwordResetTemplate(props: {
         kind: "paragraph",
         text: `Someone asked to reset the password for the Ciciro account ${props.email}. If that was you, choose a new one here.`,
       },
-      { kind: "button", label: "Choose a new password", href: props.resetUrl },
-      { kind: "fallback-link", href: props.resetUrl },
+      { kind: "button", label: "Choose a new password", href: resetUrl },
+      { kind: "fallback-link", href: resetUrl },
       {
         kind: "note",
         text: `The link works once, for ${hoursLabel(props.expiresInMs)}. A new password signs you out on every device, so you'll sign in again with it.`,
@@ -165,7 +185,7 @@ export function paymentFailedTemplate(props: {
         text: `We tried to charge ${props.amount} for your ${props.planName} subscription, but the payment didn't go through.`,
       },
       { kind: "details", rows },
-      { kind: "button", label: "Update payment details", href: props.updatePaymentUrl },
+      { kind: "button", label: "Update payment details", href: withSource(props.updatePaymentUrl, "payment_failed") },
       {
         kind: "note",
         text: props.nextAttemptAt
@@ -199,7 +219,7 @@ export function subscriptionCanceledTemplate(props: {
         kind: "paragraph",
         text: "Your manuscripts stay in your account, and you can export them from settings whenever you like.",
       },
-      { kind: "button", label: "Resubscribe", href: props.resubscribeUrl },
+      { kind: "button", label: "Resubscribe", href: withSource(props.resubscribeUrl, "subscription_canceled") },
       { kind: "note", text: "Changed your mind? Resubscribing before that date keeps everything as it is." },
     ],
     footer: "You're getting this because a Ciciro subscription billed to this address was canceled.",
@@ -234,7 +254,7 @@ export function renewalReminderTemplate(props: {
           { label: "Renews", value: date },
         ],
       },
-      { kind: "button", label: "Manage subscription", href: props.manageUrl },
+      { kind: "button", label: "Manage subscription", href: withSource(props.manageUrl, "renewal_reminder") },
       {
         kind: "note",
         text: `There's nothing to do if you're staying. To cancel or change plans, do it before ${date} and you won't be charged.`,
@@ -261,7 +281,7 @@ export function welcomeStep1Template(props: { changelogUrl: string }): EmailCont
         kind: "paragraph",
         text: "Thanks for opting in. Expect roughly one email a week from here, mostly about your own writing, plus the occasional product update. Nothing else.",
       },
-      { kind: "button", label: "See what's new", href: props.changelogUrl },
+      { kind: "button", label: "See what's new", href: withSource(props.changelogUrl, "welcome_1") },
     ],
     footer: "You're getting this because you opted into email from Ciciro.",
   };
@@ -278,7 +298,7 @@ export function welcomeStep2Template(props: { appUrl: string }): EmailContent {
         kind: "paragraph",
         text: "If you haven't started a manuscript yet, that's the one thing worth doing next. Start from a blank page, or import one from Word, Google Docs, Scrivener or Markdown — Ciciro keeps your formatting.",
       },
-      { kind: "button", label: "Start or import a manuscript", href: props.appUrl },
+      { kind: "button", label: "Start or import a manuscript", href: withSource(props.appUrl, "welcome_2") },
     ],
     footer: "You're getting this because you opted into email from Ciciro.",
   };
@@ -295,7 +315,7 @@ export function welcomeStep3Template(props: { appUrl: string }): EmailContent {
         kind: "paragraph",
         text: "Open your manuscript's latest scene and ask Ciciro to check it, tighten it, or just tell you what's working. Its changes arrive as suggestions — you accept or reject every one, nothing is rewritten behind your back.",
       },
-      { kind: "button", label: "Try it on your current scene", href: props.appUrl },
+      { kind: "button", label: "Try it on your current scene", href: withSource(props.appUrl, "welcome_3") },
     ],
     footer: "You're getting this because you opted into email from Ciciro.",
   };
@@ -312,7 +332,7 @@ export function welcomeStep4Template(props: { appUrl: string }): EmailContent {
         kind: "paragraph",
         text: "A few minutes filling in your story bible — main characters, the plot so far, anything Ciciro should never contradict — pays off every time you ask for a suggestion afterward.",
       },
-      { kind: "button", label: "Fill in your story bible", href: props.appUrl },
+      { kind: "button", label: "Fill in your story bible", href: withSource(props.appUrl, "welcome_4") },
     ],
     footer: "You're getting this because you opted into email from Ciciro.",
   };
@@ -345,7 +365,7 @@ export function allowanceNudgeTemplate(props: {
           ? `${props.earlyAccessHeadline} of ${props.planName} for a lot more AI every month, while it's still open.`
           : `${props.planName} adds a lot more AI every month, if you'd rather not think about the limit.`,
       },
-      { kind: "button", label: "See Ciciro Pro", href: props.pricingUrl },
+      { kind: "button", label: "See Ciciro Pro", href: withSource(props.pricingUrl, "allowance_nudge") },
     ],
     footer: "You're getting this because you opted into offers from Ciciro.",
   };
@@ -362,7 +382,7 @@ export function changelogDigestTemplate(props: {
     heading: "What's new in Ciciro",
     blocks: [
       { kind: "list", items: props.entries.map((entry) => entry.summary) },
-      { kind: "button", label: "Read the full changelog", href: props.changelogUrl },
+      { kind: "button", label: "Read the full changelog", href: withSource(props.changelogUrl, "changelog_digest") },
     ],
     footer: "You're getting this because you opted into the weekly email from Ciciro.",
   };

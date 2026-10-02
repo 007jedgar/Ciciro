@@ -29,6 +29,7 @@ import {
   useEntitlement,
 } from "../lib/billing";
 import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePurchasesAvailable } from "../lib/purchases";
+import { getAnalytics } from "../lib/analytics-client";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
@@ -376,7 +377,14 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
     actions.push({ key: "manage", label: t("billing.manage"), onPress: () => void openStoreSubscriptions(entitlement.manageUrl) });
   }
   if (offer) {
-    actions.push({ key: "upgrade", label: t("billing.upgrade"), onPress: () => router.push("/paywall") });
+    actions.push({
+      key: "upgrade",
+      label: t("billing.upgrade"),
+      onPress: () => {
+        getAnalytics().track("cta_clicked", { cta: "upgrade_to_pro", surface: "settings" });
+        router.push("/paywall");
+      },
+    });
   }
   if (canRestore) {
     actions.push({

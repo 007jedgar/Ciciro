@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryAnalyticsAdapter } from "@/lib/analytics-events";
 import AiLimitDialog from "@/components/AiLimitDialog";
 import SettingsBilling from "@/components/SettingsBilling";
 import DeleteAccountDialog from "@/components/DeleteAccountDialog";
@@ -10,6 +11,9 @@ import { allowanceResetsOn, reportAiLimit, type Entitlement } from "@/lib/billin
 import { formatPrice } from "@/lib/billing/prices";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const analytics = vi.hoisted(() => ({ adapter: null as unknown as MemoryAnalyticsAdapter }));
+vi.mock("@/lib/analytics-client", () => ({ getAnalytics: () => analytics.adapter }));
 
 function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
   return {
@@ -54,6 +58,7 @@ const text = () => document.body.textContent ?? "";
 
 describe("billing on the web", () => {
   beforeEach(() => {
+    analytics.adapter = new MemoryAnalyticsAdapter();
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -106,7 +111,12 @@ describe("billing on the web", () => {
       await render(<SettingsBilling entitlement={entitlement({ usage: { period: "2026-09", aiRuns: 12 } })} />);
       expect(text()).toContain("12 of 30 AI actions this month");
       expect(text()).toContain("resets Oct 1");
-      expect(document.querySelector('a[href="/pricing"]')?.textContent).toBe("Upgrade to Ciciro Pro");
+      const upgrade = document.querySelector<HTMLAnchorElement>('a[href="/pricing"]')!;
+      expect(upgrade.textContent).toBe("Upgrade to Ciciro Pro");
+      await act(async () => upgrade.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+      expect(analytics.adapter.tracks).toEqual([
+        { event: "cta_clicked", properties: { cta: "upgrade_to_pro", surface: "settings" }, options: undefined },
+      ]);
     });
 
     it("sends a web subscriber to the Customer Portal", async () => {
