@@ -136,7 +136,13 @@ export default function AnalyticsProvider() {
 
   useEffect(() => {
     if (!identityResolved) return;
-    const view = trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn.current));
+    const view = trackScreenView(
+      getAnalytics(),
+      screenNameForPath(pathname, signedIn.current),
+      undefined,
+      Date.now,
+      document.visibilityState === "hidden"
+    );
     activeScreen = view;
     return () => {
       view.leave();

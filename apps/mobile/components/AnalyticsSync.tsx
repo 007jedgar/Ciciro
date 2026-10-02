@@ -20,9 +20,14 @@ export function pauseResumeOnAppState(
 ): () => void {
   const sub = appState.addEventListener("change", (status) => {
     if (status === "active") onForeground();
-    else if (status === "background" || status === "inactive") onBackground();
+    else if (isBackgrounded(status)) onBackground();
   });
   return () => sub.remove();
+}
+
+/** Whether an AppState status counts as backgrounded for pauseResumeOnAppState. */
+export function isBackgrounded(currentState: string): boolean {
+  return currentState === "background" || currentState === "inactive";
 }
 
 /**
@@ -77,7 +82,13 @@ export function AnalyticsSync() {
 
   useEffect(() => {
     const screen = screenNameForPath(pathname);
-    const view = trackScreenView(getAnalytics(), screen);
+    const view = trackScreenView(
+      getAnalytics(),
+      screen,
+      undefined,
+      Date.now,
+      isBackgrounded(AppState.currentState)
+    );
     activeScreen.current = view;
     return () => {
       view.leave();

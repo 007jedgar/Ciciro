@@ -12,6 +12,7 @@ import {
   type BillingEmailRecipient,
 } from "@/lib/email/account-emails";
 import type { DeletingAccount, PreDeleteHook } from "@/lib/account/delete";
+import type { CancelReason } from "@/lib/analytics-events";
 import { captureServerEvent } from "@/lib/analytics-server";
 import { waitUntilRequest } from "@/lib/db";
 
@@ -248,6 +249,22 @@ function newlyScheduledCancellation(event: Stripe.Event): Date | null {
   return scheduledEnd(before) ? null : endsAt;
 }
 
+/** Why a subscription ended without an end scheduled beforehand. */
+function cancellationReason(sub: Stripe.Subscription): CancelReason {
+  const comment = sub.cancellation_details?.comment;
+  if (comment === CHARGE_REFUNDED || comment === CHARGE_DISPUTED) return "refund";
+  switch (sub.cancellation_details?.reason) {
+    case "payment_failed":
+      return "billing_failure";
+    case "payment_disputed":
+      return "refund";
+    case "cancellation_requested":
+      return "immediate";
+    default:
+      return "other";
+  }
+}
+
 /**
  * The analytics event a webhook delivery owes, if any. Runs after the sync,
  * same as the email: only a change Ciciro actually applied gets counted.
@@ -279,15 +296,30 @@ async function captureBillingAnalytics(event: Stripe.Event, userId: string): Pro
     );
     return;
   }
-  // "Canceled" is the moment auto-renew turns off, Pro still active until
-  // the period ends - matching RevenueCat's CANCELLATION.
+  // "Canceled" is the moment the subscription stops being set to renew -
+  // matching RevenueCat's CANCELLATION. Usually that is auto-renew turning
+  // off, Pro still active until the period ends.
   if (event.type === "customer.subscription.updated") {
     if (!newlyScheduledCancellation(event)) return;
-    waitUntilRequest(captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform: "web" }));
+    waitUntilRequest(
+      captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform: "web", reason: "voluntary" })
+    );
     return;
   }
   // "Ended" is access actually gone now - matching RevenueCat's EXPIRATION.
+  // With no end scheduled beforehand (an immediate cancel, billing retries
+  // exhausted, a refund), it was also canceled at this same instant.
   if (event.type === "customer.subscription.deleted") {
+    const sub = event.data.object;
+    if (!scheduledEnd(sub)) {
+      waitUntilRequest(
+        captureServerEvent(userId, "subscription_canceled", {
+          plan: "pro",
+          platform: "web",
+          reason: cancellationReason(sub),
+        })
+      );
+    }
     waitUntilRequest(captureServerEvent(userId, "subscription_ended", { plan: "pro", platform: "web" }));
   }
 }

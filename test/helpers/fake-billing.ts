@@ -65,7 +65,7 @@ export type FakeStripeSubscription = {
   cancel_at_period_end: boolean;
   cancel_at: number | null;
   ended_at: number | null;
-  cancellation_details: { comment: string | null };
+  cancellation_details: { comment: string | null; reason?: string | null };
   livemode: boolean;
   metadata: Record<string, string>;
   items: {
