@@ -1288,20 +1288,22 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         />
         {streaming ? (
           <button
-            className="btn primary"
+            className="btn primary composer-action"
             disabled={stopRequested}
             onClick={stop}
             title="Stop Ciciro at the next safe point. Anything already written stays and can be undone."
           >
-            {stopRequested ? "Stopping…" : "Stop"}
+            <span>{stopRequested ? "Stopping…" : "Stop"}</span>
+            <span aria-hidden="true">Stopping…</span>
           </button>
         ) : (
           <button
-            className="btn primary"
+            className="btn primary composer-action"
             disabled={!input.trim()}
             onClick={() => send(input)}
           >
-            Send
+            <span>Send</span>
+            <span aria-hidden="true">Stopping…</span>
           </button>
         )}
       </div>
