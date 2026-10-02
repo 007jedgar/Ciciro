@@ -11,6 +11,7 @@ import {
   type Entitlement,
 } from "@/lib/billing-client";
 import { offerHeadline, offerTerm, type DisplayOffer, type DisplayPrice } from "@/lib/billing/prices";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Interval = "month" | "year";
 
@@ -123,6 +124,26 @@ export default function PricingPlans({
   const deal = plan === "pro" ? null : offer;
   const dealPrice = deal?.prices[interval] ?? null;
 
+  useEffect(() => {
+    getAnalytics().track("paywall_viewed", { surface: "pricing", plan: plan ?? undefined });
+    // Fire once for this mount; a plan change (e.g. after Stripe redirects back) is not a new view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function startCheckoutFlow() {
+    getAnalytics().track("paywall_cta_clicked", { surface: "pricing", plan: "pro" });
+    setBusy(true);
+    setProblem(null);
+    const result = await startCheckout(interval);
+    if ("url" in result) {
+      getAnalytics().track("checkout_started", { plan: "pro" });
+      window.location.assign(result.url);
+      return;
+    }
+    setProblem(result);
+    setBusy(false);
+  }
+
   async function go(action: () => ReturnType<typeof startCheckout>) {
     setBusy(true);
     setProblem(null);
@@ -160,7 +181,7 @@ export default function PricingPlans({
         type="button"
         className="btn primary pricing-cta"
         disabled={busy || !price}
-        onClick={() => go(() => startCheckout(interval))}
+        onClick={() => void startCheckoutFlow()}
       >
         {busy ? "Opening checkout…" : dealPrice ? "Upgrade at the early-access price" : "Upgrade to Ciciro Pro"}
       </button>

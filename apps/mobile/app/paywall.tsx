@@ -26,6 +26,7 @@ import {
   type ProPackage,
 } from "../lib/purchases";
 import { currentLocale } from "../lib/i18n";
+import { getAnalytics } from "../lib/analytics-client";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { fonts, type ColorTokens } from "../lib/theme";
@@ -74,6 +75,12 @@ export default function PaywallScreen() {
     if (offer && packages === null && !packagesFailed) void loadPackages();
   }, [offer, packages, packagesFailed, loadPackages]);
 
+  useEffect(() => {
+    getAnalytics().track("paywall_viewed", { surface: "paywall", plan: entitlement?.plan });
+    // Fire once for this mount, not on every entitlement refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
 
@@ -81,6 +88,7 @@ export default function PaywallScreen() {
 
   async function subscribe() {
     if (!chosen || busy) return;
+    getAnalytics().track("paywall_cta_clicked", { surface: "paywall", plan: "pro" });
     setBusy("buy");
     setNotice(null);
     try {
@@ -89,7 +97,10 @@ export default function PaywallScreen() {
       rememberEntitlement(latest);
       if (latest.plan !== "free") return;
       const outcome = await buyProPackage(chosen);
-      if (outcome === "cancelled") return;
+      if (outcome === "cancelled") {
+        getAnalytics().track("purchase_cancelled", { surface: "paywall" });
+        return;
+      }
       await confirm({ stillFree: "billing.pending", failed: "billing.pending" });
     } catch {
       setNotice({ tone: "error", key: "billing.purchaseFailed" });

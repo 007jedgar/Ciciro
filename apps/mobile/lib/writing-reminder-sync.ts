@@ -1,5 +1,6 @@
 import type { WritingReminder } from "./writing-reminders";
 import { reminderHrefFromNotificationData } from "./writing-reminders";
+import { getAnalytics } from "./analytics-client";
 
 /** True once the projects query has resolved to an array (possibly empty). */
 export function projectsListReady(
@@ -81,6 +82,7 @@ export function wireReminderNotificationTaps(
   function open(data: unknown) {
     const href = reminderHrefFromNotificationData(data);
     if (!href) return;
+    getAnalytics().track("push_notification_opened", { type: "writing_reminder" });
     openHref(href);
   }
 
