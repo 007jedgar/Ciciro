@@ -85,6 +85,10 @@ A model with `thinking` enabled spends its `max_tokens` budget on thinking too, 
 
 `POST /api/chat/cancel` (`cancelEditorRun` in `src/lib/editor-run.ts`, see `docs/editor-agent-runs.md`) is the only way to stop a durable run; an aborted client fetch alone never does (the claimed slice keeps running and checkpointing). It is checked at iteration boundaries and before each tool call, never mid-stream or mid-tool, so the run finishes whatever it is currently generating or executing before it notices. Both `ChatPanel.tsx` (web) and `use-ciciro-chat.ts` (mobile) must call it from their Stop control - wiring one without the other leaves that surface with the old "Stop does nothing server-side" bug.
 
+## Analytics
+
+Product analytics (PostHog) sits entirely behind `AnalyticsAdapter`, never a vendor SDK, at any call site (`src/lib/analytics-events.ts`, mirrored byte-for-byte in `apps/mobile/lib/` like `manuscript.ts`/`suggestions.ts` above; `test/analytics-events-parity.test.ts` fails when they drift). A new event needs a typed entry in both catalog files before any `track()` call uses it. Never put manuscript text, chat content, titles, or other author prose in an event or property, and identify by internal user id only, never email or name. See `docs/analytics.md` for the tracking plan and feature inventory, `docs/hosting.md#analytics` for env vars and setup.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.
