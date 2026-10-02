@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clampRate, splitSentences, SpeechReader, type SynthLike, type UtteranceLike } from "@/lib/tts";
+import {
+  clampRate,
+  filterVoicesByLanguage,
+  languagePrefix,
+  splitSentences,
+  SpeechReader,
+  type SynthLike,
+  type UtteranceLike,
+} from "@/lib/tts";
 
 function texts(input: string) {
   return splitSentences(input).map((r) => input.slice(r.start, r.end));
@@ -25,6 +33,44 @@ describe("splitSentences", () => {
   it("returns offsets into the original text", () => {
     const [a, b] = splitSentences("Hi there. Bye.");
     expect([a.start, a.end, b.start, b.end]).toEqual([0, 9, 10, 14]);
+  });
+});
+
+describe("languagePrefix", () => {
+  it("lowercases the first two letters of a BCP-47 tag", () => {
+    expect(languagePrefix("en-US")).toBe("en");
+    expect(languagePrefix("FR")).toBe("fr");
+  });
+
+  it("handles missing input", () => {
+    expect(languagePrefix(undefined)).toBe("");
+    expect(languagePrefix(null)).toBe("");
+    expect(languagePrefix("")).toBe("");
+  });
+});
+
+describe("filterVoicesByLanguage", () => {
+  const voices = [
+    { name: "Samantha", lang: "en-US" },
+    { name: "Daniel", lang: "en-GB" },
+    { name: "Amelie", lang: "fr-FR" },
+    { name: "Kyoko", lang: "ja-JP" },
+  ];
+
+  it("keeps only voices matching the language prefix", () => {
+    expect(filterVoicesByLanguage(voices, "en-US").map((v) => v.name)).toEqual(["Samantha", "Daniel"]);
+  });
+
+  it("matches regional variants under the same base language", () => {
+    expect(filterVoicesByLanguage(voices, "en-GB").map((v) => v.name)).toEqual(["Samantha", "Daniel"]);
+  });
+
+  it("is case-insensitive", () => {
+    expect(filterVoicesByLanguage(voices, "FR-fr").map((v) => v.name)).toEqual(["Amelie"]);
+  });
+
+  it("returns an empty list when no voice matches", () => {
+    expect(filterVoicesByLanguage(voices, "de-DE")).toEqual([]);
   });
 });
 

@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { EditorHandle } from "@/components/Editor";
-import { RATE_STEPS, SpeechReader, type ReaderState } from "@/lib/tts";
+import { RATE_STEPS, SpeechReader, filterVoicesByLanguage, type ReaderState } from "@/lib/tts";
 import { setTtsPrefs, useTtsPrefs } from "@/lib/tts-prefs";
 import { getAnalytics } from "@/lib/analytics-client";
 
+/** The manuscript has no language setting of its own, so Listen follows the browser's language. */
+function currentLanguage(): string {
+  return typeof navigator !== "undefined" && navigator.language ? navigator.language : "en";
+}
+
 function sortVoices(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
-  const lang = (typeof navigator !== "undefined" ? navigator.language : "en").slice(0, 2).toLowerCase();
-  const rank = (v: SpeechSynthesisVoice) => (v.lang.toLowerCase().startsWith(lang) ? 0 : 1);
-  return [...voices].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  return [...voices].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -46,7 +49,7 @@ export default function ReadAloud({
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     setSupported(true);
     const synth = window.speechSynthesis;
-    const load = () => setVoices(sortVoices(synth.getVoices()));
+    const load = () => setVoices(sortVoices(filterVoicesByLanguage(synth.getVoices(), currentLanguage())));
     load();
     synth.addEventListener("voiceschanged", load);
     const reader = new SpeechReader<SpeechSynthesisUtterance>(
@@ -70,6 +73,14 @@ export default function ReadAloud({
   useEffect(() => {
     readerRef.current?.stop();
   }, [resetKey, disabled]);
+
+  // A voice picked under a different language no longer matches the filtered
+  // list; drop it rather than leaving a stale, invisible selection in place.
+  useEffect(() => {
+    if (!prefs.voiceURI) return;
+    if (voices.some((v) => v.voiceURI === prefs.voiceURI)) return;
+    setTtsPrefs({ voiceURI: null });
+  }, [voices, prefs.voiceURI]);
 
   const play = useCallback(() => {
     const reader = readerRef.current;
@@ -149,21 +160,25 @@ export default function ReadAloud({
         </label>
         <label>
           Voice{" "}
-          <select
-            value={prefs.voiceURI ?? ""}
-            onChange={(e) => {
-              const voiceURI = e.target.value || null;
-              setTtsPrefs({ voiceURI });
-              readerRef.current?.setVoice(voiceFor(voiceURI));
-            }}
-          >
-            <option value="">Default</option>
-            {voices.map((v) => (
-              <option key={v.voiceURI} value={v.voiceURI}>
-                {v.name} ({v.lang})
-              </option>
-            ))}
-          </select>
+          {voices.length === 0 ? (
+            <span className="read-aloud-empty">No voices for {currentLanguage()} on this device</span>
+          ) : (
+            <select
+              value={prefs.voiceURI ?? ""}
+              onChange={(e) => {
+                const voiceURI = e.target.value || null;
+                setTtsPrefs({ voiceURI });
+                readerRef.current?.setVoice(voiceFor(voiceURI));
+              }}
+            >
+              <option value="">Default</option>
+              {voices.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI}>
+                  {v.name} ({v.lang})
+                </option>
+              ))}
+            </select>
+          )}
         </label>
       </div>
     </div>
