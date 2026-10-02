@@ -29,7 +29,7 @@ The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `sr
 
 ## Prisma on Workers
 
-Each hosted request gets its own `PrismaClient` (`src/lib/db.ts`: one isolate-wide client caused Cloudflare 1101s), and each client's WASM engine stays in memory until `$disconnect()`, about 0.5 MB per request against the isolate's 128 MB. The Worker entry frees it once the body and every `waitUntil` / `after()` have settled (`src/worker/request-lifetime.ts`); never drop that, or wrap `fetch` in a client of its own. A handler that holds a long-lived stream open after its last query calls `releaseRequestPrisma()` (see `/api/sync/stream`).
+Each hosted request gets its own `PrismaClient` (`src/lib/db.ts`: one isolate-wide client caused Cloudflare 1101s), and each client's WASM engine stays in memory until `$disconnect()`, about 0.5 MB per request against the isolate's 128 MB. The Worker entry frees it once the body and every `waitUntil` / `after()` have settled (`src/worker/request-lifetime.ts`); never drop that, or wrap `fetch` in a client of its own. A handler that holds a long-lived stream open after its last query calls `releaseRequestPrisma()` (see `/api/sync/stream`). A stream producer that keeps querying after a client disconnect registers its work with `waitUntilRequest()` (see `/api/chat`), or the request ends at the disconnect and frees its client mid-run.
 
 ## Account data
 

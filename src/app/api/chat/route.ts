@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAnthropic } from "@/lib/anthropic";
-import { prisma } from "@/lib/db";
+import { prisma, waitUntilRequest } from "@/lib/db";
 import { authorizeProject, authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { maybeCompactChat } from "@/lib/compact";
@@ -193,33 +193,38 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      let final: {
-        id: string;
-        status: string;
-        stopReason: string | null;
-        iterationCount: number;
-        mutationCount: number;
-      } = claim;
-      try {
-        final = await executeClaimedEditorRun(claim, emit);
-      } finally {
-        clearInterval(pingTimer);
-        await coordinator.release(run.id, runLease.token);
-        emit({
-          type: "done",
-          status: final.status,
-          runId: final.id,
-          stopReason: final.stopReason,
-          iterationCount: final.iterationCount,
-          mutationCount: final.mutationCount,
-        });
+      const execute = async () => {
+        let final: {
+          id: string;
+          status: string;
+          stopReason: string | null;
+          iterationCount: number;
+          mutationCount: number;
+        } = claim;
         try {
-          controller.close();
-        } catch {
-          // The client may have disconnected; the run was still persisted.
+          final = await executeClaimedEditorRun(claim, emit);
+        } finally {
+          clearInterval(pingTimer);
+          await coordinator.release(run.id, runLease.token);
+          emit({
+            type: "done",
+            status: final.status,
+            runId: final.id,
+            stopReason: final.stopReason,
+            iterationCount: final.iterationCount,
+            mutationCount: final.mutationCount,
+          });
+          try {
+            controller.close();
+          } catch {
+            // The client may have disconnected; the run was still persisted.
+          }
+          closed = true;
         }
-        closed = true;
-      }
+      };
+      const work = execute();
+      waitUntilRequest(work.catch(() => {}));
+      await work;
     },
     cancel() {
       // Disconnect is not cancellation. The claimed slice continues and

@@ -98,6 +98,39 @@ describe("runWithRequestLifetime", () => {
     expect(finish).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the request open after a client cancel until the producer's registered work settles", async () => {
+    const worker = workerContext();
+    const finish = vi.fn(async () => {});
+    const producer = deferred();
+    const cancelled = vi.fn();
+
+    const response = await runWithRequestLifetime(
+      worker.ctx,
+      async (requestCtx) => {
+        // Like /api/chat: cancel is a no-op and the run keeps querying, so the
+        // producer registers its work through the request's waitUntil.
+        const body = new ReadableStream<Uint8Array>({
+          async start() {
+            const work = producer.promise;
+            requestCtx.waitUntil(work);
+            await work;
+          },
+          cancel: cancelled,
+        });
+        return new Response(body);
+      },
+      finish
+    );
+    await response.body!.cancel("client gone");
+    await tick();
+
+    expect(cancelled).toHaveBeenCalled();
+    expect(finish).not.toHaveBeenCalled();
+    producer.resolve();
+    await worker.drain();
+    expect(finish).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for every waitUntil, including work registered by other background work", async () => {
     const worker = workerContext();
     const finish = vi.fn(async () => {});

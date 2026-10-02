@@ -4,6 +4,12 @@
 // (chat, account export) and ctx.waitUntil work, including Next's after(),
 // keeps running after the Response is returned. The cleanup (freeing this
 // request's Prisma engine) waits for all of it.
+//
+// A client cancel ends the body here and is forwarded to the source, so a
+// stream that should stop on disconnect (sync stream, account export) does. A
+// stream producer that keeps querying after the client disconnects (chat,
+// autowrite) must register that work with waitUntilRequest (src/lib/db.ts), or
+// its client is freed mid-run and a fresh one leaks.
 
 type WaitUntilContext = {
   waitUntil(promise: Promise<unknown>): void;

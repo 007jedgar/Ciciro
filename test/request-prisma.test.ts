@@ -21,7 +21,13 @@ vi.mock("@prisma/adapter-d1", () => ({
   },
 }));
 
-import { disposeRequestPrisma, prisma, releaseRequestPrisma, runWithRequestPrisma } from "@/lib/db";
+import {
+  disposeRequestPrisma,
+  prisma,
+  releaseRequestPrisma,
+  runWithRequestPrisma,
+  waitUntilRequest,
+} from "@/lib/db";
 import { setD1Database } from "@/lib/d1-binding";
 
 const CLOUDFLARE_CONTEXT = Symbol.for("__cloudflare-context__");
@@ -48,6 +54,7 @@ afterEach(() => {
   delete globals.prisma;
   delete globals.d1Prisma;
   delete globals.warnedIsolatePrisma;
+  delete globals.warnedLatePrisma;
   setD1Database(undefined);
   vi.unstubAllGlobals();
 });
@@ -142,6 +149,47 @@ describe("prisma on Workers", () => {
     expect(clients[1].$disconnect).toHaveBeenCalledTimes(1);
   });
 
+  it("forwards waitUntilRequest to the request's ExecutionContext", () => {
+    const waitUntil = vi.fn();
+    const work = Promise.resolve();
+    onRequest({ env: { DB: {} }, ctx: { waitUntil } }, () => waitUntilRequest(work));
+    expect(waitUntil).toHaveBeenCalledWith(work);
+  });
+
+  it("logs once per isolate when a client is built on a disposed request", async () => {
+    vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const first = { env: { DB: {} }, ctx: {} };
+    const second = { env: { DB: {} }, ctx: {} };
+
+    onRequest(first, resolvedClient);
+    await disposeRequestPrisma(first.ctx);
+    expect(warn).not.toHaveBeenCalled();
+
+    onRequest(first, resolvedClient);
+    await disposeRequestPrisma(second.ctx);
+    onRequest(second, resolvedClient);
+
+    expect(clients).toHaveLength(3);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain("after its request was disposed");
+  });
+
+  it("does not log a client rebuilt after releaseRequestPrisma", async () => {
+    vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const context = { env: { DB: {} }, ctx: {} };
+
+    onRequest(context, resolvedClient);
+    globals[CLOUDFLARE_CONTEXT] = context;
+    await releaseRequestPrisma();
+    delete globals[CLOUDFLARE_CONTEXT];
+    onRequest(context, resolvedClient);
+
+    expect(clients).toHaveLength(2);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("logs once per isolate when a Worker request falls back to the isolate client", () => {
     vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -174,6 +222,10 @@ describe("prisma on Node", () => {
     resolvedClient();
     await releaseRequestPrisma();
     expect(clients[0].$disconnect).not.toHaveBeenCalled();
+  });
+
+  it("treats waitUntilRequest as a no-op without a request context", () => {
+    expect(() => waitUntilRequest(Promise.resolve())).not.toThrow();
   });
 
   it("does not log the fallback for a D1 binding outside Workers", () => {
