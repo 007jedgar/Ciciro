@@ -15,6 +15,7 @@ import { writingDayKey, formatActiveDuration } from "../lib/writing-day";
 import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
+import { getAnalytics } from "../lib/analytics-client";
 
 function ReviewBody({ review }: { review: Review }) {
   const { t } = useTranslation();
@@ -107,6 +108,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
         tzOffset: new Date().getTimezoneOffset(),
       });
       setSelectedId(review.id);
+      getAnalytics().track("weekly_review_viewed", {});
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("weekly.createError"));
     }

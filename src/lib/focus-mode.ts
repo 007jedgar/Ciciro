@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { getAnalytics } from "@/lib/analytics-client";
 
 /** Focus mode belongs to this browser only, so it lives in localStorage, not synced settings. */
 export const FOCUS_MODE_STORAGE_KEY = "ciciro-focus-mode";
@@ -23,6 +24,7 @@ export function getFocusMode(): boolean {
 
 export function setFocusMode(on: boolean) {
   if (getFocusMode() === on) return;
+  if (on) getAnalytics().track("focus_mode_used", {});
   focusMode = on;
   try {
     localStorage.setItem(FOCUS_MODE_STORAGE_KEY, on ? "true" : "false");

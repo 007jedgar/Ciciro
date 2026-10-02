@@ -3,6 +3,11 @@ import type { ImportResult } from "@/lib/import-manuscript";
 /** File types the import picker offers. Kept in step with detectFormat. */
 export const IMPORT_ACCEPT = ".docx,.md,.markdown,.txt,.html,.htm,.zip,.scriv";
 
+/** The file's extension, for the `import_completed` analytics event's `source` property. */
+export function importSourceFromFilename(name: string): string {
+  return name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "unknown";
+}
+
 /** Upload a file to /api/import. Throws an Error carrying the server's reader-facing message. */
 export async function uploadImport(
   file: File,

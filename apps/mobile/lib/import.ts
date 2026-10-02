@@ -1,6 +1,7 @@
 import * as DocumentPicker from "expo-document-picker";
 import { ciciro, queryClient, queryKeys } from "./api";
 import type { ImportResult } from "./api/types";
+import { getAnalytics } from "./analytics-client";
 
 /** Extensions the server reads: Word, Markdown, saved HTML, zipped Scrivener. */
 export const IMPORT_EXTENSIONS = ["docx", "md", "markdown", "txt", "html", "htm", "zip", "scriv"] as const;
@@ -55,6 +56,8 @@ export async function importManuscriptFile(
   if (opts.folderId) form.append("folderId", opts.folderId);
   if (opts.author) form.append("author", opts.author);
   const result = await ciciro.imports.upload(form);
+  const source = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "unknown";
+  getAnalytics().track("import_completed", { source });
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
   void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(result.projectId) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.chapters.list(result.projectId) });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { shouldShowRecap, type Recap, type RecapResponse } from "@/lib/recap-view";
+import { getAnalytics } from "@/lib/analytics-client";
 
 function lastOpenedKey(projectId: string) {
   return `ciciro:last-opened:${projectId}`;
@@ -41,7 +42,10 @@ export default function PreviouslyOn({ projectId }: { projectId: string }) {
     fetch(`/api/projects/${projectId}/recap`)
       .then((res) => (res.ok ? (res.json() as Promise<RecapResponse>) : null))
       .then((data) => {
-        if (!cancelled && data?.recap) setRecap(data.recap);
+        if (!cancelled && data?.recap) {
+          setRecap(data.recap);
+          getAnalytics().track("recap_viewed", {});
+        }
       })
       .catch(() => {})
       .finally(() => {

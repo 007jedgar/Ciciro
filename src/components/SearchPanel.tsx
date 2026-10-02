@@ -11,6 +11,7 @@ import {
 import DrawerHead from "@/components/DrawerHead";
 import { useSnackbar } from "@/components/Snackbar";
 import { MOTION_MS, measureRow, motionMs } from "@/lib/motion";
+import { getAnalytics } from "@/lib/analytics-client";
 import type { ReplaceUndoResult } from "@/lib/replace-undo";
 
 export type { ReplaceUndoResult };
@@ -96,6 +97,7 @@ export default function SearchPanel({
       try {
         const found = await searchManuscript(projectId, { query, matchCase, wholeWord }, signal);
         setResult(found);
+        getAnalytics().track("search_performed", {});
         setError("");
       } catch (e) {
         if ((e as Error).name !== "AbortError") setError((e as Error).message);

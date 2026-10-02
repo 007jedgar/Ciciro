@@ -21,6 +21,7 @@ import { useUndoableRemoval } from "../lib/undo-removal";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
+import { getAnalytics } from "../lib/analytics-client";
 
 export type ShareLinksHost = {
   alert: typeof Alert.alert;
@@ -120,6 +121,7 @@ export function ShareLinks({
           expiresInDays: expiry,
         },
       });
+      getAnalytics().track("share_link_created", {});
       setLabel("");
       setPicked(new Set());
       setScope("all");

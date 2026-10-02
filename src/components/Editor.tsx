@@ -28,6 +28,7 @@ import { scrollDeltaTo, scrollPaneBy, tweenScrollBy } from "@/lib/editor-scroll"
 import { MOTION_MS, motionMs } from "@/lib/motion";
 import { SuggestionCard, type SuggestionDetail } from "@/components/TrackChanges";
 import { ciciroAcceptedWordCount, type SuggestionAction, type SuggestionAuthor } from "@/lib/suggestions";
+import { getAnalytics } from "@/lib/analytics-client";
 import {
   DELETION_MARK,
   INSERTION_MARK,
@@ -361,6 +362,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       const acceptedWords =
         action === "accept" ? ciciroAcceptedWordCount(editor.getHTML(), ids ?? null) : 0;
       if (!resolveInEditor(editor, action, ids)) return;
+      getAnalytics().track(action === "accept" ? "suggestion_accepted" : "suggestion_rejected", {});
       if (acceptedWords > 0) onSuggestionsAcceptedRef.current?.(acceptedWords);
       const doc = editor.state.doc;
       flashRanges(

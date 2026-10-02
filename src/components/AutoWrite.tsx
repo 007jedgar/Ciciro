@@ -10,6 +10,7 @@ import {
 } from "@/lib/ndjson-stream";
 import DrawerHead from "@/components/DrawerHead";
 import { reportAiLimit } from "@/lib/billing-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   projectId: string;
@@ -46,6 +47,7 @@ export default function AutoWrite({
   const running = phase === "planning" || phase === "drafting" || phase === "saving";
 
   async function start() {
+    getAnalytics().track("autowrite_used", {});
     setPhase("planning");
     setBeats([]);
     setProse([]);

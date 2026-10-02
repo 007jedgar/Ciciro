@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { getAnalytics } from "./analytics-client";
 
 /** Typewriter padding never squeezes the visible writing area below this height. */
 export const TYPEWRITER_MIN_TEXT_HEIGHT = 160;
@@ -34,6 +35,7 @@ export function getFocusMode(): boolean {
 
 export function setFocusMode(on: boolean) {
   if (getFocusMode() === on) return;
+  if (on) getAnalytics().track("focus_mode_used", {});
   focusMode = on;
   writeStored(on);
   for (const listener of listeners) listener();

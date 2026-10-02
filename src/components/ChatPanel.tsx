@@ -12,6 +12,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { quickActionsFor, type QuickAction } from "@/lib/prompts";
 import { countWords } from "@/lib/text";
+import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import type {
   ChatMessage,
@@ -862,6 +863,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
 
   async function send(message: string, kind = "chat", scope?: Scope) {
     if (!message.trim() || streamingRef.current) return;
+    if (kind === "chat") getAnalytics().track("chat_message_sent", {});
     const turnId = crypto.randomUUID();
     streamTurnIdRef.current = turnId;
     const turn: PendingTurn = {
@@ -1023,6 +1025,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       alert("Highlight some text in the manuscript first, then run this action.");
       return;
     }
+    getAnalytics().track("quick_action_used", { action: a.id, kind });
     send(a.prompt ?? "", "action", a.scope);
   }
 

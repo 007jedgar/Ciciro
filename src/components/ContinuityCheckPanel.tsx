@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
 import type { ContinuityCheckFinding, ContinuityCheckResult, ContinuityScope } from "@/lib/continuity-view";
 import { reportAiLimit } from "@/lib/billing-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Props = {
   projectId: string;
@@ -77,6 +78,7 @@ export default function ContinuityCheckPanel({
       reportAiLimit(res.status, data);
       if (!res.ok) throw new Error(data.error || "Couldn't run the continuity check.");
       setResult(data as ContinuityCheckResult);
+      getAnalytics().track("continuity_check_run", {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't run the continuity check.");
     } finally {

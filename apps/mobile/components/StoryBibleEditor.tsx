@@ -9,6 +9,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { SkeletonList } from "./Skeleton";
+import { getAnalytics } from "../lib/analytics-client";
 
 export function StoryBibleEditor({
   projectId,
@@ -63,6 +64,10 @@ export function StoryBibleEditor({
       });
       setRevision(result.revision);
       setDirty(false);
+      const file = path.replace(/\.md$/, "");
+      if (file === "canon" || file === "plot" || file === "style" || file === "timeline") {
+        getAnalytics().track("story_bible_edited", { file });
+      }
       return true;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("bible.saveError"));

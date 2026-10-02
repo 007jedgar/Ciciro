@@ -26,6 +26,7 @@ import {
 import { useProject } from "../../../../lib/project";
 import { useAppTheme } from "../../../../lib/settings";
 import { useCiciroChat } from "../../../../lib/use-ciciro-chat";
+import { getAnalytics } from "../../../../lib/analytics-client";
 
 export default function CiciroScreen() {
   const { project, loading, error, selectedChapterId, recordChapterOp } = useProject();
@@ -74,6 +75,7 @@ export default function CiciroScreen() {
       chapterId: selectedChapterId,
     });
     if (!input) return;
+    getAnalytics().track("chat_message_sent", {});
     const typed = composer;
     setComposer("");
     void chat.send(input).then((failure) => {
@@ -153,6 +155,7 @@ export default function CiciroScreen() {
     if ((project?.chapters.length ?? 0) > 0 && !selectedChapterId) return;
     if (lastIntent.current === requested) return;
     lastIntent.current = requested;
+    getAnalytics().track("quick_action_used", { action: requested, kind: "chat" });
     void chat.send(
       chatRequestFromIntent(requested, {
         projectId,

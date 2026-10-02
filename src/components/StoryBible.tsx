@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Entry = { path: string; summary: string };
 
@@ -48,6 +49,10 @@ export default function StoryBible({ projectId, onClose }: Props) {
       body: JSON.stringify({ projectId, path: openPath, content }),
     });
     setSaved(true);
+    const file = openPath.replace(/\.md$/, "");
+    if (file === "canon" || file === "plot" || file === "style" || file === "timeline") {
+      getAnalytics().track("story_bible_edited", { file });
+    }
     loadIndex();
   }
 
@@ -61,7 +66,10 @@ export default function StoryBible({ projectId, onClose }: Props) {
     const data = await res.json();
     setNewChar("");
     await loadIndex();
-    if (data.path) open(data.path);
+    if (data.path) {
+      getAnalytics().track("character_created", {});
+      open(data.path);
+    }
   }
 
   return (

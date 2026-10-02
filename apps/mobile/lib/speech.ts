@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getAnalytics } from "./analytics-client";
 
 // Speech recognition comes from expo-speech-recognition, a native module that
 // Expo Go does not ship. It is loaded lazily so the app still runs there, and
@@ -170,6 +171,7 @@ export function useDictation({
       onErrorRef.current?.("denied");
       return;
     }
+    getAnalytics().track("dictation_used", {});
     wanted.current = true;
     failures.current = 0;
     setListening(true);
