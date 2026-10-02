@@ -196,12 +196,9 @@ each reminder) and the end of a writing sprint (`app/project/[id]/sprint.tsx`).
   registered phone records nothing, so installing the app mid-lapse still
   gets that lapse's nudge while it is inside the 14-day window.
 
-Production D1 needs the tables before the build that ships this is deployed:
-
-```bash
-wrangler d1 execute ciciro --remote --file=prisma/d1-push-tokens.sql
-wrangler d1 execute ciciro --remote --file=prisma/d1-push-preferences.sql
-```
+Production D1 needs `prisma/d1-push-tokens.sql` and
+`prisma/d1-push-preferences.sql` applied before the build that ships this is
+deployed (see [hosting](hosting.md#database)).
 
 To test on the iOS simulator without APNs, drop a payload on the booted
 simulator (the notification shows even with no server):

@@ -53,8 +53,8 @@
   },
 
   // Daily at 14:00 UTC: src/worker/index.ts's `scheduled` handler runs the
-  // welcome sequence and (Mondays only) the changelog digest. See
-  // src/lib/email/cron.ts.
+  // welcome sequence and (Mondays only) the changelog digest, then the
+  // writing-nudge push. See src/lib/email/cron.ts and src/lib/push/cron.ts.
   "triggers": {
     "crons": ["0 14 * * *"]
   },

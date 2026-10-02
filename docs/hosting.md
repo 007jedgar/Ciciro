@@ -283,6 +283,17 @@ Run it before deploying the build that ships them. Account deletion and the
 data export read both tables, so until it runs they fail with
 `no such table: PushToken`; sign-out keeps working.
 
+Server-sent push (reader comments, the writing nudge, chat finished) needs
+`PushPreference` and `PushNotificationLog`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-push-preferences.sql
+```
+
+Run it before deploying the build that ships them. Until it runs, those sends
+are skipped, Settings > Notifications fails to load, and account deletion and
+the data export fail with `no such table: PushPreference`.
+
 Marketing-email consent needs `EmailPreference` and `MarketingEmailLog` (see
 [Email](#email) below):
 
