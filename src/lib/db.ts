@@ -31,7 +31,10 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   d1Prisma?: PrismaClient;
   warnedIsolatePrisma?: boolean;
+  warnedLatePrisma?: boolean;
 };
+
+const REQUEST_DISPOSED = Symbol.for("ciciro.request-prisma-disposed");
 
 function createNodePrisma(): PrismaClient {
   return new PrismaClient({
@@ -51,7 +54,7 @@ function createD1Prisma(d1: unknown): PrismaClient {
 
 type CloudflareContext = {
   env?: { DB?: unknown };
-  ctx?: object;
+  ctx?: object & { waitUntil?: (promise: Promise<unknown>) => void };
 };
 
 function openNextContext(): CloudflareContext | undefined {
@@ -71,16 +74,46 @@ function prismaForOpenNextRequest(): PrismaClient | undefined {
   if (!context || d1 == null) return undefined;
   // Keyed on the ExecutionContext the Worker entry hands OpenNext, so the entry
   // can free this client when the request ends.
-  return cachedOnContext(context.ctx ?? context, () => createD1Prisma(d1));
+  const key = context.ctx ?? context;
+  return cachedOnContext(key, () => {
+    if ((key as Record<symbol, unknown>)[REQUEST_DISPOSED]) warnLatePrisma();
+    return createD1Prisma(d1);
+  });
 }
 
-/** Free the Prisma client cached on a request's ExecutionContext, if any. */
-export async function disposeRequestPrisma(key: object): Promise<void> {
+function warnLatePrisma(): void {
+  if (globalForPrisma.warnedLatePrisma || !onWorkers()) return;
+  // Once per isolate: nothing frees a client built after its request ended, so
+  // its engine leaks. A stream producer that queries after the client
+  // disconnects must register its work with waitUntilRequest.
+  globalForPrisma.warnedLatePrisma = true;
+  console.warn("[ciciro] Prisma client built after its request was disposed; its engine will not be freed");
+}
+
+async function freeRequestPrisma(key: object): Promise<void> {
   const box = key as Record<symbol, PrismaClient | undefined>;
   const client = box[REQUEST_PRISMA];
   if (!client) return;
   box[REQUEST_PRISMA] = undefined;
   await client.$disconnect();
+}
+
+/**
+ * Free the Prisma client cached on a request's ExecutionContext, if any, once
+ * the request is over. A client built on that context afterwards is logged.
+ */
+export async function disposeRequestPrisma(key: object): Promise<void> {
+  (key as Record<symbol, unknown>)[REQUEST_DISPOSED] = true;
+  await freeRequestPrisma(key);
+}
+
+/**
+ * Keep this request (and its Prisma client) alive until `promise` settles, for
+ * work that outlives the response body, such as a stream producer that keeps
+ * querying after the client disconnects. A no-op outside Workers.
+ */
+export function waitUntilRequest(promise: Promise<unknown>): void {
+  openNextContext()?.ctx?.waitUntil?.(promise);
 }
 
 /**
@@ -90,7 +123,7 @@ export async function disposeRequestPrisma(key: object): Promise<void> {
  */
 export async function releaseRequestPrisma(): Promise<void> {
   const context = openNextContext();
-  if (context) await disposeRequestPrisma(context.ctx ?? context);
+  if (context) await freeRequestPrisma(context.ctx ?? context);
 }
 
 function onWorkers(): boolean {

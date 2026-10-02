@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { runAutoWrite } from "@/lib/autowrite";
+import { waitUntilRequest } from "@/lib/db";
 import { getAnthropic } from "@/lib/anthropic";
 import { authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
@@ -57,21 +58,26 @@ export async function POST(req: NextRequest) {
       };
       // Keepalives so a quiet planning/drafting stretch doesn't look like a dead link.
       const pingTimer = setInterval(() => emit({ type: "ping" }), 12_000);
-      try {
-        await runAutoWrite({
-          projectId,
-          chapterId,
-          targetWords,
-          guidance,
-          emit,
-          shouldStop: () => stopped,
-        });
-      } catch (e) {
-        emit({ type: "error", v: (e as Error).message });
-      } finally {
-        clearInterval(pingTimer);
-        controller.close();
-      }
+      const execute = async () => {
+        try {
+          await runAutoWrite({
+            projectId,
+            chapterId,
+            targetWords,
+            guidance,
+            emit,
+            shouldStop: () => stopped,
+          });
+        } catch (e) {
+          emit({ type: "error", v: (e as Error).message });
+        } finally {
+          clearInterval(pingTimer);
+          controller.close();
+        }
+      };
+      const work = execute();
+      waitUntilRequest(work.catch(() => {}));
+      await work;
     },
     cancel() {
       stopped = true;
