@@ -14,7 +14,7 @@ function fakeExpo() {
       : (body as { to: string }[]).map((m, i) => ({ status: "ok", id: `t-${i}-${m.to}` }));
     return new Response(JSON.stringify({ data }), { status: 200 });
   });
-  (globalThis as { fetch: typeof fetch }).fetch = fetch as unknown as typeof globalThis.fetch;
+  vi.stubGlobal("fetch", fetch);
   return calls;
 }
 
@@ -47,6 +47,7 @@ describe("runWritingNudgeCron", () => {
   });
 
   afterAll(async () => {
+    vi.unstubAllGlobals();
     await prisma.$disconnect();
   });
 

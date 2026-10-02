@@ -143,37 +143,54 @@ needs, `EXPO_ACCESS_TOKEN`, is a Cloudflare Worker secret (see below).
 
 ## Push notifications
 
-What the app notifies about today is all local and scheduled on the phone:
-writing reminders (`lib/writing-reminder-notifications.ts`, the next
-occurrence of each reminder) and the end of a writing sprint
-(`app/project/[id]/sprint.tsx`). Those work offline and stay local. The server
-sends no notifications yet; push is the plumbing for when it does.
+The app also notifies locally and offline, independent of the server: writing
+reminders (`lib/writing-reminder-notifications.ts`, the next occurrence of
+each reminder) and the end of a writing sprint (`app/project/[id]/sprint.tsx`).
 
 - **Registration.** `components/PushRegistrationSync.tsx`
   (`lib/push-registration.ts`) registers the phone's Expo push token with
   `POST /api/push/tokens` while someone is signed in and has allowed
   notifications. It never asks for permission itself: the writing-reminder
-  screens do, and registration follows the answer (granted registers, turned
-  off in Settings unregisters with `DELETE /api/push/tokens`). It re-checks on
-  every return to the foreground and when the platform rotates the token.
+  screens and Settings > Notifications do, and registration follows the
+  answer (granted registers, turned off in Settings unregisters with
+  `DELETE /api/push/tokens`). It re-checks on every return to the foreground
+  and when the platform rotates the token.
 - **Storage.** `PushToken` rows (`src/lib/push/tokens.ts`) belong to the
   sign-in that registered them: signing out, or the session expiring, deletes
   them, so a shared phone never receives another account's notifications. An
   account keeps its 20 most recent phones. Account deletion and the data
   export cover both push tables (the export leaves out the token itself).
-- **Sending.** `sendPushToUser(userId, { title, body, data })` in
-  `src/lib/push/send.ts` posts to the Expo Push API in batches of 100, retries
-  429s and 5xx with backoff, and never throws. An ok ticket is stored as a
-  `PushTicket`; `checkPushReceipts` reads receipts 15 minutes later (every
-  send runs it first), logs delivery errors, and deletes the token when Apple
-  or Google answers `DeviceNotRegistered`, at either the ticket or the receipt.
-  A new notification type is a call to `sendPushToUser` with a `data.href` the
-  app can open, plus an Android `channelId` the app creates.
+- **Sending.** `sendPushToUser(userId, { title, body, data, category,
+  dedupeKey })` in `src/lib/push/send.ts` first checks the user's
+  `PushPreference` for that category (`src/lib/push/preferences.ts`; Settings
+  > Notifications writes it through `GET`/`PUT /api/push/preferences`) and a
+  per-category send cap (`PushNotificationLog`, 5/hour, `dedupeKey` collapses
+  retries of the same event), then posts to the Expo Push API in batches of
+  100, retries 429s and 5xx with backoff, and never throws. An ok ticket is
+  stored as a `PushTicket`; `checkPushReceipts` reads receipts 15 minutes
+  later (every send runs it first), logs delivery errors, and deletes the
+  token when Apple or Google answers `DeviceNotRegistered`, at either the
+  ticket or the receipt. A new notification type is a call to
+  `sendPushToUser` with a `data.href` the app opens on tap
+  (`lib/push-notifications.ts` on the client), plus an Android `channelId`
+  the app creates.
+- **Server triggers (Phase 1, iOS).** A reader comment on a shared manuscript
+  pushes its owner (`notifyOwnerOfComment` in `src/lib/shares.ts`); a 7-day
+  lapse in `WritingDay` activity pushes a get-back-to-writing nudge, checked
+  by a Worker cron (`runWritingNudgeCron` in `src/lib/push/writing-nudge.ts`,
+  wired in `src/worker/index.ts`) rather than scheduled on-device, since
+  `WritingDay` is synced from both platforms and is the only
+  cross-platform-accurate "last wrote" signal; chat and autowrite each push
+  when a run completes after the client has disconnected
+  (`src/lib/push/run-finished.ts`, called from `src/app/api/chat/route.ts`
+  and `src/app/api/autowrite/route.ts`), not when the author is actively
+  watching the stream.
 
 Production D1 needs the tables before the build that ships this is deployed:
 
 ```bash
 wrangler d1 execute ciciro --remote --file=prisma/d1-push-tokens.sql
+wrangler d1 execute ciciro --remote --file=prisma/d1-push-preferences.sql
 ```
 
 To test on the iOS simulator without APNs, drop a payload on the booted
@@ -182,6 +199,16 @@ simulator (the notification shows even with no server):
 ```bash
 xcrun simctl push booted app.ciciro.mobile - <<'JSON'
 {"aps": {"alert": {"title": "Ciciro", "body": "Time to write"}, "sound": "default"}}
+JSON
+```
+
+To test tap-to-deep-link, include the same `data.kind` and `data.href` a
+server push would (see `lib/push-notifications.ts` for the kinds the app
+recognizes):
+
+```bash
+xcrun simctl push booted app.ciciro.mobile - <<'JSON'
+{"aps": {"alert": {"title": "New comment", "body": "Someone commented on your chapter"}, "sound": "default"}, "data": {"kind": "share-comment", "href": "/project/abc123/beta-readers?chapterId=xyz"}}
 JSON
 ```
 
