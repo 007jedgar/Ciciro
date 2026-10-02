@@ -318,6 +318,23 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
           </div>
           <p className="settings-hint">Ciciro drafts with rules against common AI writing habits, then checks each draft.</p>
 
+          <div className="settings-row">
+            <span>Share usage analytics</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.analyticsEnabled}
+              className={`settings-switch ${settings.analyticsEnabled ? "on" : ""}`}
+              onClick={() => patch({ analyticsEnabled: !settings.analyticsEnabled })}
+            >
+              {settings.analyticsEnabled ? "On" : "Off"}
+            </button>
+          </div>
+          <p className="settings-hint">
+            Helps us see which features are used and improve Ciciro. Never your manuscript text,
+            chat content, or titles.
+          </p>
+
           <div className="theme-menu-label">Daily words</div>
           <p className="settings-hint">
             Five minutes is a session. Aim for {settings.weeklyDayTarget} of the last 7 days. The

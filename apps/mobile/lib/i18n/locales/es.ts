@@ -197,6 +197,9 @@ const es: Translations = {
     aiSuggestionsHint: "Las correcciones llegan como cambios propuestos que aceptas o rechazas.",
     craftDefaults: "Indicación de escritura experimental",
     craftDefaultsHint: "Ciciro redacta con reglas contra los hábitos comunes de la escritura con IA y luego revisa cada borrador.",
+    analytics: "Compartir análisis de uso",
+    analyticsHint:
+      "Nos ayuda a ver qué funciones se usan y a mejorar Ciciro. Nunca el texto de tu manuscrito, el contenido del chat ni los títulos.",
     dailyGoal: "Palabras del día",
     dailyGoalHint:
       "Cinco minutos son una sesión. Apunta a {{count}} de los últimos 7 días: el resto son días de descanso, no una racha que proteger.",

@@ -675,6 +675,13 @@ export default function SettingsScreen() {
             colors={colors}
           />
           <ToggleRow
+            label={t("settings.analytics")}
+            hint={t("settings.analyticsHint")}
+            value={settings.analyticsEnabled}
+            onValueChange={(analyticsEnabled) => patch({ analyticsEnabled })}
+            colors={colors}
+          />
+          <ToggleRow
             label={t("settings.dailyGoal")}
             hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
             value={settings.showDailyGoal}

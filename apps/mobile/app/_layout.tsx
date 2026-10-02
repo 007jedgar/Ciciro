@@ -12,6 +12,7 @@ import { useOptionalAppTheme } from "../lib/app-theme-context";
 import { SettingsProvider } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
+import { AnalyticsSync } from "../components/AnalyticsSync";
 import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
@@ -132,6 +133,7 @@ export default function RootLayout() {
               <SettingsProvider>
                 <WritingDayProvider>
                   <LastPlaceTracker />
+                  <AnalyticsSync />
                   <WritingReminderSync />
                   <PushRegistrationSync />
                   <WritingWidgetSync />
