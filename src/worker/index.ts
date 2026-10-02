@@ -12,6 +12,7 @@
 //      open by the others, and
 //   3. bind D1 for the request. Route handlers take a Prisma client from the
 //      OpenNext request context (one per request, not the isolate singleton),
+//      which is freed once the body and all waitUntil work are done,
 //   4. copy string vars/secrets onto process.env so Next.js route handlers can
 //      read ANTHROPIC_API_KEY (OpenNext + a custom entry does not always do this),
 //   5. copy x-ciciro-session onto Cookie and publish the token in ALS so
@@ -21,7 +22,8 @@
 
 import { EditorRunDO } from "./run-do";
 import { runWithD1Database, setD1Database } from "../lib/d1-binding";
-import { runWithRequestPrisma } from "../lib/db";
+import { disposeRequestPrisma, runWithRequestPrisma } from "../lib/db";
+import { runWithRequestLifetime } from "./request-lifetime";
 import { runScheduledEmailJobs } from "../lib/email/cron";
 import {
   setRunDurableObjectNamespace,
@@ -57,7 +59,7 @@ function publishStringEnv(env: Env): void {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: unknown): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     publishStringEnv(env);
     if (env.EDITOR_RUN_DO) {
       setRunDurableObjectNamespace(env.EDITOR_RUN_DO);
@@ -67,13 +69,20 @@ export default {
     }
     if (env.DB) setD1Database(env.DB);
     const forwarded = requestWithSessionHeaders(request);
+    // Prisma is created inside the handler, keyed on the per-request ctx that
+    // runWithRequestLifetime passes OpenNext. Wrapping fetch with a client here
+    // either shares one isolate client across requests or builds an engine the
+    // handler never sees. Each engine stays in WASM memory until freed, so the
+    // lifetime frees it once the request is completely over (see src/lib/db.ts).
     const handle = () =>
-      runWithRequestSession(sessionTokenFromHeaders(forwarded.headers), () =>
-        openNextHandler.fetch(forwarded, env, ctx)
+      runWithRequestLifetime(
+        ctx,
+        (requestCtx) =>
+          runWithRequestSession(sessionTokenFromHeaders(forwarded.headers), () =>
+            openNextHandler.fetch(forwarded, env, requestCtx)
+          ),
+        disposeRequestPrisma
       );
-    // Prisma is created inside the handler, on the OpenNext request context.
-    // Wrapping fetch with a client here either shares one isolate client
-    // across requests or builds an engine the handler never sees.
     return env.DB ? runWithD1Database(env.DB, handle) : handle();
   },
 
