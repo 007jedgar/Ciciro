@@ -3183,6 +3183,10 @@ input[type="file"]::file-selector-button {
   font-size: 12px;
   padding: 4px 8px;
 }
+.read-aloud-empty {
+  color: var(--ink-soft);
+  font-style: italic;
+}
 .ProseMirror .reading-aloud {
   background: var(--accent-soft);
   border-radius: 3px;
