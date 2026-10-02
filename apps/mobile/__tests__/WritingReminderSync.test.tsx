@@ -157,6 +157,32 @@ describe("writing-reminder-sync helpers", () => {
     expect(openHref).toHaveBeenCalledWith("/project/p1/beta-readers");
   });
 
+  it("navigates on a tap of a remote push, whose data arrives under trigger.payload not content", () => {
+    const openHref = jest.fn();
+    const api = fakeNotificationsApi();
+    wireReminderNotificationTaps(api, openHref, { current: false });
+
+    // iOS leaves content.data null for a push-type trigger; the real payload
+    // is the raw APNs userInfo under request.trigger.payload (see
+    // expo-notifications' PushNotificationTrigger).
+    const response = {
+      actionIdentifier: "default",
+      notification: {
+        request: {
+          identifier: "t1",
+          content: { data: null },
+          trigger: {
+            type: "push",
+            payload: { data: { kind: "share-comment", href: "/project/p1/beta-readers" } },
+          },
+        },
+      },
+    };
+    for (const listener of api.listeners) listener(response);
+
+    expect(openHref).toHaveBeenCalledWith("/project/p1/beta-readers");
+  });
+
   it("ignores a notification kind it does not recognize", () => {
     const openHref = jest.fn();
     const api = fakeNotificationsApi();

@@ -45,9 +45,24 @@ export type ReminderNotificationResponse = {
   notification: {
     /** Delivery time. Repeating reminders share a request id and differ here. */
     date?: number;
-    request: { identifier?: string; content: { data?: unknown } };
+    request: {
+      identifier?: string;
+      content: { data?: unknown };
+      /** iOS remote (server-sent) pushes carry their data here, not in `content.data`. */
+      trigger?: { type?: string; payload?: { data?: unknown } };
+    };
   };
 };
+
+/**
+ * A local, on-device-scheduled notification's data lives on `content.data`.
+ * A remote push delivered through APNs leaves `content.data` null and puts
+ * the server's `data` under `trigger.payload` instead (iOS surfaces the raw
+ * `UNNotificationContent.userInfo` there, not on `content`).
+ */
+function notificationData(request: ReminderNotificationResponse["notification"]["request"]): unknown {
+  return request.content.data ?? request.trigger?.payload?.data;
+}
 
 export type ReminderNotificationsApi = {
   DEFAULT_ACTION_IDENTIFIER: string;
@@ -96,7 +111,7 @@ export function wireReminderNotificationTaps(
     const key = reminderDeliveryKey(response);
     if (key && key === launchDelivery) return;
     if (claimingLaunch && key) launchDelivery = key;
-    open(response.notification.request.content.data);
+    open(notificationData(response.notification.request));
     api.clearLastNotificationResponse();
   }
 
