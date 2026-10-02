@@ -252,6 +252,12 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
+  // Set only by `stop`, so a race where the in-flight slice's "continuing"
+  // checkpoint lands just after the cancel request still ends the client's
+  // auto-continuation loop (the server self-heals that same race - see
+  // claimEditorRun's cancelledAt check in editor-run.ts).
+  const stopRequestedRef = useRef(false);
+  const [stopRequested, setStopRequested] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const streamTurnIdRef = useRef<string | null>(null);
   const activeChapterRef = useRef(activeChapterId);
@@ -675,6 +681,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   async function runTurn(turn: PendingTurn, isResume: boolean) {
     if (streamingRef.current) return;
     streamingRef.current = true;
+    stopRequestedRef.current = false;
+    setStopRequested(false);
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -758,7 +766,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         });
         savePendingTurn(turn);
 
-        if (sliceResult.status !== "continuing") break;
+        if (sliceResult.status !== "continuing" || stopRequestedRef.current) break;
         continuationSlices += 1;
         if (continuationSlices >= MAX_CONTINUATION_SLICES) {
           setStreamTools((current) => [
@@ -805,9 +813,32 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       setActivePhase(null);
       setStreaming(false);
       streamingRef.current = false;
+      stopRequestedRef.current = false;
+      setStopRequested(false);
       abortRef.current = null;
       onTurnComplete?.();
     }
+  }
+
+  /**
+   * Stop the turn Ciciro is working on. Unlike `clearChat`'s abort, this
+   * does not tear down the client's read of the stream - the current
+   * iteration keeps landing on screen - it asks the server to stop at the
+   * next safe iteration boundary (see cancelEditorRun in editor-run.ts) so
+   * the run is durably `cancelled` and never resumed, while anything already
+   * written stays visible and undoable through the normal op log.
+   */
+  function stop() {
+    if (!streamingRef.current || stopRequestedRef.current) return;
+    stopRequestedRef.current = true;
+    setStopRequested(true);
+    const turnId = streamTurnIdRef.current;
+    if (!turnId) return;
+    fetch("/api/chat/cancel", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ projectId, turnId }),
+    }).catch(() => {});
   }
 
   async function send(message: string, kind = "chat", scope?: Scope) {
@@ -1101,10 +1132,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           <div className="msg assistant">
             <div className="who">
               Ciciro
-              {activePhase && (
-                <span className={`run-phase ${activePhase}`}>
-                  {PHASE_LABELS[activePhase]}
-                </span>
+              {stopRequested ? (
+                <span className="run-phase cancelled">Stopping…</span>
+              ) : (
+                activePhase && (
+                  <span className={`run-phase ${activePhase}`}>
+                    {PHASE_LABELS[activePhase]}
+                  </span>
+                )
               )}
             </div>
             {streamTools.length > 0 && (
@@ -1153,7 +1188,9 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                 : (
                     <WritingLoader
                       label={
-                        conn === "offline"
+                        stopRequested
+                          ? "Stopping…"
+                          : conn === "offline"
                           ? "Waiting for connection…"
                           : conn === "reconnecting" || conn === "stalled"
                             ? "Reconnecting…"
@@ -1230,13 +1267,24 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             }
           }}
         />
-        <button
-          className="btn primary"
-          disabled={streaming || !input.trim()}
-          onClick={() => send(input)}
-        >
-          Send
-        </button>
+        {streaming ? (
+          <button
+            className="btn primary"
+            disabled={stopRequested}
+            onClick={stop}
+            title="Stop Ciciro at the next safe point. Anything already written stays and can be undone."
+          >
+            {stopRequested ? "Stopping…" : "Stop"}
+          </button>
+        ) : (
+          <button
+            className="btn primary"
+            disabled={!input.trim()}
+            onClick={() => send(input)}
+          >
+            Send
+          </button>
+        )}
       </div>
     </div>
   );

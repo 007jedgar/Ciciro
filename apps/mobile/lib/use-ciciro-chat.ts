@@ -24,9 +24,10 @@ export type UseCiciroChat = {
   /** Resolves with the turn's failure when it never reached the editor, else null. */
   send: (input: EditorRunInput) => Promise<ChatFailure | null>;
   /**
-   * Abandons the turn in flight, keeping the words that already landed. The
-   * server run is not cancelled — there is no endpoint for that — so the rest
-   * of its output turns up in the transcript on the next reload.
+   * Stops the turn in flight, keeping the words that already landed. Asks
+   * the server to cancel the durable run (it stops at its next safe
+   * iteration boundary and is never resumed), then abandons the local read
+   * of the stream so the UI frees up immediately.
    */
   stop: () => void;
   /** Re-run the last turn. No-op when nothing has been sent yet. */
@@ -71,6 +72,8 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   const streamingRef = useRef(false);
   /** Set only by `stop`, so a clear's abort does not resurrect the transcript. */
   const stopRequestedRef = useRef(false);
+  /** The in-flight turn's id, so `stop` can ask the server to cancel it. */
+  const turnIdRef = useRef<string | null>(null);
   /** The last turn sent, so Try again can replay it verbatim. */
   const lastInputRef = useRef<EditorRunInput | null>(null);
   /**
@@ -120,6 +123,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
 
       streamingRef.current = true;
       stopRequestedRef.current = false;
+      turnIdRef.current = input.resumeTurnId ?? null;
       lastInputRef.current = input;
       // A run that dies mid-flight resolves with an error footer in the reply,
       // whose Try again replays this turn too.
@@ -160,6 +164,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
             body,
             (event: ChatStreamEvent) => {
               next = applyChatStreamEvent(next, event);
+              turnIdRef.current = next.turnId ?? turnIdRef.current;
               setStream({ ...next });
               if (shouldInvalidateProject(event)) {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
@@ -210,6 +215,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       } finally {
         streamingRef.current = false;
         stopRequestedRef.current = false;
+        turnIdRef.current = null;
         setStreaming(false);
         setStream(emptyChatStreamState());
         abortRef.current = null;
@@ -221,8 +227,15 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   const stop = useCallback(() => {
     if (!streamingRef.current) return;
     stopRequestedRef.current = true;
+    const turnId = turnIdRef.current;
+    if (projectId && turnId) {
+      // Best-effort: even if this never lands, the local abort below still
+      // frees the UI, and a page reload will show whatever the server did
+      // land before it noticed the cancellation.
+      ciciro.chat.cancel(projectId, turnId).catch(() => {});
+    }
     abortRef.current?.abort();
-  }, []);
+  }, [projectId]);
 
   const retry = useCallback(async () => {
     if (streamingRef.current) return;

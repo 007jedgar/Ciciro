@@ -348,6 +348,27 @@ export async function claimEditorRun(runId: string): Promise<ClaimedEditorRun | 
   const now = new Date();
   const current = await prisma.editorRun.findUnique({ where: { id: runId } });
   if (!current) return null;
+
+  if (
+    current.cancelledAt &&
+    !["completed", "failed", "cancelled"].includes(current.status)
+  ) {
+    // A cancellation landed in the gap between slices, when nothing was
+    // actively executing to notice it (see cancelEditorRun below).
+    // Finalize it now instead of leaving a non-terminal row that can never
+    // be claimed again.
+    await prisma.editorRun.updateMany({
+      where: { id: runId, status: current.status },
+      data: {
+        status: "cancelled",
+        stopReason: "user_cancelled",
+        lockToken: null,
+        leaseExpiresAt: null,
+      },
+    });
+    return null;
+  }
+
   const claimable = ["queued", "running", "continuing", "verifying"].includes(
     current.status
   );
@@ -375,6 +396,62 @@ export async function claimEditorRun(runId: string): Promise<ClaimedEditorRun | 
   return { ...run, claimToken };
 }
 
+/**
+ * Ask a run to stop. When nothing currently holds its lease - idle between
+ * slices, or not yet started - this finalizes it as `cancelled` immediately.
+ * Otherwise it only flags the row; the active slice notices at its next
+ * iteration boundary (see `isCancelled` in executeClaimedEditorRun below)
+ * and finalizes it there. Never mid-iteration: whatever already
+ * landed - visible text, committed tool mutations - stays, same as any other
+ * checkpoint.
+ */
+export async function cancelEditorRun(runId: string, projectId: string) {
+  const current = await prisma.editorRun.findUnique({ where: { id: runId } });
+  if (!current || current.projectId !== projectId) return null;
+
+  if (["completed", "failed", "cancelled"].includes(current.status)) {
+    return current;
+  }
+
+  const now = new Date();
+  const locked = Boolean(
+    current.lockToken && current.leaseExpiresAt && current.leaseExpiresAt > now
+  );
+
+  if (!locked) {
+    const claimed = await prisma.editorRun.updateMany({
+      where: { id: runId, status: current.status },
+      data: {
+        status: "cancelled",
+        stopReason: "user_cancelled",
+        cancelledAt: current.cancelledAt ?? now,
+        lockToken: null,
+        leaseExpiresAt: null,
+      },
+    });
+    if (claimed.count === 1) {
+      const final = await prisma.editorRun.findUniqueOrThrow({ where: { id: runId } });
+      if (final.assistantMessageId) {
+        await prisma.chatMessage
+          .update({
+            where: { id: final.assistantMessageId },
+            data: { status: "partial" },
+          })
+          .catch(() => {});
+      }
+      return final;
+    }
+    // Lost the race to an executor that just claimed it; fall through and
+    // flag the row instead.
+  }
+
+  await prisma.editorRun.updateMany({
+    where: { id: runId, cancelledAt: null },
+    data: { cancelledAt: now },
+  });
+  return prisma.editorRun.findUniqueOrThrow({ where: { id: runId } });
+}
+
 type Checkpoint = {
   runId: string;
   claimToken: string;
@@ -396,7 +473,7 @@ async function checkpointIteration(input: Checkpoint) {
   const chatStatus =
     input.status === "completed"
       ? "complete"
-      : input.status === "failed"
+      : input.status === "failed" || input.status === "cancelled"
         ? "partial"
         : "continuing";
   const assistantContent = healAssistantContent(input.visibleOutput, {
@@ -591,8 +668,39 @@ export async function executeClaimedEditorRun(
   let persistedIterations = claim.iterationCount;
   let progressNotes = supportsThinkingUpdates(EDITOR_MODEL);
 
+  // Cancellation is a flag on the row, not the claim token, so the author's
+  // stop request can write it without needing the lease this run holds.
+  // Checked only between iterations - never mid-stream - matching the
+  // durable lifecycle's "safe iteration boundary" contract.
+  const isCancelled = async () => {
+    const row = await prisma.editorRun.findUnique({
+      where: { id: claim.id },
+      select: { cancelledAt: true },
+    });
+    return Boolean(row?.cancelledAt);
+  };
+  const checkpointCancelled = async () => {
+    const iteration = completedIterations + 1;
+    const checkpoint = await checkpointIteration({
+      runId: claim.id,
+      claimToken: claim.claimToken,
+      iteration,
+      messages,
+      visibleOutput: visible,
+      visibleDelta: "",
+      modelResponse: { cancelled: true },
+      stopReason: "user_cancelled",
+      status: "cancelled",
+      stepMutationCount: 0,
+      totalMutationCount: totalMutations,
+    });
+    persistedIterations = iteration;
+    return checkpoint;
+  };
+
   try {
     if (claim.status === "verifying") {
+      if (await isCancelled()) return checkpointCancelled();
       return finalizeVerification(claim, messages);
     }
 
@@ -603,6 +711,8 @@ export async function executeClaimedEditorRun(
     const editorSystem = editorSystemFor(kind, "", { craft });
 
     for (let sliceIndex = 0; sliceIndex < MAX_ITERATIONS_PER_SLICE; sliceIndex++) {
+      if (await isCancelled()) return checkpointCancelled();
+
       let msg: Anthropic.Message | undefined;
       let visibleDelta = "";
       let midStreamDrop = false;
@@ -737,9 +847,12 @@ export async function executeClaimedEditorRun(
           });
         }
         messages.push({ role: "user", content: toolResults });
-        const status: EditorRunStatus = isLastIteration
-          ? "continuing"
-          : "running";
+        const cancelled = await isCancelled();
+        const status: EditorRunStatus = cancelled
+          ? "cancelled"
+          : isLastIteration
+            ? "continuing"
+            : "running";
         const checkpoint = await checkpointIteration({
           runId: claim.id,
           claimToken: claim.claimToken,
@@ -749,21 +862,24 @@ export async function executeClaimedEditorRun(
           visibleDelta,
           modelResponse: msg,
           toolResults,
-          stopReason: "tool_use",
+          stopReason: cancelled ? "user_cancelled" : "tool_use",
           status,
           stepMutationCount: stepMutations,
           totalMutationCount: totalMutations,
         });
         persistedIterations = completedIterations;
-        if (status === "continuing") return checkpoint;
+        if (status !== "running") return checkpoint;
         continue;
       }
 
       if (msg.stop_reason === "max_tokens") {
         messages.push({ role: "user", content: CONTINUE_EXACTLY });
-        const status: EditorRunStatus = isLastIteration
-          ? "continuing"
-          : "running";
+        const cancelled = await isCancelled();
+        const status: EditorRunStatus = cancelled
+          ? "cancelled"
+          : isLastIteration
+            ? "continuing"
+            : "running";
         const checkpoint = await checkpointIteration({
           runId: claim.id,
           claimToken: claim.claimToken,
@@ -772,17 +888,34 @@ export async function executeClaimedEditorRun(
           visibleOutput: visible,
           visibleDelta,
           modelResponse: msg,
-          stopReason: "max_tokens",
+          stopReason: cancelled ? "user_cancelled" : "max_tokens",
           status,
           stepMutationCount: 0,
           totalMutationCount: totalMutations,
         });
         persistedIterations = completedIterations;
-        if (status === "continuing") return checkpoint;
+        if (status !== "running") return checkpoint;
         continue;
       }
 
       if (msg.stop_reason === "end_turn") {
+        if (await isCancelled()) {
+          const checkpoint = await checkpointIteration({
+            runId: claim.id,
+            claimToken: claim.claimToken,
+            iteration: completedIterations,
+            messages,
+            visibleOutput: visible,
+            visibleDelta,
+            modelResponse: msg,
+            stopReason: "user_cancelled",
+            status: "cancelled",
+            stepMutationCount: 0,
+            totalMutationCount: totalMutations,
+          });
+          persistedIterations = completedIterations;
+          return checkpoint;
+        }
         const verifying = await checkpointIteration({
           runId: claim.id,
           claimToken: claim.claimToken,

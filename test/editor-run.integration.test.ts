@@ -42,6 +42,19 @@ vi.mock("@/lib/anthropic", () => ({
                 };
               }
             }
+            // Fixture hook: simulate a Stop request landing in the gap right
+            // after this model call finishes (and any of its tools run) but
+            // before the next iteration's model call - the exact boundary
+            // the durable run is supposed to notice cancellation at.
+            const cancelRunId = (response as unknown as { __cancelRunId?: string })
+              .__cancelRunId;
+            if (cancelRunId) {
+              const { prisma: db } = await import("@/lib/db");
+              await db.editorRun.updateMany({
+                where: { id: cancelRunId },
+                data: { cancelledAt: new Date() },
+              });
+            }
           },
           finalMessage: async () => response,
         };
@@ -81,6 +94,7 @@ import { registerUser } from "@/lib/auth/session";
 import { updateUserSettings } from "@/lib/user-settings";
 import { editorSystemFor } from "@/lib/prompts";
 import {
+  cancelEditorRun,
   claimEditorRun,
   executeClaimedEditorRun,
   prepareEditorRun,
@@ -394,5 +408,137 @@ describe("durable editor lifecycle", () => {
     });
     expect(model.calls[1].params.thinking).toEqual({ type: "adaptive" });
     expect(model.calls[1].options).toBeUndefined();
+  });
+
+  describe("cancellation", () => {
+    it("finalizes a not-yet-claimed run immediately and marks its message partial", async () => {
+      const project = await createProject();
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "Write two new paragraphs.",
+        clientTurnId: "cancel-idle-turn",
+      });
+      const runId = prepared!.run.id;
+      await prisma.editorRun.update({
+        where: { id: runId },
+        data: {
+          status: "continuing",
+          visibleOutput: "Already written.",
+          assistantMessageId: (
+            await prisma.chatMessage.create({
+              data: {
+                projectId: project.id,
+                role: "assistant",
+                content: "Already written.",
+                status: "continuing",
+                turnId: prepared!.run.turnId,
+              },
+            })
+          ).id,
+        },
+      });
+
+      const updated = await cancelEditorRun(runId, project.id);
+      expect(updated?.status).toBe("cancelled");
+      expect(updated?.stopReason).toBe("user_cancelled");
+      expect(updated?.cancelledAt).not.toBeNull();
+
+      const persisted = await prisma.editorRun.findUniqueOrThrow({ where: { id: runId } });
+      expect(persisted.status).toBe("cancelled");
+      expect(persisted.lockToken).toBeNull();
+      const assistant = await prisma.chatMessage.findUniqueOrThrow({
+        where: { id: persisted.assistantMessageId! },
+      });
+      expect(assistant.status).toBe("partial");
+
+      // Idempotent: cancelling an already-cancelled run is a no-op, not an error.
+      const again = await cancelEditorRun(runId, project.id);
+      expect(again?.status).toBe("cancelled");
+    });
+
+    it("only flags a claimed run so the active executor finalizes it, instead of racing its lease", async () => {
+      const project = await createProject();
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "Write two new paragraphs.",
+        clientTurnId: "cancel-locked-turn",
+      });
+      const claim = await claimEditorRun(prepared!.run.id);
+      expect(claim).not.toBeNull();
+
+      const updated = await cancelEditorRun(prepared!.run.id, project.id);
+      expect(updated?.status).toBe("running");
+      expect(updated?.cancelledAt).not.toBeNull();
+      expect(updated?.lockToken).toBe(claim!.claimToken);
+    });
+
+    it("stops before a second iteration once a concurrent Stop request lands, keeping the first iteration's work", async () => {
+      const project = await createProject();
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "Write chapter one, then chapter two.",
+        clientTurnId: "cancel-between-iterations",
+      });
+      const runId = prepared!.run.id;
+
+      const iteration1 = response("tool_use", [
+        { type: "text", text: "Drafting chapter one.", citations: null },
+        { type: "tool_use", id: "tool-1", name: "list_open_questions", input: {} },
+      ]);
+      // The reported bug: a second, unwanted iteration (e.g. an accidental
+      // second chapter) starts before the author's Stop request is noticed.
+      // This fixture simulates that request landing right after the first
+      // iteration's model call and tool execution finish.
+      (iteration1 as unknown as { __cancelRunId?: string }).__cancelRunId = runId;
+      const iteration2 = response("end_turn", [
+        { type: "text", text: "Drafting chapter two.", citations: null },
+      ]);
+      model.responses.push(iteration1, iteration2);
+
+      const claim = await claimEditorRun(runId);
+      const result = await executeClaimedEditorRun(claim!, () => {});
+      const persisted = await prisma.editorRun.findUniqueOrThrow({
+        where: { id: runId },
+        include: { steps: true },
+      });
+
+      // The second model call (which would have drafted chapter two) never
+      // happened - the unconsumed fixture response proves it.
+      expect(model.calls).toHaveLength(1);
+      expect(result.status).toBe("cancelled");
+      expect(persisted.status).toBe("cancelled");
+      expect(persisted.stopReason).toBe("user_cancelled");
+      expect(persisted.visibleOutput).toContain("Drafting chapter one.");
+      expect(persisted.visibleOutput).not.toContain("Drafting chapter two.");
+      expect(persisted.lockToken).toBeNull();
+      expect(persisted.leaseExpiresAt).toBeNull();
+      expect(persisted.completedAt).toBeNull();
+    });
+
+    it("self-heals a run left continuing with cancelledAt set, so it can never be resumed", async () => {
+      const project = await createProject();
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "Write two new paragraphs.",
+        clientTurnId: "cancel-self-heal-turn",
+      });
+      const runId = prepared!.run.id;
+      // Simulate the narrow race the comment in claimEditorRun describes: a
+      // slice finished (status continuing, lease cleared) in the same
+      // instant a Stop request flagged cancelledAt, so neither side
+      // finalized the terminal status.
+      await prisma.editorRun.update({
+        where: { id: runId },
+        data: { status: "continuing", cancelledAt: new Date() },
+      });
+
+      const claim = await claimEditorRun(runId);
+      expect(claim).toBeNull();
+
+      const persisted = await prisma.editorRun.findUniqueOrThrow({ where: { id: runId } });
+      expect(persisted.status).toBe("cancelled");
+      expect(persisted.stopReason).toBe("user_cancelled");
+      expect(persisted.lockToken).toBeNull();
+    });
   });
 });
