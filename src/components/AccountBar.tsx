@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 import type { Entitlement } from "@/lib/billing-client";
 import { getAnalytics } from "@/lib/analytics-client";
+import { signOutAnalytics } from "@/components/AnalyticsProvider";
 
 type Me = { id: string; email: string; name: string } | null;
 
@@ -40,7 +41,7 @@ export default function AccountBar() {
       cache: "no-store",
     }).catch(() => {});
     getAnalytics().track("signed_out", {});
-    getAnalytics().reset();
+    signOutAnalytics();
     setMe(null);
     window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
     router.refresh();

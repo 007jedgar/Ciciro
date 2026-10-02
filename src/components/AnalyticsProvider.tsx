@@ -34,6 +34,21 @@ function storeIdentity(userId: string | null): void {
   }
 }
 
+// The open screen view's end function, so sign-out can record its duration
+// under the account before reset() switches to a new anonymous id.
+let endActiveScreen: (() => void) | null = null;
+
+/**
+ * Sign this browser out of analytics: end the current screen view while the
+ * account is still identified, then reset. Call after tracking signed_out.
+ */
+export function signOutAnalytics(): void {
+  endActiveScreen?.();
+  endActiveScreen = null;
+  getAnalytics().reset();
+  storeIdentity(null);
+}
+
 /**
  * Canonical screen name for a route, for "time on screen" and feature-usage
  * breakdowns in PostHog. "/" renders Landing or Library depending on
@@ -120,7 +135,12 @@ export default function AnalyticsProvider() {
 
   useEffect(() => {
     if (!identityResolved) return;
-    return trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn.current));
+    const end = trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn.current));
+    endActiveScreen = end;
+    return () => {
+      end();
+      if (endActiveScreen === end) endActiveScreen = null;
+    };
   }, [pathname, identityResolved]);
 
   return null;
