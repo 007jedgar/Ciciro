@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "4ca366f23f13",
+    "summary": "**Stop** in Ciciro's chat (web and phone) now actually stops a request.",
+    "text": "**Stop** in Ciciro's chat (web and phone) now actually stops a request. Ciciro finishes the step it is on, then stops before its next tool call; anything it already wrote stays and can be undone."
+  },
+  {
     "id": "f3ae4e2e3793",
     "summary": "Auto-draft and the chat's draft tool no longer put text that was cut off mid-sentence into your chapter.",
     "text": "Auto-draft and the chat's draft tool no longer put text that was cut off mid-sentence into your chapter. A beat that runs past its length limit now fails and can be retried, and Recap and chapter summaries keep their previous version instead of saving a cut-off one."
