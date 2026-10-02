@@ -9,6 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { safeNext } from "@/lib/auth/constants";
 import type { SocialProvider } from "@/lib/auth/social-config";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
+import { getAnalytics } from "@/lib/analytics-client";
 
 type Mode = "login" | "signup";
 
@@ -84,6 +85,15 @@ export default function AuthForm({
         setError(data.error || "Something went wrong.");
         setBusy(false);
         return;
+      }
+      const userId = data?.user?.id as string | undefined;
+      if (userId) {
+        const analytics = getAnalytics();
+        analytics.identify(userId);
+        analytics.track(mode === "signup" ? "account_created" : "signed_in", {
+          method: "email",
+          platform: "web",
+        });
       }
       window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
       window.location.assign(next);
