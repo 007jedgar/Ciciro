@@ -86,6 +86,7 @@ import type {
   SearchResult,
   ChatClearResult,
   ChatRestoreResult,
+  ChatCancelResult,
   QuestionCreateRequest,
   QuestionPatchRequest,
   ReadingPositionPutRequest,
@@ -554,6 +555,12 @@ export const ciciro = {
       onEvent: (event: ChatStreamEvent) => void,
       opts?: RequestOpts
     ) => streamEvents("/api/chat", body, onEvent, opts),
+    /** Ask a running turn to stop at its next safe iteration boundary. */
+    cancel: (projectId: string, turnId: string, opts?: RequestOpts) =>
+      api<ChatCancelResult>(
+        "/api/chat/cancel",
+        jsonInit("POST", { projectId, turnId }, opts)
+      ),
     insertions: {
       list: (projectId: string, opts?: RequestOpts) =>
         api<DraftInsertion[]>(`/api/chat/insertions${queryString({ projectId })}`, opts),

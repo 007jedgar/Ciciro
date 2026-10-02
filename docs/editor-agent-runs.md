@@ -122,10 +122,27 @@ continuing run resumes its exact transcript when requested with `resumeTurnId` (
 the same client id). If another request owns the unexpired run lease, the adapter
 returns `409`; no second generation or tool execution starts.
 
-Disconnecting the client does not cancel server work. Cancellation is an explicit
-state transition (API/UI wiring is phase 3): it prevents another slice from starting,
-but cannot roll back tool mutations already committed. Expired leases are recoverable
-after process death.
+Disconnecting the client does not cancel server work - a dropped connection just
+stops the client's own read; the claimed slice keeps running and checkpointing.
+Cancellation is instead an explicit state transition: `POST /api/chat/cancel` with
+`{ projectId, turnId }` or `{ projectId, runId }` (`cancelEditorRun` in
+`src/lib/editor-run.ts`). A run with no active lease (idle between slices, or not
+yet started) is finalized as `cancelled` immediately. An actively-claimed run is
+only flagged (`EditorRun.cancelledAt`); the executor checks that flag at every
+iteration boundary in `executeClaimedEditorRun` - before each model call, and right
+after a `tool_use`/`max_tokens`/`end_turn` checkpoint would otherwise continue - and
+finalizes as `cancelled` there instead. It is never checked mid-stream, so the
+current iteration's text and any tool mutations it already committed are kept,
+same as any other checkpoint; cancellation only prevents the *next* iteration or
+slice. `claimEditorRun` self-heals the rare race where a slice's own checkpoint and
+a cancel request land in the same instant, so a cancelled row can never be resumed.
+Both the web (`ChatPanel.tsx`) and mobile (`use-ciciro-chat.ts`) clients show a Stop
+control while a run is active and call this endpoint; mobile also aborts its local
+stream read afterward, web keeps reading so the `done` event's `cancelled` status
+and whatever the final iteration produced still land in the transcript. A cancelled
+run is not a failure refund - the message that started it was already metered when
+it was sent (`src/lib/entitlements.ts`). Expired leases are recoverable after
+process death.
 
 ## Structural tool contracts (phase 2)
 

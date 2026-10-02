@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { useCiciroChat } from "../lib/use-ciciro-chat";
-import { jsonResponse, mockFetch, ndjsonResponse } from "./http";
+import { jsonResponse, mockFetch, ndjsonResponse, parsedBody } from "./http";
 import { setSessionToken } from "../lib/session-store";
 
 describe("useCiciroChat", () => {
@@ -226,6 +226,54 @@ describe("useCiciroChat", () => {
     expect(
       result.current.messages.some((message) => message.content === "Setting up the bible.")
     ).toBe(true);
+    unmount();
+  });
+
+  it("asks the server to cancel the run when stopped, not just the local read", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = mockFetch(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url.endsWith("/api/chat/cancel")) {
+        return jsonResponse({ runId: "r1", turnId: "t1", status: "running" });
+      }
+      if (method !== "POST") return jsonResponse({ messages: [], runs: [] });
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('{"type":"turn","id":"t1","runId":"r1"}\n'));
+            controller.enqueue(encoder.encode('{"type":"text","v":"Chapter one."}\n'));
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/x-ndjson" } }
+      );
+    });
+
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let sent: Promise<void> | undefined;
+    act(() => {
+      sent = result.current.send({
+        projectId: "p1",
+        message: "Write chapter one, then chapter two",
+      });
+    });
+    await waitFor(() => expect(result.current.stream.text).toBe("Chapter one."));
+
+    await act(async () => {
+      result.current.stop();
+      await sent;
+    });
+
+    const cancelCall = fetchMock.mock.calls.find(([requestUrl]) =>
+      String(requestUrl).endsWith("/api/chat/cancel")
+    );
+    expect(cancelCall).toBeDefined();
+    expect(parsedBody(cancelCall?.[1] as RequestInit)).toEqual({
+      projectId: "p1",
+      turnId: "t1",
+    });
     unmount();
   });
 });

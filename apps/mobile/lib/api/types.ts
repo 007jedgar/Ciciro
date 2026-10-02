@@ -450,6 +450,12 @@ export type ChatClearResult = {
 
 export type ChatRestoreResult = { ok: true; count: number };
 
+export type ChatCancelResult = {
+  runId: string;
+  turnId: string;
+  status: EditorRunStatus;
+};
+
 export type QuestionCreateRequest = {
   projectId: string;
   question: string;

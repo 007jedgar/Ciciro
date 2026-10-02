@@ -81,6 +81,10 @@ A model with `thinking` enabled spends its `max_tokens` budget on thinking too, 
 
 `src/lib/prompts.ts`'s header comment tracks which per-model tuning notes are still live; re-check it against Anthropic's current migration guidance whenever the pinned model changes. On Opus 5.5+, a between-tool-call note longer than a sentence or two arrives as an otherwise-empty `thinking` block - `editor-run.ts`'s stream loop requests `display: "updates"` (beta `thinking-display-updates-2026-08-18`, only for models `src/lib/thinking-display.ts` lists, retried without it on a 400 naming it) and forwards non-empty `thinking_delta`s as `progress` events so authors see them. `ChatPanel.tsx` (web) and `ciciro-stream.ts`/`CiciroChat.tsx` (mobile) render these as an ephemeral, subtly-styled line, never added to the visible reply or the persisted transcript.
 
+## Stopping an editor run
+
+`POST /api/chat/cancel` (`cancelEditorRun` in `src/lib/editor-run.ts`, see `docs/editor-agent-runs.md`) is the only way to stop a durable run; an aborted client fetch alone never does (the claimed slice keeps running and checkpointing). It is checked at iteration boundaries only, never mid-stream, so the run finishes whatever it is currently generating before it notices. Both `ChatPanel.tsx` (web) and `use-ciciro-chat.ts` (mobile) must call it from their Stop control - wiring one without the other leaves that surface with the old "Stop does nothing server-side" bug.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.
