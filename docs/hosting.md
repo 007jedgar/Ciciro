@@ -372,7 +372,9 @@ passing `throwOnError` gets a thrown error for a missing key too.
 Templates live in `src/lib/email/templates.ts` as typed content blocks that
 `render.ts` turns into both the HTML (React Email primitives in the shared
 `layout.tsx`, light by default with an Ember dark palette for clients that
-honor `prefers-color-scheme`) and the plain-text part. `account-emails.ts`
+honor `prefers-color-scheme`) and the plain-text part. A template's primary
+link goes through `withSource`, so a click from it is recorded as
+`cta_clicked` (see [analytics](analytics.md#tracking-plan)). `account-emails.ts`
 holds the sends the app makes: confirm your email (password signups), welcome
 (when a password signup confirms its address, or when Apple or Google creates
 the account; never when one links to an existing account), password reset and
