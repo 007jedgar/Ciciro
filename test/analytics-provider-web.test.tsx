@@ -17,12 +17,16 @@ const posthog = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/analytics-client", () => ({ getAnalytics: () => analytics.adapter }));
-vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => route.pathname,
+  useRouter: () => ({ refresh: () => {}, push: (path: string) => (route.pathname = path) }),
+}));
 vi.mock("@/components/SettingsProvider", () => ({
   useSettings: () => ({ settings: { analyticsEnabled: true } }),
 }));
 vi.mock("posthog-js", () => ({ default: posthog }));
 
+import AccountBar from "@/components/AccountBar";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import { createPostHogWebAdapter } from "@/lib/analytics-posthog-web";
 
@@ -85,6 +89,50 @@ describe("AnalyticsProvider screen tracking", () => {
     expect(analytics.adapter.tracks.filter((t) => t.event === "screen_duration").map((t) => t.properties.screen)).toEqual([
       "landing",
     ]);
+  });
+
+  it("records the last screen's duration under the account before a sign-out resets identity", async () => {
+    vi.stubGlobal("fetch", async (url: string) =>
+      new Response(JSON.stringify(url === "/api/auth/me" ? { user: { id: "user_1", email: "a@b.c", name: "A" } } : {}))
+    );
+    const order: string[] = [];
+    const adapter = analytics.adapter;
+    const reset = adapter.reset.bind(adapter);
+    const track = adapter.track.bind(adapter);
+    adapter.reset = () => {
+      order.push("reset");
+      reset();
+    };
+    adapter.track = (event, properties) => {
+      order.push(event);
+      track(event, properties);
+    };
+    act(() =>
+      root.render(
+        <>
+          <AnalyticsProvider />
+          <AccountBar />
+        </>
+      )
+    );
+    await flush();
+    meReturns(null);
+
+    const signOut = host.querySelector("button");
+    await act(async () => signOut!.click());
+    await flush();
+    act(() =>
+      root.render(
+        <>
+          <AnalyticsProvider />
+          <AccountBar />
+        </>
+      )
+    );
+
+    expect(order).toEqual(["signed_out", "screen_duration", "reset"]);
+    expect(adapter.resetCount).toBe(1);
+    expect(adapter.screens.map((s) => s.name)).toEqual(["library", "login"]);
   });
 });
 
