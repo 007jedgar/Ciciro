@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getAnalytics } from "@/lib/analytics-client";
-import { followIdentity, trackScreenView } from "@/lib/analytics-events";
+import { followIdentity, trackScreenView, type ScreenView } from "@/lib/analytics-events";
 import { useSettings } from "@/components/SettingsProvider";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 
@@ -34,17 +34,18 @@ function storeIdentity(userId: string | null): void {
   }
 }
 
-// The open screen view's end function, so sign-out can record its duration
-// under the account before reset() switches to a new anonymous id.
-let endActiveScreen: (() => void) | null = null;
+// The open screen view, so sign-out can record its duration under the
+// account before reset() switches to a new anonymous id, and so the
+// visibility listeners below can pause/resume whichever view is current.
+let activeScreen: ScreenView | null = null;
 
 /**
  * Sign this browser out of analytics: end the current screen view while the
  * account is still identified, then reset. Call after tracking signed_out.
  */
 export function signOutAnalytics(): void {
-  endActiveScreen?.();
-  endActiveScreen = null;
+  activeScreen?.leave();
+  activeScreen = null;
   getAnalytics().reset();
   storeIdentity(null);
 }
@@ -135,13 +136,32 @@ export default function AnalyticsProvider() {
 
   useEffect(() => {
     if (!identityResolved) return;
-    const end = trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn.current));
-    endActiveScreen = end;
+    const view = trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn.current));
+    activeScreen = view;
     return () => {
-      end();
-      if (endActiveScreen === end) endActiveScreen = null;
+      view.leave();
+      if (activeScreen === view) activeScreen = null;
     };
   }, [pathname, identityResolved]);
+
+  // Closing the tab never runs the effect cleanup above, and a tab left
+  // hidden (switched away, backgrounded) should stop counting as "on
+  // screen" rather than inflate the next duration when it returns.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") activeScreen?.pause();
+      else activeScreen?.resume();
+    }
+    function onPageHide() {
+      activeScreen?.pause();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, []);
 
   return null;
 }

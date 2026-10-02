@@ -19,11 +19,11 @@ import {
 function runAppFlow(adapter: AnalyticsAdapter): void {
   adapter.registerSuperProperties({ platform: "web", appVersion: "1.2.3", release: "2026.10.1" });
   adapter.identify("user_123", { plan: "free", signupMethod: "email" });
-  const leaveEditor = trackScreenView(adapter, "editor", { projectId: "proj_1" });
+  const editorView = trackScreenView(adapter, "editor", { projectId: "proj_1" });
   adapter.track("project_created", { kind: "novel", isFirstProject: true });
   adapter.track("quick_action_used", { action: "continue", kind: "novel" });
   adapter.track("suggestion_accepted", {});
-  leaveEditor();
+  editorView.leave();
   adapter.reset();
 }
 
@@ -93,6 +93,46 @@ describe("AnalyticsAdapter decoupling", () => {
   it("is a true no-op with no provider configured, never throwing", () => {
     const adapter = new NoopAnalyticsAdapter();
     expect(() => runAppFlow(adapter)).not.toThrow();
+  });
+});
+
+describe("trackScreenView", () => {
+  it("records one screen_duration per visible segment, and leave() after leave() is a no-op", () => {
+    const adapter = new MemoryAnalyticsAdapter();
+    let t = 1_000;
+    const now = () => t;
+    const view = trackScreenView(adapter, "editor", undefined, now);
+
+    t = 1_500; // backgrounded after 500ms visible
+    view.pause();
+    t = 9_000; // 7.5s backgrounded - must not count
+    view.resume();
+    t = 9_800; // 800ms visible again, then left
+    view.leave();
+    view.leave(); // already ended: no second event
+
+    expect(adapter.tracks.map((tr) => tr.properties.durationMs)).toEqual([500, 800]);
+    expect(adapter.tracks).toHaveLength(2);
+  });
+
+  it("sends the pause but not the leave with a beacon-safe transport", () => {
+    const adapter = new MemoryAnalyticsAdapter();
+    const view = trackScreenView(adapter, "editor");
+    view.pause();
+    view.resume();
+    view.leave();
+
+    expect(adapter.tracks.map((tr) => tr.options)).toEqual([{ beacon: true }, undefined]);
+  });
+
+  it("ignores resume() without a pause, and pause() after leave()", () => {
+    const adapter = new MemoryAnalyticsAdapter();
+    const view = trackScreenView(adapter, "editor");
+    view.resume(); // never paused: no-op
+    view.leave();
+    view.pause(); // already ended: no-op
+
+    expect(adapter.tracks).toHaveLength(1);
   });
 });
 

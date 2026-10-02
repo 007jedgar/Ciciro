@@ -41,8 +41,12 @@ export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdap
       posthog.reset();
       posthog.register(superProperties);
     },
-    track<E extends EventName>(event: E, properties: Record<string, unknown>): void {
-      posthog.capture(event, properties);
+    track<E extends EventName>(
+      event: E,
+      properties: Record<string, unknown>,
+      options?: { beacon?: boolean }
+    ): void {
+      posthog.capture(event, properties, options?.beacon ? { transport: "sendBeacon" } : undefined);
     },
     screen(name: string, properties?: Record<string, unknown>): void {
       posthog.capture("$pageview", { $screen_name: name, ...properties });

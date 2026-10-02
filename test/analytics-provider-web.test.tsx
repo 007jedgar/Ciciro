@@ -134,6 +134,39 @@ describe("AnalyticsProvider screen tracking", () => {
     expect(adapter.resetCount).toBe(1);
     expect(adapter.screens.map((s) => s.name)).toEqual(["library", "login"]);
   });
+
+  it("commits the active screen's duration (beacon-safe) when the tab is hidden, and resumes when visible again", async () => {
+    meReturns("user_1");
+    act(() => root.render(<AnalyticsProvider />));
+    await flush();
+    expect(analytics.adapter.screens.map((s) => s.name)).toEqual(["library"]);
+
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    expect(analytics.adapter.tracks.map((t) => [t.event, t.options])).toEqual([
+      ["screen_duration", { beacon: true }],
+    ]);
+
+    visibility.mockReturnValue("visible");
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    // A second pause (route change) must not double-count the hidden stretch.
+    await act(async () => root.unmount());
+    expect(analytics.adapter.tracks.map((t) => t.event)).toEqual(["screen_duration", "screen_duration"]);
+    expect(analytics.adapter.tracks[1]!.options).toBeUndefined();
+    visibility.mockRestore();
+  });
+
+  it("commits the active screen's duration (beacon-safe) on pagehide, so closing the tab is not lost", async () => {
+    meReturns("user_1");
+    act(() => root.render(<AnalyticsProvider />));
+    await flush();
+
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(analytics.adapter.tracks).toEqual([
+      { event: "screen_duration", properties: expect.objectContaining({ screen: "library" }), options: { beacon: true } },
+    ]);
+  });
 });
 
 describe("PostHog web adapter opt-in", () => {

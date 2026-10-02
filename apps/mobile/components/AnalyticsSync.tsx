@@ -1,8 +1,29 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 import { usePathname } from "expo-router";
 import { getAnalytics } from "../lib/analytics-client";
-import { trackScreenView } from "../lib/analytics-events";
+import { trackScreenView, type ScreenView } from "../lib/analytics-events";
+import type { AppActiveListener } from "../lib/sync-engine";
 import { useAppTheme } from "../lib/settings";
+
+/**
+ * Pauses the active screen view while backgrounded, resumes it in the
+ * foreground - so hours backgrounded never inflate the next screen's
+ * duration, and the screen open when the app is killed is not lost. Takes
+ * the listener as a parameter (like listenWhenActive in sync-engine.ts) so
+ * it is testable without mocking react-native's AppState module.
+ */
+export function pauseResumeOnAppState(
+  appState: AppActiveListener,
+  onBackground: () => void,
+  onForeground: () => void
+): () => void {
+  const sub = appState.addEventListener("change", (status) => {
+    if (status === "active") onForeground();
+    else if (status === "background" || status === "inactive") onBackground();
+  });
+  return () => sub.remove();
+}
 
 /**
  * Canonical screen name for a route, for "time on screen" and feature-usage
@@ -48,6 +69,7 @@ function screenNameForPath(pathname: string): string {
 export function AnalyticsSync() {
   const pathname = usePathname();
   const { settings } = useAppTheme();
+  const activeScreen = useRef<ScreenView | null>(null);
 
   useEffect(() => {
     getAnalytics().setOptedOut(!settings.analyticsEnabled);
@@ -55,8 +77,23 @@ export function AnalyticsSync() {
 
   useEffect(() => {
     const screen = screenNameForPath(pathname);
-    return trackScreenView(getAnalytics(), screen);
+    const view = trackScreenView(getAnalytics(), screen);
+    activeScreen.current = view;
+    return () => {
+      view.leave();
+      if (activeScreen.current === view) activeScreen.current = null;
+    };
   }, [pathname]);
+
+  useEffect(
+    () =>
+      pauseResumeOnAppState(
+        AppState,
+        () => activeScreen.current?.pause(),
+        () => activeScreen.current?.resume()
+      ),
+    []
+  );
 
   return null;
 }

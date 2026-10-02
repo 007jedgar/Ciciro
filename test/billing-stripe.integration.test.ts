@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { getEntitlement } from "@/lib/entitlements";
 import * as accountEmails from "@/lib/email/account-emails";
 import * as email from "@/lib/email";
+import * as analyticsServer from "@/lib/analytics-server";
 import { formatEmailDate } from "@/lib/email/templates";
 import { cancelStripeBilling, getStripe } from "@/lib/billing/stripe";
 import { openEarlyAccess, stripeSettings } from "@/lib/billing/config";
@@ -80,6 +81,19 @@ function captureEmails(): () => Sent[] {
       subject: options.subject,
       text: options.text,
       idempotencyKey: options.idempotencyKey,
+    }));
+}
+
+type Captured = { userId: string; event: string; properties: Record<string, unknown> };
+
+/** Capture the analytics events a webhook hands off, without sending them. */
+function captureAnalytics(): () => Captured[] {
+  const spy = vi.spyOn(analyticsServer, "captureServerEvent").mockResolvedValue(undefined);
+  return () =>
+    spy.mock.calls.map(([userId, event, properties]) => ({
+      userId,
+      event,
+      properties: properties as Record<string, unknown>,
     }));
 }
 
@@ -372,6 +386,46 @@ describe("Stripe billing", () => {
       expect(status).toBe(200);
       expect(body).toEqual({ received: true, duplicate: false });
       expect((await getEntitlement(user.id)).plan).toBe("pro");
+    });
+  });
+
+  describe("analytics", () => {
+    it("fires subscription_canceled the moment a cancellation is scheduled, and not again for an unrelated update", async () => {
+      const { user, sub } = await subscribed(fake, "cancel-analytics");
+      const captured = captureAnalytics();
+      const live = fake.subscriptions.get(sub.id)!;
+      const endsAt = live.items.data[0].current_period_end;
+      live.cancel_at_period_end = true;
+      live.cancel_at = endsAt;
+      const scheduled = { cancel_at_period_end: false, cancel_at: null };
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, scheduled));
+      // A later, unrelated change to the still-cancelling subscription.
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, { default_payment_method: null }));
+
+      expect(captured()).toEqual([
+        { userId: user.id, event: "subscription_canceled", properties: { plan: "pro", platform: "web" } },
+      ]);
+    });
+
+    it("fires nothing when a scheduled cancellation is undone", async () => {
+      const { sub } = await subscribed(fake, "stays-analytics");
+      const captured = captureAnalytics();
+      const live = fake.subscriptions.get(sub.id)!;
+      const undone = { cancel_at_period_end: true, cancel_at: 1 };
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, undone));
+      expect(captured()).toEqual([]);
+    });
+
+    it("fires subscription_ended, not subscription_canceled, when the subscription actually ends", async () => {
+      const { user, sub } = await subscribed(fake, "ended-analytics");
+      const captured = captureAnalytics();
+      const live = fake.subscriptions.get(sub.id)!;
+      live.status = "canceled";
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
+
+      expect(captured()).toEqual([
+        { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "web" } },
+      ]);
     });
   });
 

@@ -163,7 +163,11 @@ function captureStoreAnalytics(event: RevenueCatEvent, userId: string, settings:
       captureServerEvent(userId, "subscription_renewed", { plan: "pro", platform, interval })
     );
   } else if (event.type === "CANCELLATION") {
+    // Auto-renew just turned off; Pro stays active until the period ends.
     waitUntilRequest(captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform }));
+  } else if (event.type === "EXPIRATION") {
+    // Access is actually gone now - matching Stripe's customer.subscription.deleted.
+    waitUntilRequest(captureServerEvent(userId, "subscription_ended", { plan: "pro", platform }));
   }
 }
 
