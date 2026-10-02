@@ -34,7 +34,9 @@ catalog, never a vendor SDK:
   error internally.
 - Screen tracking: `trackScreenView` in the catalog file returns a `leave()`
   closure that fires `screen_duration` with the elapsed time, called from
-  `src/components/AnalyticsProvider.tsx` (web, on `usePathname()` change) and
+  `src/components/AnalyticsProvider.tsx` (web, on `usePathname()` change,
+  starting only once `/api/auth/me` has answered so `/` is never miscounted
+  as `landing` for a signed-in author) and
   `apps/mobile/components/AnalyticsSync.tsx` (mobile, same pattern over
   expo-router).
 
@@ -56,10 +58,12 @@ These are enforced in code, not just convention:
   element's text and attributes (`mask_all_text`, `mask_all_element_attributes`),
   since a clicked project card or button can show a title or prose. Mobile
   has no autocapture at all.
-- **Reset on sign-out, alias on sign-up.** `reset()` runs before the signed-out
-  state is applied (`AccountBar.tsx` web, `session.tsx`'s `logout()` mobile),
-  so the next identity doesn't inherit the previous person's anonymous
-  activity. PostHog's own anonymous-to-identified aliasing on the next
+- **Reset on sign-out, alias on sign-up.** Web sign-out (`AccountBar.tsx`)
+  calls `signOutAnalytics` (`AnalyticsProvider.tsx`), which ends the open
+  screen view while the account is still identified and then resets; mobile
+  resets through `followIdentity` in `session.tsx` once the session's user
+  clears. Either way the next identity doesn't inherit the previous person's
+  anonymous activity. PostHog's own anonymous-to-identified aliasing on the next
   `identify()` ties pre-signup activity (landing page views, `cta_clicked`) to
   the account once it exists. Nothing else resets: `followIdentity` (in
   `analytics-events.ts`) resets only on a real signed-in to signed-out (or
