@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getAnalytics } from "@/lib/analytics-client";
 import { followIdentity, trackScreenView } from "@/lib/analytics-events";
@@ -65,9 +65,12 @@ function screenNameForPath(pathname: string, signedIn: boolean): string {
 export default function AnalyticsProvider() {
   const { settings } = useSettings();
   const pathname = usePathname();
-  // undefined until /api/auth/me answers, so "/" is not counted as landing
-  // for a signed-in author before their identity is known.
-  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
+  // Screen tracking waits until /api/auth/me first answers, so "/" is not
+  // counted as landing for a signed-in author before their identity is
+  // known. Later sign-in changes only update the ref: a screen view is
+  // keyed on the route, so signing in or out on the same page records none.
+  const [identityResolved, setIdentityResolved] = useState(false);
+  const signedIn = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -77,10 +80,11 @@ export default function AnalyticsProvider() {
         const data = await res.json().catch(() => ({}));
         if (!active) return;
         const userId = typeof data.user?.id === "string" ? (data.user.id as string) : null;
-        setSignedIn(userId !== null);
+        signedIn.current = userId !== null;
+        setIdentityResolved(true);
         storeIdentity(followIdentity(getAnalytics(), storedIdentity(), userId));
       } catch {
-        if (active) setSignedIn((current) => current ?? false);
+        if (active) setIdentityResolved(true);
       }
     }
     void syncIdentity();
@@ -115,9 +119,9 @@ export default function AnalyticsProvider() {
   }, []);
 
   useEffect(() => {
-    if (signedIn === undefined) return;
-    return trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn));
-  }, [pathname, signedIn]);
+    if (!identityResolved) return;
+    return trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn.current));
+  }, [pathname, identityResolved]);
 
   return null;
 }

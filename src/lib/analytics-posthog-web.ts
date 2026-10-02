@@ -53,7 +53,8 @@ export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdap
     },
     setOptedOut(optedOut: boolean): void {
       if (optedOut) posthog.opt_out_capturing();
-      else posthog.opt_in_capturing();
+      // No $opt_in event: this runs on every load, not only on a change.
+      else posthog.opt_in_capturing({ captureEventName: false });
     },
     deleteUser(): void {
       // No-op: deleting a person needs a personal API key, which must never
