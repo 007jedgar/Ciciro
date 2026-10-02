@@ -12,6 +12,11 @@ import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 const AUTH_EVENT_PARAM = "auth_event";
 const AUTH_PROVIDER_PARAM = "auth_provider";
 
+// Must match the params withSource (src/lib/email/templates.ts) appends to a
+// template's primary link.
+const EMAIL_SOURCE_PARAM = "src";
+const EMAIL_CTA_PARAM = "cta";
+
 // The last account identified in this browser, so a sign-out in another
 // tab, or a session that lapsed between visits, still resets on the next
 // load. An anonymous visitor is never reset (see followIdentity).
@@ -132,6 +137,26 @@ export default function AnalyticsProvider() {
     const provider = providerParam === "apple" || providerParam === "google" ? providerParam : "google";
     getAnalytics().track("signed_in", { method: provider, platform: "web" });
     getAnalytics().track("social_sign_in_used", { provider });
+  }, []);
+
+  // The one-time ?src=email&cta= pair an email's link leaves on the page it
+  // opens (templates.ts's withSource), so a click from an email is
+  // measurable as cta_clicked alongside every other CTA - see docs/analytics.md.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const source = url.searchParams.get(EMAIL_SOURCE_PARAM);
+    const cta = url.searchParams.get(EMAIL_CTA_PARAM);
+    if (source !== "email" || !cta) return;
+    url.searchParams.delete(EMAIL_SOURCE_PARAM);
+    url.searchParams.delete(EMAIL_CTA_PARAM);
+    window.history.replaceState(window.history.state, "", url);
+    getAnalytics().track("cta_clicked", {
+      cta,
+      surface: screenNameForPath(pathname, signedIn.current),
+      source: "email",
+    });
+    // Fire once for the URL this page loaded with; a later route change is not a new email click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -84,6 +84,8 @@ jest.mock("../lib/purchases", () => ({
   restoreStorePurchases: (...args: unknown[]) => mockRestore(...args),
   openStoreSubscriptions: (...args: unknown[]) => mockOpenStore(...args),
 }));
+const mockTrack = jest.fn();
+jest.mock("../lib/analytics-client", () => ({ getAnalytics: () => ({ track: mockTrack }) }));
 
 function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
   return {
@@ -253,6 +255,7 @@ describe("billing in the app", () => {
       expect(screen.getByText(/12 of 30 AI actions this month · resets Oct 1/)).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Upgrade to Ciciro Pro" }));
       expect(mockPush).toHaveBeenCalledWith("/paywall");
+      expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "upgrade_to_pro", surface: "settings" });
       expect(screen.getByRole("button", { name: "Restore Purchases" })).toBeTruthy();
     });
 
@@ -302,5 +305,6 @@ describe("billing in the app", () => {
     );
     fireEvent.press(screen.getByRole("button", { name: "See Ciciro Pro" }));
     expect(mockPush).toHaveBeenCalledWith("/paywall");
+    expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "see_pro", surface: "chat_error" });
   });
 });

@@ -87,9 +87,13 @@ jest.mock("../lib/writing-reminder-store", () => ({
   subscribeWritingReminders: () => () => {},
 }));
 
+const mockTrack = jest.fn();
+jest.mock("../lib/analytics-client", () => ({ getAnalytics: () => ({ track: mockTrack }) }));
+
 describe("adding a writing reminder", () => {
   beforeEach(() => {
     mockPush.mockClear();
+    mockTrack.mockClear();
     mockStoredReminders = [newWritingReminder({ id: "wr_existing", projectId: "p1" })];
   });
 
@@ -98,6 +102,15 @@ describe("adding a writing reminder", () => {
     fireEvent.press(screen.getByRole("button", { name: "New manuscript", expanded: false }));
     fireEvent.press(screen.getByLabelText("Writing reminder"));
     expect(mockPush).toHaveBeenCalledWith("/writing-reminders");
+  });
+
+  it("fires cta_clicked for the New manuscript menu item, distinct from the + trigger", () => {
+    renderInSafeArea(<ManuscriptsScreen />);
+    fireEvent.press(screen.getByRole("button", { name: "New manuscript", expanded: false }));
+    const [, menuItem] = screen.getAllByRole("button", { name: "New manuscript" });
+    fireEvent.press(menuItem);
+    expect(mockPush).toHaveBeenCalledWith("/new-manuscript");
+    expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "new_manuscript", surface: "library" });
   });
 
   it("edits the existing reminder for the current manuscript", () => {

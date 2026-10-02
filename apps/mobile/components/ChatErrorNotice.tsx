@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { failureMessageKey, type ChatFailure } from "../lib/chat-errors";
 import { storePurchasesAvailable } from "../lib/purchases";
+import { getAnalytics } from "../lib/analytics-client";
 import type { ColorTokens } from "../lib/theme";
 import { AlertIcon } from "./icons";
 
@@ -49,7 +50,10 @@ export function ChatErrorNotice({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("billing.seePro")}
-            onPress={() => router.push("/paywall")}
+            onPress={() => {
+              getAnalytics().track("cta_clicked", { cta: "see_pro", surface: "chat_error" });
+              router.push("/paywall");
+            }}
             style={({ pressed }) => [
               styles.retry,
               { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },

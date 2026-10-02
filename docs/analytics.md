@@ -115,11 +115,31 @@ that answers it. "Trends" and "Funnels" are PostHog's own insight types.
 | Retention | any event, typically `screen_duration` or `chat_message_sent` as the "active" signal | Retention insight, cohorted by `account_created` week |
 | Impact of a change on usability/retention/subscriptions | any of the above, filtered or broken down by the `release` super property | Trends/Funnel/Retention with a `release` breakdown or filter, comparing before/after a `CICIRO_RELEASE` value |
 
-`cta_clicked` is declared in the catalog but has no call site yet: it needs a
-per-button survey of marketing surfaces (landing page, pricing page) to
-decide which buttons count as a CTA, which is deliberately scoped out of
-this pass to avoid guessing at marketing copy. Wiring it is a small,
-isolated follow-up against the existing catalog entry.
+`cta_clicked` fires on every primary call to action not already covered by a
+more specific event (a feature event, or `paywall_cta_clicked`): the landing
+page (`src/components/landing/Landing.tsx`, through the `TrackedLink`
+wrapper at `src/components/TrackedLink.tsx`), the pricing page's plan
+buttons (`src/app/pricing/PricingPlans.tsx`, alongside
+`paywall_cta_clicked` on the Pro button so both the general click-through
+metric and the paywall funnel see it), and in-app upgrade nudges outside the
+paywall (`AccountBar.tsx`'s and `SettingsBilling.tsx`'s "Upgrade" links on
+web; `ChatErrorNotice.tsx`'s "See Pro" and `settings.tsx`'s "Upgrade" action
+on mobile) and the mobile library's "New manuscript" menu item. `cta` is a
+stable id per button; the same conceptual button repeated at a different
+page position (e.g. the landing page's nav vs. hero "Get early access") gets
+a distinct id so click-through breaks down by placement, while the same
+upgrade nudge reused across platforms (`upgrade_to_pro`) keeps one id, since
+`platform` already distinguishes them.
+
+Email click-through uses the same event with `source: "email"`: every
+template's primary link in `src/lib/email/templates.ts` is tagged by
+`withSource` with `?src=email&cta=<category>`, and `AnalyticsProvider.tsx`
+records `cta_clicked` (surface = the page the link opened, `cta` = the
+template's `category`) when a page loads with that pair, then strips it from
+the URL - the same one-time-query-param pattern it already uses for a social
+sign-in redirect's `auth_event`. The unsubscribe and preference links
+(`EmailContent.unsubscribe`, attached by `sendMarketingEmail`) are never
+tagged and keep working exactly as before.
 
 ## Feature-usage event inventory
 
@@ -191,14 +211,12 @@ why:
 
 ## Known gaps (documented, not fixed in this pass)
 
-- **`cta_clicked`** is declared but unused; see above.
-- **Email link clicks and widget glances have no event.** Email templates
-  carry no attribution query param, and `apps/mobile/lib/writing-widget.ts`'s
+- **A widget glance has no event.** `apps/mobile/lib/writing-widget.ts`'s
   deep link is byte-identical to any other navigation to the same route, so
-  neither "opened from an email" nor "opened from the widget" is
-  distinguishable from a normal screen open today. Adding either needs a
-  product decision to append a tracking param (e.g. `?src=widget`), not just
-  an analytics call.
+  "opened from the widget" is not distinguishable from a normal screen open
+  today (email clicks are, via `cta_clicked`'s `source: "email"`; see
+  above). Adding one needs a product decision to append a tracking param
+  (e.g. `?src=widget`), not just an analytics call.
 - **Mobile `search_performed`** fires once per debounced query, like web;
   flagged in case "number of searches" should mean something coarser.
 - **Mobile vs. web `scratchpad_used` timing differs**: web fires on note

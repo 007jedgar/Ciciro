@@ -12,6 +12,7 @@ import { SkeletonList } from "../components/Skeleton";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
 import { importManuscriptFile, isImportable, pickImportFile } from "../lib/import";
+import { getAnalytics } from "../lib/analytics-client";
 import type { Folder, ProjectListItem } from "../lib/types";
 import { PressableCard } from "../components/PressableCard";
 
@@ -100,7 +101,10 @@ export default function ManuscriptsScreen() {
       key: "manuscript",
       label: t("manuscripts.newManuscript"),
       Icon: NewChapterIcon,
-      onPress: () => router.push("/new-manuscript"),
+      onPress: () => {
+        getAnalytics().track("cta_clicked", { cta: "new_manuscript", surface: "library" });
+        router.push("/new-manuscript");
+      },
     },
     {
       key: "import",

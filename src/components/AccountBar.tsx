@@ -55,7 +55,11 @@ export default function AccountBar() {
       {me ? (
         <>
           {entitlement?.plan === "free" && entitlement.billing.web ? (
-            <Link className="account-upgrade" href="/pricing">
+            <Link
+              className="account-upgrade"
+              href="/pricing"
+              onClick={() => getAnalytics().track("cta_clicked", { cta: "upgrade_to_pro", surface: "account_bar" })}
+            >
               Upgrade
             </Link>
           ) : null}
