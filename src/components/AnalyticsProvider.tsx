@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getAnalytics } from "@/lib/analytics-client";
-import { trackScreenView } from "@/lib/analytics-events";
+import { followIdentity, trackScreenView } from "@/lib/analytics-events";
 import { useSettings } from "@/components/SettingsProvider";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 
@@ -12,7 +12,27 @@ import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 const AUTH_EVENT_PARAM = "auth_event";
 const AUTH_PROVIDER_PARAM = "auth_provider";
 
-type Me = { id: string } | null;
+// The last account identified in this browser, so a sign-out in another
+// tab, or a session that lapsed between visits, still resets on the next
+// load. An anonymous visitor is never reset (see followIdentity).
+const IDENTITY_KEY = "ciciro.analytics.identity";
+
+function storedIdentity(): string | null {
+  try {
+    return window.localStorage.getItem(IDENTITY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeIdentity(userId: string | null): void {
+  try {
+    if (userId) window.localStorage.setItem(IDENTITY_KEY, userId);
+    else window.localStorage.removeItem(IDENTITY_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 /**
  * Canonical screen name for a route, for "time on screen" and feature-usage
@@ -45,7 +65,9 @@ function screenNameForPath(pathname: string, signedIn: boolean): string {
 export default function AnalyticsProvider() {
   const { settings } = useSettings();
   const pathname = usePathname();
-  const [me, setMe] = useState<Me>(null);
+  // undefined until /api/auth/me answers, so "/" is not counted as landing
+  // for a signed-in author before their identity is known.
+  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -54,12 +76,11 @@ export default function AnalyticsProvider() {
         const res = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!active) return;
-        const user = (data.user ?? null) as Me;
-        setMe(user);
-        if (user) getAnalytics().identify(user.id);
-        else getAnalytics().reset();
+        const userId = typeof data.user?.id === "string" ? (data.user.id as string) : null;
+        setSignedIn(userId !== null);
+        storeIdentity(followIdentity(getAnalytics(), storedIdentity(), userId));
       } catch {
-        /* offline */
+        if (active) setSignedIn((current) => current ?? false);
       }
     }
     void syncIdentity();
@@ -94,9 +115,9 @@ export default function AnalyticsProvider() {
   }, []);
 
   useEffect(() => {
-    const screen = screenNameForPath(pathname, me !== null);
-    return trackScreenView(getAnalytics(), screen);
-  }, [pathname, me]);
+    if (signedIn === undefined) return;
+    return trackScreenView(getAnalytics(), screenNameForPath(pathname, signedIn));
+  }, [pathname, signedIn]);
 
   return null;
 }

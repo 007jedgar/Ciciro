@@ -195,10 +195,14 @@ export async function handleRevenueCatWebhook(
   if (!event?.id || !event.type) return { status: 400, body: { error: "Missing event." } };
 
   const outcome = await handleOnce("revenuecat", event.id, event.type, async () => {
+    let captured = false;
     for (const appUserId of eventAppUserIds(event)) {
       if (await syncRevenueCatUser(appUserId, settings)) {
         await attributeBillingEvent("revenuecat", event.id!, appUserId);
-        captureStoreAnalytics(event, appUserId, settings);
+        if (!captured) {
+          captureStoreAnalytics(event, appUserId, settings);
+          captured = true;
+        }
       }
     }
   });

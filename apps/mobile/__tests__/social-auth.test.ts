@@ -73,8 +73,8 @@ describe("parseRedirect", () => {
 
 describe("helpers", () => {
   it("builds the browser flow's start URL", () => {
-    expect(browserStartUrl("https://ciciro.app", "google", "E9Mel-_x")).toBe(
-      "https://ciciro.app/api/auth/oauth/google/start?client=native&challenge=E9Mel-_x"
+    expect(browserStartUrl("https://ciciro.app", "google", "E9Mel-_x", "android")).toBe(
+      "https://ciciro.app/api/auth/oauth/google/start?client=native&challenge=E9Mel-_x&platform=android"
     );
   });
 

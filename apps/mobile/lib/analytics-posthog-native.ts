@@ -21,8 +21,10 @@ export type PostHogNativeConfig = {
 
 /**
  * Construct the posthog-react-native client and wrap it as an
- * AnalyticsAdapter. Session replay is never enabled (it defaults off and
- * nothing here turns it on); autocapture covers taps only.
+ * AnalyticsAdapter. Session replay and autocapture are never enabled
+ * (touch autocapture needs PostHogProvider, which this adapter does not
+ * use), so only the app's typed events, screens and lifecycle events are
+ * sent. Super properties survive reset(), which would otherwise clear them.
  */
 export function createPostHogNativeAdapter(config: PostHogNativeConfig): AnalyticsAdapter {
   const client = new PostHog(config.apiKey, {
@@ -30,12 +32,15 @@ export function createPostHogNativeAdapter(config: PostHogNativeConfig): Analyti
     captureAppLifecycleEvents: true,
   });
 
+  let superProperties: SuperProperties = {};
+
   return {
     identify(userId: string, properties?: PersonProperties): void {
       client.identify(userId, properties);
     },
     reset(): void {
       client.reset();
+      void client.register(superProperties);
     },
     track(event: string, properties: Record<string, unknown>): void {
       client.capture(event, asEventProperties(properties));
@@ -44,6 +49,7 @@ export function createPostHogNativeAdapter(config: PostHogNativeConfig): Analyti
       void client.screen(name, asEventProperties(properties));
     },
     registerSuperProperties(properties: SuperProperties): void {
+      superProperties = { ...superProperties, ...properties };
       void client.register(properties);
     },
     setOptedOut(optedOut: boolean): void {

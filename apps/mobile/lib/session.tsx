@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -20,6 +21,7 @@ import type { BrowserProvider } from "./social-auth";
 import { appleSheetCredential, browserSignInCode } from "./social-sign-in";
 import { forgetPurchaser, identifyPurchaser } from "./purchases";
 import { getAnalytics } from "./analytics-client";
+import { followIdentity } from "./analytics-events";
 import type { PublicUser } from "./types";
 
 export { useSession, type SessionState } from "./session-context";
@@ -98,9 +100,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Analytics follows the signed-in account the same way: identify by
   // internal id only, reset on sign-out. See docs/analytics.md.
+  const analyticsIdentity = useRef<string | null>(null);
   useEffect(() => {
-    if (userId) getAnalytics().identify(userId);
-    else getAnalytics().reset();
+    analyticsIdentity.current = followIdentity(getAnalytics(), analyticsIdentity.current, userId);
   }, [userId]);
 
   const login = useCallback(async (email: string, password: string) => {

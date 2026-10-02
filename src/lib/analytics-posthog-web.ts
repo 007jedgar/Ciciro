@@ -13,8 +13,11 @@ export type PostHogWebConfig = {
 /**
  * Initialize posthog-js and wrap it as an AnalyticsAdapter. Session
  * recording is off entirely; autocapture is limited to click/submit so no
- * input value can ever be captured. Pageviews go only through screen(),
- * called explicitly by the app, so every page view is also a typed event.
+ * input value can ever be captured, and masks every element's text and
+ * attributes, since a clicked card or button can show a title or prose.
+ * Pageviews go only through screen(), called explicitly by the app, so
+ * every page view is also a typed event. Super properties survive reset(),
+ * which would otherwise clear them.
  */
 export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdapter {
   posthog.init(config.apiKey, {
@@ -23,8 +26,12 @@ export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdap
     capture_pageview: false,
     capture_pageleave: false,
     autocapture: { dom_event_allowlist: ["click", "submit"] },
+    mask_all_text: true,
+    mask_all_element_attributes: true,
     person_profiles: "identified_only",
   });
+
+  let superProperties: SuperProperties = {};
 
   return {
     identify(userId: string, properties?: PersonProperties): void {
@@ -32,6 +39,7 @@ export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdap
     },
     reset(): void {
       posthog.reset();
+      posthog.register(superProperties);
     },
     track<E extends EventName>(event: E, properties: Record<string, unknown>): void {
       posthog.capture(event, properties);
@@ -40,6 +48,7 @@ export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdap
       posthog.capture("$pageview", { $screen_name: name, ...properties });
     },
     registerSuperProperties(properties: SuperProperties): void {
+      superProperties = { ...superProperties, ...properties };
       posthog.register(properties);
     },
     setOptedOut(optedOut: boolean): void {

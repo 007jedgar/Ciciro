@@ -5,6 +5,7 @@ export const SESSION_COOKIE_NAME = "ciciro_session";
 export const SESSION_HEADER = "x-ciciro-session";
 export const NATIVE_CLIENT_HEADER = "x-ciciro-client";
 export const NATIVE_CLIENT_VALUE = "native";
+export const CLIENT_PLATFORM_HEADER = "x-ciciro-platform";
 
 const TOKEN_KEY = "ciciro_session";
 const USER_KEY = "ciciro_session_user";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isNativeClient } from "@/lib/auth/constants";
+import { clientPlatform, isNativeClient } from "@/lib/auth/constants";
 import { jsonWithSession, responseFromDbError } from "@/lib/auth/http";
 import { AuthError, createSession, registerUser } from "@/lib/auth/session";
 import { afterPasswordSignup } from "@/lib/auth/verify-email";
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     waitUntilRequest(
       captureServerEvent(user.id, "account_created", {
         method: "email",
-        platform: native ? "ios" : "web",
+        platform: clientPlatform(req),
       })
     );
     return jsonWithSession({ user, settings }, token, native, { status: 201 });
