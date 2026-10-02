@@ -606,6 +606,9 @@
   background: var(--blush);
   color: #141414;
 }
+/* The Dynamic Island. It sits over the phone screenshots' own status bar,
+   which hides whatever the simulator rendered there, so keep the status bar
+   in those screenshots: cropping it out puts this pill on the app's header. */
 .landing-screen::before {
   content: "";
   position: absolute;
