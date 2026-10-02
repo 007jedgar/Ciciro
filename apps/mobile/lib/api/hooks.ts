@@ -21,6 +21,8 @@ import type {
   LoginRequest,
   PlotPoint,
   PlotPointCreateRequest,
+  PushPreferencesPatch,
+  PushPreferencesResponse,
   ProjectCreateRequest,
   ProjectDetail,
   ProjectListItem,
@@ -216,6 +218,24 @@ export function usePatchEmailPreferencesMutation() {
     mutationFn: (body: EmailPreferencesPatch) => ciciro.account.emailPreferences.patch(body),
     onSuccess: (data: EmailPreferencesResponse) => {
       queryClient.setQueryData(queryKeys.emailPreferences, data);
+    },
+  });
+}
+
+/** Settings > Notifications: per-category push toggles. */
+export function usePushPreferencesQuery(options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.pushPreferences,
+    queryFn: () => ciciro.push.preferences.get(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function usePatchPushPreferencesMutation() {
+  return useMutation({
+    mutationFn: (body: PushPreferencesPatch) => ciciro.push.preferences.put(body),
+    onSuccess: (data: PushPreferencesResponse) => {
+      queryClient.setQueryData(queryKeys.pushPreferences, data);
     },
   });
 }

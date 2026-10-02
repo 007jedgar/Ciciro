@@ -636,6 +636,13 @@ export type PushTokenUnregisterRequest = {
   token: string;
 };
 
+export type PushCategory = "shareComments" | "writingNudge" | "chatFinished";
+
+/** GET/PUT /api/push/preferences (see the server's src/lib/push/preferences.ts) */
+export type PushPreferencesResponse = Record<PushCategory, boolean>;
+
+export type PushPreferencesPatch = Partial<PushPreferencesResponse>;
+
 export type SyncAfter = {
   chapters?: Record<string, number>;
   bible?: Record<string, number>;

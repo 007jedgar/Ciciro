@@ -1,6 +1,7 @@
 import type { WritingReminder } from "./writing-reminders";
 import { reminderHrefFromNotificationData } from "./writing-reminders";
 import { getAnalytics } from "./analytics-client";
+import { serverPushHrefFromNotificationData } from "./push-notifications";
 
 /** True once the projects query has resolved to an array (possibly empty). */
 export function projectsListReady(
@@ -66,9 +67,10 @@ export function reminderDeliveryKey(response: ReminderNotificationResponse): str
 }
 
 /**
- * Opens reminder hrefs from notification taps. Does not dedupe by scheduled
- * identifier — repeating daily ids must navigate every day. Only the process
- * launch response is gated via `launchConsumed`.
+ * Opens hrefs from any notification tap — an on-device writing reminder or a
+ * server-sent push alike — through the one app-wide listener. Does not
+ * dedupe by scheduled identifier — repeating daily ids must navigate every
+ * day. Only the process launch response is gated via `launchConsumed`.
  */
 export function wireReminderNotificationTaps(
   api: ReminderNotificationsApi,
@@ -80,9 +82,12 @@ export function wireReminderNotificationTaps(
   let claimingLaunch = !launchConsumed.current;
 
   function open(data: unknown) {
-    const href = reminderHrefFromNotificationData(data);
+    const reminderHref = reminderHrefFromNotificationData(data);
+    const href = reminderHref ?? serverPushHrefFromNotificationData(data);
     if (!href) return;
-    getAnalytics().track("push_notification_opened", { type: "writing_reminder" });
+    if (reminderHref) {
+      getAnalytics().track("push_notification_opened", { type: "writing_reminder" });
+    }
     openHref(href);
   }
 

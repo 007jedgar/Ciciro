@@ -6,6 +6,7 @@ export const queryKeys = {
   models: ["models"] as const,
   entitlement: ["billing", "entitlement"] as const,
   emailPreferences: ["account", "email-preferences"] as const,
+  pushPreferences: ["push", "preferences"] as const,
   writing: {
     days: (from: string, to: string) => ["writing", "days", from, to] as const,
   },

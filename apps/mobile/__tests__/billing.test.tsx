@@ -51,6 +51,7 @@ jest.mock("../lib/session", () => ({
 }));
 jest.mock("../lib/writing-reminder-notifications", () => ({
   getReminderPermission: jest.fn(async () => "granted"),
+  requestReminderPermission: jest.fn(async () => "granted"),
 }));
 jest.mock("../lib/writing-reminder-store", () => ({ useWritingReminderList: () => [] }));
 jest.mock("../lib/use-export-account-data", () => ({
@@ -61,6 +62,8 @@ jest.mock("../lib/api/hooks", () => ({
   useEntitlementQuery: (...args: unknown[]) => mockEntitlementQuery(...args),
   useEmailPreferencesQuery: () => ({ data: undefined }),
   usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),
+  usePushPreferencesQuery: () => ({ data: undefined }),
+  usePatchPushPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 jest.mock("../lib/api", () => ({
   ApiError: class ApiError extends Error {},
