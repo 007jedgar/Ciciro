@@ -193,7 +193,7 @@ RevenueCat setup is in [billing](billing.md).
 
 ## GitHub CI
 
-The **`test`** workflow in `.github/workflows/ci.yml` runs lint, Vitest, and mobile Jest on every pull request. `main` requires that check before merge. See [CI](ci.md).
+The **`test`** workflow in `.github/workflows/ci.yml` runs on every pull request, and `main` requires that check before merge. [CI](ci.md) lists what it runs.
 
 ## First time hosted (ordered)
 
