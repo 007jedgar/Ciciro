@@ -80,14 +80,6 @@ export default function ReadAloud({
     readerRef.current?.stop();
   }, [resetKey, disabled]);
 
-  // A voice picked under a different language no longer matches the filtered
-  // list; drop it rather than leaving a stale, invisible selection in place.
-  useEffect(() => {
-    if (!voicesLoaded || !prefs.voiceURI) return;
-    if (voices.some((v) => v.voiceURI === prefs.voiceURI)) return;
-    setTtsPrefs({ voiceURI: null });
-  }, [voicesLoaded, voices, prefs.voiceURI]);
-
   const play = useCallback(() => {
     const reader = readerRef.current;
     const handle = editorRef.current;
@@ -104,6 +96,7 @@ export default function ReadAloud({
       {
         rate: prefs.rate,
         voice: voiceFor(prefs.voiceURI),
+        lang: currentLanguage(),
         textAt: (index) => editorRef.current?.readAloudSentence(index)?.text ?? null,
       }
     );
@@ -114,6 +107,7 @@ export default function ReadAloud({
   if (!supported) return null;
 
   const active = state !== "idle";
+  const selectedVoiceURI = voices.some((v) => v.voiceURI === prefs.voiceURI) ? prefs.voiceURI! : "";
   const panel = open ? (
     <div className="read-aloud" role="region" aria-label="Read aloud">
       <div className="read-aloud-row">
@@ -167,10 +161,12 @@ export default function ReadAloud({
         <label>
           Voice{" "}
           {voicesLoaded && voices.length === 0 ? (
-            <span className="read-aloud-empty">No voices for {currentLanguage()} on this device</span>
+            <span className="read-aloud-empty">
+              No {currentLanguage()} voices are installed on this device, so its default voice will read
+            </span>
           ) : (
             <select
-              value={prefs.voiceURI ?? ""}
+              value={selectedVoiceURI}
               onChange={(e) => {
                 const voiceURI = e.target.value || null;
                 setTtsPrefs({ voiceURI });

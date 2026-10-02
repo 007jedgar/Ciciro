@@ -80,6 +80,7 @@ export type UtteranceLike = {
   text: string;
   rate: number;
   voice: unknown;
+  lang: string;
   // Browser event types differ per engine; only `error` is read.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onend: ((event: any) => void) | null;
@@ -101,6 +102,7 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
   private token = 0;
   private rate = DEFAULT_RATE;
   private voice: unknown = null;
+  private lang = "";
 
   constructor(
     private synth: SynthLike<U>,
@@ -118,13 +120,14 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
    */
   start(
     segments: string[],
-    options: { rate?: number; voice?: unknown; textAt?: (index: number) => string | null } = {}
+    options: { rate?: number; voice?: unknown; lang?: string; textAt?: (index: number) => string | null } = {}
   ) {
     this.cancelSpeech();
     this.segments = segments;
     this.resolve = options.textAt ?? null;
     this.rate = clampRate(options.rate ?? this.rate);
     this.voice = options.voice ?? null;
+    this.lang = options.lang ?? this.lang;
     this.index = 0;
     if (!segments.some((s) => s.trim().length > 0)) {
       this.setState("idle");
@@ -195,6 +198,7 @@ export class SpeechReader<U extends UtteranceLike = UtteranceLike> {
     const utterance = this.makeUtterance(text);
     utterance.rate = this.rate;
     utterance.voice = this.voice;
+    if (this.lang) utterance.lang = this.lang;
     utterance.onend = () => {
       if (token !== this.token || this.state !== "playing") return;
       if (this.index + 1 >= this.segments.length) {

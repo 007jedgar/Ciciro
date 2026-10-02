@@ -37,7 +37,7 @@ describe("splitSentences", () => {
 });
 
 describe("languagePrefix", () => {
-  it("lowercases the first two letters of a BCP-47 tag", () => {
+  it("returns the lowercased primary language subtag of a BCP-47 tag", () => {
     expect(languagePrefix("en-US")).toBe("en");
     expect(languagePrefix("FR")).toBe("fr");
   });
@@ -115,7 +115,7 @@ describe("SpeechReader", () => {
     };
     reader = new SpeechReader(
       synth as unknown as SynthLike,
-      (text) => ({ text, rate: 1, voice: null, onend: null, onerror: null }),
+      (text) => ({ text, rate: 1, voice: null, lang: "", onend: null, onerror: null }),
       (state, index) => events.push([state, index])
     );
   });
@@ -132,6 +132,18 @@ describe("SpeechReader", () => {
     expect(reader.current).toEqual({ state: "playing", index: 1 });
     last().onend!({});
     expect(reader.current.state).toBe("idle");
+  });
+
+  it("tags every utterance with the requested language", () => {
+    reader.start(["A.", "B."], { lang: "fr-FR" });
+    expect(last().lang).toBe("fr-FR");
+    last().onend!({});
+    expect(last().lang).toBe("fr-FR");
+  });
+
+  it("leaves the utterance language alone when none is given", () => {
+    reader.start(["A."]);
+    expect(last().lang).toBe("");
   });
 
   it("pauses, resumes the same sentence, and stops", () => {
@@ -162,7 +174,7 @@ describe("SpeechReader", () => {
         paused = false;
       },
     };
-    const r = new SpeechReader(engine, (text) => ({ text, rate: 1, voice: null, onend: null, onerror: null }), () => {});
+    const r = new SpeechReader(engine, (text) => ({ text, rate: 1, voice: null, lang: "", onend: null, onerror: null }), () => {});
     r.start(["A.", "B."]);
     r.pause();
     r.resume();
