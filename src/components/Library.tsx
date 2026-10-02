@@ -236,6 +236,10 @@ export default function Library() {
       }),
     });
     const project = await res.json();
+    getAnalytics().track("project_created", {
+      kind: project.kind,
+      isFirstProject: Boolean(project.isFirstProject),
+    });
     router.push(`/project/${project.id}`);
   }
 
