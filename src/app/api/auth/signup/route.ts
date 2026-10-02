@@ -6,6 +6,8 @@ import { afterPasswordSignup } from "@/lib/auth/verify-email";
 import { publicOrigin } from "@/lib/public-origin";
 import { getUserSettings } from "@/lib/user-settings";
 import { sendWelcomeStep1 } from "@/lib/email/welcome-sequence";
+import { captureServerEvent } from "@/lib/analytics-server";
+import { waitUntilRequest } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -27,7 +29,14 @@ export async function POST(req: NextRequest) {
       await sendWelcomeStep1(user, origin).catch((error) => console.error("welcome step 1 failed", error));
     }
     const settings = await getUserSettings(user.id);
-    return jsonWithSession({ user, settings }, token, isNativeClient(req), { status: 201 });
+    const native = isNativeClient(req);
+    waitUntilRequest(
+      captureServerEvent(user.id, "account_created", {
+        method: "email",
+        platform: native ? "ios" : "web",
+      })
+    );
+    return jsonWithSession({ user, settings }, token, native, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

@@ -84,6 +84,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 typewriterMode: next.typewriterMode,
                 aiSuggestions: next.aiSuggestions,
                 craftDefaults: next.craftDefaults,
+                analyticsEnabled: next.analyticsEnabled,
               });
         void syncRequest.catch(() => {});
       }, 350);

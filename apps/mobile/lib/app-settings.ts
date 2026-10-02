@@ -35,6 +35,8 @@ export type AppSettings = {
   aiSuggestions: boolean;
   /** "Experimental writing prompt": craft defaults and a post-draft check for prose Ciciro drafts. Opt-in. */
   craftDefaults: boolean;
+  /** Product analytics (PostHog). Opt-out; see docs/analytics.md. */
+  analyticsEnabled: boolean;
   updatedAt: string;
 };
 
@@ -55,6 +57,7 @@ export function defaultSettings(): AppSettings {
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,
+    analyticsEnabled: true,
     updatedAt: SETTINGS_EPOCH,
   };
 }
@@ -105,6 +108,8 @@ export function normalizeSettings(raw: unknown): AppSettings {
       typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode,
     aiSuggestions: typeof src.aiSuggestions === "boolean" ? src.aiSuggestions : defaults.aiSuggestions,
     craftDefaults: typeof src.craftDefaults === "boolean" ? src.craftDefaults : defaults.craftDefaults,
+    analyticsEnabled:
+      typeof src.analyticsEnabled === "boolean" ? src.analyticsEnabled : defaults.analyticsEnabled,
     updatedAt:
       typeof src.updatedAt === "string" && Number.isFinite(Date.parse(src.updatedAt))
         ? new Date(src.updatedAt).toISOString()
@@ -130,6 +135,7 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.showDailyGoal === b.showDailyGoal &&
     a.typewriterMode === b.typewriterMode &&
     a.aiSuggestions === b.aiSuggestions &&
-    a.craftDefaults === b.craftDefaults
+    a.craftDefaults === b.craftDefaults &&
+    a.analyticsEnabled === b.analyticsEnabled
   );
 }

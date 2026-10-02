@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { requireSessionUser } from "@/lib/auth/session";
 import { accountExportStream, exportFilename } from "@/lib/account/export";
+import { captureServerEvent } from "@/lib/analytics-server";
+import { waitUntilRequest } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -17,6 +19,7 @@ export async function GET(req: NextRequest) {
     if (failure) return failure;
     throw error;
   }
+  waitUntilRequest(captureServerEvent(userId, "account_exported", {}));
   return new Response(accountExportStream(userId), {
     headers: {
       "content-type": "application/zip",

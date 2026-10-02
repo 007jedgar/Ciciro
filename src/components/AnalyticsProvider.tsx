@@ -76,22 +76,21 @@ export default function AnalyticsProvider() {
 
   // The one-time ?auth_event=&auth_provider= pair a social sign-in redirect
   // leaves on the landing URL, since that flow finishes server-side with no
-  // client fetch() to fire the event from (see social-sign-in.ts).
+  // client fetch() to fire from (see social-sign-in.ts). account_created
+  // itself fires server-side only (finishBrowserSignIn), so the client here
+  // just identifies the session as started, for both a new and a returning
+  // account.
   useEffect(() => {
     const url = new URL(window.location.href);
     const event = url.searchParams.get(AUTH_EVENT_PARAM);
-    const provider = url.searchParams.get(AUTH_PROVIDER_PARAM);
+    const providerParam = url.searchParams.get(AUTH_PROVIDER_PARAM);
     if (event !== "account_created" && event !== "signed_in") return;
     url.searchParams.delete(AUTH_EVENT_PARAM);
     url.searchParams.delete(AUTH_PROVIDER_PARAM);
     window.history.replaceState(window.history.state, "", url);
-    getAnalytics().track(event, {
-      method: provider === "apple" || provider === "google" ? provider : "email",
-      platform: "web",
-    });
-    getAnalytics().track("social_sign_in_used", {
-      provider: provider === "apple" || provider === "google" ? provider : "google",
-    });
+    const provider = providerParam === "apple" || providerParam === "google" ? providerParam : "google";
+    getAnalytics().track("signed_in", { method: provider, platform: "web" });
+    getAnalytics().track("social_sign_in_used", { provider });
   }, []);
 
   useEffect(() => {

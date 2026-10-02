@@ -31,7 +31,12 @@ describe("socialButtons", () => {
 
 describe("parseRedirect", () => {
   it("reads the one-time code", () => {
-    expect(parseRedirect("ciciro://oauth?code=abc_-123")).toEqual({ code: "abc_-123" });
+    expect(parseRedirect("ciciro://oauth?code=abc_-123")).toEqual({
+      code: "abc_-123",
+      takeover: undefined,
+      created: false,
+      provider: undefined,
+    });
   });
 
   it("reads a known error and folds anything else into `failed`", () => {
@@ -44,8 +49,21 @@ describe("parseRedirect", () => {
     expect(parseRedirect("ciciro://oauth?code=abc&password_removed=google")).toEqual({
       code: "abc",
       takeover: "google",
+      created: false,
+      provider: undefined,
     });
-    expect(parseRedirect("ciciro://oauth?code=abc&password_removed=evil")).toEqual({ code: "abc" });
+    expect(parseRedirect("ciciro://oauth?code=abc&password_removed=evil")).toEqual({
+      code: "abc",
+      takeover: undefined,
+      created: false,
+      provider: undefined,
+    });
+  });
+
+  it("carries the new-account flag and provider from a server-fired auth event", () => {
+    expect(
+      parseRedirect("ciciro://oauth?code=abc&auth_event=account_created&auth_provider=apple")
+    ).toEqual({ code: "abc", takeover: undefined, created: true, provider: "apple" });
   });
 
   it("ignores a code on any other URL", () => {
