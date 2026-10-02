@@ -152,6 +152,25 @@ describe("chat finished while disconnected", () => {
     });
   });
 
+  it("does not push for a run that finished without a reply", async () => {
+    const a = await author("cal");
+    model.delayMs = 80;
+    model.responses.push(textResponse(" "));
+    const calls = fakeExpo();
+
+    const res = await chat(request({ projectId: a.projectId, message: "Hello" }, a.token));
+    const reader = res.body!.getReader();
+    expect((await readOneLine(reader)).type).toBe("turn");
+    await reader.cancel();
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(await prisma.editorRun.findFirstOrThrow({ where: { projectId: a.projectId } })).toMatchObject({
+      status: "completed",
+    });
+    expect(calls.filter((c) => c.url.endsWith("/send"))).toHaveLength(0);
+  });
+
   it("does not push when the reader kept reading to the end", async () => {
     const a = await author("ben");
     model.responses.push(textResponse("Hi there."));

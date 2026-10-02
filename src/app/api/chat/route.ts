@@ -202,6 +202,7 @@ export async function POST(req: NextRequest) {
           stopReason: string | null;
           iterationCount: number;
           mutationCount: number;
+          visibleOutput: string;
         } = claim;
         try {
           final = await executeClaimedEditorRun(claim, emit);
@@ -224,7 +225,7 @@ export async function POST(req: NextRequest) {
           // `emit` above already tried to reach the client: `closed` is only
           // true here if that attempt (or an earlier one) failed, so this is
           // "nobody was there to see it finish", not "a run just ended".
-          if (closed && user && final.status === "completed") {
+          if (closed && user && final.status === "completed" && final.visibleOutput.trim()) {
             await notifyChatFinished(user.id, input.projectId, claim.turnId);
           }
           try {

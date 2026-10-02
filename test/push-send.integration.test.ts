@@ -210,6 +210,19 @@ describe("sendPushToUser", () => {
       expect(await prisma.pushNotificationLog.count()).toBe(0);
     });
 
+    it("records nothing for an account without phones, so its dedupeKey stays unspent", async () => {
+      const me = await account(0);
+      const expo = fakeExpo([tickets()]);
+      const result = await sendPushToUser(
+        me.userId,
+        { ...message, category: "writingNudge", dedupeKey: "writing-nudge:2026-03-01" },
+        { fetch: expo.fetch, sleep }
+      );
+      expect(result).toEqual({ accepted: 0, failed: 0, removed: 0 });
+      expect(expo.calls).toHaveLength(0);
+      expect(await prisma.pushNotificationLog.count()).toBe(0);
+    });
+
     it("sends a categorized message by default, and logs it", async () => {
       const me = await account(1);
       const expo = fakeExpo([tickets()]);

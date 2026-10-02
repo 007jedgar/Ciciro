@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), delayMs: 0 }));
+const mocks = vi.hoisted(() => ({ create: vi.fn(), delayMs: 0, plan: "" }));
 
 vi.mock("@/lib/anthropic", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/anthropic")>()),
@@ -29,6 +29,13 @@ const PLAN = JSON.stringify({
   beats: [{ goal: "Mara runs", brief: "POV close third, past. Mara runs.", wordTarget: 200 }],
   openQuestions: [],
 });
+const TWO_BEAT_PLAN = JSON.stringify({
+  beats: [
+    { goal: "Mara runs", brief: "POV close third, past. Mara runs.", wordTarget: 200 },
+    { goal: "Mara hides", brief: "POV close third, past. Mara hides.", wordTarget: 200 },
+  ],
+  openQuestions: [],
+});
 const DRAFT = "Mara ran for the harbor. The bell kept ringing behind her.";
 const EDITED = "Mara ran for the harbor, the bell still ringing behind her.";
 
@@ -42,7 +49,7 @@ function isPlan(req: Request) {
 
 function dispatcher(req: Request) {
   if (Array.isArray(req.system)) {
-    if (isPlan(req)) return reply(PLAN);
+    if (isPlan(req)) return reply(mocks.plan);
     return reply(EDITED); // editBeatToFinal, unconditional
   }
   if (mocks.delayMs) {
@@ -106,6 +113,7 @@ describe("autowrite finished while disconnected", () => {
     mocks.create.mockReset();
     mocks.create.mockImplementation(dispatcher);
     mocks.delayMs = 0;
+    mocks.plan = PLAN;
     await prisma.pushTicket.deleteMany();
     await prisma.pushToken.deleteMany();
     await prisma.pushNotificationLog.deleteMany();
@@ -145,6 +153,46 @@ describe("autowrite finished while disconnected", () => {
       title: "Ciciro finished writing",
       data: { kind: "autowrite-finished", href: `/project/${a.projectId}/manuscript?chapterId=${a.chapterId}` },
     });
+  });
+
+  it("does not push for a multi-beat draft the disconnect cut short", async () => {
+    const a = await author("cal");
+    mocks.plan = TWO_BEAT_PLAN;
+    mocks.delayMs = 80;
+    const calls = fakeExpo();
+
+    const res = await autowrite(request({ projectId: a.projectId, chapterId: a.chapterId }, a.token));
+    const reader = res.body!.getReader();
+    await readUntil(reader, (e) => e.type === "beat" && e.status === "drafting" && e.i === 1);
+    await reader.cancel(); // the second beat's shouldStop() check now sees the stop
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: a.chapterId } });
+    expect(chapter.content).toContain(EDITED); // the first beat was still saved
+    expect(mocks.create.mock.calls.filter(([req]) => !Array.isArray(req.system))).toHaveLength(1);
+    expect(calls.filter((c) => c.url.endsWith("/send"))).toHaveLength(0);
+  });
+
+  it("does not push for a finished run that wrote nothing", async () => {
+    const a = await author("dee");
+    mocks.create.mockImplementation((req: Request) =>
+      Array.isArray(req.system)
+        ? dispatcher(req)
+        : new Promise((_, reject) => setTimeout(() => reject(new Error("overloaded")), 80))
+    );
+    const calls = fakeExpo();
+
+    const res = await autowrite(request({ projectId: a.projectId, chapterId: a.chapterId }, a.token));
+    const reader = res.body!.getReader();
+    await readUntil(reader, (e) => e.type === "beat" && e.status === "drafting");
+    await reader.cancel();
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: a.chapterId } });
+    expect(chapter.content).not.toContain(EDITED);
+    expect(calls.filter((c) => c.url.endsWith("/send"))).toHaveLength(0);
   });
 
   it("does not push when the reader kept reading to the end", async () => {

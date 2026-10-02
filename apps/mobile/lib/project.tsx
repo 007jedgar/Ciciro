@@ -43,9 +43,16 @@ export function ProjectProvider({
   const createChapter = useCreateChapterMutation();
   const editingBlockIdsRef = useRef<string[]>([]);
   const sync = useProjectSync(projectId, { skipBlockIdsRef: editingBlockIdsRef });
-  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  const [selectedChapterId, setSelectedChapterIdState] = useState<string | null>(null);
   const project = query.data ?? null;
   const restoredPosition = useRef<string | null>(null);
+  // When the author (or a notification) last picked a chapter: a reading
+  // position saved before that is stale and must not move them away from it.
+  const chosenAt = useRef(0);
+  const setSelectedChapterId = useCallback((id: string) => {
+    chosenAt.current = Date.now();
+    setSelectedChapterIdState(id);
+  }, []);
 
   const setEditingBlockIds = useCallback((ids: string[]) => {
     editingBlockIdsRef.current = ids;
@@ -53,7 +60,7 @@ export function ProjectProvider({
 
   useEffect(() => {
     if (!project) return;
-    setSelectedChapterId((current) => {
+    setSelectedChapterIdState((current) => {
       if (current && project.chapters.some((c) => c.id === current)) return current;
       return project.chapters[0]?.id ?? null;
     });
@@ -65,7 +72,8 @@ export function ProjectProvider({
     const key = `${pos.chapterId}:${pos.blockId}:${pos.offset}:${pos.updatedAt}`;
     if (restoredPosition.current === key) return;
     restoredPosition.current = key;
-    setSelectedChapterId(pos.chapterId);
+    if (Date.parse(pos.updatedAt) < chosenAt.current) return;
+    setSelectedChapterIdState(pos.chapterId);
   }, [sync.position]);
 
   const addChapter = useCallback(
@@ -77,7 +85,7 @@ export function ProjectProvider({
       setSelectedChapterId(chapter.id);
       return chapter;
     },
-    [createChapter, projectId]
+    [createChapter, projectId, setSelectedChapterId]
   );
 
   const error =
@@ -114,6 +122,7 @@ export function ProjectProvider({
       query.refetch,
       selectedChapterId,
       setEditingBlockIds,
+      setSelectedChapterId,
       sync.flushEdits,
       sync.position,
       sync.recordOp,

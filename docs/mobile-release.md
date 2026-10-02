@@ -175,8 +175,9 @@ each reminder) and the end of a writing sprint (`app/project/[id]/sprint.tsx`).
   (`lib/push-notifications.ts` on the client), plus an Android `channelId`
   the app creates.
 - **Server triggers (Phase 1, iOS).** A reader comment on a shared manuscript
-  pushes its owner (`notifyOwnerOfComment` in `src/lib/shares.ts`); a 7-day
-  lapse in `WritingDay` activity pushes a get-back-to-writing nudge, checked
+  pushes its owner (`notifyOwnerOfComment` in `src/lib/shares.ts`); a lapse
+  in `WritingDay` activity (last writing day 7 to 14 days ago, once per lapse,
+  so long-dormant accounts are left alone) pushes a get-back-to-writing nudge, checked
   by a Worker cron (`runWritingNudgeCron` in `src/lib/push/writing-nudge.ts`,
   wired in `src/worker/index.ts`) rather than scheduled on-device, since
   `WritingDay` is synced from both platforms and is the only
@@ -184,7 +185,16 @@ each reminder) and the end of a writing sprint (`app/project/[id]/sprint.tsx`).
   when a run completes after the client has disconnected
   (`src/lib/push/run-finished.ts`, called from `src/app/api/chat/route.ts`
   and `src/app/api/autowrite/route.ts`), not when the author is actively
-  watching the stream.
+  watching the stream. The push goes out only for a run that finished and
+  wrote something: a chat reply that completed with text, or an autowrite
+  draft with at least one accepted beat that was not cut short. A disconnect
+  stops autowrite at the next beat, so in practice only a draft whose last
+  beat was already under way gets the push. On Workers, a run also has about
+  30 s of `waitUntil` time after the disconnect: a longer chat run completes
+  when the app reconnects and resumes it, with no push, until runs move
+  server-side (backlog `cic-chat-server-runs`). An account with no
+  registered phone records nothing, so installing the app mid-lapse still
+  gets that lapse's nudge while it is inside the 14-day window.
 
 Production D1 needs the tables before the build that ships this is deployed:
 

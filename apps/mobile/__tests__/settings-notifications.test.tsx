@@ -67,6 +67,8 @@ const requestPermissionMock = requestReminderPermission as jest.Mock;
 const usePushPreferencesQueryMock = usePushPreferencesQuery as jest.Mock;
 const usePatchPushPreferencesMutationMock = usePatchPushPreferencesMutation as jest.Mock;
 
+const NOTIFICATIONS_HEADER = /^notifications$/i;
+
 function renderSettings() {
   const settings = defaultSettings();
   const colors = THEME_PALETTES[settings.theme];
@@ -130,5 +132,21 @@ describe("Settings: Notifications", () => {
     await act(async () => {});
     expect(screen.queryByText("Reader comments")).toBeNull();
     expect(screen.queryByText("Turn on notifications")).toBeNull();
+    expect(screen.queryByText(NOTIFICATIONS_HEADER)).toBeNull();
+  });
+
+  it("shows no Notifications header until the preferences load", async () => {
+    usePushPreferencesQueryMock.mockReturnValue({ data: undefined });
+    getPermissionMock.mockResolvedValueOnce("granted");
+    renderSettings();
+    await act(async () => {});
+    expect(screen.queryByText(NOTIFICATIONS_HEADER)).toBeNull();
+  });
+
+  it("shows the Notifications header with its toggles", async () => {
+    getPermissionMock.mockResolvedValueOnce("granted");
+    renderSettings();
+    await act(async () => {});
+    expect(screen.getByText(NOTIFICATIONS_HEADER)).toBeTruthy();
   });
 });

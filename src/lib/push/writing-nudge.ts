@@ -3,6 +3,8 @@ import { sendPushToUser } from "@/lib/push/send";
 import { shiftWritingDayKey, writingDayKey } from "@/lib/writing-day";
 
 const LAPSE_DAYS = 7;
+/** Past this, the lapse is too old for "a week" to be true: a long-dormant account is left alone. */
+const MAX_LAPSE_DAYS = 14;
 
 /**
  * Daily cron: nudge an account that has written before but has gone quiet.
@@ -21,6 +23,8 @@ const LAPSE_DAYS = 7;
  * by its anchor (the last day they actually wrote), so a lapse already
  * nudged skips silently (PushNotificationLog's unique constraint), while
  * writing again moves the anchor and makes the *next* lapse nudgeable again.
+ * Only a lapse whose last writing day is 7 to 14 days ago counts, and only
+ * for an account with a registered phone.
  *
  * Deliberately separate from the existing on-device writing-reminder
  * schedule (apps/mobile/lib/writing-reminder-notifications.ts): reminders
@@ -33,9 +37,12 @@ const LAPSE_DAYS = 7;
 export async function runWritingNudgeCron(now: Date = new Date()): Promise<void> {
   const today = writingDayKey(now);
   const cutoff = shiftWritingDayKey(today, -LAPSE_DAYS);
+  const oldest = shiftWritingDayKey(today, -MAX_LAPSE_DAYS);
+  // Rows older than `oldest` are left out, so an account whose last writing
+  // day is older has no group at all; one with a later day keeps its max.
   const lastWritingDays = await prisma.writingDay.groupBy({
     by: ["userId"],
-    where: { words: { gt: 0 } },
+    where: { words: { gt: 0 }, date: { gte: oldest }, user: { pushTokens: { some: {} } } },
     _max: { date: true },
   });
   for (const row of lastWritingDays) {

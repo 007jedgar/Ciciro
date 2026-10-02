@@ -51,9 +51,11 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       let disconnected = false;
-      let completed = false;
+      let halted = false;
+      let acceptedBeats = 0;
       const emit = (event: Record<string, unknown>) => {
-        if (event.type === "done") completed = true;
+        if (event.type === "stopped") halted = true;
+        if (event.type === "done") acceptedBeats = typeof event.beats === "number" ? event.beats : 0;
         try {
           controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
         } catch {
@@ -78,8 +80,9 @@ export async function POST(req: NextRequest) {
           clearInterval(pingTimer);
           // The "done" emit above already tried to reach the client: a
           // disconnect caught there (or earlier) means nobody was watching
-          // this draft finish.
-          if (disconnected && completed && user) {
+          // this draft finish. A run cut short (a disconnect is also a stop
+          // here) or one that wrote nothing is not "finished writing".
+          if (disconnected && !halted && acceptedBeats > 0 && user) {
             await notifyAutowriteFinished(user.id, projectId, chapterId);
           }
           try {

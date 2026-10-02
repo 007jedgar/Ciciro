@@ -66,6 +66,48 @@ describe("runWritingNudgeCron", () => {
     expect((sent[0].body as { to: string }[])[0].to).toBe("ExponentPushToken[quiet]");
   });
 
+  it("nudges only a lapse whose last writing day is 7 to 14 days ago", async () => {
+    const now = new Date("2026-03-15T14:00:00Z");
+    const seven = await accountWithToken("seven");
+    await writingDay(seven, "2026-03-08", 500);
+    const fourteen = await accountWithToken("fourteen");
+    await writingDay(fourteen, "2026-03-01", 500);
+    const fifteen = await accountWithToken("fifteen");
+    await writingDay(fifteen, "2026-02-28", 500);
+    const dormant = await accountWithToken("dormant");
+    await writingDay(dormant, "2025-06-01", 500);
+
+    const calls = fakeExpo();
+    await runWritingNudgeCron(now);
+
+    const sentTo = calls
+      .filter((c) => c.url.endsWith("/send"))
+      .flatMap((c) => (c.body as { to: string }[]).map((m) => m.to))
+      .sort();
+    expect(sentTo).toEqual(["ExponentPushToken[fourteen]", "ExponentPushToken[seven]"]);
+  });
+
+  it("keeps a lapse nudgeable until the author registers a phone", async () => {
+    const user = await prisma.user.create({ data: { email: "later@example.com", passwordHash: "x" } });
+    await writingDay(user.id, "2026-03-01", 500);
+    const calls = fakeExpo();
+
+    await runWritingNudgeCron(new Date("2026-03-08T14:00:00Z"));
+    expect(calls.filter((c) => c.url.endsWith("/send"))).toHaveLength(0);
+    expect(await prisma.pushNotificationLog.count()).toBe(0);
+
+    const session = await prisma.session.create({
+      data: { userId: user.id, tokenHash: "later-hash", expiresAt: new Date(Date.now() + 3600_000) },
+    });
+    await prisma.pushToken.create({
+      data: { userId: user.id, sessionId: session.id, token: "ExponentPushToken[later]", platform: "ios" },
+    });
+    await runWritingNudgeCron(new Date("2026-03-10T14:00:00Z"));
+    const sent = calls.filter((c) => c.url.endsWith("/send"));
+    expect(sent).toHaveLength(1);
+    expect((sent[0].body as { to: string }[])[0].to).toBe("ExponentPushToken[later]");
+  });
+
   it("never nudges an account that has never written", async () => {
     await accountWithToken("fresh");
     const calls = fakeExpo();
