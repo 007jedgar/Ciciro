@@ -159,7 +159,8 @@ async function claimCategorySend(
 /**
  * Send one notification to every phone the account registered. Never throws:
  * a notification is never worth failing the request that triggered it, so
- * failures are logged and counted instead. `message.category` checks
+ * failures are logged and counted instead. An account with no registered
+ * phone returns at once, before anything is recorded. `message.category` checks
  * PushPreference and a per-category rate cap first (see claimCategorySend);
  * a blocked send returns silently with every count at zero.
  */
@@ -169,6 +170,15 @@ export async function sendPushToUser(
   options: PushOptions = {}
 ): Promise<PushSendResult> {
   const result: PushSendResult = { accepted: 0, failed: 0, removed: 0 };
+  try {
+    // No phone to reach: return before claiming, so a one-shot dedupeKey (a
+    // writing lapse) is still unspent when the author installs the app.
+    if (!(await prisma.pushToken.findFirst({ where: { userId }, select: { id: true } }))) return result;
+  } catch (error) {
+    console.error("push: could not read push tokens", error);
+    return result;
+  }
+
   if (message.category) {
     const now = options.now ?? new Date();
     let claimed: boolean;

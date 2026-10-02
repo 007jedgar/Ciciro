@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
@@ -122,11 +123,22 @@ export default function ManuscriptScreen() {
     loading,
     error,
     selectedChapterId,
+    setSelectedChapterId,
     readingPosition,
     recordChapterOp,
     recordReadingPosition,
     setEditingBlockIds,
   } = useProject();
+  const router = useRouter();
+  const { chapterId: linkedChapterId } = useLocalSearchParams<{ chapterId?: string }>();
+  // A link (a "Ciciro finished writing" notification) names the chapter to
+  // open. Applied once, then cleared, so later picks are the author's own.
+  useEffect(() => {
+    if (typeof linkedChapterId !== "string" || !linkedChapterId) return;
+    if (!project?.chapters.some((c) => c.id === linkedChapterId)) return;
+    setSelectedChapterId(linkedChapterId);
+    router.setParams({ chapterId: undefined });
+  }, [linkedChapterId, project, router, setSelectedChapterId]);
   const { t, i18n } = useTranslation();
   const { layout, colors, settings } = useAppTheme();
   const reduceMotion = useReduceMotion();

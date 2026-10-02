@@ -505,45 +505,52 @@ function NotificationsGroup({ colors }: { colors: ColorTokens }) {
 
   if (!prefs || permission == null || permission === "unavailable") return null;
 
+  const header = <SectionHeader label={t("settings.notifications")} colors={colors} />;
   if (permission !== "granted") {
     return (
-      <Group colors={colors}>
-        <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{t("settings.pushOffHint")}</Text>
-        </View>
-        <Pressable
-          onPress={() => void (permission === "denied" ? Linking.openSettings() : enable())}
-          accessibilityRole="button"
-          accessibilityLabel={permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
-          style={({ pressed }) => ({
-            minHeight: 52,
-            paddingHorizontal: 16,
-            justifyContent: "center",
-            backgroundColor: pressed ? colors.panel2 : "transparent",
-          })}
-        >
-          <Text style={{ fontSize: 17, color: colors.accent }}>
-            {permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
-          </Text>
-        </Pressable>
-      </Group>
+      <>
+        {header}
+        <Group colors={colors}>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{t("settings.pushOffHint")}</Text>
+          </View>
+          <Pressable
+            onPress={() => void (permission === "denied" ? Linking.openSettings() : enable())}
+            accessibilityRole="button"
+            accessibilityLabel={permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
+            style={({ pressed }) => ({
+              minHeight: 52,
+              paddingHorizontal: 16,
+              justifyContent: "center",
+              backgroundColor: pressed ? colors.panel2 : "transparent",
+            })}
+          >
+            <Text style={{ fontSize: 17, color: colors.accent }}>
+              {permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
+            </Text>
+          </Pressable>
+        </Group>
+      </>
     );
   }
 
   return (
-    <Group colors={colors}>
-      {PUSH_CATEGORIES.map((category, index) => (
-        <ToggleRow
-          key={category}
-          label={t(PUSH_CATEGORY_KEYS[category].label)}
-          hint={t(PUSH_CATEGORY_KEYS[category].hint)}
-          value={prefs[category]}
-          onValueChange={(value) => patch.mutate({ [category]: value })}
-          colors={colors}
-          last={index === PUSH_CATEGORIES.length - 1}
-        />
-      ))}
-    </Group>
+    <>
+      {header}
+      <Group colors={colors}>
+        {PUSH_CATEGORIES.map((category, index) => (
+          <ToggleRow
+            key={category}
+            label={t(PUSH_CATEGORY_KEYS[category].label)}
+            hint={t(PUSH_CATEGORY_KEYS[category].hint)}
+            value={prefs[category]}
+            onValueChange={(value) => patch.mutate({ [category]: value })}
+            colors={colors}
+            last={index === PUSH_CATEGORIES.length - 1}
+          />
+        ))}
+      </Group>
+    </>
   );
 }
 
@@ -801,7 +808,6 @@ export default function SettingsScreen() {
           ) : null}
         </Group>
 
-        <SectionHeader label={t("settings.notifications")} colors={colors} />
         <NotificationsGroup colors={colors} />
 
         <Group colors={colors}>
