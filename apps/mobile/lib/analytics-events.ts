@@ -52,8 +52,14 @@ export type EventCatalog = {
   paywall_cta_clicked: { surface: string; plan?: string };
   checkout_started: { plan: string };
   purchase_cancelled: { surface: string };
-  subscription_purchased: { plan: string; platform: Platform; priceCents?: number; currency?: string };
-  subscription_renewed: { plan: string; platform: Platform };
+  subscription_purchased: {
+    plan: string;
+    platform: Platform;
+    interval?: "month" | "year";
+    priceCents?: number;
+    currency?: string;
+  };
+  subscription_renewed: { plan: string; platform: Platform; interval?: "month" | "year" };
   subscription_canceled: { plan: string; platform: Platform };
 
   // Manuscript lifecycle

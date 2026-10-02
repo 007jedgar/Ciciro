@@ -12,6 +12,8 @@ import {
   type BillingEmailRecipient,
 } from "@/lib/email/account-emails";
 import type { DeletingAccount, PreDeleteHook } from "@/lib/account/delete";
+import { captureServerEvent } from "@/lib/analytics-server";
+import { waitUntilRequest } from "@/lib/db";
 
 // Web billing through Stripe: Checkout for new subscriptions, the Customer
 // Portal for everything after, and a webhook that keeps Subscription rows in
@@ -72,17 +74,23 @@ function periodEnd(sub: Pick<Stripe.Subscription, "items">): Date | null {
   return ends.length ? new Date(Math.max(...ends) * 1000) : null;
 }
 
+/** The billing interval a subscription's price recurs on, if a known one. */
+function planInterval(sub: Stripe.Subscription): "month" | "year" | undefined {
+  const interval: string | undefined = sub.items.data[0]?.price?.recurring?.interval;
+  if (interval === "month" || interval === "year") return interval;
+  return undefined;
+}
+
 /** Copy one Stripe subscription onto its Subscription row. */
 async function upsertStripeSubscription(userId: string, sub: Stripe.Subscription): Promise<void> {
   const item = sub.items.data[0];
   const currentPeriodEnd = periodEnd(sub);
-  const interval = item?.price?.recurring?.interval;
   const data = {
     userId,
     source: "stripe",
     productId: item?.price?.id ?? "",
     plan: "pro",
-    interval: interval === "month" || interval === "year" ? interval : "",
+    interval: planInterval(sub) ?? "",
     status: sub.status,
     currentPeriodEnd,
     cancelAtPeriodEnd: sub.cancel_at_period_end || sub.cancel_at !== null,
@@ -203,6 +211,7 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event, or
   }
 
   await syncStripeCustomer(stripe, customerId, user.id);
+  await captureBillingAnalytics(event, user.id);
   // The event is applied; an email that cannot be built must not make Stripe
   // redeliver it.
   await sendBillingEmail(event, user, origin).catch((error) =>
@@ -214,6 +223,42 @@ export async function processStripeEvent(stripe: Stripe, event: Stripe.Event, or
 function scheduledEnd(sub: Pick<Stripe.Subscription, "cancel_at" | "cancel_at_period_end" | "items">): Date | null {
   if (sub.cancel_at) return fromUnix(sub.cancel_at);
   return sub.cancel_at_period_end ? periodEnd(sub) : null;
+}
+
+/**
+ * The analytics event a webhook delivery owes, if any. Runs after the sync,
+ * same as the email: only a change Ciciro actually applied gets counted.
+ * Web billing only - RevenueCat's own webhook covers store purchases.
+ */
+async function captureBillingAnalytics(event: Stripe.Event, userId: string): Promise<void> {
+  if (event.type === "customer.subscription.created") {
+    const sub = event.data.object;
+    waitUntilRequest(
+      captureServerEvent(userId, "subscription_purchased", {
+        plan: "pro",
+        platform: "web",
+        interval: planInterval(sub),
+      })
+    );
+    return;
+  }
+  if (event.type === "invoice.paid" && event.data.object.billing_reason === "subscription_cycle") {
+    const subscriptionId = idOf(event.data.object.parent?.subscription_details?.subscription);
+    const row = subscriptionId
+      ? await prisma.subscription.findUnique({ where: { externalId: subscriptionId } })
+      : null;
+    waitUntilRequest(
+      captureServerEvent(userId, "subscription_renewed", {
+        plan: "pro",
+        platform: "web",
+        interval: row?.interval === "month" || row?.interval === "year" ? row.interval : undefined,
+      })
+    );
+    return;
+  }
+  if (event.type === "customer.subscription.deleted") {
+    waitUntilRequest(captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform: "web" }));
+  }
 }
 
 /**

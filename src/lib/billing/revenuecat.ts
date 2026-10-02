@@ -1,6 +1,7 @@
-import { prisma } from "@/lib/db";
+import { prisma, waitUntilRequest } from "@/lib/db";
 import { revenueCatSettings, type RevenueCatSettings } from "@/lib/billing/config";
 import { attributeBillingEvent, handleOnce } from "@/lib/billing/events";
+import { captureServerEvent } from "@/lib/analytics-server";
 
 // App Store and Google Play subscriptions, through RevenueCat. The app logs in
 // to RevenueCat with the Ciciro user id (Purchases.logIn), so a RevenueCat
@@ -145,7 +146,26 @@ export type RevenueCatEvent = {
   aliases?: string[];
   transferred_from?: string[];
   transferred_to?: string[];
+  store?: string;
+  product_id?: string;
 };
+
+/** The analytics event a webhook delivery owes, if any (store purchases only). */
+function captureStoreAnalytics(event: RevenueCatEvent, userId: string, settings: RevenueCatSettings): void {
+  const platform = event.store === "PLAY_STORE" ? "android" : "ios";
+  const interval = event.product_id && settings.yearlyProductIds.includes(event.product_id) ? "year" : "month";
+  if (event.type === "INITIAL_PURCHASE") {
+    waitUntilRequest(
+      captureServerEvent(userId, "subscription_purchased", { plan: "pro", platform, interval })
+    );
+  } else if (event.type === "RENEWAL") {
+    waitUntilRequest(
+      captureServerEvent(userId, "subscription_renewed", { plan: "pro", platform, interval })
+    );
+  } else if (event.type === "CANCELLATION") {
+    waitUntilRequest(captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform }));
+  }
+}
 
 /** Every app user id an event may concern (a transfer names both sides). */
 export function eventAppUserIds(event: RevenueCatEvent): string[] {
@@ -178,6 +198,7 @@ export async function handleRevenueCatWebhook(
     for (const appUserId of eventAppUserIds(event)) {
       if (await syncRevenueCatUser(appUserId, settings)) {
         await attributeBillingEvent("revenuecat", event.id!, appUserId);
+        captureStoreAnalytics(event, appUserId, settings);
       }
     }
   });
