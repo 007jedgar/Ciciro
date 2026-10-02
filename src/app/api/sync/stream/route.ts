@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { AuthError, authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
-import { prisma } from "@/lib/db";
+import { prisma, releaseRequestPrisma } from "@/lib/db";
 import { subscribeChapterHeads, type ChapterHeadPoke } from "@/lib/chapter-poke";
 
 export const runtime = "nodejs";
@@ -46,6 +46,9 @@ export async function GET(req: NextRequest) {
     if (failure) return failure;
     throw error;
   }
+  // The stream can stay open for hours and never queries again; do not hold
+  // this request's Prisma engine (about 0.5 MB of WASM memory) for all of it.
+  await releaseRequestPrisma();
 
   const encoder = new TextEncoder();
   let unsubscribe: (() => void) | null = null;
