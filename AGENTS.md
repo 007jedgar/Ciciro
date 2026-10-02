@@ -27,6 +27,10 @@ The Expo app cannot import from the Next app, so `src/lib/manuscript.ts` and `sr
 
 `prisma db push` never reaches the Worker's D1. A schema change needs a `prisma/d1-*.sql` upgrade (see `docs/hosting.md`) applied to production before merging to `main`; the `main` build fails while D1 is behind (`npm run db:check:d1`). Only add tables and columns there: D1 cannot turn foreign keys off, so rebuilding a referenced table (the only way SQLite drops NOT NULL or changes a type) cascade-deletes its children. Model "no value" with a default instead (e.g. `User.passwordHash = ""` for Apple / Google accounts).
 
+## Prisma on Workers
+
+Each hosted request gets its own `PrismaClient` (`src/lib/db.ts`: one isolate-wide client caused Cloudflare 1101s), and each client's WASM engine stays in memory until `$disconnect()`, about 0.5 MB per request against the isolate's 128 MB. The Worker entry frees it once the body and every `waitUntil` / `after()` have settled (`src/worker/request-lifetime.ts`); never drop that, or wrap `fetch` in a client of its own. A handler that holds a long-lived stream open after its last query calls `releaseRequestPrisma()` (see `/api/sync/stream`).
+
 ## Account data
 
 Every Prisma model must be both purged by account deletion and written by the data export (`src/lib/account/`, see `docs/account-data.md`); `test/account-delete.integration.test.ts` and `test/account-export.integration.test.ts` fail when a new model is missing from either. Outside-service cleanup at deletion (Stripe cancel, Apple token revoke) goes in `PRE_DELETE_HOOKS`, not the route.
