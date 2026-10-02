@@ -42,6 +42,12 @@ describe("languagePrefix", () => {
     expect(languagePrefix("FR")).toBe("fr");
   });
 
+  it("keeps the full primary subtag so three-letter languages stay distinct", () => {
+    expect(languagePrefix("fil-PH")).toBe("fil");
+    expect(languagePrefix("haw")).toBe("haw");
+    expect(languagePrefix("en_GB")).toBe("en");
+  });
+
   it("handles missing input", () => {
     expect(languagePrefix(undefined)).toBe("");
     expect(languagePrefix(null)).toBe("");
@@ -67,6 +73,15 @@ describe("filterVoicesByLanguage", () => {
 
   it("is case-insensitive", () => {
     expect(filterVoicesByLanguage(voices, "FR-fr").map((v) => v.name)).toEqual(["Amelie"]);
+  });
+
+  it("does not match a two-letter language against a three-letter one", () => {
+    const mixed = [
+      { name: "Satu", lang: "fi-FI" },
+      { name: "Angelo", lang: "fil-PH" },
+    ];
+    expect(filterVoicesByLanguage(mixed, "fil-PH").map((v) => v.name)).toEqual(["Angelo"]);
+    expect(filterVoicesByLanguage(mixed, "fi").map((v) => v.name)).toEqual(["Satu"]);
   });
 
   it("returns an empty list when no voice matches", () => {
