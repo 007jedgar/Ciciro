@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { ShareComment, ShareLink } from "@prisma/client";
-import { prisma } from "@/lib/db";
+import { prisma, waitUntilRequest } from "@/lib/db";
+import { sendPushToUser } from "@/lib/push/send";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
 import { stampBlockIds } from "@/lib/manuscript";
@@ -245,6 +246,40 @@ function field(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+const PUSH_PREVIEW_MAX = 120;
+
+function pushPreview(body: string): string {
+  return body.length > PUSH_PREVIEW_MAX ? `${body.slice(0, PUSH_PREVIEW_MAX - 1)}…` : body;
+}
+
+/**
+ * Best-effort: tell the manuscript's owner a beta reader left a comment.
+ * Never throws — a push failure must never surface as a failed comment post
+ * for the reader. Skipped for a local-first project with no owner account.
+ */
+async function notifyOwnerOfComment(
+  projectId: string,
+  chapterTitle: string,
+  comment: Pick<ShareComment, "id" | "chapterId" | "readerName" | "body">
+): Promise<void> {
+  try {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { userId: true } });
+    if (!project?.userId) return;
+    await sendPushToUser(project.userId, {
+      title: `${comment.readerName} commented on "${chapterTitle}"`,
+      body: pushPreview(comment.body),
+      category: "shareComments",
+      dedupeKey: `share-comment:${comment.id}`,
+      data: {
+        kind: "share-comment",
+        href: `/project/${projectId}/beta-readers?chapterId=${comment.chapterId}`,
+      },
+    });
+  } catch (error) {
+    console.error("push: could not notify owner of a reader comment", error);
+  }
+}
+
 /**
  * Save a reader's comment on a passage of a chapter `token` shares. The
  * chapter must be one the link shows and the block must hold prose in it now.
@@ -298,6 +333,7 @@ export async function postReaderComment(
       createdAt: now,
     },
   });
+  waitUntilRequest(notifyOwnerOfComment(link.projectId, chapter.title, row));
   return {
     id: row.id,
     chapterId: row.chapterId,

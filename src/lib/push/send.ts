@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { deletePushTokens } from "@/lib/push/tokens";
+import { pushCategoryEnabled, type PushCategory } from "@/lib/push/preferences";
 
 // Sends through the Expo Push API (https://docs.expo.dev/push-notifications/sending-notifications/),
 // which hands off to APNs and FCM with the credentials EAS holds for the app.
@@ -24,6 +25,10 @@ export const RECEIPT_DELAY_MS = 15 * 60 * 1000;
 export const RECEIPT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
 
+/** A busy comment thread (or any other repeating trigger) stops here per category, per account. */
+const CATEGORY_RATE_LIMIT = 5;
+const CATEGORY_RATE_WINDOW_MS = 60 * 60 * 1000;
+
 export type PushMessage = {
   title: string;
   body: string;
@@ -31,6 +36,17 @@ export type PushMessage = {
   data?: Record<string, unknown>;
   /** Android notification channel; the app creates it before it is used. */
   channelId?: string;
+  /**
+   * Gates this send on PushPreference and the per-category rate cap. Omit
+   * only for a notification with no in-app toggle (there are none yet).
+   */
+  category?: PushCategory;
+  /**
+   * Makes this send idempotent: a retried trigger (the same comment, the
+   * same lapse) with the same key sends at most once. Omit for a trigger
+   * that is already naturally one-shot.
+   */
+  dedupeKey?: string;
 };
 
 export type PushOptions = {
@@ -110,9 +126,42 @@ function errorCode(item: { details?: { error?: string } }): string | undefined {
 }
 
 /**
+ * Preference and rate-cap gate for a categorized send. Records a
+ * PushNotificationLog row and returns true the first time a `dedupeKey`
+ * clears both checks; a repeat of the same key (a retried trigger) loses the
+ * row's unique constraint race and returns false without sending twice. A
+ * key-less send (no natural one-shot id) still counts against the rate cap
+ * under a generated key.
+ */
+async function claimCategorySend(
+  userId: string,
+  category: PushCategory,
+  dedupeKey: string | undefined,
+  now: Date
+): Promise<boolean> {
+  if (!(await pushCategoryEnabled(userId, category))) return false;
+  const windowStart = new Date(now.getTime() - CATEGORY_RATE_WINDOW_MS);
+  const recent = await prisma.pushNotificationLog.count({
+    where: { userId, category, createdAt: { gte: windowStart } },
+  });
+  if (recent >= CATEGORY_RATE_LIMIT) return false;
+  const key = dedupeKey ?? `${category}:${crypto.randomUUID()}`;
+  try {
+    await prisma.pushNotificationLog.create({ data: { userId, category, key, createdAt: now } });
+    return true;
+  } catch (error) {
+    // P2002: another request already claimed this exact dedupeKey.
+    if ((error as { code?: unknown } | null)?.code === "P2002") return false;
+    throw error;
+  }
+}
+
+/**
  * Send one notification to every phone the account registered. Never throws:
  * a notification is never worth failing the request that triggered it, so
- * failures are logged and counted instead.
+ * failures are logged and counted instead. `message.category` checks
+ * PushPreference and a per-category rate cap first (see claimCategorySend);
+ * a blocked send returns silently with every count at zero.
  */
 export async function sendPushToUser(
   userId: string,
@@ -120,6 +169,17 @@ export async function sendPushToUser(
   options: PushOptions = {}
 ): Promise<PushSendResult> {
   const result: PushSendResult = { accepted: 0, failed: 0, removed: 0 };
+  if (message.category) {
+    const now = options.now ?? new Date();
+    let claimed: boolean;
+    try {
+      claimed = await claimCategorySend(userId, message.category, message.dedupeKey, now);
+    } catch (error) {
+      console.error("push: preference/rate-cap check failed", error);
+      return result;
+    }
+    if (!claimed) return result;
+  }
   await checkPushReceipts(options).catch((error) => {
     console.error("push: receipt check failed", error);
   });

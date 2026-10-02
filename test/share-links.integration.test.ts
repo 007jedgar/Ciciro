@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { createSession, registerUser, type PublicUser } from "@/lib/auth/session";
@@ -63,6 +63,8 @@ describe("beta reader share links", () => {
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
     await prisma.project.deleteMany();
+    await prisma.pushNotificationLog.deleteMany();
+    await prisma.pushToken.deleteMany();
   });
 
   afterAll(async () => {
@@ -240,6 +242,51 @@ describe("beta reader share links", () => {
       });
       expect(seen).not.toHaveProperty("clientHash");
       expect((await listShareLinks(project.id, user))[0]).toMatchObject({ commentCount: 1, openCommentCount: 1 });
+    });
+
+    it("pushes the manuscript's owner when a reader comments", async () => {
+      const { user, project, first } = await author("ada@example.com");
+      await write(first.id, user, "<p>The hall was cold.</p>");
+      const link = await createShareLink(project.id, user, { label: "Sam's read" });
+      const blockId = await blockIdOf(first.id, "cold");
+      const session = await prisma.session.create({
+        data: { userId: user.id, tokenHash: "ada-test-session-hash", expiresAt: new Date(Date.now() + 3600_000) },
+      });
+      await prisma.pushToken.create({
+        data: { userId: user.id, sessionId: session.id, token: "ExponentPushToken[ada-phone]", platform: "ios" },
+      });
+      const sent: unknown[] = [];
+      const fetch = vi.fn(async (url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        if (url.endsWith("/send")) sent.push(body);
+        const data = url.endsWith("/getReceipts") ? {} : (body as unknown[]).map(() => ({ status: "ok", id: "t1" }));
+        return new Response(JSON.stringify({ data }), { status: 200 });
+      });
+      vi.stubGlobal("fetch", fetch);
+
+      try {
+        const receipt = await postReaderComment(
+          link.token,
+          comment(first.id, blockId, { name: "Sam Lee", body: "Loved this chapter." }),
+          reader
+        );
+        // postReaderComment fires the push through waitUntilRequest, which is a
+        // fire-and-forget no-op outside a real Worker request context (see
+        // src/lib/db.ts); give that background promise a turn to settle.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(sent).toHaveLength(1);
+        expect((sent[0] as { to: string; title: string; body: string }[])[0]).toMatchObject({
+          to: "ExponentPushToken[ada-phone]",
+          title: 'Sam Lee commented on "Chapter 1"',
+          body: "Loved this chapter.",
+        });
+        expect(await prisma.pushNotificationLog.findMany({ where: { userId: user.id } })).toMatchObject([
+          { category: "shareComments", key: `share-comment:${receipt.id}` },
+        ]);
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it("cannot comment on a chapter the link does not share, in any project", async () => {

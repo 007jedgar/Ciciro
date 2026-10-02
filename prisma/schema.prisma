@@ -44,6 +44,8 @@ model User {
   billingEvents     BillingEvent[]
   usageCounters     UsageCounter[]
   pushTokens        PushToken[]
+  pushPreference    PushPreference?
+  pushNotificationLogs PushNotificationLog[]
   emailPreference   EmailPreference?
   marketingEmailLogs MarketingEmailLog[]
 
@@ -181,6 +183,44 @@ model PushTicket {
 
   @@index([pushTokenId])
   @@index([createdAt])
+}
+
+// Per-category opt-out for server-sent push, mirroring EmailPreference's
+// shape. Unlike email, there is no separate "opted in" gate: OS permission
+// plus a registered PushToken already gate delivery, so a missing row (or a
+// missing column default) means every category is on. See
+// src/lib/push/preferences.ts.
+model PushPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  shareComments Boolean @default(true)
+  writingNudge  Boolean @default(true)
+  chatFinished  Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// One row per server push actually sent (or attempted), keyed so a retried
+// trigger never double-sends (`key` names the specific event, e.g.
+// "share-comment:<commentId>", "writing-nudge:<lastWritingDate>",
+// "chat-finished:<turnId>") and so sendPushToUser can cap how many of one
+// category go to one account in a window (busy comment threads). See
+// src/lib/push/send.ts.
+model PushNotificationLog {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category String
+  key      String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId, category, createdAt])
 }
 
 model Project {

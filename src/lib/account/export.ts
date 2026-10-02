@@ -122,6 +122,20 @@ export const EXPORT_TABLES: readonly Table[] = [
       prisma.pushTicket.findMany({ where: { pushToken: { userId }, ...after(id) }, ...byId, take }),
   },
   {
+    model: "PushPreference",
+    file: "push-notification-preferences",
+    take: 1,
+    page: (userId, id, take) =>
+      prisma.pushPreference.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "PushNotificationLog",
+    file: "push-notification-log",
+    take: 500,
+    page: (userId, id, take) =>
+      prisma.pushNotificationLog.findMany({ where: { userId, ...after(id) }, ...byId, take }),
+  },
+  {
     model: "Folder",
     file: "folders",
     take: 200,

@@ -66,6 +66,8 @@ describe("sendPushToUser", () => {
   beforeEach(async () => {
     await prisma.pushTicket.deleteMany();
     await prisma.pushToken.deleteMany();
+    await prisma.pushNotificationLog.deleteMany();
+    await prisma.pushPreference.deleteMany();
     await prisma.session.deleteMany();
     await prisma.user.deleteMany();
     delete process.env.EXPO_ACCESS_TOKEN;
@@ -191,6 +193,87 @@ describe("sendPushToUser", () => {
     expect(expo.calls.map((call) => call.url)).toEqual([EXPO_PUSH_RECEIPTS_URL, EXPO_PUSH_SEND_URL]);
     expect(await prisma.pushTicket.findUnique({ where: { id: "old-ticket" } })).toBeNull();
     expect(await prisma.pushTicket.count()).toBe(1);
+  });
+
+  describe("category gating", () => {
+    it("skips a category the account turned off, with no Expo call and no log row", async () => {
+      const me = await account(1);
+      await prisma.pushPreference.create({ data: { userId: me.userId, shareComments: false } });
+      const expo = fakeExpo([tickets()]);
+      const result = await sendPushToUser(
+        me.userId,
+        { ...message, category: "shareComments" },
+        { fetch: expo.fetch, sleep }
+      );
+      expect(result).toEqual({ accepted: 0, failed: 0, removed: 0 });
+      expect(expo.calls).toHaveLength(0);
+      expect(await prisma.pushNotificationLog.count()).toBe(0);
+    });
+
+    it("sends a categorized message by default, and logs it", async () => {
+      const me = await account(1);
+      const expo = fakeExpo([tickets()]);
+      const result = await sendPushToUser(
+        me.userId,
+        { ...message, category: "chatFinished", dedupeKey: "chat-finished:turn-1" },
+        { fetch: expo.fetch, sleep }
+      );
+      expect(result).toEqual({ accepted: 1, failed: 0, removed: 0 });
+      const logged = await prisma.pushNotificationLog.findMany({ where: { userId: me.userId } });
+      expect(logged).toMatchObject([{ category: "chatFinished", key: "chat-finished:turn-1" }]);
+    });
+
+    it("sends a repeated dedupeKey at most once", async () => {
+      const me = await account(1);
+      const expo = fakeExpo([tickets()]);
+      const send = () =>
+        sendPushToUser(
+          me.userId,
+          { ...message, category: "shareComments", dedupeKey: "share-comment:c1" },
+          { fetch: expo.fetch, sleep }
+        );
+      await expect(send()).resolves.toEqual({ accepted: 1, failed: 0, removed: 0 });
+      await expect(send()).resolves.toEqual({ accepted: 0, failed: 0, removed: 0 });
+      expect(expo.calls.filter((call) => call.url === EXPO_PUSH_SEND_URL)).toHaveLength(1);
+      expect(await prisma.pushNotificationLog.count()).toBe(1);
+    });
+
+    it("caps a category at 5 per hour per account", async () => {
+      const me = await account(1);
+      const expo = fakeExpo([tickets()]);
+      for (let i = 0; i < 5; i++) {
+        await sendPushToUser(
+          me.userId,
+          { ...message, category: "shareComments", dedupeKey: `share-comment:c${i}` },
+          { fetch: expo.fetch, sleep }
+        );
+      }
+      const sixth = await sendPushToUser(
+        me.userId,
+        { ...message, category: "shareComments", dedupeKey: "share-comment:c5" },
+        { fetch: expo.fetch, sleep }
+      );
+      expect(sixth).toEqual({ accepted: 0, failed: 0, removed: 0 });
+      expect(expo.calls.filter((call) => call.url === EXPO_PUSH_SEND_URL)).toHaveLength(5);
+    });
+
+    it("does not cap a different category for the same account", async () => {
+      const me = await account(1);
+      const expo = fakeExpo([tickets()]);
+      for (let i = 0; i < 5; i++) {
+        await sendPushToUser(
+          me.userId,
+          { ...message, category: "shareComments", dedupeKey: `share-comment:c${i}` },
+          { fetch: expo.fetch, sleep }
+        );
+      }
+      const result = await sendPushToUser(
+        me.userId,
+        { ...message, category: "chatFinished", dedupeKey: "chat-finished:turn-1" },
+        { fetch: expo.fetch, sleep }
+      );
+      expect(result).toEqual({ accepted: 1, failed: 0, removed: 0 });
+    });
   });
 });
 

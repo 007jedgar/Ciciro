@@ -75,6 +75,12 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
   await prisma.pushTicket.create({
     data: { id: `${label}-push-ticket`, pushTokenId: pushToken.id },
   });
+  await prisma.pushPreference.create({
+    data: { userId: user.id, shareComments: true, writingNudge: true, chatFinished: true },
+  });
+  await prisma.pushNotificationLog.create({
+    data: { userId: user.id, category: "shareComments", key: `${label}-share-comment:seed` },
+  });
   await prisma.identity.create({
     data: { userId: user.id, provider: "google", subject: `${label}-google-sub`, email },
   });
