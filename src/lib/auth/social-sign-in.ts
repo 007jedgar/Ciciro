@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { JWTVerifyGetKey } from "jose";
 import { safeNext, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/constants";
+import { captureServerEvent } from "@/lib/analytics-server";
+import { waitUntilRequest } from "@/lib/db";
 import {
   createHandoff,
   signInWithIdentity,
@@ -352,6 +354,14 @@ export async function finishBrowserSignIn(
   }
 
   const { user, takeover, created } = result;
+  if (created) {
+    waitUntilRequest(
+      captureServerEvent(user.id, "account_created", {
+        method: provider,
+        platform: flow.challenge ? "ios" : "web",
+      })
+    );
+  }
   if (flow.challenge) {
     const code = await createHandoff(user.id, flow.challenge);
     const notice = takeover ? `&${TAKEOVER_PARAM}=${takeover}` : "";

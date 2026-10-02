@@ -26,10 +26,30 @@ export function createServerAnalytics(): AnalyticsAdapter {
   const apiKey = readEnv("POSTHOG_PROJECT_API_KEY");
   if (!apiKey) return new NoopAnalyticsAdapter();
   const apiHost = readEnv("POSTHOG_HOST") || "https://us.i.posthog.com";
-  const adapter = createPostHogServerAdapter({ apiKey, apiHost });
+  const personalApiKey = readEnv("POSTHOG_PERSONAL_API_KEY");
+  const projectId = readEnv("POSTHOG_PROJECT_ID");
+  const appHost = readEnv("POSTHOG_APP_HOST") || "https://us.posthog.com";
+  const adapter = createPostHogServerAdapter({
+    apiKey,
+    apiHost,
+    deletion: personalApiKey && projectId ? { appHost, personalApiKey, projectId } : undefined,
+  });
   const release = readEnv("CICIRO_RELEASE");
   adapter.registerSuperProperties(release ? { platform: "web", release } : { platform: "web" });
   return adapter;
+}
+
+/**
+ * Ask PostHog to forget a deleted account's person record. Never throws - a
+ * PRE_DELETE_HOOKS entry whose failure should not block account deletion
+ * (see src/lib/account/delete.ts).
+ */
+export async function deleteAnalyticsPerson(userId: string): Promise<void> {
+  try {
+    createServerAnalytics().deleteUser(userId);
+  } catch (error) {
+    console.error("[analytics] deleteAnalyticsPerson failed", error);
+  }
 }
 
 /** Whether a user has opted out of analytics (AppSettings.analyticsEnabled === false). */

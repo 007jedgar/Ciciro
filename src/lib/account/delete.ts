@@ -8,6 +8,7 @@ import { sendAccountDeletedEmail } from "@/lib/email/account-emails";
 import { publicOrigin } from "@/lib/public-origin";
 import { STRIPE_PRE_DELETE_HOOK } from "@/lib/billing/stripe";
 import { deleteRevenueCatCustomer } from "@/lib/billing/revenuecat";
+import { deleteAnalyticsPerson } from "@/lib/analytics-server";
 
 // Account deletion: re-authenticate, run the pre-delete hooks in order, purge
 // every row the account owns in one batch, then email a confirmation. See
@@ -61,6 +62,9 @@ export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [
   APPLE_REVOKE_HOOK,
   STRIPE_PRE_DELETE_HOOK,
   { name: "revenuecat-delete-customer", run: deleteRevenueCatCustomer },
+  // Analytics: best-effort, never blocks deletion (deleteAnalyticsPerson
+  // swallows its own errors). See docs/analytics.md.
+  { name: "posthog-delete-person", run: (account) => deleteAnalyticsPerson(account.id) },
 ];
 
 /**

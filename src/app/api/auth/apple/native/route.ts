@@ -5,6 +5,8 @@ import { createSession } from "@/lib/auth/session";
 import { signInWithAppleNative } from "@/lib/auth/social-sign-in";
 import { publicOrigin } from "@/lib/public-origin";
 import { getUserSettings } from "@/lib/user-settings";
+import { captureServerEvent } from "@/lib/analytics-server";
+import { waitUntilRequest } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -14,7 +16,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   try {
-    const { user, takeover } = await signInWithAppleNative({
+    const { user, takeover, created } = await signInWithAppleNative({
       idToken: body.idToken,
       nonce: body.nonce,
       authorizationCode: body.authorizationCode,
@@ -25,7 +27,10 @@ export async function POST(req: NextRequest) {
     });
     const token = await createSession(user.id, req.headers.get("user-agent") || "");
     const settings = await getUserSettings(user.id);
-    return jsonWithSession({ user, settings, takeover }, token, isNativeClient(req));
+    if (created) {
+      waitUntilRequest(captureServerEvent(user.id, "account_created", { method: "apple", platform: "ios" }));
+    }
+    return jsonWithSession({ user, settings, takeover, created }, token, isNativeClient(req));
   } catch (error) {
     const mapped = responseFromAuthError(error) ?? responseFromDbError(error);
     if (mapped) return mapped;

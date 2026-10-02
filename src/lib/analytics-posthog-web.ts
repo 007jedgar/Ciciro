@@ -46,5 +46,10 @@ export function createPostHogWebAdapter(config: PostHogWebConfig): AnalyticsAdap
       if (optedOut) posthog.opt_out_capturing();
       else posthog.opt_in_capturing();
     },
+    deleteUser(): void {
+      // No-op: deleting a person needs a personal API key, which must never
+      // reach the browser. Account deletion runs server-side; see
+      // src/lib/analytics-server.ts and src/lib/account/delete.ts.
+    },
   };
 }

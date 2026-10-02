@@ -9,6 +9,12 @@ import { waitUntilRequest } from "@/lib/db";
 export type PostHogServerConfig = {
   apiKey: string;
   apiHost: string;
+  /**
+   * The app host (posthog.com, not the capture host) plus a personal API key
+   * and project id, for deleteUser(). Separate from the capture key, which
+   * cannot delete anything. Optional: deleteUser() no-ops without it.
+   */
+  deletion?: { appHost: string; personalApiKey: string; projectId: string };
   /** Override for tests; defaults to the global fetch. */
   fetchImpl?: typeof fetch;
 };
@@ -76,6 +82,30 @@ export function createPostHogServerAdapter(config: PostHogServerConfig): Analyti
     setOptedOut(): void {
       // No-op here: call sites check analyticsOptedOut() before constructing
       // and using an adapter at all (see src/lib/analytics-server.ts).
+    },
+    deleteUser(userId: string): void {
+      const deletion = config.deletion;
+      if (!deletion) return;
+      const authHeaders = { authorization: `Bearer ${deletion.personalApiKey}` };
+      const base = `${deletion.appHost}/api/projects/${deletion.projectId}/persons`;
+      // The delete endpoint takes PostHog's own person id, not our distinct_id
+      // (the internal user id), so resolve it first.
+      const promise = fetchImpl(`${base}/?distinct_id=${encodeURIComponent(userId)}`, {
+        headers: authHeaders,
+      })
+        .then((res) => res.json())
+        .then((data: { results?: { id?: string }[] }) => {
+          const personId = data.results?.[0]?.id;
+          if (!personId) return undefined;
+          return fetchImpl(`${base}/${personId}/?delete_events=true`, {
+            method: "DELETE",
+            headers: authHeaders,
+          }).then(() => undefined);
+        })
+        .catch((error: unknown) => {
+          console.error("[analytics] deleteUser failed", error);
+        });
+      waitUntilRequest(promise);
     },
   };
 }

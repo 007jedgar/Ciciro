@@ -274,6 +274,8 @@ export type AuthSessionResponse = {
   token?: string;
   /** Set when this sign-in claimed an unverified password account. */
   takeover?: "apple" | "google" | null;
+  /** Whether this call created the account, for the account_created analytics event. */
+  created?: boolean;
 };
 
 /** POST /api/auth/verify-email/resend. */

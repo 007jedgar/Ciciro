@@ -53,6 +53,9 @@ class SecondVendorAdapter implements AnalyticsAdapter {
   setOptedOut(optedOut: boolean): void {
     this.events.push({ kind: "optedOut", payload: optedOut });
   }
+  deleteUser(userId: string): void {
+    this.events.push({ kind: "deleteUser", payload: userId });
+  }
 }
 
 describe("AnalyticsAdapter decoupling", () => {

@@ -87,9 +87,9 @@ export type EventCatalog = {
   recap_viewed: NoProperties;
   scratchpad_used: NoProperties;
 
-  // Account data
+  // Account data. Deletion has no event: see AnalyticsAdapter.deleteUser
+  // below - the person record is asked to be forgotten, not tracked once more.
   account_exported: NoProperties;
-  account_deleted: NoProperties;
 
   // Notifications and server-confirmed AI runs
   push_notification_opened: { type: string };
@@ -121,6 +121,12 @@ export interface AnalyticsAdapter {
   registerSuperProperties(properties: SuperProperties): void;
   /** Honor the user's analytics opt-out/in choice. */
   setOptedOut(optedOut: boolean): void;
+  /**
+   * Ask the provider to forget this person, for account deletion
+   * (AGENTS.md "Account data"). Fire-and-forget and best-effort: a provider
+   * with nothing to delete, or no deletion API configured, no-ops.
+   */
+  deleteUser(userId: string): void;
 }
 
 /** Does nothing. The default adapter when no provider is configured. */
@@ -131,6 +137,7 @@ export class NoopAnalyticsAdapter implements AnalyticsAdapter {
   screen(): void {}
   registerSuperProperties(): void {}
   setOptedOut(): void {}
+  deleteUser(): void {}
 }
 
 export type RecordedIdentify = { userId: string; properties?: PersonProperties };
@@ -150,6 +157,7 @@ export class MemoryAnalyticsAdapter implements AnalyticsAdapter {
   screens: RecordedScreen[] = [];
   superProperties: SuperProperties = {};
   optedOut = false;
+  deletedUserIds: string[] = [];
 
   identify(userId: string, properties?: PersonProperties): void {
     this.identifies.push({ userId, properties });
@@ -168,6 +176,9 @@ export class MemoryAnalyticsAdapter implements AnalyticsAdapter {
   }
   setOptedOut(optedOut: boolean): void {
     this.optedOut = optedOut;
+  }
+  deleteUser(userId: string): void {
+    this.deletedUserIds.push(userId);
   }
 }
 

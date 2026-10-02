@@ -1,4 +1,4 @@
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import i18n from "i18next";
 import {
   useCallback,
@@ -19,9 +19,12 @@ import type { DeleteAccountRequest } from "./api/types";
 import type { BrowserProvider } from "./social-auth";
 import { appleSheetCredential, browserSignInCode } from "./social-sign-in";
 import { forgetPurchaser, identifyPurchaser } from "./purchases";
+import { getAnalytics } from "./analytics-client";
 import type { PublicUser } from "./types";
 
 export { useSession, type SessionState } from "./session-context";
+
+const ANALYTICS_PLATFORM = Platform.OS === "android" ? "android" : "ios";
 
 function rememberUser(user: PublicUser | null): void {
   setCachedUser(user);
@@ -93,10 +96,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     else void forgetPurchaser();
   }, [userId]);
 
+  // Analytics follows the signed-in account the same way: identify by
+  // internal id only, reset on sign-out. See docs/analytics.md.
+  useEffect(() => {
+    if (userId) getAnalytics().identify(userId);
+    else getAnalytics().reset();
+  }, [userId]);
+
   const login = useCallback(async (email: string, password: string) => {
     const data = await ciciro.auth.login({ email, password });
     const next = beginAccount(data.user, data.token);
     setUser(next);
+    getAnalytics().identify(next.id);
+    getAnalytics().track("signed_in", { method: "email", platform: ANALYTICS_PLATFORM });
     return next;
   }, []);
 
@@ -105,6 +117,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const data = await ciciro.auth.signup(input);
       const next = beginAccount(data.user, data.token);
       setUser(next);
+      // account_created fires server-side (api/auth/signup), reliably. The
+      // client only identifies and marks the session as started.
+      getAnalytics().identify(next.id);
+      getAnalytics().track("signed_in", { method: "email", platform: ANALYTICS_PLATFORM });
       return next;
     },
     []
@@ -116,6 +132,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const data = await ciciro.auth.appleNative({ ...credential, marketingOptIn });
     const next = beginAccount(data.user, data.token);
     setUser(next);
+    getAnalytics().identify(next.id);
+    getAnalytics().track("signed_in", { method: "apple", platform: ANALYTICS_PLATFORM });
+    getAnalytics().track("social_sign_in_used", { provider: "apple" });
     if (data.takeover) announceTakeover(data.takeover);
     return next;
   }, []);
@@ -126,6 +145,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const data = await ciciro.auth.handoff({ code: handoff.code, verifier: handoff.verifier });
     const next = beginAccount(data.user, data.token);
     setUser(next);
+    getAnalytics().identify(next.id);
+    getAnalytics().track("signed_in", { method: handoff.provider ?? provider, platform: ANALYTICS_PLATFORM });
+    getAnalytics().track("social_sign_in_used", { provider: handoff.provider ?? provider });
     if (handoff.takeover) announceTakeover(handoff.takeover);
     return next;
   }, []);
@@ -144,6 +166,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
     }
+    getAnalytics().track("signed_out", {});
     endAccount();
   }, [endAccount]);
 

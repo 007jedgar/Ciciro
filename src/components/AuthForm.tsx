@@ -88,12 +88,12 @@ export default function AuthForm({
       }
       const userId = data?.user?.id as string | undefined;
       if (userId) {
+        // account_created fires server-side (see /api/auth/signup), where it
+        // cannot be lost to an ad blocker or a closed tab. The client only
+        // identifies and marks the session as started.
         const analytics = getAnalytics();
         analytics.identify(userId);
-        analytics.track(mode === "signup" ? "account_created" : "signed_in", {
-          method: "email",
-          platform: "web",
-        });
+        analytics.track("signed_in", { method: "email", platform: "web" });
       }
       window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
       window.location.assign(next);
