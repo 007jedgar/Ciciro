@@ -19,6 +19,7 @@ import {
   requestReminderPermission,
 } from "../lib/writing-reminder-notifications";
 import { reminderSaveOutcome } from "../lib/writing-reminder-sync";
+import { getAnalytics } from "../lib/analytics-client";
 import {
   MAX_WRITING_REMINDERS,
   createWritingReminderId,
@@ -149,6 +150,7 @@ export default function WritingReminderScreen() {
     setBusy(true);
     const permission = await requestReminderPermission(channelName);
     commitWritingReminders(authorId, result.reminders);
+    if (!reminderId) getAnalytics().track("reminder_enabled", {});
     const published = await publishReminderNotifications({
       userId: authorId,
       reminders: result.reminders,
@@ -187,6 +189,7 @@ export default function WritingReminderScreen() {
   const remove = async () => {
     const next = removeWritingReminder(loadWritingReminders(authorId), editing.id);
     commitWritingReminders(authorId, next);
+    getAnalytics().track("reminder_disabled", {});
     await publishReminderNotifications({
       userId: authorId,
       reminders: next,

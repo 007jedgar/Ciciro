@@ -6,6 +6,7 @@ import Link from "next/link";
 import Presence from "@/components/Presence";
 import { MOTION_MS } from "@/lib/motion";
 import { AI_LIMIT_EVENT, allowanceResetsOn, type AiLimitDetail } from "@/lib/billing-client";
+import { getAnalytics } from "@/lib/analytics-client";
 
 /**
  * The limit-reached state, app-wide: any AI request that comes back 402
@@ -21,6 +22,7 @@ export default function AiLimitDialog() {
     function onLimit(event: Event) {
       setDetail((event as CustomEvent<AiLimitDetail>).detail);
       setOpen(true);
+      getAnalytics().track("paywall_viewed", { surface: "ai_limit_dialog" });
     }
     window.addEventListener(AI_LIMIT_EVENT, onLimit);
     return () => window.removeEventListener(AI_LIMIT_EVENT, onLimit);
@@ -79,7 +81,14 @@ export default function AiLimitDialog() {
             {canUpgrade ? "Not now" : "OK"}
           </button>
           {canUpgrade ? (
-            <Link className="btn primary" href="/pricing" onClick={() => setOpen(false)}>
+            <Link
+              className="btn primary"
+              href="/pricing"
+              onClick={() => {
+                getAnalytics().track("paywall_cta_clicked", { surface: "ai_limit_dialog", plan: "pro" });
+                setOpen(false);
+              }}
+            >
               See Ciciro Pro
             </Link>
           ) : null}

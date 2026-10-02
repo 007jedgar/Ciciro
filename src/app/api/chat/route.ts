@@ -14,6 +14,7 @@ import {
 import { getRunCoordinator } from "@/lib/durable/coordinator";
 import { archiveChat, loadChatSnapshot } from "@/lib/chat-history";
 import { assertAiAllowed, meterAiRun, refundAiRun } from "@/lib/entitlements";
+import { captureServerEvent } from "@/lib/analytics-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -206,6 +207,11 @@ export async function POST(req: NextRequest) {
         } finally {
           clearInterval(pingTimer);
           await coordinator.release(run.id, runLease.token);
+          if (user) {
+            waitUntilRequest(
+              captureServerEvent(user.id, "run_completed", { surface: "chat", status: final.status })
+            );
+          }
           emit({
             type: "done",
             status: final.status,
