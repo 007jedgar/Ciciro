@@ -218,4 +218,97 @@ describe("runWithRequestLifetime", () => {
     expect(results.every((result) => result.status === "fulfilled")).toBe(true);
     expect(error).toHaveBeenCalledTimes(1);
   });
+
+  describe("when the body neither finishes nor is cancelled", () => {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const encode = (text: string) => new TextEncoder().encode(text);
+
+    /** A body whose reader takes one chunk and then stops reading, never cancelling. */
+    async function stalledBody(worker: ReturnType<typeof workerContext>, finish: () => Promise<void>, register?: (ctx: { waitUntil(p: Promise<unknown>): void }) => void) {
+      let push!: ReadableStreamDefaultController<Uint8Array>;
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          push = controller;
+        },
+      });
+      const response = await runWithRequestLifetime(
+        worker.ctx,
+        async (requestCtx) => {
+          register?.(requestCtx);
+          return new Response(source);
+        },
+        finish,
+        { quietMs: 60 }
+      );
+      push.enqueue(encode("first"));
+      const reader = response.body!.getReader();
+      await reader.read();
+      return { push, reader };
+    }
+
+    it("finishes once the body has passed no chunk for the quiet period", async () => {
+      const worker = workerContext();
+      const finish = vi.fn(async () => {});
+      await stalledBody(worker, finish);
+
+      await sleep(20);
+      expect(finish).not.toHaveBeenCalled();
+      await worker.drain();
+      expect(finish).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts the quiet period only after registered work settles", async () => {
+      const worker = workerContext();
+      const finish = vi.fn(async () => {});
+      const producer = deferred();
+      await stalledBody(worker, finish, (ctx) => ctx.waitUntil(producer.promise));
+
+      await sleep(120);
+      expect(finish).not.toHaveBeenCalled();
+      producer.resolve();
+      await worker.drain();
+      expect(finish).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps waiting while the body is still passing chunks", async () => {
+      const worker = workerContext();
+      const finish = vi.fn(async () => {});
+      let push!: ReadableStreamDefaultController<Uint8Array>;
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          push = controller;
+        },
+      });
+      const response = await runWithRequestLifetime(worker.ctx, async () => new Response(source), finish, { quietMs: 60 });
+      const reader = response.body!.getReader();
+
+      // Slower than the quiet period in total, but never quiet for that long.
+      for (let i = 0; i < 6; i++) {
+        push.enqueue(encode(`chunk ${i}`));
+        await reader.read();
+        await sleep(30);
+      }
+      expect(finish).not.toHaveBeenCalled();
+
+      push.close();
+      expect((await reader.read()).done).toBe(true);
+      await worker.drain();
+      expect(finish).toHaveBeenCalledTimes(1);
+    });
+
+    it("finishes only once if a quiet body later resumes and ends", async () => {
+      const worker = workerContext();
+      const finish = vi.fn(async () => {});
+      const { push, reader } = await stalledBody(worker, finish);
+      await worker.drain();
+      expect(finish).toHaveBeenCalledTimes(1);
+
+      push.enqueue(encode("late"));
+      push.close();
+      await reader.read();
+      await reader.read();
+      await worker.drain();
+      expect(finish).toHaveBeenCalledTimes(1);
+    });
+  });
 });
