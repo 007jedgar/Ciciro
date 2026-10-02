@@ -78,6 +78,9 @@ const CONTINUE_EXACTLY =
   "Continue exactly where you left off - mid-word if that is where it cut off. " +
   "Do not repeat or restate anything already written, and do not comment on the cutoff.";
 
+const TOOL_SKIPPED_BY_CANCEL =
+  "Not run: the author stopped this request before this tool call.";
+
 function serialize(value: unknown): string {
   return JSON.stringify(value);
 }
@@ -400,10 +403,10 @@ export async function claimEditorRun(runId: string): Promise<ClaimedEditorRun | 
  * Ask a run to stop. When nothing currently holds its lease - idle between
  * slices, or not yet started - this finalizes it as `cancelled` immediately.
  * Otherwise it only flags the row; the active slice notices at its next
- * iteration boundary (see `isCancelled` in executeClaimedEditorRun below)
- * and finalizes it there. Never mid-iteration: whatever already
- * landed - visible text, committed tool mutations - stays, same as any other
- * checkpoint.
+ * iteration boundary or before its next tool call (see `isCancelled` in
+ * executeClaimedEditorRun below) and finalizes it there. Never mid-stream or
+ * mid-tool: whatever already landed - visible text, committed tool
+ * mutations - stays, same as any other checkpoint.
  */
 export async function cancelEditorRun(runId: string, projectId: string) {
   const current = await prisma.editorRun.findUnique({ where: { id: runId } });
@@ -420,7 +423,15 @@ export async function cancelEditorRun(runId: string, projectId: string) {
 
   if (!locked) {
     const claimed = await prisma.editorRun.updateMany({
-      where: { id: runId, status: current.status },
+      where: {
+        id: runId,
+        status: current.status,
+        OR: [
+          { lockToken: null },
+          { leaseExpiresAt: null },
+          { leaseExpiresAt: { lt: now } },
+        ],
+      },
       data: {
         status: "cancelled",
         stopReason: "user_cancelled",
@@ -670,8 +681,8 @@ export async function executeClaimedEditorRun(
 
   // Cancellation is a flag on the row, not the claim token, so the author's
   // stop request can write it without needing the lease this run holds.
-  // Checked only between iterations - never mid-stream - matching the
-  // durable lifecycle's "safe iteration boundary" contract.
+  // Checked between iterations and before each tool call - never mid-stream
+  // or mid-tool - matching the durable lifecycle's "safe boundary" contract.
   const isCancelled = async () => {
     const row = await prisma.editorRun.findUnique({
       where: { id: claim.id },
@@ -825,8 +836,18 @@ export async function executeClaimedEditorRun(
       if (msg.stop_reason === "tool_use") {
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
         let stepMutations = 0;
+        let stoppedMidStep = false;
         for (const block of msg.content) {
           if (block.type !== "tool_use") continue;
+          if (stoppedMidStep || (await isCancelled())) {
+            stoppedMidStep = true;
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: TOOL_SKIPPED_BY_CANCEL,
+            });
+            continue;
+          }
           const result = await executeEditorTool(
             block.name,
             (block.input as Record<string, unknown>) || {},
@@ -847,7 +868,7 @@ export async function executeClaimedEditorRun(
           });
         }
         messages.push({ role: "user", content: toolResults });
-        const cancelled = await isCancelled();
+        const cancelled = stoppedMidStep || (await isCancelled());
         const status: EditorRunStatus = cancelled
           ? "cancelled"
           : isLastIteration

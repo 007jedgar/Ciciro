@@ -276,4 +276,51 @@ describe("useCiciroChat", () => {
     });
     unmount();
   });
+
+  it("cancels by the client turn id when stopped before the run exists, retrying past the 404", async () => {
+    let cancelCalls = 0;
+    const fetchMock = mockFetch(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url.endsWith("/api/chat/cancel")) {
+        cancelCalls += 1;
+        return cancelCalls === 1
+          ? jsonResponse({ error: "No matching editor run" }, { status: 404 })
+          : jsonResponse({ runId: "r1", turnId: "client-1", status: "running" });
+      }
+      if (method !== "POST") return jsonResponse({ messages: [], runs: [] });
+      return new Response(new ReadableStream<Uint8Array>({ start() {} }), {
+        status: 200,
+        headers: { "content-type": "application/x-ndjson" },
+      });
+    });
+
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let sent: Promise<unknown> | undefined;
+    act(() => {
+      sent = result.current.send({
+        projectId: "p1",
+        message: "Write chapter one, then chapter two",
+        clientTurnId: "client-1",
+      });
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(true));
+
+    await act(async () => {
+      result.current.stop();
+      await sent;
+    });
+
+    await waitFor(() => expect(cancelCalls).toBe(2), { timeout: 3000 });
+    const bodies = fetchMock.mock.calls
+      .filter(([requestUrl]) => String(requestUrl).endsWith("/api/chat/cancel"))
+      .map(([, requestInit]) => parsedBody(requestInit as RequestInit));
+    expect(bodies).toEqual([
+      { projectId: "p1", turnId: "client-1" },
+      { projectId: "p1", turnId: "client-1" },
+    ]);
+    unmount();
+  });
 });

@@ -106,6 +106,29 @@ function statusForMessage(
 // would otherwise loop forever, firing an editor request per slice. When the cap
 // is hit we stop auto-continuing; the pending turn stays saved and resumable.
 const MAX_CONTINUATION_SLICES = 40;
+const CANCEL_ATTEMPTS = 8;
+const CANCEL_RETRY_MS = 750;
+
+/**
+ * Asks the server to cancel a turn. A Stop that beats the run's creation
+ * (the first request is still authorizing) gets a 404, so keep trying until
+ * the run exists; any other client error is final.
+ */
+async function cancelServerRun(projectId: string, turnId: string): Promise<void> {
+  for (let attempt = 0; attempt < CANCEL_ATTEMPTS; attempt++) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, CANCEL_RETRY_MS));
+    try {
+      const res = await fetch("/api/chat/cancel", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ projectId, turnId }),
+      });
+      if (res.ok || (res.status !== 404 && res.status < 500)) return;
+    } catch {
+      // Network blip: try again.
+    }
+  }
+}
 
 type SliceResult = {
   text: string;
@@ -834,11 +857,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     setStopRequested(true);
     const turnId = streamTurnIdRef.current;
     if (!turnId) return;
-    fetch("/api/chat/cancel", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ projectId, turnId }),
-    }).catch(() => {});
+    void cancelServerRun(projectId, turnId);
   }
 
   async function send(message: string, kind = "chat", scope?: Scope) {
