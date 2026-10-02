@@ -40,6 +40,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typecheck web
+        run: npm run typecheck
+
+      - name: Typecheck worker
+        run: npm run typecheck:worker
+
+      - name: Typecheck mobile
+        run: npm run typecheck:mobile
+
       - name: Test web
         run: npm test
 

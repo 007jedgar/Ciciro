@@ -1,10 +1,25 @@
-import { describe, expect, it } from "vitest";
-import {
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { randomBytesMock, actualHolder } = vi.hoisted(() => ({
+  randomBytesMock: vi.fn(),
+  actualHolder: { randomBytes: null as null | ((...args: unknown[]) => Buffer) },
+}));
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:crypto")>();
+  actualHolder.randomBytes = actual.randomBytes as (...args: unknown[]) => Buffer;
+  return { ...actual, randomBytes: randomBytesMock };
+});
+
+beforeEach(() => {
+  randomBytesMock.mockImplementation((...args: unknown[]) => actualHolder.randomBytes!(...args));
+});
+
+const {
   generateSessionToken,
   hashSessionToken,
   normalizeEmail,
   validatePassword,
-} from "@/lib/auth/tokens";
+} = await import("@/lib/auth/tokens");
 import {
   MIN_PASSWORD_LENGTH,
   NATIVE_CLIENT_HEADER,
@@ -28,6 +43,15 @@ describe("session tokens", () => {
     expect(a).not.toBe(b);
     expect(a).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(a.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it("encodes a fixed random value to the exact same base64url bytes", () => {
+    // Regression guard for the Buffer.from(...).toString(encoding) wrapper
+    // (see src/lib/auth/tokens.ts): fixed random bytes must still produce
+    // the same base64url string as encoding them directly, byte for byte.
+    const fixedBytes = Buffer.from("00".repeat(32), "hex");
+    randomBytesMock.mockReturnValue(fixedBytes);
+    expect(generateSessionToken()).toBe(fixedBytes.toString("base64url"));
   });
 
   it("hashes a token deterministically and irreversibly", () => {

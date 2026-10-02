@@ -48,8 +48,8 @@ export async function hashPassword(password: string): Promise<string> {
     SCRYPT_N,
     SCRYPT_r,
     SCRYPT_p,
-    salt.toString("hex"),
-    derived.toString("hex"),
+    Buffer.from(salt).toString("hex"),
+    Buffer.from(derived).toString("hex"),
   ].join("$");
 }
 
