@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ciciro } from "./api";
+import { ApiError, ciciro } from "./api";
 import { queryClient } from "./api/query";
 import { queryKeys } from "./api/keys";
 import type { ChatMessage, ChatStreamEvent, EditorRunInput } from "./api/types";
@@ -41,6 +41,26 @@ export type UseCiciroChat = {
 
 function newClientTurnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `turn-${Date.now().toString(36)}`;
+}
+
+const CANCEL_ATTEMPTS = 8;
+const CANCEL_RETRY_MS = 750;
+
+/**
+ * Asks the server to cancel a turn. A Stop that beats the run's creation
+ * (the first request is still authorizing) gets a 404, so keep trying until
+ * the run exists; any other client error is final.
+ */
+async function cancelServerRun(projectId: string, turnId: string): Promise<void> {
+  for (let attempt = 0; attempt < CANCEL_ATTEMPTS; attempt++) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, CANCEL_RETRY_MS));
+    try {
+      await ciciro.chat.cancel(projectId, turnId);
+      return;
+    } catch (err) {
+      if (err instanceof ApiError && err.status !== 404 && err.status < 500) return;
+    }
+  }
 }
 
 const PROJECT_EVENTS = ["chapter_updated", "chapter_created", "open_chapter"];
@@ -123,7 +143,8 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
 
       streamingRef.current = true;
       stopRequestedRef.current = false;
-      turnIdRef.current = input.resumeTurnId ?? null;
+      const clientTurnId = input.clientTurnId ?? newClientTurnId();
+      turnIdRef.current = input.resumeTurnId ?? clientTurnId;
       lastInputRef.current = input;
       // A run that dies mid-flight resolves with an error footer in the reply,
       // whose Try again replays this turn too.
@@ -147,7 +168,6 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         ]);
       }
 
-      const clientTurnId = input.clientTurnId ?? newClientTurnId();
       let resumeTurnId = input.resumeTurnId;
       let slices = 0;
       let next = emptyChatStreamState();
@@ -232,7 +252,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       // Best-effort: even if this never lands, the local abort below still
       // frees the UI, and a page reload will show whatever the server did
       // land before it noticed the cancellation.
-      ciciro.chat.cancel(projectId, turnId).catch(() => {});
+      void cancelServerRun(projectId, turnId);
     }
     abortRef.current?.abort();
   }, [projectId]);

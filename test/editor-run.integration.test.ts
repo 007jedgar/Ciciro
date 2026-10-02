@@ -63,6 +63,11 @@ vi.mock("@/lib/anthropic", () => ({
   }),
 }));
 
+vi.mock("@/lib/tools", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/tools")>();
+  return { ...actual, executeEditorTool: vi.fn(actual.executeEditorTool) };
+});
+
 vi.mock("@/lib/bible", () => ({
   ensureBible: vi.fn(async () => undefined),
 }));
@@ -93,6 +98,7 @@ import { prisma } from "@/lib/db";
 import { registerUser } from "@/lib/auth/session";
 import { updateUserSettings } from "@/lib/user-settings";
 import { editorSystemFor } from "@/lib/prompts";
+import { executeEditorTool } from "@/lib/tools";
 import {
   cancelEditorRun,
   claimEditorRun,
@@ -513,6 +519,89 @@ describe("durable editor lifecycle", () => {
       expect(persisted.lockToken).toBeNull();
       expect(persisted.leaseExpiresAt).toBeNull();
       expect(persisted.completedAt).toBeNull();
+    });
+
+    it("skips the rest of a response's tool calls once a Stop lands between them", async () => {
+      const project = await createProject();
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "Write two paragraphs.",
+        clientTurnId: "cancel-between-tools",
+      });
+      const runId = prepared!.run.id;
+      model.responses.push(
+        response("tool_use", [
+          { type: "text", text: "Creating two chapters.", citations: null },
+          { type: "tool_use", id: "chapter-1", name: "create_chapter", input: { title: "One" } },
+          { type: "tool_use", id: "chapter-2", name: "create_chapter", input: { title: "Two" } },
+        ]),
+        response("end_turn", [{ type: "text", text: "Done.", citations: null }])
+      );
+      const tool = vi.mocked(executeEditorTool);
+      const actual = (await vi.importActual<typeof import("@/lib/tools")>("@/lib/tools"))
+        .executeEditorTool;
+      tool.mockClear();
+      tool.mockImplementationOnce(async (...args) => {
+        const result = await actual(...args);
+        await prisma.editorRun.update({
+          where: { id: runId },
+          data: { cancelledAt: new Date() },
+        });
+        return result;
+      });
+
+      const claim = await claimEditorRun(runId);
+      const result = await executeClaimedEditorRun(claim!, () => {});
+
+      expect(tool).toHaveBeenCalledTimes(1);
+      expect(model.calls).toHaveLength(1);
+      const chapters = await prisma.chapter.findMany({ where: { projectId: project.id } });
+      expect(chapters.map((chapter) => chapter.title)).toEqual(["One"]);
+      expect(result.status).toBe("cancelled");
+      const persisted = await prisma.editorRun.findUniqueOrThrow({ where: { id: runId } });
+      expect(persisted.status).toBe("cancelled");
+      expect(persisted.stopReason).toBe("user_cancelled");
+      expect(persisted.lockToken).toBeNull();
+      const transcript = JSON.parse(persisted.messagesJson) as Anthropic.MessageParam[];
+      const toolResults = transcript[transcript.length - 1].content as Anthropic.ToolResultBlockParam[];
+      expect(toolResults.map((block) => block.tool_use_id)).toEqual(["chapter-1", "chapter-2"]);
+      expect(toolResults[1].content).toMatch(/stopped/);
+    });
+
+    it("leaves a run another executor just reclaimed to that executor, flagging it instead", async () => {
+      const project = await createProject();
+      const prepared = await prepareEditorRun({
+        projectId: project.id,
+        message: "Write two paragraphs.",
+        clientTurnId: "cancel-reclaimed",
+      });
+      const runId = prepared!.run.id;
+      await prisma.editorRun.update({
+        where: { id: runId },
+        data: {
+          status: "running",
+          lockToken: "dead-process",
+          leaseExpiresAt: new Date(Date.now() - 1000),
+        },
+      });
+      const findUnique = prisma.editorRun.findUnique.bind(prisma.editorRun);
+      let reclaimed: Awaited<ReturnType<typeof claimEditorRun>> = null;
+      const spy = vi
+        .spyOn(prisma.editorRun, "findUnique")
+        .mockImplementationOnce(((args: Parameters<typeof findUnique>[0]) =>
+          findUnique(args).then(async (row) => {
+            spy.mockRestore();
+            reclaimed = await claimEditorRun(runId);
+            return row;
+          })) as unknown as typeof prisma.editorRun.findUnique);
+
+      const updated = await cancelEditorRun(runId, project.id);
+      spy.mockRestore();
+
+      expect(reclaimed).not.toBeNull();
+      expect(updated?.status).toBe("running");
+      expect(updated?.cancelledAt).not.toBeNull();
+      expect(updated?.lockToken).toBe(reclaimed!.claimToken);
     });
 
     it("self-heals a run left continuing with cancelledAt set, so it can never be resumed", async () => {

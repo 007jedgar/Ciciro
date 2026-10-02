@@ -129,12 +129,16 @@ Cancellation is instead an explicit state transition: `POST /api/chat/cancel` wi
 `src/lib/editor-run.ts`). A run with no active lease (idle between slices, or not
 yet started) is finalized as `cancelled` immediately. An actively-claimed run is
 only flagged (`EditorRun.cancelledAt`); the executor checks that flag at every
-iteration boundary in `executeClaimedEditorRun` - before each model call, and right
-after a `tool_use`/`max_tokens`/`end_turn` checkpoint would otherwise continue - and
-finalizes as `cancelled` there instead. It is never checked mid-stream, so the
-current iteration's text and any tool mutations it already committed are kept,
-same as any other checkpoint; cancellation only prevents the *next* iteration or
-slice. `claimEditorRun` self-heals the rare race where a slice's own checkpoint and
+iteration boundary in `executeClaimedEditorRun` - before each model call, before
+each tool call in a response that asked for several, and right after a
+`tool_use`/`max_tokens`/`end_turn` checkpoint would otherwise continue - and
+finalizes as `cancelled` there instead. Tool calls skipped that way still get a
+`tool_result` (saying the author stopped the run) so the saved transcript stays
+valid. It is never checked mid-stream or mid-tool, so the current iteration's text
+and any tool mutations it already committed are kept, same as any other
+checkpoint; cancellation only prevents the *next* tool call, iteration or slice.
+A Stop sent before the run row exists (the first request is still authorizing)
+gets a `404`; both clients retry it until the run appears. `claimEditorRun` self-heals the rare race where a slice's own checkpoint and
 a cancel request land in the same instant, so a cancelled row can never be resumed.
 Both the web (`ChatPanel.tsx`) and mobile (`use-ciciro-chat.ts`) clients show a Stop
 control while a run is active and call this endpoint; mobile also aborts its local
