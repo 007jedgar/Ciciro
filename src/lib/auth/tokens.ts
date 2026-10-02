@@ -9,7 +9,7 @@ export { MIN_PASSWORD_LENGTH, SESSION_COOKIE, SESSION_TTL_MS };
  * not expose usable session tokens.
  */
 export function generateSessionToken(): string {
-  return randomBytes(32).toString("base64url");
+  return Buffer.from(randomBytes(32)).toString("base64url");
 }
 
 /** SHA-256 of a raw token, hex-encoded. Deterministic lookup key. */

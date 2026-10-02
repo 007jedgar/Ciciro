@@ -1,5 +1,21 @@
-import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { scryptSync } from "node:crypto";
+
+const { randomBytesMock, actualHolder } = vi.hoisted(() => ({
+  randomBytesMock: vi.fn(),
+  actualHolder: { randomBytes: null as null | ((...args: unknown[]) => Buffer) },
+}));
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:crypto")>();
+  actualHolder.randomBytes = actual.randomBytes as (...args: unknown[]) => Buffer;
+  return { ...actual, randomBytes: randomBytesMock };
+});
+
+const { hashPassword, verifyPassword } = await import("@/lib/auth/password");
+
+beforeEach(() => {
+  randomBytesMock.mockImplementation((...args: unknown[]) => actualHolder.randomBytes!(...args));
+});
 
 describe("password hashing (scrypt)", () => {
   it("round-trips a correct password", async () => {
@@ -43,5 +59,27 @@ describe("password hashing (scrypt)", () => {
 
   it("throws on an empty password to hash", async () => {
     await expect(hashPassword("")).rejects.toThrow();
+  });
+
+  it("encodes the salt and hash to the exact same hex bytes for a fixed salt", async () => {
+    // Regression guard for the Buffer.from(...).toString(encoding) wrapper
+    // (see src/lib/auth/password.ts): a fixed salt must still produce the
+    // same stored hex bytes as computing scrypt directly, byte for byte.
+    const fixedSaltHex = "0102030405060708090a0b0c0d0e0f1";
+    const fixedSalt = Buffer.from(fixedSaltHex + "0", "hex");
+    randomBytesMock.mockReturnValue(fixedSalt);
+
+    const hash = await hashPassword("fixed-input-password");
+    const [prefix, n, r, p, saltHex, hashHex] = hash.split("$");
+    expect(prefix).toBe("scrypt");
+    expect(saltHex).toBe(fixedSalt.toString("hex"));
+
+    const expectedDerived = scryptSync("fixed-input-password", fixedSalt, 32, {
+      N: Number(n),
+      r: Number(r),
+      p: Number(p),
+      maxmem: 64 * 1024 * 1024,
+    });
+    expect(hashHex).toBe(expectedDerived.toString("hex"));
   });
 });
