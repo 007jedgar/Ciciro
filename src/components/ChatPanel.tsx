@@ -1277,38 +1277,42 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       )}
 
       <div className="composer">
-        <textarea
-          ref={composerRef}
-          placeholder="Ask your editor, or describe what to write..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              send(input);
-            }
-          }}
-        />
-        {streaming ? (
-          <button
-            className="btn primary composer-action"
-            disabled={stopRequested}
-            onClick={stop}
-            title="Stop Ciciro at the next safe point. Anything already written stays and can be undone."
-          >
-            <span>{stopRequested ? "Stopping…" : "Stop"}</span>
-            <span aria-hidden="true">Stopping…</span>
-          </button>
-        ) : (
-          <button
-            className="btn primary composer-action"
-            disabled={!input.trim()}
-            onClick={() => send(input)}
-          >
-            <span>Send</span>
-            <span aria-hidden="true">Stopping…</span>
-          </button>
-        )}
+        <div className="composer-box">
+          <textarea
+            ref={composerRef}
+            placeholder="Ask your editor, or describe what to write..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
+          />
+          <div className="composer-row">
+            {streaming ? (
+              <button
+                className="btn primary composer-action"
+                disabled={stopRequested}
+                onClick={stop}
+                title="Stop Ciciro at the next safe point. Anything already written stays and can be undone."
+              >
+                <span>{stopRequested ? "Stopping…" : "Stop"}</span>
+                <span aria-hidden="true">Stopping…</span>
+              </button>
+            ) : (
+              <button
+                className="btn primary composer-action"
+                disabled={!input.trim()}
+                onClick={() => send(input)}
+              >
+                <span>Send</span>
+                <span aria-hidden="true">Stopping…</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

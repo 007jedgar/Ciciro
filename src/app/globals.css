@@ -1687,21 +1687,49 @@ input[type="file"]::file-selector-button {
 }
 .composer {
   border-top: 1px solid var(--line);
-  padding: 10px 12px;
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
+  padding: 12px;
 }
-.composer textarea {
+.composer-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  padding: 12px 12px 8px;
+  transition:
+    border-color var(--duration-focus) var(--ease-out),
+    box-shadow var(--duration-focus) var(--ease-out);
+}
+.composer-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.composer-box textarea {
   flex: 1;
-  min-height: 42px;
-  max-height: 160px;
+  min-height: 48px;
+  max-height: 200px;
+  border: none;
+  background: transparent;
+  padding: 2px 2px 0;
+  line-height: 1.6;
+  font-size: 14.5px;
+}
+.composer-box textarea:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+.composer-row {
+  display: flex;
+  justify-content: flex-end;
 }
 /* Send, Stop and Stopping… share one width (the widest label, kept as a
    hidden sizer) so the textarea never reflows when the label changes. */
 .composer-action {
   display: inline-grid;
   justify-items: center;
+  padding: 6px 16px;
 }
 .composer-action > span {
   grid-area: 1 / 1;
