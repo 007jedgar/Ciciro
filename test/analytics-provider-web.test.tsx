@@ -202,6 +202,19 @@ describe("AnalyticsProvider screen tracking", () => {
     expect(window.location.search).toBe("");
   });
 
+  it("waits for identity before recording an email link's surface, so a signed-in author on / is on the library", async () => {
+    meReturns("user_1");
+    window.history.replaceState(null, "", "/?src=email&cta=welcome");
+    route.pathname = "/";
+    act(() => root.render(<AnalyticsProvider />));
+    await flush();
+
+    expect(analytics.adapter.tracks.filter((t) => t.event === "cta_clicked")).toEqual([
+      { event: "cta_clicked", properties: { cta: "welcome", surface: "library", source: "email" }, options: undefined },
+    ]);
+    expect(window.location.search).toBe("");
+  });
+
   it("does nothing when a page opens with no email src/cta", async () => {
     meReturns("user_1");
     window.history.replaceState(null, "", "/");

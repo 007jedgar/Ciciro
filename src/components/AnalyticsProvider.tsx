@@ -143,6 +143,7 @@ export default function AnalyticsProvider() {
   // opens (templates.ts's withSource), so a click from an email is
   // measurable as cta_clicked alongside every other CTA - see docs/analytics.md.
   useEffect(() => {
+    if (!identityResolved) return;
     const url = new URL(window.location.href);
     const source = url.searchParams.get(EMAIL_SOURCE_PARAM);
     const cta = url.searchParams.get(EMAIL_CTA_PARAM);
@@ -157,7 +158,7 @@ export default function AnalyticsProvider() {
     });
     // Fire once for the URL this page loaded with; a later route change is not a new email click.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [identityResolved]);
 
   useEffect(() => {
     if (!identityResolved) return;
