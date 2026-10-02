@@ -5,6 +5,10 @@ else stays in commit messages.
 
 ## Unreleased
 
+- **Stop** in Ciciro's chat (web and phone) now actually stops a request. Ciciro
+  finishes the step it is on, then stops before its next tool call; anything it
+  already wrote stays and can be undone.
+
 - Auto-draft and the chat's draft tool no longer put text that was cut off
   mid-sentence into your chapter. A beat that runs past its length limit now
   fails and can be retried, and Recap and chapter summaries keep their previous

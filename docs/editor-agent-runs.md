@@ -38,7 +38,10 @@ stateDiagram-v2
   verifying --> running: verification requires more work
   verifying --> completed: verification passes
   running --> failed: terminal error
+  queued --> cancelled: cancellation
   running --> cancelled: cancellation
+  continuing --> cancelled: cancellation
+  verifying --> cancelled: cancellation
 ```
 
 `queued`, `running`, `continuing`, `verifying`, `completed`, `failed`, and
@@ -138,8 +141,9 @@ valid. It is never checked mid-stream or mid-tool, so the current iteration's te
 and any tool mutations it already committed are kept, same as any other
 checkpoint; cancellation only prevents the *next* tool call, iteration or slice.
 A Stop sent before the run row exists (the first request is still authorizing)
-gets a `404`; both clients retry it until the run appears. `claimEditorRun` self-heals the rare race where a slice's own checkpoint and
-a cancel request land in the same instant, so a cancelled row can never be resumed.
+gets a `404`; both clients retry it for a few seconds (`cancelServerRun`) until the
+run appears. `claimEditorRun` self-heals the rare race where a slice's own checkpoint
+and a cancel request land in the same instant, so a cancelled row can never be resumed.
 Both the web (`ChatPanel.tsx`) and mobile (`use-ciciro-chat.ts`) clients show a Stop
 control while a run is active and call this endpoint; mobile also aborts its local
 stream read afterward, web keeps reading so the `done` event's `cancelled` status
@@ -211,7 +215,8 @@ gate.
   metadata. Never heal it into `completed`.
 - Process death: the last committed step is authoritative; an expired lease permits
   another request to resume.
-- User cancellation: persist `cancelled`; do not start further model iterations.
+- User cancellation: persist `cancelled`; do not start further tool calls, model
+  iterations, or slices (see "HTTP and stream contract" above).
 
 ## Rollout and acceptance criteria
 
