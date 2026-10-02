@@ -357,7 +357,9 @@ describe("browser and native sign-in flows", () => {
       { fetch: endpoint.fetch, keys: { google: googleIdp.keys } }
     );
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(`${ORIGIN}/project/p1`);
+    expect(res.headers.get("location")).toBe(
+      `${ORIGIN}/project/p1?auth_event=account_created&auth_provider=google`
+    );
     // PKCE: the verifier sent to Google hashes to the challenge sent earlier.
     const sent = endpoint.calls[0].body;
     expect(pkceChallenge(sent.get("code_verifier") ?? "")).toBe(q.get("code_challenge"));
@@ -387,7 +389,9 @@ describe("browser and native sign-in flows", () => {
       { state: location.searchParams.get("state"), code: "c" },
       { fetch: tokenEndpoint(() => ({ id_token: idToken })).fetch, keys: { google: googleIdp.keys } }
     );
-    expect(res.headers.get("location")).toBe(`${ORIGIN}/project/p1?password_removed=google`);
+    expect(res.headers.get("location")).toBe(
+      `${ORIGIN}/project/p1?password_removed=google&auth_event=signed_in&auth_provider=google`
+    );
     expect(await userForSession(stale)).toBeNull();
     const fresh = await sessionUserFor(res.cookies.get(SESSION_COOKIE)?.value ?? "");
     expect(fresh?.id).toBe(attacker.id);
@@ -541,7 +545,9 @@ describe("browser and native sign-in flows", () => {
       },
       { fetch: endpoint.fetch, keys: { apple: appleIdp.keys } }
     );
-    expect(res.headers.get("location")).toBe(`${ORIGIN}/`);
+    expect(res.headers.get("location")).toBe(
+      `${ORIGIN}/?auth_event=account_created&auth_provider=apple`
+    );
     const user = await sessionUserFor(res.cookies.get(SESSION_COOKIE)?.value ?? "");
     expect(user).toMatchObject({ email: "x7yq@privaterelay.appleid.com", name: "Ada Lovelace" });
 
@@ -572,7 +578,9 @@ describe("browser and native sign-in flows", () => {
       { state: location.searchParams.get("state"), code: "c", idToken },
       { fetch: failing, keys: { apple: appleIdp.keys } }
     );
-    expect(res.headers.get("location")).toBe(`${ORIGIN}/`);
+    expect(res.headers.get("location")).toBe(
+      `${ORIGIN}/?auth_event=account_created&auth_provider=apple`
+    );
     expect((await prisma.identity.findFirstOrThrow()).refreshToken).toBe("");
   });
 

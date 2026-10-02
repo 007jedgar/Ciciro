@@ -33,7 +33,12 @@ export class SocialAuthError extends AuthError {
  * claimed a password account nobody had verified: its password is gone and
  * its old sessions are revoked, so the person is told once.
  */
-export type SocialSignInResult = { user: PublicUser; takeover: SocialProvider | null };
+export type SocialSignInResult = {
+  user: PublicUser;
+  takeover: SocialProvider | null;
+  /** Whether this sign-in created the account, for the account_created analytics event. */
+  created: boolean;
+};
 
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "P2002";
@@ -92,7 +97,7 @@ export async function signInWithIdentity(
     if (Object.keys(changes).length) {
       await prisma.identity.update({ where: { id: known.id }, data: changes });
     }
-    return { user: toPublicUser(await fillEmptyName(known.user, name)), takeover: null };
+    return { user: toPublicUser(await fillEmptyName(known.user, name)), takeover: null, created: false };
   }
 
   if (!identity.email) {
@@ -159,7 +164,7 @@ export async function signInWithIdentity(
     if (!isUniqueViolation(error)) throw error;
     // The same identity signed in twice at once; the other request linked it.
     const winner = await prisma.identity.findUniqueOrThrow({ where, include: { user: true } });
-    return { user: toPublicUser(winner.user), takeover: null };
+    return { user: toPublicUser(winner.user), takeover: null, created: false };
   }
   const signedIn = await fillEmptyName(user, name);
   if (created) {
@@ -174,7 +179,7 @@ export async function signInWithIdentity(
       }
     }
   }
-  return { user: toPublicUser(signedIn), takeover };
+  return { user: toPublicUser(signedIn), takeover, created };
 }
 
 /** How long the app has to redeem a browser sign-in. */

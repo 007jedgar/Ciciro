@@ -45,6 +45,8 @@ export type AppSettings = {
    * defaults and gets a post-draft check (src/lib/craft-defaults.ts). Opt-in.
    */
   craftDefaults: boolean;
+  /** Product analytics (PostHog). Opt-out; see docs/analytics.md. */
+  analyticsEnabled: boolean;
   updatedAt: string;
 };
 
@@ -67,6 +69,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,
+    analyticsEnabled: true,
     updatedAt: now.toISOString(),
   };
 }
@@ -143,6 +146,8 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     typeof src.typewriterMode === "boolean" ? src.typewriterMode : defaults.typewriterMode;
   const aiSuggestions = typeof src.aiSuggestions === "boolean" ? src.aiSuggestions : defaults.aiSuggestions;
   const craftDefaults = typeof src.craftDefaults === "boolean" ? src.craftDefaults : defaults.craftDefaults;
+  const analyticsEnabled =
+    typeof src.analyticsEnabled === "boolean" ? src.analyticsEnabled : defaults.analyticsEnabled;
   return {
     theme,
     editorFont,
@@ -157,6 +162,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
     typewriterMode,
     aiSuggestions,
     craftDefaults,
+    analyticsEnabled,
     updatedAt: asIso(src.updatedAt, defaults.updatedAt),
   };
 }
@@ -261,6 +267,12 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
     }
     patch.craftDefaults = src.craftDefaults;
   }
+  if ("analyticsEnabled" in src) {
+    if (typeof src.analyticsEnabled !== "boolean") {
+      return { error: "analyticsEnabled must be a boolean." };
+    }
+    patch.analyticsEnabled = src.analyticsEnabled;
+  }
 
   return patch;
 }
@@ -292,7 +304,8 @@ export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
     a.showDailyGoal === b.showDailyGoal &&
     a.typewriterMode === b.typewriterMode &&
     a.aiSuggestions === b.aiSuggestions &&
-    a.craftDefaults === b.craftDefaults
+    a.craftDefaults === b.craftDefaults &&
+    a.analyticsEnabled === b.analyticsEnabled
   );
 }
 

@@ -48,6 +48,15 @@ export const NATIVE_REDIRECT = "ciciro://oauth";
  */
 export const TAKEOVER_PARAM = "password_removed";
 
+/**
+ * One-time query params on the web landing URL that let the client fire the
+ * right analytics event (account_created or signed_in) for a sign-in that
+ * finished server-side, via redirect, with no client fetch() to hook. See
+ * src/components/AnalyticsProvider.tsx.
+ */
+export const AUTH_EVENT_PARAM = "auth_event";
+export const AUTH_PROVIDER_PARAM = "auth_provider";
+
 export const OAUTH_COOKIE = "ciciro_oauth";
 const OAUTH_COOKIE_PATH = "/api/auth/oauth";
 const FLOW_TTL_S = 10 * 60;
@@ -342,12 +351,13 @@ export async function finishBrowserSignIn(
     return fail(failureCode(error));
   }
 
-  const { user, takeover } = result;
+  const { user, takeover, created } = result;
   if (flow.challenge) {
     const code = await createHandoff(user.id, flow.challenge);
     const notice = takeover ? `&${TAKEOVER_PARAM}=${takeover}` : "";
+    const authEvent = `&${AUTH_EVENT_PARAM}=${created ? "account_created" : "signed_in"}&${AUTH_PROVIDER_PARAM}=${provider}`;
     return clearFlowCookie(
-      NextResponse.redirect(`${NATIVE_REDIRECT}?code=${encodeURIComponent(code)}${notice}`, 303),
+      NextResponse.redirect(`${NATIVE_REDIRECT}?code=${encodeURIComponent(code)}${notice}${authEvent}`, 303),
       provider
     );
   }
@@ -355,6 +365,8 @@ export async function finishBrowserSignIn(
   const token = await createSession(user.id, req.headers.get("user-agent") || "");
   const landing = new URL(flow.next, origin);
   if (takeover) landing.searchParams.set(TAKEOVER_PARAM, takeover);
+  landing.searchParams.set(AUTH_EVENT_PARAM, created ? "account_created" : "signed_in");
+  landing.searchParams.set(AUTH_PROVIDER_PARAM, provider);
   const res = NextResponse.redirect(landing, 303);
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
   return clearFlowCookie(res, provider);

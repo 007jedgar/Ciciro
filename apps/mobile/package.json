@@ -56,6 +56,7 @@
     "expo-web-browser": "~57.0.3",
     "expo-widgets": "~57.0.21",
     "i18next": "^26.4.2",
+    "posthog-react-native": "^4.78.4",
     "react": "19.2.3",
     "react-i18next": "^17.0.13",
     "react-native": "0.86.3",
