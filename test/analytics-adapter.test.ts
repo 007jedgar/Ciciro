@@ -134,6 +134,50 @@ describe("trackScreenView", () => {
 
     expect(adapter.tracks).toHaveLength(1);
   });
+
+  it("ties every segment of one visit to one viewId, distinct from the next visit's", () => {
+    const adapter = new MemoryAnalyticsAdapter();
+    const first = trackScreenView(adapter, "editor");
+    first.pause();
+    first.resume();
+    first.pause();
+    first.resume();
+    first.leave();
+    const second = trackScreenView(adapter, "library");
+    second.leave();
+
+    const ids = adapter.tracks.map((tr) => tr.properties.viewId);
+    expect(ids).toHaveLength(4);
+    expect(typeof ids[0]).toBe("string");
+    expect(new Set(ids.slice(0, 3)).size).toBe(1);
+    expect(ids[3]).not.toBe(ids[0]);
+  });
+
+  it("starts the clock only once a view that began hidden is first seen", () => {
+    const adapter = new MemoryAnalyticsAdapter();
+    let t = 1_000;
+    const now = () => t;
+    const view = trackScreenView(adapter, "editor", undefined, now, true);
+    expect(adapter.screens).toHaveLength(1);
+    expect(adapter.tracks).toHaveLength(0);
+
+    t = 1_201_000; // 20 minutes in a background tab - must not count
+    view.resume();
+    t = 1_204_000;
+    view.leave();
+
+    expect(adapter.tracks.map((tr) => tr.properties.durationMs)).toEqual([3_000]);
+  });
+
+  it("ends a view left while still hidden without reporting anything", () => {
+    const adapter = new MemoryAnalyticsAdapter();
+    const view = trackScreenView(adapter, "editor", undefined, Date.now, true);
+    view.leave();
+    view.resume(); // already ended: no-op
+    view.leave();
+
+    expect(adapter.tracks).toHaveLength(0);
+  });
 });
 
 describe("followIdentity", () => {

@@ -1,6 +1,7 @@
 import { prisma, waitUntilRequest } from "@/lib/db";
 import { revenueCatSettings, type RevenueCatSettings } from "@/lib/billing/config";
 import { attributeBillingEvent, handleOnce } from "@/lib/billing/events";
+import type { CancelReason } from "@/lib/analytics-events";
 import { captureServerEvent } from "@/lib/analytics-server";
 
 // App Store and Google Play subscriptions, through RevenueCat. The app logs in
@@ -148,7 +149,22 @@ export type RevenueCatEvent = {
   transferred_to?: string[];
   store?: string;
   product_id?: string;
+  cancel_reason?: string;
 };
+
+/** RevenueCat's CANCELLATION cancel_reason, in subscription_canceled's terms. */
+function cancelReason(raw: string | undefined): CancelReason {
+  switch (raw) {
+    case "UNSUBSCRIBE":
+      return "voluntary";
+    case "BILLING_ERROR":
+      return "billing_failure";
+    case "CUSTOMER_SUPPORT":
+      return "refund";
+    default:
+      return "other";
+  }
+}
 
 /** The analytics event a webhook delivery owes, if any (store purchases only). */
 function captureStoreAnalytics(event: RevenueCatEvent, userId: string, settings: RevenueCatSettings): void {
@@ -164,7 +180,13 @@ function captureStoreAnalytics(event: RevenueCatEvent, userId: string, settings:
     );
   } else if (event.type === "CANCELLATION") {
     // Auto-renew just turned off; Pro stays active until the period ends.
-    waitUntilRequest(captureServerEvent(userId, "subscription_canceled", { plan: "pro", platform }));
+    waitUntilRequest(
+      captureServerEvent(userId, "subscription_canceled", {
+        plan: "pro",
+        platform,
+        reason: cancelReason(event.cancel_reason),
+      })
+    );
   } else if (event.type === "EXPIRATION") {
     // Access is actually gone now - matching Stripe's customer.subscription.deleted.
     waitUntilRequest(captureServerEvent(userId, "subscription_ended", { plan: "pro", platform }));

@@ -403,7 +403,11 @@ describe("Stripe billing", () => {
       await deliver(fake, fake.event("customer.subscription.updated", { ...live }, { default_payment_method: null }));
 
       expect(captured()).toEqual([
-        { userId: user.id, event: "subscription_canceled", properties: { plan: "pro", platform: "web" } },
+        {
+          userId: user.id,
+          event: "subscription_canceled",
+          properties: { plan: "pro", platform: "web", reason: "voluntary" },
+        },
       ]);
     });
 
@@ -416,14 +420,75 @@ describe("Stripe billing", () => {
       expect(captured()).toEqual([]);
     });
 
-    it("fires subscription_ended, not subscription_canceled, when the subscription actually ends", async () => {
+    it("fires subscription_ended, not subscription_canceled, when a scheduled cancellation actually ends", async () => {
       const { user, sub } = await subscribed(fake, "ended-analytics");
       const captured = captureAnalytics();
       const live = fake.subscriptions.get(sub.id)!;
+      live.cancel_at_period_end = true;
+      await deliver(fake, fake.event("customer.subscription.updated", { ...live }, { cancel_at_period_end: false }));
       live.status = "canceled";
       await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
 
       expect(captured()).toEqual([
+        {
+          userId: user.id,
+          event: "subscription_canceled",
+          properties: { plan: "pro", platform: "web", reason: "voluntary" },
+        },
+        { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "web" } },
+      ]);
+    });
+
+    it("fires subscription_canceled then subscription_ended when billing retries run out", async () => {
+      const { user, sub } = await subscribed(fake, "failed-analytics");
+      const captured = captureAnalytics();
+      const live = fake.subscriptions.get(sub.id)!;
+      live.status = "canceled";
+      live.cancellation_details = { comment: null, reason: "payment_failed" };
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
+
+      expect(captured()).toEqual([
+        {
+          userId: user.id,
+          event: "subscription_canceled",
+          properties: { plan: "pro", platform: "web", reason: "billing_failure" },
+        },
+        { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "web" } },
+      ]);
+    });
+
+    it("fires subscription_canceled as immediate for a cancel that ends the subscription at once", async () => {
+      const { user, sub } = await subscribed(fake, "immediate-analytics");
+      const captured = captureAnalytics();
+      const live = fake.subscriptions.get(sub.id)!;
+      live.status = "canceled";
+      live.cancellation_details = { comment: null, reason: "cancellation_requested" };
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...live }));
+
+      expect(captured()).toEqual([
+        {
+          userId: user.id,
+          event: "subscription_canceled",
+          properties: { plan: "pro", platform: "web", reason: "immediate" },
+        },
+        { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "web" } },
+      ]);
+    });
+
+    it("fires subscription_canceled as refund for a subscription Ciciro ended over a full refund", async () => {
+      const { user, customer, sub } = await subscribed(fake, "refund-analytics");
+      await deliver(fake, fake.event("charge.refunded", { id: "ch_back", object: "charge", customer, refunded: true }));
+      const ended = fake.subscriptions.get(sub.id)!;
+      expect(ended.cancellation_details.comment).toBe("charge_refunded");
+      const captured = captureAnalytics();
+      await deliver(fake, fake.event("customer.subscription.deleted", { ...ended }));
+
+      expect(captured()).toEqual([
+        {
+          userId: user.id,
+          event: "subscription_canceled",
+          properties: { plan: "pro", platform: "web", reason: "refund" },
+        },
         { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "web" } },
       ]);
     });

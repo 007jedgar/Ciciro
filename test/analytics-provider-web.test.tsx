@@ -157,6 +157,27 @@ describe("AnalyticsProvider screen tracking", () => {
     visibility.mockRestore();
   });
 
+  it("does not count time a screen spent opened in a background tab", async () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    meReturns("user_1");
+    act(() => root.render(<AnalyticsProvider />));
+    await flush();
+    expect(analytics.adapter.screens.map((s) => s.name)).toEqual(["library"]);
+
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(analytics.adapter.tracks).toEqual([]);
+
+    visibility.mockReturnValue("visible");
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    expect(analytics.adapter.tracks).toEqual([]);
+    await act(async () => root.unmount());
+    expect(analytics.adapter.tracks).toEqual([
+      { event: "screen_duration", properties: expect.objectContaining({ screen: "library" }), options: undefined },
+    ]);
+    visibility.mockRestore();
+  });
+
   it("commits the active screen's duration (beacon-safe) on pagehide, so closing the tab is not lost", async () => {
     meReturns("user_1");
     act(() => root.render(<AnalyticsProvider />));

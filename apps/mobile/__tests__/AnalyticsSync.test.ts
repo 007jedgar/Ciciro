@@ -1,4 +1,4 @@
-import { pauseResumeOnAppState } from "../components/AnalyticsSync";
+import { isBackgrounded, pauseResumeOnAppState } from "../components/AnalyticsSync";
 
 describe("pauseResumeOnAppState", () => {
   function fakeAppState() {
@@ -43,5 +43,13 @@ describe("pauseResumeOnAppState", () => {
     change("background");
     change("active");
     expect(calls).toEqual([]);
+  });
+});
+
+describe("isBackgrounded", () => {
+  it("counts background and inactive as backgrounded, active as not", () => {
+    expect(isBackgrounded("background")).toBe(true);
+    expect(isBackgrounded("inactive")).toBe(true);
+    expect(isBackgrounded("active")).toBe(false);
   });
 });

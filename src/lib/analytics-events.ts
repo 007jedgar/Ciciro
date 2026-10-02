@@ -14,6 +14,9 @@
 // any event or property here, ever - see docs/analytics.md.
 
 export type Platform = "web" | "ios" | "android";
+
+/** Why a subscription stopped being set to renew: see subscription_canceled. */
+export type CancelReason = "voluntary" | "billing_failure" | "immediate" | "refund" | "other";
 export type SignupMethod = "email" | "apple" | "google";
 
 /** Standard person properties, set (or refreshed) on identify(). */
@@ -60,14 +63,14 @@ export type EventCatalog = {
     currency?: string;
   };
   subscription_renewed: { plan: string; platform: Platform; interval?: "month" | "year" };
-  // Two distinct moments, not one: subscription_canceled is "auto-renew just
-  // turned off, Pro stays active until the period ends" (store CANCELLATION;
-  // Stripe customer.subscription.updated newly scheduling an end).
+  // Two distinct moments, not one: subscription_canceled is "this
+  // subscription just stopped being set to renew" (store CANCELLATION; Stripe
+  // customer.subscription.updated newly scheduling an end, or
+  // customer.subscription.deleted with no end scheduled beforehand, where it
+  // shares the instant with subscription_ended). `reason` says why.
   // subscription_ended is "access is actually gone now" (store EXPIRATION;
-  // Stripe customer.subscription.deleted). A churn/Lifecycle insight that
-  // mixes the two compares different moments across platforms - see
-  // docs/analytics.md.
-  subscription_canceled: { plan: string; platform: Platform };
+  // Stripe customer.subscription.deleted). See docs/analytics.md.
+  subscription_canceled: { plan: string; platform: Platform; reason: CancelReason };
   subscription_ended: { plan: string; platform: Platform };
 
   // Manuscript lifecycle
@@ -109,8 +112,10 @@ export type EventCatalog = {
   push_notification_opened: { type: string };
   run_completed: { surface: string; status: string };
 
-  // Screens (see trackScreenView below)
-  screen_duration: { screen: string; durationMs: number };
+  // Screens (see trackScreenView below). One visit can emit several
+  // screen_duration events (pause/resume splits it into non-overlapping
+  // segments of visible time); all of them share one viewId.
+  screen_duration: { screen: string; durationMs: number; viewId: string };
 };
 
 export type EventName = keyof EventCatalog;
@@ -227,6 +232,17 @@ export function followIdentity(
   return next;
 }
 
+let fallbackSeq = 0;
+
+// Hermes has no global crypto, hence the fallback.
+function newViewId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  const uuid = c?.randomUUID?.();
+  if (uuid) return uuid;
+  fallbackSeq += 1;
+  return `${Date.now().toString(36)}${fallbackSeq.toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /** A screen view's controls: see trackScreenView. */
 export type ScreenView = {
   /** The screen was left for good (route change, unmount). Ends the view. */
@@ -253,32 +269,36 @@ export type ScreenView = {
  * platform's visibility signal (web: visibilitychange/pagehide; mobile:
  * AppState) so each committed segment is actual visible time. Calling
  * leave(), pause(), or resume() out of turn (e.g. leave() twice) is safe and
- * a no-op past the first effective call.
+ * a no-op past the first effective call. Pass startHidden when the screen is
+ * already hidden as it starts (a background tab, a backgrounded app): the
+ * clock then waits for the first resume().
  */
 export function trackScreenView(
   adapter: AnalyticsAdapter,
   screen: string,
   properties?: Record<string, unknown>,
-  now: () => number = Date.now
+  now: () => number = Date.now,
+  startHidden = false
 ): ScreenView {
   adapter.screen(screen, properties);
+  const viewId = newViewId();
   let segmentStart = now();
   let ended = false;
-  let paused = false;
+  let paused = startHidden;
 
   function commit(beacon: boolean): void {
     adapter.track(
       "screen_duration",
-      { screen, durationMs: Math.max(0, now() - segmentStart) },
+      { screen, durationMs: Math.max(0, now() - segmentStart), viewId },
       beacon ? { beacon: true } : undefined
     );
   }
 
   return {
     leave(): void {
-      if (ended || paused) return;
+      if (ended) return;
       ended = true;
-      commit(false);
+      if (!paused) commit(false);
     },
     pause(): void {
       if (ended || paused) return;

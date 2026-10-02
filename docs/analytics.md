@@ -48,6 +48,10 @@ catalog, never a vendor SDK:
   `AppState` background/inactive and active, through the same
   inject-the-listener pattern as `listenWhenActive` in `sync-engine.ts`
   (`pauseResumeOnAppState`), for testability without mocking React Native.
+  One visit can therefore emit several `screen_duration` events, one per
+  visible segment, all sharing the visit's `viewId`. A screen that starts
+  already hidden (a background tab, a backgrounded app; `startHidden`) waits
+  for its first `resume()` before its clock runs.
 
 ## Privacy rules
 
@@ -103,11 +107,11 @@ that answers it. "Trends" and "Funnels" are PostHog's own insight types.
 | Conversion rate (visit -> account) | `screen_duration` (`landing`) -> `account_created` | Funnel: landing viewed -> signup screen -> `account_created` |
 | Conversion rate (trial/free -> paid) | `paywall_viewed` -> `paywall_cta_clicked` -> `checkout_started` -> `subscription_purchased` | Funnel across those four steps, breakdown by `surface` |
 | Click-through rate, any CTA | `cta_clicked` (`cta`, `surface`, `source?`) | Trends: count of `cta_clicked`, breakdown by `cta` or `surface` |
-| Time spent per screen | `screen_duration` (`screen`, `durationMs`) | Trends: average/sum of `durationMs`, breakdown by `screen` |
+| Time spent per screen | `screen_duration` (`screen`, `durationMs`, `viewId`) | Sum `durationMs` grouped by `viewId` first (one total per visit, since pause/resume splits a visit into segments), then average or sum those per-visit totals, breakdown by `screen` |
 | Time to first manuscript | `account_created` -> `project_created` (`isFirstProject: true`) | Funnel with "time to convert" between the two steps |
 | Days to set up a reminder | `account_created` -> `reminder_enabled` | Funnel with "time to convert", bucketed in days |
 | Feature usage, any feature | the feature-usage events below | Trends: count per event, breakdown by event name; or a Funnel from `account_created` to first use of a given feature, for adoption |
-| Subscription lifecycle | `subscription_purchased` / `subscription_renewed` / `subscription_canceled` / `subscription_ended` (`plan`, `platform`, `interval?`) | Trends over time, breakdown by `plan`/`platform`; a Lifecycle insight for net new/churned |
+| Subscription lifecycle | `subscription_purchased` / `subscription_renewed` / `subscription_canceled` (`reason`) / `subscription_ended` (`plan`, `platform`, `interval?`) | Trends over time, breakdown by `plan`/`platform`, `subscription_canceled` also by `reason`; a Lifecycle insight for net new/churned |
 | Retention | any event, typically `screen_duration` or `chat_message_sent` as the "active" signal | Retention insight, cohorted by `account_created` week |
 | Impact of a change on usability/retention/subscriptions | any of the above, filtered or broken down by the `release` super property | Trends/Funnel/Retention with a `release` breakdown or filter, comparing before/after a `CICIRO_RELEASE` value |
 
@@ -160,17 +164,29 @@ Identity, lifecycle, conversion, and billing events (`account_created`,
 the identity, billing-webhook, and settings code paths directly; see the
 catalog file's comments for exactly where each fires.
 
-`subscription_canceled` and `subscription_ended` are two distinct moments,
-not one, because they mean different things on each store: `subscription_canceled`
-fires when auto-renew turns off and Pro keeps running until the period ends
-(RevenueCat `CANCELLATION`; Stripe `customer.subscription.updated` newly
-scheduling an end, via `newlyScheduledCancellation` in `src/lib/billing/stripe.ts`,
-the same moment the cancellation email fires). `subscription_ended` fires
-when access is actually gone (RevenueCat `EXPIRATION`; Stripe
-`customer.subscription.deleted`). A web user who turns off auto-renew
-without later finishing the period, and a store `EXPIRATION`, now both fire
-the event that matches what actually happened, so a Lifecycle insight
-compares the same moment across platforms.
+`subscription_canceled` and `subscription_ended` are two distinct moments.
+`subscription_canceled` is, on every platform, the moment a subscription
+stops being set to renew: RevenueCat `CANCELLATION`; Stripe
+`customer.subscription.updated` newly scheduling an end (via
+`newlyScheduledCancellation` in `src/lib/billing/stripe.ts`, the same moment
+the cancellation email fires); or Stripe `customer.subscription.deleted` when
+no end was scheduled beforehand, in which case it fires right before
+`subscription_ended`, at the same instant. `subscription_ended` fires when
+access is actually gone (RevenueCat `EXPIRATION`; Stripe
+`customer.subscription.deleted`). Its `reason` says why:
+
+- `voluntary`: the subscriber turned off auto-renew (Stripe's scheduled
+  cancellation; RevenueCat `cancel_reason` `UNSUBSCRIBE`).
+- `billing_failure`: payment retries ran out (Stripe `cancellation_details.reason`
+  `payment_failed`; RevenueCat `BILLING_ERROR`).
+- `immediate`: canceled to end at once, not at period end (Stripe
+  `cancellation_requested` on an unscheduled deletion). Stores never produce
+  it: there `CANCELLATION` and `EXPIRATION` are always separate events.
+- `refund`: a refund or dispute ended it (Ciciro's own `charge_refunded` /
+  `charge_disputed` cancellation comment, Stripe `payment_disputed`;
+  RevenueCat `CUSTOMER_SUPPORT`).
+- `other`: anything else (e.g. RevenueCat `DEVELOPER_INITIATED` or
+  `PRICE_INCREASE`, a Stripe deletion with no stated reason).
 
 ## Known gaps (documented, not fixed in this pass)
 

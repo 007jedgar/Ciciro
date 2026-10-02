@@ -155,8 +155,29 @@ describe("RevenueCat billing", () => {
     await deliver(fake, rcEvent("EXPIRATION", user.id));
 
     expect(captured()).toEqual([
-      { userId: user.id, event: "subscription_canceled", properties: { plan: "pro", platform: "ios" } },
+      {
+        userId: user.id,
+        event: "subscription_canceled",
+        properties: { plan: "pro", platform: "ios", reason: "refund" },
+      },
       { userId: user.id, event: "subscription_ended", properties: { plan: "pro", platform: "ios" } },
+    ]);
+  });
+
+  it("says why a store subscription stopped renewing", async () => {
+    const user = await account("reason-analytics");
+    fake.subscribers.set(user.id, { ciciro_pro_monthly: { store: "app_store", expires_date: future() } });
+    await deliver(fake, rcEvent("INITIAL_PURCHASE", user.id));
+    const captured = captureAnalytics();
+
+    await deliver(fake, rcEvent("CANCELLATION", user.id, { cancel_reason: "BILLING_ERROR" }));
+    await deliver(fake, rcEvent("CANCELLATION", user.id, { cancel_reason: "UNSUBSCRIBE" }));
+    await deliver(fake, rcEvent("CANCELLATION", user.id, { cancel_reason: "PRICE_INCREASE" }));
+
+    expect(captured().map((c) => c.properties)).toEqual([
+      { plan: "pro", platform: "ios", reason: "billing_failure" },
+      { plan: "pro", platform: "ios", reason: "voluntary" },
+      { plan: "pro", platform: "ios", reason: "other" },
     ]);
   });
 
