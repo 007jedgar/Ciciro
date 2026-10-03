@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db";
-import { htmlToText } from "@/lib/text";
+import { chapterPlainText, htmlToText } from "@/lib/text";
 import { chapterHtmlForModel, pendingSuggestionsNote } from "@/lib/suggestion-edits";
 import { KIND_INFO, normalizeKind } from "@/lib/manuscript-kind";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
+import { relevantCharacterPaths } from "@/lib/continuity-view";
+import { whoKnowsWhatBlock } from "@/lib/knowledge";
 import { visibleChaptersInclude } from "@/lib/chapters";
 import {
   compactOpenChapterIndex,
@@ -186,6 +188,10 @@ export async function buildEditorContext(
       );
       parts.push(block.join("\n"));
     }
+
+    const namedHere = relevantCharacterPaths(entries, chapterPlainText(activeContent));
+    const whoKnows = await whoKnowsWhatBlock(projectId, namedHere);
+    if (whoKnows) parts.push(`\n${whoKnows}`);
   }
 
   return parts.join("\n");

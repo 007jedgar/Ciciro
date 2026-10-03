@@ -262,6 +262,11 @@ model Project {
   weeklyReviews     WeeklyReview[]
   shareLinks        ShareLink[]
   shareComments     ShareComment[]
+  knowledgeFacts    KnowledgeFact[]
+  stateProposals    StateProposal[]
+  canvasLabels      CanvasLabel[]
+  canvasCards       CanvasCard[]
+  canvasEdges       CanvasEdge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -343,6 +348,8 @@ model Chapter {
   readingPositions  ReadingPosition[]
   snapshots         ChapterSnapshot[]
   shareComments     ShareComment[]
+  knowledgeFacts    KnowledgeFact[]
+  stateProposals    StateProposal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -923,4 +930,112 @@ model MarketingEmailLog {
   @@unique([userId, key])
   @@index([userId])
   @@index([key])
+}
+
+// What a character knows or believes, and the chapter that made it true.
+// The table is the source of truth. A mirror block in characters/<slug>.md
+// (between knows:start and knows:end) is rewritten whenever a fact changes,
+// so read_bible and a person opening the file see the same ledger.
+// See src/lib/knowledge.ts.
+model KnowledgeFact {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // characters/<slug>.md. Character rows are not the source of truth.
+  characterPath String
+  fact          String
+  stance        String // knows | believes
+  chapterId     String?
+  chapter       Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  sourceQuote   String   @default("")
+  status        String   @default("active") // active | superseded
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, characterPath, status])
+  @@index([chapterId])
+}
+
+// A chapter-close proposal the author dismissed. The next review skips a
+// proposal whose fingerprint (chapterId, kind, normalized text) is already here.
+model StateProposal {
+  id          String  @id @default(cuid())
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapterId   String
+  chapter     Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  kind        String // canon | timeline | plot | knowledge
+  fingerprint String
+  text        String  @default("")
+
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, fingerprint])
+  @@index([projectId, chapterId])
+}
+
+// A label the author made for the planning canvas. Color is one of a fixed set
+// (src/lib/canvas-view.ts). The model never creates these.
+model CanvasLabel {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  color     String
+  cards     CanvasCardLabel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+// One card on the planning canvas. Positions are world coordinates, saved when
+// a drag ends. Generated text stays here; it is never a chapter.
+model CanvasCard {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String  @default("")
+  body      String  @default("")
+  x         Float   @default(0)
+  y         Float   @default(0)
+
+  labels    CanvasCardLabel[]
+  edgesFrom CanvasEdge[] @relation("CanvasEdgeFrom")
+  edgesTo   CanvasEdge[] @relation("CanvasEdgeTo")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model CanvasCardLabel {
+  id      String      @id @default(cuid())
+  cardId  String
+  card    CanvasCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  labelId String
+  label   CanvasLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, labelId])
+  @@index([labelId])
+}
+
+model CanvasEdge {
+  id        String     @id @default(cuid())
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromId    String
+  from      CanvasCard @relation("CanvasEdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        CanvasCard @relation("CanvasEdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId])
+  @@index([projectId])
+  @@index([toId])
 }

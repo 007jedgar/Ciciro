@@ -160,6 +160,41 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
       content: JSON.stringify({ summary: "Good week" }),
     },
   });
+  await prisma.knowledgeFact.create({
+    data: {
+      projectId: project.id,
+      characterPath: "characters/hero.md",
+      fact: "The hero knows the password",
+      stance: "knows",
+      chapterId: chapter.id,
+      sourceQuote: "chapter begins",
+      status: "active",
+    },
+  });
+  await prisma.stateProposal.create({
+    data: {
+      projectId: project.id,
+      chapterId: chapter.id,
+      kind: "canon",
+      fingerprint: `${chapter.id}\ncanon\nthe fire was arson`,
+      text: "The fire was arson",
+    },
+  });
+  const canvasLabel = await prisma.canvasLabel.create({
+    data: { projectId: project.id, name: "Plot", color: "accent" },
+  });
+  const premiseCard = await prisma.canvasCard.create({
+    data: { projectId: project.id, title: "Premise", body: "A theft", x: 0, y: 0 },
+  });
+  const partCard = await prisma.canvasCard.create({
+    data: { projectId: project.id, title: "Part 1", body: "Ordinary world", x: 280, y: 200 },
+  });
+  await prisma.canvasCardLabel.create({
+    data: { cardId: premiseCard.id, labelId: canvasLabel.id },
+  });
+  await prisma.canvasEdge.create({
+    data: { projectId: project.id, fromId: premiseCard.id, toId: partCard.id },
+  });
   const link = await prisma.shareLink.create({
     data: { projectId: project.id, token: `${label}-share-token`, label: "Sam's read" },
   });

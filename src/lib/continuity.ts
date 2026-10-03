@@ -6,6 +6,8 @@ import { DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { withAiRun } from "@/lib/entitlements";
 import { CONTINUITY_CHECK_SYSTEM } from "@/lib/prompts";
 import { listBible, readBibleFile, type BibleEntry } from "@/lib/bible";
+import { activeFactsForPaths } from "@/lib/knowledge";
+import { knowledgeSectionAddon, parseStance, withKnowsBlock } from "@/lib/knowledge-view";
 import { chapterPlainText } from "@/lib/text";
 import { visibleChapterWhere } from "@/lib/chapters";
 import {
@@ -61,17 +63,34 @@ async function relevantBible(
   chapterText: string
 ): Promise<BibleSection[]> {
   const characterPaths = relevantCharacterPaths(bible.index, chapterText);
-  const characterFiles = await Promise.all(
-    characterPaths.map(async (path) => {
-      let content = characterCache.get(path);
-      if (!content) {
-        content = readBibleFile(projectId, path);
-        characterCache.set(path, content);
-      }
-      return { path, content: await content };
-    })
-  );
-  return [...bible.singular, ...characterFiles];
+  const [characterFiles, facts] = await Promise.all([
+    Promise.all(
+      characterPaths.map(async (path) => {
+        let content = characterCache.get(path);
+        if (!content) {
+          content = readBibleFile(projectId, path);
+          characterCache.set(path, content);
+        }
+        return { path, content: await content };
+      })
+    ),
+    activeFactsForPaths(projectId, characterPaths),
+  ]);
+  const factsByPath = new Map<string, { stance: "knows" | "believes"; fact: string }[]>();
+  for (const fact of facts) {
+    const stance = parseStance(fact.stance);
+    if (!stance) continue;
+    const list = factsByPath.get(fact.characterPath) ?? [];
+    list.push({ stance, fact: fact.fact });
+    factsByPath.set(fact.characterPath, list);
+  }
+  return [
+    ...bible.singular,
+    ...characterFiles.map((file) => ({
+      path: file.path,
+      content: withKnowsBlock(file.content, []) + knowledgeSectionAddon(factsByPath.get(file.path) ?? []),
+    })),
+  ];
 }
 
 async function askModel(

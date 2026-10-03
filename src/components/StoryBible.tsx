@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
+import CharacterKnowledge from "@/components/CharacterKnowledge";
 import { getAnalytics } from "@/lib/analytics-client";
 
 type Entry = { path: string; summary: string };
@@ -134,6 +135,14 @@ export default function StoryBible({ projectId, onClose }: Props) {
               rows={26}
               style={{ fontFamily: "var(--mono)", fontSize: 13, lineHeight: 1.6 }}
             />
+            {/^characters\/[^/]+\.md$/.test(openPath) && (
+              <CharacterKnowledge
+                projectId={projectId}
+                characterPath={openPath}
+                dirty={!saved}
+                onMirrored={() => open(openPath)}
+              />
+            )}
           </>
         )}
       </div>

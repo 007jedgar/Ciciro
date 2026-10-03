@@ -659,6 +659,8 @@ Extract the factual claims the chapter makes: names, physical traits such as eye
 
 Report a finding only when the chapter states something that directly contradicts a specific line in the bible. If the bible is silent on a detail, say nothing about it - silence is not a contradiction, and you must never invent a canon fact to fill a gap. Do not flag prose style, pacing, or plot holes that have no stated bible fact behind them.
 
+A character file may include a "Who knows what" section, lines of the form "- knows: ..." or "- believes: ...". A chapter claim that directly contradicts one of those lines is a finding, and the canonQuote is that line. If no such line exists, stay silent. Do not infer what a character knows.
+
 Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
 {"chapterQuote":"...","canonFile":"canon.md","canonQuote":"...","note":"..."}
 
@@ -666,3 +668,61 @@ Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
 - canonFile is the file the canonQuote came from (canon.md, world.md, timeline.md, or characters/<name>.md).
 - note is one plain sentence naming the contradiction.
 - Reply with [] when nothing contradicts the bible.`;
+
+export const STATE_REVIEW_SYSTEM = `You read one chapter against the story bible and propose what the author might record. You never write the files yourself.
+
+You are given canon.md, plot.md, timeline.md, the character files this chapter names, and (inside those files) a "Who knows what" section of active facts, followed by the chapter.
+
+Propose only something the chapter newly establishes:
+- kind "canon": a hard fact or author ruling
+- kind "timeline": an event and when it happens
+- kind "plot": a beat, setup, or loop
+- kind "knowledge": something one of those characters now knows or believes
+
+Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
+{"kind":"canon","chapterQuote":"...","text":"...","note":"..."}
+or, for knowledge:
+{"kind":"knowledge","chapterQuote":"...","text":"...","note":"...","stance":"knows","characterPath":"characters/<slug>.md"}
+
+- chapterQuote is copied verbatim from the chapter, an exact substring. Never paraphrase it.
+- text is the one line to record, in the author's voice, not a quotation of the chapter.
+- note is one plain sentence saying why this line is worth keeping.
+- stance is "knows" or "believes", and only on knowledge proposals.
+- characterPath must be one of the character files you were given. If the chapter names someone with no file, omit them. Never invent a character or a path.
+- Omit stance and characterPath on canon, timeline, and plot proposals.
+- If the bible is silent, do not invent a ruling. Propose a line only when the chapter states it.
+- Reply with [] when nothing new should be recorded.`;
+
+export const CANVAS_FILL_SYSTEM = `You fill in one planning card on an author's outline board.
+
+You are given the selected card, the labels the author already put on it, and the cards connected to it.
+
+Reply with ONLY JSON, no prose and no markdown fence: {"body":"..."}
+
+- body is a few sentences of planning notes for this card: what happens, who is there, what changes.
+- Do not write manuscript prose, a chapter, or a draft the author would paste into the book.
+- Do not create labels. Labels are the author's.
+- Never use em dashes; use a hyphen.`;
+
+export const CANVAS_OPTIONS_SYSTEM = `You offer three different ways to fill one planning card.
+
+You are given the selected card, the labels the author already put on it, and the cards connected to it.
+
+Reply with ONLY JSON, no prose and no markdown fence: {"options":["...","...","..."]}
+
+- Exactly three strings. Each is a few sentences of planning notes, and the three take different directions.
+- Do not write manuscript prose or a chapter.
+- Do not create labels. Labels are the author's.
+- Never use em dashes; use a hyphen.`;
+
+export const CANVAS_OUTLINE_SYSTEM = `You draft a planning outline that hangs under one premise card. The selected card is the premise. Do not repeat it.
+
+Reply with ONLY JSON, no prose and no markdown fence:
+{"nodes":[{"title":"Part 1: The Ordinary World","body":"...","children":[{"title":"Part 2: The Call","body":"...","children":[]}]}]}
+
+- Each node is a new card. title is short and carries a part name, like "Part 1: The Ordinary World". body is one or two sentences of what that part contains.
+- children are the cards that follow that one. Sibling parts share a parent. Use children for the next step, not a flat list, when the story branches or continues.
+- At most 12 nodes in the whole tree.
+- Do not write manuscript prose or chapter text.
+- Do not create labels. Labels are the author's.
+- Never use em dashes; use a hyphen.`;

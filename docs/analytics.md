@@ -172,6 +172,10 @@ property shape.
 | `style_analysis_viewed` | A style analysis completes | Web only (no mobile Style Analysis UI) |
 | `recap_viewed` | A "Previously on" recap or an "I'm stuck" prompt set loads | Web only (no mobile recap/stuck-prompts UI) |
 | `scratchpad_used` | Web: creating a new scratch note. Mobile: a scratch note's debounced autosave succeeds | Both, but at different moments - see "Known gaps" |
+| `state_review_run` | A What changed review of the open chapter completes | Web only |
+| `knowledge_fact_kept` | Keeping a who-knows-what proposal from What changed | Web only |
+| `canvas_card_created` | Adding a card on the planning canvas | Web only |
+| `canvas_generated` (`mode`: `fill` \| `outline` \| `options`) | Accepting a Fill, Options, or Generate full outline result onto the canvas | Web only |
 | `social_sign_in_used` (`provider`) | Completing an Apple/Google sign-in | Both |
 | `push_notification_opened` (`type`) | Tapping a push notification (currently only `writing_reminder`) | Mobile only |
 | `run_completed` (`surface`, `status`) | A server-executed editor run (chat) finishes | Server-side, fires regardless of platform |
