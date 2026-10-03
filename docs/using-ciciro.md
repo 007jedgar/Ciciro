@@ -298,7 +298,7 @@ Hearing a chapter is a good way to catch clunky lines. On the web, choose **List
 
 - It reads your selection if you have one, otherwise the whole chapter, one sentence at a time, with the sentence being read highlighted.
 - Use Play, Pause (Resume) and Stop, and pick a speed and a voice. Speed and voice are remembered on that device only, since each device has its own voices.
-- The web uses your browser's built-in speech, so the available voices depend on the browser and system. On the phone, the voice list puts your device language first and leaves out Apple's novelty and sound-effect voices, and the highlighted text is shown on the Read aloud screen because the editor itself cannot draw highlights.
+- The web uses your browser's built-in speech, so the available voices depend on the browser and system. The web's voice list shows only voices in your browser's language; if none are installed, the device's default voice reads. On the phone, the voice list puts your device language first and leaves out Apple's novelty and sound-effect voices, and the highlighted text is shown on the Read aloud screen because the editor itself cannot draw highlights.
 - Switching chapters stops the reading. Nothing is sent to Ciciro's servers or saved to your manuscript.
 
 ## Dictation
