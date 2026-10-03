@@ -1706,7 +1706,6 @@ input[type="file"]::file-selector-button {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .composer-box textarea {
-  flex: 1;
   min-height: 48px;
   max-height: 200px;
   border: none;
@@ -1714,6 +1713,7 @@ input[type="file"]::file-selector-button {
   padding: 2px 2px 0;
   line-height: 1.6;
   font-size: 14.5px;
+  resize: none;
 }
 .composer-box textarea:focus {
   outline: none;

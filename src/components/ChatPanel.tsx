@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -283,6 +284,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const stopRequestedRef = useRef(false);
   const [stopRequested, setStopRequested] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  // Grow the composer with its text (CSS caps it at max-height, where it
+  // scrolls) instead of a manual resize grip.
+  useLayoutEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
   const streamTurnIdRef = useRef<string | null>(null);
   const activeChapterRef = useRef(activeChapterId);
   activeChapterRef.current = activeChapterId;
