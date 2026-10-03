@@ -4417,3 +4417,288 @@ input[type="file"]::file-selector-button {
 .nowrap {
   white-space: nowrap;
 }
+
+/* ---------- Who knows what, on a character file ---------- */
+.knowledge-box {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.knowledge-head {
+  font-family: var(--serif);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.knowledge-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.knowledge-stance {
+  color: var(--ink-soft);
+  min-width: 64px;
+}
+.knowledge-fact {
+  flex: 1;
+}
+.knowledge-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.knowledge-add input {
+  flex: 1;
+}
+
+/* ---------- Planning canvas ---------- */
+.canvas-panel {
+  position: fixed;
+  inset: 2vh 2vw;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--ink);
+}
+.canvas-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 8px;
+}
+.canvas-head h2 {
+  font-family: var(--serif);
+  margin: 0;
+}
+.canvas-head .spacer {
+  flex: 1;
+}
+.canvas-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 10px;
+}
+.canvas-labels input {
+  width: 140px;
+}
+.canvas-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.canvas-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  background-color: var(--bg);
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ink) 28%, transparent) 1.15px,
+    transparent 1.2px
+  );
+  user-select: none;
+}
+.canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.canvas-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.canvas-edges path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.canvas-edges path.draft {
+  stroke-dasharray: 5 4;
+}
+.canvas-card {
+  position: absolute;
+  width: 240px;
+  box-sizing: border-box;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--paper-shadow);
+  padding: 10px 12px 8px;
+  cursor: grab;
+}
+.canvas-card.selected {
+  border-color: var(--accent);
+}
+.canvas-card-title {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 0;
+  margin: 0 0 6px;
+}
+.canvas-card-body {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 72px;
+  padding: 0;
+  user-select: text;
+  cursor: text;
+}
+.canvas-card-title {
+  user-select: text;
+  cursor: text;
+}
+.canvas-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.canvas-chip {
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 999px;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+  color: var(--ink);
+  cursor: pointer;
+}
+.canvas-chip.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+.canvas-chip.on {
+  border-color: var(--accent);
+}
+.canvas-chip[data-color="ink"] {
+  background: color-mix(in srgb, var(--ink) 12%, var(--panel));
+}
+.canvas-chip[data-color="olive"] {
+  background: color-mix(in srgb, #5f6b45 32%, var(--panel));
+}
+.canvas-chip[data-color="wine"] {
+  background: color-mix(in srgb, #7a3b45 32%, var(--panel));
+}
+.canvas-chip[data-color="sea"] {
+  background: color-mix(in srgb, #3d5c66 32%, var(--panel));
+}
+.canvas-chip[data-color="gold"] {
+  background: color-mix(in srgb, #8a6a32 34%, var(--panel));
+}
+.canvas-port {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  top: 50%;
+  right: -8px;
+  transform: translateY(-50%);
+  padding: 0;
+  cursor: crosshair;
+}
+.canvas-fill {
+  margin-top: 6px;
+}
+.canvas-zoom {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.canvas-swatches {
+  display: flex;
+  gap: 4px;
+}
+.canvas-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  padding: 0;
+  background: var(--accent-soft);
+}
+.canvas-swatch.on {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.canvas-swatch[data-color="ink"] {
+  background: color-mix(in srgb, var(--ink) 55%, var(--panel));
+}
+.canvas-swatch[data-color="olive"] {
+  background: #5f6b45;
+}
+.canvas-swatch[data-color="wine"] {
+  background: #7a3b45;
+}
+.canvas-swatch[data-color="sea"] {
+  background: #3d5c66;
+}
+.canvas-swatch[data-color="gold"] {
+  background: #8a6a32;
+}
+.canvas-preview {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  padding: 24px;
+}
+.canvas-preview-card {
+  width: min(520px, 100%);
+  max-height: 80%;
+  overflow: auto;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--paper-shadow);
+  padding: 16px 18px;
+}
+.canvas-preview-card h3 {
+  font-family: var(--serif);
+  margin: 0 0 8px;
+}
+.canvas-option {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+}
+.canvas-outline-list {
+  margin: 8px 0 8px 18px;
+  padding: 0;
+}
+.canvas-outline-list li {
+  margin: 6px 0;
+}

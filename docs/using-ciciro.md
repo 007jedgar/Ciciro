@@ -279,6 +279,18 @@ the web only for now.
 
 Open **Outline** in the top bar (web) or the Outline tile on the Chapters tab (mobile) to see every chapter as a card with its title, summary, word count and stage. On the web, switch between **Corkboard** and **List** layouts and change a chapter's stage from its card. Drag a card to reorder chapters, or use the arrows (web) or the accessibility move actions (mobile). The new order is saved to the manuscript and shows up on your other devices. On the phone, dragging a card by its handle lifts it, the other cards slide aside, and a dashed outline marks where it will land.
 
+## What changed
+
+On the web, **What changed** sits in the chapter header, next to Auto-draft. It reads the open chapter only, and only when you click **Check this chapter**. It does not run when the chapter saves. One pass proposes lines for `canon.md`, `plot.md`, `timeline.md`, or a fact about what a character named in the chapter now knows or believes.
+
+Each row is **Keep** or **Dismiss**. Keep appends a bullet to that file, or records the fact and refreshes the mirror at the end of the character file (see [Story bible](story-bible.md#adding-context-for-consistency)). Dismiss remembers the line, so the next check of this chapter does not offer it again. A quote that is not actually in the chapter is dropped. Nothing is written until you keep it, and a cut-off reply shows nothing. It will not create a character file for a new name.
+
+## Canvas
+
+**Canvas** sits beside **Outline** in the top bar, on the web. Outline is the chapter corkboard. Canvas is a planning board for cards you place yourself: a title, notes, labels you create, and arrows you drag from the dot on a card. Drag the dotted background to pan, use the wheel or the + and − buttons to zoom, and drag a card to move it. The position saves when you let go. Undo and Redo cover the session.
+
+Select a card to ask Ciciro to **Fill this** (one body), offer **Options** (three, and you pick), or **Generate full outline** from that card as the premise. Each of those waits for **Accept**. Accepted outline cards are laid under the premise with arrows between them. Titles come back as "Part 1" style names. Ciciro does not create labels, and none of this text becomes a chapter or a draft in the manuscript. The board holds up to 200 cards and 40 labels. The phone does not have this board.
+
 ## Focus and typewriter mode
 
 **Focus** in the top bar (Cmd/Ctrl+Shift+Enter) hides everything but the page;

@@ -307,6 +307,19 @@ signing up (web or mobile, password or Apple/Google) with the marketing
 checkbox checked fails outright with `no such table: EmailPreference`. Leaving
 it unchecked still works either way.
 
+Who-knows-what, chapter-close dismissals, and the planning canvas need
+`KnowledgeFact`, `StateProposal`, `CanvasLabel`, `CanvasCard`,
+`CanvasCardLabel`, and `CanvasEdge`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-knowledge-and-canvas.sql
+```
+
+**Apply before merging.** Account deletion and the data export read every new
+table, so until this runs they fail with `no such table: KnowledgeFact`. The
+chapter-close and canvas features error on their own; the rest of the app
+keeps working. The script only creates tables.
+
 ## Authentication
 
 - `POST /api/auth/signup`: create an account and start a session.

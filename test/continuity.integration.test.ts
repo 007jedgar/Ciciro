@@ -216,6 +216,29 @@ describe("continuity check", () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
+  it("sends active who-knows-what lines with the character file", async () => {
+    const { user, project } = await seed();
+    await writeBibleFile(project.id, "characters/mara.md", "# Mara\n> Character\nMara has green eyes.");
+    await prisma.knowledgeFact.create({
+      data: {
+        projectId: project.id,
+        characterPath: "characters/mara.md",
+        fact: "The vault is empty",
+        stance: "knows",
+        status: "active",
+      },
+    });
+    const chapter = await chapterOf(project.id, "Arrival", "<p>Mara stepped off the train.</p>");
+    reply("[]");
+
+    await runContinuityCheck(project.id, user, { scope: "chapter", chapterId: chapter.id });
+
+    const sent = promptText();
+    expect(sent).toContain("## characters/mara.md");
+    expect(sent).toContain("- knows: The vault is empty");
+    expect(sent).toContain("Mara has green eyes.");
+  });
+
   it("keeps checks scoped to the owner's own project", async () => {
     const { project } = await seed();
     const other = await registerUser({ email: "bob@example.com", password: "long-enough-pw" });

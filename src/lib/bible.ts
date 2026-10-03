@@ -146,24 +146,32 @@ export async function writeBibleFile(
   return { path, content, revision: nextRevision };
 }
 
-export async function appendCanon(
+const BULLET_HEADINGS = {
+  "canon.md": "# Canon\n> Hard facts and author rulings the story must never contradict.\n\n",
+  "plot.md": "# Plot\n> Structure, beats, and open loops (setups awaiting payoff).\n\n",
+  "timeline.md": "# Timeline\n> Chronology of events, on and off the page.\n\n",
+} as const;
+
+export type BulletBibleFile = keyof typeof BULLET_HEADINGS;
+
+/** Append one dated bullet to canon, plot, or timeline. Does not rewrite the rest of the file. */
+export async function appendBibleBullet(
   projectId: string,
+  rel: BulletBibleFile,
   note: string
 ): Promise<void> {
-  const rel = "canon.md";
+  const trimmed = note.trim();
+  if (!trimmed) return;
   const existing = await getBibleFile(projectId, rel);
   const stamp = new Date().toISOString().slice(0, 10);
-  const line = `- (${stamp}) ${note.trim()}`;
+  const line = `- (${stamp}) ${trimmed}`;
   const current = existing?.content ?? "";
-  const next = current.trim()
-    ? `${current.trimEnd()}\n${line}\n`
-    : `# Canon\n> Hard facts and author rulings the story must never contradict.\n\n${line}\n`;
-  await writeBibleFile(
-    projectId,
-    rel,
-    next,
-    existing ? existing.revision : undefined
-  );
+  const next = current.trim() ? `${current.trimEnd()}\n${line}\n` : `${BULLET_HEADINGS[rel]}${line}\n`;
+  await writeBibleFile(projectId, rel, next, existing ? existing.revision : undefined);
+}
+
+export async function appendCanon(projectId: string, note: string): Promise<void> {
+  await appendBibleBullet(projectId, "canon.md", note);
 }
 
 export type BibleEntry = { path: string; summary: string };

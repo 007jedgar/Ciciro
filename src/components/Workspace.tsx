@@ -19,6 +19,8 @@ import SearchPanel from "@/components/SearchPanel";
 import RepetitionPanel from "@/components/RepetitionPanel";
 import ContinuityCheckPanel from "@/components/ContinuityCheckPanel";
 import OutlineBoard from "@/components/OutlineBoard";
+import CanvasBoard from "@/components/CanvasBoard";
+import StateReviewPanel from "@/components/StateReviewPanel";
 import Presence from "@/components/Presence";
 import Scratchpad from "@/components/Scratchpad";
 import PreviouslyOn from "@/components/PreviouslyOn";
@@ -129,6 +131,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // Bumped to remount the editor when its chapter was rewritten from outside.
   const [editorNonce, setEditorNonce] = useState(0);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const [canvasOpen, setCanvasOpen] = useState(false);
+  const [stateReviewOpen, setStateReviewOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<"prose" | "diff" | "history">("prose");
@@ -1078,6 +1082,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         >
           Outline
         </button>
+        <button className="btn small" onClick={() => setCanvasOpen(true)}>
+          Canvas
+        </button>
         <TopbarMore
           items={[
             {
@@ -1237,6 +1244,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                     <span>-</span>
                   </>
                 ) : null}
+                <button
+                  className="btn ghost small"
+                  onClick={() => setStateReviewOpen(true)}
+                  title="Propose canon, plot, timeline, and who-knows-what updates from this chapter"
+                >
+                  What changed
+                </button>
+                <span>-</span>
                 <StuckPrompts
                   projectId={project.id}
                   chapterId={activeChapter.id}
@@ -1373,6 +1388,20 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onUiEvent={onUiEvent}
         onOpenContinuityCheck={() => setContinuityOpen(true)}
       />
+
+      <Presence open={canvasOpen} exitMs={MOTION_MS.dialogOut}>
+        <CanvasBoard projectId={project.id} onClose={() => setCanvasOpen(false)} />
+      </Presence>
+
+      <Presence open={stateReviewOpen}>
+        <StateReviewPanel
+          projectId={project.id}
+          chapterId={activeId}
+          chapterTitle={activeChapter?.title ?? ""}
+          onClose={() => setStateReviewOpen(false)}
+          onInspect={onInspectContinuity}
+        />
+      </Presence>
 
       <Presence open={outlineOpen} exitMs={MOTION_MS.dialogOut}>
         <OutlineBoard

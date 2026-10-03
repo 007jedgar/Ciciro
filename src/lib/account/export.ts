@@ -278,6 +278,48 @@ export const EXPORT_TABLES: readonly Table[] = [
     shape: (row) => unpack(row, "stats", "content"),
   },
   {
+    model: "KnowledgeFact",
+    file: "knowledge-facts",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.knowledgeFact.findMany({ where: { ...own(userId), ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "StateProposal",
+    file: "dismissed-state-proposals",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.stateProposal.findMany({ where: { ...own(userId), ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "CanvasLabel",
+    file: "canvas-labels",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.canvasLabel.findMany({ where: { ...own(userId), ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "CanvasCard",
+    file: "canvas-cards",
+    take: 100,
+    page: (userId, id, take) =>
+      prisma.canvasCard.findMany({ where: { ...own(userId), ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "CanvasCardLabel",
+    file: "canvas-card-labels",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.canvasCardLabel.findMany({ where: { card: own(userId), ...after(id) }, ...byId, take }),
+  },
+  {
+    model: "CanvasEdge",
+    file: "canvas-edges",
+    take: 200,
+    page: (userId, id, take) =>
+      prisma.canvasEdge.findMany({ where: { ...own(userId), ...after(id) }, ...byId, take }),
+  },
+  {
     model: "ShareLink",
     file: "share-links",
     take: 200,

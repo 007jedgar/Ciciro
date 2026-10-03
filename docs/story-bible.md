@@ -49,6 +49,29 @@ creates `characters/<slug>.md`. Fill in Voice early - the drafter never sees
 the bible, so the editor copies voice notes into each brief. Distinct speech
 patterns here are how dialogue stays in character across chapters.
 
+**Who knows what.** Knowledge is a ledger, not another copy of the character
+sheet. Each fact is a row: which character file it belongs to
+(`characters/<slug>.md`), the line itself, whether they **know** it or only
+**believe** it, and the chapter that made it true. The character table in the
+database is not this list. Open a character file in the Story Bible and use
+**Who knows what** to add or retire a fact. Retiring marks it superseded; it
+is not deleted from the ledger's history.
+
+The file still shows the same lines. On every add, retire, or **Keep** from
+What changed, Ciciro rewrites only the block between `<!-- knows:start -->`
+and `<!-- knows:end -->` at the end of that character file. The table is the
+source of truth. The block is a mirror, so `read_bible` and a person opening
+the file see the same thing. The editor's context includes a short capped
+list of those facts for characters named in the open chapter. The continuity
+check treats a "Who knows what" line like any other bible line: a
+contradiction needs a verbatim quote from the chapter and from the fact, and
+silence stays silence.
+
+The ledger grows from **What changed** on the open chapter (see [Using
+Ciciro](using-ciciro.md#what-changed)). That review proposes facts; it does
+not write them until you keep one. It never creates a character file for a
+name it does not already have.
+
 **Canon.** Treat `canon.md` as a decision log, not a novel. One line per ruling:
 
 ```markdown
@@ -71,7 +94,9 @@ own prose instead of you writing them cold - see [Using
 Ciciro](using-ciciro.md#analyze-my-style).
 
 You can also edit the files on disk. After the first run they are the source of
-truth; the database is only used to seed them.
+truth; the database is only used to seed them. Who knows what is the exception:
+that ledger lives in its own table, and the block in the character file is only
+the mirror.
 
 ## Practical habits
 

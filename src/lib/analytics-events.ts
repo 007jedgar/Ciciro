@@ -103,6 +103,10 @@ export type EventCatalog = {
   style_analysis_viewed: NoProperties;
   recap_viewed: NoProperties;
   scratchpad_used: NoProperties;
+  state_review_run: NoProperties;
+  knowledge_fact_kept: NoProperties;
+  canvas_card_created: NoProperties;
+  canvas_generated: { mode: "fill" | "outline" | "options" };
 
   // Account data. Deletion has no event: see AnalyticsAdapter.deleteUser
   // below - the person record is asked to be forgotten, not tracked once more.
