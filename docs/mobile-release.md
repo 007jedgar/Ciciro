@@ -61,6 +61,7 @@ To ship a hotfix by hand instead of through the workflow:
 ```bash
 cd apps/mobile
 CICIRO_RELEASE=1 eas update --channel production --environment production --platform ios --message "Fix ..."
+CICIRO_RELEASE=1 eas update --channel preview --environment preview --platform ios --message "Fix ..."
 ```
 
 Roll back with `eas update:rollback`, or republish the previous update group
@@ -78,7 +79,7 @@ hand with `eas workflow:run .eas/workflows/<file>.yml`.
 |---|---|---|
 | `deploy-production.yml` | push to `main` touching `apps/mobile/**` | Fingerprints the app. If a production iOS build with that fingerprint exists, publishes the commit as an update to the `production` channel. If not (native code changed), makes a new production iOS build instead. |
 | `build-production.yml` | a `mobile-v*` tag, or by hand (`-F platform=ios\|android\|all`) | A store build. An iOS build also submits to TestFlight (see [TestFlight](#testflight)); Android submission is still a separate step. |
-| `preview-build.yml` | a PR labeled `mobile-preview` (and every later push to it), or by hand | Fingerprints the PR. Repacks an existing preview build with the PR's JavaScript when the native layer is unchanged (minutes, not a full build), builds otherwise, and comments the install links on the PR. |
+| `preview-build.yml` | a PR labeled `mobile-preview` (and every later push to it), or by hand | Fingerprints the PR. Publishes the commit as an update to the `preview` channel when a preview build with that fingerprint exists. Builds otherwise, and comments the install or update link on the PR. |
 | `development-build.yml` | by hand (`-F target=simulator\|device`) | A dev client, for when native code changes. |
 
 Merging mobile JavaScript to `main` therefore reaches production users on
@@ -244,11 +245,9 @@ One-time captain steps, each done once from `apps/mobile`:
    `app.ciciro.mobile` (the captain is creating both, along with the widget
    bundle ID `app.ciciro.mobile.widgets` and the App Group
    `group.app.ciciro.mobile`).
-2. Fill in `submit.production.ios` in `eas.json`:
-   - `ascAppId`: App Store Connect > the app > **App Information** > **General
-     Information** > **Apple ID** (a numeric ID, not the bundle identifier).
-   - `appleTeamId`: the 10-character Team ID from the Apple Developer account
-     (Membership details).
+2. `submit.production.ios` in `eas.json` is filled in: `ascAppId` `6817787071`
+   (App Store Connect > the app > **App Information** > **Apple ID**) and
+   `appleTeamId` `V7657ADM38`.
 3. **App Store Connect API key**: App Store Connect > Users and Access > Keys,
    create a key with the **App Manager** role, then run `eas credentials -p
    ios` and choose the App Store Connect API key option so EAS stores it
