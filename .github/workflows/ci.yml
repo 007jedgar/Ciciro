@@ -23,7 +23,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -39,6 +41,12 @@ jobs:
 
       - name: Typecheck worker
         run: npm run typecheck:worker
+
+      # Parity tests import apps/mobile sources. Those files sit under a
+      # tsconfig that extends expo/tsconfig.base, which only exists after this.
+      - name: Install mobile dependencies
+        run: npm ci
+        working-directory: apps/mobile
 
       - name: Test
         run: npm test

@@ -10,7 +10,7 @@ job id has to stay.
 
 ## Web
 
-1. `npm ci` and `npx prisma generate`
+1. `npm ci`, `npm ci` in `apps/mobile` (parity tests import the phone copies), and `npx prisma generate`
 2. `npm run lint`
 3. `npm run typecheck` and `npm run typecheck:worker` (Cloudflare Worker types)
 4. `npm test` (Vitest, temp SQLite)
