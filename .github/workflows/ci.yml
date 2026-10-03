@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  web:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -23,16 +23,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            apps/mobile/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install web dependencies
+      - name: Install dependencies
         run: npm ci
-
-      - name: Install mobile dependencies
-        run: npm ci
-        working-directory: apps/mobile
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -46,11 +40,42 @@ jobs:
       - name: Typecheck worker
         run: npm run typecheck:worker
 
-      - name: Typecheck mobile
-        run: npm run typecheck:mobile
-
-      - name: Test web
+      - name: Test
         run: npm test
 
-      - name: Test mobile
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/mobile
+
+      - name: Typecheck
+        run: npm run typecheck:mobile
+
+      - name: Test
         run: npm run test:mobile
+
+  # Job id must stay `test`. The Protect main ruleset requires that check.
+  test:
+    needs: [web, mobile]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require web and mobile
+        run: |
+          web="${{ needs.web.result }}"
+          mobile="${{ needs.mobile.result }}"
+          echo "web=$web mobile=$mobile"
+          test "$web" = success
+          test "$mobile" = success

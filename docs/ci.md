@@ -4,13 +4,25 @@ GitHub Actions runs the **`test`** check on every pull request and on pushes to
 `main`. `main` is protected: the branch cannot be force-pushed or deleted, and
 a PR cannot merge until that check is green on the latest commit.
 
-## What `test` runs
+`test` is a gate. The work runs in two jobs at the same time, and the gate
+passes only when both do. The ruleset requires the check named `test`, so that
+job id has to stay.
 
-1. `npm run lint`
-2. `npm run typecheck` (web), `npm run typecheck:worker` (Cloudflare Worker
-   types), `npm run typecheck:mobile`
-3. `npm test` (Vitest, temp SQLite)
-4. `npm run test:mobile` (Jest)
+## Web
+
+1. `npm ci` and `npx prisma generate`
+2. `npm run lint`
+3. `npm run typecheck` and `npm run typecheck:worker` (Cloudflare Worker types)
+4. `npm test` (Vitest, temp SQLite)
+
+## Mobile
+
+1. `npm ci` in `apps/mobile`
+2. `npm run typecheck:mobile`
+3. `npm run test:mobile` (Jest)
+
+Vitest runs one file at a time. The suite shares one temp SQLite database, so
+files cannot run in parallel.
 
 Node 22 comes from `.nvmrc`. No API keys are required.
 
