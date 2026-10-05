@@ -95,6 +95,7 @@ async function run(input: EditorRunInput) {
 
 describe("chat edit mode (Allow edits / Chat only)", () => {
   beforeEach(async () => {
+    vi.stubEnv("GROQ_API_KEY", "");
     model.responses.length = 0;
     model.calls.length = 0;
     await prisma.project.deleteMany();
@@ -252,5 +253,35 @@ describe("chat edit mode (Allow edits / Chat only)", () => {
     });
     const { runs } = await loadChatSnapshot(project.id);
     expect(runs.map((r) => r.editsAllowed)).toEqual([true, false]);
+  });
+
+  it("still takes the cheap retrieval lane for a Chat only lookup", async () => {
+    const project = await createProject();
+    model.responses.push(response("end_turn", [text("Mara appears in chapter one.")]));
+    await run({
+      projectId: project.id,
+      message: "Find every scene where Mara appears.",
+      clientTurnId: "chat-only-lookup",
+      editsAllowed: false,
+    });
+    const params = model.calls[0].params as {
+      max_tokens: number;
+      output_config: { effort: string };
+    };
+    expect(params.max_tokens).toBe(3000);
+    expect(params.output_config.effort).toBe("low");
+  });
+
+  it("keeps a Chat only edit-shaped request on the editorial lane", async () => {
+    const project = await createProject();
+    model.responses.push(response("end_turn", [text("Edits are off.")]));
+    await run({
+      projectId: project.id,
+      message: 'Move "Mara crossed the bridge at dawn." from chapter 1 to the end of chapter 2.',
+      clientTurnId: "chat-only-move",
+      kind: "action",
+      editsAllowed: false,
+    });
+    expect(model.calls[0].params.max_tokens).toBe(16000);
   });
 });

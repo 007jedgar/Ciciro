@@ -9,6 +9,7 @@ let host: HTMLDivElement;
 let root: Root;
 let snapshot: { messages: unknown[]; runs: unknown[] };
 let posts: Array<Record<string, unknown>>;
+let postResponse: (() => Response) | null;
 
 const message = (id: string, role: string, turnId: string, content: string) => ({
   id,
@@ -46,6 +47,7 @@ beforeEach(() => {
   sessionStorage.clear();
   snapshot = { messages: [], runs: [] };
   posts = [];
+  postResponse = null;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -58,6 +60,7 @@ beforeEach(() => {
       }
       if (url === "/api/chat" && method === "POST") {
         posts.push(JSON.parse(String(init?.body)));
+        if (postResponse) return postResponse();
         return ndjson([
           { type: "turn", id: "turn-new", runId: "run-new" },
           { type: "text", v: "Done." },
@@ -84,7 +87,7 @@ const settle = () =>
     for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
   });
 
-async function mount() {
+async function mount(onInsertDraft: (text: string) => void = () => {}) {
   await act(async () =>
     root.render(
       <ChatPanel
@@ -95,7 +98,7 @@ async function mount() {
           { id: "c2", title: "Two", order: 1 },
         ]}
         getSelection={() => ""}
-        onInsertDraft={() => {}}
+        onInsertDraft={onInsertDraft}
       />
     )
   );
@@ -197,5 +200,56 @@ describe("the chat's Allow edits / Chat only switch", () => {
     await click(option("Chat only"));
     expect(auto().textContent).toBe("Auto off");
     expect(auto().disabled).toBe(true);
+  });
+
+  it("never auto-inserts a Chat only reply's drafts, even if edits are allowed mid-stream", async () => {
+    const inserted: string[] = [];
+    let push!: (line: unknown) => void;
+    let finish!: () => void;
+    postResponse = () => {
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          push = (line) => controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+          finish = () => controller.close();
+        },
+      });
+      return new Response(body, { headers: { "content-type": "application/x-ndjson" } });
+    };
+    await mount((text) => inserted.push(text));
+    const auto = () =>
+      [...host.querySelectorAll<HTMLButtonElement>("button")].find((el) =>
+        el.textContent?.startsWith("Auto")
+      )!;
+    await click(auto());
+    await click(option("Chat only"));
+
+    const box = host.querySelector("textarea")!;
+    await act(async () => {
+      const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+      set.call(box, "suggest a line");
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(host.querySelector(".composer-action")!);
+    await settle();
+    expect(posts[0]).toMatchObject({ editsAllowed: false });
+
+    await act(async () => {
+      push({ type: "turn", id: "turn-chat", runId: "run-chat" });
+      push({ type: "text", v: "Try this: <draft>Mara ran.</draft>" });
+    });
+    await settle();
+    await click(option("Allow edits"));
+    expect(auto().textContent).toBe("Auto on");
+    await act(async () => push({ type: "text", v: " Or <draft>Mara stayed.</draft>" }));
+    await settle();
+    expect(inserted).toEqual([]);
+
+    await act(async () => {
+      push({ type: "done", status: "completed", runId: "run-chat" });
+      finish();
+    });
+    await settle();
+    expect(inserted).toEqual([]);
   });
 });

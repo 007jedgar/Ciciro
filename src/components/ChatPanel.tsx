@@ -306,6 +306,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
   const streamTurnIdRef = useRef<string | null>(null);
+  const streamTurnAutoInsertRef = useRef(false);
   const activeChapterRef = useRef(activeChapterId);
   activeChapterRef.current = activeChapterId;
   const autoModeRef = useRef(autoMode);
@@ -384,6 +385,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   // match the durable DraftInsertion rows after refresh.
   useEffect(() => {
     if (!autoMode || editMode === "chat" || !streaming || !streamMsgId) return;
+    if (!streamTurnAutoInsertRef.current) return;
     const turnId = streamTurnIdRef.current;
     parseSegments(streamText).forEach((seg, idx) => {
       if (seg.kind !== "draft" || seg.open) return;
@@ -638,7 +640,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           kind: turn.kind,
           scope: turn.scope,
           autoMode: turn.autoMode ?? autoModeRef.current,
-            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
+          editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
         },
         signal
       );
@@ -716,7 +718,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           kind: turn.kind,
           scope: turn.scope,
           autoMode: turn.autoMode ?? autoModeRef.current,
-            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
+          editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
           clientTurnId: turn.turnId,
         },
         signal
@@ -765,6 +767,9 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     setStreamProgress([]);
     setStreamMsgId(assistantId);
     streamTurnIdRef.current = turn.turnId;
+    streamTurnAutoInsertRef.current =
+      Boolean(turn.autoMode ?? autoModeRef.current) &&
+      (turn.editsAllowed ?? editsAllowedRef.current);
     setActivePhase(turn.status || "queued");
     savePendingTurn(turn);
 
@@ -865,6 +870,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       setStreamProgress([]);
       setStreamMsgId(null);
       streamTurnIdRef.current = null;
+      streamTurnAutoInsertRef.current = false;
       setActivePhase(null);
       setStreaming(false);
       streamingRef.current = false;

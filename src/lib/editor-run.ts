@@ -25,6 +25,7 @@ import {
 import { continuePrompt, healAssistantContent, stripErrorFooter } from "@/lib/heal";
 import {
   buildEditorIntent,
+  conversationIntent,
   formatEditorIntent,
 } from "@/lib/editor-intent";
 import {
@@ -238,8 +239,10 @@ export async function prepareEditorRun(input: EditorRunInput) {
       (row) => !(row.role === "assistant" && row.turnId === turnId)
     );
 
-    // A Chat only turn plans no edits: no reorg plan, no edit intent, and no
-    // mechanical lane, all of which steer the editor toward mutating tools.
+    // A Chat only turn plans no edits: no reorg plan and no edit intent, both
+    // of which steer the editor toward mutating tools. It is still routed as a
+    // conversation, so a lookup keeps the cheap retrieval lane but can never
+    // take the mechanical one.
     const editsAllowed = created.editsAllowed;
     let reorgBlock = "";
     let namedChapterNumbers: number[] = [];
@@ -268,13 +271,11 @@ export async function prepareEditorRun(input: EditorRunInput) {
           kind: input.kind,
         })
       : null;
-    const route = intent
-      ? await routeEditorWork({
-          message,
-          kind: input.kind,
-          intent,
-        })
-      : null;
+    const route = await routeEditorWork({
+      message,
+      kind: input.kind,
+      intent: intent ?? conversationIntent(),
+    });
     const context = await buildEditorContext(
       input.projectId,
       input.activeChapterId,
@@ -283,7 +284,7 @@ export async function prepareEditorRun(input: EditorRunInput) {
       namedChapterNumbers
     );
     const intentBlock = intent ? formatEditorIntent(intent) : "";
-    const routeBlock = route ? formatEditorRoute(route) : "";
+    const routeBlock = formatEditorRoute(route);
     const contextWithPlan = [context, reorgBlock, intentBlock, routeBlock]
       .filter(Boolean)
       .join("\n\n");
