@@ -1,3 +1,5 @@
+import { markRestoredArrivals } from "./stack-arrival";
+
 const DISK_KEY = "last-place";
 const ID = /^[A-Za-z0-9_-]{1,80}$/;
 export const DEFAULT_HREF = "/manuscripts";
@@ -248,6 +250,7 @@ export function restoreLastPlace(
   userId: string
 ): void {
   const [first, ...rest] = restoreStackHrefs(userId);
+  markRestoredArrivals(rest);
   router.replace(first as never);
   for (const href of rest) router.push(href as never);
 }
