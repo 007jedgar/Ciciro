@@ -55,6 +55,7 @@ import {
 } from "@/lib/suggestion-edits";
 import { runRanker } from "@/lib/fast-lane";
 import type { ClientUiEvent } from "@/lib/types";
+import { isManuscriptWriteTool } from "@/lib/edit-mode";
 
 export type { ClientUiEvent };
 
@@ -704,14 +705,37 @@ export function toolUiEvents(
   return Array.isArray(ui) ? ui : [ui];
 }
 
+/** The tools a turn may offer the editor: all of them, or without the manuscript-writing ones on a Chat only turn. */
+export function editorToolsFor(editsAllowed: boolean): Anthropic.Tool[] {
+  return editsAllowed
+    ? EDITOR_TOOLS
+    : EDITOR_TOOLS.filter((tool) => !isManuscriptWriteTool(tool.name));
+}
+
 // Execute a tool call server-side. `status` is a short backstage label surfaced
 // to the author; `content` is fed back to the editor model.
 export async function executeEditorTool(
   name: string,
   input: Record<string, unknown>,
-  ctx: { projectId: string; activeChapterId?: string | null; runId?: string }
+  ctx: {
+    projectId: string;
+    activeChapterId?: string | null;
+    runId?: string;
+    /** False on a Chat only turn. Omitted means edits are allowed. */
+    editsAllowed?: boolean;
+  }
 ): Promise<ToolResult> {
   const { projectId } = ctx;
+
+  // The tool list withheld these already; this holds even for a tool_use the
+  // model replays from an earlier slice's transcript.
+  if (ctx.editsAllowed === false && isManuscriptWriteTool(name)) {
+    return {
+      status: "edits are off",
+      content:
+        "Not run: the author has turned edits off for this conversation (Chat only). The manuscript was not changed. Tell them edits are off and that they can switch to Allow edits for you to make this change.",
+    };
+  }
 
   switch (name) {
     case "list_bible": {

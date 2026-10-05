@@ -1722,7 +1722,53 @@ input[type="file"]::file-selector-button {
 }
 .composer-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* Allow edits / Chat only: a compact two-state switch beside Send. */
+.edit-mode {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+}
+.edit-mode-option {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.2;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+.edit-mode-option:hover {
+  color: var(--ink);
+}
+.edit-mode-option[aria-checked="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.edits-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink);
 }
 /* Send, Stop and Stopping… share one width (the widest label, kept as a
    hidden sizer) so the textarea never reflows when the label changes. */

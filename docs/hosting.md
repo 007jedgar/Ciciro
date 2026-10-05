@@ -320,6 +320,17 @@ table, so until this runs they fail with `no such table: KnowledgeFact`. The
 chapter-close and canvas features error on their own; the rest of the app
 keeps working. The script only creates tables.
 
+The chat's Allow edits / Chat only switch is stored per turn as
+`EditorRun.editsAllowed`:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-chat-edit-mode.sql
+```
+
+**Apply before merging.** Every editor-run query reads the column, so until it
+exists chat fails with `no such column: editsAllowed`. Existing runs keep
+allowing edits.
+
 ## Authentication
 
 - `POST /api/auth/signup`: create an account and start a session.

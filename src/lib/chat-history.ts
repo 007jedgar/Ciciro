@@ -22,6 +22,7 @@ const RUN_FIELDS = {
   activeChapterId: true,
   selection: true,
   autoMode: true,
+  editsAllowed: true,
   status: true,
   visibleOutput: true,
   iterationCount: true,
