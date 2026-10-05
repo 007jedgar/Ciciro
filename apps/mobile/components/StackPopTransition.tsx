@@ -11,22 +11,26 @@ import Animated, {
 } from "react-native-reanimated";
 import { useOptionalAppTheme } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
+import { EASE_OUT, EASE_PUSH } from "../lib/motion";
 import {
   ownsStackRemove,
   shouldInterceptStackRemove,
   STACK_POP_FADE_MS,
   STACK_POP_MS,
+  STACK_PUSH_MS,
   stackPopTransform,
+  stackPushTransform,
   stackSheetPopTransform,
 } from "../lib/stack-pop";
 
-const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
 // A sheet has a long way to fall; the collapse curve would finish most of it in the first frames.
-const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);
+const EASE_SHEET = EASE_PUSH;
 
 /**
  * Outgoing stack screens round off, shrink, and tuck away to the right on back
  * ("collapse"), or slide straight down ("sheet", see `SHEET_POP_ROUTES`).
+ * With `enter`, the screen also slides in from the right (a sheet comes up from
+ * the bottom) when it is pushed, fading instead under reduce motion.
  * Wired once via Stack `screenLayout` so every native-stack route inherits it.
  *
  * The screen being returned to has to be underneath for any of this to read, so
@@ -36,9 +40,11 @@ const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);
 export function StackPopTransition({
   children,
   variant = "collapse",
+  enter = false,
 }: {
   children: ReactNode;
   variant?: "collapse" | "sheet";
+  enter?: boolean;
 }) {
   const navigation = useNavigation();
   const { width, height } = useWindowDimensions();
@@ -47,7 +53,20 @@ export function StackPopTransition({
   const osReduce = useReducedMotion();
   const reduceMotion = Boolean(theme?.settings.reduceMotion || osReduce);
   const progress = useSharedValue(0);
+  // 0 just pushed, 1 settled. Starts offscreen so the first frame is already
+  // out of the way, not a flash of the finished screen.
+  const arrival = useSharedValue(enter ? 0 : 1);
   const allowing = useRef(false);
+
+  useEffect(() => {
+    if (!enter) return;
+    arrival.value = withTiming(1, {
+      duration: reduceMotion ? STACK_POP_FADE_MS : STACK_PUSH_MS,
+      easing: reduceMotion ? Easing.linear : variant === "sheet" ? EASE_SHEET : EASE_PUSH,
+    });
+    // Once, on mount: a screen already open is not pushed again by a theme change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dispatchAction = useCallback(
     (action: { type: string; payload?: object; source?: string; target?: string }) => {
@@ -78,17 +97,22 @@ export function StackPopTransition({
 
   const style = useAnimatedStyle(() => {
     if (reduceMotion) {
-      // A straight fade, with none of the hold the full pop uses — there is no
-      // collapse to watch, so drawing it out would only be a delay.
+      // A straight fade both ways, with none of the hold the full pop uses —
+      // there is no collapse to watch, so drawing it out would only be a delay.
       return {
-        opacity: 1 - Math.max(0, Math.min(1, progress.value)),
+        opacity: Math.max(0, Math.min(1, arrival.value)) * (1 - Math.max(0, Math.min(1, progress.value))),
         borderRadius: 0,
         transform: [],
       };
     }
+    const push = stackPushTransform(arrival.value, width, height, variant === "sheet");
     if (variant === "sheet") {
       const sheet = stackSheetPopTransform(progress.value, height);
-      return { opacity: 1, borderRadius: sheet.radius, transform: [{ translateY: sheet.translateY }] };
+      return {
+        opacity: 1,
+        borderRadius: sheet.radius,
+        transform: [{ translateX: push.translateX }, { translateY: sheet.translateY + push.translateY }],
+      };
     }
     const next = stackPopTransform(progress.value, width);
     return {
@@ -96,7 +120,7 @@ export function StackPopTransition({
       borderRadius: next.radius,
       transform: [
         { scale: next.scale },
-        { translateX: next.translateX },
+        { translateX: next.translateX + push.translateX },
         { translateY: next.translateY },
       ],
     };

@@ -1,6 +1,6 @@
-import { useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
@@ -14,6 +14,8 @@ import { useSession } from "../../../../lib/session";
 import { focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
 import * as haptics from "../../../../lib/haptics";
 import { useAppTheme } from "../../../../lib/settings";
+import { TAB_SLIDE_SPEC, tabSlideInterpolator } from "../../../../lib/manuscript-tab-slide";
+import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 import { useStackBack } from "../../../../lib/use-stack-back";
 
 /** Height of the slim row that holds the exit control while focus mode hides the header. */
@@ -103,6 +105,19 @@ export default function ProjectTabsLayout() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReduceMotion();
+  // A tab slides in from the side it sits on. Reduce motion cross-fades instead.
+  const tabAnimation = useMemo(
+    () =>
+      reduceMotion
+        ? ({ animation: "fade" } as const)
+        : {
+            transitionSpec: TAB_SLIDE_SPEC,
+            sceneStyleInterpolator: tabSlideInterpolator(width),
+          },
+    [reduceMotion, width]
+  );
   const { id } = useLocalSearchParams<{ id: string }>();
   const segments = useSegments();
   const onEditor = segments[segments.length - 1] === "manuscript";
@@ -169,7 +184,11 @@ export default function ProjectTabsLayout() {
           <Tabs
             backBehavior="none"
             tabBar={() => null}
-            screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
+            screenOptions={{
+              headerShown: false,
+              sceneStyle: { backgroundColor: colors.bg },
+              ...tabAnimation,
+            }}
           >
             <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
             <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />

@@ -18,7 +18,7 @@ import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { UpdateSync } from "../components/UpdateSync";
-import { POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
+import { entersWithStackPush, POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
 import { WritingDayProvider } from "../lib/writing-day-session";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 
@@ -32,7 +32,11 @@ function ThemedStack() {
     <>
       <StatusBar style={dark ? "light" : "dark"} />
       <Stack
-        screenLayout={({ children }) => <StackPopTransition>{children}</StackPopTransition>}
+        screenLayout={({ children, options }) => (
+          <StackPopTransition enter={entersWithStackPush(options?.presentation)}>
+            {children}
+          </StackPopTransition>
+        )}
         screenOptions={{
           headerTintColor: colors.accent,
           headerStyle: { backgroundColor: colors.panel },

@@ -20,6 +20,7 @@ import {
 } from "../../../../components/icons";
 import { ExportCard } from "../../../../components/ExportCard";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
+import { SlideDownIn } from "../../../../components/SlideDownIn";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -47,6 +48,11 @@ import { openTodayEntry } from "../../../../lib/journal";
 import { normalizeKind } from "../../../../lib/manuscript-kind";
 import { weeklyReviewHref } from "../../../../lib/weekly-review";
 import { useAppTheme } from "../../../../lib/settings";
+import { CHAPTERS_SLIDE_DELAY_MS, TOOL_POP_STAGGER_MS } from "../../../../lib/chapters-intro";
+import {
+  consumeNewManuscriptArrival,
+  isNewManuscriptArrival,
+} from "../../../../lib/new-manuscript-arrival";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
 
@@ -68,6 +74,13 @@ export default function ChaptersScreen() {
   const [tagError, setTagError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const reduceMotion = useReduceMotion();
+  // Whether the user has just created this manuscript and landed here: only that
+  // first arrival slides the list down, not every later visit.
+  const arriving = useRef(isNewManuscriptArrival(typeof id === "string" ? id : "")).current;
+  const loaded = Boolean(project);
+  useEffect(() => {
+    if (arriving && loaded && typeof id === "string") consumeNewManuscriptArrival(id);
+  }, [arriving, loaded, id]);
   const listRef = useRef<FlatList<Chapter>>(null);
   // Chapters the list has already shown, so only ones added later slide in.
   const seenIds = useRef<Set<string> | null>(null);
@@ -272,86 +285,92 @@ export default function ChaptersScreen() {
           {deleteError}
         </Text>
       ) : null}
-      <Animated.FlatList
-        ref={listRef}
-        data={chapters}
-        itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        // An error line already clears the header, so the list starts under it.
-        contentContainerStyle={{
-          paddingTop: deleteError ? 0 : headerHeight + 16,
-          paddingBottom: clearance,
-        }}
-        ListHeaderComponent={
-          project ? (
-            <View>
-              <PreviouslyOnCard projectId={projectId} />
-              {kind === "blog" && project.logline ? (
-                <Text style={[layout.body, { fontStyle: "italic", marginBottom: 12 }]}>
-                  {project.logline}
-                </Text>
-              ) : null}
-              {kind !== "journal" ? (
-                <ManuscriptTag
-                  genre={project.genre}
-                  busy={patchProject.isPending}
-                  error={tagError}
-                  onSave={saveGenre}
+      <SlideDownIn enabled={arriving} delay={CHAPTERS_SLIDE_DELAY_MS}>
+        <Animated.FlatList
+          ref={listRef}
+          data={chapters}
+          itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          // An error line already clears the header, so the list starts under it.
+          contentContainerStyle={{
+            paddingTop: deleteError ? 0 : headerHeight + 16,
+            paddingBottom: clearance,
+          }}
+          ListHeaderComponent={
+            project ? (
+              <View>
+                <PreviouslyOnCard projectId={projectId} />
+                {kind === "blog" && project.logline ? (
+                  <Text style={[layout.body, { fontStyle: "italic", marginBottom: 12 }]}>
+                    {project.logline}
+                  </Text>
+                ) : null}
+                {kind !== "journal" ? (
+                  <ManuscriptTag
+                    genre={project.genre}
+                    busy={patchProject.isPending}
+                    error={tagError}
+                    onSave={saveGenre}
+                  />
+                ) : null}
+                {kind === "journal" ? (
+                  <PressableCard
+                    style={[layout.card, { marginBottom: 16 }]}
+                    onPress={() => void startToday()}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("kinds.todayEntry")}
+                  >
+                    <Text style={layout.cardTitle}>{t("kinds.todayEntry")}</Text>
+                    <Text style={layout.cardMeta}>{t("kinds.todayEntryMeta")}</Text>
+                  </PressableCard>
+                ) : null}
+                <ProjectTools
+                  tools={tools}
+                  // On a new manuscript the tiles wait for the list to start sliding down.
+                  introDelay={arriving ? CHAPTERS_SLIDE_DELAY_MS + TOOL_POP_STAGGER_MS * 2 : 0}
                 />
-              ) : null}
-              {kind === "journal" ? (
-                <PressableCard
-                  style={[layout.card, { marginBottom: 16 }]}
-                  onPress={() => void startToday()}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("kinds.todayEntry")}
-                >
-                  <Text style={layout.cardTitle}>{t("kinds.todayEntry")}</Text>
-                  <Text style={layout.cardMeta}>{t("kinds.todayEntryMeta")}</Text>
-                </PressableCard>
-              ) : null}
-              <ProjectTools tools={tools} />
-            </View>
-          ) : null
-        }
-        ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} /> : null}
-        ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
-        renderItem={({ item, index }) => (
-          <Animated.View
-            entering={
-              reduceMotion
-                ? undefined
-                : freshIds.has(item.id)
-                  ? SlideInRight.duration(260)
-                  : restoredIds.current.has(item.id)
-                    ? FadeIn.duration(200)
-                    : undefined
-            }
-            exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
-          >
-            <ChapterListCard
-              chapter={item}
-              number={index + 1}
-              kind={kind}
-              selected={item.id === selectedChapterId}
-              onOpen={() => {
-                setSelectedChapterId(item.id);
-                if (projectId) router.navigate(`/project/${projectId}/manuscript`);
-              }}
-              onRequestDelete={() => requestDelete(item)}
-              onStatusChange={(status) => {
-                void saveStatus(item, status);
-              }}
-              onOpenHistory={
-                projectId
-                  ? () => router.push(`/project/${projectId}/history/${item.id}` as never)
-                  : undefined
+              </View>
+            ) : null
+          }
+          ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} /> : null}
+          ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
+          renderItem={({ item, index }) => (
+            <Animated.View
+              entering={
+                reduceMotion
+                  ? undefined
+                  : freshIds.has(item.id)
+                    ? SlideInRight.duration(260)
+                    : restoredIds.current.has(item.id)
+                      ? FadeIn.duration(200)
+                      : undefined
               }
-            />
-          </Animated.View>
-        )}
-      />
+              exiting={reduceMotion ? undefined : SlideOutLeft.duration(200)}
+            >
+              <ChapterListCard
+                chapter={item}
+                number={index + 1}
+                kind={kind}
+                selected={item.id === selectedChapterId}
+                onOpen={() => {
+                  setSelectedChapterId(item.id);
+                  if (projectId) router.navigate(`/project/${projectId}/manuscript`);
+                }}
+                onRequestDelete={() => requestDelete(item)}
+                onStatusChange={(status) => {
+                  void saveStatus(item, status);
+                }}
+                onOpenHistory={
+                  projectId
+                    ? () => router.push(`/project/${projectId}/history/${item.id}` as never)
+                    : undefined
+                }
+              />
+            </Animated.View>
+          )}
+        />
+      </SlideDownIn>
       <UndoSnackbar message={notice?.message ?? null} onUndo={undoRemoval} bottom={clearance - 12} />
     </View>
   );

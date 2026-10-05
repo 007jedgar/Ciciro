@@ -1,5 +1,7 @@
 import {
   CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS,
+  entersWithStackPush,
+  stackPushTransform,
   ownsStackRemove,
   POP_OVER_STACK_SCREEN_OPTIONS,
   shouldInterceptStackRemove,
@@ -129,5 +131,29 @@ describe("sheet pop", () => {
 
   it("covers the utility screens", () => {
     expect([...SHEET_POP_ROUTES].sort()).toEqual(["listen", "sprint"]);
+  });
+});
+
+describe("stack push transition", () => {
+  it("starts off the right-hand edge and settles flush", () => {
+    expect(stackPushTransform(0, WIDTH, 800, false)).toEqual({ translateX: WIDTH, translateY: 0 });
+    expect(stackPushTransform(1, WIDTH, 800, false)).toEqual({ translateX: 0, translateY: 0 });
+  });
+
+  it("comes up from the bottom for a sheet, the mirror of how it leaves", () => {
+    expect(stackPushTransform(0, WIDTH, 800, true)).toEqual({ translateX: 0, translateY: 800 });
+    expect(stackPushTransform(1, WIDTH, 800, true)).toEqual({ translateX: 0, translateY: 0 });
+  });
+
+  it("clamps progress, so an overshooting timing cannot push it past its place", () => {
+    expect(stackPushTransform(1.4, WIDTH, 800, false).translateX).toBe(0);
+    expect(stackPushTransform(-1, WIDTH, 800, false).translateX).toBe(WIDTH);
+  });
+
+  it("only the routes presented over the stack slide in", () => {
+    expect(entersWithStackPush(POP_OVER_STACK_SCREEN_OPTIONS.presentation)).toBe(true);
+    expect(entersWithStackPush(CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS.presentation)).toBe(true);
+    expect(entersWithStackPush(undefined)).toBe(false);
+    expect(entersWithStackPush("card")).toBe(false);
   });
 });
