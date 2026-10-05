@@ -19,6 +19,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.ciciro.mobile",
       "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Ciciro reads a photo only when you choose a file from your photo library to import into a manuscript."
+      },
       "config": {
         "usesNonExemptEncryption": false
       }
