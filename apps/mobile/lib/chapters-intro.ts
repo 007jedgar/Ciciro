@@ -8,7 +8,7 @@ export const TOOL_POP_DRIFT = 14;
 /** How far above its place the chapter list starts when it slides down. */
 export const CHAPTERS_SLIDE_DISTANCE = 44;
 export const CHAPTERS_SLIDE_MS = 360;
-/** Lets the pushed screen finish arriving before its content starts to move. */
+/** Counted from the push's start, so the content moves once the screen is well on its way in. */
 export const CHAPTERS_SLIDE_DELAY_MS = 120;
 
 /** When tile `index` starts popping, after `base` ms. */

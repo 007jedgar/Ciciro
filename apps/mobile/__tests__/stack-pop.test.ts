@@ -1,3 +1,4 @@
+import { createArrivalSignal } from "../lib/stack-arrival";
 import {
   CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS,
   entersWithStackPush,
@@ -155,5 +156,39 @@ describe("stack push transition", () => {
     expect(entersWithStackPush(CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS.presentation)).toBe(true);
     expect(entersWithStackPush(undefined)).toBe(false);
     expect(entersWithStackPush("card")).toBe(false);
+  });
+});
+
+describe("stack arrival signal", () => {
+  it("holds listeners until the push starts, then runs each once", () => {
+    const signal = createArrivalSignal();
+    const listener = jest.fn();
+    signal.subscribe(listener);
+    expect(listener).not.toHaveBeenCalled();
+    signal.fire();
+    signal.fire();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs a listener added after the push at once", () => {
+    const signal = createArrivalSignal();
+    signal.fire();
+    const listener = jest.fn();
+    signal.subscribe(listener);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a listener that unsubscribed before the push", () => {
+    const signal = createArrivalSignal();
+    const listener = jest.fn();
+    signal.subscribe(listener)();
+    signal.fire();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("starts already fired outside any pushed screen", () => {
+    const listener = jest.fn();
+    createArrivalSignal(true).subscribe(listener);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

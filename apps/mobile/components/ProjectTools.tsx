@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { alpha } from "./Glass";
 import { PressableCard } from "./PressableCard";
 import { useAppTheme } from "../lib/settings";
+import { useStackArrival } from "../lib/stack-arrival";
 import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT } from "../lib/motion";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -30,19 +31,22 @@ const GAP = 10;
 
 /**
  * One tile popping in a beat after the one to its left, growing from a little
- * smaller and drifting right into place. Plays once when the row mounts; reduce
- * motion shows the tile at once.
+ * smaller and drifting right into place. Plays once, timed from the screen's
+ * push (or from mount on a screen already on show); reduce motion shows the
+ * tile at once.
  */
 function ToolPop({ index, delay, children }: { index: number; delay: number; children: ReactNode }) {
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(reduceMotion ? 1 : 0);
 
-  useTimingOnFirstFrame(progress, {
+  const begin = useTimingOnFirstFrame(progress, {
     duration: TOOL_POP_MS,
     delay: toolPopDelay(index, delay),
     easing: EASE_OUT,
     enabled: !reduceMotion,
+    autoStart: false,
   });
+  useStackArrival(begin);
 
   const drift = TOOL_POP_DRIFT;
   const style = useAnimatedStyle(() => {
@@ -55,7 +59,8 @@ function ToolPop({ index, delay, children }: { index: number; delay: number; chi
 /**
  * The project's tools as one sideways-scrolling row of icon tiles, so the
  * chapters sit right under the recap card. The tiles pop in one after another,
- * left to right, starting `introDelay` ms after the row mounts.
+ * left to right, starting `introDelay` ms after the screen starts sliding in
+ * (or after the row mounts, on a screen already on show).
  */
 export function ProjectTools({ tools, introDelay = 0 }: { tools: readonly ProjectTool[]; introDelay?: number }) {
   const { colors } = useAppTheme();
