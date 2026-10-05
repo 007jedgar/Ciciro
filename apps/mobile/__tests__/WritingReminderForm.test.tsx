@@ -1,6 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { WritingReminderForm } from "../components/WritingReminderForm";
-import { formatReminderClock, newWritingReminder, WEEKDAYS } from "../lib/writing-reminders";
+import { newWritingReminder, WEEKDAYS } from "../lib/writing-reminders";
+
+// The native picker has no JS surface to drive; a stand-in that forwards `onChange` keeps the
+// form's own handling (hour/minute read-back, dismissed events) under test.
+jest.mock("@react-native-community/datetimepicker", () => {
+  const { View } = require("react-native");
+  return { __esModule: true, default: (props: object) => <View {...props} /> };
+});
 
 const manuscripts = [
   { id: "p1", title: "Night Watch" },
@@ -68,7 +75,7 @@ describe("WritingReminderForm", () => {
     expect(screen.getByText("250 words today.")).toBeTruthy();
   });
 
-  it("steps the time and requires at least one day", () => {
+  it("picks a time with the native picker and requires at least one day", () => {
     const onSave = jest.fn();
     render(
       <WritingReminderForm
@@ -78,12 +85,18 @@ describe("WritingReminderForm", () => {
       />
     );
 
-    expect(screen.getByText(formatReminderClock(8, 0, "en"))).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Later"));
-    expect(screen.getByText(formatReminderClock(8, 15, "en"))).toBeTruthy();
-    fireEvent.press(screen.getByLabelText("Earlier"));
-    fireEvent.press(screen.getByLabelText("Earlier"));
-    expect(screen.getByText(formatReminderClock(7, 45, "en"))).toBeTruthy();
+    const picker = screen.getByTestId("reminder-time-picker");
+    expect(picker.props.mode).toBe("time");
+    expect(picker.props.value.getHours()).toBe(8);
+    expect(picker.props.value.getMinutes()).toBe(0);
+
+    fireEvent(picker, "change", { type: "set" }, new Date(2020, 0, 1, 21, 37));
+    expect(screen.getByTestId("reminder-time-picker").props.value.getHours()).toBe(21);
+    expect(screen.getByTestId("reminder-time-picker").props.value.getMinutes()).toBe(37);
+
+    fireEvent.press(screen.getByLabelText("Save reminder"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ hour: 21, minute: 37 }));
+    onSave.mockClear();
 
     for (const day of ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]) {
       fireEvent.press(screen.getByLabelText(day));
@@ -92,6 +105,27 @@ describe("WritingReminderForm", () => {
 
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("Pick at least one day.");
+  });
+
+  it("ignores a dismissed picker and offers the suggested hour", () => {
+    const onSave = jest.fn();
+    render(
+      <WritingReminderForm
+        reminder={newWritingReminder({ id: "wr_7" })}
+        manuscripts={manuscripts}
+        suggestedHour={20}
+        onSave={onSave}
+      />
+    );
+
+    fireEvent(screen.getByTestId("reminder-time-picker"), "change", { type: "dismissed" }, undefined);
+    fireEvent.press(screen.getByLabelText("Save reminder"));
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ hour: 8, minute: 0 }));
+
+    fireEvent.press(screen.getByLabelText("Use this time"));
+    const picker = screen.getByTestId("reminder-time-picker");
+    expect(picker.props.value.getHours()).toBe(20);
+    expect(picker.props.value.getMinutes()).toBe(0);
   });
 
   it("saves a paused reminder and deletes only after a second press", () => {

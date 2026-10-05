@@ -9,7 +9,6 @@ import {
   reminderDaySummary,
   reminderHrefFromNotificationData,
   reminderNotificationText,
-  shiftReminderTime,
   upsertWritingReminder,
   WEEKDAYS,
   type ReminderTranslate,
@@ -171,9 +170,7 @@ describe("writing reminders", () => {
     expect(planned[0]?.body).toBe("Mara found the letter.\n\nWhat does she do?");
   });
 
-  it("wraps the clock and summarizes days", () => {
-    expect(shiftReminderTime(0, 0, -15)).toEqual({ hour: 23, minute: 45 });
-    expect(shiftReminderTime(23, 45, 15)).toEqual({ hour: 0, minute: 0 });
+  it("summarizes days", () => {
     expect(reminderDaySummary([...WEEKDAYS], t)).toBe("Every day");
     expect(reminderDaySummary([0, 1], t)).toBe("Su Mo");
     expect(formatReminderClock(20, 5, "en-US")).toMatch(/8:05/);

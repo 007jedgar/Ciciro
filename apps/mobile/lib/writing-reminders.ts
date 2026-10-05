@@ -161,16 +161,6 @@ export function removeWritingReminder(
   return list.filter((item) => item.id !== id);
 }
 
-export function shiftReminderTime(
-  hour: number,
-  minute: number,
-  deltaMinutes: number
-): { hour: number; minute: number } {
-  const span = 24 * 60;
-  const total = (((hour * 60 + minute + deltaMinutes) % span) + span) % span;
-  return { hour: Math.floor(total / 60), minute: total % 60 };
-}
-
 export function toggleReminderDay(days: readonly Weekday[], day: Weekday): Weekday[] {
   const selected = new Set(days);
   if (selected.has(day)) selected.delete(day);

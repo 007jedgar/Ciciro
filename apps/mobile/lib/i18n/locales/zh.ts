@@ -827,8 +827,6 @@ const zh: Translations = {
     goalValue_one: "{{count}} 字",
     goalValue_other: "{{count}} 字",
     when: "时间",
-    earlier: "早一点",
-    later: "晚一点",
     timeA11y: "{{time}}",
     days: "重复",
     everyDay: "每天",
