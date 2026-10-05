@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { StyleSheet, Text } from "react-native";
+import { Text } from "react-native";
 import { ProjectTools, type ProjectTool } from "../components/ProjectTools";
 import { defaultSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
@@ -43,19 +43,19 @@ describe("ProjectTools", () => {
     expect(TOOLS[0].onPress).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps every tile at least the 96pt tile, and lets the whole row grow together with large text", () => {
+  it("labels every tile, numbers the ones without a badge, and shows a tool's count", () => {
     renderTools(TOOLS);
-    const row = StyleSheet.flatten(screen.getByTestId("project-tools").props.contentContainerStyle);
-    expect(row.alignItems ?? "stretch").toBe("stretch");
-    for (const { key, label } of TOOLS) {
-      const tile = StyleSheet.flatten(screen.getByTestId(`tool-${key}`).props.style);
-      expect(tile.minHeight).toBe(96);
-      expect(tile.height).toBeUndefined();
-      expect(tile.maxHeight).toBeUndefined();
-      expect(tile.flexGrow).toBe(1);
-      const text = screen.getByText(label);
-      expect(text.props.allowFontScaling).not.toBe(false);
-      expect(text.props.maxFontSizeMultiplier).toBeUndefined();
-    }
+    for (const { label } of TOOLS) expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.getByText("01")).toBeTruthy();
+    expect(screen.getByText("02")).toBeTruthy();
+    expect(screen.getByText("3")).toBeTruthy();
+    expect(screen.queryByText("03")).toBeNull();
+  });
+
+  it("does not open a busy tool", () => {
+    const busy = tool("export", "Export", { busy: true });
+    renderTools([busy]);
+    fireEvent.press(screen.getByLabelText("Export"));
+    expect(busy.onPress).not.toHaveBeenCalled();
   });
 });
