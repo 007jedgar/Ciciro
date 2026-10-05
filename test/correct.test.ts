@@ -100,6 +100,10 @@ describe("parseCorrectionSpans", () => {
       "I went to the market."
     );
     expect(applied("I went to the the market.", fixes(["the ", ""]))).toBe("I went to the market.");
+    expect(applied("I went to the the market.", fixes(["the", ""]))).toBe("I went to the market.");
+    expect(applied("I went home home", fixes(["home home", "home"]))).toBe("I went home");
+    expect(applied("It was really very good.", fixes(["very", ""]))).toBe("It was really good.");
+    expect(applied("I went home home", fixes([" home", ""]))).toBe("I went home");
   });
 
   it.each([
