@@ -1,15 +1,14 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withTiming,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { alpha } from "./Glass";
 import { PressableCard } from "./PressableCard";
 import { useAppTheme } from "../lib/settings";
+import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT } from "../lib/motion";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { TOOL_POP_DRIFT, TOOL_POP_MS, toolPopDelay, toolPopTransform } from "../lib/chapters-intro";
@@ -38,18 +37,12 @@ function ToolPop({ index, delay, children }: { index: number; delay: number; chi
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(reduceMotion ? 1 : 0);
 
-  useEffect(() => {
-    if (reduceMotion) {
-      progress.value = 1;
-      return;
-    }
-    progress.value = withDelay(
-      toolPopDelay(index, delay),
-      withTiming(1, { duration: TOOL_POP_MS, easing: EASE_OUT })
-    );
-    // Once, on mount: reordering or a badge changing must not replay the pop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useTimingOnFirstFrame(progress, {
+    duration: TOOL_POP_MS,
+    delay: toolPopDelay(index, delay),
+    easing: EASE_OUT,
+    enabled: !reduceMotion,
+  });
 
   const drift = TOOL_POP_DRIFT;
   const style = useAnimatedStyle(() => {

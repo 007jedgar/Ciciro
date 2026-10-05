@@ -1,12 +1,11 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withTiming,
 } from "react-native-reanimated";
 import { CHAPTERS_SLIDE_DISTANCE, CHAPTERS_SLIDE_MS } from "../lib/chapters-intro";
+import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT } from "../lib/motion";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 
@@ -30,15 +29,12 @@ export function SlideDownIn({
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(enabled ? 0 : 1);
 
-  useEffect(() => {
-    if (!enabled) return;
-    progress.value = withDelay(
-      delay,
-      withTiming(1, { duration: reduceMotion ? 160 : CHAPTERS_SLIDE_MS, easing: EASE_OUT })
-    );
-    // Once, on mount: a later change to `enabled` (the arrival being consumed) must not replay it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useTimingOnFirstFrame(progress, {
+    duration: reduceMotion ? 160 : CHAPTERS_SLIDE_MS,
+    delay,
+    easing: EASE_OUT,
+    enabled,
+  });
 
   const distance = reduceMotion ? 0 : CHAPTERS_SLIDE_DISTANCE;
   const animated = useAnimatedStyle(() => ({
