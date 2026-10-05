@@ -309,3 +309,11 @@ export function blockAtPlainOffset(
   const { index, local } = locateEditorOffset(blocks, offset);
   return { blockId: blocks[index].id, local };
 }
+
+/** Whether block `blockId` sits in a paragraph above the document-level caret `offset`. */
+export function blockIsAbovePlainOffset(html: string, blockId: string, offset: number): boolean {
+  const blocks = htmlToDoc(html || "<p></p>", 0).doc.blocks;
+  const at = blocks.findIndex((block) => block.id === blockId);
+  if (at === -1 || blocks.length === 0) return false;
+  return at < locateEditorOffset(blocks, offset).index;
+}

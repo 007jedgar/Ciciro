@@ -42,6 +42,7 @@ import {
 } from "../../../../lib/editor-session";
 import {
   blockAtPlainOffset,
+  blockIsAbovePlainOffset,
   fromEnrichedHtmlAsShown,
   opsFromEnrichedHtml,
   restampCiciroHtml,
@@ -482,13 +483,16 @@ export default function ManuscriptScreen() {
       loop.setSuggestion(null);
       return;
     }
-    const blockIndex = (id: string) => doc.blocks.findIndex((block) => block.id === id);
     const caret = caretAfterCorrection({
       text: liveChapterText(current),
       caret: caretRef.current.docOffset,
       paragraph: live,
       span: accepted.span,
-      correctedAbove: blockIndex(accepted.blockId) < blockIndex(caretRef.current.blockId),
+      correctedAbove: blockIsAbovePlainOffset(
+        current.content,
+        accepted.blockId,
+        caretRef.current.docOffset
+      ),
     });
     commitOps(replaceBlockOps(doc, accepted.blockId, accepted.nextText, { actor: "correction" }));
     const next = chapterRef.current;

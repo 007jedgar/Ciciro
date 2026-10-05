@@ -1,5 +1,6 @@
 import {
   blockAtPlainOffset,
+  blockIsAbovePlainOffset,
   fromEnrichedHtml,
   opsFromEnrichedHtml,
   restampCiciroHtml,
@@ -119,6 +120,15 @@ describe("enriched html adapter", () => {
     expect(blockAtPlainOffset(html, 0)).toEqual({ blockId: "a", local: 0 });
     expect(blockAtPlainOffset(html, 2)).toEqual({ blockId: "a", local: 2 });
     expect(blockAtPlainOffset(html, 3)).toEqual({ blockId: "b", local: 0 });
+  });
+
+  it("tells whether a block sits above the caret's paragraph", () => {
+    const html = '<p data-block-id="a">I\'d sing.</p><p data-block-id="b">Then</p>';
+    // Shown as "I'd sing.\nThen", caret typing in the second paragraph.
+    expect(blockIsAbovePlainOffset(html, "a", 14)).toBe(true);
+    expect(blockIsAbovePlainOffset(html, "a", 5)).toBe(false);
+    expect(blockIsAbovePlainOffset(html, "b", 14)).toBe(false);
+    expect(blockIsAbovePlainOffset(html, "missing", 14)).toBe(false);
   });
 
   it("counts scene breaks as the editor shows them when mapping a caret", () => {

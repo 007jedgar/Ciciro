@@ -133,9 +133,16 @@ export function parseCorrectionSpans(raw: string, text: string): CorrectionSpan[
     if (at === -1) at = folded.indexOf(needle);
     if (at === -1) continue;
     const fix = narrowFix(original, row.replacement);
-    const start = at + fix.lead;
-    const end = at + original.length - fix.trail;
+    let start = at + fix.lead;
+    let end = at + original.length - fix.trail;
     if (start >= end) continue;
+    // A bare word deletion ("the" -> "") takes one space with it, the one
+    // after the word or, at the end of a line, the one before.
+    const removed = text.slice(start, end);
+    if (!fix.replacement && !isBlank(removed) && removed.trim() === removed) {
+      if (/\s/.test(text[end] ?? "")) end++;
+      else if (/\s/.test(text[start - 1] ?? "")) start--;
+    }
     const current = text.slice(start, end);
     // Keep the writer's apostrophes: a fix to "I’dd" stays curly.
     const replacement =
