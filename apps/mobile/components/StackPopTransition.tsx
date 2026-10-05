@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { useNavigation } from "expo-router";
 import Animated, {
@@ -13,6 +13,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
 import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT, EASE_PUSH } from "../lib/motion";
+import { createArrivalSignal, StackArrivalContext } from "../lib/stack-arrival";
 import {
   ownsStackRemove,
   shouldInterceptStackRemove,
@@ -63,12 +64,20 @@ export function StackPopTransition({
   // is not in the window until the heavy first render has been mounted and
   // presented, and frames counted before that are played where nobody can see
   // them. The timer is for a route the stack never reports (a first screen).
-  const beginArrival = useTimingOnFirstFrame(arrival, {
+  const startArrival = useTimingOnFirstFrame(arrival, {
     duration: reduceMotion ? STACK_POP_FADE_MS : STACK_PUSH_MS,
     easing: reduceMotion ? Easing.linear : variant === "sheet" ? EASE_SHEET : EASE_PUSH,
     enabled: enter,
     autoStart: false,
   });
+  // Content inside a pushed screen times its own entrance from here; a screen
+  // that does not slide in passes on the push it sits inside, if any.
+  const outerArrival = useContext(StackArrivalContext);
+  const [ownArrival] = useState(() => (enter ? createArrivalSignal() : null));
+  const beginArrival = useCallback(() => {
+    startArrival();
+    ownArrival?.fire();
+  }, [startArrival, ownArrival]);
 
   useEffect(() => {
     if (!enter) return;
@@ -149,9 +158,11 @@ export function StackPopTransition({
   // background, which sits a level up: that one would stay full-screen behind
   // the collapse and hide whatever the pop is revealing.
   return (
-    <Animated.View style={[styles.fill, { backgroundColor: colors.bg }, style]}>
-      {children}
-    </Animated.View>
+    <StackArrivalContext.Provider value={ownArrival ?? outerArrival}>
+      <Animated.View style={[styles.fill, { backgroundColor: colors.bg }, style]}>
+        {children}
+      </Animated.View>
+    </StackArrivalContext.Provider>
   );
 }
 

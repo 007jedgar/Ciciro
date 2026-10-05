@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   runOnJS,
   useFrameCallback,
@@ -31,14 +31,18 @@ export function useTimingOnFirstFrame(
   const elapsed = useSharedValue(0);
   const frameRef = useRef<{ setActive: (active: boolean) => void } | null>(null);
   const stop = useCallback(() => frameRef.current?.setActive(false), []);
-  const frame = useFrameCallback((info: FrameInfo) => {
-    "worklet";
-    elapsed.value += Math.min(info.timeSincePreviousFrame ?? 0, 34);
-    const t = Math.max(0, Math.min(1, (elapsed.value - delay) / duration));
-    const ease = typeof easing === "function" ? easing : easing.factory();
-    target.value = to * ease(t);
-    if (t >= 1) runOnJS(stop)();
-  }, false);
+  const ease = useMemo(() => ("factory" in easing ? easing.factory() : easing), [easing]);
+  const onFrame = useCallback(
+    (info: FrameInfo) => {
+      "worklet";
+      elapsed.value += Math.min(info.timeSincePreviousFrame ?? 0, 34);
+      const t = Math.max(0, Math.min(1, (elapsed.value - delay) / duration));
+      target.value = to * ease(t);
+      if (t >= 1) runOnJS(stop)();
+    },
+    [elapsed, target, to, delay, duration, ease, stop]
+  );
+  const frame = useFrameCallback(onFrame, false);
   frameRef.current = frame;
 
   const started = useRef(false);
