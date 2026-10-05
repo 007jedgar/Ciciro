@@ -304,6 +304,11 @@ the phone the page gets extra room at the bottom so the last lines can scroll
 up to the middle, but the editor cannot re-center on every keystroke the way
 the web does.
 
+**Haptics** (Settings, phone only; on by default) gives a light tap when you
+press a button, a soft tick as each sentence of Ciciro's reply arrives or an
+edit lands, and a short cue when the reply finishes or fails. Like focus mode it
+is remembered per device, not synced. Turn it off to silence all of them.
+
 ## Read aloud
 
 Hearing a chapter is a good way to catch clunky lines. On the web, choose **Listen** in the top bar; on the phone, tap **Listen** above the editor or open the **Read aloud** tile in the Chapters tab.
