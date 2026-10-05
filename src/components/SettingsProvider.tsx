@@ -15,6 +15,7 @@ import {
   getStoredTheme,
   resolveTheme,
   THEME_STORAGE_KEY,
+  webTheme,
 } from "@/lib/theme";
 import {
   applyPatch,
@@ -87,7 +88,7 @@ function readLocalUserId(): string | null {
 function writeLocalSettings(settings: AppSettings, userId?: string | null) {
   try {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    localStorage.setItem(THEME_STORAGE_KEY, settings.theme);
+    localStorage.setItem(THEME_STORAGE_KEY, webTheme(settings.theme));
     localStorage.setItem("ciciro-chat-width", String(settings.chatWidth));
     if (userId) localStorage.setItem(SETTINGS_USER_KEY, userId);
   } catch {

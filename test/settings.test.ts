@@ -10,6 +10,7 @@ import {
   pickNewer,
   settingsEqual,
 } from "@/lib/settings";
+import { THEMES, webTheme } from "@/lib/theme";
 
 describe("app settings", () => {
   it("fills defaults and clamps values", () => {
@@ -41,6 +42,17 @@ describe("app settings", () => {
     expect(s.theme).toBe("parchment");
     expect(s.editorFont).toBe("serif");
     expect(s.formatChrome).toBe("smart");
+  });
+
+  it("keeps the phone-only themes as stored, which the web renders as its own default of that mode", () => {
+    expect(normalizeSettings({ theme: "ciciro" }).theme).toBe("ciciro");
+    expect(normalizeSettings({ theme: "ciciro-night" }).theme).toBe("ciciro-night");
+    expect(parseSettingsPatch({ theme: "ciciro" })).toEqual({ theme: "ciciro" });
+    expect(parseSettingsPatch({ theme: "ciciro-night" })).toEqual({ theme: "ciciro-night" });
+    expect(webTheme("ciciro")).toBe("parchment");
+    expect(webTheme("ciciro-night")).toBe("ember");
+    expect(webTheme("walnut")).toBe("walnut");
+    expect(THEMES.map((t) => t.id)).not.toContain("ciciro");
   });
 
   it("parses empty JSON as defaults", () => {

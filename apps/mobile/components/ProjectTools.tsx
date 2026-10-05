@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { alpha } from "./Glass";
 import { PressableCard } from "./PressableCard";
 import { useAppTheme } from "../lib/settings";
+import { fonts } from "../lib/theme";
 import { useStackArrival } from "../lib/stack-arrival";
 import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT } from "../lib/motion";
@@ -27,7 +28,7 @@ export type ProjectTool = {
 
 /** Matches the screen's side padding so the row runs edge to edge. */
 const BLEED = 20;
-const GAP = 10;
+const GAP = 8;
 
 /**
  * One tile popping in a beat after the one to its left, growing from a little
@@ -86,19 +87,23 @@ export function ProjectTools({ tools, introDelay = 0 }: { tools: readonly Projec
                 { backgroundColor: colors.panel, borderColor: colors.line, opacity: tool.busy ? 0.6 : 1 },
               ]}
             >
-              <View>
+              <View style={styles.top}>
                 {tool.busy ? <ActivityIndicator size="small" color={colors.accent} /> : tool.icon}
                 {tool.badge !== undefined && tool.badge !== null ? (
                   <View
                     style={[
                       styles.badge,
                       tool.badge ? styles.badgeCount : null,
-                      { backgroundColor: colors.accent },
+                      { backgroundColor: colors.vermilion },
                     ]}
                   >
-                    {tool.badge ? <Text style={[styles.badgeText, { color: colors.bg }]}>{tool.badge}</Text> : null}
+                    {tool.badge ? <Text style={[styles.badgeText, { color: colors.paperInk }]}>{tool.badge}</Text> : null}
                   </View>
-                ) : null}
+                ) : (
+                  <Text style={[styles.index, { color: colors.inkSoft }]}>
+                    {String(index + 1).padStart(2, "0")}
+                  </Text>
+                )}
               </View>
               <Text numberOfLines={2} style={[styles.label, { color: colors.ink }]}>
                 {tool.label}
@@ -120,31 +125,23 @@ export function ProjectTools({ tools, introDelay = 0 }: { tools: readonly Projec
 }
 
 const styles = StyleSheet.create({
-  row: { marginHorizontal: -BLEED, marginBottom: 16 },
+  row: { marginHorizontal: -BLEED, marginBottom: 24 },
   tiles: { gap: GAP, paddingHorizontal: BLEED },
   fade: { position: "absolute", top: 0, bottom: 0, right: 0, width: 32 },
   tile: {
-    width: 92,
-    minHeight: 76,
+    width: 112,
+    minHeight: 92,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    justifyContent: "space-between",
+    gap: 14,
   },
-  label: { fontSize: 13, fontWeight: "600", textAlign: "center", lineHeight: 16 },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -8,
-    minWidth: 8,
-    height: 8,
-    borderRadius: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeCount: { minWidth: 16, height: 16, borderRadius: 8, top: -8, right: -12 },
-  badgeText: { fontSize: 10, fontWeight: "700", paddingHorizontal: 4 },
+  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  index: { fontFamily: fonts.mono, fontSize: 10.5, letterSpacing: 0.8 },
+  label: { fontFamily: fonts.uiBold, fontSize: 13.5, lineHeight: 16 },
+  badge: { minWidth: 9, height: 9, borderRadius: 5, alignItems: "center", justifyContent: "center" },
+  badgeCount: { minWidth: 18, height: 18, borderRadius: 9 },
+  badgeText: { fontFamily: fonts.monoMedium, fontSize: 10, paddingHorizontal: 4 },
 });

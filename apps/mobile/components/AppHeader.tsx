@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   lead: { flex: 1, flexDirection: "row", alignItems: "center", gap: 2, minWidth: 0 },
-  title: { flex: 1, fontFamily: fonts.serif, fontSize: 26 },
+  title: { flex: 1, fontFamily: fonts.display, fontSize: 30, letterSpacing: -0.5 },
   actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   actionBtn: {

@@ -1,4 +1,4 @@
-import { isThemeId, type ThemeId } from "@/lib/theme";
+import { isStoredThemeId, type StoredThemeId } from "@/lib/theme";
 import {
   clampDailyWordGoal,
   clampWeeklyDayTarget,
@@ -27,7 +27,8 @@ export const DEFAULT_CHAT_WIDTH = 380;
 export const DEFAULT_EDITOR_FONT_SIZE: EditorFontSize = 19;
 
 export type AppSettings = {
-  theme: ThemeId;
+  /** Includes the phone-only themes, which the server stores as sent and the web maps with `webTheme`. */
+  theme: StoredThemeId;
   editorFont: EditorFont;
   editorFontSize: EditorFontSize;
   formatChrome: FormatChrome;
@@ -120,7 +121,7 @@ export function normalizeSettings(raw: unknown, now: Date | string = new Date())
       ? (raw as Record<string, unknown>)
       : {};
   const defaults = defaultSettings(at);
-  const theme = typeof src.theme === "string" && isThemeId(src.theme) ? src.theme : defaults.theme;
+  const theme = typeof src.theme === "string" && isStoredThemeId(src.theme) ? src.theme : defaults.theme;
   const editorFont = src.editorFont === "sans" || src.editorFont === "serif" ? src.editorFont : defaults.editorFont;
   const editorFontSize =
     typeof src.editorFontSize === "number" && Number.isFinite(src.editorFontSize)
@@ -190,7 +191,7 @@ export function parseSettingsPatch(body: unknown): SettingsPatch | { error: stri
   const patch: SettingsPatch = {};
 
   if ("theme" in src) {
-    if (typeof src.theme !== "string" || !isThemeId(src.theme)) {
+    if (typeof src.theme !== "string" || !isStoredThemeId(src.theme)) {
       return { error: "Unknown theme." };
     }
     patch.theme = src.theme;

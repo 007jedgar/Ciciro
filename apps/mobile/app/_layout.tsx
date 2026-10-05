@@ -10,7 +10,7 @@ import "../lib/i18n";
 import { SessionProvider } from "../lib/session";
 import { useOptionalAppTheme } from "../lib/app-theme-context";
 import { SettingsProvider } from "../lib/settings";
-import { THEME_PALETTES } from "../lib/theme";
+import { DEFAULT_THEME, THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
 import { AnalyticsSync } from "../components/AnalyticsSync";
 import { PushRegistrationSync } from "../components/PushRegistrationSync";
@@ -25,7 +25,7 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 
 function ThemedStack() {
   const theme = useOptionalAppTheme();
-  const colors = theme?.colors ?? THEME_PALETTES.parchment;
+  const colors = theme?.colors ?? THEME_PALETTES[DEFAULT_THEME];
   const dark = theme?.dark ?? false;
   const reduceMotion = useReduceMotion();
   const { t } = useTranslation();

@@ -30,12 +30,32 @@ export const THEMES: ThemeMeta[] = [
   { id: "candle", label: "Candle", mode: "dark", swatch: ["#14110e", "#e0a85c"] },
 ];
 
+/**
+ * Themes only the phone app has (apps/mobile/lib/theme.ts). The theme setting
+ * syncs between phone and web, so the server keeps these ids as stored and the
+ * web shows its own default of the same mode (see `webTheme`).
+ */
+export const PHONE_THEME_IDS = ["ciciro", "ciciro-night"] as const;
+export type PhoneThemeId = (typeof PHONE_THEME_IDS)[number];
+export type StoredThemeId = ThemeId | PhoneThemeId;
+
 export const THEME_STORAGE_KEY = "ciciro-theme";
 export const DEFAULT_LIGHT: ThemeId = "parchment";
 export const DEFAULT_DARK: ThemeId = "ember";
 
 export function isThemeId(value: string | null | undefined): value is ThemeId {
   return THEMES.some((t) => t.id === value);
+}
+
+export function isStoredThemeId(value: string | null | undefined): value is StoredThemeId {
+  return isThemeId(value) || (PHONE_THEME_IDS as readonly (string | null | undefined)[]).includes(value);
+}
+
+/** The theme the web renders for a stored one: its own, or its default of the phone theme's mode. */
+export function webTheme(id: StoredThemeId): ThemeId {
+  if (id === "ciciro") return DEFAULT_LIGHT;
+  if (id === "ciciro-night") return DEFAULT_DARK;
+  return id;
 }
 
 export function resolveTheme(stored: string | null): ThemeId {
@@ -46,7 +66,8 @@ export function resolveTheme(stored: string | null): ThemeId {
   return DEFAULT_LIGHT;
 }
 
-export function applyTheme(id: ThemeId) {
+export function applyTheme(stored: StoredThemeId) {
+  const id = webTheme(stored);
   const mode = THEMES.find((t) => t.id === id)?.mode ?? "light";
   document.documentElement.setAttribute("data-theme", id);
   document.documentElement.setAttribute("data-mode", mode);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSettings } from "@/components/SettingsProvider";
-import { DEFAULT_DARK, DEFAULT_LIGHT, THEMES } from "@/lib/theme";
+import { DEFAULT_DARK, DEFAULT_LIGHT, THEMES, webTheme } from "@/lib/theme";
 
 /**
  * Day or night, one click, for the public pages. It sets the same theme the
@@ -12,7 +12,7 @@ import { DEFAULT_DARK, DEFAULT_LIGHT, THEMES } from "@/lib/theme";
  */
 export default function ThemeToggle({ className = "" }: { className?: string }) {
   const { settings, patch } = useSettings();
-  const night = THEMES.find((t) => t.id === settings.theme)?.mode === "dark";
+  const night = THEMES.find((t) => t.id === webTheme(settings.theme))?.mode === "dark";
   return (
     <button
       type="button"

@@ -1,6 +1,8 @@
 import { StyleSheet } from "react-native";
 
 export type ThemeId =
+  | "ciciro"
+  | "ciciro-night"
   | "parchment"
   | "sage"
   | "ember"
@@ -19,18 +21,85 @@ export type ColorTokens = {
   accentSoft: string;
   draft: string;
   danger: string;
+  /** Archive paper stock, shared by every theme. Text on these is always ink. */
+  vermilion: string;
+  blush: string;
+  butter: string;
+  /** Ink for text printed on the stock above in every theme. */
+  paperInk: string;
+  /** The ink band behind folder tabs; lighter in dark themes so it reads against the card. */
+  band: string;
+  bandInk: string;
+  /** Text and fill that sit on the accent. */
+  onAccent: string;
 };
 
+const STOCK_LIGHT = {
+  paperInk: "#141414",
+  vermilion: "#e8442c",
+  blush: "#f5aca2",
+  butter: "#ffd84d",
+  band: "#141414",
+  bandInk: "#f3efe6",
+} as const;
+const STOCK_DARK = {
+  paperInk: "#141414",
+  vermilion: "#ff5a40",
+  blush: "#d98a82",
+  butter: "#f2c94c",
+  band: "#46433c",
+  bandInk: "#f3efe6",
+} as const;
+
+/**
+ * The picker's order and display names. The stored ids never change, so an
+ * author who picked a theme before a rename keeps it: "sage" is shown as
+ * Marginalia, "ember" as First Edition, "walnut" as Bookshelf, "candle" as
+ * Dog-Ear. "ciciro" and "ciciro-night" are the Archive look of the website.
+ */
 export const THEME_META: { id: ThemeId; label: string; mode: "light" | "dark" }[] = [
+  { id: "ciciro", label: "Ciciro", mode: "light" },
+  { id: "ciciro-night", label: "Ciciro Night", mode: "dark" },
   { id: "parchment", label: "Parchment", mode: "light" },
-  { id: "sage", label: "Sage", mode: "light" },
-  { id: "ember", label: "Ember", mode: "dark" },
-  { id: "walnut", label: "Walnut", mode: "dark" },
+  { id: "sage", label: "Marginalia", mode: "light" },
+  { id: "ember", label: "First Edition", mode: "dark" },
+  { id: "walnut", label: "Bookshelf", mode: "dark" },
   { id: "inkwell", label: "Inkwell", mode: "dark" },
-  { id: "candle", label: "Candle", mode: "dark" },
+  { id: "candle", label: "Dog-Ear", mode: "dark" },
 ];
 
+/** What a person who never picked a theme sees. */
+export const DEFAULT_THEME: ThemeId = "ciciro";
+
 export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
+  ciciro: {
+    bg: "#f1ede4",
+    panel: "#fffdf7",
+    panel2: "#e9e4d8",
+    ink: "#141414",
+    inkSoft: "#5a574f",
+    line: "#dad4c6",
+    accent: "#2340e0",
+    accentSoft: "#dfe4fb",
+    draft: "#13795b",
+    danger: "#d23a2a",
+    ...STOCK_LIGHT,
+    onAccent: "#ffffff",
+  },
+  "ciciro-night": {
+    bg: "#121211",
+    panel: "#1d1c19",
+    panel2: "#26241f",
+    ink: "#ede8dc",
+    inkSoft: "#a39d90",
+    line: "#34322d",
+    accent: "#6b82ff",
+    accentSoft: "#1f2547",
+    draft: "#6fbf95",
+    danger: "#ff7a68",
+    ...STOCK_DARK,
+    onAccent: "#121211",
+  },
   parchment: {
     bg: "#f2ebe0",
     panel: "#faf6ef",
@@ -42,6 +111,8 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
     accentSoft: "#ecd9cc",
     draft: "#2f6b4f",
     danger: "#a83b3b",
+    ...STOCK_LIGHT,
+    onAccent: "#ffffff",
   },
   sage: {
     bg: "#e8ebe3",
@@ -54,6 +125,8 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
     accentSoft: "#d7e0c8",
     draft: "#3a6e58",
     danger: "#a54a42",
+    ...STOCK_LIGHT,
+    onAccent: "#ffffff",
   },
   ember: {
     bg: "#1a1713",
@@ -66,6 +139,8 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
     accentSoft: "#3a2a20",
     draft: "#6fbf95",
     danger: "#e08080",
+    ...STOCK_DARK,
+    onAccent: "#1a1713",
   },
   walnut: {
     bg: "#1c1410",
@@ -78,6 +153,8 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
     accentSoft: "#3a2e22",
     draft: "#8fbf8a",
     danger: "#d08a7a",
+    ...STOCK_DARK,
+    onAccent: "#1c1410",
   },
   inkwell: {
     bg: "#121820",
@@ -90,6 +167,8 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
     accentSoft: "#2f2a24",
     draft: "#6db8a0",
     danger: "#d48888",
+    ...STOCK_DARK,
+    onAccent: "#121820",
   },
   candle: {
     bg: "#14110e",
@@ -102,12 +181,26 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
     accentSoft: "#3a2c18",
     draft: "#9bc47a",
     danger: "#e09078",
+    ...STOCK_DARK,
+    onAccent: "#14110e",
   },
 };
 
 export const fonts = {
+  /** The manuscript's own face (the author's editor-font setting). */
   serif: "Georgia",
   sans: "System",
+  /** Archive display: Newsreader light, italic for the one emphasised word. */
+  display: "Newsreader_300Light",
+  displayRegular: "Newsreader_400Regular",
+  displayItalic: "Newsreader_400Regular_Italic",
+  /** Archive UI: Instrument Sans. */
+  ui: "InstrumentSans_400Regular",
+  uiMedium: "InstrumentSans_500Medium",
+  uiBold: "InstrumentSans_600SemiBold",
+  /** Archive marginalia: JetBrains Mono, small, tracked, usually uppercase. */
+  mono: "JetBrainsMono_400Regular",
+  monoMedium: "JetBrainsMono_500Medium",
 };
 
 export function isThemeId(value: string | null | undefined): value is ThemeId {
@@ -118,8 +211,8 @@ export function isDarkTheme(id: ThemeId): boolean {
   return THEME_META.find((t) => t.id === id)?.mode === "dark";
 }
 
-/** Default parchment tokens - used by tests and as a fallback. */
-export const colors = THEME_PALETTES.parchment;
+/** Default (Ciciro) tokens - used by tests and as a fallback. */
+export const colors = THEME_PALETTES[DEFAULT_THEME];
 
 export function makeLayout(c: ColorTokens, editorFont: "serif" | "sans" = "serif") {
   const face = editorFont === "sans" ? fonts.sans : fonts.serif;

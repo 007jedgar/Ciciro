@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { PressableCard } from "./PressableCard";
 import { ExportIcon } from "./icons";
 import { useAppTheme } from "../lib/settings";
+import { fonts } from "../lib/theme";
 import {
   EXPORT_FORMATS,
   ExportUnavailableError,
@@ -45,9 +46,9 @@ export function ExportCard({
   }
 
   return (
-    <View style={[layout.card, { marginBottom: 16 }]}>
-      <Text style={layout.cardTitle}>{t("export.title")}</Text>
-      <Text style={layout.cardMeta}>
+    <View style={[styles.card, { backgroundColor: colors.panel, borderColor: colors.line }]}>
+      <Text style={[styles.title, { color: colors.ink }]}>{t("export.title")}</Text>
+      <Text style={[styles.meta, { color: colors.inkSoft }]}>
         {busy ? t("export.preparing", { format: t(`export.${busy}`) }) : t("export.meta")}
       </Text>
       <View style={styles.row}>
@@ -63,15 +64,15 @@ export function ExportCard({
               accessibilityState={{ disabled: busy !== null, busy: busy === format }}
               style={[
                 styles.pill,
-                { borderColor: colors.accent, backgroundColor: colors.panel, opacity: busy && busy !== format ? 0.5 : 1 },
+                { borderColor: colors.ink, backgroundColor: "transparent", opacity: busy && busy !== format ? 0.5 : 1 },
               ]}
             >
               {busy === format ? (
-                <ActivityIndicator size="small" color={colors.accent} />
+                <ActivityIndicator size="small" color={colors.ink} />
               ) : (
-                <ExportIcon color={colors.accent} size={18} />
+                <ExportIcon color={colors.ink} size={16} />
               )}
-              <Text numberOfLines={1} style={[styles.pillText, { color: colors.accent }]}>{label}</Text>
+              <Text numberOfLines={1} style={[styles.pillText, { color: colors.ink }]}>{label}</Text>
             </PressableCard>
           );
         })}
@@ -86,18 +87,21 @@ export function ExportCard({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  card: { borderWidth: 1, borderRadius: 6, padding: 18, marginBottom: 16 },
+  title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 27, letterSpacing: -0.3 },
+  meta: { marginTop: 6, fontFamily: fonts.ui, fontSize: 14, lineHeight: 20 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
   pill: {
     flexGrow: 1,
     flexBasis: "40%",
-    paddingHorizontal: 8,
-    minHeight: 40,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    minHeight: 42,
+    borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  pillText: { fontSize: 15, fontWeight: "600" },
+  pillText: { fontFamily: fonts.uiBold, fontSize: 15 },
 });

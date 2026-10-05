@@ -7,6 +7,7 @@ import {
   normalizeSettings,
   SETTINGS_EPOCH,
   settingsEqual,
+  withPhoneDefaultTheme,
   type AppSettings,
   type SettingsPatch,
 } from "./app-settings";
@@ -101,7 +102,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       try {
         const data = await ciciro.settings.get();
         if (cancelled) return;
-        const remote = normalizeSettings(data.settings);
+        const remote = withPhoneDefaultTheme(normalizeSettings(data.settings));
         const localMs = Date.parse(local.updatedAt) || 0;
         const remoteMs = Date.parse(remote.updatedAt) || 0;
         const localUserId = readCacheUserId();

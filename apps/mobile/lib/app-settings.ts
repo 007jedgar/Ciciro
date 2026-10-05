@@ -1,4 +1,4 @@
-import { isThemeId, type ThemeId } from "./theme";
+import { DEFAULT_THEME, isThemeId, type ThemeId } from "./theme";
 import {
   clampDailyWordGoal,
   clampWeeklyDayTarget,
@@ -44,7 +44,7 @@ export type SettingsPatch = Partial<Omit<AppSettings, "updatedAt">>;
 
 export function defaultSettings(): AppSettings {
   return {
-    theme: "parchment",
+    theme: DEFAULT_THEME,
     editorFont: "serif",
     editorFontSize: 19,
     formatChrome: DEFAULT_FORMAT_CHROME,
@@ -119,6 +119,24 @@ export function normalizeSettings(raw: unknown): AppSettings {
 
 export function applyPatch(current: AppSettings, patch: SettingsPatch): AppSettings {
   return { ...current, ...patch, updatedAt: new Date().toISOString() };
+}
+
+/** The web's own default (src/lib/settings.ts), which the server hands back for an account that never saved settings. */
+const SERVER_DEFAULT_THEME: ThemeId = "parchment";
+
+/**
+ * Settings from the server for someone who has never changed anything: every
+ * field at its default, with the web's default theme. That "parchment" is the
+ * server's blank, not a pick, so the phone keeps its own default theme instead
+ * of adopting it. An account that chose a theme (or changed any other setting)
+ * is returned as stored.
+ */
+export function withPhoneDefaultTheme(remote: AppSettings): AppSettings {
+  const blank = defaultSettings();
+  const untouched =
+    remote.theme === SERVER_DEFAULT_THEME &&
+    settingsEqual({ ...remote, theme: blank.theme }, blank);
+  return untouched ? { ...remote, theme: blank.theme } : remote;
 }
 
 export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
