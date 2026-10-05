@@ -109,6 +109,6 @@ describe("manuscript scratchpad", () => {
     expect(exported).not.toContain("epsilon");
 
     await prisma.project.delete({ where: { id: project.id } });
-    expect(await prisma.scratchNote.count()).toBe(0);
+    expect(await prisma.scratchNote.count({ where: { projectId: project.id } })).toBe(0);
   });
 });
