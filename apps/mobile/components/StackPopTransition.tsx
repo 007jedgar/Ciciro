@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useOptionalAppTheme } from "../lib/settings";
 import { THEME_PALETTES } from "../lib/theme";
+import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT, EASE_PUSH } from "../lib/motion";
 import {
   ownsStackRemove,
@@ -58,13 +59,31 @@ export function StackPopTransition({
   const arrival = useSharedValue(enter ? 0 : 1);
   const allowing = useRef(false);
 
+  // Started once the stack reports the screen on show, not at mount: the view
+  // is not in the window until the heavy first render has been mounted and
+  // presented, and frames counted before that are played where nobody can see
+  // them. The timer is for a route the stack never reports (a first screen).
+  const beginArrival = useTimingOnFirstFrame(arrival, {
+    duration: reduceMotion ? STACK_POP_FADE_MS : STACK_PUSH_MS,
+    easing: reduceMotion ? Easing.linear : variant === "sheet" ? EASE_SHEET : EASE_PUSH,
+    enabled: enter,
+    autoStart: false,
+  });
+
   useEffect(() => {
     if (!enter) return;
-    arrival.value = withTiming(1, {
-      duration: reduceMotion ? STACK_POP_FADE_MS : STACK_PUSH_MS,
-      easing: reduceMotion ? Easing.linear : variant === "sheet" ? EASE_SHEET : EASE_PUSH,
-    });
-    // Once, on mount: a screen already open is not pushed again by a theme change.
+    const onScreen = navigation.addListener(
+      "transitionEnd" as never,
+      ((event: { data?: { closing?: boolean } }) => {
+        if (!event.data?.closing) beginArrival();
+      }) as never
+    );
+    const fallback = setTimeout(beginArrival, 600);
+    return () => {
+      onScreen();
+      clearTimeout(fallback);
+    };
+    // Once, on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
