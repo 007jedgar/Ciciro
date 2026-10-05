@@ -211,20 +211,25 @@ Rules:
 - Write ONLY the summary. No preamble, no headings.
 - Never use em dashes; use a hyphen "-".`;
 
-// Cheap spelling/grammar pass for the phone editor. Mechanical only — no style,
-// no EditorRun, no manuscript mutation. The client applies accepted spans.
+// Cheap spelling/grammar pass for the phone editor. Mechanical only: no style,
+// no EditorRun, no manuscript mutation. The model quotes what is wrong rather
+// than counting characters (its offsets drift mid-sentence); correct.ts finds
+// each quote in the block and the client applies the accepted spans.
 export const CORRECT_SYSTEM = `You correct spelling and grammar in one manuscript block. Do not change voice,
 word choice, or meaning. Do not rewrite for style.
 
 Return JSON only:
-{"spans":[{"start":0,"end":5,"replacement":"They're"}]}
+{"fixes":[{"original":"Their","replacement":"They're"}]}
 
 Rules:
-- start/end are UTF-16 offsets into the given text (JavaScript string indices).
-- Each span replaces text.slice(start, end) with replacement.
-- Only emit a span when the current slice is actually wrong.
-- If the block is already correct, return {"spans":[]}.
-- Never overlap spans. Never comment. Never use markdown fences.`;
+- "original" is the wrong text copied exactly from the block, character for character, with its own
+  apostrophes and punctuation. Quote only the wrong word or words, never the space around them.
+- If that text appears more than once in the block, add neighbouring words to "original" until it
+  appears only once, and keep those same words in "replacement".
+- List fixes in the order they appear in the block.
+- Only emit a fix when the text is actually wrong.
+- If the block is already correct, return {"fixes":[]}.
+- Never overlap fixes. Never comment. Never use markdown fences.`;
 
 // Rolls older chat turns into a durable continuity note so the editor's window
 // stays under budget without silently dropping early decisions.

@@ -61,32 +61,89 @@ function extractJson(raw: string): unknown {
   }
 }
 
-function asInt(value: unknown): number | null {
-  if (typeof value === "number" && Number.isInteger(value)) return value;
-  return null;
+/** Curly quotes read as straight ones, one UTF-16 unit for one, so offsets carry over. */
+function foldQuotes(value: string): string {
+  return value.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
 }
 
-/** Keep only in-bounds, non-overlapping, actually-different replacements. */
+function isBlank(value: string): boolean {
+  return value.trim() === "";
+}
+
+/**
+ * Shrink a quoted fix to what it changes. Whole words (and the spaces between
+ * them) that the original and replacement share at either end were only there
+ * to make the quote unique, and whitespace at the edges of a word fix is never
+ * part of it: "I'dd " -> "I'd" must not take the space before the next word.
+ */
+function narrowFix(
+  original: string,
+  replacement: string
+): { lead: number; trail: number; replacement: string } {
+  const from = original.split(/(\s+)/).filter(Boolean);
+  const to = replacement.split(/(\s+)/).filter(Boolean);
+  let head = 0;
+  while (head < from.length - 1 && head < to.length && from[head] === to[head]) head++;
+  let tail = 0;
+  while (
+    head + tail < from.length - 1 &&
+    head + tail < to.length &&
+    from[from.length - 1 - tail] === to[to.length - 1 - tail]
+  ) {
+    tail++;
+  }
+  let lead = from.slice(0, head).join("").length;
+  let trail = from.slice(from.length - tail).join("").length;
+  let next = to.slice(head, to.length - tail).join("");
+  const core = original.slice(lead, original.length - trail);
+  if (!isBlank(core)) {
+    lead += core.length - core.trimStart().length;
+    trail += core.length - core.trimEnd().length;
+    next = next.trim();
+  }
+  return { lead, trail, replacement: next };
+}
+
+/**
+ * Turn the model's quoted fixes into spans over `text`. Offsets are found
+ * here, never taken from the model: each quote must appear in the block
+ * (curly and straight quotes match each other), searched in reading order.
+ * Keeps only non-overlapping, actually-different replacements.
+ */
 export function parseCorrectionSpans(raw: string, text: string): CorrectionSpan[] {
   const parsed = extractJson(raw);
   const list = Array.isArray(parsed)
     ? parsed
     : parsed && typeof parsed === "object"
-      ? (parsed as { spans?: unknown }).spans
+      ? ((parsed as { fixes?: unknown }).fixes ?? (parsed as { spans?: unknown }).spans)
       : null;
   if (!Array.isArray(list)) return [];
+  const folded = foldQuotes(text);
   const spans: CorrectionSpan[] = [];
+  let cursor = 0;
   for (const item of list) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const row = item as Record<string, unknown>;
-    const start = asInt(row.start);
-    const end = asInt(row.end);
-    const replacement = row.replacement;
-    if (start == null || end == null || typeof replacement !== "string") continue;
-    if (start < 0 || end > text.length || start >= end) continue;
-    if (replacement === text.slice(start, end)) continue;
+    const original = row.original;
+    if (typeof original !== "string" || !original || typeof row.replacement !== "string") continue;
+    const needle = foldQuotes(original);
+    let at = folded.indexOf(needle, cursor);
+    if (at === -1) at = folded.indexOf(needle);
+    if (at === -1) continue;
+    const fix = narrowFix(original, row.replacement);
+    const start = at + fix.lead;
+    const end = at + original.length - fix.trail;
+    if (start >= end) continue;
+    const current = text.slice(start, end);
+    // Keep the writer's apostrophes: a fix to "I’dd" stays curly.
+    const replacement =
+      current.includes("’") && !current.includes("'")
+        ? fix.replacement.replace(/'/g, "’")
+        : fix.replacement;
+    if (replacement === current) continue;
     if (spans.some((span) => start < span.end && end > span.start)) continue;
     spans.push({ start, end, replacement });
+    cursor = at + original.length;
   }
   return spans.sort((a, b) => a.start - b.start);
 }

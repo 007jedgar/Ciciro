@@ -44,29 +44,102 @@ function haikuText(text: string) {
   return { content: [{ type: "text", text }] };
 }
 
+function fixes(...list: Array<[string, string]>) {
+  return JSON.stringify({
+    fixes: list.map(([original, replacement]) => ({ original, replacement })),
+  });
+}
+
+function applied(text: string, raw: string) {
+  let next = text;
+  for (const span of parseCorrectionSpans(raw, text).reverse()) {
+    next = `${next.slice(0, span.start)}${span.replacement}${next.slice(span.end)}`;
+  }
+  return next;
+}
+
 describe("parseCorrectionSpans", () => {
-  it("keeps in-bounds replacements and drops overlaps", () => {
+  it("finds each quoted fix in the block instead of trusting model offsets", () => {
+    // Haiku returned {"start":40,"end":44} ("d si") for this block in production.
+    const text = "The rain fell softly on the roof and I'dd sing for you";
+    const raw = JSON.stringify({
+      fixes: [{ original: "I'dd", replacement: "I'd", start: 40, end: 44 }],
+    });
+    expect(parseCorrectionSpans(raw, text)).toEqual([{ start: 37, end: 41, replacement: "I'd" }]);
+    expect(applied(text, raw)).toBe("The rain fell softly on the roof and I'd sing for you");
+  });
+
+  it("never takes the space after a fix", () => {
+    const text = "I'dd sing for you";
+    expect(applied(text, fixes(["I'dd ", "I'd"]))).toBe("I'd sing for you");
+    expect(applied(text, fixes(["I'dd", "I'd "]))).toBe("I'd sing for you");
+    expect(applied(text, fixes([" I'dd", "I'd"]))).toBe(text);
+    expect(parseCorrectionSpans(fixes(["I'dd ", "I'd"]), text)).toEqual([
+      { start: 0, end: 4, replacement: "I'd" },
+    ]);
+  });
+
+  it("matches the curly apostrophes the phone keyboard types, and keeps them", () => {
+    const text = "He said that I’dd sing for you tonight.";
+    expect(parseCorrectionSpans(fixes(["I'dd", "I'd"]), text)).toEqual([
+      { start: 13, end: 17, replacement: "I’d" },
+    ]);
+    expect(applied("It's a dog thats barking.", fixes(["thats", "that's"]))).toBe(
+      "It's a dog that's barking."
+    );
+  });
+
+  it("narrows a fix quoted with context to the words that change", () => {
+    const text = "Its a long way, and its owner knows it.";
+    expect(parseCorrectionSpans(fixes(["Its a", "It's a"]), text)).toEqual([
+      { start: 0, end: 3, replacement: "It's" },
+    ]);
+    expect(applied("I going home.", fixes(["I going", "I am going"]))).toBe("I am going home.");
+    expect(applied("the  dog", fixes(["the  dog", "the dog"]))).toBe("the dog");
+  });
+
+  it("finds repeated quotes in reading order", () => {
+    const text = "teh cat saw teh dog.";
+    expect(parseCorrectionSpans(fixes(["teh", "the"], ["teh", "the"]), text)).toEqual([
+      { start: 0, end: 3, replacement: "the" },
+      { start: 12, end: 15, replacement: "the" },
+    ]);
+  });
+
+  it("drops quotes that are not in the block, unchanged fixes, and overlaps", () => {
     const text = "Their going home.";
     expect(
       parseCorrectionSpans(
-        JSON.stringify({
-          spans: [
-            { start: 0, end: 5, replacement: "They're" },
-            { start: 2, end: 8, replacement: "skip" },
-            { start: 0, end: 5, replacement: "Their" },
-            { start: -1, end: 2, replacement: "x" },
-          ],
-        }),
+        fixes(
+          ["Their going", "They're going"],
+          ["Their", "There"],
+          ["Thier", "Their"],
+          ["home", "home"]
+        ),
         text
       )
     ).toEqual([{ start: 0, end: 5, replacement: "They're" }]);
+    expect(
+      parseCorrectionSpans(
+        JSON.stringify({
+          spans: [{ start: 0, end: 5, replacement: "They're" }],
+        }),
+        text
+      )
+    ).toEqual([]);
   });
 
-  it("reads fenced JSON and bare objects", () => {
+  it("reads fenced JSON and bare arrays", () => {
     const text = "Its fine.";
     expect(
-      parseCorrectionSpans('```json\n{"spans":[{"start":0,"end":3,"replacement":"It\'s"}]}\n```', text)
+      parseCorrectionSpans(
+        '```json\n{"fixes":[{"original":"Its","replacement":"It\'s"}]}\n```',
+        text
+      )
     ).toEqual([{ start: 0, end: 3, replacement: "It's" }]);
+    expect(parseCorrectionSpans('[{"original":"Its","replacement":"It\'s"}]', text)).toEqual([
+      { start: 0, end: 3, replacement: "It's" },
+    ]);
     expect(parseCorrectionSpans("not json", text)).toEqual([]);
   });
 });
@@ -82,7 +155,7 @@ describe("correctBlock", () => {
 
   it("returns Haiku spans from a mocked model", async () => {
     mocks.create.mockResolvedValueOnce(
-      haikuText(JSON.stringify({ spans: [{ start: 0, end: 5, replacement: "They're" }] }))
+      haikuText(fixes(["Their", "They're"]))
     );
     await expect(correctBlock(user, body)).resolves.toEqual({
       ...body,
