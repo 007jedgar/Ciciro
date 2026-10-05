@@ -87,6 +87,25 @@ function findInlineMarkers(
   return markers;
 }
 
+/** The contract for a turn that asks for no manuscript change. */
+export function conversationIntent(): EditorIntentContract {
+  return {
+    version: 1,
+    category: "conversation",
+    actionRequired: false,
+    sourceChapters: [],
+    destinationChapters: [],
+    phases: ["inspect", "compare", "mutate", "verify"],
+    desiredOperations: [],
+    postconditions: { inlineMarkersAbsent: [], passages: [] },
+    initialEvidence: {
+      inlineMarkers: [],
+      selectionProvided: false,
+      desiredStateAlreadyHeld: true,
+    },
+  };
+}
+
 export async function buildEditorIntent(input: {
   projectId: string;
   message: string;
@@ -96,23 +115,7 @@ export async function buildEditorIntent(input: {
 }): Promise<EditorIntentContract> {
   const actionRequired =
     input.kind === "action" || looksLikeReorg(input.message, input.selection);
-  if (!actionRequired) {
-    return {
-      version: 1,
-      category: "conversation",
-      actionRequired: false,
-      sourceChapters: [],
-      destinationChapters: [],
-      phases: ["inspect", "compare", "mutate", "verify"],
-      desiredOperations: [],
-      postconditions: { inlineMarkersAbsent: [], passages: [] },
-      initialEvidence: {
-        inlineMarkers: [],
-        selectionProvided: false,
-        desiredStateAlreadyHeld: true,
-      },
-    };
-  }
+  if (!actionRequired) return conversationIntent();
 
   const [shapes, chapters] = await Promise.all([
     loadChapterShapes(input.projectId),
