@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { THEMES, type ThemeId } from "@/lib/theme";
+import { THEMES, webTheme, type ThemeId } from "@/lib/theme";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type FormatChrome } from "@/lib/settings";
 import { useSettings } from "@/components/SettingsProvider";
 import DeleteAccountDialog from "@/components/DeleteAccountDialog";
@@ -28,7 +28,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
   const [deleting, setDeleting] = useState(false);
   const [verify, setVerify] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
   const rootRef = useRef<HTMLDivElement>(null);
-  const theme = settings.theme;
+  const theme = webTheme(settings.theme);
 
   useEffect(() => {
     if (!open || models) return;

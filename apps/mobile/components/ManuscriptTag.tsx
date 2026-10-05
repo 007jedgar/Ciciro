@@ -13,7 +13,7 @@ import Animated, {
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { shimmerPalette } from "../lib/shimmer";
-import { colors as parchmentColors } from "../lib/theme";
+import { colors as parchmentColors, fonts } from "../lib/theme";
 import { ShimmerText } from "./ShimmerText";
 import { TapPressable } from "./TapPressable";
 
@@ -188,20 +188,20 @@ export function ManuscriptTag({
           style={[
             styles.chip,
             {
-              backgroundColor: hasGenre ? colors.accentSoft : colors.panel,
-              borderColor: hasGenre ? colors.accent : colors.line,
-              borderStyle: hasGenre ? "solid" : "dashed",
+              backgroundColor: "transparent",
+              borderColor: hasGenre ? colors.ink : colors.line,
+              borderStyle: "dashed",
             },
           ]}
         >
           {phase === "idle" ? (
-            <Text style={[styles.chipText, { color: hasGenre ? colors.accent : colors.inkSoft }]}>
-              {label}
+            <Text style={[styles.chipText, { color: hasGenre ? colors.ink : colors.inkSoft }]}>
+              {label.toUpperCase()}
             </Text>
           ) : (
             <ShimmerText
-              text={label}
-              rest={colors.accent}
+              text={label.toUpperCase()}
+              rest={colors.ink}
               lit={palette}
               style={styles.chipText}
               // Runs until the save answers, then plays itself out once.
@@ -229,11 +229,11 @@ const styles = StyleSheet.create({
   chip: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderRadius: 3,
+    paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  chipText: { fontSize: 13, fontWeight: "600" },
+  chipText: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.8 },
   input: {
     borderWidth: 1,
     borderRadius: 8,

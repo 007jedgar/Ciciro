@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TapPressable } from "./TapPressable";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -6,8 +7,8 @@ import { useRecapQuery } from "../lib/api";
 import { dismissRecap, recapDue } from "../lib/recap";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+import { fonts } from "../lib/theme";
 import { LoadingBlock } from "./LoadingBlock";
-import { TapPressable } from "./TapPressable";
 
 /**
  * A short "Previously on" card for an author coming back after time away.
@@ -26,9 +27,9 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
     return (
       <View
         testID="previously-on-loading"
-        style={[styles.card, { borderColor: colors.line, backgroundColor: colors.accentSoft }]}
+        style={[styles.card, { backgroundColor: colors.butter }]}
       >
-        <Text style={[styles.title, { color: colors.accent }]}>{t("recap.title")}</Text>
+        <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
         <LoadingBlock label={t("recap.loading")} lines={3} />
       </View>
     );
@@ -38,10 +39,10 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
     <Animated.View
       testID="previously-on"
       entering={reduceMotion ? undefined : FadeInDown.duration(240)}
-      style={[styles.card, { borderColor: colors.line, backgroundColor: colors.accentSoft }]}
+      style={[styles.card, { backgroundColor: colors.butter }]}
     >
       <View style={styles.head}>
-        <Text style={[styles.title, { color: colors.accent }]}>{t("recap.title")}</Text>
+        <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
         <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("recap.dismiss")}
@@ -51,18 +52,31 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
             setDue(false);
           }}
         >
-          <Text style={[styles.dismiss, { color: colors.inkSoft }]}>{t("recap.dismiss")}</Text>
+          <Text style={[styles.dismiss, { color: colors.paperInk }]}>{t("recap.dismiss")}</Text>
         </TapPressable>
       </View>
-      <Text style={[styles.body, { color: colors.ink }]}>{recap.data.text}</Text>
+      <View style={[styles.rule, { borderColor: colors.paperInk }]} />
+      <Text style={[styles.body, { color: colors.paperInk }]}>{recap.data.text}</Text>
     </Animated.View>
   );
 }
 
+// The landing's "this week" ticket: butter stock, ink type, a dashed tear line.
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 16, gap: 6 },
+  card: {
+    borderRadius: 2,
+    padding: 16,
+    marginBottom: 20,
+    gap: 8,
+    transform: [{ rotate: "-0.6deg" }],
+    shadowColor: "#141414",
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+  },
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
-  dismiss: { fontSize: 13, fontWeight: "600" },
-  body: { fontSize: 15, lineHeight: 22 },
+  title: { fontFamily: fonts.monoMedium, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" },
+  dismiss: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.6, textDecorationLine: "underline" },
+  rule: { borderTopWidth: 1, borderStyle: "dashed", opacity: 0.4 },
+  body: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 22 },
 });

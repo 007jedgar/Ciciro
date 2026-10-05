@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useOptionalAppTheme } from "../lib/settings";
-import { THEME_PALETTES } from "../lib/theme";
+import { DEFAULT_THEME, THEME_PALETTES } from "../lib/theme";
 import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT, EASE_PUSH } from "../lib/motion";
 import { createArrivalSignal, StackArrivalContext } from "../lib/stack-arrival";
@@ -51,7 +51,7 @@ export function StackPopTransition({
   const navigation = useNavigation();
   const { width, height } = useWindowDimensions();
   const theme = useOptionalAppTheme();
-  const colors = theme?.colors ?? THEME_PALETTES.parchment;
+  const colors = theme?.colors ?? THEME_PALETTES[DEFAULT_THEME];
   const osReduce = useReducedMotion();
   const reduceMotion = Boolean(theme?.settings.reduceMotion || osReduce);
   const progress = useSharedValue(0);

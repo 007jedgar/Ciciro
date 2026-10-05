@@ -20,6 +20,7 @@ import {
 } from "../../../../components/icons";
 import { ExportCard } from "../../../../components/ExportCard";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
+import { Kicker } from "../../../../components/Kicker";
 import { SlideDownIn } from "../../../../components/SlideDownIn";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
@@ -325,10 +326,15 @@ export default function ChaptersScreen() {
                     <Text style={layout.cardMeta}>{t("kinds.todayEntryMeta")}</Text>
                   </PressableCard>
                 ) : null}
+                <Kicker label={t("chapters.toolsKicker")} count={`${tools.length}`} />
                 <ProjectTools
                   tools={tools}
                   // On a new manuscript the tiles wait for the list to start sliding down.
                   introDelay={arriving ? CHAPTERS_SLIDE_DELAY_MS + TOOL_POP_STAGGER_MS * 2 : 0}
+                />
+                <Kicker
+                  label={t("chapters.kicker")}
+                  count={t("chapters.entries", { count: chapters.length })}
                 />
               </View>
             ) : null
