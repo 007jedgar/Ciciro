@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useStuckPromptsMutation } from "../lib/api";
@@ -7,6 +7,7 @@ import { stuckPromptHref } from "../lib/recap";
 import { useAppTheme } from "../lib/settings";
 import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { GlassSheet } from "./GlassSheet";
+import { TapPressable } from "./TapPressable";
 
 /**
  * "I'm stuck" sheet, opened from the writing tools menu. Lists a few concrete
@@ -59,7 +60,7 @@ export function StuckSheet({
           ) : (
             (ask.data ?? []).map((prompt, index) => (
               <FadeUp key={prompt} index={index}>
-                <Pressable
+                <TapPressable
                   accessibilityRole="button"
                   onPress={() => use(prompt)}
                   style={({ pressed }) => [
@@ -68,12 +69,12 @@ export function StuckSheet({
                   ]}
                 >
                   <Text style={[styles.promptText, { color: colors.ink }]}>{prompt}</Text>
-                </Pressable>
+                </TapPressable>
               </FadeUp>
             ))
           )}
           <View style={styles.more}>
-            <Pressable
+            <TapPressable
               accessibilityRole="button"
               disabled={ask.isPending}
               onPress={() => mutate({ projectId, chapterId })}
@@ -81,7 +82,7 @@ export function StuckSheet({
               <Text style={{ color: colors.accent, fontWeight: "600", opacity: ask.isPending ? 0.5 : 1 }}>
                 {t("stuck.more")}
               </Text>
-            </Pressable>
+            </TapPressable>
           </View>
         </ScrollView>
       </GlassSheet>

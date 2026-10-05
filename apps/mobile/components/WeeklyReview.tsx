@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api/client";
 import {
@@ -16,6 +16,7 @@ import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 import { getAnalytics } from "../lib/analytics-client";
+import { TapPressable } from "./TapPressable";
 
 function ReviewBody({ review }: { review: Review }) {
   const { t } = useTranslation();
@@ -179,7 +180,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
       ) : null}
       {selected ? (
         <View style={{ marginBottom: 20 }}>
-          <Pressable
+          <TapPressable
             onLongPress={() => confirmDelete(selected)}
             accessibilityHint={t("weekly.deleteHint")}
             accessibilityActions={[{ name: "delete", label: t("common.delete") }]}
@@ -188,7 +189,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
             <Text style={[layout.cardTitle, { marginBottom: 8 }]}>
               {formatWeekRange(selected.weekStart, selected.weekEnd)}
             </Text>
-          </Pressable>
+          </TapPressable>
           <ReviewBody review={selected} />
         </View>
       ) : null}
@@ -196,7 +197,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
         <>
           <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("weekly.past")}</Text>
           {list.map((r) => (
-            <Pressable
+            <TapPressable
               key={r.id}
               style={[layout.card, { marginBottom: 12 }]}
               onPress={() => setSelectedId(r.id)}
@@ -207,7 +208,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
             >
               <Text style={layout.cardTitle}>{formatWeekRange(r.weekStart, r.weekEnd)}</Text>
               <Text style={layout.cardMeta}>{t("weekly.words", { count: r.stats.words })}</Text>
-            </Pressable>
+            </TapPressable>
           ))}
         </>
       ) : null}

@@ -1,9 +1,10 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { PressableCard } from "./PressableCard";
+import { TapPressable } from "./TapPressable";
 
 export function LanguagePicker({
   variant = "cards",
@@ -24,7 +25,7 @@ export function LanguagePicker({
         {LOCALE_OPTIONS.map((opt) => {
           const active = activeId === opt.id;
           return (
-            <Pressable
+            <TapPressable
               key={opt.id}
               onPress={() => void setAppLocale(opt.id)}
               accessibilityRole="button"
@@ -43,7 +44,7 @@ export function LanguagePicker({
               >
                 {opt.nativeName}
               </Text>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </View>

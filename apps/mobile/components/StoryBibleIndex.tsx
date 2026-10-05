@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,7 @@ import { colors as parchmentColors, layout as parchmentLayout } from "../lib/the
 import { SkeletonList } from "./Skeleton";
 import { PressableCard } from "./PressableCard";
 import { getAnalytics } from "../lib/analytics-client";
+import { TapPressable } from "./TapPressable";
 
 const STAGGER_MS = 40;
 
@@ -260,7 +261,7 @@ function AddRow({
         spellCheck={autoCorrect}
         returnKeyType="done"
       />
-      <Pressable
+      <TapPressable
         accessibilityRole="button"
         accessibilityLabel={addLabel}
         onPress={onAdd}
@@ -271,7 +272,7 @@ function AddRow({
         ]}
       >
         <Text style={[styles.addBtnText, { color: colors.panel }]}>{addLabel}</Text>
-      </Pressable>
+      </TapPressable>
     </Animated.View>
   );
 }

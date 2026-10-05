@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, StyleSheet, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../../../components/AppHeader";
@@ -21,6 +21,7 @@ import {
   type SprintDurationMin,
 } from "../../../lib/writing-sprint";
 import { getAnalytics } from "../../../lib/analytics-client";
+import { TapPressable } from "../../../components/TapPressable";
 
 async function scheduleSprintEndNotification(endsAt: number, title: string, body: string): Promise<void> {
   try {
@@ -165,7 +166,7 @@ export default function SprintScreen() {
             {SPRINT_DURATIONS_MIN.map((min, idx) => {
               const isFirst = idx === 0;
               return (
-                <Pressable
+                <TapPressable
                   key={min}
                   style={[
                     isFirst ? styles.filledBtn : styles.outlinedBtn,
@@ -178,7 +179,7 @@ export default function SprintScreen() {
                   <Text style={[styles.btnText, { color: isFirst ? colors.panel : colors.ink }]}>
                     {t("sprint.minutes", { count: min })}
                   </Text>
-                </Pressable>
+                </TapPressable>
               );
             })}
           </>
@@ -202,21 +203,21 @@ export default function SprintScreen() {
                 count: Math.max(0, day.words - phase.sprint.startWords),
               })}
             </Text>
-            <Pressable
+            <TapPressable
               style={[layout.primaryBtn, { marginTop: 32 }]}
               onPress={() => router.push(`/project/${id}/manuscript` as never)}
               accessibilityRole="button"
               accessibilityLabel={t("sprint.writeNow")}
             >
               <Text style={layout.primaryBtnText}>{t("sprint.writeNow")}</Text>
-            </Pressable>
-            <Pressable
+            </TapPressable>
+            <TapPressable
               style={{ marginTop: 16, alignItems: "center" }}
               onPress={stopEarly}
               accessibilityRole="button"
             >
               <Text style={{ color: colors.accent, fontSize: 16 }}>{t("sprint.endEarly")}</Text>
-            </Pressable>
+            </TapPressable>
           </>
         ) : null}
 
@@ -226,20 +227,20 @@ export default function SprintScreen() {
             <Text style={[layout.body, { marginTop: 8 }]}>
               {t("sprint.doneBody", { count: phase.words, minutes: phase.durationMin })}
             </Text>
-            <Pressable
+            <TapPressable
               style={[layout.primaryBtn, { marginTop: 24 }]}
               onPress={() => router.replace(`/project/${id}/manuscript`)}
               accessibilityRole="button"
             >
               <Text style={layout.primaryBtnText}>{t("sprint.backToManuscript")}</Text>
-            </Pressable>
-            <Pressable
+            </TapPressable>
+            <TapPressable
               style={{ marginTop: 16 }}
               onPress={() => setPhase({ kind: "pick" })}
               accessibilityRole="button"
             >
               <Text style={{ color: colors.accent, fontSize: 16 }}>{t("sprint.again")}</Text>
-            </Pressable>
+            </TapPressable>
           </>
         ) : null}
       </View>

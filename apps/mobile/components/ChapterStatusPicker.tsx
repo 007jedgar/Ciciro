@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   CHAPTER_STATUSES,
@@ -7,6 +7,7 @@ import {
 } from "../lib/chapter-status";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors } from "../lib/theme";
+import { TapPressable } from "./TapPressable";
 
 export function ChapterStatusPicker({
   status,
@@ -31,7 +32,7 @@ export function ChapterStatusPicker({
         const active = value === current;
         const label = t(`chapters.status.${value}`);
         return (
-          <Pressable
+          <TapPressable
             key={value}
             onPress={() => {
               if (!disabled && value !== current) onChange(value);
@@ -52,7 +53,7 @@ export function ChapterStatusPicker({
             >
               {label}
             </Text>
-          </Pressable>
+          </TapPressable>
         );
       })}
     </View>

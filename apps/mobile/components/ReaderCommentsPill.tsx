@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useShareCommentsQuery } from "../lib/api";
 import { betaReadersHref } from "../lib/shares";
 import { useAppTheme } from "../lib/settings";
+import { TapPressable } from "./TapPressable";
 
 /** How many open reader comments sit on this chapter. */
 export function useChapterReaderCommentCount(projectId: string, chapterId: string, enabled = true): number {
@@ -21,7 +22,7 @@ export function ReaderCommentsPill({ projectId, chapterId }: { projectId: string
   if (count === 0) return null;
   const label = t("beta.chapterComments", { count });
   return (
-    <Pressable
+    <TapPressable
       testID="reader-comments-pill"
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -34,7 +35,7 @@ export function ReaderCommentsPill({ projectId, chapterId }: { projectId: string
       ]}
     >
       <Text style={[styles.text, { color: colors.accent }]}>{label}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 

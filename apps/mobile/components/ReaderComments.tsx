@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import Animated, { FadeInDown, LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import {
@@ -20,6 +20,7 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
+import { TapPressable } from "./TapPressable";
 
 /** What beta readers said, by chapter, to jump to, resolve, or delete. */
 export function ReaderComments({
@@ -116,7 +117,7 @@ export function ReaderComments({
           {(["open", "resolved"] as const).map((value) => {
             const active = status === value;
             return (
-              <Pressable
+              <TapPressable
                 key={value}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
@@ -126,7 +127,7 @@ export function ReaderComments({
                 <Text style={[styles.segmentText, { color: active ? colors.ink : colors.inkSoft }]}>
                   {t(value === "open" ? "beta.open" : "beta.resolved")}
                 </Text>
-              </Pressable>
+              </TapPressable>
             );
           })}
         </View>
@@ -187,7 +188,7 @@ export function ReaderComments({
               </Text>
               <View style={styles.actions}>
                 {comment.anchor ? (
-                  <Pressable
+                  <TapPressable
                     accessibilityRole="button"
                     onPress={() => onJump(comment)}
                     hitSlop={8}
@@ -196,12 +197,12 @@ export function ReaderComments({
                     <Text style={[styles.ghostBtnText, { color: colors.accent }]}>
                       {t(comment.anchor.length > 0 ? "beta.showInText" : "beta.showParagraph")}
                     </Text>
-                  </Pressable>
+                  </TapPressable>
                 ) : (
                   <Text style={[layout.cardMeta, styles.gone]}>{t("beta.passageGone")}</Text>
                 )}
                 <View style={styles.spacer} />
-                <Pressable
+                <TapPressable
                   accessibilityRole="button"
                   onPress={() => removeComment(comment)}
                   disabled={busy}
@@ -209,8 +210,8 @@ export function ReaderComments({
                   style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
                 >
                   <Text style={[styles.ghostBtnText, { color: colors.danger }]}>{t("common.delete")}</Text>
-                </Pressable>
-                <Pressable
+                </TapPressable>
+                <TapPressable
                   accessibilityRole="button"
                   onPress={() => toggle(comment)}
                   disabled={busy}
@@ -219,7 +220,7 @@ export function ReaderComments({
                   <Text style={[styles.primaryBtnText, { color: colors.panel }]}>
                     {t(comment.status === "open" ? "beta.resolve" : "beta.reopen")}
                   </Text>
-                </Pressable>
+                </TapPressable>
               </View>
             </Animated.View>
           ))}

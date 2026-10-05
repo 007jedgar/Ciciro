@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -17,6 +17,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { shimmerBrightness, shimmerLit, shimmerPalette } from "../lib/shimmer";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { CheckIcon, PencilIcon } from "./icons";
+import { TapPressable } from "./TapPressable";
 
 type Phase = "idle" | "sweep";
 
@@ -248,7 +249,7 @@ export function FolderTitleEditor({
           )}
         </View>
         {editing ? (
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityLabel={t("folder.saveA11y")}
             accessibilityState={{ disabled: !draftName.trim() }}
@@ -258,9 +259,9 @@ export function FolderTitleEditor({
             style={[styles.check, { backgroundColor: colors.accent, opacity: draftName.trim() ? 1 : 0.4 }]}
           >
             <CheckIcon color={colors.panel} size={18} />
-          </Pressable>
+          </TapPressable>
         ) : (
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityLabel={t("folder.editA11y")}
             onPress={startEdit}
@@ -268,7 +269,7 @@ export function FolderTitleEditor({
             style={styles.iconBtn}
           >
             <PencilIcon color={colors.inkSoft} size={18} />
-          </Pressable>
+          </TapPressable>
         )}
       </View>
 

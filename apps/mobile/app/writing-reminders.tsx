@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -13,6 +13,7 @@ import {
   type ReminderTranslate,
 } from "../lib/writing-reminders";
 import { PressableCard } from "../components/PressableCard";
+import { TapPressable } from "../components/TapPressable";
 
 export default function WritingRemindersScreen() {
   const router = useRouter();
@@ -46,14 +47,14 @@ export default function WritingRemindersScreen() {
         {reminders.length === 0 ? (
           <View>
             <Text style={[layout.body, { marginTop: 8 }]}>{t("reminders.empty")}</Text>
-            <Pressable
+            <TapPressable
               style={layout.primaryBtn}
               onPress={() => router.push("/writing-reminder")}
               accessibilityRole="button"
               accessibilityLabel={t("reminders.add")}
             >
               <Text style={layout.primaryBtnText}>{t("reminders.add")}</Text>
-            </Pressable>
+            </TapPressable>
           </View>
         ) : (
           reminders.map((reminder) => {

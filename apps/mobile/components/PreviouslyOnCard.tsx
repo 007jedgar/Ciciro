@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useRecapQuery } from "../lib/api";
@@ -7,6 +7,7 @@ import { dismissRecap, recapDue } from "../lib/recap";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { LoadingBlock } from "./LoadingBlock";
+import { TapPressable } from "./TapPressable";
 
 /**
  * A short "Previously on" card for an author coming back after time away.
@@ -41,7 +42,7 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
     >
       <View style={styles.head}>
         <Text style={[styles.title, { color: colors.accent }]}>{t("recap.title")}</Text>
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("recap.dismiss")}
           hitSlop={10}
@@ -51,7 +52,7 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
           }}
         >
           <Text style={[styles.dismiss, { color: colors.inkSoft }]}>{t("recap.dismiss")}</Text>
-        </Pressable>
+        </TapPressable>
       </View>
       <Text style={[styles.body, { color: colors.ink }]}>{recap.data.text}</Text>
     </Animated.View>

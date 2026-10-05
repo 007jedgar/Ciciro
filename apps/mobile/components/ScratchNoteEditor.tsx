@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api/client";
@@ -15,6 +15,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { SkeletonList } from "./Skeleton";
 import { getAnalytics } from "../lib/analytics-client";
+import { TapPressable } from "./TapPressable";
 
 /**
  * One scratch note: a title and free text, saved a moment after typing stops.
@@ -206,7 +207,7 @@ export function ScratchNoteEditor({
           <Text style={layout.cardTitle}>{t("scratch.conflictTitle")}</Text>
           <Text style={layout.cardMeta}>{t("scratch.conflictBody")}</Text>
           <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
-            <Pressable
+            <TapPressable
               onPress={takeTheirs}
               accessibilityRole="button"
               accessibilityLabel={t("scratch.useTheirs")}
@@ -214,8 +215,8 @@ export function ScratchNoteEditor({
               <Text style={{ color: colors.accent, fontWeight: "600" }}>
                 {t("scratch.useTheirs")}
               </Text>
-            </Pressable>
-            <Pressable
+            </TapPressable>
+            <TapPressable
               onPress={keepMine}
               accessibilityRole="button"
               accessibilityLabel={t("scratch.keepMine")}
@@ -223,7 +224,7 @@ export function ScratchNoteEditor({
               <Text style={{ color: colors.accent, fontWeight: "600" }}>
                 {t("scratch.keepMine")}
               </Text>
-            </Pressable>
+            </TapPressable>
           </View>
         </View>
       ) : null}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -22,6 +22,7 @@ import {
   SITTING_AVG_MIN_COUNT,
   type WritingSessionTotals,
 } from "../lib/writing-session";
+import { TapPressable } from "../components/TapPressable";
 
 const HEATMAP_DAYS = 28;
 const ALL_TIME_FROM = "2018-01-01";
@@ -178,13 +179,13 @@ export default function WritingHistoryScreen() {
           <Text style={[layout.body, { marginTop: 16 }]}>{t("common.loading")}</Text>
         ) : null}
 
-        <Pressable
+        <TapPressable
           onPress={() => router.push("/settings")}
           accessibilityRole="button"
           style={{ marginTop: 24 }}
         >
           <Text style={{ color: colors.accent, fontSize: 15 }}>{t("writingHistory.openSettings")}</Text>
-        </Pressable>
+        </TapPressable>
       </ScrollView>
     </View>
   );

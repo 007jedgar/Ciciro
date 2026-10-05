@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { Switch, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
@@ -15,6 +15,7 @@ import {
   type Weekday,
   type WritingReminder,
 } from "../lib/writing-reminders";
+import { TapPressable } from "./TapPressable";
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -183,7 +184,7 @@ export function WritingReminderForm({
         {goals.map((goal) => {
           const selected = goal === wordGoal;
           return (
-            <Pressable
+            <TapPressable
               key={goal}
               accessibilityRole="button"
               accessibilityState={{ selected }}
@@ -201,35 +202,35 @@ export function WritingReminderForm({
               <Text style={{ color: selected ? colors.panel : colors.ink, fontSize: 15 }}>
                 {t("reminders.goalValue", { count: goal })}
               </Text>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </View>
 
       <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.when")}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("reminders.earlier")}
           onPress={() => shift(-15)}
           style={[stepper, { backgroundColor: colors.panel, borderColor: colors.line }]}
         >
           <Text style={{ color: colors.ink, fontSize: 20 }}>−</Text>
-        </Pressable>
+        </TapPressable>
         <Text
           accessibilityLabel={t("reminders.timeA11y", { time: clock })}
           style={{ flex: 1, textAlign: "center", fontSize: 22, color: colors.ink }}
         >
           {clock}
         </Text>
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("reminders.later")}
           onPress={() => shift(15)}
           style={[stepper, { backgroundColor: colors.panel, borderColor: colors.line }]}
         >
           <Text style={{ color: colors.ink, fontSize: 20 }}>+</Text>
-        </Pressable>
+        </TapPressable>
       </View>
 
       {showHourSuggestion && suggestedClock ? (
@@ -247,7 +248,7 @@ export function WritingReminderForm({
             {t("reminders.suggestHour", { time: suggestedClock })}
           </Text>
           <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
-            <Pressable
+            <TapPressable
               accessibilityRole="button"
               accessibilityLabel={t("reminders.suggestHourAccept")}
               onPress={() => {
@@ -259,8 +260,8 @@ export function WritingReminderForm({
               <Text style={{ color: colors.accent, fontSize: 16 }}>
                 {t("reminders.suggestHourAccept")}
               </Text>
-            </Pressable>
-            <Pressable
+            </TapPressable>
+            <TapPressable
               accessibilityRole="button"
               accessibilityLabel={t("reminders.suggestHourDismiss")}
               onPress={() => setDismissedSuggestion(true)}
@@ -268,7 +269,7 @@ export function WritingReminderForm({
               <Text style={{ color: colors.inkSoft, fontSize: 16 }}>
                 {t("reminders.suggestHourDismiss")}
               </Text>
-            </Pressable>
+            </TapPressable>
           </View>
         </View>
       ) : null}
@@ -279,7 +280,7 @@ export function WritingReminderForm({
           const selected = days.includes(day);
           const name = t(`reminders.day.${DAY_KEYS[day]}`);
           return (
-            <Pressable
+            <TapPressable
               key={day}
               accessibilityRole="button"
               accessibilityLabel={name}
@@ -299,7 +300,7 @@ export function WritingReminderForm({
               <Text style={{ color: selected ? colors.panel : colors.ink, fontSize: 13 }}>
                 {t(`reminders.dayShort.${DAY_KEYS[day]}`)}
               </Text>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </View>
@@ -363,17 +364,17 @@ export function WritingReminderForm({
         </Text>
       ) : null}
       {openSettingsLabel && onOpenSettings ? (
-        <Pressable
+        <TapPressable
           style={layout.ghostBtn}
           onPress={onOpenSettings}
           accessibilityRole="button"
           accessibilityLabel={openSettingsLabel}
         >
           <Text style={layout.ghostBtnText}>{openSettingsLabel}</Text>
-        </Pressable>
+        </TapPressable>
       ) : null}
 
-      <Pressable
+      <TapPressable
         style={[layout.primaryBtn, { marginTop: 16, opacity: busy ? 0.6 : 1 }]}
         onPress={save}
         disabled={busy}
@@ -383,10 +384,10 @@ export function WritingReminderForm({
         <Text style={layout.primaryBtnText}>
           {busy ? t("reminders.saving") : t("reminders.save")}
         </Text>
-      </Pressable>
+      </TapPressable>
 
       {onDelete ? (
-        <Pressable
+        <TapPressable
           style={layout.ghostBtn}
           onPress={() => {
             if (!confirmingDelete) {
@@ -403,7 +404,7 @@ export function WritingReminderForm({
           <Text style={[layout.ghostBtnText, { color: colors.danger }]}>
             {confirmingDelete ? t("reminders.deleteConfirm") : t("reminders.delete")}
           </Text>
-        </Pressable>
+        </TapPressable>
       ) : null}
     </View>
   );
@@ -421,7 +422,7 @@ function Choice({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <TapPressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
@@ -439,7 +440,7 @@ function Choice({
       }}
     >
       <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{label}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 

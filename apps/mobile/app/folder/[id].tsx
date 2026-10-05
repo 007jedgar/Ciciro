@@ -2,7 +2,6 @@ import { ManuscriptMeta } from "../../components/ManuscriptMeta";
 import { useMemo, useState } from "react";
 import {
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +27,7 @@ import {
 import { useAppTheme } from "../../lib/settings";
 import { useSession } from "../../lib/session";
 import { PressableCard } from "../../components/PressableCard";
+import { TapPressable } from "../../components/TapPressable";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -151,18 +151,18 @@ export default function FolderScreen() {
             ) : (
               folder.projects.map((item) => (
                 <View key={item.id} style={layout.card}>
-                  <Pressable onPress={() => router.push(`/project/${item.id}/chapters`)}>
+                  <TapPressable onPress={() => router.push(`/project/${item.id}/chapters`)}>
                     <Text style={layout.cardTitle}>{item.title || t("manuscripts.untitled")}</Text>
                     <ManuscriptMeta project={item} />
-                  </Pressable>
-                  <Pressable
+                  </TapPressable>
+                  <TapPressable
                     onPress={() => remove(item.id)}
                     accessibilityRole="button"
                     accessibilityLabel={t("folder.removeA11y", { title: item.title })}
                     style={{ marginTop: 8 }}
                   >
                     <Text style={layout.ghostBtnText}>{t("folder.remove")}</Text>
-                  </Pressable>
+                  </TapPressable>
                 </View>
               ))
             )}
@@ -187,7 +187,7 @@ export default function FolderScreen() {
               </>
             ) : null}
 
-            <Pressable
+            <TapPressable
               style={layout.ghostBtn}
               onPress={confirmDelete}
               accessibilityRole="button"
@@ -196,12 +196,12 @@ export default function FolderScreen() {
               <Text style={[layout.ghostBtnText, { color: colors.danger }]}>
                 {t("folder.delete")}
               </Text>
-            </Pressable>
+            </TapPressable>
           </>
         ) : null}
       </ScrollView>
       {folder ? (
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("folder.startNewA11y")}
           onPress={() =>
@@ -217,7 +217,7 @@ export default function FolderScreen() {
           ]}
         >
           <PlusIcon color={colors.panel} size={22} />
-        </Pressable>
+        </TapPressable>
       ) : null}
     </View>
   );

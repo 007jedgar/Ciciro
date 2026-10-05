@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ChapterStatusPicker } from "./ChapterStatusPicker";
 import { chapterHeading, CHAPTER_PREVIEW_LINES } from "../lib/chapter-label";
@@ -10,6 +10,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { Chapter } from "../lib/types";
 import { TrashIcon, VersionHistoryIcon } from "./icons";
+import { TapPressable } from "./TapPressable";
 
 export function ChapterListCard({
   chapter,
@@ -56,7 +57,7 @@ export function ChapterListCard({
     >
       {/* The status picker holds its own buttons, so it sits beside the open target, not inside it. */}
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-        <Pressable
+        <TapPressable
           onPress={onOpen}
           accessibilityRole="button"
           accessibilityLabel={a11y}
@@ -65,9 +66,9 @@ export function ChapterListCard({
           <Text style={layout.cardTitle}>{numbered}</Text>
           {customTitle ? <Text style={layout.cardMeta}>{customTitle}</Text> : null}
           <Text style={layout.cardMeta}>{t("chapters.wordCount", { count: chapter.wordCount })}</Text>
-        </Pressable>
+        </TapPressable>
         {onOpenHistory ? (
-          <Pressable
+          <TapPressable
             onPress={onOpenHistory}
             disabled={deleting}
             accessibilityRole="button"
@@ -75,9 +76,9 @@ export function ChapterListCard({
             style={({ pressed }) => [styles.action, { opacity: deleting ? 0.4 : pressed ? 0.5 : 1 }]}
           >
             <VersionHistoryIcon color={colors.inkSoft} />
-          </Pressable>
+          </TapPressable>
         ) : null}
-        <Pressable
+        <TapPressable
           onPress={onRequestDelete}
           disabled={deleting}
           accessibilityRole="button"
@@ -85,13 +86,13 @@ export function ChapterListCard({
           style={({ pressed }) => [styles.action, { opacity: deleting ? 0.4 : pressed ? 0.5 : 1 }]}
         >
           <TrashIcon color={colors.danger} />
-        </Pressable>
+        </TapPressable>
       </View>
       {onStatusChange ? (
         <ChapterStatusPicker status={chapter.status} disabled={deleting} onChange={onStatusChange} />
       ) : null}
       {preview ? (
-        <Pressable onPress={onOpen} accessible={false}>
+        <TapPressable onPress={onOpen} accessible={false}>
           <Text
             testID="chapter-preview"
             style={layout.cardMeta}
@@ -100,7 +101,7 @@ export function ChapterListCard({
           >
             {preview}
           </Text>
-        </Pressable>
+        </TapPressable>
       ) : null}
     </View>
   );
