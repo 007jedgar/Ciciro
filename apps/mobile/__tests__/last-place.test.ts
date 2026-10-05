@@ -12,6 +12,7 @@ import {
   restoreStackHrefs,
   unloadLastPlace,
 } from "../lib/last-place";
+import { arrivesSettled } from "../lib/stack-arrival";
 
 const empty = { screen: DEFAULT_HREF, manuscriptId: null };
 
@@ -136,5 +137,36 @@ describe("restoring puts the list under the last place", () => {
       "user-1"
     );
     expect(calls).toEqual(["replace /manuscripts"]);
+  });
+});
+
+describe("restored screens arrive settled", () => {
+  beforeEach(() => resetLastPlace());
+
+  const router = { replace: () => {}, push: () => {} };
+
+  it("skips the slide for the screen a restore pushes, but not when the author opens it", () => {
+    rememberPathname("/project/p1/manuscript", "user-1");
+    restoreLastPlace(router, "user-1");
+    const restored = { key: "project-a", name: "project/[id]", params: { id: "p1" } };
+    expect(arrivesSettled(restored)).toBe(true);
+    expect(arrivesSettled(restored)).toBe(true);
+    expect(arrivesSettled({ key: "project-b", name: "project/[id]", params: { id: "p1" } })).toBe(false);
+  });
+
+  it("leaves other pushed screens sliding in", () => {
+    rememberPathname("/folder/f1", "user-1");
+    restoreLastPlace(router, "user-1");
+    expect(arrivesSettled({ key: "settings-a", name: "settings" })).toBe(false);
+    expect(arrivesSettled({ key: "project-d", name: "project/[id]", params: { id: "f1" } })).toBe(false);
+    expect(arrivesSettled({ key: "folder-a", name: "folder/[id]", params: { id: "f1" } })).toBe(true);
+  });
+
+  it("marks nothing when the restore is just the list", () => {
+    rememberPathname("/project/p1/chapters", "user-1");
+    restoreLastPlace(router, "user-1");
+    rememberPathname("/manuscripts", "user-1");
+    restoreLastPlace(router, "user-1");
+    expect(arrivesSettled({ key: "project-c", name: "project/[id]", params: { id: "p1" } })).toBe(false);
   });
 });
