@@ -83,6 +83,37 @@ describe("ChapterEditor", () => {
     expect(setValue).not.toHaveBeenCalled();
   });
 
+  it("keeps the native defaultValue fixed while the chapter's html moves on", async () => {
+    // A changed defaultValue makes the native view replace its buffer and put
+    // the caret at the end of the chapter, so a commit mid-paragraph (typing
+    // pauses, an accepted correction) sent the writer's next words there.
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor: jest.fn(),
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const mounted = screen.getByTestId("chapter-editor").props.defaultValue;
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId("chapter-editor"), "Hello there. Typing now.");
+    });
+    rerender(
+      <ChapterEditor {...props} html='<p data-block-id="a">Hello there. Typing now.</p>' />
+    );
+    expect(screen.getByTestId("chapter-editor").props.defaultValue).toBe(mounted);
+    rerender(
+      <ChapterEditor {...props} chapterId="c2" html='<p data-block-id="b">Chapter two.</p>' />
+    );
+    expect(screen.getByTestId("chapter-editor").props.defaultValue).toContain("Chapter two.");
+  });
+
   it("adopts remote HTML when nothing has been typed yet", async () => {
     const registerEditor = jest.fn();
     const props = {
