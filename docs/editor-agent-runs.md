@@ -69,7 +69,8 @@ One row owns one author turn. `turnId` is globally unique and is the idempotency
 The row stores:
 
 - project and user/assistant message references;
-- request configuration (`kind`, scope, active chapter, selection, auto mode);
+- request configuration (`kind`, scope, active chapter, selection, auto mode, and
+  `editsAllowed`: false for a Chat only turn, see `src/lib/edit-mode.ts`);
 - the complete Anthropic `messages` array as serialized JSON;
 - author-visible output;
 - status, last stop reason, iteration count, mutation count, and verification result;
@@ -99,6 +100,19 @@ transcript for the run's full working lifetime. Existing cross-turn chat compact
 separate. A later retention pass may archive completed-run retrieval payloads into
 `ChatBlob` and replace them with stable references, but it must never do so while the
 run can still need them.
+
+## Allow edits / Chat only
+
+`POST /api/chat` takes `editsAllowed` (default true) when it creates a run, and the
+run keeps it for every slice and resume, whatever a later request sends. When it is
+false the runner offers the editor none of the manuscript-writing tools
+(`MANUSCRIPT_WRITE_TOOLS`), appends `CHAT_ONLY_SYSTEM` to the system prompt, skips
+the reorg plan, edit intent and mechanical lane, and verifies on the lifecycle
+checks alone (no mutation is required). `executeEditorTool` refuses those tools
+again for any `tool_use` that arrives anyway. Story-bible and open-question tools
+still work. The client owns the switch per conversation and restores it from the
+latest run's `editsAllowed` after a reload; a cleared chat starts on Allow edits.
+`src/lib/edit-mode.ts` is mirrored byte for byte in `apps/mobile/lib/`.
 
 ## HTTP and stream contract
 

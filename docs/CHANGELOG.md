@@ -5,6 +5,12 @@ else stays in commit messages.
 
 ## Unreleased
 
+- New **Allow edits / Chat only** switch under Ciciro's chat (web and phone). It
+  belongs to the conversation: a new chat starts on Allow edits, and Chat only
+  stays on for as long as that conversation continues. In Chat only, Ciciro
+  answers and discusses but never changes your manuscript; the server withholds
+  its writing tools, so it holds even when a page or app is out of date.
+
 - **Stop** in Ciciro's chat (web and phone) now actually stops a request. Ciciro
   finishes the step it is on, then stops before its next tool call; anything it
   already wrote stays and can be undone.

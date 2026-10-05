@@ -47,10 +47,12 @@ import {
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
 import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
+import { DEFAULT_EDIT_MODE, type EditMode } from "../lib/edit-mode";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { ChatClearMark } from "./ChatClearMark";
 import { ChatErrorNotice } from "./ChatErrorNotice";
+import { EditModeToggle } from "./EditModeToggle";
 import { CiciroThinking } from "./CiciroThinking";
 import { alpha, Glass } from "./Glass";
 import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
@@ -395,6 +397,8 @@ export function CiciroChat({
   onRetry,
   onClear,
   onUndoClear,
+  editMode = DEFAULT_EDIT_MODE,
+  onEditModeChange,
   onInsertDraft,
   insertedKeys,
   openQuestionCount = 0,
@@ -418,6 +422,9 @@ export function CiciroChat({
   /** Clears the conversation and resolves with the handle Undo restores by. */
   onClear: () => Promise<string | null>;
   onUndoClear: (token: string) => void;
+  /** Allow edits or Chat only, for this conversation. The switch shows only with a handler. */
+  editMode?: EditMode;
+  onEditModeChange?: (mode: EditMode) => void;
   onInsertDraft: (text: string, turnId: string | null, index: number) => void;
   insertedKeys: Set<string>;
   openQuestionCount?: number;
@@ -962,6 +969,9 @@ export function CiciroChat({
                 </Text>
               </Pressable>
             </Glass>
+            {onEditModeChange ? (
+              <EditModeToggle mode={editMode} onChange={onEditModeChange} />
+            ) : null}
             {jumpShown && showsThread(clearPhase) ? (
               <JumpChip opacity={jumpOpacity}>
                 <Glass dark={dark} colors={colors} radius={14}>

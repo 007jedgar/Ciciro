@@ -6,6 +6,7 @@ import type { ChatMessage, ChatStreamEvent, EditorRunInput } from "./api/types";
 import { failureFromError, type ChatFailure } from "./chat-errors";
 import * as haptics from "./haptics";
 import { createWritingTicker } from "./haptics";
+import { DEFAULT_EDIT_MODE, editModeOfRuns, editsAllowedFor, type EditMode } from "./edit-mode";
 import {
   applyChatStreamEvent,
   emptyChatStreamState,
@@ -23,6 +24,13 @@ export type UseCiciroChat = {
   failure: ChatFailure | null;
   streaming: boolean;
   stream: ChatStreamState;
+  /**
+   * Allow edits or Chat only. It belongs to this conversation: every new turn
+   * carries it, a reload restores the latest turn's, and clearing the chat (a
+   * new thread) puts it back on Allow edits.
+   */
+  editMode: EditMode;
+  setEditMode: (mode: EditMode) => void;
   /** Resolves with the turn's failure when it never reached the editor, else null. */
   send: (input: EditorRunInput) => Promise<ChatFailure | null>;
   /**
@@ -90,6 +98,11 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   const [failure, setFailure] = useState<ChatFailure | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [stream, setStream] = useState<ChatStreamState>(emptyChatStreamState);
+  const [editMode, setEditModeState] = useState<EditMode>(DEFAULT_EDIT_MODE);
+  const editModeRef = useRef(editMode);
+  editModeRef.current = editMode;
+  /** Until the author flips it here, the mode follows the thread's latest turn. */
+  const editModeTouchedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const streamingRef = useRef(false);
   /** Set only by `stop`, so a clear's abort does not resurrect the transcript. */
@@ -120,6 +133,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     try {
       const snapshot = await ciciro.chat.get(projectId);
       setMessages(hydrateChatMessages(snapshot));
+      if (!editModeTouchedRef.current) setEditModeState(editModeOfRuns(snapshot.runs));
       if (!options?.keepFailure) setFailure(null);
     } catch (err) {
       // After a failed turn the turn's failure is the one worth keeping, and
@@ -134,8 +148,16 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   }, [projectId]);
 
   useEffect(() => {
+    // Another manuscript is another conversation.
+    editModeTouchedRef.current = false;
+    setEditModeState(DEFAULT_EDIT_MODE);
     void reload();
   }, [reload]);
+
+  const setEditMode = useCallback((mode: EditMode) => {
+    editModeTouchedRef.current = true;
+    setEditModeState(mode);
+  }, []);
 
   const send = useCallback(
     async (input: EditorRunInput): Promise<ChatFailure | null> => {
@@ -147,7 +169,12 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       stopRequestedRef.current = false;
       const clientTurnId = input.clientTurnId ?? newClientTurnId();
       turnIdRef.current = input.resumeTurnId ?? clientTurnId;
-      lastInputRef.current = input;
+      // Chosen when the turn is sent, so Try again repeats it as it was.
+      const sent: EditorRunInput = {
+        ...input,
+        editsAllowed: input.editsAllowed ?? editsAllowedFor(editModeRef.current),
+      };
+      lastInputRef.current = sent;
       // A run that dies mid-flight resolves with an error footer in the reply,
       // whose Try again replays this turn too.
       retryActionRef.current = "send";
@@ -182,7 +209,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
           if (resumeTurnId) next = { ...next, turnId: resumeTurnId };
           const body: EditorRunInput = resumeTurnId
             ? { projectId, resumeTurnId }
-            : { ...input, projectId, clientTurnId };
+            : { ...sent, projectId, clientTurnId };
           await ciciro.chat.start(
             body,
             (event: ChatStreamEvent) => {
@@ -289,6 +316,9 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     setMessages([]);
     setFailure(null);
     lastInputRef.current = null;
+    // A new thread starts back on Allow edits.
+    editModeTouchedRef.current = false;
+    setEditModeState(DEFAULT_EDIT_MODE);
     setStream(emptyChatStreamState());
     void queryClient.invalidateQueries({ queryKey: queryKeys.chat.snapshot(projectId) });
     return result.archivedAt;
@@ -299,6 +329,8 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       if (!projectId || !token) return;
       try {
         await ciciro.chat.restore(projectId, token);
+        // The restored conversation comes back in the mode it was left in.
+        editModeTouchedRef.current = false;
         await reload();
         void queryClient.invalidateQueries({
           queryKey: queryKeys.chat.insertions(projectId),
@@ -323,6 +355,8 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     failure,
     streaming,
     stream,
+    editMode,
+    setEditMode,
     send,
     stop,
     retry,

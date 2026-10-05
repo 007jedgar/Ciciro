@@ -323,4 +323,137 @@ describe("useCiciroChat", () => {
     ]);
     unmount();
   });
+
+  describe("Allow edits / Chat only", () => {
+    const stamp = "2026-09-14T00:00:00.000Z";
+    const turn = (editsAllowed: boolean) => ({
+      messages: [
+        { id: "u1", role: "user", content: "Hi", kind: "chat", turnId: "t1", createdAt: stamp },
+        { id: "a1", role: "assistant", content: "Hello", kind: "chat", turnId: "t1", createdAt: stamp },
+      ],
+      runs: [
+        {
+          id: "r1",
+          projectId: "p1",
+          turnId: "t1",
+          status: "completed",
+          visibleOutput: "Hello",
+          iterationCount: 1,
+          mutationCount: 0,
+          editsAllowed,
+          createdAt: stamp,
+          updatedAt: stamp,
+        },
+      ],
+    });
+
+    function chatServer(initial: { messages: unknown[]; runs: unknown[] }) {
+      const state = { snapshot: initial, posts: [] as Record<string, unknown>[] };
+      mockFetch(async (input, init) => {
+        const method = init?.method ?? "GET";
+        if (method === "DELETE") {
+          state.snapshot = { messages: [], runs: [] };
+          return jsonResponse({ ok: true, archivedAt: stamp, count: 2 });
+        }
+        if (method === "POST") {
+          state.posts.push(parsedBody(init as RequestInit));
+          return ndjsonResponse([
+            '{"type":"turn","id":"t-new","runId":"r-new"}',
+            '{"type":"text","v":"Done."}',
+            '{"type":"done","status":"completed","runId":"r-new"}',
+          ]);
+        }
+        return jsonResponse(state.snapshot);
+      });
+      return state;
+    }
+
+    it("starts on Allow edits and sends editsAllowed with the turn", async () => {
+      const server = chatServer({ messages: [], runs: [] });
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.editMode).toBe("edits");
+
+      await act(async () => {
+        await result.current.send({ projectId: "p1", message: "Hello" });
+      });
+      expect(server.posts[0]).toMatchObject({ message: "Hello", editsAllowed: true });
+      unmount();
+    });
+
+    it("keeps Chat only for every later turn of the conversation", async () => {
+      const server = chatServer({ messages: [], runs: [] });
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      act(() => result.current.setEditMode("chat"));
+      expect(result.current.editMode).toBe("chat");
+      await act(async () => {
+        await result.current.send({ projectId: "p1", message: "One" });
+      });
+      await act(async () => {
+        await result.current.send({ projectId: "p1", message: "Two" });
+      });
+      expect(server.posts.map((post) => post.editsAllowed)).toEqual([false, false]);
+      expect(result.current.editMode).toBe("chat");
+      unmount();
+    });
+
+    it("restores the conversation's mode when it loads again", async () => {
+      chatServer(turn(false));
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      await waitFor(() => expect(result.current.editMode).toBe("chat"));
+      unmount();
+    });
+
+    it("goes back to Allow edits on a new thread, and Undo brings the old mode back", async () => {
+      const server = chatServer(turn(false));
+      const original = server.snapshot;
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      await waitFor(() => expect(result.current.editMode).toBe("chat"));
+
+      let token: string | null = null;
+      await act(async () => {
+        token = await result.current.clear();
+      });
+      expect(result.current.editMode).toBe("edits");
+      await act(async () => {
+        await result.current.send({ projectId: "p1", message: "A fresh start" });
+      });
+      expect(server.posts[0]).toMatchObject({ editsAllowed: true });
+
+      server.snapshot = original;
+      await act(async () => {
+        await result.current.undoClear(token as unknown as string);
+      });
+      await waitFor(() => expect(result.current.editMode).toBe("chat"));
+      unmount();
+    });
+
+    it("replays a failed turn in the mode it was sent in", async () => {
+      const posts: Record<string, unknown>[] = [];
+      let failNext = true;
+      mockFetch(async (_input, init) => {
+        if ((init?.method ?? "GET") !== "POST") return jsonResponse({ messages: [], runs: [] });
+        posts.push(parsedBody(init as RequestInit));
+        if (failNext) {
+          failNext = false;
+          return jsonResponse({ error: "Overloaded" }, { status: 529 });
+        }
+        return ndjsonResponse(['{"type":"done","status":"completed","runId":"r1"}']);
+      });
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      act(() => result.current.setEditMode("chat"));
+      await act(async () => {
+        await result.current.send({ projectId: "p1", message: "Hi" });
+      });
+      act(() => result.current.setEditMode("edits"));
+      await act(async () => {
+        await result.current.retry();
+      });
+      expect(posts.map((post) => post.editsAllowed)).toEqual([false, false]);
+      unmount();
+    });
+  });
 });

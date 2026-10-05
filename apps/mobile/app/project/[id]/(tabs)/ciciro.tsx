@@ -232,6 +232,8 @@ export default function CiciroScreen() {
           return chat.clear();
         }}
         onUndoClear={(token) => void chat.undoClear(token)}
+        editMode={chat.editMode}
+        onEditModeChange={chat.setEditMode}
         onInsertDraft={insertDraft}
         insertedKeys={insertedKeys}
         openQuestionCount={questions.data?.length ?? 0}
