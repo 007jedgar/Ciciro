@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthError, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
-import { getUserSettings, replaceUserSettings, updateUserSettings } from "@/lib/user-settings";
+import { getUserSettingsState, replaceUserSettings, updateUserSettings } from "@/lib/user-settings";
 
 export const runtime = "nodejs";
 
@@ -12,8 +12,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
   try {
-    const settings = await getUserSettings(user.id);
-    return NextResponse.json({ settings });
+    return NextResponse.json(await getUserSettingsState(user.id));
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -30,7 +29,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   try {
     const settings = await updateUserSettings(user.id, body);
-    return NextResponse.json({ settings });
+    return NextResponse.json({ settings, settingsSaved: true });
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;
@@ -47,7 +46,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   try {
     const settings = await replaceUserSettings(user.id, body);
-    return NextResponse.json({ settings });
+    return NextResponse.json({ settings, settingsSaved: true });
   } catch (error) {
     if (error instanceof AuthError) {
       const failure = responseFromAuthError(error);

@@ -266,6 +266,8 @@ export type EntitlementResponse = { entitlement: Entitlement };
 export type AuthMeResponse = {
   user: PublicUser | null;
   settings: AppSettings | null;
+  /** Whether the account ever saved settings; absent from an older server. */
+  settingsSaved?: boolean;
   /** Absent from a server older than billing; null when billing could not be read. */
   entitlement?: Entitlement | null;
   token?: string;
@@ -334,6 +336,8 @@ export type EmailPreferencesPatch = Partial<EmailPreferencesResponse>;
 
 export type SettingsResponse = {
   settings: AppSettings;
+  /** Whether the account ever saved settings; absent from an older server. */
+  settingsSaved?: boolean;
 };
 
 export type ModelRole = "editor" | "drafter" | "quickDrafts" | "router";

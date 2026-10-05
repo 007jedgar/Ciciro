@@ -121,3 +121,56 @@ describe("/api/settings: the Experimental writing prompt setting", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("/api/settings: whether the account ever saved settings", () => {
+  beforeEach(async () => {
+    await prisma.session.deleteMany();
+    await prisma.user.deleteMany();
+    const user = await prisma.user.create({ data: { email: "ada@example.com", passwordHash: "x" } });
+    await prisma.session.create({
+      data: { userId: user.id, tokenHash: hashSessionToken(TOKEN), expiresAt: new Date(Date.now() + 3_600_000) },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  async function saved(client: Client) {
+    const body = await (await GET(request(client))).json();
+    const fromMe = await (await me(request(client))).json();
+    expect(fromMe.settingsSaved).toBe(body.settingsSaved);
+    return body.settingsSaved;
+  }
+
+  it("reports a new account as never saved, in both /api/settings and /api/auth/me", async () => {
+    expect(await saved("phone")).toBe(false);
+    expect(await saved("web")).toBe(false);
+  });
+
+  it("reports saved once a client patches settings, even to the default Parchment", async () => {
+    const res = await PATCH(request("web", "PATCH", { theme: "parchment" }));
+    expect((await res.json()).settingsSaved).toBe(true);
+    expect(await saved("phone")).toBe(true);
+    expect((await read("phone")).theme).toBe("parchment");
+  });
+
+  it("reports saved after the phone's full-document PUT", async () => {
+    const stored = await read("phone");
+    const put = await PUT(request("phone", "PUT", { ...stored, updatedAt: new Date(Date.now() + 60_000).toISOString() }));
+    expect((await put.json()).settingsSaved).toBe(true);
+    expect(await saved("web")).toBe(true);
+  });
+
+  it("never stores the flag as a setting, even when a client sends it back", async () => {
+    const stored = await read("phone");
+    await PUT(
+      request("phone", "PUT", { ...stored, settingsSaved: false, updatedAt: new Date(Date.now() + 60_000).toISOString() })
+    );
+    await PATCH(request("web", "PATCH", { theme: "ember", settingsSaved: false }));
+    const row = await prisma.user.findFirstOrThrow({ select: { settingsJson: true } });
+    expect(JSON.parse(row.settingsJson)).not.toHaveProperty("settingsSaved");
+    expect(await saved("web")).toBe(true);
+    expect(await read("web")).not.toHaveProperty("settingsSaved");
+  });
+});

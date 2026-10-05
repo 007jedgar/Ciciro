@@ -183,6 +183,16 @@ export function parseSettingsJson(json: string, fallbackUpdatedAt?: Date | strin
   return normalized;
 }
 
+/** False while the account has never saved a setting: its stored document is still the empty default. */
+export function settingsWereSaved(json: string): boolean {
+  try {
+    const raw: unknown = json ? JSON.parse(json) : {};
+    return !!raw && typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function parseSettingsPatch(body: unknown): SettingsPatch | { error: string } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return { error: "Expected a settings object." };

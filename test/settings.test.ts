@@ -6,6 +6,7 @@ import {
   nearestFontSize,
   normalizeSettings,
   parseSettingsJson,
+  settingsWereSaved,
   parseSettingsPatch,
   pickNewer,
   settingsEqual,
@@ -139,5 +140,10 @@ describe("app settings", () => {
     expect(normalized).not.toHaveProperty("focusMode");
     const base = defaultSettings();
     expect(settingsEqual(base, { ...base, typewriterMode: true })).toBe(false);
+  });
+
+  it("counts only a stored document with settings in it as saved", () => {
+    for (const json of ["", "{}", "not json", "[]", "null"]) expect(settingsWereSaved(json)).toBe(false);
+    expect(settingsWereSaved(JSON.stringify({ theme: "parchment" }))).toBe(true);
   });
 });

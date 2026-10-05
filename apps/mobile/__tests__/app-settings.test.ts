@@ -5,7 +5,10 @@ import {
   normalizeSettings,
   SETTINGS_EPOCH,
   settingsEqual,
+  cachedSettingsSaved,
+  reconcileSettings,
   withPhoneDefaultTheme,
+  type AppSettings,
 } from "../lib/app-settings";
 
 describe("app settings", () => {
@@ -90,18 +93,98 @@ describe("app settings", () => {
     }
   });
 
-  describe("withPhoneDefaultTheme", () => {
-    const server = (over: Record<string, unknown> = {}) =>
-      normalizeSettings({ ...defaultSettings(), theme: "parchment", updatedAt: "2026-09-01T00:00:00.000Z", ...over });
+  describe("the phone's default theme", () => {
+    const CREATED = "2026-09-01T00:00:00.000Z";
+    const server = (over: Record<string, unknown> = {}): AppSettings =>
+      normalizeSettings({ ...defaultSettings(), theme: "parchment", updatedAt: CREATED, ...over });
 
-    it("keeps the phone default when the server only holds its own blank settings", () => {
-      expect(withPhoneDefaultTheme(server()).theme).toBe("ciciro");
+    it("shows Ciciro for settings nobody saved, and leaves saved or unknown ones as stored", () => {
+      expect(withPhoneDefaultTheme(server(), false).theme).toBe("ciciro");
+      expect(withPhoneDefaultTheme(server(), true).theme).toBe("parchment");
+      expect(withPhoneDefaultTheme(server(), null).theme).toBe("parchment");
     });
 
-    it("leaves an account that changed anything else, or picked another theme, as stored", () => {
-      expect(withPhoneDefaultTheme(server({ dailyWordGoal: 500 })).theme).toBe("parchment");
-      expect(withPhoneDefaultTheme(server({ theme: "walnut" })).theme).toBe("walnut");
-      expect(withPhoneDefaultTheme(server({ theme: "ciciro-night" })).theme).toBe("ciciro-night");
+    it("counts a cache still at the epoch as never saved, and an older synced one as unknown", () => {
+      expect(cachedSettingsSaved(defaultSettings(), null)).toBe(false);
+      expect(cachedSettingsSaved(server(), null)).toBeNull();
+      expect(cachedSettingsSaved(server(), true)).toBe(true);
+      expect(cachedSettingsSaved(server(), false)).toBe(false);
+    });
+
+    it("gives a new phone Ciciro when the account never saved settings", () => {
+      const next = reconcileSettings({
+        local: defaultSettings(),
+        localSaved: false,
+        owned: true,
+        remote: server(),
+        remoteSaved: false,
+      });
+      expect(next).toMatchObject({ saved: false, sync: "none" });
+      expect(next.settings.theme).toBe("ciciro");
+    });
+
+    it("keeps an explicitly saved Parchment on a new phone and after signing in again", () => {
+      for (const local of [defaultSettings(), server({ theme: "ember", updatedAt: "2026-08-01T00:00:00.000Z" })]) {
+        for (const owned of [true, false]) {
+          const next = reconcileSettings({ local, localSaved: null, owned, remote: server(), remoteSaved: true });
+          expect(next.settings.theme).toBe("parchment");
+          expect(next.saved).toBe(true);
+        }
+      }
+    });
+
+    it("moves an older install's cached blank Parchment to Ciciro once the server says it was never saved", () => {
+      const next = reconcileSettings({
+        local: server(),
+        localSaved: null,
+        owned: true,
+        remote: server(),
+        remoteSaved: false,
+      });
+      expect(next).toMatchObject({ saved: false, sync: "none" });
+      expect(next.settings.theme).toBe("ciciro");
+    });
+
+    it("keeps a cached Parchment the author picked, even before the server has heard of it", () => {
+      const picked = applyPatch(server({ theme: "ember" }), { theme: "parchment" });
+      const next = reconcileSettings({
+        local: picked,
+        localSaved: true,
+        owned: true,
+        remote: server(),
+        remoteSaved: false,
+      });
+      expect(next).toMatchObject({ saved: true, sync: "put" });
+      expect(next.settings.theme).toBe("parchment");
+
+      const synced = reconcileSettings({
+        local: server({ updatedAt: picked.updatedAt }),
+        localSaved: true,
+        owned: true,
+        remote: server({ updatedAt: picked.updatedAt }),
+        remoteSaved: true,
+      });
+      expect(synced.settings.theme).toBe("parchment");
+    });
+
+    it("never moves a stored theme when an older server does not say whether settings were saved", () => {
+      for (const local of [defaultSettings(), server()]) {
+        const next = reconcileSettings({ local, localSaved: null, owned: true, remote: server(), remoteSaved: undefined });
+        expect(next.settings.theme).toBe("parchment");
+        expect(next.saved).toBeNull();
+      }
+    });
+
+    it("shows the other account's own copy when the cache belongs to someone else", () => {
+      const next = reconcileSettings({
+        local: server({ theme: "walnut", updatedAt: "2026-10-01T00:00:00.000Z" }),
+        localSaved: true,
+        owned: false,
+        remote: server(),
+        remoteSaved: false,
+      });
+      expect(next).toMatchObject({ saved: false, sync: "none" });
+      expect(next.settings.theme).toBe("ciciro");
     });
   });
 });
