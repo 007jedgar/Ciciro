@@ -3,13 +3,14 @@ import { Appearance } from "react-native";
 import { ciciro } from "./api/resources";
 import {
   applyPatch,
+  cachedSettingsSaved,
   defaultSettings,
   normalizeSettings,
-  SETTINGS_EPOCH,
-  settingsEqual,
+  reconcileSettings,
   withPhoneDefaultTheme,
   type AppSettings,
   type SettingsPatch,
+  type SettingsSaved,
 } from "./app-settings";
 import { AppThemeContext, type AppThemeState } from "./app-theme-context";
 import { useSession } from "./session";
@@ -20,16 +21,25 @@ export type { AppThemeState };
 
 const CACHE_KEY = "settings";
 const CACHE_USER_KEY = "settings-user-id";
+const CACHE_SAVED_KEY = "settings-saved";
 
-function readCache(): AppSettings {
+type CachedSettings = { settings: AppSettings; saved: SettingsSaved };
+
+function readCache(): CachedSettings {
   try {
     const { getPrefs } = require("./prefs") as typeof import("./prefs");
-    const raw = getPrefs().getString(CACHE_KEY);
-    if (raw) return normalizeSettings(JSON.parse(raw));
+    const prefs = getPrefs();
+    const raw = prefs.getString(CACHE_KEY);
+    if (raw) {
+      const settings = normalizeSettings(JSON.parse(raw));
+      const flag = prefs.getString(CACHE_SAVED_KEY);
+      const saved = cachedSettingsSaved(settings, flag === "1" ? true : flag === "0" ? false : null);
+      return { settings: withPhoneDefaultTheme(settings, saved), saved };
+    }
   } catch {
     /* web / tests / missing native module */
   }
-  return defaultSettings();
+  return { settings: defaultSettings(), saved: false };
 }
 
 function readCacheUserId(): string | null {
@@ -41,11 +51,13 @@ function readCacheUserId(): string | null {
   }
 }
 
-function writeCache(settings: AppSettings, userId?: string | null) {
+function writeCache(settings: AppSettings, saved: SettingsSaved, userId?: string | null) {
   try {
     const { getPrefs } = require("./prefs") as typeof import("./prefs");
     const prefs = getPrefs();
     prefs.set(CACHE_KEY, JSON.stringify(settings));
+    if (saved === null) prefs.remove(CACHE_SAVED_KEY);
+    else prefs.set(CACHE_SAVED_KEY, saved ? "1" : "0");
     if (userId) prefs.set(CACHE_USER_KEY, userId);
   } catch {
     /* ignore */
@@ -60,10 +72,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const commit = useCallback(
-    (next: AppSettings, sync: "patch" | "put" | "none", userId?: string | null) => {
+    (next: AppSettings, saved: SettingsSaved, sync: "patch" | "put" | "none", userId?: string | null) => {
       settingsRef.current = next;
       setSettings(next);
-      writeCache(next, userId);
+      writeCache(next, saved, userId);
       Appearance.setColorScheme?.(isDarkTheme(next.theme) ? "dark" : "light");
       if (sync === "none" || !user) return;
       if (pushTimer.current) clearTimeout(pushTimer.current);
@@ -95,36 +107,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const local = readCache();
-    commit(local, "none");
+    commit(local.settings, local.saved, "none");
     if (!user) return;
     let cancelled = false;
     void (async () => {
       try {
         const data = await ciciro.settings.get();
         if (cancelled) return;
-        const remote = withPhoneDefaultTheme(normalizeSettings(data.settings));
-        const localMs = Date.parse(local.updatedAt) || 0;
-        const remoteMs = Date.parse(remote.updatedAt) || 0;
         const localUserId = readCacheUserId();
-        const owned = localUserId === user.id;
-        const unscoped = !localUserId;
-        if (!owned && !unscoped) {
-          commit(remote, "none", user.id);
-          return;
-        }
-        if (remoteMs > localMs) {
-          commit(remote, "none", user.id);
-          return;
-        }
-        if (
-          localMs > remoteMs &&
-          !settingsEqual(local, remote) &&
-          local.updatedAt !== SETTINGS_EPOCH
-        ) {
-          commit(local, "put", user.id);
-          return;
-        }
-        commit(local, "none", user.id);
+        const next = reconcileSettings({
+          local: local.settings,
+          localSaved: local.saved,
+          owned: !localUserId || localUserId === user.id,
+          remote: normalizeSettings(data.settings),
+          remoteSaved: typeof data.settingsSaved === "boolean" ? data.settingsSaved : undefined,
+        });
+        commit(next.settings, next.saved, next.sync, user.id);
       } catch {
         /* stay local */
       }
@@ -136,7 +134,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const patch = useCallback(
     (partial: SettingsPatch) => {
-      commit(applyPatch(settingsRef.current, partial), "patch", user?.id);
+      commit(applyPatch(settingsRef.current, partial), true, "patch", user?.id);
     },
     [commit, user?.id]
   );

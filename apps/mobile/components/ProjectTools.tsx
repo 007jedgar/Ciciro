@@ -61,7 +61,8 @@ function ToolPop({ index, delay, children }: { index: number; delay: number; chi
  * The project's tools as one sideways-scrolling row of icon tiles, so the
  * chapters sit right under the recap card. The tiles pop in one after another,
  * left to right, starting `introDelay` ms after the screen starts sliding in
- * (or after the row mounts, on a screen already on show).
+ * (or after the row mounts, on a screen already on show). Every tile is as tall
+ * as the tallest, so at large text sizes the row grows together.
  */
 export function ProjectTools({ tools, introDelay = 0 }: { tools: readonly ProjectTool[]; introDelay?: number }) {
   const { colors } = useAppTheme();
@@ -126,11 +127,12 @@ export function ProjectTools({ tools, introDelay = 0 }: { tools: readonly Projec
 
 const styles = StyleSheet.create({
   row: { marginHorizontal: -BLEED, marginBottom: 24 },
-  tiles: { gap: GAP, paddingHorizontal: BLEED },
+  tiles: { gap: GAP, paddingHorizontal: BLEED, alignItems: "stretch" },
   fade: { position: "absolute", top: 0, bottom: 0, right: 0, width: 32 },
   tile: {
     width: 112,
-    height: 96,
+    minHeight: 96,
+    flexGrow: 1,
     borderWidth: 1,
     borderRadius: 6,
     paddingHorizontal: 12,

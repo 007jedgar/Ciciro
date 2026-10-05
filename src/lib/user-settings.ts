@@ -6,17 +6,32 @@ import {
   parseSettingsJson,
   parseSettingsPatch,
   pickNewer,
+  settingsWereSaved,
   type AppSettings,
   type SettingsPatch,
 } from "@/lib/settings";
 
 export async function getUserSettings(userId: string): Promise<AppSettings> {
+  return (await getUserSettingsState(userId)).settings;
+}
+
+/**
+ * The stored settings, plus whether the account ever saved any. An account
+ * that never did gets the defaults back, which a client with its own default
+ * (the phone's theme) should not mistake for a pick.
+ */
+export async function getUserSettingsState(
+  userId: string
+): Promise<{ settings: AppSettings; settingsSaved: boolean }> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
     select: { settingsJson: true, settingsUpdatedAt: true },
   });
   if (!row) throw new AuthError("Not found.", 404);
-  return parseSettingsJson(row.settingsJson, row.settingsUpdatedAt);
+  return {
+    settings: parseSettingsJson(row.settingsJson, row.settingsUpdatedAt),
+    settingsSaved: settingsWereSaved(row.settingsJson),
+  };
 }
 
 export async function updateUserSettings(

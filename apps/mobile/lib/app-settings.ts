@@ -121,22 +121,63 @@ export function applyPatch(current: AppSettings, patch: SettingsPatch): AppSetti
   return { ...current, ...patch, updatedAt: new Date().toISOString() };
 }
 
-/** The web's own default (src/lib/settings.ts), which the server hands back for an account that never saved settings. */
-const SERVER_DEFAULT_THEME: ThemeId = "parchment";
+/**
+ * Whether these settings were ever saved: true once the author changed one,
+ * false while they are still nobody's pick (the server's blank account, or a
+ * phone that never synced or changed anything), null when that is not known
+ * (a cache from before the phone kept track, or a server that does not say).
+ */
+export type SettingsSaved = boolean | null;
 
 /**
- * Settings from the server for someone who has never changed anything: every
- * field at its default, with the web's default theme. That "parchment" is the
- * server's blank, not a pick, so the phone keeps its own default theme instead
- * of adopting it. An account that chose a theme (or changed any other setting)
- * is returned as stored.
+ * Settings nobody saved hold someone else's default theme (the server hands
+ * back the web's "parchment"), not a pick, so the phone shows its own default
+ * instead. Saved or unknown settings are returned as stored.
  */
-export function withPhoneDefaultTheme(remote: AppSettings): AppSettings {
-  const blank = defaultSettings();
-  const untouched =
-    remote.theme === SERVER_DEFAULT_THEME &&
-    settingsEqual({ ...remote, theme: blank.theme }, blank);
-  return untouched ? { ...remote, theme: blank.theme } : remote;
+export function withPhoneDefaultTheme(settings: AppSettings, saved: SettingsSaved): AppSettings {
+  return saved === false && settings.theme !== DEFAULT_THEME ? { ...settings, theme: DEFAULT_THEME } : settings;
+}
+
+/** What the phone knows of a cached copy: a copy still at the epoch was never changed or synced. */
+export function cachedSettingsSaved(settings: AppSettings, stored: SettingsSaved): SettingsSaved {
+  if (stored !== null) return stored;
+  return settings.updatedAt === SETTINGS_EPOCH ? false : null;
+}
+
+export type SettingsReconcile = {
+  settings: AppSettings;
+  saved: SettingsSaved;
+  /** "put" when the phone's copy is the newer change and the server should take it. */
+  sync: "put" | "none";
+};
+
+/**
+ * Picks between the phone's cached copy and the server's on sign-in or launch.
+ * `owned` is false when the cache belongs to another account. `remoteSaved` is
+ * undefined from a server that predates the flag, which never moves a theme.
+ */
+export function reconcileSettings(input: {
+  local: AppSettings;
+  localSaved: SettingsSaved;
+  owned: boolean;
+  remote: AppSettings;
+  remoteSaved: boolean | undefined;
+}): SettingsReconcile {
+  const { local, localSaved, owned } = input;
+  const remoteSaved = input.remoteSaved ?? null;
+  const remote = withPhoneDefaultTheme(input.remote, remoteSaved);
+  const fromRemote: SettingsReconcile = { settings: remote, saved: remoteSaved, sync: "none" };
+  if (!owned) return fromRemote;
+  const localMs = Date.parse(local.updatedAt) || 0;
+  const remoteMs = Date.parse(remote.updatedAt) || 0;
+  if (remoteMs > localMs) return fromRemote;
+  if (localMs > remoteMs && !settingsEqual(local, remote) && local.updatedAt !== SETTINGS_EPOCH) {
+    return { settings: local, saved: true, sync: "put" };
+  }
+  if (remoteSaved === false && localSaved !== true) {
+    return { settings: withPhoneDefaultTheme(local, false), saved: false, sync: "none" };
+  }
+  return { settings: local, saved: localSaved ?? remoteSaved, sync: "none" };
 }
 
 export function settingsEqual(a: AppSettings, b: AppSettings): boolean {
