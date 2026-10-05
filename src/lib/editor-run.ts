@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getAnthropic, EDITOR_MODEL } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import { buildEditorContext } from "@/lib/context";
-import { editorSystemFor } from "@/lib/prompts";
+import { CHAT_ONLY_SYSTEM, editorSystemFor } from "@/lib/prompts";
 import { craftDefaultsOn } from "@/lib/craft-options";
 import {
   adaptiveThinking,
@@ -12,7 +12,7 @@ import {
   thinkingUpdatesRequestOptions,
 } from "@/lib/thinking-display";
 import { normalizeKind } from "@/lib/manuscript-kind";
-import { EDITOR_TOOLS, executeEditorTool, toolUiEvents } from "@/lib/tools";
+import { editorToolsFor, executeEditorTool, toolUiEvents } from "@/lib/tools";
 import { ensureBible } from "@/lib/bible";
 import { maybeCompactChat } from "@/lib/compact";
 import { backstageLine } from "@/lib/backstage";
@@ -56,6 +56,12 @@ export type EditorRunInput = {
   kind?: string;
   scope?: EditorScope;
   autoMode?: boolean;
+  /**
+   * False for a "Chat only" turn (src/lib/edit-mode.ts). Anything but an
+   * explicit false allows edits, and it is read only when a run is created: the
+   * run keeps it for every later slice.
+   */
+  editsAllowed?: boolean;
   resumeTurnId?: string;
   continueFrom?: string;
   forceCompact?: boolean;
@@ -176,7 +182,8 @@ export async function prepareEditorRun(input: EditorRunInput) {
         scope: input.scope,
         activeChapterId: input.activeChapterId,
         selection: input.selection || "",
-        autoMode: Boolean(input.autoMode),
+        autoMode: input.editsAllowed !== false && Boolean(input.autoMode),
+        editsAllowed: input.editsAllowed !== false,
         visibleOutput: stripErrorFooter(
           input.continueFrom || legacyAssistant?.content || ""
         ),
@@ -231,43 +238,52 @@ export async function prepareEditorRun(input: EditorRunInput) {
       (row) => !(row.role === "assistant" && row.turnId === turnId)
     );
 
+    // A Chat only turn plans no edits: no reorg plan, no edit intent, and no
+    // mechanical lane, all of which steer the editor toward mutating tools.
+    const editsAllowed = created.editsAllowed;
     let reorgBlock = "";
     let namedChapterNumbers: number[] = [];
-    try {
-      const plan = await buildReorgPlan({
-        projectId: input.projectId,
-        message,
-        selection: input.selection || "",
-        activeChapterId: input.activeChapterId,
-      });
-      reorgBlock = formatReorgPlan(plan);
-      namedChapterNumbers = [plan.sourceChapter, plan.destChapter].filter(
-        (chapter): chapter is number => chapter != null
-      );
-    } catch {
-      // The planner remains advisory.
+    if (editsAllowed) {
+      try {
+        const plan = await buildReorgPlan({
+          projectId: input.projectId,
+          message,
+          selection: input.selection || "",
+          activeChapterId: input.activeChapterId,
+        });
+        reorgBlock = formatReorgPlan(plan);
+        namedChapterNumbers = [plan.sourceChapter, plan.destChapter].filter(
+          (chapter): chapter is number => chapter != null
+        );
+      } catch {
+        // The planner remains advisory.
+      }
     }
-    const intent = await buildEditorIntent({
-      projectId: input.projectId,
-      message,
-      selection: input.selection,
-      activeChapterId: input.activeChapterId,
-      kind: input.kind,
-    });
-    const route = await routeEditorWork({
-      message,
-      kind: input.kind,
-      intent,
-    });
+    const intent = editsAllowed
+      ? await buildEditorIntent({
+          projectId: input.projectId,
+          message,
+          selection: input.selection,
+          activeChapterId: input.activeChapterId,
+          kind: input.kind,
+        })
+      : null;
+    const route = intent
+      ? await routeEditorWork({
+          message,
+          kind: input.kind,
+          intent,
+        })
+      : null;
     const context = await buildEditorContext(
       input.projectId,
       input.activeChapterId,
       input.scope,
-      Boolean(input.autoMode),
+      editsAllowed && Boolean(input.autoMode),
       namedChapterNumbers
     );
-    const intentBlock = formatEditorIntent(intent);
-    const routeBlock = formatEditorRoute(route);
+    const intentBlock = intent ? formatEditorIntent(intent) : "";
+    const routeBlock = route ? formatEditorRoute(route) : "";
     const contextWithPlan = [context, reorgBlock, intentBlock, routeBlock]
       .filter(Boolean)
       .join("\n\n");
@@ -581,6 +597,7 @@ async function finalizeVerification(
     projectId: claim.projectId,
     messages,
     mutationCount: current.mutationCount,
+    editsAllowed: claim.editsAllowed,
   });
   const finalStatus: EditorRunStatus = verification.passed
     ? "completed"
@@ -719,7 +736,14 @@ export async function executeClaimedEditorRun(
       projectKind(claim.projectId),
       craftDefaultsOn(claim.projectId),
     ]);
-    const editorSystem = editorSystemFor(kind, "", { craft });
+    const editorSystem = editorSystemFor(
+      kind,
+      claim.editsAllowed ? "" : CHAT_ONLY_SYSTEM,
+      { craft }
+    );
+    // Withheld here and refused again in executeEditorTool, per run rather than
+    // per request, so a continuation slice from a stale client cannot reopen it.
+    const editorTools = editorToolsFor(claim.editsAllowed);
 
     for (let sliceIndex = 0; sliceIndex < MAX_ITERATIONS_PER_SLICE; sliceIndex++) {
       if (await isCancelled()) return checkpointCancelled();
@@ -740,7 +764,7 @@ export async function executeClaimedEditorRun(
               thinking: adaptiveThinking(progressNotes),
               output_config: { effort: requestProfile.effort },
               system: editorSystem,
-              tools: EDITOR_TOOLS,
+              tools: editorTools,
               messages,
             },
             thinkingUpdatesRequestOptions(progressNotes)
@@ -855,6 +879,7 @@ export async function executeClaimedEditorRun(
               projectId: claim.projectId,
               activeChapterId: claim.activeChapterId,
               runId: claim.id,
+              editsAllowed: claim.editsAllowed,
             }
           );
           emit({ type: "tool", v: result.status });

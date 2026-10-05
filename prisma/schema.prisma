@@ -777,6 +777,9 @@ model EditorRun {
   activeChapterId    String?
   selection          String  @default("")
   autoMode           Boolean @default(false)
+  // False for a "Chat only" turn: the editor is given no manuscript-writing
+  // tools for every slice of the run (src/lib/edit-mode.ts).
+  editsAllowed       Boolean @default(true)
 
   status           String  @default("queued") // queued | running | continuing | verifying | completed | failed | cancelled
   messagesJson     String  @default("[]")

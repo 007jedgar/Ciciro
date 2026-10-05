@@ -120,6 +120,8 @@ export type EditorRun = {
   activeChapterId?: string | null;
   selection?: string;
   autoMode?: boolean;
+  /** False when the turn ran as Chat only. */
+  editsAllowed?: boolean;
   status: EditorRunStatus;
   visibleOutput: string;
   iterationCount: number;

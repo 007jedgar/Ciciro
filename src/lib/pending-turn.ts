@@ -18,6 +18,8 @@ export type PendingTurn = {
   selection: string;
   /** When true, the editor may create/switch chapters and auto-insert drafts. */
   autoMode?: boolean;
+  /** False when the turn runs as Chat only (src/lib/edit-mode.ts). */
+  editsAllowed?: boolean;
   partialText: string;
   status?: EditorRunStatus;
   stopReason?: string | null;
@@ -157,6 +159,7 @@ export function resolvePendingTurn(
       unfinished.activeChapterId || sameStored?.activeChapterId || null,
     selection: unfinished.selection || sameStored?.selection || "",
     autoMode: unfinished.autoMode ?? sameStored?.autoMode,
+    editsAllowed: unfinished.editsAllowed ?? sameStored?.editsAllowed,
     partialText:
       unfinished.visibleOutput || assistant?.content || sameStored?.partialText || "",
     status: unfinished.status,

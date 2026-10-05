@@ -12,6 +12,13 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { quickActionsFor, type QuickAction } from "@/lib/prompts";
+import {
+  DEFAULT_EDIT_MODE,
+  editModeOfRuns,
+  editsAllowedFor,
+  type EditMode,
+} from "@/lib/edit-mode";
+import EditModeToggle from "@/components/EditModeToggle";
 import { countWords } from "@/lib/text";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
@@ -269,6 +276,12 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const [streamMsgId, setStreamMsgId] = useState<string | null>(null);
   const [selection, setSelection] = useState("");
   const [autoMode, setAutoMode] = useState(false);
+  // Allow edits / Chat only belongs to this conversation. Until the author
+  // flips it here it follows the thread's latest turn (so a reload restores
+  // it); a cleared thread starts over on Allow edits.
+  const [editMode, setEditMode] = useState<EditMode>(DEFAULT_EDIT_MODE);
+  const [editsNotice, setEditsNotice] = useState(false);
+  const editModeTouchedRef = useRef(false);
   const [insertedKeys, setInsertedKeys] = useState<Set<string>>(new Set());
   const [conn, setConn] = useState<ConnState>("online");
   const [activePhase, setActivePhase] = useState<EditorRunStatus | null>(null);
@@ -297,6 +310,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   activeChapterRef.current = activeChapterId;
   const autoModeRef = useRef(autoMode);
   autoModeRef.current = autoMode;
+  const editsAllowedRef = useRef(true);
+  editsAllowedRef.current = editsAllowedFor(editMode);
   const onUiEventRef = useRef(onUiEvent);
   onUiEventRef.current = onUiEvent;
 
@@ -334,6 +349,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     const snapshot = normalizeChatSnapshot(await r.json());
     setMessages(snapshot.messages);
     setRuns(snapshot.runs);
+    if (!editModeTouchedRef.current) setEditMode(editModeOfRuns(snapshot.runs));
     await refreshInsertions().catch(() => {});
     return snapshot;
   }, [projectId, refreshInsertions]);
@@ -367,7 +383,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   // without waiting for a button click. Keys use the live turnId so they
   // match the durable DraftInsertion rows after refresh.
   useEffect(() => {
-    if (!autoMode || !streaming || !streamMsgId) return;
+    if (!autoMode || editMode === "chat" || !streaming || !streamMsgId) return;
     const turnId = streamTurnIdRef.current;
     parseSegments(streamText).forEach((seg, idx) => {
       if (seg.kind !== "draft" || seg.open) return;
@@ -393,6 +409,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   }, [
     streamText,
     autoMode,
+    editMode,
     streaming,
     streamMsgId,
     insertedKeys,
@@ -621,6 +638,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           kind: turn.kind,
           scope: turn.scope,
           autoMode: turn.autoMode ?? autoModeRef.current,
+            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
         },
         signal
       );
@@ -634,6 +652,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             kind: turn.kind,
             scope: turn.scope,
             autoMode: turn.autoMode ?? autoModeRef.current,
+            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
             clientTurnId: turn.turnId,
           },
           signal
@@ -670,6 +689,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             kind: turn.kind,
             scope: turn.scope,
             autoMode: turn.autoMode ?? autoModeRef.current,
+            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
             clientTurnId: turn.turnId,
           }
         : {
@@ -680,6 +700,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             kind: turn.kind,
             scope: turn.scope,
             autoMode: turn.autoMode ?? autoModeRef.current,
+            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
           },
       signal
     );
@@ -695,6 +716,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           kind: turn.kind,
           scope: turn.scope,
           autoMode: turn.autoMode ?? autoModeRef.current,
+            editsAllowed: turn.editsAllowed ?? editsAllowedRef.current,
           clientTurnId: turn.turnId,
         },
         signal
@@ -884,6 +906,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       activeChapterId: activeChapterRef.current,
       selection: getSelection(),
       autoMode: autoModeRef.current,
+      editsAllowed: editsAllowedRef.current,
       partialText: "",
       startedAt: Date.now(),
     };
@@ -972,6 +995,16 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     setMessages([]);
     setRuns([]);
     setInsertedKeys(new Set());
+    // A new thread starts back on Allow edits.
+    editModeTouchedRef.current = false;
+    setEditMode(DEFAULT_EDIT_MODE);
+    setEditsNotice(false);
+  }
+
+  function chooseEditMode(mode: EditMode) {
+    editModeTouchedRef.current = true;
+    setEditMode(mode);
+    setEditsNotice(false);
   }
 
   async function compactNow() {
@@ -995,6 +1028,10 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   }
 
   function runMisplaced(placement: "end" | "seam") {
+    if (editMode === "chat") {
+      setEditsNotice(true);
+      return;
+    }
     const text = getSelection().trim();
     if (!text) {
       alert("Highlight the passage that doesn't belong, then try again.");
@@ -1028,6 +1065,10 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   function runAction(a: QuickAction) {
     if (a.kind === "panel") {
       if (a.id === "continuity-check") onOpenContinuityCheck?.();
+      return;
+    }
+    if (a.writes && editMode === "chat") {
+      setEditsNotice(true);
       return;
     }
     if (a.scope === "selection" && !getSelection().trim()) {
@@ -1071,11 +1112,16 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           Clear chat
         </button>
         <button
-          className={`btn small ${autoMode ? "primary" : "ghost"}`}
-          title="When on, finished drafts insert into the open chapter automatically. Ciciro can also create and switch chapters."
+          className={`btn small ${autoMode && editMode === "edits" ? "primary" : "ghost"}`}
+          title={
+            editMode === "chat"
+              ? "Auto needs Allow edits: Ciciro is in Chat only mode for this conversation."
+              : "When on, finished drafts insert into the open chapter automatically. Ciciro can also create and switch chapters."
+          }
+          disabled={editMode === "chat"}
           onClick={() => setAutoMode((v) => !v)}
         >
-          Auto {autoMode ? "on" : "off"}
+          Auto {autoMode && editMode === "edits" ? "on" : "off"}
         </button>
       </div>
 
@@ -1286,6 +1332,21 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       )}
 
       <div className="composer">
+        {editsNotice && editMode === "chat" && (
+          <div className="edits-notice" role="status">
+            <span>
+              Edits are off for this conversation. Switch to Allow edits to let
+              Ciciro make changes.
+            </span>
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => chooseEditMode("edits")}
+            >
+              Allow edits
+            </button>
+          </div>
+        )}
         <div className="composer-box">
           <textarea
             ref={composerRef}
@@ -1300,6 +1361,7 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
             }}
           />
           <div className="composer-row">
+            <EditModeToggle mode={editMode} onChange={chooseEditMode} />
             {streaming ? (
               <button
                 className="btn primary composer-action"

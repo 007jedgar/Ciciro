@@ -110,8 +110,11 @@ export async function verifyEditorCompletion(input: {
   projectId: string;
   messages: Anthropic.MessageParam[];
   mutationCount: number;
+  /** False on a Chat only turn: no edit was asked of it, so none is required. */
+  editsAllowed?: boolean;
 }): Promise<EditorVerificationResult> {
-  const intent = intentFromMessages(input.messages);
+  const intent =
+    input.editsAllowed === false ? null : intentFromMessages(input.messages);
   const evidence = toolEvidence(input.messages);
   const checks: VerificationCheck[] = [
     {
