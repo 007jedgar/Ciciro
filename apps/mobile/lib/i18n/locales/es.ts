@@ -364,6 +364,10 @@ const es: Translations = {
     empty: "Aún no hay capítulos.",
     wordCount_one: "{{count}} palabra",
     wordCount_other: "{{count}} palabras",
+    toolsKicker: "Herramientas",
+    kicker: "Capítulos",
+    entries_one: "{{count}} entrada",
+    entries_other: "{{count}} entradas",
     status: {
       draft: "Borrador",
       revised: "Revisado",

@@ -5,6 +5,7 @@ import {
   normalizeSettings,
   SETTINGS_EPOCH,
   settingsEqual,
+  withPhoneDefaultTheme,
 } from "../lib/app-settings";
 
 describe("app settings", () => {
@@ -33,7 +34,7 @@ describe("app settings", () => {
   it("ignores unknown theme and font values", () => {
     const s = normalizeSettings({ theme: "neon", editorFont: "comic", formatChrome: "floating" });
     expect(s).toMatchObject({
-      theme: "parchment",
+      theme: "ciciro",
       editorFont: "serif",
       editorFontSize: 19,
       autoCorrect: true,
@@ -71,8 +72,36 @@ describe("app settings", () => {
     const patched = applyPatch(older, { editorFont: "sans", autoCorrect: false });
     expect(patched.editorFont).toBe("sans");
     expect(patched.autoCorrect).toBe(false);
-    expect(patched.theme).toBe("parchment");
+    expect(patched.theme).toBe("ciciro");
     expect(Date.parse(patched.updatedAt)).toBeGreaterThan(Date.parse(older.updatedAt));
     expect(settingsEqual(older, patched)).toBe(false);
+  });
+
+  it("falls back to Ciciro for anyone who never picked a theme", () => {
+    expect(defaultSettings().theme).toBe("ciciro");
+    expect(normalizeSettings({}).theme).toBe("ciciro");
+    expect(normalizeSettings({ theme: "neon" }).theme).toBe("ciciro");
+    expect(normalizeSettings({ theme: 4 }).theme).toBe("ciciro");
+  });
+
+  it("keeps a stored theme, new or old", () => {
+    for (const theme of ["ciciro", "ciciro-night", "parchment", "sage", "ember", "walnut", "inkwell", "candle"]) {
+      expect(normalizeSettings({ theme }).theme).toBe(theme);
+    }
+  });
+
+  describe("withPhoneDefaultTheme", () => {
+    const server = (over: Record<string, unknown> = {}) =>
+      normalizeSettings({ ...defaultSettings(), theme: "parchment", updatedAt: "2026-09-01T00:00:00.000Z", ...over });
+
+    it("keeps the phone default when the server only holds its own blank settings", () => {
+      expect(withPhoneDefaultTheme(server()).theme).toBe("ciciro");
+    });
+
+    it("leaves an account that changed anything else, or picked another theme, as stored", () => {
+      expect(withPhoneDefaultTheme(server({ dailyWordGoal: 500 })).theme).toBe("parchment");
+      expect(withPhoneDefaultTheme(server({ theme: "walnut" })).theme).toBe("walnut");
+      expect(withPhoneDefaultTheme(server({ theme: "ciciro-night" })).theme).toBe("ciciro-night");
+    });
   });
 });
