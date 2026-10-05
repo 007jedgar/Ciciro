@@ -61,6 +61,12 @@ Pushed screens slide in (and pop out) in `StackPopTransition`, not through the n
 
 On Android, `useReanimatedKeyboardAnimation()`'s `progress` is boolean (0/1 on the IME inset's visibility), not continuous - a floating IME add-on shorter than a real keyboard (the stylus-handwriting toolbar, voice-typing's compact strip) still pins it to 1. Drive keyboard-reactive UI from the paired `height` value instead, ramped continuously so there is no step (see `keyboardHideProgress` in `apps/mobile/lib/manuscript-tab-bar.ts`), or it disappears whenever one of those shows.
 
+## Mobile themes and fonts
+
+The phone's themes live in `apps/mobile/lib/theme.ts` and `DEFAULT_THEME` ("ciciro", the web's Archive look) is the fallback everywhere. Stored theme ids are permanent: renaming a theme changes only its label (`THEME_META` and the `themes.*` keys in all four locales), never its id. The theme setting syncs to the server and web, so `src/lib/theme.ts` lists the phone-only ids (`PHONE_THEME_IDS`): the server stores them as sent and the web renders its own default of that mode through `webTheme`. A new phone-only theme goes in both lists. The server's "parchment" for an account that never saved settings is not a pick; `withPhoneDefaultTheme` keeps the phone default over it.
+
+The chrome fonts (Newsreader, Instrument Sans, JetBrains Mono) are embedded at build time by the `expo-font` plugin in `app.json`, so a font change needs a new native build and `fonts.*` use a different native name per OS (iOS PostScript name, Android file name). `fonts.serif`, the manuscript's own face, is separate.
+
 ## Mobile haptics
 
 Every haptic goes through `apps/mobile/lib/haptics.ts`, never `expo-haptics` directly, so the device-local Settings switch (local prefs like focus mode, default on) silences all of them. Buttons and pills use `TapPressable` (`apps/mobile/components/TapPressable.tsx`), and other shared pressables (`PressableCard`, Settings rows) wrap their handler in `withTap`; the chat stream ticks via `createWritingTicker` and ends with `success()`/`warning()` in `use-ciciro-chat.ts`.
