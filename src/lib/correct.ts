@@ -140,8 +140,10 @@ export function parseCorrectionSpans(raw: string, text: string): CorrectionSpan[
     // after the word or, at the end of a line, the one before.
     const removed = text.slice(start, end);
     if (!fix.replacement && !isBlank(removed) && removed.trim() === removed) {
-      if (/\s/.test(text[end] ?? "")) end++;
-      else if (/\s/.test(text[start - 1] ?? "")) start--;
+      const spaceBefore = /\s/.test(text[start - 1] ?? "");
+      const spaceAfter = /\s/.test(text[end] ?? "");
+      if (spaceAfter && (spaceBefore || start === 0)) end++;
+      else if (spaceBefore && end === text.length) start--;
     }
     const current = text.slice(start, end);
     // Keep the writer's apostrophes: a fix to "I’dd" stays curly.
