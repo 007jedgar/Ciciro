@@ -100,12 +100,23 @@ describe("parseCorrectionSpans", () => {
       "I went to the market."
     );
     expect(applied("I went to the the market.", fixes(["the ", ""]))).toBe("I went to the market.");
-    expect(applied("I went to the the market.", fixes(["the", ""]))).toBe("I went to the market.");
     expect(applied("I went home home", fixes(["home home", "home"]))).toBe("I went home");
     expect(applied("It was really very good.", fixes(["very", ""]))).toBe("It was really good.");
     expect(applied("I went home home", fixes([" home", ""]))).toBe("I went home");
-    expect(applied("She smiled, and left.", fixes([",", ""]))).toBe("She smiled and left.");
-    expect(applied("Very good.", fixes(["Very", ""]))).toBe("good.");
+  });
+
+  it.each([
+    ["I went to the the market.", fixes(["the", ""]), "I went to the market."],
+    ["I went to the the market.", fixes(["the ", ""]), "I went to the market."],
+    ["I went to the the market.", fixes(["the the", "the"]), "I went to the market."],
+    ["It was really very.", fixes(["very", ""]), "It was really."],
+    ["I ran home home, fast.", fixes(["home", ""]), "I ran home, fast."],
+    ["Run home, fast.", fixes(["home", ""]), "Run, fast."],
+    ["She smiled, and left.", fixes([",", ""]), "She smiled and left."],
+    ["Very good.", fixes(["Very", ""]), "good."],
+    ["Very good.", fixes(["Very ", ""]), "good."],
+  ])("deletes from %j without doubling or gluing spaces", (text, raw, expected) => {
+    expect(applied(text, raw)).toBe(expected);
   });
 
   it.each([
