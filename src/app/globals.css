@@ -1770,6 +1770,10 @@ input[type="file"]::file-selector-button {
   line-height: 1.35;
   color: var(--ink);
 }
+.edits-notice .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 /* Send, Stop and Stopping… share one width (the widest label, kept as a
    hidden sizer) so the textarea never reflows when the label changes. */
 .composer-action {
