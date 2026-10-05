@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   fade: { position: "absolute", top: 0, bottom: 0, right: 0, width: 32 },
   tile: {
     width: 112,
-    minHeight: 92,
+    height: 96,
     borderWidth: 1,
     borderRadius: 6,
     paddingHorizontal: 12,
