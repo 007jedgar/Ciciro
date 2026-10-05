@@ -1,3 +1,7 @@
+import en from "../lib/i18n/locales/en";
+import es from "../lib/i18n/locales/es";
+import hi from "../lib/i18n/locales/hi";
+import zh from "../lib/i18n/locales/zh";
 import {
   DEFAULT_THEME,
   fonts,
@@ -44,6 +48,13 @@ describe("themes", () => {
     }
     expect(isThemeId("marginalia")).toBe(false);
     expect(isThemeId("first-edition")).toBe(false);
+  });
+
+  it("names every theme in every language, English matching the picker's labels", () => {
+    for (const { id, label } of THEME_META) {
+      expect(en.themes[id]).toBe(label);
+      for (const locale of [es, hi, zh]) expect(locale.themes[id]).toBeTruthy();
+    }
   });
 
   it("defaults to Ciciro", () => {

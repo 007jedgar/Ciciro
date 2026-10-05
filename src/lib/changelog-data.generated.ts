@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "7d924e0b53e7",
+    "summary": "The phone app has the website's Archive look as two new themes, **Ciciro** and **Ciciro Night**, now the default for anyone who has not picked a theme.",
+    "text": "The phone app has the website's Archive look as two new themes, **Ciciro** and **Ciciro Night**, now the default for anyone who has not picked a theme. The chapters screen is restyled in it (new typefaces, folder-tab chapter cards, paper-stock stage chips) and the app's text uses Newsreader, Instrument Sans and JetBrains Mono. Four themes are renamed: Sage is **Marginalia**, Ember is **First Edition**, Walnut is **Bookshelf**, Candle is **Dog-Ear**; Parchment and Inkwell keep their names, and everyone keeps the theme they picked. This needs a new app build; an over-the-air update does not carry the fonts."
+  },
+  {
     "id": "4705d8722e5a",
     "summary": "New **Allow edits / Chat only** switch under Ciciro's chat (web and phone).",
     "text": "New **Allow edits / Chat only** switch under Ciciro's chat (web and phone). It belongs to the conversation: a new chat starts on Allow edits, and Chat only stays on for as long as that conversation continues. In Chat only, Ciciro answers and discusses but never changes your manuscript; the server withholds its writing tools, so it holds even when a page or app is out of date."
