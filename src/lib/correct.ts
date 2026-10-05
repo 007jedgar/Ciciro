@@ -96,7 +96,9 @@ function narrowFix(
   let trail = from.slice(from.length - tail).join("").length;
   let next = to.slice(head, to.length - tail).join("");
   const core = original.slice(lead, original.length - trail);
-  if (!isBlank(core)) {
+  // A deletion ("the the" -> "the") takes one space with the word, or it
+  // would leave two behind.
+  if (!isBlank(core) && !isBlank(next)) {
     lead += core.length - core.trimStart().length;
     trail += core.length - core.trimEnd().length;
     next = next.trim();

@@ -96,6 +96,30 @@ describe("parseCorrectionSpans", () => {
     ]);
     expect(applied("I going home.", fixes(["I going", "I am going"]))).toBe("I am going home.");
     expect(applied("the  dog", fixes(["the  dog", "the dog"]))).toBe("the dog");
+    expect(applied("I went to the the market.", fixes(["the the", "the"]))).toBe(
+      "I went to the market."
+    );
+    expect(applied("I went to the the market.", fixes(["the ", ""]))).toBe("I went to the market.");
+  });
+
+  it.each([
+    [
+      "He said that I’dd sing for you tonight.",
+      fixes(["I'dd", "I'd"]),
+      "He said that I’d sing for you tonight.",
+    ],
+    [
+      "Its a long way, and its owner knows it's tail is wagging.",
+      fixes(["Its a", "It's a"], ["it's tail", "its tail"]),
+      "It's a long way, and its owner knows its tail is wagging.",
+    ],
+    [
+      "I going to the the market tomorow, and then I’ll come home.",
+      fixes(["I going", "I'm going"], ["the the", "the"], ["tomorow", "tomorrow"]),
+      "I'm going to the market tomorrow, and then I’ll come home.",
+    ],
+  ])("applies Haiku's quoted fixes to %j cleanly", (text, raw, expected) => {
+    expect(applied(text, raw)).toBe(expected);
   });
 
   it("finds repeated quotes in reading order", () => {
@@ -154,9 +178,7 @@ describe("correctBlock", () => {
   });
 
   it("returns Haiku spans from a mocked model", async () => {
-    mocks.create.mockResolvedValueOnce(
-      haikuText(fixes(["Their", "They're"]))
-    );
+    mocks.create.mockResolvedValueOnce(haikuText(fixes(["Their", "They're"])));
     await expect(correctBlock(user, body)).resolves.toEqual({
       ...body,
       spans: [{ start: 0, end: 5, replacement: "They're" }],
