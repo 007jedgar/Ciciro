@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SETTINGS_EPOCH } from "@/lib/settings";
+import { THEMES } from "@/lib/theme";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme-boot";
 
 function boot({ settings, osDark = false }: { settings?: Record<string, unknown>; osDark?: boolean }) {
@@ -34,10 +36,16 @@ describe("the web's pre-paint theme script", () => {
 
   it("keeps a web theme as stored, and follows the OS for settings nobody chose", () => {
     expect(boot({ settings: { theme: "walnut", updatedAt: SAVED } })).toEqual({ theme: "walnut", mode: "dark" });
-    expect(boot({ settings: { theme: "ciciro-night", updatedAt: "1970-01-01T00:00:00.000Z" } })).toEqual({
+    expect(boot({ settings: { theme: "ciciro-night", updatedAt: SETTINGS_EPOCH } })).toEqual({
       theme: "parchment",
       mode: "light",
     });
     expect(boot({ settings: { theme: "neon", updatedAt: SAVED }, osDark: true })).toEqual({ theme: "ember", mode: "dark" });
+  });
+
+  it("boots every theme the picker offers as itself, in that theme's mode", () => {
+    for (const { id, mode } of THEMES) {
+      expect(boot({ settings: { theme: id, updatedAt: SAVED }, osDark: mode === "light" })).toEqual({ theme: id, mode });
+    }
   });
 });
