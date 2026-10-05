@@ -107,10 +107,11 @@ run can still need them.
 run keeps it for every slice and resume, whatever a later request sends. When it is
 false the runner offers the editor none of the manuscript-writing tools
 (`MANUSCRIPT_WRITE_TOOLS`), appends `CHAT_ONLY_SYSTEM` to the system prompt, skips
-the reorg plan, edit intent and mechanical lane, and verifies on the lifecycle
-checks alone (no mutation is required). `executeEditorTool` refuses those tools
-again for any `tool_use` that arrives anyway. Story-bible and open-question tools
-still work. The client owns the switch per conversation and restores it from the
+the reorg plan and edit intent, and verifies on the lifecycle checks alone (no
+mutation is required). The turn is still routed as a conversation, so a lookup
+keeps the cheap retrieval lane but the mechanical lane is never eligible.
+`executeEditorTool` refuses those tools again for any `tool_use` that arrives
+anyway. Story-bible and open-question tools still work. The client owns the switch per conversation and restores it from the
 latest run's `editsAllowed` after a reload; a cleared chat starts on Allow edits.
 `src/lib/edit-mode.ts` is mirrored byte for byte in `apps/mobile/lib/`.
 
