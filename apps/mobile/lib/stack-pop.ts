@@ -1,6 +1,9 @@
 export const STACK_POP_MS = 320;
 export const STACK_POP_FADE_MS = 140;
 
+/** How long a pushed screen takes to arrive; shorter than the pop, since nothing needs watching leave. */
+export const STACK_PUSH_MS = 300;
+
 /**
  * How far into the pop the leaving screen stays solid. It holds its opacity
  * through the first stretch so the collapse is something you watch happen —
@@ -49,8 +52,38 @@ export function stackSheetPopTransform(
   return { translateY: p * height, radius: Math.min(1, p * 4) * 24 };
 }
 
+/**
+ * Where an arriving screen sits at `progress` (0 just pushed, 1 settled): off
+ * the right-hand edge and sliding in, like a standard iOS push. A sheet comes up
+ * from the bottom instead, the mirror of how it leaves.
+ */
+export function stackPushTransform(
+  progress: number,
+  width: number,
+  height: number,
+  sheet: boolean
+): { translateX: number; translateY: number } {
+  "worklet";
+  const p = Math.max(0, Math.min(1, progress));
+  return sheet
+    ? { translateX: 0, translateY: (1 - p) * height }
+    : { translateX: (1 - p) * width, translateY: 0 };
+}
+
 /** Routes that leave by the sheet pop rather than the collapse. */
 export const SHEET_POP_ROUTES: ReadonlySet<string> = new Set(["sprint", "listen"]);
+
+/**
+ * Whether a screen with this `presentation` slides in itself. Only the routes
+ * presented over the stack do (see `POP_OVER_STACK_SCREEN_OPTIONS`): a native
+ * slide cannot do it, since UIKit gives a modal presentation a vertical cover
+ * rather than a push, and a plain pushed card would detach the screen the pop
+ * is meant to reveal. The routes that are not (the list, the sign-in screens,
+ * a stack's first screen) arrive as they always have.
+ */
+export function entersWithStackPush(presentation: string | undefined): boolean {
+  return presentation === "transparentModal" || presentation === "containedTransparentModal";
+}
 
 export function shouldInterceptStackRemove(actionType: string): boolean {
   return (

@@ -10,6 +10,7 @@ import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { NewManuscriptForm } from "../components/NewManuscriptForm";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
+import { markNewManuscriptArrival } from "../lib/new-manuscript-arrival";
 
 export default function NewManuscriptScreen() {
   const router = useRouter();
@@ -40,7 +41,10 @@ export default function NewManuscriptScreen() {
         <NewManuscriptForm
           defaultAuthor={user.name}
           folderId={typeof folderId === "string" ? folderId : undefined}
-          onCreated={(project) => router.replace(`/project/${project.id}/chapters`)}
+          onCreated={(project) => {
+            markNewManuscriptArrival(project.id);
+            router.replace(`/project/${project.id}/chapters`);
+          }}
         />
       </ScrollView>
     </KeyboardAvoidingView>
