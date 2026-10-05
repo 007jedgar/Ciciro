@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { CheckIcon, InfoIcon } from "../components/icons";
 import { ciciro, type Entitlement } from "../lib/api";
@@ -104,7 +104,7 @@ export default function PaywallScreen() {
       await confirm({ stillFree: "billing.pending", failed: "billing.pending" });
     } catch {
       setNotice({ tone: "error", key: "billing.purchaseFailed" });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptics.error();
     } finally {
       setBusy(null);
     }
@@ -142,7 +142,7 @@ export default function PaywallScreen() {
       return;
     }
     setWelcome(true);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptics.success();
   }
 
   return (
@@ -331,7 +331,7 @@ function PackageOption({
   const equivalent = yearly && pkg.pricePerMonthString ? t("billing.yearlyEquivalent", { price: pkg.pricePerMonthString }) : null;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={haptics.withTap(onPress)}
       disabled={disabled}
       accessibilityRole="radio"
       accessibilityState={{ selected, disabled }}
@@ -466,7 +466,7 @@ function PrimaryButton({
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={haptics.withTap(onPress)}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled, busy }}
@@ -500,7 +500,7 @@ function TextButton({
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={haptics.withTap(onPress)}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled }}

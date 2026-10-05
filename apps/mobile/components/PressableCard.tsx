@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { mixColors } from "../lib/color";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+import * as haptics from "../lib/haptics";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors } from "../lib/theme";
 
@@ -46,7 +47,7 @@ type Props = Omit<PressableProps, "style" | "children"> & {
  * pressed. Reduce motion drops the scale and keeps only the (instant) tint, so
  * touch is still acknowledged.
  */
-export function PressableCard({ style, accent, children, onPressIn, onPressOut, disabled, ...rest }: Props) {
+export function PressableCard({ style, accent, children, onPress, onPressIn, onPressOut, disabled, ...rest }: Props) {
   const colors = useOptionalAppTheme()?.colors ?? parchmentColors;
   const reduceMotion = useReduceMotion();
   const pressed = useSharedValue(0);
@@ -66,6 +67,7 @@ export function PressableCard({ style, accent, children, onPressIn, onPressOut, 
     <AnimatedPressable
       {...rest}
       disabled={disabled}
+      onPress={onPress ? haptics.withTap(onPress) : undefined}
       onPressIn={(e) => {
         pressed.value = withTiming(1, { duration: reduceMotion ? 0 : PRESS_IN_MS, easing: Easing.out(Easing.quad) });
         onPressIn?.(e);

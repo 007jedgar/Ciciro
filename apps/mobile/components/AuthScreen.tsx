@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
 import { useRouter } from "expo-router";
 import { useStackBack } from "../lib/use-stack-back";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { BrandDots } from "./BrandDots";
 import { SocialSignIn } from "./SocialSignIn";
@@ -116,7 +116,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
   async function submit() {
     setError(null);
     if (!validate(mode)) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      haptics.warning();
       return;
     }
     setBusy(true);
@@ -195,7 +195,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
     setError(null);
     useAuthFormStore.setState({ errors: {} });
     setMode(next);
-    Haptics.selectionAsync().catch(() => {});
+    haptics.select();
     const target = modeProgress(next);
     modeV.value = reduceMotion
       ? target

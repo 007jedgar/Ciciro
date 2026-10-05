@@ -10,7 +10,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useRouter, useSegments } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -196,17 +196,17 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   }, [open]);
 
   function goTab(route: string, index: number) {
-    Haptics.selectionAsync().catch(() => {});
+    haptics.select();
     if (index !== activeIndex) router.navigate(route as never);
   }
 
   function toggle() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     setOpen((o) => !o);
   }
 
   function runAction(action: ActionDef) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     setOpen(false);
     void action.run();
   }
@@ -221,7 +221,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
       await addChapter();
       router.navigate(`/project/${projectId}/chapters` as never);
     } catch {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      haptics.warning();
     }
   }
 

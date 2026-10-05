@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import Svg, { Path } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { ApiError, useAuthProvidersQuery } from "../lib/api";
@@ -94,7 +94,7 @@ export function SocialSignIn({
 
   async function run(button: SocialButton) {
     if (disabled) return;
-    Haptics.selectionAsync().catch(() => {});
+    haptics.select();
     onError(null);
     onBusyChange(true);
     try {

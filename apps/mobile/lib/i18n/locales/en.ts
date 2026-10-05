@@ -188,6 +188,8 @@ const en = {
     reduceMotionHint: "Turn off animations across the app.",
     focusMode: "Focus mode",
     focusModeHint: "Hide everything but the page while you write.",
+    haptics: "Haptics",
+    hapticsHint: "Feel a light tap on buttons, and when Ciciro writes or finishes a reply.",
     typewriterMode: "Typewriter mode",
     typewriterModeHint: "Keep the line you are writing near the middle of the screen.",
     exitFocus: "Exit focus",

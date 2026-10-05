@@ -4,6 +4,8 @@ import { queryClient } from "./api/query";
 import { queryKeys } from "./api/keys";
 import type { ChatMessage, ChatStreamEvent, EditorRunInput } from "./api/types";
 import { failureFromError, type ChatFailure } from "./chat-errors";
+import * as haptics from "./haptics";
+import { createWritingTicker } from "./haptics";
 import {
   applyChatStreamEvent,
   emptyChatStreamState,
@@ -171,6 +173,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       let resumeTurnId = input.resumeTurnId;
       let slices = 0;
       let next = emptyChatStreamState();
+      const writing = createWritingTicker();
 
       try {
         while (slices < MAX_CONTINUATION_SLICES) {
@@ -184,6 +187,11 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
             body,
             (event: ChatStreamEvent) => {
               next = applyChatStreamEvent(next, event);
+              if (event.type === "text" && typeof event.v === "string" && !event.resume) {
+                writing.feed(event.v);
+              } else if (shouldInvalidateProject(event)) {
+                writing.landed();
+              }
               turnIdRef.current = next.turnId ?? turnIdRef.current;
               setStream({ ...next });
               if (shouldInvalidateProject(event)) {
@@ -203,6 +211,8 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         if (next.text.trim()) {
           setMessages((current) => upsertStreamAssistant(current, next));
         }
+        if (next.status === "failed") haptics.warning();
+        else if (next.status !== "cancelled" && (next.status === "completed" || next.text.trim())) haptics.success();
         // Retire the live footer in the same paint as the committed reply.
         // Leaving it up through the reload paints the answer twice and the
         // list jumps.
@@ -229,6 +239,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
           return null;
         }
         const failed = failureFromError(err);
+        haptics.warning();
         setFailure(failed);
         await reload({ keepFailure: true }).catch(() => {});
         return failed;

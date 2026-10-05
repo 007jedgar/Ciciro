@@ -189,6 +189,8 @@ const zh: Translations = {
     reduceMotionHint: "关闭应用中的动画。",
     focusMode: "专注模式",
     focusModeHint: "写作时隐藏页面以外的所有内容。",
+    haptics: "触感反馈",
+    hapticsHint: "点按按钮时，以及 Ciciro 写作或完成回复时，给你轻柔的触感。",
     typewriterMode: "打字机模式",
     typewriterModeHint: "让正在书写的那一行保持在屏幕中间附近。",
     exitFocus: "退出专注",

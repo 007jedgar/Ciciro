@@ -28,7 +28,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { LanguagePicker } from "./LanguagePicker";
 import { asStringList, asStringMatrix } from "../lib/i18n";
@@ -394,7 +394,7 @@ export function LivingPage({
   const [peeled, setPeeled] = useState(false);
 
   const settle = (open: boolean) => {
-    if (open) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    if (open) haptics.impact("medium");
     setPeeled(open);
   };
 
@@ -417,7 +417,7 @@ export function LivingPage({
     });
 
   const beginByTap = () => {
-    Haptics.selectionAsync().catch(() => {});
+    haptics.select();
     lift.value = withTiming(1, { duration: reduceMotion ? 220 : 560, easing: Easing.out(Easing.cubic) });
     setPeeled(true);
   };

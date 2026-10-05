@@ -12,7 +12,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -120,7 +120,7 @@ export function BrandDots({
   };
 
   const play = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     hopAll();
   };
 

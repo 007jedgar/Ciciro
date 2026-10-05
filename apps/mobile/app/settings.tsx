@@ -36,6 +36,7 @@ import {
 } from "../lib/billing";
 import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePurchasesAvailable } from "../lib/purchases";
 import { getAnalytics } from "../lib/analytics-client";
+import * as haptics from "../lib/haptics";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
@@ -89,7 +90,7 @@ function SheetRow({
   return (
     <>
       <Pressable
-        onPress={onPress}
+        onPress={haptics.withTap(onPress)}
         accessibilityRole="button"
         accessibilityLabel={value ? `${label}, ${value}` : label}
         style={({ pressed }) => ({
@@ -192,7 +193,7 @@ function ToggleRow({
         </View>
         <Switch
           value={value}
-          onValueChange={onValueChange}
+          onValueChange={haptics.withTap(onValueChange)}
           {...switchColors(colors)}
           accessibilityLabel={label}
         />
@@ -221,7 +222,7 @@ function OptionRow({
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={haptics.withTap(onPress)}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityHint={hint}
@@ -309,7 +310,7 @@ function ActionRow({
   return (
     <>
       <Pressable
-        onPress={onPress}
+        onPress={haptics.withTap(onPress)}
         disabled={busy}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -601,6 +602,7 @@ export default function SettingsScreen() {
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
   const { data: entitlement } = useEntitlement(Boolean(user));
   const focusMode = useFocusMode();
+  const hapticsEnabled = haptics.useHapticsEnabled();
   const headerHeight = useAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
   const exporter = useExportAccountData();
@@ -751,6 +753,13 @@ export default function SettingsScreen() {
             hint={t("settings.focusModeHint")}
             value={focusMode}
             onValueChange={setFocusMode}
+            colors={colors}
+          />
+          <ToggleRow
+            label={t("settings.haptics")}
+            hint={t("settings.hapticsHint")}
+            value={hapticsEnabled}
+            onValueChange={haptics.setHapticsEnabled}
             colors={colors}
           />
           <ToggleRow

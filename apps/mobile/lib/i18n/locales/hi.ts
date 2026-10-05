@@ -189,6 +189,8 @@ const hi: Translations = {
     reduceMotionHint: "पूरे ऐप में एनिमेशन बंद करें।",
     focusMode: "फ़ोकस मोड",
     focusModeHint: "लिखते समय पन्ने के अलावा सब कुछ छिपाएँ।",
+    haptics: "हैप्टिक फ़ीडबैक",
+    hapticsHint: "बटन दबाने पर और Ciciro के लिखने या जवाब पूरा करने पर हल्का स्पर्श महसूस करें।",
     typewriterMode: "टाइपराइटर मोड",
     typewriterModeHint: "जिस पंक्ति पर लिख रहे हैं उसे स्क्रीन के बीच के पास रखें।",
     exitFocus: "फ़ोकस से बाहर निकलें",

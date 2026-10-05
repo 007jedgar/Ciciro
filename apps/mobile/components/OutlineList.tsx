@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { customChapterTitle, chapterNumberLabel } from "../lib/chapter-label";
 import { normalizeChapterStatus } from "../lib/chapter-status";
@@ -118,10 +118,10 @@ function OutlineRow({
   const status = normalizeChapterStatus(chapter.status);
 
   const pickUp = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    haptics.impact("medium");
   };
   const tick = () => {
-    Haptics.selectionAsync().catch(() => {});
+    haptics.select();
   };
 
   const pan = Gesture.Pan()

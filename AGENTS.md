@@ -59,6 +59,10 @@ Pass numbers into Reanimated worklets as arguments or same-scope locals: a defau
 
 On Android, `useReanimatedKeyboardAnimation()`'s `progress` is boolean (0/1 on the IME inset's visibility), not continuous - a floating IME add-on shorter than a real keyboard (the stylus-handwriting toolbar, voice-typing's compact strip) still pins it to 1. Drive keyboard-reactive UI from the paired `height` value instead, ramped continuously so there is no step (see `keyboardHideProgress` in `apps/mobile/lib/manuscript-tab-bar.ts`), or it disappears whenever one of those shows.
 
+## Mobile haptics
+
+Every haptic goes through `apps/mobile/lib/haptics.ts`, never `expo-haptics` directly, so the device-local Settings switch (local prefs like focus mode, default on) silences all of them. Shared pressables (`PressableCard`, Settings rows) tap through `withTap`; the chat stream ticks via `createWritingTicker` and ends with `success()`/`warning()` in `use-ciciro-chat.ts`.
+
 ## AI-involvement tally
 
 `Chapter.aiAcceptedWords` / `aiDraftedWords` (see `src/lib/text.ts` `aiInvolvement`) are cumulative counters, not derived from `content`: accepting a Ciciro suggestion drops its authorship marks (`resolveSuggestions`), so the word count has to be taken at that moment (`ciciroAcceptedWordCount` in `src/lib/suggestions.ts`, called from every accept path, web and mobile) and added, permanently - a later edit or deletion never moves or removes it. The same applies to text Ciciro inserts with no suggestion to accept (`insert_text`, a chat `<draft>` paste): tallied once, at insertion. The percentage's denominator, `wordsAdded`, is tallied the same way inside the op log's commit (`tally` in `src/lib/chapter-ops.ts`): a server-side writer that lands new Ciciro prose passes `tally: "drafted"`, one that restores old text passes `"none"`. Do not try to reconstruct any of these from `content` later.

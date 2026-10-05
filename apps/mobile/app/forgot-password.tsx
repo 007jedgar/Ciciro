@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { ApiError, ciciro } from "../lib/api";
 import { useAppTheme } from "../lib/settings";
@@ -30,7 +30,7 @@ export default function ForgotPasswordScreen() {
     const trimmed = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setError(t(trimmed ? "auth.emailInvalid" : "auth.emailRequired"));
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      haptics.warning();
       return;
     }
     setBusy(true);
@@ -38,10 +38,10 @@ export default function ForgotPasswordScreen() {
     try {
       await ciciro.auth.forgotPassword({ email: trimmed });
       setSentTo(trimmed);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptics.success();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t("errors.network"));
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptics.error();
     } finally {
       setBusy(false);
     }

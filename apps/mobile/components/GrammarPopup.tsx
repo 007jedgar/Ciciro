@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import {
   autoAcceptProgress,
@@ -49,7 +49,7 @@ export function GrammarPopup({
   }, [shownAt, durationMs, reduceMotion, now]);
 
   function choose(action: () => void) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     action();
   }
 
