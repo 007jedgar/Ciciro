@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { OpenQuestion } from "../lib/api/types";
 import { usePatchQuestionMutation, useQuestionsQuery } from "../lib/api";
 import { useAppTheme } from "../lib/settings";
 import { GlassSheet } from "./GlassSheet";
 import { OpenQuestionCard } from "./OpenQuestionCard";
+import { TapPressable } from "./TapPressable";
 
 /**
  * The editor's open forks, in one place.
@@ -102,7 +103,7 @@ export function OpenQuestionsSheet({
 
         {resolved.length > 0 ? (
           <>
-            <Pressable
+            <TapPressable
               accessibilityRole="button"
               accessibilityState={{ expanded: showResolved }}
               accessibilityLabel={t("questions.resolvedCount", { count: resolved.length })}
@@ -113,7 +114,7 @@ export function OpenQuestionsSheet({
               <Text style={{ color: colors.accent, fontSize: 13 }}>
                 {t("questions.resolvedCount", { count: resolved.length })}
               </Text>
-            </Pressable>
+            </TapPressable>
             {showResolved
               ? resolved.map((question) => (
                   <View

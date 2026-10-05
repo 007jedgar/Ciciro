@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
@@ -8,6 +8,7 @@ import { storePurchasesAvailable } from "../lib/purchases";
 import { getAnalytics } from "../lib/analytics-client";
 import type { ColorTokens } from "../lib/theme";
 import { AlertIcon } from "./icons";
+import { TapPressable } from "./TapPressable";
 
 /**
  * What the author sees when a turn dies. A sentence in their language, the
@@ -47,7 +48,7 @@ export function ChatErrorNotice({
 
       <View style={styles.actions}>
         {offerPro ? (
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityLabel={t("billing.seePro")}
             onPress={() => {
@@ -60,10 +61,10 @@ export function ChatErrorNotice({
             ]}
           >
             <Text style={[styles.retryLabel, { color: colors.panel }]}>{t("billing.seePro")}</Text>
-          </Pressable>
+          </TapPressable>
         ) : null}
         {failure.retryable && onRetry ? (
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityLabel={t("ciciroTab.retry")}
             onPress={onRetry}
@@ -75,10 +76,10 @@ export function ChatErrorNotice({
             <Text style={[styles.retryLabel, { color: colors.panel }]}>
               {t("ciciroTab.retry")}
             </Text>
-          </Pressable>
+          </TapPressable>
         ) : null}
         {detail ? (
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
             accessibilityLabel={t(open ? "ciciroTab.hideDetails" : "ciciroTab.showDetails")}
@@ -88,7 +89,7 @@ export function ChatErrorNotice({
             <Text style={{ color: colors.inkSoft, fontSize: 13 }}>
               {t(open ? "ciciroTab.hideDetails" : "ciciroTab.showDetails")}
             </Text>
-          </Pressable>
+          </TapPressable>
         ) : null}
       </View>
 

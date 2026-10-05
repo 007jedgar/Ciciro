@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { createFolder } from "../lib/folders";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { Folder } from "../lib/types";
+import { TapPressable } from "./TapPressable";
 
 type Props = {
   onCreated: (folder: Folder) => void;
@@ -68,7 +69,7 @@ export function NewFolderForm({ onCreated }: Props) {
           {error}
         </Text>
       ) : null}
-      <Pressable
+      <TapPressable
         style={layout.primaryBtn}
         onPress={() => void submit()}
         disabled={busy}
@@ -78,7 +79,7 @@ export function NewFolderForm({ onCreated }: Props) {
         <Text style={layout.primaryBtnText}>
           {busy ? t("newFolder.creating") : t("newFolder.submit")}
         </Text>
-      </Pressable>
+      </TapPressable>
     </View>
   );
 }

@@ -445,7 +445,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
               <Animated.View style={submitScaleStyle}>
                 <Pressable
                   style={layout.primaryBtn}
-                  onPress={submit}
+                  onPress={haptics.withTap(submit)}
                   onPressIn={pressSubmitIn}
                   onPressOut={pressSubmitOut}
                   disabled={busy}

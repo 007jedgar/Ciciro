@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import type { OpenQuestion } from "../lib/api/types";
 import type { ColorTokens } from "../lib/theme";
+import { TapPressable } from "./TapPressable";
 
 /**
  * One fork the editor took without stopping to ask. The author answers it here
@@ -63,7 +64,7 @@ export function OpenQuestionCard({
       />
 
       <View style={styles.actions}>
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityState={{ disabled: !ready }}
           accessibilityLabel={t("questions.answer")}
@@ -80,8 +81,8 @@ export function OpenQuestionCard({
           <Text style={[styles.primaryLabel, { color: colors.panel }]}>
             {t("questions.answer")}
           </Text>
-        </Pressable>
-        <Pressable
+        </TapPressable>
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("questions.dismiss")}
           disabled={busy}
@@ -89,7 +90,7 @@ export function OpenQuestionCard({
           hitSlop={8}
         >
           <Text style={{ color: colors.inkSoft, fontSize: 13 }}>{t("questions.dismiss")}</Text>
-        </Pressable>
+        </TapPressable>
       </View>
     </Animated.View>
   );

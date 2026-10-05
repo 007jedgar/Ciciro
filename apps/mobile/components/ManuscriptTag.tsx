@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -15,6 +15,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { shimmerPalette } from "../lib/shimmer";
 import { colors as parchmentColors } from "../lib/theme";
 import { ShimmerText } from "./ShimmerText";
+import { TapPressable } from "./TapPressable";
 
 /**
  * Where a just-typed genre is in its life.
@@ -176,7 +177,7 @@ export function ManuscriptTag({
   return (
     <View style={styles.wrap}>
       <Animated.View style={[styles.popRow, popStyle]}>
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={
             hasGenre
@@ -211,7 +212,7 @@ export function ManuscriptTag({
               decorative
             />
           )}
-        </Pressable>
+        </TapPressable>
       </Animated.View>
       {error ? (
         <Text style={[styles.error, { color: colors.danger }]} role="alert">

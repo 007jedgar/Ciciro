@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ApiError, ciciro } from "../lib/api";
 import { useProject } from "../lib/project";
@@ -14,6 +14,7 @@ import {
 import { useAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
 import { getAnalytics } from "../lib/analytics-client";
+import { TapPressable } from "./TapPressable";
 
 const DEBOUNCE_MS = 300;
 
@@ -167,7 +168,7 @@ export function ManuscriptSearch({
         />
         {busy ? <ActivityIndicator color={colors.accent} style={{ marginLeft: "auto" }} /> : null}
       </View>
-      <Pressable
+      <TapPressable
         onPress={confirmReplaceAll}
         disabled={busy || !result || result.total === 0}
         accessibilityRole="button"
@@ -192,7 +193,7 @@ export function ManuscriptSearch({
         >
           {t("search.replaceAll")}
         </Text>
-      </Pressable>
+      </TapPressable>
       {groups.map((group) => (
         <View key={group.chapterId} style={{ marginBottom: 12 }}>
           <Text style={[layout.cardMeta, { marginBottom: 4, fontWeight: "600" }]}>
@@ -200,7 +201,7 @@ export function ManuscriptSearch({
           </Text>
           {group.matches.map((match) => (
             <View key={matchKey(match)} style={[layout.card, { marginBottom: 8, padding: 12 }]}>
-              <Pressable
+              <TapPressable
                 onPress={() => onJump(match)}
                 accessibilityRole="button"
                 accessibilityLabel={t("search.jump", { title: group.title || t("chapters.newTitle") })}
@@ -210,8 +211,8 @@ export function ManuscriptSearch({
                   <Text style={{ backgroundColor: colors.accentSoft, fontWeight: "700" }}>{match.match}</Text>
                   {match.after}
                 </Text>
-              </Pressable>
-              <Pressable
+              </TapPressable>
+              <TapPressable
                 onPress={() => void replace(match)}
                 disabled={busy}
                 accessibilityRole="button"
@@ -219,7 +220,7 @@ export function ManuscriptSearch({
                 style={{ alignSelf: "flex-start", opacity: busy ? 0.4 : 1 }}
               >
                 <Text style={{ color: colors.accent, fontWeight: "600" }}>{t("search.replace")}</Text>
-              </Pressable>
+              </TapPressable>
             </View>
           ))}
         </View>

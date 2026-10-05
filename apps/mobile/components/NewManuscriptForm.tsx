@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { createManuscript } from "../lib/manuscripts";
@@ -9,6 +9,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { ProjectDetail } from "../lib/types";
 import { PressableCard } from "./PressableCard";
+import { TapPressable } from "./TapPressable";
 
 type Props = {
   defaultAuthor?: string;
@@ -147,7 +148,7 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
           {error}
         </Text>
       ) : null}
-      <Pressable
+      <TapPressable
         style={layout.primaryBtn}
         onPress={() => void submit()}
         disabled={busy}
@@ -157,7 +158,7 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
         <Text style={layout.primaryBtnText}>
           {busy ? t("newManuscript.creating") : submitLabel}
         </Text>
-      </Pressable>
+      </TapPressable>
     </View>
   );
 }
