@@ -362,6 +362,10 @@ const en = {
     empty: "No chapters yet.",
     wordCount_one: "{{count}} word",
     wordCount_other: "{{count}} words",
+    toolsKicker: "Tools",
+    kicker: "Chapters",
+    entries_one: "{{count}} entry",
+    entries_other: "{{count}} entries",
     status: {
       draft: "Draft",
       revised: "Revised",

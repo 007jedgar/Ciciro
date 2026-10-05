@@ -363,6 +363,10 @@ const hi: Translations = {
     empty: "अभी कोई अध्याय नहीं।",
     wordCount_one: "{{count}} शब्द",
     wordCount_other: "{{count}} शब्द",
+    toolsKicker: "उपकरण",
+    kicker: "अध्याय",
+    entries_one: "{{count}} प्रविष्टि",
+    entries_other: "{{count}} प्रविष्टियाँ",
     status: {
       draft: "मसौदा",
       revised: "संशोधित",

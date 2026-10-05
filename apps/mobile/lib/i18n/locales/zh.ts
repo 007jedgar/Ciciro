@@ -360,6 +360,10 @@ const zh: Translations = {
     empty: "还没有章节。",
     wordCount_one: "{{count}} 词",
     wordCount_other: "{{count}} 词",
+    toolsKicker: "工具",
+    kicker: "章节",
+    entries_one: "{{count}} 条",
+    entries_other: "{{count}} 条",
     status: {
       draft: "草稿",
       revised: "已修订",

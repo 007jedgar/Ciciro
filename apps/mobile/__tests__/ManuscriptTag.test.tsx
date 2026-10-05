@@ -4,7 +4,7 @@ import { ManuscriptTag } from "../components/ManuscriptTag";
 describe("ManuscriptTag", () => {
   it("offers an add control when the manuscript has no genre", () => {
     const { unmount } = render(<ManuscriptTag genre="" onSave={jest.fn()} />);
-    expect(screen.getByLabelText("Add a genre tag")).toHaveTextContent("Add genre");
+    expect(screen.getByLabelText("Add a genre tag")).toHaveTextContent("ADD GENRE");
     unmount();
   });
 

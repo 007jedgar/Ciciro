@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 export type ThemeId =
   | "ciciro"
@@ -47,7 +47,7 @@ const STOCK_DARK = {
   vermilion: "#ff5a40",
   blush: "#d98a82",
   butter: "#f2c94c",
-  band: "#46433c",
+  band: "#504d45",
   bandInk: "#f3efe6",
 } as const;
 
@@ -186,21 +186,29 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
   },
 };
 
+/**
+ * The Archive typefaces are embedded at build time by the expo-font plugin in
+ * app.json (a new native build, never an OTA update), so they are there on the
+ * first frame. A native font is addressed by a different name on each OS: iOS
+ * by the file's PostScript name, Android by the file name.
+ */
+const embedded = (ios: string, android: string) => (Platform.OS === "ios" ? ios : android);
+
 export const fonts = {
   /** The manuscript's own face (the author's editor-font setting). */
   serif: "Georgia",
   sans: "System",
   /** Archive display: Newsreader light, italic for the one emphasised word. */
-  display: "Newsreader_300Light",
-  displayRegular: "Newsreader_400Regular",
-  displayItalic: "Newsreader_400Regular_Italic",
+  display: embedded("Newsreader-Light", "Newsreader_300Light"),
+  displayRegular: embedded("Newsreader-Regular", "Newsreader_400Regular"),
+  displayItalic: embedded("Newsreader-Italic", "Newsreader_400Regular_Italic"),
   /** Archive UI: Instrument Sans. */
-  ui: "InstrumentSans_400Regular",
-  uiMedium: "InstrumentSans_500Medium",
-  uiBold: "InstrumentSans_600SemiBold",
+  ui: embedded("InstrumentSans-Regular", "InstrumentSans_400Regular"),
+  uiMedium: embedded("InstrumentSans-Medium", "InstrumentSans_500Medium"),
+  uiBold: embedded("InstrumentSans-SemiBold", "InstrumentSans_600SemiBold"),
   /** Archive marginalia: JetBrains Mono, small, tracked, usually uppercase. */
-  mono: "JetBrainsMono_400Regular",
-  monoMedium: "JetBrainsMono_500Medium",
+  mono: embedded("JetBrainsMono-Regular", "JetBrainsMono_400Regular"),
+  monoMedium: embedded("JetBrainsMono-Medium", "JetBrainsMono_500Medium"),
 };
 
 export function isThemeId(value: string | null | undefined): value is ThemeId {
@@ -234,6 +242,7 @@ export function makeLayout(c: ColorTokens, editorFont: "serif" | "sans" = "serif
       marginBottom: 8,
     },
     body: {
+      fontFamily: fonts.ui,
       fontSize: 16,
       lineHeight: 24,
       color: c.inkSoft,
@@ -250,6 +259,7 @@ export function makeLayout(c: ColorTokens, editorFont: "serif" | "sans" = "serif
       borderRadius: 8,
       paddingHorizontal: 14,
       paddingVertical: 12,
+      fontFamily: fonts.ui,
       fontSize: 16,
       color: c.ink,
       marginBottom: 12,
@@ -263,8 +273,8 @@ export function makeLayout(c: ColorTokens, editorFont: "serif" | "sans" = "serif
     },
     primaryBtnText: {
       color: c.panel,
+      fontFamily: fonts.uiBold,
       fontSize: 16,
-      fontWeight: "600",
     },
     ghostBtn: {
       paddingVertical: 14,
@@ -272,6 +282,7 @@ export function makeLayout(c: ColorTokens, editorFont: "serif" | "sans" = "serif
     },
     ghostBtnText: {
       color: c.accent,
+      fontFamily: fonts.uiMedium,
       fontSize: 16,
     },
     card: {
@@ -290,6 +301,7 @@ export function makeLayout(c: ColorTokens, editorFont: "serif" | "sans" = "serif
     cardMeta: {
       marginTop: 4,
       color: c.inkSoft,
+      fontFamily: fonts.ui,
       fontSize: 13,
     },
   });
