@@ -134,6 +134,15 @@ export function ChapterEditor({
     return () => registerEditor(null);
   }, [registerEditor]);
 
+  // What the native view mounts with, fixed per chapter. A changed
+  // `defaultValue` makes the native view replace its whole buffer and park
+  // the caret at the end of the chapter, skipping every guard in syncBuffer,
+  // so later content reaches the buffer only through syncBuffer's setValue.
+  const mountedRef = useRef<{ chapterId: string; enriched: string } | null>(null);
+  if (mountedRef.current?.chapterId !== chapterId) {
+    mountedRef.current = { chapterId, enriched: toEnrichedHtml(html) };
+  }
+
   const htmlRef = useRef(html);
   htmlRef.current = html;
   const echoChecksRef = useRef(0);
@@ -235,7 +244,7 @@ export function ChapterEditor({
         key={chapterId}
         ref={inputRef}
         testID={testID}
-        defaultValue={toEnrichedHtml(html)}
+        defaultValue={mountedRef.current.enriched}
         placeholder={placeholder}
         cursorColor={editorStyle.color}
         selectionColor="rgba(90, 140, 180, 0.35)"
