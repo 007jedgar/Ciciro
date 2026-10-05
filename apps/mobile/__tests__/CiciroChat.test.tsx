@@ -68,6 +68,27 @@ const idle = {
 };
 
 describe("CiciroChat", () => {
+  it("shows the Allow edits / Chat only switch and reports a change", () => {
+    const onEditModeChange = jest.fn();
+    const { rerender } = render(
+      wrap(<CiciroChat {...idle} composer="" editMode="edits" onEditModeChange={onEditModeChange} />)
+    );
+    expect(screen.getByRole("radio", { name: "Allow edits" }).props.accessibilityState.checked).toBe(true);
+    expect(screen.getByRole("radio", { name: "Chat only" }).props.accessibilityState.checked).toBe(false);
+
+    fireEvent.press(screen.getByRole("radio", { name: "Chat only" }));
+    expect(onEditModeChange).toHaveBeenCalledWith("chat");
+
+    // Pressing the mode already chosen is not a change.
+    onEditModeChange.mockClear();
+    rerender(
+      wrap(<CiciroChat {...idle} composer="" editMode="chat" onEditModeChange={onEditModeChange} />)
+    );
+    expect(screen.getByRole("radio", { name: "Chat only" }).props.accessibilityState.checked).toBe(true);
+    fireEvent.press(screen.getByRole("radio", { name: "Chat only" }));
+    expect(onEditModeChange).not.toHaveBeenCalled();
+  });
+
   it("shows the empty prompt and hides send until there is text", () => {
     const onSend = jest.fn();
     const { rerender, unmount } = render(

@@ -456,6 +456,13 @@ const en = {
     sending: "Thinking…",
     sendError: "Ciciro could not reply. Try again.",
     clear: "Clear chat",
+    editMode: {
+      label: "Chat options",
+      edits: "Allow edits",
+      chat: "Chat only",
+      editsHint: "Ciciro can change your manuscript.",
+      chatHint: "Ciciro answers and discusses but never changes your manuscript.",
+    },
     clearConfirm: "This removes the conversation for this manuscript.",
     scrollToLatest: "Scroll to latest",
     insert: "Insert into manuscript",

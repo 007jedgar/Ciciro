@@ -458,6 +458,13 @@ const es: Translations = {
     sending: "Pensando…",
     sendError: "Ciciro no pudo responder. Inténtalo de nuevo.",
     clear: "Borrar chat",
+    editMode: {
+      label: "Opciones del chat",
+      edits: "Permitir ediciones",
+      chat: "Solo chat",
+      editsHint: "Ciciro puede cambiar tu manuscrito.",
+      chatHint: "Ciciro responde y conversa, pero nunca cambia tu manuscrito.",
+    },
     clearConfirm: "Esto elimina la conversación de este manuscrito.",
     scrollToLatest: "Ir al final",
     insert: "Insertar en el manuscrito",

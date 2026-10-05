@@ -452,6 +452,13 @@ const zh: Translations = {
     sending: "思考中…",
     sendError: "Ciciro 未能回复。请再试一次。",
     clear: "清空对话",
+    editMode: {
+      label: "聊天选项",
+      edits: "允许编辑",
+      chat: "仅聊天",
+      editsHint: "Ciciro 可以修改你的稿件。",
+      chatHint: "Ciciro 只回答和讨论，绝不修改你的稿件。",
+    },
     clearConfirm: "这会删除这部手稿的对话。",
     scrollToLatest: "回到最新",
     insert: "插入手稿",
