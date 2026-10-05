@@ -841,8 +841,6 @@ const en = {
     goalValue_one: "{{count}} word",
     goalValue_other: "{{count}} words",
     when: "Time",
-    earlier: "Earlier",
-    later: "Later",
     timeA11y: "{{time}}",
     days: "Days",
     everyDay: "Every day",

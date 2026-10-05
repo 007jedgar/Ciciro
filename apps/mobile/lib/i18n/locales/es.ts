@@ -843,8 +843,6 @@ const es: Translations = {
     goalValue_one: "{{count}} palabra",
     goalValue_other: "{{count}} palabras",
     when: "Hora",
-    earlier: "Más temprano",
-    later: "Más tarde",
     timeA11y: "{{time}}",
     days: "Días",
     everyDay: "Todos los días",

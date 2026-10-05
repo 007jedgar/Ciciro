@@ -842,8 +842,6 @@ const hi: Translations = {
     goalValue_one: "{{count}} शब्द",
     goalValue_other: "{{count}} शब्द",
     when: "समय",
-    earlier: "पहले",
-    later: "बाद में",
     timeA11y: "{{time}}",
     days: "दिन",
     everyDay: "हर दिन",

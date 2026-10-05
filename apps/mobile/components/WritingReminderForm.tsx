@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Switch, Text, View } from "react-native";
+import { Platform, Switch, Text, View } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { switchColors } from "../lib/switch-theme";
@@ -9,7 +10,6 @@ import {
   WEEKDAYS,
   formatReminderClock,
   reminderNotificationText,
-  shiftReminderTime,
   toggleReminderDay,
   type ReminderTranslate,
   type Weekday,
@@ -53,6 +53,7 @@ export function WritingReminderForm({
 }) {
   const { t, i18n } = useTranslation();
   const themed = useOptionalAppTheme();
+  const dark = themed?.dark ?? false;
   const layout = themed?.layout ?? parchmentLayout;
   const colors = themed?.colors ?? parchmentColors;
   const translate: ReminderTranslate = (key, options) => String(t(key, options));
@@ -66,6 +67,7 @@ export function WritingReminderForm({
   const [openSprint, setOpenSprint] = useState(reminder.openSprint);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [androidPickerOpen, setAndroidPickerOpen] = useState(false);
   const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
 
   const goals = useMemo(() => {
@@ -102,10 +104,14 @@ export function WritingReminderForm({
     ? formatReminderClock(suggestedHour!, 0, i18n.language)
     : null;
 
-  function shift(deltaMinutes: number) {
-    const next = shiftReminderTime(hour, minute, deltaMinutes);
-    setHour(next.hour);
-    setMinute(next.minute);
+  // The picker works in device-local wall-clock time; only hour and minute are read back.
+  const pickerValue = new Date(2020, 0, 1, hour, minute);
+
+  function onPickTime(event: DateTimePickerEvent, picked?: Date) {
+    if (Platform.OS === "android") setAndroidPickerOpen(false);
+    if (event.type !== "set" || !picked) return;
+    setHour(picked.getHours());
+    setMinute(picked.getMinutes());
   }
 
   function save() {
@@ -207,31 +213,35 @@ export function WritingReminderForm({
         })}
       </View>
 
-      <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.when")}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <TapPressable
-          accessibilityRole="button"
-          accessibilityLabel={t("reminders.earlier")}
-          onPress={() => shift(-15)}
-          style={[stepper, { backgroundColor: colors.panel, borderColor: colors.line }]}
-        >
-          <Text style={{ color: colors.ink, fontSize: 20 }}>−</Text>
-        </TapPressable>
-        <Text
-          accessibilityLabel={t("reminders.timeA11y", { time: clock })}
-          style={{ flex: 1, textAlign: "center", fontSize: 22, color: colors.ink }}
-        >
-          {clock}
-        </Text>
-        <TapPressable
-          accessibilityRole="button"
-          accessibilityLabel={t("reminders.later")}
-          onPress={() => shift(15)}
-          style={[stepper, { backgroundColor: colors.panel, borderColor: colors.line }]}
-        >
-          <Text style={{ color: colors.ink, fontSize: 20 }}>+</Text>
-        </TapPressable>
+      <View style={{ height: 18 }} />
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ fontSize: 17, color: colors.ink }}>{t("reminders.when")}</Text>
+        {Platform.OS === "android" ? (
+          <TapPressable
+            accessibilityRole="button"
+            accessibilityLabel={t("reminders.timeA11y", { time: clock })}
+            onPress={() => setAndroidPickerOpen(true)}
+            style={[timeButton, { backgroundColor: colors.panel, borderColor: colors.line }]}
+          >
+            <Text style={{ color: colors.ink, fontSize: 22 }}>{clock}</Text>
+          </TapPressable>
+        ) : (
+          <DateTimePicker
+            testID="reminder-time-picker"
+            mode="time"
+            display="compact"
+            value={pickerValue}
+            onChange={onPickTime}
+            minuteInterval={1}
+            themeVariant={dark ? "dark" : "light"}
+            accentColor={colors.accent}
+            accessibilityLabel={t("reminders.timeA11y", { time: clock })}
+          />
+        )}
       </View>
+      {Platform.OS === "android" && androidPickerOpen ? (
+        <DateTimePicker mode="time" value={pickerValue} onChange={onPickTime} />
+      ) : null}
 
       {showHourSuggestion && suggestedClock ? (
         <View
@@ -445,9 +455,9 @@ function Choice({
 }
 
 const sectionLabel = { marginTop: 18, marginBottom: 8, fontSize: 13, fontWeight: "600" as const };
-const stepper = {
-  width: 44,
-  height: 44,
+const timeButton = {
+  minHeight: 44,
+  paddingHorizontal: 16,
   borderRadius: 14,
   borderWidth: 1,
   alignItems: "center" as const,
