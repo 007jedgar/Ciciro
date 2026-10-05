@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from "react";
+import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -53,7 +53,7 @@ function ProjectHeader({
   onHeightChange,
 }: {
   showMeter: boolean;
-  onHeightChange: (height: number) => void;
+  onHeightChange: (height: number, withMeter: boolean) => void;
 }) {
   const { colors } = useAppTheme();
   const router = useRouter();
@@ -93,7 +93,7 @@ function ProjectHeader({
           </>
         ) : null
       }
-      onHeightChange={onHeightChange}
+      onHeightChange={(height) => onHeightChange(height, showMeter)}
     />
   );
 }
@@ -121,8 +121,33 @@ export default function ProjectTabsLayout() {
   const segments = useSegments();
   const onEditor = segments[segments.length - 1] === "manuscript";
   // Tabs scroll under the floating header, so they need its measured height.
-  const [headerHeight, setHeaderHeight] = useState<number | null>(null);
-  const focused = focusChromeHidden(useFocusMode(), onEditor);
+  // The meter row only shows over the manuscript tab, so each height is kept
+  // apart: a tab off screen keeps the layout it will slide back in with,
+  // rather than taking on the other tab's header and jumping on its return.
+  const [headerHeights, setHeaderHeights] = useState<{ plain: number | null; meter: number | null }>({
+    plain: null,
+    meter: null,
+  });
+  const onHeaderHeight = useCallback((height: number, withMeter: boolean) => {
+    setHeaderHeights((prev) => {
+      const key = withMeter ? "meter" : "plain";
+      return prev[key] === height ? prev : { ...prev, [key]: height };
+    });
+  }, []);
+  const focusMode = useFocusMode();
+  const focused = focusChromeHidden(focusMode, onEditor);
+  const screenLayout = useCallback(
+    ({ route, children }: { route: { name: string }; children: ReactNode }) => {
+      const editor = route.name === "manuscript";
+      const height = focusChromeHidden(focusMode, editor)
+        ? insets.top + FOCUS_BAR_HEIGHT
+        : editor
+          ? headerHeights.meter
+          : headerHeights.plain;
+      return <AppHeaderHeightContext.Provider value={height}>{children}</AppHeaderHeightContext.Provider>;
+    },
+    [focusMode, insets.top, headerHeights]
+  );
 
   if (!ready) {
     return (
@@ -148,56 +173,55 @@ export default function ProjectTabsLayout() {
   }
 
   return (
-    <AppHeaderHeightContext.Provider value={focused ? insets.top + FOCUS_BAR_HEIGHT : headerHeight}>
-      <View style={layout.screen}>
-        {focused ? (
-          <View
-            style={{
-              position: "absolute",
-              top: insets.top,
-              left: 0,
-              right: 0,
-              height: FOCUS_BAR_HEIGHT,
-              zIndex: 10,
-              flexDirection: "row",
-              justifyContent: "flex-end",
-              alignItems: "center",
-              paddingHorizontal: 16,
-            }}
-            pointerEvents="box-none"
+    <View style={layout.screen}>
+      {focused ? (
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top,
+            left: 0,
+            right: 0,
+            height: FOCUS_BAR_HEIGHT,
+            zIndex: 10,
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            paddingHorizontal: 16,
+          }}
+          pointerEvents="box-none"
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.exitFocus")}
+            onPress={() => setFocusMode(false)}
+            hitSlop={12}
+            style={{ opacity: 0.45 }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("settings.exitFocus")}
-              onPress={() => setFocusMode(false)}
-              hitSlop={12}
-              style={{ opacity: 0.45 }}
-            >
-              <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <ProjectHeader showMeter={onEditor} onHeightChange={setHeaderHeight} />
-        )}
-        <View style={{ flex: 1 }}>
-          <Tabs
-            backBehavior="none"
-            tabBar={() => null}
-            screenOptions={{
-              headerShown: false,
-              sceneStyle: { backgroundColor: colors.bg },
-              ...tabAnimation,
-            }}
-          >
-            <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
-            <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
-            <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
-            <Tabs.Screen name="index" options={{ href: null }} />
-          </Tabs>
-          {focused ? null : <ManuscriptTabBar projectId={id} />}
+            <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
+          </Pressable>
         </View>
+      ) : (
+        <ProjectHeader showMeter={onEditor} onHeightChange={onHeaderHeight} />
+      )}
+      <View style={{ flex: 1 }}>
+        <Tabs
+          backBehavior="none"
+          tabBar={() => null}
+          screenLayout={screenLayout}
+          screenOptions={{
+            headerShown: false,
+            sceneStyle: { backgroundColor: colors.bg },
+            ...tabAnimation,
+          }}
+        >
+          <Tabs.Screen name="chapters" options={{ title: t("project.chapters") }} />
+          <Tabs.Screen name="manuscript" options={{ title: t("project.manuscript") }} />
+          <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
+          <Tabs.Screen name="index" options={{ href: null }} />
+        </Tabs>
+        {focused ? null : <ManuscriptTabBar projectId={id} />}
       </View>
-    </AppHeaderHeightContext.Provider>
+    </View>
   );
 }
 
