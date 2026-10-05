@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
@@ -77,7 +77,7 @@ export function InfoBubble({
   }, [open]);
 
   function openPopup() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     buttonRef.current?.measureInWindow((x, y, width, height) => {
       setAnchor({ x, y, width, height });
     });

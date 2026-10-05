@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as Clipboard from "expo-clipboard";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { AccessibilityInfo, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeInDown, LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -98,7 +98,7 @@ export function ShareLinks({
       return;
     }
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     AccessibilityInfo.announceForAccessibility(t("beta.links.copied"));
     setCopiedId(link.id);
     if (copiedTimer.current) clearTimeout(copiedTimer.current);

@@ -190,6 +190,8 @@ const es: Translations = {
     reduceMotionHint: "Desactiva las animaciones en toda la app.",
     focusMode: "Modo enfoque",
     focusModeHint: "Oculta todo menos la página mientras escribes.",
+    haptics: "Vibración háptica",
+    hapticsHint: "Siente un toque suave en los botones y cuando Ciciro escribe o termina una respuesta.",
     typewriterMode: "Modo máquina de escribir",
     typewriterModeHint: "Mantén la línea que escribes cerca del centro de la pantalla.",
     exitFocus: "Salir del enfoque",

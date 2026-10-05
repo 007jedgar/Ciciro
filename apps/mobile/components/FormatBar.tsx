@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import type { BlockKind } from "../lib/manuscript";
 import type { BlockMark, BlockMarks } from "../lib/block-editor";
@@ -65,7 +65,7 @@ export function FormatBar({
 
   function press(action: () => void) {
     if (disabled) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     action();
   }
 
@@ -133,9 +133,7 @@ export function FormatBar({
             }}
             disabled={disabled && !dictation.active}
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
-                () => {},
-              );
+              haptics.tap();
               dictation.onToggle();
             }}
             style={({ pressed }) => [

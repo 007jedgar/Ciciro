@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { SuggestionAction, SuggestionPiece, SuggestionSummary } from "../lib/suggestions";
@@ -214,9 +214,7 @@ export function SuggestionsSheet({
   // words flash, the struck ones shrink away), then hands it to the editor. Light
   // haptic for one, medium for the whole batch.
   function resolve(action: SuggestionAction, ids?: string[]) {
-    Haptics.impactAsync(
-      ids ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium
-    ).catch(() => {});
+    haptics.impact(ids ? "light" : "medium");
     if (reduceMotion || pendingResolve.current) {
       pendingResolve.current?.commit();
       onResolve(action, ids);

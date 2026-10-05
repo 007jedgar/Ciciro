@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { KeyboardStickyView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
@@ -248,7 +248,7 @@ function ChatActionButton({
   }));
 
   function press() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     onPress();
   }
 
@@ -588,7 +588,7 @@ export function CiciroChat({
     stopCeremony();
     setUndoToken(null);
     setClearPhase("collapsing");
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    haptics.impact("medium");
     collapse.value = reduceMotion
       ? 1
       : withTiming(1, {
@@ -626,7 +626,7 @@ export function CiciroChat({
   const undoClear = useCallback(() => {
     const token = undoToken;
     if (!token) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     endCeremony();
     onUndoClear(token);
   }, [endCeremony, onUndoClear, undoToken]);
@@ -682,7 +682,7 @@ export function CiciroChat({
   }, []);
 
   const jumpToLatest = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     releaseHold();
     listRef.current?.scrollToEnd({ animated: true });
     syncJump(0);

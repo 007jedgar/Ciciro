@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -70,7 +70,7 @@ export function HeaderNewMenu({
   }));
 
   function choose(item: NewMenuItem) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     onClose();
     item.onPress();
   }

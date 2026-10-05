@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../../../../lib/haptics";
 import type { EnrichedTextInputInstance, OnChangeStateEvent } from "react-native-enriched-html";
 import {
   ChapterEditor,
@@ -434,7 +434,7 @@ export default function ManuscriptScreen() {
 
   const openPressMenu = useCallback(() => {
     setPressMenuOpen(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
   }, []);
 
   const onChangeState = useCallback((state: OnChangeStateEvent) => {
@@ -503,7 +503,7 @@ export default function ManuscriptScreen() {
       }
       const updated = chapterRef.current;
       if (updated) editorRef.current?.setValue(toEnrichedHtml(updated.content));
-      Haptics.selectionAsync().catch(() => {});
+      haptics.select();
     },
     [commitOps, flush]
   );

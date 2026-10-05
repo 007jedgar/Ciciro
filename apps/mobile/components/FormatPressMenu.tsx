@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
@@ -27,7 +27,7 @@ export function FormatPressMenu({
   ];
 
   function press(next: FormatBlockKind) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     onSetKind(next);
   }
 

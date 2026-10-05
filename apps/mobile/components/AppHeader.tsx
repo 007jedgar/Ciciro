@@ -12,7 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
 import { ChevronLeftIcon, PlusIcon, SlidersIcon } from "./icons";
@@ -92,7 +92,7 @@ export function AppHeader({
   }));
 
   function handleBack() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     onBack?.();
   }
 

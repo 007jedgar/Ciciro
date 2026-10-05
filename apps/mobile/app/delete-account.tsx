@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { ApiError } from "../lib/api";
 import { storeLabelKey, useEntitlement } from "../lib/billing";
@@ -58,12 +58,12 @@ export default function DeleteAccountScreen() {
     setError(null);
     try {
       await deleteAccount(usesPassword ? { password: proof } : { confirmation: proof });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptics.success();
       router.replace("/");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t("account.deleteFailed"));
       setBusy(false);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptics.error();
     }
   }
 

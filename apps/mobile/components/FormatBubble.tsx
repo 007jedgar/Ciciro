@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import type { BlockMark, BlockMarks } from "../lib/block-editor";
 import { emptyBlockMarks } from "../lib/block-editor";
@@ -30,7 +30,7 @@ export function FormatBubble({
   ];
 
   function press(mark: BlockMark) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptics.tap();
     onToggleMark(mark);
   }
 

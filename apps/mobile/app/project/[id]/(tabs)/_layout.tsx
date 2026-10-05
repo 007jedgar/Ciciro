@@ -12,6 +12,7 @@ import { FocusIcon, HeadphonesIcon } from "../../../../components/icons";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
 import { focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
+import * as haptics from "../../../../lib/haptics";
 import { useAppTheme } from "../../../../lib/settings";
 import { useStackBack } from "../../../../lib/use-stack-back";
 
@@ -33,7 +34,7 @@ function ToolButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={onPress}
+      onPress={haptics.withTap(onPress)}
       hitSlop={6}
       style={({ pressed }) => [
         styles.tool,
