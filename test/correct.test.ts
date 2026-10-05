@@ -104,6 +104,8 @@ describe("parseCorrectionSpans", () => {
     expect(applied("I went home home", fixes(["home home", "home"]))).toBe("I went home");
     expect(applied("It was really very good.", fixes(["very", ""]))).toBe("It was really good.");
     expect(applied("I went home home", fixes([" home", ""]))).toBe("I went home");
+    expect(applied("She smiled, and left.", fixes([",", ""]))).toBe("She smiled and left.");
+    expect(applied("Very good.", fixes(["Very", ""]))).toBe("good.");
   });
 
   it.each([
