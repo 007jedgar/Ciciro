@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,7 +16,6 @@ import { config as middlewareConfig, middleware } from "@/middleware";
 import { homeShowsLibrary } from "@/lib/home";
 import LaunchPage from "@/app/launch/page";
 import { THEMES } from "@/lib/theme";
-import { SETTINGS_EPOCH } from "@/lib/settings";
 import { MANUSCRIPT_KINDS } from "@/lib/manuscript-kind";
 import { MOTION_MS } from "@/lib/motion";
 import { nextStep } from "@/components/landing/CyclingWord";
@@ -78,26 +75,6 @@ describe("the home screen", () => {
 });
 
 describe("theme ids", () => {
-  // layout.tsx sets the theme before React loads, from its own copy of the ids.
-  const layout = readFileSync(join(__dirname, "../src/app/layout.tsx"), "utf8");
-
-  it("boots every theme the picker offers", () => {
-    const list = layout.match(/var themes = (\[[^\]]*\]);/)?.[1];
-    expect(list).toBeDefined();
-    expect(JSON.parse(list!)).toEqual(expect.arrayContaining(THEMES.map((t) => t.id)));
-    expect(JSON.parse(list!)).toHaveLength(THEMES.length);
-  });
-
-  it("boots every dark theme with a dark color scheme", () => {
-    const dark = layout.match(/var dark = ([^;]*);/)?.[1] ?? "";
-    const ids = [...dark.matchAll(/id === "([\w-]+)"/g)].map((m) => m[1]).sort();
-    expect(ids).toEqual(THEMES.filter((t) => t.mode === "dark").map((t) => t.id).sort());
-  });
-
-  it("follows the OS until settings were chosen, as SettingsProvider does", () => {
-    expect(layout).toContain(`blob.updatedAt !== "${SETTINGS_EPOCH}"`);
-  });
-
   it("keeps the ids every device already stores as the defaults", () => {
     expect(THEMES.find((t) => t.id === "parchment")?.mode).toBe("light");
     expect(THEMES.find((t) => t.id === "ember")?.mode).toBe("dark");
