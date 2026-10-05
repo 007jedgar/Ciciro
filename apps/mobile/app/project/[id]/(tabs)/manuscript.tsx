@@ -57,6 +57,7 @@ import {
 } from "../../../../lib/manuscript";
 import {
   acceptedCorrection,
+  caretAfterCorrection,
   GrammarLoop,
   GRAMMAR_IDLE_MS,
   selectPopupSpan,
@@ -454,11 +455,19 @@ export default function ManuscriptScreen() {
     };
   });
 
-  const acceptGrammar = useCallback(() => {
+  const acceptGrammar = useCallback(async () => {
     const suggestion = grammarRef.current?.suggestion ?? grammarSuggestion;
-    const current = chapterRef.current;
     const loop = grammarRef.current;
-    if (!suggestion || !current || !loop) return;
+    if (!suggestion || !loop) return;
+    // Rewriting the buffer below replaces everything in it, so whatever was
+    // typed since the last flush has to be committed first or it is lost.
+    try {
+      await flush();
+    } catch {
+      return;
+    }
+    const current = chapterRef.current;
+    if (!current || loop.suggestion !== suggestion) return;
     if (blockHasSuggestions(current.content, suggestion.blockId)) {
       loop.setSuggestion(null);
       return;
@@ -468,17 +477,27 @@ export default function ManuscriptScreen() {
       loop.draftOf(suggestion.blockId) ??
       doc.blocks.find((block) => block.id === suggestion.blockId)?.text ??
       suggestion.text;
-    const caret = caretRef.current.blockId === suggestion.blockId ? caretRef.current.offset : live.length;
-    const accepted = acceptedCorrection({ suggestion, liveText: live, caret });
+    const accepted = acceptedCorrection({ suggestion, liveText: live });
     if (!accepted) {
       loop.setSuggestion(null);
       return;
     }
+    const blockIndex = (id: string) => doc.blocks.findIndex((block) => block.id === id);
+    const caret = caretAfterCorrection({
+      text: liveChapterText(current),
+      caret: caretRef.current.docOffset,
+      paragraph: live,
+      span: accepted.span,
+      correctedAbove: blockIndex(accepted.blockId) < blockIndex(caretRef.current.blockId),
+    });
     commitOps(replaceBlockOps(doc, accepted.blockId, accepted.nextText, { actor: "correction" }));
     const next = chapterRef.current;
-    if (next) editorRef.current?.setValue(toEnrichedHtml(next.content));
+    if (next) {
+      editorRef.current?.setValue(toEnrichedHtml(next.content));
+      editorRef.current?.setSelection(caret, caret);
+    }
     loop.setSuggestion(null);
-  }, [commitOps, grammarSuggestion]);
+  }, [commitOps, flush, grammarSuggestion, liveChapterText]);
   acceptGrammarRef.current = acceptGrammar;
 
   // Accepting or rejecting is an ordinary edit: flush what was typed, apply the
