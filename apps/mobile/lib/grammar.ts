@@ -83,8 +83,7 @@ export function selectPopupSpan(
 export function acceptedCorrection(opts: {
   suggestion: Pick<GrammarSuggestion, "blockId" | "text" | "spans"> | null;
   liveText: string;
-  caret: number;
-}): { blockId: string; nextText: string; caret: number } | null {
+}): { blockId: string; nextText: string; span: CorrectionSpan } | null {
   if (!opts.suggestion) return null;
   const spans = matchingSpans(opts.liveText, opts.suggestion.text, opts.suggestion.spans);
   if (spans.length === 0) return null;
@@ -92,8 +91,34 @@ export function acceptedCorrection(opts: {
   return {
     blockId: opts.suggestion.blockId,
     nextText: applySpans(opts.liveText, [span]),
-    caret: caretAfterSpans(opts.caret, [span]),
+    span,
   };
+}
+
+/**
+ * Where the editor caret belongs once an accepted fix is written back, since
+ * rewriting the buffer parks it at the end of the chapter. `text` is the
+ * editor's plain text before the fix (paragraphs newline-separated) and
+ * `caret` its caret; `paragraph` is the corrected block's text. A caret in
+ * that paragraph moves with the fix, so it stays before the space that
+ * follows; elsewhere it shifts only if the fix sits above it.
+ */
+export function caretAfterCorrection(opts: {
+  text: string;
+  caret: number;
+  paragraph: string;
+  span: CorrectionSpan;
+  correctedAbove: boolean;
+}): number {
+  const caret = Math.min(Math.max(0, opts.caret), opts.text.length);
+  const start = opts.text.lastIndexOf("\n", caret - 1) + 1;
+  const newline = opts.text.indexOf("\n", caret);
+  const end = newline === -1 ? opts.text.length : newline;
+  if (opts.text.slice(start, end) === opts.paragraph) {
+    return start + caretAfterSpans(caret - start, [opts.span]);
+  }
+  if (!opts.correctedAbove) return caret;
+  return Math.max(0, caret + opts.span.replacement.length - (opts.span.end - opts.span.start));
 }
 
 export function suggestionKey(suggestion: Pick<GrammarSuggestion, "chapterId" | "blockId" | "text" | "spans">): string {

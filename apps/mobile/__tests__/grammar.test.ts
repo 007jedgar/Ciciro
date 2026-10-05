@@ -3,6 +3,7 @@ import {
   autoAcceptProgress,
   caretAfterSpans,
   acceptedCorrection,
+  caretAfterCorrection,
   endedOnSentence,
   GrammarLoop,
   GRAMMAR_AUTO_ACCEPT_MS,
@@ -57,17 +58,37 @@ describe("grammar helpers", () => {
           spans: [span],
         },
         liveText: original,
-        caret: 5,
       })
-    ).toEqual({ blockId: "b1", nextText: "They're going home.", caret: 7 });
+    ).toEqual({ blockId: "b1", nextText: "They're going home.", span });
     expect(
       acceptedCorrection({
         suggestion: { blockId: "b1", text: original, spans: [span] },
         liveText: "There going home.",
-        caret: 5,
       })
     ).toBeNull();
     expect(autoAcceptProgress(0, GRAMMAR_AUTO_ACCEPT_MS, 1500)).toBe(0.5);
+  });
+
+  it("puts the caret back where the writer was after a fix, before the space that follows", () => {
+    const span = { start: 37, end: 41, replacement: "I'd" };
+    const paragraph = "The rain fell softly on the roof and I'dd sing for you";
+    const text = `Opening line.\n${paragraph}\nLast line.`;
+    const at = (local: number) => "Opening line.\n".length + local;
+    const fixed = `Opening line.\n${applySpans(paragraph, [span])}\nLast line.`;
+    const caretAfter = (caret: number, correctedAbove = false) =>
+      caretAfterCorrection({ text, caret, paragraph, span, correctedAbove });
+    // Typing on past the word: the caret keeps its place in the shorter line.
+    expect(caretAfter(at(paragraph.length))).toBe(at(paragraph.length - 1));
+    expect(fixed.slice(caretAfter(at(42)) - 4, caretAfter(at(42)))).toBe("I'd ");
+    // Right after the misspelt word: the caret lands after the fix, before the space.
+    expect(caretAfter(at(41))).toBe(at(40));
+    expect(fixed[caretAfter(at(41))]).toBe(" ");
+    // Before the word, or in another paragraph below the fix: unmoved.
+    expect(caretAfter(at(10))).toBe(at(10));
+    expect(caretAfter(3)).toBe(3);
+    // In a paragraph below the fix: shifted by what the fix removed.
+    const below = text.length - 2;
+    expect(caretAfter(below, true)).toBe(below - 1);
   });
 });
 
