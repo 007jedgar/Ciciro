@@ -73,7 +73,11 @@ export function EditModeToggle({
               }}
               onLayout={(e) => {
                 const { x, width } = e.nativeEvent.layout;
-                frames.value = frames.value.map((frame, i) => (i === index ? { x, width } : frame));
+                frames.modify((value) => {
+                  "worklet";
+                  value[index] = { x, width };
+                  return value;
+                });
               }}
               style={styles.option}
             >
