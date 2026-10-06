@@ -36,9 +36,12 @@ export function EditModeToggle({
   const pillStyle = useAnimatedStyle(() => {
     const [a, b] = frames.value;
     const p = pill.value;
+    const x = a.x + (b.x - a.x) * p;
+    const left = Math.max(x, a.x);
+    const right = Math.min(x + a.width + (b.width - a.width) * p, b.x + b.width);
     return {
-      width: a.width + (b.width - a.width) * p,
-      transform: [{ translateX: a.x + (b.x - a.x) * p }],
+      width: Math.max(right - left, 0),
+      transform: [{ translateX: left }],
     };
   });
 
