@@ -151,15 +151,15 @@ export default function ManuscriptScreen() {
   // toggles, so animating this padding is what makes the format bar glide up to
   // its focus-mode position rather than snapping there with the header.
   const screenPaddingTop = useSharedValue(headerHeight);
-  const headerHeightMounted = useRef(false);
+  const paddingFocusMode = useRef(focusMode);
   useEffect(() => {
-    if (!headerHeightMounted.current) {
-      headerHeightMounted.current = true;
+    if (paddingFocusMode.current === focusMode) {
       screenPaddingTop.value = headerHeight;
       return;
     }
+    paddingFocusMode.current = focusMode;
     screenPaddingTop.value = withTiming(headerHeight, { duration: reduceMotion ? 1 : FOCUS_TRANSITION_MS });
-  }, [headerHeight, reduceMotion, screenPaddingTop]);
+  }, [headerHeight, focusMode, reduceMotion, screenPaddingTop]);
   const screenStyle = useAnimatedStyle(() => ({ paddingTop: screenPaddingTop.value }));
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const isScreenplay = normalizeKind(project?.kind) === "screenplay";
