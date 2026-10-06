@@ -485,6 +485,11 @@ const hi: Translations = {
       rewrite: "अंश फिर से लिखें",
       describe: "विवरण जोड़ें",
     },
+    starters: {
+      continue: "यह अध्याय जारी रखें",
+      scene: "एक दृश्य वर्णन करें",
+      ask: "कहानी के बारे में पूछें",
+    },
     cleared: "चैट साफ़ हो गई।",
     undo: "पूर्ववत करें",
     restored: "चैट वापस आ गई।",

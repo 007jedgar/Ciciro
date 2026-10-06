@@ -486,6 +486,11 @@ const es: Translations = {
       rewrite: "Reescribir el pasaje",
       describe: "Añadir descripción",
     },
+    starters: {
+      continue: "Continuar este capítulo",
+      scene: "Describir una escena",
+      ask: "Preguntar sobre la historia",
+    },
     cleared: "Chat borrado.",
     undo: "Deshacer",
     restored: "Chat restaurado.",

@@ -116,6 +116,18 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("fills the composer from a starter chip without sending", () => {
+    const onSend = jest.fn();
+    const onComposerChange = jest.fn();
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" onComposerChange={onComposerChange} onSend={onSend} />)
+    );
+    fireEvent.press(screen.getByText("Describe a scene"));
+    expect(onComposerChange).toHaveBeenCalledWith("Describe a scene");
+    expect(onSend).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it("sends typed copy and inserts a closed draft into the manuscript", () => {
     const onSend = jest.fn();
     const onInsertDraft = jest.fn();
