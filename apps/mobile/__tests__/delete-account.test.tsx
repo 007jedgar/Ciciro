@@ -6,7 +6,7 @@ import { AppThemeContext } from "../lib/app-theme-context";
 import "../lib/i18n";
 import { makeLayout, THEME_PALETTES } from "../lib/theme";
 
-const mockBackTo = jest.fn();
+const mockResetTo = jest.fn();
 const mockDeleteAccount = jest.fn();
 const mockRunExport = jest.fn();
 let mockUser: { id: string; email: string; hasPassword?: boolean } = {
@@ -24,7 +24,7 @@ jest.mock("expo-router", () => ({
   useFocusEffect: () => {},
 }));
 jest.mock("../lib/use-stack-back", () => ({
-  useStackBack: () => ({ backOr: jest.fn(), backTo: mockBackTo }),
+  useStackBack: () => ({ backOr: jest.fn(), resetTo: mockResetTo }),
 }));
 jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
 jest.mock("../lib/session", () => ({
@@ -65,7 +65,7 @@ describe("DeleteAccountScreen", () => {
   });
   beforeEach(() => {
     mockDeleteAccount.mockReset();
-    mockBackTo.mockReset();
+    mockResetTo.mockReset();
     mockUser = { id: "u1", email: "writer@example.com" };
   });
 
@@ -86,7 +86,7 @@ describe("DeleteAccountScreen", () => {
     expect(deleteButton().props.accessibilityState.disabled).toBe(false);
     await act(async () => fireEvent.press(deleteButton()));
     expect(mockDeleteAccount).toHaveBeenCalledWith({ password: "hunter22" });
-    expect(mockBackTo).toHaveBeenCalledWith("/");
+    expect(mockResetTo).toHaveBeenCalledWith("/");
   });
 
   it("shows why it failed and stays put", async () => {
@@ -96,7 +96,7 @@ describe("DeleteAccountScreen", () => {
     fireEvent.changeText(screen.getByLabelText("Enter your password to confirm"), "wrong-one");
     await act(async () => fireEvent.press(deleteButton()));
     expect(screen.getByText("Incorrect password.")).toBeTruthy();
-    expect(mockBackTo).not.toHaveBeenCalled();
+    expect(mockResetTo).not.toHaveBeenCalled();
   });
 
   it("asks an Apple / Google account without a password to type DELETE", async () => {
@@ -111,6 +111,6 @@ describe("DeleteAccountScreen", () => {
     expect(deleteButton().props.accessibilityState.disabled).toBe(false);
     await act(async () => fireEvent.press(deleteButton()));
     expect(mockDeleteAccount).toHaveBeenCalledWith({ confirmation: "delete" });
-    expect(mockBackTo).toHaveBeenCalledWith("/");
+    expect(mockResetTo).toHaveBeenCalledWith("/");
   });
 });

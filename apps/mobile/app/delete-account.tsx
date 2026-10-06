@@ -30,7 +30,7 @@ const DELETED_ITEMS = [
  * password, or for an Apple / Google account without one, typing DELETE.
  */
 export default function DeleteAccountScreen() {
-  const { backOr, backTo } = useStackBack();
+  const { backOr, resetTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready, deleteAccount } = useSession();
   const { layout, colors } = useAppTheme();
@@ -58,9 +58,9 @@ export default function DeleteAccountScreen() {
     try {
       await deleteAccount(usesPassword ? { password: proof } : { confirmation: proof });
       haptics.success();
-      // Same reset backTo gives sign-out: dismiss settings' nested ancestors
+      // Same reset resetTo gives sign-out: dismiss every nested ancestor
       // instead of leaving them mounted as modal-presented screens.
-      backTo("/");
+      resetTo("/");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t("account.deleteFailed"));
       setBusy(false);
