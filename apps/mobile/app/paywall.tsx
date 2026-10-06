@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from "react-native";
-import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +15,7 @@ import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { CheckIcon, InfoIcon } from "../components/icons";
 import { ciciro, type Entitlement } from "../lib/api";
 import { API_URL } from "../lib/api/client";
+import { EASE_OUT } from "../lib/motion";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useSelectionPop } from "../lib/use-selection-pop";
 import {
@@ -48,6 +55,7 @@ export default function PaywallScreen() {
   const { backOr } = useStackBack();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
+  const reduceMotion = useReduceMotion();
   const headerHeight = useAppHeaderHeight();
   const insets = useSafeAreaInsets();
   const entitlementQuery = useEntitlement(Boolean(user));
@@ -187,6 +195,7 @@ export default function PaywallScreen() {
           </Centered>
         ) : welcome ? (
           <View style={{ paddingTop: 24 }}>
+            <WelcomeCelebration colors={colors} reduceMotion={reduceMotion} />
             <Text style={[layout.title, { fontSize: 30 }]}>{t("billing.welcome")}</Text>
             <Text style={[layout.body, { marginBottom: 28 }]}>{t("billing.welcomeBody")}</Text>
             <PrimaryButton label={t("billing.done")} onPress={() => backOr("/manuscripts")} colors={colors} />
@@ -289,6 +298,67 @@ export default function PaywallScreen() {
 
 function Centered({ children }: { children: ReactNode }) {
   return <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 48, gap: 8 }}>{children}</View>;
+}
+
+const CELEBRATION_MS = 620;
+const CELEBRATION_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+
+/**
+ * A one-shot burst of dots behind the welcome headline, played once on
+ * arrival at the post-purchase welcome state and settling into nothing —
+ * the layout underneath never moves. Skipped entirely with reduce motion.
+ */
+function WelcomeCelebration({ colors, reduceMotion }: { colors: ColorTokens; reduceMotion: boolean }) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    progress.value = withTiming(1, { duration: CELEBRATION_MS, easing: EASE_OUT });
+  }, [progress, reduceMotion]);
+
+  if (reduceMotion) return null;
+
+  return (
+    <View
+      style={{ position: "absolute", top: 12, left: 0, right: 0, height: 24, alignItems: "center" }}
+      pointerEvents="none"
+    >
+      {CELEBRATION_ANGLES.map((angle) => (
+        <CelebrationDot key={angle} angle={angle} progress={progress} color={colors.accent} />
+      ))}
+    </View>
+  );
+}
+
+function CelebrationDot({
+  angle,
+  progress,
+  color,
+}: {
+  angle: number;
+  progress: SharedValue<number>;
+  color: string;
+}) {
+  const radians = (angle * Math.PI) / 180;
+  const style = useAnimatedStyle(() => {
+    const distance = progress.value * 46;
+    return {
+      opacity: 1 - progress.value,
+      transform: [
+        { translateX: Math.cos(radians) * distance },
+        { translateY: Math.sin(radians) * distance },
+        { scale: 0.5 + progress.value * 0.6 },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      style={[
+        { position: "absolute", width: 7, height: 7, borderRadius: 3.5, backgroundColor: color },
+        style,
+      ]}
+    />
+  );
 }
 
 function Benefit({ label, colors }: { label: string; colors: ColorTokens }) {
