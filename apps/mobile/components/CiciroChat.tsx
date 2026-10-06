@@ -568,7 +568,7 @@ export function CiciroChat({
   const fadeStops = useMemo<readonly [number, number, number]>(() => {
     const height = FADE_LEAD + dockHeight;
     const at = (px: number) => Math.max(0, Math.min(1, px / height));
-    // Closed just before the label, and fully by the composer below it.
+    // Solid from just above the label down through the composer.
     return [0, at(FADE_LEAD - 20), 1];
   }, [dockHeight]);
   const [hopSignal, setHopSignal] = useState(0);
@@ -892,10 +892,10 @@ export function CiciroChat({
 
       {/*
         The dock floats over the thread rather than walling it off, so the
-        conversation stays visible scrolling underneath the composer and the
-        tab bar below it. box-none lets a tap through wherever the dock is only
-        gradient. The fade is the one concession to legibility: prose dissolves
-        toward the composer instead of colliding with the Clear chat label.
+        conversation scrolls on underneath it instead of stopping at a hard
+        edge. box-none lets a tap through wherever the dock is only gradient.
+        The fade dissolves prose in the lead above the dock and is solid by
+        the Clear chat label, so nothing reads through the dock's chrome.
       */}
       <KeyboardStickyView
         testID="chat-dock"
