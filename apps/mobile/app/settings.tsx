@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Redirect, useRouter } from "expo-router";
 import {
   useEmailPreferencesQuery,
@@ -20,6 +21,7 @@ import { EDITOR_FONT_SIZES, FORMAT_CHROME, type EditorFont, type EditorFontSize,
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { switchColors } from "../lib/switch-theme";
 import { setFocusMode, useFocusMode } from "../lib/focus-mode";
 import { getReminderPermission, requestReminderPermission } from "../lib/writing-reminder-notifications";
@@ -52,8 +54,10 @@ const WORD_GOALS = [100, 250, 500] as const;
 const WEEKLY_TARGETS = [3, 4, 5, 6, 7] as const;
 
 function Group({ children, colors }: { children: ReactNode; colors: ColorTokens }) {
+  const reduceMotion = useReduceMotion();
   return (
-    <View
+    <Animated.View
+      layout={reduceMotion ? undefined : LinearTransition.duration(200)}
       style={{
         backgroundColor: colors.panel,
         borderColor: colors.line,
@@ -64,7 +68,7 @@ function Group({ children, colors }: { children: ReactNode; colors: ColorTokens 
       }}
     >
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -486,6 +490,7 @@ function NotificationsGroup({ colors }: { colors: ColorTokens }) {
   const { t } = useTranslation();
   const { data: prefs } = usePushPreferencesQuery();
   const patch = usePatchPushPreferencesMutation();
+  const reduceMotion = useReduceMotion();
   const [permission, setPermission] = useState<
     "granted" | "denied" | "undetermined" | "unavailable" | null
   >(null);
@@ -512,24 +517,30 @@ function NotificationsGroup({ colors }: { colors: ColorTokens }) {
       <>
         {header}
         <Group colors={colors}>
-          <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-            <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{t("settings.pushOffHint")}</Text>
-          </View>
-          <Pressable
-            onPress={() => void (permission === "denied" ? Linking.openSettings() : enable())}
-            accessibilityRole="button"
-            accessibilityLabel={permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
-            style={({ pressed }) => ({
-              minHeight: 52,
-              paddingHorizontal: 16,
-              justifyContent: "center",
-              backgroundColor: pressed ? colors.panel2 : "transparent",
-            })}
+          <Animated.View
+            key="push-off"
+            entering={reduceMotion ? undefined : FadeIn.duration(200)}
+            exiting={reduceMotion ? undefined : FadeOut.duration(150)}
           >
-            <Text style={{ fontSize: 17, color: colors.accent }}>
-              {permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
-            </Text>
-          </Pressable>
+            <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{t("settings.pushOffHint")}</Text>
+            </View>
+            <Pressable
+              onPress={() => void (permission === "denied" ? Linking.openSettings() : enable())}
+              accessibilityRole="button"
+              accessibilityLabel={permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
+              style={({ pressed }) => ({
+                minHeight: 52,
+                paddingHorizontal: 16,
+                justifyContent: "center",
+                backgroundColor: pressed ? colors.panel2 : "transparent",
+              })}
+            >
+              <Text style={{ fontSize: 17, color: colors.accent }}>
+                {permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
+              </Text>
+            </Pressable>
+          </Animated.View>
         </Group>
       </>
     );
@@ -539,17 +550,23 @@ function NotificationsGroup({ colors }: { colors: ColorTokens }) {
     <>
       {header}
       <Group colors={colors}>
-        {PUSH_CATEGORIES.map((category, index) => (
-          <ToggleRow
-            key={category}
-            label={t(PUSH_CATEGORY_KEYS[category].label)}
-            hint={t(PUSH_CATEGORY_KEYS[category].hint)}
-            value={prefs[category]}
-            onValueChange={(value) => patch.mutate({ [category]: value })}
-            colors={colors}
-            last={index === PUSH_CATEGORIES.length - 1}
-          />
-        ))}
+        <Animated.View
+          key="push-on"
+          entering={reduceMotion ? undefined : FadeIn.duration(200)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(150)}
+        >
+          {PUSH_CATEGORIES.map((category, index) => (
+            <ToggleRow
+              key={category}
+              label={t(PUSH_CATEGORY_KEYS[category].label)}
+              hint={t(PUSH_CATEGORY_KEYS[category].hint)}
+              value={prefs[category]}
+              onValueChange={(value) => patch.mutate({ [category]: value })}
+              colors={colors}
+              last={index === PUSH_CATEGORIES.length - 1}
+            />
+          ))}
+        </Animated.View>
       </Group>
     </>
   );
@@ -560,6 +577,7 @@ function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
   const { t } = useTranslation();
   const { data: prefs } = useEmailPreferencesQuery();
   const patch = usePatchEmailPreferencesMutation();
+  const reduceMotion = useReduceMotion();
   if (!prefs) return null;
 
   const topics = Object.keys(EMAIL_TOPIC_KEYS) as EmailTopic[];
@@ -575,8 +593,12 @@ function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
           colors={colors}
           last={!prefs.marketingOptIn}
         />
-        {prefs.marketingOptIn
-          ? topics.map((topic, index) => (
+        {prefs.marketingOptIn ? (
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeIn.duration(200)}
+            exiting={reduceMotion ? undefined : FadeOut.duration(150)}
+          >
+            {topics.map((topic, index) => (
               <ToggleRow
                 key={topic}
                 label={t(EMAIL_TOPIC_KEYS[topic].label)}
@@ -586,8 +608,9 @@ function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
                 colors={colors}
                 last={index === topics.length - 1}
               />
-            ))
-          : null}
+            ))}
+          </Animated.View>
+        ) : null}
       </Group>
     </>
   );
@@ -599,6 +622,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
+  const reduceMotion = useReduceMotion();
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
   const { data: entitlement } = useEntitlement(Boolean(user));
   const focusMode = useFocusMode();
@@ -799,7 +823,10 @@ export default function SettingsScreen() {
             last={!settings.showDailyGoal}
           />
           {settings.showDailyGoal ? (
-            <>
+            <Animated.View
+              entering={reduceMotion ? undefined : FadeIn.duration(200)}
+              exiting={reduceMotion ? undefined : FadeOut.duration(150)}
+            >
               <SheetRow
                 label={t("settings.wordGoal")}
                 value={t("settings.dailyGoalValue", { count: settings.dailyWordGoal })}
@@ -813,7 +840,7 @@ export default function SettingsScreen() {
                 colors={colors}
                 last
               />
-            </>
+            </Animated.View>
           ) : null}
         </Group>
 
