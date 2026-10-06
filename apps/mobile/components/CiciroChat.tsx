@@ -908,8 +908,8 @@ export function CiciroChat({
           pointerEvents="none"
           colors={[
             alpha(colors.bg, 0),
-            alpha(colors.bg, 0.5),
-            alpha(colors.bg, 0.78),
+            alpha(colors.bg, 1),
+            alpha(colors.bg, 1),
           ]}
           locations={fadeStops}
           style={styles.dockFade}
