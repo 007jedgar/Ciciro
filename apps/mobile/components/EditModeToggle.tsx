@@ -1,10 +1,15 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import type { EditMode } from "../lib/edit-mode";
 import { useAppTheme } from "../lib/settings";
+import { useReduceMotion } from "../lib/use-reduce-motion";
+import * as haptics from "../lib/haptics";
 import { Glass } from "./Glass";
 
 const MODES: EditMode[] = ["edits", "chat"];
+const SPRING = { damping: 15, stiffness: 190, mass: 0.7 } as const;
 
 /**
  * The chat's two-state switch between Allow edits and Chat only. The
@@ -19,9 +24,37 @@ export function EditModeToggle({
 }) {
   const { t } = useTranslation();
   const { colors, dark } = useAppTheme();
+  const reduceMotion = useReduceMotion();
+  const activeIndex = MODES.indexOf(mode);
+  const pill = useSharedValue(activeIndex);
+  const seg = useSharedValue(0);
+
+  useEffect(() => {
+    pill.value = reduceMotion ? activeIndex : withSpring(activeIndex, SPRING);
+  }, [activeIndex, reduceMotion, pill]);
+
+  const [segPx, setSegPx] = useState(0);
+  const pillStyle = useAnimatedStyle(() => ({
+    width: segPx,
+    transform: [{ translateX: pill.value * seg.value }],
+  }));
+
   return (
     <Glass dark={dark} colors={colors} radius={14}>
-      <View accessibilityRole="radiogroup" accessibilityLabel={t("ciciroTab.editMode.label")} style={styles.row}>
+      <View
+        accessibilityRole="radiogroup"
+        accessibilityLabel={t("ciciroTab.editMode.label")}
+        style={styles.row}
+        onLayout={(e) => {
+          const width = (e.nativeEvent.layout.width - 6) / MODES.length;
+          seg.value = width;
+          setSegPx(width);
+        }}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.bubble, { backgroundColor: colors.accentSoft }, pillStyle]}
+        />
         {MODES.map((value) => {
           const selected = mode === value;
           return (
@@ -32,9 +65,12 @@ export function EditModeToggle({
               accessibilityLabel={t(`ciciroTab.editMode.${value}`)}
               accessibilityHint={t(`ciciroTab.editMode.${value}Hint`)}
               onPress={() => {
-                if (!selected) onChange(value);
+                if (!selected) {
+                  haptics.select();
+                  onChange(value);
+                }
               }}
-              style={[styles.option, selected && { backgroundColor: colors.accentSoft }]}
+              style={styles.option}
             >
               <Text
                 numberOfLines={1}
@@ -57,4 +93,5 @@ export function EditModeToggle({
 const styles = StyleSheet.create({
   row: { flexDirection: "row", padding: 3, gap: 2 },
   option: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 11 },
+  bubble: { position: "absolute", top: 3, bottom: 3, left: 3, borderRadius: 11 },
 });
