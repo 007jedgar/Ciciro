@@ -49,7 +49,11 @@ import { openTodayEntry } from "../../../../lib/journal";
 import { normalizeKind } from "../../../../lib/manuscript-kind";
 import { weeklyReviewHref } from "../../../../lib/weekly-review";
 import { useAppTheme } from "../../../../lib/settings";
-import { CHAPTERS_SLIDE_DELAY_MS, TOOL_POP_STAGGER_MS } from "../../../../lib/chapters-intro";
+import {
+  CHAPTERS_SLIDE_DELAY_MS,
+  LIST_EDGE_SLACK,
+  TOOL_POP_STAGGER_MS,
+} from "../../../../lib/chapters-intro";
 import {
   consumeNewManuscriptArrival,
   isNewManuscriptArrival,
@@ -277,10 +281,13 @@ export default function ChaptersScreen() {
   ];
 
   return (
-    <View style={[layout.padded, { paddingTop: 0 }]}>
+    <View style={[layout.padded, { paddingTop: 0, paddingHorizontal: layout.padded.paddingHorizontal - LIST_EDGE_SLACK }]}>
       {deleteError ? (
         <Text
-          style={[layout.error, { marginTop: headerHeight + 16, marginBottom: 12 }]}
+          style={[
+            layout.error,
+            { marginTop: headerHeight + 16, marginBottom: 12, marginHorizontal: LIST_EDGE_SLACK },
+          ]}
           role="alert"
         >
           {deleteError}
@@ -294,9 +301,12 @@ export default function ChaptersScreen() {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           // An error line already clears the header, so the list starts under it.
+          // Horizontal padding moved in from the screen edge (see LIST_EDGE_SLACK)
+          // so the list's own clip frame has headroom beyond where content rests.
           contentContainerStyle={{
             paddingTop: deleteError ? 0 : headerHeight + 16,
             paddingBottom: clearance,
+            paddingHorizontal: LIST_EDGE_SLACK,
           }}
           ListHeaderComponent={
             project ? (

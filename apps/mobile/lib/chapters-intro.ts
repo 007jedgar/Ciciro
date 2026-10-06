@@ -11,6 +11,16 @@ export const CHAPTERS_SLIDE_MS = 360;
 /** Counted from the push's start, so the content moves once the screen is well on its way in. */
 export const CHAPTERS_SLIDE_DELAY_MS = 120;
 
+/**
+ * The chapter list clips its content to the FlatList's own frame, which sits
+ * exactly at the screen's padded edge. A header item that scales up on landing
+ * (the genre tag's save pulse) needs that frame pulled past the visible edge
+ * to have room to overflow into, so the list moves this much padding from the
+ * screen into the list's own content container - same resting position, more
+ * clip headroom.
+ */
+export const LIST_EDGE_SLACK = 14;
+
 /** When tile `index` starts popping, after `base` ms. */
 export function toolPopDelay(index: number, base = 0): number {
   return base + index * TOOL_POP_STAGGER_MS;
