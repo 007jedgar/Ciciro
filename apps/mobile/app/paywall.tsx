@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +9,8 @@ import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { CheckIcon, InfoIcon } from "../components/icons";
 import { ciciro, type Entitlement } from "../lib/api";
 import { API_URL } from "../lib/api/client";
+import { useReduceMotion } from "../lib/use-reduce-motion";
+import { useSelectionPop } from "../lib/use-selection-pop";
 import {
   billingDate,
   canOfferPro,
@@ -329,6 +332,19 @@ function PackageOption({
     ? t("billing.pricePerYear", { price: pkg.priceString })
     : t("billing.pricePerMonth", { price: pkg.priceString });
   const equivalent = yearly && pkg.pricePerMonthString ? t("billing.yearlyEquivalent", { price: pkg.pricePerMonthString }) : null;
+  const reduceMotion = useReduceMotion();
+  const { progress, scale } = useSelectionPop(selected, reduceMotion);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(progress.value, [0, 1], [colors.line, colors.accent]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [colors.panel, colors.accentSoft]),
+    transform: [{ scale: scale.value }],
+  }));
+  const dotStyle = useAnimatedStyle(() => ({
+    borderWidth: 1.5 + progress.value * 5.5,
+    borderColor: interpolateColor(progress.value, [0, 1], [colors.inkSoft, colors.accent]),
+  }));
+
   return (
     <Pressable
       onPress={haptics.withTap(onPress)}
@@ -336,38 +352,44 @@ function PackageOption({
       accessibilityRole="radio"
       accessibilityState={{ selected, disabled }}
       accessibilityLabel={[label, price, equivalent].filter(Boolean).join(", ")}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        minHeight: 64,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 14,
-        borderWidth: selected ? 2 : 1,
-        // Keep the text still when the border thickens.
-        margin: selected ? 0 : 1,
-        borderColor: selected ? colors.accent : colors.line,
-        backgroundColor: selected ? colors.accentSoft : pressed ? colors.panel2 : colors.panel,
-      })}
     >
-      <View
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: 11,
-          borderWidth: selected ? 7 : 1.5,
-          borderColor: selected ? colors.accent : colors.inkSoft,
-          backgroundColor: colors.panel,
-        }}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 17, fontWeight: "600", color: colors.ink }}>{label}</Text>
-        {equivalent ? (
-          <Text style={{ marginTop: 2, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{equivalent}</Text>
-        ) : null}
-      </View>
-      <Text style={{ fontSize: 16, color: colors.ink, fontVariant: ["tabular-nums"] }}>{price}</Text>
+      {({ pressed }) => (
+        <Animated.View
+          style={[
+            {
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 14,
+              minHeight: 64,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderRadius: 14,
+              borderWidth: 1,
+              backgroundColor: pressed && !selected ? colors.panel2 : undefined,
+            },
+            cardStyle,
+          ]}
+        >
+          <Animated.View
+            style={[
+              {
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: colors.panel,
+              },
+              dotStyle,
+            ]}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.ink }}>{label}</Text>
+            {equivalent ? (
+              <Text style={{ marginTop: 2, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{equivalent}</Text>
+            ) : null}
+          </View>
+          <Text style={{ fontSize: 16, color: colors.ink, fontVariant: ["tabular-nums"] }}>{price}</Text>
+        </Animated.View>
+      )}
     </Pressable>
   );
 }
