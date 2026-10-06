@@ -67,7 +67,7 @@ import {
 import { dictationLocale, insertDictation } from "../../../../lib/dictation";
 import { useDictation, type DictationError } from "../../../../lib/speech";
 import { useProject } from "../../../../lib/project";
-import { useFocusMode } from "../../../../lib/focus-mode";
+import { FOCUS_TRANSITION_MS, useFocusMode } from "../../../../lib/focus-mode";
 import { blockHasSuggestions } from "../../../../lib/suggestion-review";
 import {
   ciciroAcceptedWordCount,
@@ -147,6 +147,20 @@ export default function ManuscriptScreen() {
   const clearance = useTabBarClearance();
   const focusMode = useFocusMode();
   const headerHeight = useAppHeaderHeight();
+  // The header shrinks to the slim exit-focus bar (or back) only when focus mode
+  // toggles, so animating this padding is what makes the format bar glide up to
+  // its focus-mode position rather than snapping there with the header.
+  const screenPaddingTop = useSharedValue(headerHeight);
+  const headerHeightMounted = useRef(false);
+  useEffect(() => {
+    if (!headerHeightMounted.current) {
+      headerHeightMounted.current = true;
+      screenPaddingTop.value = headerHeight;
+      return;
+    }
+    screenPaddingTop.value = withTiming(headerHeight, { duration: reduceMotion ? 1 : FOCUS_TRANSITION_MS });
+  }, [headerHeight, reduceMotion, screenPaddingTop]);
+  const screenStyle = useAnimatedStyle(() => ({ paddingTop: screenPaddingTop.value }));
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const isScreenplay = normalizeKind(project?.kind) === "screenplay";
   const chapterRef = useRef<Chapter | null>(null);
@@ -647,7 +661,7 @@ export default function ManuscriptScreen() {
   // The native editor clips its padding rather than scrolling under it, so the
   // page starts below the floating header instead of running beneath it.
   return (
-    <View style={[layout.screen, { paddingTop: headerHeight }]}>
+    <Animated.View style={[layout.screen, screenStyle]}>
       {barPlacement === "header" ? (
         <View
           testID="format-bar-slot"
@@ -788,6 +802,6 @@ export default function ManuscriptScreen() {
         onClose={closeReview}
         onResolve={(action, ids) => void resolveOnPhone(action, ids)}
       />
-    </View>
+    </Animated.View>
   );
 }

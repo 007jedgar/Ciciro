@@ -4,6 +4,9 @@ import { getAnalytics } from "./analytics-client";
 /** Typewriter padding never squeezes the visible writing area below this height. */
 export const TYPEWRITER_MIN_TEXT_HEIGHT = 160;
 
+/** How long the chrome fade/slide takes entering or leaving focus mode. Reduce motion collapses this to near-instant. */
+export const FOCUS_TRANSITION_MS = 280;
+
 /** Focus mode belongs to this device only, so it lives in local prefs, not synced settings. */
 const FOCUS_KEY = "focus-mode";
 

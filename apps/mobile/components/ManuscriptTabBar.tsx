@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProject } from "../lib/project";
 import { useSession } from "../lib/session";
 import { bibleIndexHref } from "../lib/bible-files";
+import { FOCUS_TRANSITION_MS } from "../lib/focus-mode";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { loadWritingReminders } from "../lib/writing-reminder-store";
@@ -115,7 +116,7 @@ function ActionTile({
   return <Animated.View style={[style, animated]}>{children}</Animated.View>;
 }
 
-export function ManuscriptTabBar({ projectId }: { projectId: string }) {
+export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: string; hidden?: boolean }) {
   const { t } = useTranslation();
   const { colors, dark } = useAppTheme();
   const reduceMotion = useReduceMotion();
@@ -175,6 +176,12 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   // 0 with the keyboard down, 1 with it up: the bar tucks below the screen edge
   // with the keyboard instead of being covered by it.
   const keyboard = useReanimatedKeyboardAnimation();
+  // 0 shown, 1 tucked away: focus mode hides the bar the same way the keyboard does.
+  const hiddenProgress = useSharedValue(hidden ? 1 : 0);
+
+  useEffect(() => {
+    hiddenProgress.value = withTiming(hidden ? 1 : 0, { duration: reduceMotion ? 1 : FOCUS_TRANSITION_MS });
+  }, [hidden, reduceMotion, hiddenProgress]);
 
   useEffect(() => {
     progress.value = reduceMotion
@@ -185,6 +192,10 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   useEffect(() => {
     bubble.value = reduceMotion ? activeIndex : withSpring(activeIndex, SPRING);
   }, [activeIndex, reduceMotion, bubble]);
+
+  useEffect(() => {
+    if (hidden) setOpen(false);
+  }, [hidden]);
 
   useEffect(() => {
     if (!open) return;
@@ -295,7 +306,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   }));
 
   const barRowStyle = useAnimatedStyle(() => {
-    const hideProgress = keyboardHideProgress(keyboard.height.value);
+    const hideProgress = Math.max(keyboardHideProgress(keyboard.height.value), hiddenProgress.value);
     return {
       opacity: interpolate(hideProgress, [0, 0.7], [1, 0], "clamp"),
       transform: [
@@ -311,7 +322,7 @@ export function ManuscriptTabBar({ projectId }: { projectId: string }) {
   const glassBubble = dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.055)";
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={StyleSheet.absoluteFill} pointerEvents={hidden ? "none" : "box-none"}>
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={t("manuscriptTabBar.close")}
