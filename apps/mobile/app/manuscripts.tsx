@@ -89,10 +89,11 @@ export default function ManuscriptsScreen() {
   const loading =
     (projectsQuery.isPending && !projectsQuery.data) ||
     (foldersQuery.isPending && !foldersQuery.data);
+  const listShown = ready && Boolean(user) && !loading;
 
   // Rows the list has already shown, so only a folder/manuscript created later slides in.
   const seenKeys = useRef<Set<string> | null>(null);
-  if (seenKeys.current === null && !loading) {
+  if (seenKeys.current === null && listShown) {
     seenKeys.current = new Set(rows.filter((r) => r.kind !== "heading").map((r) => r.key));
   }
   const freshKeys = new Set(
@@ -110,8 +111,8 @@ export default function ManuscriptsScreen() {
   // Only the first screenful staggers in; rows FlatList mounts later (further batches, scrolling back) just appear.
   const revealed = useRef(false);
   useEffect(() => {
-    if (!loading) revealed.current = true;
-  }, [loading]);
+    if (listShown) revealed.current = true;
+  }, [listShown]);
 
   if (!ready) {
     return (
