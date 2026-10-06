@@ -51,36 +51,40 @@ let mockProjects: { data: Project[] | undefined; isPending: boolean } = { data: 
 let mockFolders: { data: unknown[] | undefined; isPending: boolean } = { data: [], isPending: false };
 let mockReduceMotion = false;
 
-// The screen's focus effect, so a test can blur it (another screen pushed on
-// top, this one detached underneath) and focus it again (popped back to).
-let mockFocusEffect: (() => void | (() => void)) | null = null;
-let mockBlur: void | (() => void) = undefined;
+// Whether the navigator has this screen focused, so a test can blur it
+// (another screen pushed on top, this one detached underneath), focus it
+// again (popped back to), or mount it already covered.
+let mockFocused = true;
+const mockFocusListeners = new Set<() => void>();
 jest.mock("expo-router", () => {
   const React = jest.requireActual("react");
   return {
     useRouter: () => ({ push: jest.fn() }),
     Redirect: () => null,
-    useFocusEffect: (effect: () => void | (() => void)) => {
-      React.useEffect(() => {
-        mockFocusEffect = effect;
-        mockBlur = effect();
-        return () => mockBlur?.();
-      }, [effect]);
-    },
+    useIsFocused: () =>
+      React.useSyncExternalStore(
+        (listener: () => void) => {
+          mockFocusListeners.add(listener);
+          return () => mockFocusListeners.delete(listener);
+        },
+        () => mockFocused
+      ),
   };
 });
 
-function blur() {
+function setFocused(focused: boolean) {
   act(() => {
-    mockBlur?.();
-    mockBlur = undefined;
+    mockFocused = focused;
+    for (const listener of mockFocusListeners) listener();
   });
 }
 
+function blur() {
+  setFocused(false);
+}
+
 function focus() {
-  act(() => {
-    mockBlur = mockFocusEffect?.();
-  });
+  setFocused(true);
 }
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -127,6 +131,7 @@ beforeEach(() => {
   mockSession = { user: { id: "u1" }, ready: true };
   mockFolders = { data: [], isPending: false };
   mockReduceMotion = false;
+  mockFocused = true;
   lastItemLayoutAnimation = "unset";
 });
 
@@ -263,6 +268,23 @@ describe("Manuscripts list entrance", () => {
     mockProjects = { data: [project("c", "Charlie"), project("a", "Alpha")], isPending: false };
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("layout:0");
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+  });
+
+  it("keeps the layout transition off on return for a list that first loaded while the screen was already covered", () => {
+    // A cold launch that restores the last place mounts the list under the
+    // chapters it pushes, never focused, and the data lands there.
+    mockFocused = false;
+    mockProjects = { data: undefined, isPending: true };
+    const view = render(<ManuscriptsScreen />);
+    mockProjects = { data: THREE, isPending: false };
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+
+    // Back from the chapters: the reattaching render must not turn it on.
+    focus();
+    expect(lastItemLayoutAnimation).toBe("none");
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("none");
   });

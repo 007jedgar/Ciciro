@@ -1,8 +1,8 @@
 import { ManuscriptMeta } from "../components/ManuscriptMeta";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, LinearTransition, SlideInRight } from "react-native-reanimated";
-import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import { Redirect, useIsFocused, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
@@ -117,13 +117,7 @@ export default function ManuscriptsScreen() {
   // Blurred, this screen sits detached under another one (react-native-screens), so a refetch
   // that lands meanwhile (creating or importing a manuscript opens its chapters straight away)
   // must not start motion there: rows that arrive while blurred are simply seen.
-  const [focused, setFocused] = useState(true);
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, [])
-  );
+  const focused = useIsFocused();
   const slidingKeys = focused ? freshKeys : new Set<string>();
 
   // The list-level reflow runs for the first reveal and on any render that changes the rows
