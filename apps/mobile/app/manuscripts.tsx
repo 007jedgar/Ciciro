@@ -118,7 +118,6 @@ export default function ManuscriptsScreen() {
   // that lands meanwhile (creating or importing a manuscript opens its chapters straight away)
   // must not start motion there: rows that arrive while blurred are simply seen.
   const focused = useIsFocused();
-  const slidingKeys = focused ? freshKeys : new Set<string>();
 
   // The list-level reflow runs for the first reveal and on any render that changes the rows
   // (a new, removed or reordered item) while the screen is focused - never on a render where
@@ -245,13 +244,14 @@ export default function ManuscriptsScreen() {
                 <Text style={[layout.cardMeta, { marginBottom: 8, marginTop: 4 }]}>{item.title}</Text>
               );
             }
-            const entering = reduceMotion
-              ? undefined
-              : slidingKeys.has(item.key)
-                ? SlideInRight.duration(260)
-                : revealed.current
-                  ? undefined
-                  : FadeInDown.duration(240).delay(fadeUpDelay(index));
+            const entering =
+              reduceMotion || !focused
+                ? undefined
+                : freshKeys.has(item.key)
+                  ? SlideInRight.duration(260)
+                  : revealed.current
+                    ? undefined
+                    : FadeInDown.duration(240).delay(fadeUpDelay(index));
             if (item.kind === "folder") {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
               return (

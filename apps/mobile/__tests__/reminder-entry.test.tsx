@@ -25,6 +25,7 @@ jest.mock("expo-router", () => ({
     back: jest.fn(),
   }),
   useSegments: () => ["project", "p1", "chapters"],
+  useIsFocused: () => true,
   Redirect: () => null,
 }));
 
