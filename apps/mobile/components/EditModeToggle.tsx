@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -27,17 +27,20 @@ export function EditModeToggle({
   const reduceMotion = useReduceMotion();
   const activeIndex = MODES.indexOf(mode);
   const pill = useSharedValue(activeIndex);
-  const seg = useSharedValue(0);
+  const frames = useSharedValue(MODES.map(() => ({ x: 0, width: 0 })));
 
   useEffect(() => {
     pill.value = reduceMotion ? activeIndex : withSpring(activeIndex, SPRING);
   }, [activeIndex, reduceMotion, pill]);
 
-  const [segPx, setSegPx] = useState(0);
-  const pillStyle = useAnimatedStyle(() => ({
-    width: segPx,
-    transform: [{ translateX: pill.value * seg.value }],
-  }));
+  const pillStyle = useAnimatedStyle(() => {
+    const [a, b] = frames.value;
+    const p = pill.value;
+    return {
+      width: a.width + (b.width - a.width) * p,
+      transform: [{ translateX: a.x + (b.x - a.x) * p }],
+    };
+  });
 
   return (
     <Glass dark={dark} colors={colors} radius={14}>
@@ -45,17 +48,12 @@ export function EditModeToggle({
         accessibilityRole="radiogroup"
         accessibilityLabel={t("ciciroTab.editMode.label")}
         style={styles.row}
-        onLayout={(e) => {
-          const width = (e.nativeEvent.layout.width - 6) / MODES.length;
-          seg.value = width;
-          setSegPx(width);
-        }}
       >
         <Animated.View
           pointerEvents="none"
           style={[styles.bubble, { backgroundColor: colors.accentSoft }, pillStyle]}
         />
-        {MODES.map((value) => {
+        {MODES.map((value, index) => {
           const selected = mode === value;
           return (
             <Pressable
@@ -69,6 +67,10 @@ export function EditModeToggle({
                   haptics.select();
                   onChange(value);
                 }
+              }}
+              onLayout={(e) => {
+                const { x, width } = e.nativeEvent.layout;
+                frames.value = frames.value.map((frame, i) => (i === index ? { x, width } : frame));
               }}
               style={styles.option}
             >
@@ -93,5 +95,5 @@ export function EditModeToggle({
 const styles = StyleSheet.create({
   row: { flexDirection: "row", padding: 3, gap: 2 },
   option: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 11 },
-  bubble: { position: "absolute", top: 3, bottom: 3, left: 3, borderRadius: 11 },
+  bubble: { position: "absolute", top: 3, bottom: 3, left: 0, borderRadius: 11 },
 });
