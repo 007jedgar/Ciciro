@@ -595,7 +595,7 @@ function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { backOr, backTo } = useStackBack();
+  const { backOr, resetTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
@@ -956,8 +956,8 @@ export default function SettingsScreen() {
           <Pressable
             // A plain replace only swaps the focused screen, leaving settings'
             // own nested ancestors (manuscripts, the manuscript, ...) mounted
-            // as modal-presented screens underneath - backTo dismisses them too.
-            onPress={() => void logout().then(() => backTo("/"))}
+            // as modal-presented screens underneath - resetTo dismisses them too.
+            onPress={() => void logout().then(() => resetTo("/"))}
             accessibilityRole="button"
             style={({ pressed }) => ({
               minHeight: 52,

@@ -10,7 +10,7 @@ const mockPush = jest.fn();
 const mockRefresh = jest.fn(async () => {});
 const mockResend = jest.fn();
 const mockLogout = jest.fn(async () => {});
-const mockBackTo = jest.fn();
+const mockResetTo = jest.fn();
 let mockUser: { id: string; email: string; emailVerified?: boolean } = { id: "u1", email: "writer@example.com" };
 const mockRunExport = jest.fn();
 let mockExportBusy = false;
@@ -29,7 +29,7 @@ jest.mock("expo-router", () => ({
   useFocusEffect: () => {},
 }));
 jest.mock("../lib/use-stack-back", () => ({
-  useStackBack: () => ({ backOr: jest.fn(), backTo: mockBackTo }),
+  useStackBack: () => ({ backOr: jest.fn(), resetTo: mockResetTo }),
 }));
 jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
 jest.mock("../components/GlassSheet", () => ({ GlassSheet: () => null }));
@@ -82,7 +82,7 @@ describe("Settings account rows", () => {
     mockResend.mockReset();
     mockRefresh.mockClear();
     mockLogout.mockClear();
-    mockBackTo.mockClear();
+    mockResetTo.mockClear();
   });
 
   it("exports the account's data from its row", async () => {
@@ -113,9 +113,9 @@ describe("Settings account rows", () => {
       fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
     });
     expect(mockLogout).toHaveBeenCalled();
-    // backTo, not router.replace: it dismisses settings' nested ancestors
+    // resetTo, not router.replace: it dismisses settings' nested ancestors
     // instead of leaving them mounted underneath the welcome screen.
-    expect(mockBackTo).toHaveBeenCalledWith("/");
+    expect(mockResetTo).toHaveBeenCalledWith("/");
   });
 
   it("hides the confirmation row once the address is confirmed", async () => {

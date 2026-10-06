@@ -16,6 +16,7 @@ export type BackPlan = "pop" | "replace";
 
 /** The part of a navigation state this reads; a not-yet-rehydrated state may have no index. */
 export type StackState = {
+  key?: string;
   index?: number;
   routes: ReadonlyArray<{ name: string; state?: StackState }>;
 };
