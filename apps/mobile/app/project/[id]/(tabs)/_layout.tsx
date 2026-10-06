@@ -192,12 +192,16 @@ export default function ProjectTabsLayout() {
     <View style={layout.screen}>
       <Animated.View
         pointerEvents={focused ? "none" : "box-none"}
+        accessibilityElementsHidden={focused}
+        importantForAccessibility={focused ? "no-hide-descendants" : "auto"}
         style={[{ zIndex: 20 }, headerStyle]}
       >
         <ProjectHeader showMeter={onEditor} onHeightChange={onHeaderHeight} />
       </Animated.View>
       <Animated.View
         pointerEvents={focused ? "box-none" : "none"}
+        accessibilityElementsHidden={!focused}
+        importantForAccessibility={focused ? "auto" : "no-hide-descendants"}
         style={[
           {
             position: "absolute",

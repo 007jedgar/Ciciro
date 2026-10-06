@@ -322,7 +322,12 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
   const glassBubble = dark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.055)";
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={hidden ? "none" : "box-none"}>
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents={hidden ? "none" : "box-none"}
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
+    >
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={t("manuscriptTabBar.close")}
