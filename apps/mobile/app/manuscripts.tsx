@@ -107,6 +107,12 @@ export default function ManuscriptsScreen() {
     for (const key of freshKey.split(",")) seenKeys.current.add(key);
   }, [freshKey]);
 
+  // Only the first screenful staggers in; rows FlatList mounts later (further batches, scrolling back) just appear.
+  const revealed = useRef(false);
+  useEffect(() => {
+    if (!loading) revealed.current = true;
+  }, [loading]);
+
   if (!ready) {
     return (
       <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
@@ -224,7 +230,9 @@ export default function ManuscriptsScreen() {
               ? undefined
               : freshKeys.has(item.key)
                 ? SlideInRight.duration(260)
-                : FadeInDown.duration(240).delay(fadeUpDelay(index));
+                : revealed.current
+                  ? undefined
+                  : FadeInDown.duration(240).delay(fadeUpDelay(index));
             if (item.kind === "folder") {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
               return (
