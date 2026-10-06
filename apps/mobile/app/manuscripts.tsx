@@ -114,6 +114,13 @@ export default function ManuscriptsScreen() {
     if (listShown) revealed.current = true;
   }, [listShown]);
 
+  // Layout transitions (reflow for the stagger, or around a sliding-in fresh item) only
+  // run while the list is actually settling. Left on for every later render, react-native-screens
+  // detaching/reattaching this screen around a chapters visit leaves Reanimated animating cells
+  // from a stale pre-detach layout, which can land them collapsed - hiding real rows after a
+  // plain return trip with no data change.
+  const layoutAnimating = !reduceMotion && (!revealed.current || freshKeys.size > 0);
+
   if (!ready) {
     return (
       <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
@@ -190,7 +197,7 @@ export default function ManuscriptsScreen() {
         <Animated.FlatList
           scrollEnabled={true}
           data={rows}
-          itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
+          itemLayoutAnimation={layoutAnimating ? LinearTransition.duration(200) : undefined}
           keyExtractor={(item) => item.key}
           // Inset (not padding) on iOS so the pull-to-refresh spinner sits below the header.
           contentInset={{ top: listTop }}
