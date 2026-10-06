@@ -6,6 +6,9 @@ import "../lib/i18n";
 
 // Entrance builders that remember what they were asked for, so each row's
 // `entering` can be read back off the rendered view as e.g. "fade:120".
+// `lastItemLayoutAnimation` captures the FlatList-level `itemLayoutAnimation`
+// the same way, since that prop has no per-row DOM node to read it off of.
+let lastItemLayoutAnimation = "unset";
 jest.mock("react-native-reanimated", () => {
   const base = jest.requireActual("../__mocks__/react-native-reanimated");
   const React = jest.requireActual("react");
@@ -25,12 +28,19 @@ jest.mock("react-native-reanimated", () => {
         entering: (entering as { tag?: string } | undefined)?.tag ?? "none",
       })
   );
+  const AnimatedFlatList = React.forwardRef(
+    ({ itemLayoutAnimation, ...rest }: Record<string, unknown>, ref: unknown) => {
+      lastItemLayoutAnimation = (itemLayoutAnimation as { tag?: string } | undefined)?.tag ?? "none";
+      return React.createElement(RN.FlatList, { ...rest, ref });
+    }
+  );
   return {
     ...base,
     __esModule: true,
     FadeInDown: tagged("fade"),
     SlideInRight: tagged("slide"),
-    default: { ...base.default, View: AnimatedView },
+    LinearTransition: tagged("layout"),
+    default: { ...base.default, View: AnimatedView, FlatList: AnimatedFlatList },
   };
 });
 
@@ -90,6 +100,7 @@ beforeEach(() => {
   mockSession = { user: { id: "u1" }, ready: true };
   mockFolders = { data: [], isPending: false };
   mockReduceMotion = false;
+  lastItemLayoutAnimation = "unset";
 });
 
 describe("Manuscripts list entrance", () => {
@@ -146,5 +157,44 @@ describe("Manuscripts list entrance", () => {
     mockProjects = { data: [project("d", "Delta"), ...THREE], isPending: false };
     view.rerender(<ManuscriptsScreen />);
     expect(enteringOf("Delta")).toBe("none");
+  });
+
+  it("keeps every row visible and turns the list's layout transition off once settled, so a return trip from another screen can't animate rows into a stale/hidden layout", () => {
+    mockProjects = { data: THREE, isPending: false };
+    const view = render(<ManuscriptsScreen />);
+    // First reveal: the layout transition is still on, smoothing the stagger's reflow.
+    expect(lastItemLayoutAnimation).toBe("layout:0");
+
+    // A screen the user navigated away from and back to re-renders with the
+    // same, unchanged rows - no unmount, no data change. That must not leave
+    // the layout transition running, and nothing in the list may go missing.
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.getByText("Bravo")).toBeTruthy();
+    expect(screen.getByText("Charlie")).toBeTruthy();
+
+    // Another plain return trip - still settled, still everything visible.
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.getByText("Bravo")).toBeTruthy();
+    expect(screen.getByText("Charlie")).toBeTruthy();
+  });
+
+  it("turns the layout transition back on while a fresh row slides in, even after the list has settled", () => {
+    mockProjects = { data: THREE, isPending: false };
+    const view = render(<ManuscriptsScreen />);
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+
+    mockProjects = { data: [project("d", "Delta"), ...THREE], isPending: false };
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("layout:0");
+    expect(screen.getByText("Delta")).toBeTruthy();
+
+    // Once the fresh row is no longer fresh, the list is settled again.
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
   });
 });
