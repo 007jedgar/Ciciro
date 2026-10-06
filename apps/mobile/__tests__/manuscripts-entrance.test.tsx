@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen } from "@testing-library/react-native";
 import { View } from "react-native";
 import ManuscriptsScreen from "../app/manuscripts";
 import { fadeUpDelay } from "../lib/skeleton";
@@ -51,10 +51,37 @@ let mockProjects: { data: Project[] | undefined; isPending: boolean } = { data: 
 let mockFolders: { data: unknown[] | undefined; isPending: boolean } = { data: [], isPending: false };
 let mockReduceMotion = false;
 
-jest.mock("expo-router", () => ({
-  useRouter: () => ({ push: jest.fn() }),
-  Redirect: () => null,
-}));
+// The screen's focus effect, so a test can blur it (another screen pushed on
+// top, this one detached underneath) and focus it again (popped back to).
+let mockFocusEffect: (() => void | (() => void)) | null = null;
+let mockBlur: void | (() => void) = undefined;
+jest.mock("expo-router", () => {
+  const React = jest.requireActual("react");
+  return {
+    useRouter: () => ({ push: jest.fn() }),
+    Redirect: () => null,
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      React.useEffect(() => {
+        mockFocusEffect = effect;
+        mockBlur = effect();
+        return () => mockBlur?.();
+      }, [effect]);
+    },
+  };
+});
+
+function blur() {
+  act(() => {
+    mockBlur?.();
+    mockBlur = undefined;
+  });
+}
+
+function focus() {
+  act(() => {
+    mockBlur = mockFocusEffect?.();
+  });
+}
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
@@ -159,27 +186,27 @@ describe("Manuscripts list entrance", () => {
     expect(enteringOf("Delta")).toBe("none");
   });
 
-  it("keeps every row visible and turns the list's layout transition off once settled, so a return trip from another screen can't animate rows into a stale/hidden layout", () => {
+  it("turns the list's layout transition off once settled, so a return trip from another screen can't replay it from a stale layout", () => {
     mockProjects = { data: THREE, isPending: false };
     const view = render(<ManuscriptsScreen />);
     // First reveal: the layout transition is still on, smoothing the stagger's reflow.
     expect(lastItemLayoutAnimation).toBe("layout:0");
 
-    // A screen the user navigated away from and back to re-renders with the
-    // same, unchanged rows - no unmount, no data change. That must not leave
-    // the layout transition running, and nothing in the list may go missing.
+    // A plain re-render with unchanged rows - no unmount, no data change -
+    // must not leave the layout transition running.
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("none");
-    expect(screen.getByText("Alpha")).toBeTruthy();
-    expect(screen.getByText("Bravo")).toBeTruthy();
-    expect(screen.getByText("Charlie")).toBeTruthy();
 
-    // Another plain return trip - still settled, still everything visible.
+    // Off to the chapters and back: off while detached, and off on the
+    // render that reattaches the screen.
+    blur();
+    expect(lastItemLayoutAnimation).toBe("none");
+    focus();
+    expect(lastItemLayoutAnimation).toBe("none");
+
+    // Another plain re-render after the return trip - still settled.
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("none");
-    expect(screen.getByText("Alpha")).toBeTruthy();
-    expect(screen.getByText("Bravo")).toBeTruthy();
-    expect(screen.getByText("Charlie")).toBeTruthy();
   });
 
   it("turns the layout transition back on while a fresh row slides in, even after the list has settled", () => {
@@ -194,6 +221,48 @@ describe("Manuscripts list entrance", () => {
     expect(screen.getByText("Delta")).toBeTruthy();
 
     // Once the fresh row is no longer fresh, the list is settled again.
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+  });
+
+  it("keeps the layout transition off, and slides nothing in, for a manuscript created while the screen was behind its chapters", () => {
+    mockProjects = { data: THREE, isPending: false };
+    const view = render(<ManuscriptsScreen />);
+    view.rerender(<ManuscriptsScreen />);
+
+    // Creating (or importing) a manuscript opens its chapters straight away,
+    // and the refetched list lands while this screen is detached underneath.
+    blur();
+    mockProjects = { data: [project("d", "Delta"), ...THREE], isPending: false };
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+    expect(enteringOf("Delta")).toBe("none");
+
+    // Back on the list: the return render must not turn the transition on.
+    focus();
+    expect(lastItemLayoutAnimation).toBe("none");
+    expect(enteringOf("Delta")).toBe("none");
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+  });
+
+  it("still animates the reflow when a row is removed or the rows reorder while the screen is focused", () => {
+    mockProjects = { data: THREE, isPending: false };
+    const view = render(<ManuscriptsScreen />);
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+
+    // A manuscript deleted or moved into a folder: the rest close up.
+    mockProjects = { data: [project("a", "Alpha"), project("c", "Charlie")], isPending: false };
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("layout:0");
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("none");
+
+    // The same rows in a new order.
+    mockProjects = { data: [project("c", "Charlie"), project("a", "Alpha")], isPending: false };
+    view.rerender(<ManuscriptsScreen />);
+    expect(lastItemLayoutAnimation).toBe("layout:0");
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("none");
   });

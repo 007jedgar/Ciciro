@@ -1,8 +1,8 @@
 import { ManuscriptMeta } from "../components/ManuscriptMeta";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, LinearTransition, SlideInRight } from "react-native-reanimated";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
@@ -114,12 +114,29 @@ export default function ManuscriptsScreen() {
     if (listShown) revealed.current = true;
   }, [listShown]);
 
-  // Layout transitions (reflow for the stagger, or around a sliding-in fresh item) only
-  // run while the list is actually settling. Left on for every later render, react-native-screens
-  // detaching/reattaching this screen around a chapters visit leaves Reanimated animating cells
-  // from a stale pre-detach layout, which can land them collapsed - hiding real rows after a
-  // plain return trip with no data change.
-  const layoutAnimating = !reduceMotion && (!revealed.current || freshKeys.size > 0);
+  // Blurred, this screen sits detached under another one (react-native-screens), so a refetch
+  // that lands meanwhile (creating or importing a manuscript opens its chapters straight away)
+  // must not start motion there: rows that arrive while blurred are simply seen.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+  const slidingKeys = focused ? freshKeys : new Set<string>();
+
+  // The list-level reflow runs for the first reveal and on any render that changes the rows
+  // (a new, removed or reordered item) while the screen is focused - never on a render where
+  // the rows are unchanged, like the one reattaching this screen after a chapters visit, which
+  // would otherwise animate cells from a stale pre-detach layout and can land them collapsed.
+  const rowsKey = rows.map((r) => r.key).join(",");
+  const committedRowsKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (listShown) committedRowsKey.current = rowsKey;
+  }, [listShown, rowsKey]);
+  const rowsChanged = committedRowsKey.current !== null && committedRowsKey.current !== rowsKey;
+  const layoutAnimating = !reduceMotion && focused && (!revealed.current || rowsChanged);
 
   if (!ready) {
     return (
@@ -236,7 +253,7 @@ export default function ManuscriptsScreen() {
             }
             const entering = reduceMotion
               ? undefined
-              : freshKeys.has(item.key)
+              : slidingKeys.has(item.key)
                 ? SlideInRight.duration(260)
                 : revealed.current
                   ? undefined
