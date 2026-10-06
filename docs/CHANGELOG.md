@@ -5,6 +5,9 @@ else stays in commit messages.
 
 ## Unreleased
 
+- Fixed: on the phone, typing in a chapter after switching from another one no
+  longer fails to save with an "Unexpected null or undefined value" error.
+
 - An empty Ciciro chat on the phone now offers starter prompts (Continue this
   chapter, Describe a scene, Ask about the story). Tapping one fills the message
   box for you to edit before sending; it does not send on its own.
