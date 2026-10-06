@@ -48,7 +48,7 @@ export function WritingMeter() {
   useEffect(() => {
     ratioV.value = reduceMotion ? ratio : withTiming(ratio, { duration: 280, easing: EASE_OUT });
   }, [ratio, reduceMotion, ratioV]);
-  const fillStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: ratioV.value }] }));
+  const fillStyle = useAnimatedStyle(() => ({ width: `${ratioV.value * 100}%` }));
 
   if (!settings.showDailyGoal) return null;
 
@@ -116,10 +116,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fill: {
-    width: "100%",
     height: 4,
     borderRadius: 999,
-    transformOrigin: "0%",
   },
   week: {
     fontSize: 12,

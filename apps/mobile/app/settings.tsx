@@ -284,8 +284,10 @@ function OptionRow({
 }
 
 function SectionHeader({ label, colors }: { label: string; colors: ColorTokens }) {
+  const reduceMotion = useReduceMotion();
   return (
-    <Text
+    <Animated.Text
+      layout={reduceMotion ? undefined : LinearTransition.duration(200)}
       accessibilityRole="header"
       style={{
         marginHorizontal: 16,
@@ -298,7 +300,7 @@ function SectionHeader({ label, colors }: { label: string; colors: ColorTokens }
       }}
     >
       {label}
-    </Text>
+    </Animated.Text>
   );
 }
 
@@ -373,7 +375,7 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
   useEffect(() => {
     fillV.value = reduceMotion ? fill : withTiming(fill, { duration: 280, easing: EASE_OUT });
   }, [fill, reduceMotion, fillV]);
-  const fillStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: fillV.value }] }));
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fillV.value * 100}%` }));
   if (!paid && cap === null && !offer) return null;
 
   async function restore() {
@@ -443,10 +445,8 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
                     style={[
                       fillStyle,
                       {
-                        width: "100%",
                         height: "100%",
                         borderRadius: 3,
-                        transformOrigin: "0%",
                         backgroundColor: fill >= 1 ? colors.danger : colors.accent,
                       },
                     ]}
