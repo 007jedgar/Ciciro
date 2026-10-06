@@ -480,6 +480,11 @@ const zh: Translations = {
       rewrite: "重写这一段",
       describe: "添加描写",
     },
+    starters: {
+      continue: "续写这一章",
+      scene: "描写一个场景",
+      ask: "询问这个故事",
+    },
     cleared: "聊天已清空。",
     undo: "撤销",
     restored: "聊天已恢复。",

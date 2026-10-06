@@ -484,6 +484,11 @@ const en = {
       rewrite: "Rewrite the passage",
       describe: "Add description",
     },
+    starters: {
+      continue: "Continue this chapter",
+      scene: "Describe a scene",
+      ask: "Ask about the story",
+    },
     cleared: "Chat cleared.",
     undo: "Undo",
     restored: "Chat restored.",

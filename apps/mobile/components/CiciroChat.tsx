@@ -49,7 +49,9 @@ import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
 import { DEFAULT_EDIT_MODE, type EditMode } from "../lib/edit-mode";
 import { useAppTheme } from "../lib/settings";
+import type { ColorTokens } from "../lib/theme";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+import { BrandMark } from "./BrandMark";
 import { ChatClearMark } from "./ChatClearMark";
 import { ChatErrorNotice } from "./ChatErrorNotice";
 import { EditModeToggle } from "./EditModeToggle";
@@ -306,6 +308,51 @@ function JumpChip({
     <Animated.View testID="chat-jump" style={style}>
       {children}
     </Animated.View>
+  );
+}
+
+const STARTER_KEYS = ["continue", "scene", "ask"] as const;
+
+/**
+ * The empty thread, before the first message: the brand mark, the usual
+ * instructional line, and a few starter chips that fill the composer so an
+ * author can edit a prompt before sending rather than being committed to it.
+ */
+function ChatEmptyState({
+  colors,
+  onStarter,
+}: {
+  colors: ColorTokens;
+  onStarter: (text: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.emptyState}>
+      <BrandMark size={40} />
+      <Text style={[styles.emptyText, { color: colors.inkSoft }]}>{t("ciciroTab.empty")}</Text>
+      <View style={styles.starterRow}>
+        {STARTER_KEYS.map((key) => {
+          const label = t(`ciciroTab.starters.${key}`);
+          return (
+            <Pressable
+              key={key}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              onPress={() => {
+                haptics.tap();
+                onStarter(label);
+              }}
+              style={({ pressed }) => [
+                styles.starterChip,
+                { borderColor: colors.line, backgroundColor: colors.accentSoft, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Text style={[styles.starterText, { color: colors.ink }]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -845,7 +892,7 @@ export function CiciroChat({
         updateCellsBatchingPeriod={50}
         ListEmptyComponent={
           streaming ? null : (
-            <Text style={[layout.body, { marginTop: 8 }]}>{t("ciciroTab.empty")}</Text>
+            <ChatEmptyState colors={colors} onStarter={onComposerChange} />
           )
         }
         ListFooterComponent={
@@ -1031,6 +1078,16 @@ const styles = StyleSheet.create({
   thread: { flex: 1 },
   threadFill: { flex: 1 },
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
+  emptyState: { alignItems: "center", marginTop: 24, gap: 14 },
+  emptyText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
+  starterRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
+  starterChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  starterText: { fontSize: 13.5, fontWeight: "500" },
   user: {
     alignSelf: "flex-end",
     maxWidth: "88%",
