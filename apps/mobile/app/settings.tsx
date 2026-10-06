@@ -1,6 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
-import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { Redirect, useRouter } from "expo-router";
 import {
   useEmailPreferencesQuery,
@@ -24,6 +31,7 @@ import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { switchColors } from "../lib/switch-theme";
 import { setFocusMode, useFocusMode } from "../lib/focus-mode";
+import { EASE_OUT } from "../lib/motion";
 import { getReminderPermission, requestReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
@@ -359,6 +367,13 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
   const storeBilling = storePurchasesAvailable() && (entitlement.billing.store || billingPreview());
   const canRestore = storeBilling && entitlement.source !== "stripe";
   const cap = entitlement.limits.aiRunsPerMonth;
+  const fill = cap ? Math.min(1, entitlement.usage.aiRuns / cap) : 0;
+  const reduceMotion = useReduceMotion();
+  const fillV = useSharedValue(fill);
+  useEffect(() => {
+    fillV.value = reduceMotion ? fill : withTiming(fill, { duration: 280, easing: EASE_OUT });
+  }, [fill, reduceMotion, fillV]);
+  const fillStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: fillV.value }] }));
   if (!paid && cap === null && !offer) return null;
 
   async function restore() {
@@ -376,7 +391,6 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
   }
 
   const used = cap === null ? entitlement.usage.aiRuns : Math.min(entitlement.usage.aiRuns, cap);
-  const fill = cap ? Math.min(1, entitlement.usage.aiRuns / cap) : 0;
   const renewal =
     paid && entitlement.currentPeriodEnd
       ? t(entitlement.cancelAtPeriodEnd ? "billing.ends" : "billing.renews", {
@@ -425,13 +439,17 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
                   importantForAccessibility="no-hide-descendants"
                   style={{ marginTop: 12, height: 6, borderRadius: 3, backgroundColor: colors.line, overflow: "hidden" }}
                 >
-                  <View
-                    style={{
-                      width: `${fill * 100}%`,
-                      height: "100%",
-                      borderRadius: 3,
-                      backgroundColor: fill >= 1 ? colors.danger : colors.accent,
-                    }}
+                  <Animated.View
+                    style={[
+                      fillStyle,
+                      {
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: 3,
+                        transformOrigin: "0%",
+                        backgroundColor: fill >= 1 ? colors.danger : colors.accent,
+                      },
+                    ]}
                   />
                 </View>
               ) : null}

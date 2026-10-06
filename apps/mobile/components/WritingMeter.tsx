@@ -1,10 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useWritingDaysQuery } from "../lib/api";
+import { EASE_OUT } from "../lib/motion";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useWritingDay } from "../lib/writing-day-session";
 import {
   countWritingDaysInWindow,
@@ -38,10 +41,17 @@ export function WritingMeter() {
     return countWritingDaysInWindow(merged, today);
   }, [range.data?.days, day.date, day.words, day.activeMs, today]);
 
-  if (!settings.showDailyGoal) return null;
-
   const goal = settings.dailyWordGoal;
   const ratio = goal > 0 ? Math.min(1, day.words / goal) : 0;
+  const reduceMotion = useReduceMotion();
+  const ratioV = useSharedValue(ratio);
+  useEffect(() => {
+    ratioV.value = reduceMotion ? ratio : withTiming(ratio, { duration: 280, easing: EASE_OUT });
+  }, [ratio, reduceMotion, ratioV]);
+  const fillStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: ratioV.value }] }));
+
+  if (!settings.showDailyGoal) return null;
+
   const remaining = Math.max(0, goal - day.words);
   const met = goal > 0 && day.words >= goal;
   const title = t("settings.meterTitle");
@@ -67,12 +77,7 @@ export function WritingMeter() {
           style={styles.bar}
         >
           <View style={[styles.track, { backgroundColor: colors.line }]}>
-            <View
-              style={[
-                styles.fill,
-                { width: `${ratio * 100}%`, backgroundColor: colors.accent },
-              ]}
-            />
+            <Animated.View style={[styles.fill, fillStyle, { backgroundColor: colors.accent }]} />
           </View>
         </View>
         <Text style={[styles.week, { color: colors.inkSoft }]} numberOfLines={1}>
@@ -111,8 +116,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fill: {
+    width: "100%",
     height: 4,
     borderRadius: 999,
+    transformOrigin: "0%",
   },
   week: {
     fontSize: 12,
