@@ -121,18 +121,30 @@ export function ChapterEditor({
   const [shellHeight, setShellHeight] = useState(0);
   const typewriterPad = typewriterBottomInset(typewriter, shellHeight - bottomInset);
 
+  const markEdited = useCallback(() => {
+    dirtyRef.current = true;
+    editEpochRef.current += 1;
+    appliedHtmlRef.current = null;
+    appliedEnrichedRef.current = null;
+  }, []);
+
   useEffect(() => {
     // Toolbar marks, block kinds and dictation change the buffer without an
     // onChangeText of their own, so the screen reports them here to hold off
-    // the sync effect exactly like typing does.
-    registerEditor(inputRef.current, () => {
-      dirtyRef.current = true;
-      editEpochRef.current += 1;
-      appliedHtmlRef.current = null;
-      appliedEnrichedRef.current = null;
-    });
+    // the sync effect exactly like typing does. `chapterId` has to be a
+    // dependency here: `key={chapterId}` below remounts a fresh native view
+    // on every chapter switch while this component keeps its one React
+    // instance, so an effect gated on just `[registerEditor]` only ever ran
+    // once (on the first chapter's mount) and left the screen's `editorRef`
+    // pointed at that chapter's now-unmounted native view forever after -
+    // a later flush's `editor.getHTML()` then rejected with "Unexpected
+    // null or undefined value" and the edit in progress was lost. The
+    // native instance itself (`inputRef.current`) is already current by
+    // the time this runs: the library sets it via `useImperativeHandle`,
+    // whose layout effect commits before this passive effect does.
+    registerEditor(inputRef.current, markEdited);
     return () => registerEditor(null);
-  }, [registerEditor]);
+  }, [registerEditor, markEdited, chapterId]);
 
   // What the native view mounts with, fixed per chapter. A changed
   // `defaultValue` makes the native view replace its whole buffer and park

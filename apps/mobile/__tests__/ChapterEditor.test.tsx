@@ -114,6 +114,37 @@ describe("ChapterEditor", () => {
     expect(screen.getByTestId("chapter-editor").props.defaultValue).toContain("Chapter two.");
   });
 
+  it("re-registers the native editor when the chapter switches, so a stale ref is never left behind", () => {
+    // `key={chapterId}` remounts a fresh native view on every chapter switch,
+    // but this component keeps its one React instance. An effect gated on
+    // `[registerEditor]` alone only ever registers the first chapter's native
+    // instance and leaves the screen's ref pointed at a now-unmounted view
+    // forever after, so a later flush's `getHTML()` rejects and the edit in
+    // flight is lost. Registration has to re-run per chapter.
+    const registerEditor = jest.fn();
+    const props = {
+      chapterId: "c1",
+      html,
+      editorStyle,
+      resumeOffset: null as number | null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+      registerEditor,
+    };
+    const { rerender } = render(<ChapterEditor {...props} />);
+    const firstInstance = registerEditor.mock.calls[0][0];
+    expect(firstInstance).not.toBeNull();
+
+    rerender(<ChapterEditor {...props} chapterId="c2" html='<p data-block-id="b">Chapter two.</p>' />);
+
+    const lastCall = registerEditor.mock.calls[registerEditor.mock.calls.length - 1];
+    expect(lastCall[0]).not.toBeNull();
+    expect(lastCall[0]).not.toBe(firstInstance);
+  });
+
   it("adopts remote HTML when nothing has been typed yet", async () => {
     const registerEditor = jest.fn();
     const props = {
