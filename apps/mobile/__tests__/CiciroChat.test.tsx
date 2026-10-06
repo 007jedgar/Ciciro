@@ -10,6 +10,7 @@ import { promptAnchorGap } from "../lib/chat-scroll";
 import { classifyChatFailure } from "../lib/chat-errors";
 import { emptyChatStreamState } from "../lib/ciciro-stream";
 import { colors, makeLayout } from "../lib/theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
@@ -173,6 +174,44 @@ describe("CiciroChat", () => {
       screen.getByTestId("chat-thread").props.contentContainerStyle
     ).paddingBottom;
     expect(padding).toBeGreaterThanOrEqual(180);
+    unmount();
+  });
+
+  it("fully hides prose scrolling under the dock's chrome, not just dims it", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    const dockHeight = 180;
+    fireEvent(screen.getByTestId("chat-dock"), "layout", {
+      nativeEvent: { layout: { height: dockHeight, width: 390, x: 0, y: 0 } },
+    });
+    const fade = screen.UNSAFE_getByType(LinearGradient);
+    const { colors: stops, locations } = fade.props as {
+      colors: string[];
+      locations: number[];
+    };
+    // The fade starts `lead` px above the dock and runs to its bottom edge.
+    const lead = -StyleSheet.flatten(fade.props.style).top;
+    const total = lead + dockHeight;
+    const opacityAt = (px: number) => {
+      const t = px / total;
+      const a = stops.map((c) => parseInt(c.slice(7, 9), 16) / 255);
+      for (let i = 1; i < locations.length; i++) {
+        if (t <= locations[i]) {
+          const span = locations[i] - locations[i - 1];
+          const k = span === 0 ? 1 : (t - locations[i - 1]) / span;
+          return a[i - 1] + (a[i] - a[i - 1]) * k;
+        }
+      }
+      return a[a.length - 1];
+    };
+    // Prose above the fade stays fully readable.
+    expect(opacityAt(0)).toBe(0);
+    // From the Clear chat row at the dock's top edge down through the composer
+    // every pixel of the chrome sits on solid background.
+    for (let y = lead; y <= total; y += 5) {
+      expect(opacityAt(y)).toBe(1);
+    }
     unmount();
   });
 
