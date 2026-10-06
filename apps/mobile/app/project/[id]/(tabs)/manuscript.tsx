@@ -534,7 +534,7 @@ export default function ManuscriptScreen() {
   // shared rules, and commit the difference as ops like any keystroke.
   const resolveOnPhone = useCallback(
     async (action: SuggestionAction, ids?: string[]) => {
-      await flush();
+      if (!(await flush()) && editorRef.current) return;
       const current = chapterRef.current;
       if (!current) return;
       // Accepting drops the marks that say these words were Ciciro's, so the
