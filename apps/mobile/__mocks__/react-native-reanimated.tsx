@@ -7,7 +7,7 @@
  * animation builders that resolve to their final value immediately. Tests can
  * then assert on what a screen says rather than on how it got there.
  */
-import { forwardRef, type ComponentType } from "react";
+import { forwardRef, useRef, type ComponentType } from "react";
 import { FlatList, Image, ScrollView, Text, View } from "react-native";
 
 type Entering = Record<string, unknown>;
@@ -79,8 +79,21 @@ export const Easing = {
   inOut: (fn: (t: number) => number) => fn,
 };
 
+type SharedValue<T> = { value: T; modify: (fn: (value: T) => T) => void };
+
+/** One box per component instance, kept across renders like the real hook. */
 export function useSharedValue<T>(initial: T) {
-  return { value: initial };
+  const ref = useRef<SharedValue<T> | null>(null);
+  if (!ref.current) {
+    const box: SharedValue<T> = {
+      value: initial,
+      modify: (fn) => {
+        box.value = fn(box.value);
+      },
+    };
+    ref.current = box;
+  }
+  return ref.current;
 }
 
 export function useDerivedValue<T>(fn: () => T) {
