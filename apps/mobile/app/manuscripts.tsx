@@ -1,6 +1,7 @@
 import { ManuscriptMeta } from "../components/ManuscriptMeta";
-import { useMemo, useState } from "react";
-import { FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown, LinearTransition, SlideInRight } from "react-native-reanimated";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -9,7 +10,9 @@ import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { BellIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
 import { SkeletonList } from "../components/Skeleton";
+import { fadeUpDelay } from "../lib/skeleton";
 import { useAppTheme } from "../lib/settings";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useSession } from "../lib/session";
 import { importManuscriptFile, isImportable, pickImportFile } from "../lib/import";
 import { getAnalytics } from "../lib/analytics-client";
@@ -44,6 +47,7 @@ export default function ManuscriptsScreen() {
   const error =
     importError ??
     queryErrorMessage(projectsQuery.error ?? foldersQuery.error, t("errors.requestFailed"));
+  const reduceMotion = useReduceMotion();
 
   async function importManuscript() {
     if (importing) return;
@@ -82,6 +86,27 @@ export default function ManuscriptsScreen() {
     return items;
   }, [folders, projects, t]);
 
+  const loading =
+    (projectsQuery.isPending && !projectsQuery.data) ||
+    (foldersQuery.isPending && !foldersQuery.data);
+
+  // Rows the list has already shown, so only a folder/manuscript created later slides in.
+  const seenKeys = useRef<Set<string> | null>(null);
+  if (seenKeys.current === null && !loading) {
+    seenKeys.current = new Set(rows.filter((r) => r.kind !== "heading").map((r) => r.key));
+  }
+  const freshKeys = new Set(
+    rows
+      .filter((r) => r.kind !== "heading" && seenKeys.current !== null && !seenKeys.current.has(r.key))
+      .map((r) => r.key)
+  );
+  const freshKey = [...freshKeys].join(",");
+
+  useEffect(() => {
+    if (!freshKey || !seenKeys.current) return;
+    for (const key of freshKey.split(",")) seenKeys.current.add(key);
+  }, [freshKey]);
+
   if (!ready) {
     return (
       <View style={[layout.screen, { paddingHorizontal: 20, paddingTop: 24 }]}>
@@ -91,10 +116,6 @@ export default function ManuscriptsScreen() {
   }
 
   if (!user) return <Redirect href="/login" />;
-
-  const loading =
-    (projectsQuery.isPending && !projectsQuery.data) ||
-    (foldersQuery.isPending && !foldersQuery.data);
 
   const newItems: NewMenuItem[] = [
     {
@@ -159,9 +180,10 @@ export default function ManuscriptsScreen() {
           <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           scrollEnabled={true}
           data={rows}
+          itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
           keyExtractor={(item) => item.key}
           // Inset (not padding) on iOS so the pull-to-refresh spinner sits below the header.
           contentInset={{ top: listTop }}
@@ -192,52 +214,61 @@ export default function ManuscriptsScreen() {
               {t("manuscripts.empty")}
             </Text>
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             if (item.kind === "heading") {
               return (
                 <Text style={[layout.cardMeta, { marginBottom: 8, marginTop: 4 }]}>{item.title}</Text>
               );
             }
+            const entering = reduceMotion
+              ? undefined
+              : freshKeys.has(item.key)
+                ? SlideInRight.duration(260)
+                : FadeInDown.duration(240).delay(fadeUpDelay(index));
             if (item.kind === "folder") {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
               return (
-                <PressableCard
-                  style={[layout.card, styles.folderCard]}
-                  onPress={() => router.push(`/folder/${item.folder.id}`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("manuscripts.folderA11y", { name: item.folder.name })}
-                >
-                  <View style={[styles.folderMark, { backgroundColor: colors.accentSoft }]}>
-                    <FolderIcon color={colors.accent} size={22} />
-                  </View>
-                  <View style={styles.folderCopy}>
-                    <Text style={layout.cardTitle}>{item.folder.name}</Text>
-                    <Text style={layout.cardMeta}>
-                      {t("manuscripts.folderKind")}
-                      {" · "}
-                      {t("manuscripts.count", { count })}
-                    </Text>
-                    {item.folder.notes ? (
-                      <Text style={layout.cardMeta} numberOfLines={2}>
-                        {item.folder.notes}
+                <Animated.View entering={entering}>
+                  <PressableCard
+                    style={[layout.card, styles.folderCard]}
+                    onPress={() => router.push(`/folder/${item.folder.id}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("manuscripts.folderA11y", { name: item.folder.name })}
+                  >
+                    <View style={[styles.folderMark, { backgroundColor: colors.accentSoft }]}>
+                      <FolderIcon color={colors.accent} size={22} />
+                    </View>
+                    <View style={styles.folderCopy}>
+                      <Text style={layout.cardTitle}>{item.folder.name}</Text>
+                      <Text style={layout.cardMeta}>
+                        {t("manuscripts.folderKind")}
+                        {" · "}
+                        {t("manuscripts.count", { count })}
                       </Text>
-                    ) : null}
-                  </View>
-                  <ChevronRightIcon color={colors.inkSoft} />
-                </PressableCard>
+                      {item.folder.notes ? (
+                        <Text style={layout.cardMeta} numberOfLines={2}>
+                          {item.folder.notes}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <ChevronRightIcon color={colors.inkSoft} />
+                  </PressableCard>
+                </Animated.View>
               );
             }
             return (
-              <PressableCard
-                style={layout.card}
-                onPress={() => router.push(`/project/${item.project.id}/chapters`)}
-              >
-                <Text style={layout.cardTitle}>{item.project.title || t("manuscripts.untitled")}</Text>
-                <ManuscriptMeta project={item.project} />
-                {item.project.logline ? (
-                  <Text style={layout.cardMeta}>{item.project.logline}</Text>
-                ) : null}
-              </PressableCard>
+              <Animated.View entering={entering}>
+                <PressableCard
+                  style={layout.card}
+                  onPress={() => router.push(`/project/${item.project.id}/chapters`)}
+                >
+                  <Text style={layout.cardTitle}>{item.project.title || t("manuscripts.untitled")}</Text>
+                  <ManuscriptMeta project={item.project} />
+                  {item.project.logline ? (
+                    <Text style={layout.cardMeta}>{item.project.logline}</Text>
+                  ) : null}
+                </PressableCard>
+              </Animated.View>
             );
           }}
         />
