@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "8c36f7097858",
+    "summary": "An empty Ciciro chat on the phone now offers starter prompts (Continue this chapter, Describe a scene, Ask about the story).",
+    "text": "An empty Ciciro chat on the phone now offers starter prompts (Continue this chapter, Describe a scene, Ask about the story). Tapping one fills the message box for you to edit before sending; it does not send on its own."
+  },
+  {
     "id": "7d924e0b53e7",
     "summary": "The phone app has the website's Archive look as two new themes, **Ciciro** and **Ciciro Night**, now the default for anyone who has not picked a theme.",
     "text": "The phone app has the website's Archive look as two new themes, **Ciciro** and **Ciciro Night**, now the default for anyone who has not picked a theme. The chapters screen is restyled in it (new typefaces, folder-tab chapter cards, paper-stock stage chips) and the app's text uses Newsreader, Instrument Sans and JetBrains Mono. Four themes are renamed: Sage is **Marginalia**, Ember is **First Edition**, Walnut is **Bookshelf**, Candle is **Dog-Ear**; Parchment and Inkwell keep their names, and everyone keeps the theme they picked. This needs a new app build; an over-the-air update does not carry the fonts."
