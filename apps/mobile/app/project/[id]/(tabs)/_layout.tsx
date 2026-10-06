@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
@@ -11,7 +12,7 @@ import { ManuscriptPaceLabel } from "../../../../components/ManuscriptPaceLabel"
 import { FocusIcon, HeadphonesIcon } from "../../../../components/icons";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
-import { focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
+import { FOCUS_TRANSITION_MS, focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
 import * as haptics from "../../../../lib/haptics";
 import { useAppTheme } from "../../../../lib/settings";
 import { TAB_SLIDE_SPEC, tabSlideInterpolator } from "../../../../lib/manuscript-tab-slide";
@@ -137,6 +138,20 @@ export default function ProjectTabsLayout() {
   }, []);
   const focusMode = useFocusMode();
   const focused = focusChromeHidden(focusMode, onEditor);
+  const focusValue = useSharedValue(focused ? 1 : 0);
+  useEffect(() => {
+    focusValue.value = withTiming(focused ? 1 : 0, { duration: reduceMotion ? 1 : FOCUS_TRANSITION_MS });
+  }, [focused, reduceMotion, focusValue]);
+  // The header fades and lifts away as focus comes in; the exit-focus bar does
+  // the mirror move, sliding down into the space the header vacated.
+  const headerStyle = useAnimatedStyle(() => {
+    const amount = focusValue.value;
+    return { opacity: 1 - amount, transform: [{ translateY: -12 * amount }] };
+  });
+  const exitBarStyle = useAnimatedStyle(() => {
+    const amount = focusValue.value;
+    return { opacity: amount, transform: [{ translateY: -12 * (1 - amount) }] };
+  });
   const screenLayout = useCallback(
     ({ route, children }: { route: { name: string }; children: ReactNode }) => {
       const editor = route.name === "manuscript";
@@ -175,9 +190,16 @@ export default function ProjectTabsLayout() {
 
   return (
     <View style={layout.screen}>
-      {focused ? (
-        <View
-          style={{
+      <Animated.View
+        pointerEvents={focused ? "none" : "box-none"}
+        style={[{ zIndex: 20 }, headerStyle]}
+      >
+        <ProjectHeader showMeter={onEditor} onHeightChange={onHeaderHeight} />
+      </Animated.View>
+      <Animated.View
+        pointerEvents={focused ? "box-none" : "none"}
+        style={[
+          {
             position: "absolute",
             top: insets.top,
             left: 0,
@@ -188,22 +210,20 @@ export default function ProjectTabsLayout() {
             justifyContent: "flex-end",
             alignItems: "center",
             paddingHorizontal: 16,
-          }}
-          pointerEvents="box-none"
+          },
+          exitBarStyle,
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("settings.exitFocus")}
+          onPress={() => setFocusMode(false)}
+          hitSlop={12}
+          style={{ opacity: 0.45 }}
         >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("settings.exitFocus")}
-            onPress={() => setFocusMode(false)}
-            hitSlop={12}
-            style={{ opacity: 0.45 }}
-          >
-            <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <ProjectHeader showMeter={onEditor} onHeightChange={onHeaderHeight} />
-      )}
+          <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
+        </Pressable>
+      </Animated.View>
       <View style={{ flex: 1 }}>
         <Tabs
           backBehavior="none"
@@ -220,7 +240,7 @@ export default function ProjectTabsLayout() {
           <Tabs.Screen name="ciciro" options={{ title: t("project.ciciro") }} />
           <Tabs.Screen name="index" options={{ href: null }} />
         </Tabs>
-        {focused ? null : <ManuscriptTabBar projectId={id} />}
+        <ManuscriptTabBar projectId={id} hidden={focused} />
       </View>
     </View>
   );
