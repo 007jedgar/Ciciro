@@ -5,6 +5,10 @@ else stays in commit messages.
 
 ## Unreleased
 
+- An empty Ciciro chat on the phone now offers starter prompts (Continue this
+  chapter, Describe a scene, Ask about the story). Tapping one fills the message
+  box for you to edit before sending; it does not send on its own.
+
 - The phone app has the website's Archive look as two new themes, **Ciciro** and
   **Ciciro Night**, now the default for anyone who has not picked a theme. The
   chapters screen is restyled in it (new typefaces, folder-tab chapter cards,
