@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as haptics from "../lib/haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
@@ -30,8 +30,7 @@ const DELETED_ITEMS = [
  * password, or for an Apple / Google account without one, typing DELETE.
  */
 export default function DeleteAccountScreen() {
-  const router = useRouter();
-  const { backOr } = useStackBack();
+  const { backOr, backTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready, deleteAccount } = useSession();
   const { layout, colors } = useAppTheme();
@@ -59,7 +58,9 @@ export default function DeleteAccountScreen() {
     try {
       await deleteAccount(usesPassword ? { password: proof } : { confirmation: proof });
       haptics.success();
-      router.replace("/");
+      // Same reset backTo gives sign-out: dismiss settings' nested ancestors
+      // instead of leaving them mounted as modal-presented screens.
+      backTo("/");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t("account.deleteFailed"));
       setBusy(false);

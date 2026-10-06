@@ -595,7 +595,7 @@ function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { backOr } = useStackBack();
+  const { backOr, backTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
@@ -954,7 +954,10 @@ export default function SettingsScreen() {
           </Pressable>
           <Hairline colors={colors} />
           <Pressable
-            onPress={() => void logout().then(() => router.replace("/"))}
+            // A plain replace only swaps the focused screen, leaving settings'
+            // own nested ancestors (manuscripts, the manuscript, ...) mounted
+            // as modal-presented screens underneath - backTo dismisses them too.
+            onPress={() => void logout().then(() => backTo("/"))}
             accessibilityRole="button"
             style={({ pressed }) => ({
               minHeight: 52,

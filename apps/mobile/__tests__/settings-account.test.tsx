@@ -9,6 +9,8 @@ import { makeLayout, THEME_PALETTES } from "../lib/theme";
 const mockPush = jest.fn();
 const mockRefresh = jest.fn(async () => {});
 const mockResend = jest.fn();
+const mockLogout = jest.fn(async () => {});
+const mockBackTo = jest.fn();
 let mockUser: { id: string; email: string; emailVerified?: boolean } = { id: "u1", email: "writer@example.com" };
 const mockRunExport = jest.fn();
 let mockExportBusy = false;
@@ -26,11 +28,13 @@ jest.mock("expo-router", () => ({
   Redirect: () => null,
   useFocusEffect: () => {},
 }));
-jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backOr: jest.fn() }) }));
+jest.mock("../lib/use-stack-back", () => ({
+  useStackBack: () => ({ backOr: jest.fn(), backTo: mockBackTo }),
+}));
 jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
 jest.mock("../components/GlassSheet", () => ({ GlassSheet: () => null }));
 jest.mock("../lib/session", () => ({
-  useSession: () => ({ user: mockUser, ready: true, logout: jest.fn(), refresh: mockRefresh }),
+  useSession: () => ({ user: mockUser, ready: true, logout: mockLogout, refresh: mockRefresh }),
 }));
 jest.mock("../lib/api", () => {
   const actual = jest.requireActual("../lib/api/client");
@@ -77,6 +81,8 @@ describe("Settings account rows", () => {
     mockUser = { id: "u1", email: "writer@example.com" };
     mockResend.mockReset();
     mockRefresh.mockClear();
+    mockLogout.mockClear();
+    mockBackTo.mockClear();
   });
 
   it("exports the account's data from its row", async () => {
@@ -98,6 +104,18 @@ describe("Settings account rows", () => {
     await act(async () => {});
     fireEvent.press(screen.getByRole("button", { name: "Delete account" }));
     expect(mockPush).toHaveBeenCalledWith("/delete-account");
+  });
+
+  it("resets the stack to the root on sign out instead of a plain in-place replace", async () => {
+    renderSettings();
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Sign out" }));
+    });
+    expect(mockLogout).toHaveBeenCalled();
+    // backTo, not router.replace: it dismisses settings' nested ancestors
+    // instead of leaving them mounted underneath the welcome screen.
+    expect(mockBackTo).toHaveBeenCalledWith("/");
   });
 
   it("hides the confirmation row once the address is confirmed", async () => {
