@@ -435,11 +435,16 @@ function PackageOption({
               paddingVertical: 12,
               borderRadius: 14,
               borderWidth: 1,
-              backgroundColor: pressed && !selected ? colors.panel2 : undefined,
             },
             cardStyle,
           ]}
         >
+          {pressed && !selected ? (
+            <View
+              pointerEvents="none"
+              style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 13, backgroundColor: colors.panel2 }}
+            />
+          ) : null}
           <Animated.View
             style={[
               {

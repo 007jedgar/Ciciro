@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
+import { alpha } from "./Glass";
 import { TapPressable } from "./TapPressable";
 import { useTranslation } from "react-i18next";
 import {
@@ -84,14 +85,12 @@ function StatusChip({
 }) {
   const { progress, scale } = useSelectionPop(active, reduceMotion);
 
-  const chipStyle = useAnimatedStyle(() => {
-    const color = interpolateColor(progress.value, [0, 1], ["transparent", fill]);
-    return {
-      backgroundColor: color,
-      borderColor: interpolateColor(progress.value, [0, 1], [lineColor, fill]),
-      transform: [{ scale: scale.value }],
-    };
-  });
+  const clearFill = alpha(fill, 0);
+  const chipStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [clearFill, fill]),
+    borderColor: interpolateColor(progress.value, [0, 1], [lineColor, fill]),
+    transform: [{ scale: scale.value }],
+  }));
   const textStyle = useAnimatedStyle(() => ({
     color: interpolateColor(progress.value, [0, 1], [inactiveText, activeText]),
   }));

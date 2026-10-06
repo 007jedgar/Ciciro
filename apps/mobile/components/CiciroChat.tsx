@@ -60,6 +60,7 @@ import { alpha, Glass } from "./Glass";
 import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
+import { TapPressable } from "./TapPressable";
 
 /** A circle nested in the pill, inset so it shares the field's curve. */
 const SEND_SIZE = 36;
@@ -334,21 +335,18 @@ function ChatEmptyState({
         {STARTER_KEYS.map((key) => {
           const label = t(`ciciroTab.starters.${key}`);
           return (
-            <Pressable
+            <TapPressable
               key={key}
               accessibilityRole="button"
               accessibilityLabel={label}
-              onPress={() => {
-                haptics.tap();
-                onStarter(label);
-              }}
+              onPress={() => onStarter(label)}
               style={({ pressed }) => [
                 styles.starterChip,
                 { borderColor: colors.line, backgroundColor: colors.accentSoft, opacity: pressed ? 0.7 : 1 },
               ]}
             >
               <Text style={[styles.starterText, { color: colors.ink }]}>{label}</Text>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </View>
