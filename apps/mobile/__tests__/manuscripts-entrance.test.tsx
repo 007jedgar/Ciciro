@@ -272,7 +272,7 @@ describe("Manuscripts list entrance", () => {
     expect(lastItemLayoutAnimation).toBe("none");
   });
 
-  it("keeps the layout transition off on return for a list that first loaded while the screen was already covered", () => {
+  it("starts no entrance or layout motion, then or on return, for a list that first loaded while the screen was already covered", () => {
     // A cold launch that restores the last place mounts the list under the
     // chapters it pushes, never focused, and the data lands there.
     mockFocused = false;
@@ -281,11 +281,16 @@ describe("Manuscripts list entrance", () => {
     mockProjects = { data: THREE, isPending: false };
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("none");
+    expect(enteringOf("Alpha")).toBe("none");
+    expect(enteringOf("Charlie")).toBe("none");
 
-    // Back from the chapters: the reattaching render must not turn it on.
+    // Back from the chapters: the reattaching render must not turn anything on.
     focus();
     expect(lastItemLayoutAnimation).toBe("none");
+    expect(enteringOf("Alpha")).toBe("none");
+    expect(enteringOf("Charlie")).toBe("none");
     view.rerender(<ManuscriptsScreen />);
     expect(lastItemLayoutAnimation).toBe("none");
+    expect(enteringOf("Alpha")).toBe("none");
   });
 });
