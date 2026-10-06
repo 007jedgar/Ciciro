@@ -266,20 +266,33 @@ export default function ManuscriptScreen() {
     [recordChapterOp]
   );
 
-  const flush = useCallback(async () => {
+  // Returns whether it actually committed something, so a caller that is
+  // about to rewrite the buffer (acceptGrammar) can tell a lost flush from
+  // a settled one instead of clobbering typed text that never made it out.
+  const flush = useCallback(async (): Promise<boolean> => {
     if (replaceTimer.current) {
       clearTimeout(replaceTimer.current);
       replaceTimer.current = null;
     }
     const current = chapterRef.current;
     const editor = editorRef.current;
-    if (!current || !editor) return;
-    const enriched = await editor.getHTML();
+    if (!current || !editor) return false;
+    let enriched: string;
+    try {
+      enriched = await editor.getHTML();
+    } catch {
+      // A native editor that unmounted between being scheduled and firing
+      // (a chapter switch, or leaving the screen, inside the debounce
+      // window) rejects here instead of returning - there is no buffer left
+      // to read, so this flush has nothing to commit.
+      return false;
+    }
     commitOps(
       opsFromEnrichedHtml(current.content, enriched, current.revision, undefined, {
         screenplay: isScreenplay,
       })
     );
+    return true;
   }, [commitOps, isScreenplay]);
 
   const scheduleFlush = useCallback(() => {
@@ -476,11 +489,10 @@ export default function ManuscriptScreen() {
     if (!suggestion || !loop) return;
     // Rewriting the buffer below replaces everything in it, so whatever was
     // typed since the last flush has to be committed first or it is lost.
-    try {
-      await flush();
-    } catch {
-      return;
-    }
+    // A flush that could not commit (no editor, or one that rejected) means
+    // we cannot be sure the buffer is caught up, so the rewrite is skipped
+    // rather than risking it clobbering unflushed typing.
+    if (!(await flush())) return;
     const current = chapterRef.current;
     if (!current || loop.suggestion !== suggestion) return;
     if (blockHasSuggestions(current.content, suggestion.blockId)) {
