@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "8e99383771c9",
+    "summary": "Fixed: on the phone, typing in a chapter after switching from another one no longer fails to save with an \"Unexpected null or undefined value\" error.",
+    "text": "Fixed: on the phone, typing in a chapter after switching from another one no longer fails to save with an \"Unexpected null or undefined value\" error."
+  },
+  {
     "id": "8c36f7097858",
     "summary": "An empty Ciciro chat on the phone now offers starter prompts (Continue this chapter, Describe a scene, Ask about the story).",
     "text": "An empty Ciciro chat on the phone now offers starter prompts (Continue this chapter, Describe a scene, Ask about the story). Tapping one fills the message box for you to edit before sending; it does not send on its own."
