@@ -272,8 +272,9 @@ describe("beta reader share links", () => {
         );
         // postReaderComment fires the push through waitUntilRequest, which is a
         // fire-and-forget no-op outside a real Worker request context (see
-        // src/lib/db.ts); give that background promise a turn to settle.
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        // src/lib/db.ts); wait for its last write, the Expo ticket, rather than
+        // a fixed delay that a slow runner can outlast.
+        await vi.waitFor(async () => expect(await prisma.pushTicket.count()).toBe(1), { timeout: 5000 });
 
         expect(sent).toHaveLength(1);
         expect((sent[0] as { to: string; title: string; body: string }[])[0]).toMatchObject({

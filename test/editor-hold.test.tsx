@@ -25,6 +25,9 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(async () => root.unmount());
+  // useEditor destroys the editor on a timer after unmount; let it run while
+  // jsdom's window still exists, or it throws after the file's environment is gone.
+  await new Promise((r) => setTimeout(r, 10));
   host.remove();
 });
 
