@@ -70,6 +70,7 @@ const es: Translations = {
         title: "Probar el modo enfoque",
         intro: "Todo excepto la página desaparece. Toca para empezar y escribe una línea propia.",
         tryButton: "Probar el modo enfoque",
+        journalPlaceholder: "Escribe la primera línea de hoy.",
         sample:
           "La lluvia no había cesado en tres días, y el valle empezaba a inundarse. Ella permanecía junto a la ventana, esperando una decisión que ya no le correspondía tomar.",
       },

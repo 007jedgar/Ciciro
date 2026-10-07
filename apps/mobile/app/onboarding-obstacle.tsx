@@ -28,7 +28,7 @@ export default function OnboardingObstacleScreen() {
 
   function skip() {
     getAnalytics().track("onboarding_skipped", { step: "obstacle" });
-    router.push("/signup");
+    router.push({ pathname: "/signup", params: { kind } });
   }
 
   return (

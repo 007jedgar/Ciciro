@@ -95,7 +95,7 @@ export function AuthScreen({
 }: {
   initialMode: AuthMode;
   /** The pre-signup quiz's answers, carried here as route params - see AGENTS.md "Pre-signup onboarding". */
-  onboarding?: { kind: ManuscriptKind; obstacle: Obstacle } | null;
+  onboarding?: { kind: ManuscriptKind; obstacle: Obstacle | null } | null;
 }) {
   const router = useRouter();
   const { backOr } = useStackBack();
