@@ -119,13 +119,14 @@ describe("knowledge ledger (the Knowledge screen's API)", () => {
     });
     expect(updated).toMatchObject({
       fact: "Suzy has the pen",
-      stance: "believes",
+      // The first vocabulary's "believes" lands as "suspects".
+      stance: "suspects",
       chapterId: chapter6.id,
     });
     expect(updated.chapter).toMatchObject({ title: "Chapter 6" });
 
     const mirror = await readBibleFile(project.id, "characters/joe.md");
-    expect(mirror).toContain("- believes: Suzy has the pen");
+    expect(mirror).toContain('- suspects (from "Chapter 6"): Suzy has the pen');
     expect(mirror).not.toContain("No idea who has the pen");
   });
 

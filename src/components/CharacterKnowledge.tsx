@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { StancePill, StanceSelect } from "@/components/KnowledgeStance";
 import type { KnowsStance } from "@/lib/knowledge-view";
+import { anchorOrder } from "@/lib/knowledge-ledger";
 
 type Fact = {
   id: string;
   fact: string;
   stance: KnowsStance;
+  chapter: { id: string; title: string; order: number } | null;
 };
 
 type Props = {
@@ -15,6 +18,8 @@ type Props = {
   /** Unsaved edits in the file. Facts wait, so a save cannot overwrite the mirror. */
   dirty: boolean;
   onMirrored: () => void;
+  /** The chapter open in the editor: new facts date from it, and retiring stops a fact there. */
+  activeChapter?: { id: string; title: string; order: number } | null;
   /** Open this character in the dedicated Knowledge screen (chapter picker, edit-in-place, retired history). */
   onOpenKnowledgeScreen?: () => void;
 };
@@ -26,6 +31,7 @@ export default function CharacterKnowledge({
   characterPath,
   dirty,
   onMirrored,
+  activeChapter,
   onOpenKnowledgeScreen,
 }: Props) {
   const [facts, setFacts] = useState<Fact[]>([]);
@@ -54,7 +60,12 @@ export default function CharacterKnowledge({
       const res = await fetch(`/api/projects/${projectId}/knowledge`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ characterPath, fact: fact.trim(), stance }),
+        body: JSON.stringify({
+          characterPath,
+          fact: fact.trim(),
+          stance,
+          chapterId: activeChapter?.id ?? null,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Couldn't add that fact.");
@@ -68,12 +79,20 @@ export default function CharacterKnowledge({
     }
   }
 
-  async function retire(id: string) {
+  /** Stop a fact at the open chapter when it began before it; otherwise retire it everywhere. */
+  function stopsAtOpenChapter(row: Fact): boolean {
+    return Boolean(activeChapter && activeChapter.order > anchorOrder(row));
+  }
+
+  async function retire(row: Fact) {
     if (dirty) return;
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/projects/${projectId}/knowledge/${id}`, { method: "DELETE" });
+      const query = stopsAtOpenChapter(row) && activeChapter ? `?asOf=${encodeURIComponent(activeChapter.id)}` : "";
+      const res = await fetch(`/api/projects/${projectId}/knowledge/${row.id}${query}`, {
+        method: "DELETE",
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Couldn't retire that fact.");
       await load();
@@ -102,9 +121,12 @@ export default function CharacterKnowledge({
         )}
       </div>
       <p className="scratch-hint">
-        What this character knows or believes. Keeping a fact here rewrites the block at the end of
-        the file. Retiring one leaves it in the history of the ledger and drops it from the file. The
-        Knowledge screen adds a chapter picker and shows every character in chapter order.
+        What this character knows, suspects, believes wrongly, or doesn&rsquo;t know right now.
+        Keeping a fact here rewrites the block at the end of the file.{" "}
+        {activeChapter
+          ? `New facts date from "${activeChapter.title}", the chapter you have open, and Retire stops a fact there.`
+          : "With no chapter open, new facts hold from before the story opens."}{" "}
+        The Knowledge screen picks any chapter and shows the story chapter by chapter.
       </p>
       {dirty && <p className="scratch-hint">Save the file before adding or retiring a fact.</p>}
       {error && (
@@ -115,26 +137,30 @@ export default function CharacterKnowledge({
       {facts.length === 0 && <div className="empty">Nothing recorded yet.</div>}
       {facts.map((row) => (
         <div className="knowledge-row" key={row.id}>
-          <span className="knowledge-stance">{row.stance}</span>
-          <span className="knowledge-fact">{row.fact}</span>
-          <button className="btn ghost small" disabled={busy || dirty} onClick={() => retire(row.id)}>
+          <StancePill stance={row.stance} />
+          <span className="knowledge-fact">
+            {row.fact}
+            <span className="knowledge-since"> {row.chapter ? `from "${row.chapter.title}"` : "before the story"}</span>
+          </span>
+          <button
+            className="btn ghost small"
+            disabled={busy || dirty}
+            title={
+              stopsAtOpenChapter(row) && activeChapter
+                ? `Stop this from "${activeChapter.title}" on; earlier chapters keep it`
+                : "Retire this everywhere"
+            }
+            onClick={() => retire(row)}
+          >
             Retire
           </button>
         </div>
       ))}
       <div className="knowledge-add">
-        <select
-          aria-label="Stance"
-          value={stance}
-          disabled={busy || dirty}
-          onChange={(e) => setStance(e.target.value === "believes" ? "believes" : "knows")}
-        >
-          <option value="knows">knows</option>
-          <option value="believes">believes</option>
-        </select>
+        <StanceSelect value={stance} onChange={setStance} disabled={busy || dirty} />
         <input
           aria-label="Fact"
-          placeholder="What they know or believe"
+          placeholder="What they know, suspect, or have wrong"
           value={fact}
           disabled={busy || dirty}
           onChange={(e) => setFact(e.target.value)}

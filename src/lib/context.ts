@@ -189,8 +189,13 @@ export async function buildEditorContext(
       parts.push(block.join("\n"));
     }
 
+    // As of the open chapter: drafting chapter 2 never sees what chapter 6 changed.
     const namedHere = relevantCharacterPaths(entries, chapterPlainText(activeContent));
-    const whoKnows = await whoKnowsWhatBlock(projectId, namedHere);
+    const numberOf = (id: string) => {
+      const index = project.chapters.findIndex((c) => c.id === id);
+      return index === -1 ? null : index + 1;
+    };
+    const whoKnows = await whoKnowsWhatBlock(projectId, namedHere, active.id, numberOf);
     if (whoKnows) parts.push(`\n${whoKnows}`);
   }
 

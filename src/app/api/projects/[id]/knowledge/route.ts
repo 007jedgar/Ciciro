@@ -28,10 +28,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 // POST /api/projects/:id/knowledge — add a fact and refresh that character's mirror block.
+// `replacesFactId` retires that fact at this one's chapter: the character's view changed there.
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getSessionUser(req);
-  const body = await req.json().catch(() => ({}));
+  const raw = await req.json().catch(() => ({}));
+  const body = raw && typeof raw === "object" ? raw : {};
   try {
     return NextResponse.json(await addKnowledgeFact(id, user, body), { status: 201 });
   } catch (error) {

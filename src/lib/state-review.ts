@@ -9,8 +9,8 @@ import { appendBibleBullet, listBible, readBibleFile, type BulletBibleFile } fro
 import { chapterPlainText } from "@/lib/text";
 import { visibleChapterWhere } from "@/lib/chapters";
 import { relevantCharacterPaths } from "@/lib/continuity-view";
-import { activeFactsForPaths, addKnowledgeFact } from "@/lib/knowledge";
-import { knowledgeSectionAddon, parseStance, withKnowsBlock } from "@/lib/knowledge-view";
+import { addKnowledgeFact, factsAsOfChapter, mirrorFactsByPath } from "@/lib/knowledge";
+import { knowledgeSectionAddon, withKnowsBlock } from "@/lib/knowledge-view";
 import {
   buildStateReviewInput,
   groundStateProposals,
@@ -98,22 +98,18 @@ export async function runStateReview(
     listBible(projectId),
   ]);
   const characterPaths = relevantCharacterPaths(index, text);
-  const [characterFiles, facts, dismissed] = await Promise.all([
+  const [characterFiles, { facts }, dismissed] = await Promise.all([
     Promise.all(characterPaths.map(async (path) => ({ path, content: await readBibleFile(projectId, path) }))),
-    activeFactsForPaths(projectId, characterPaths),
+    // What the characters know by the end of this chapter, so a fact the
+    // ledger already dates here is not proposed again and a later chapter's
+    // knowledge does not read as already established.
+    factsAsOfChapter(projectId, characterPaths, chapterId),
     prisma.stateProposal.findMany({
       where: { projectId, chapterId },
       select: { fingerprint: true },
     }),
   ]);
-  const factsByPath = new Map<string, { stance: "knows" | "believes"; fact: string }[]>();
-  for (const fact of facts) {
-    const stance = parseStance(fact.stance);
-    if (!stance) continue;
-    const list = factsByPath.get(fact.characterPath) ?? [];
-    list.push({ stance, fact: fact.fact });
-    factsByPath.set(fact.characterPath, list);
-  }
+  const factsByPath = mirrorFactsByPath(facts);
   const sections = [
     { path: "canon.md", content: canon },
     { path: "plot.md", content: plot },

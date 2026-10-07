@@ -348,7 +348,8 @@ model Chapter {
   readingPositions  ReadingPosition[]
   snapshots         ChapterSnapshot[]
   shareComments     ShareComment[]
-  knowledgeFacts    KnowledgeFact[]
+  knowledgeFacts    KnowledgeFact[] @relation("KnowledgeFactChapter")
+  knowledgeFactsSupersededHere KnowledgeFact[] @relation("KnowledgeFactSupersededAt")
   stateProposals    StateProposal[]
 
   createdAt DateTime @default(now())
@@ -947,17 +948,25 @@ model KnowledgeFact {
   // characters/<slug>.md. Character rows are not the source of truth.
   characterPath String
   fact          String
-  stance        String // knows | believes
+  // knows | suspects | believes_wrong | unaware (src/lib/knowledge-ledger.ts)
+  stance        String
+  // Where the fact becomes true. None: before the story opens.
   chapterId     String?
-  chapter       Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  chapter       Chapter? @relation("KnowledgeFactChapter", fields: [chapterId], references: [id], onDelete: SetNull)
   sourceQuote   String   @default("")
   status        String   @default("active") // active | superseded
+  // Where a superseded fact stopped being true. None: retired everywhere.
+  supersededAtChapterId String?
+  supersededAtChapter   Chapter? @relation("KnowledgeFactSupersededAt", fields: [supersededAtChapterId], references: [id], onDelete: SetNull)
+  // Free-text grouping across characters ("who has the pen") for the grid.
+  topic         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([projectId, characterPath, status])
   @@index([chapterId])
+  @@index([supersededAtChapterId])
 }
 
 // A chapter-close proposal the author dismissed. The next review skips a

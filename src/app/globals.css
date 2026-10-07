@@ -4467,9 +4467,13 @@ input[type="file"]::file-selector-button {
   margin-bottom: 6px;
   font-size: 13px;
 }
-.knowledge-stance {
+.knowledge-since {
   color: var(--ink-soft);
-  min-width: 64px;
+  font-size: 12px;
+}
+.knowledge-who {
+  font-weight: 600;
+  text-transform: capitalize;
 }
 .knowledge-fact {
   flex: 1;
@@ -4567,13 +4571,195 @@ input[type="file"]::file-selector-button {
   flex: 0 1 auto;
   min-width: 0;
 }
-.pill.knows {
+/* The four stances: sure and right, leaning, sure and wrong, in the dark. */
+.pill.stance-knows {
   color: var(--accent);
   border-color: var(--accent);
+  background: var(--accent-soft);
 }
-.pill.believes {
-  color: var(--draft);
-  border-color: var(--draft);
+.pill.stance-suspects {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: dashed;
+}
+.pill.stance-believes_wrong {
+  color: var(--del);
+  border-color: var(--del);
+  background: var(--del-soft);
+}
+.pill.stance-unaware {
+  color: var(--ink-soft);
+  border-color: var(--ink-soft);
+  border-style: dashed;
+}
+.pill.kb-topic {
+  font-style: italic;
+}
+.kb-scrubber {
+  margin: 4px 0 12px;
+}
+.kb-scrubber-label {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.kb-scrubber input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: 0;
+}
+.kb-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  /* Line the tick labels up under the range thumb's travel. */
+  padding: 0 4px;
+}
+.kb-ticks span {
+  min-width: 0;
+  text-align: center;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.kb-ticks span.on {
+  color: var(--accent);
+  font-weight: 700;
+}
+.kb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.kb-toolbar > select {
+  flex: 1 1 140px;
+  min-width: 0;
+  width: auto;
+}
+.kb-tabs {
+  display: flex;
+  gap: 4px;
+}
+.kb-reader-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.kb-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kb-timeline .kb-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0;
+}
+.kb-timeline .kb-row:last-child {
+  border-bottom: none;
+}
+.kb-ended .knowledge-fact,
+.kb-ended .pill {
+  opacity: 0.75;
+}
+.kb-later {
+  opacity: 0.55;
+}
+.kb-lineage {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.kb-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.kb-divider {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  border-top: 1px dashed var(--line);
+  padding-top: 6px;
+  margin: 8px 0 2px;
+}
+.kb-none {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+.kb-change-head {
+  flex: 1 1 100%;
+  font-size: 12px;
+  font-weight: 600;
+}
+.kb-quote {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.kb-grid-wrap {
+  overflow-x: auto;
+  margin: 0 -4px;
+}
+.kb-grid {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+}
+.kb-grid th,
+.kb-grid td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 4px;
+  text-align: left;
+  vertical-align: top;
+}
+.kb-grid thead th {
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+.kb-grid tbody th {
+  font-family: var(--serif);
+  font-weight: 600;
+  min-width: 96px;
+}
+.kb-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 96px;
+}
+.kb-cell-fact {
+  color: var(--ink-soft);
+}
+.kb-cell-empty {
+  color: var(--ink-soft);
+}
+.kb-reader {
+  color: var(--ink-soft);
+  min-width: 120px;
+}
+.kb-add .knowledge-add .kb-topic-input {
+  order: 0;
+  flex: 1 1 120px;
 }
 
 /* ---------- Planning canvas ---------- */

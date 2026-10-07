@@ -6,8 +6,8 @@ import { DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { withAiRun } from "@/lib/entitlements";
 import { CONTINUITY_CHECK_SYSTEM } from "@/lib/prompts";
 import { listBible, readBibleFile, type BibleEntry } from "@/lib/bible";
-import { activeFactsForPaths } from "@/lib/knowledge";
-import { knowledgeSectionAddon, parseStance, withKnowsBlock } from "@/lib/knowledge-view";
+import { factsAsOfChapter, mirrorFactsByPath } from "@/lib/knowledge";
+import { knowledgeSectionAddon, withKnowsBlock } from "@/lib/knowledge-view";
 import { chapterPlainText } from "@/lib/text";
 import { visibleChapterWhere } from "@/lib/chapters";
 import {
@@ -31,7 +31,8 @@ import {
 // world.md and timeline.md are small, singular files sent every time, and
 // character files are sent only for the characters this chapter actually
 // names (see relevantCharacterPaths). Findings are not persisted; each run is
-// a fresh, on-demand check against the bible as it stands right now.
+// a fresh, on-demand check against the bible as it stands right now, with the
+// who-knows-what ledger taken as of the end of each chapter checked.
 
 const BOOK_CONCURRENCY = 3;
 const BOOK_TIME_BUDGET_MS = 240_000;
@@ -60,10 +61,10 @@ async function relevantBible(
   projectId: string,
   bible: { singular: BibleSection[]; index: BibleEntry[] },
   characterCache: Map<string, Promise<string>>,
-  chapterText: string
+  chapter: { id: string; text: string }
 ): Promise<BibleSection[]> {
-  const characterPaths = relevantCharacterPaths(bible.index, chapterText);
-  const [characterFiles, facts] = await Promise.all([
+  const characterPaths = relevantCharacterPaths(bible.index, chapter.text);
+  const [characterFiles, { facts }] = await Promise.all([
     Promise.all(
       characterPaths.map(async (path) => {
         let content = characterCache.get(path);
@@ -74,16 +75,12 @@ async function relevantBible(
         return { path, content: await content };
       })
     ),
-    activeFactsForPaths(projectId, characterPaths),
+    // Each chapter is checked against what its characters know by its own
+    // end, never the latest state: an early chapter is not wrong for not
+    // knowing what a later one reveals.
+    factsAsOfChapter(projectId, characterPaths, chapter.id),
   ]);
-  const factsByPath = new Map<string, { stance: "knows" | "believes"; fact: string }[]>();
-  for (const fact of facts) {
-    const stance = parseStance(fact.stance);
-    if (!stance) continue;
-    const list = factsByPath.get(fact.characterPath) ?? [];
-    list.push({ stance, fact: fact.fact });
-    factsByPath.set(fact.characterPath, list);
-  }
+  const factsByPath = mirrorFactsByPath(facts);
   return [
     ...bible.singular,
     ...characterFiles.map((file) => ({
@@ -171,7 +168,7 @@ export async function runContinuityCheck(
       perChapter[i].status = "empty";
       return;
     }
-    const sections = await relevantBible(projectId, bible, characterCache, text);
+    const sections = await relevantBible(projectId, bible, characterCache, { id: chapter.id, text });
     const grounded = groundFindings(await askModel(sections, chapter.title, text), text, sections);
     perChapter[i].findings = grounded.map((f) => ({ ...f, chapterId: chapter.id, chapterTitle: chapter.title }));
     perChapter[i].status = "checked";

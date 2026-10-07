@@ -253,3 +253,31 @@ describe("the chat's Allow edits / Chat only switch", () => {
     expect(inserted).toEqual([]);
   });
 });
+
+describe("the open chapter reaches the server with every turn", () => {
+  const render = (activeChapterId: string | null) =>
+    act(async () =>
+      root.render(
+        <ChatPanel
+          projectId="p1"
+          activeChapterId={activeChapterId}
+          chapters={[
+            { id: "c1", title: "One", order: 0 },
+            { id: "c2", title: "Two", order: 1 },
+          ]}
+          getSelection={() => ""}
+          onInsertDraft={() => {}}
+        />
+      )
+    );
+
+  it("sends the chapter the author is on, and follows them to another", async () => {
+    await render("c1");
+    await settle();
+    await sendText("Joe suspects Suzy has the pen - record that");
+    await render("c2");
+    await settle();
+    await sendText("what does Joe know at this point?");
+    expect(posts.map((p) => p.activeChapterId)).toEqual(["c1", "c2"]);
+  });
+});
