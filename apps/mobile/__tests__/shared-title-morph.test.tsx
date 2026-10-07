@@ -5,10 +5,12 @@ import type { ReactTestInstance } from "react-test-renderer";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { useSetScreenOverlay } from "../lib/screen-overlay";
 import {
+  SharedTitleMorphOverlay,
   SharedTitleMorphProvider,
   useMorphHidden,
   useMorphSourceHidden,
   useSharedTitleMorph,
+  useSharedTitleMorphState,
 } from "../lib/shared-title-morph";
 
 jest.mock("expo-router", () => ({
@@ -27,12 +29,16 @@ let actions: ReturnType<typeof useSharedTitleMorph> = null;
 
 function Probe() {
   actions = useSharedTitleMorph();
+  const state = useSharedTitleMorphState();
   const rowHidden = useMorphSourceHidden(KEY);
   const headerHidden = useMorphHidden(KEY);
   return (
     <>
       <Text testID="row">{rowHidden ? "hidden" : "shown"}</Text>
       <Text testID="header">{headerHidden ? "hidden" : "shown"}</Text>
+      {actions && state.key ? (
+        <SharedTitleMorphOverlay state={state} progress={actions.progress} onShown={() => {}} />
+      ) : null}
     </>
   );
 }
@@ -85,6 +91,30 @@ describe("shared-title morph", () => {
     });
     act(() => jest.advanceTimersByTime(5000));
     expect(headerText()).toBe("hidden");
+  });
+
+  it("carries the row's title, not the header's not-yet-loaded placeholder", async () => {
+    renderProvider();
+    await act(() => actions!.beginForward(KEY));
+    act(() => {
+      actions!.registerDestination(KEY, {
+        text: "Untitled Manuscript",
+        style: STYLE,
+        frame: { x: 60, y: 50, width: 200, height: 30 },
+      });
+    });
+    expect(screen.queryByText("Untitled Manuscript")).toBeNull();
+    expect(screen.getAllByText("My Novel").length).toBeGreaterThan(0);
+  });
+
+  it("lays the travelling title out in the row's frame from its first render", async () => {
+    renderProvider();
+    await act(() => actions!.beginForward(KEY));
+    const [rowLayer] = screen.getAllByText("My Novel");
+    let frameNode = rowLayer.parent;
+    while (frameNode && StyleSheet.flatten(frameNode.props.style)?.position !== "absolute") frameNode = frameNode.parent;
+    expect(StyleSheet.flatten(frameNode?.props.style)).toMatchObject({ left: FRAME.x, top: FRAME.y, width: FRAME.width, height: FRAME.height });
+    expect(StyleSheet.flatten(rowLayer.props.style)).toMatchObject({ fontSize: STYLE.fontSize, opacity: 1 });
   });
 });
 

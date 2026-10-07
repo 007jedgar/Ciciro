@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
-import { manuscriptMorphKey } from "../../../../lib/shared-title-morph";
+import { manuscriptMorphKey, useSharedTitleMorphState } from "../../../../lib/shared-title-morph";
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { WritingMeter } from "../../../../components/WritingMeter";
@@ -64,10 +64,15 @@ function ProjectHeader({
   const { backTo } = useStackBack();
   const { t } = useTranslation();
   const { project } = useProject();
+  const morphKey = manuscriptMorphKey(projectId);
+  const morphState = useSharedTitleMorphState();
+  // Until the project loads, the title the list row morphed in with stands in
+  // for it, so the header never lands on the "Untitled" placeholder.
+  const morphTitle = morphState.key === morphKey ? morphState.text : "";
   return (
     <AppHeader
-      title={project?.title || t("project.untitled")}
-      morphKey={manuscriptMorphKey(projectId)}
+      title={project?.title || morphTitle || t("project.untitled")}
+      morphKey={morphKey}
       // Pops to the list when it is underneath, and swaps to it when the app
       // was restored straight onto this manuscript and there is nothing under.
       onBack={() => backTo("/manuscripts")}
