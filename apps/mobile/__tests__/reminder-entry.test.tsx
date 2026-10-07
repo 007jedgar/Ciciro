@@ -59,6 +59,7 @@ jest.mock("../lib/session", () => ({
 }));
 
 jest.mock("../lib/api", () => ({
+  ApiError: class extends Error {},
   useProjectsQuery: () => ({
     data: [],
     isPending: false,

@@ -9,9 +9,11 @@ type ProjectState = {
   project: ProjectDetail | null;
   loading: boolean;
   error: string | null;
+  /** The server's own text behind the friendly `error`, for an expandable detail line. */
+  errorDetail: string | null;
   selectedChapterId: string | null;
   setSelectedChapterId: (id: string) => void;
-  reload: () => void;
+  reload: () => Promise<void>;
   addChapter: (title?: string) => Promise<Chapter>;
   readingPosition: ReplicaReadingPosition | null;
   recordReadingPosition: (next: {
@@ -88,23 +90,19 @@ export function ProjectProvider({
     [createChapter, projectId, setSelectedChapterId]
   );
 
-  const error =
-    query.error instanceof ApiError
-      ? query.error.message
-      : query.error
-        ? t("project.loadError")
-        : null;
+  const error = query.error ? t("project.loadError") : null;
+  const errorDetail = query.error instanceof ApiError ? query.error.message : null;
 
   const value = useMemo(
     () => ({
       project,
       loading: query.isPending,
       error,
+      errorDetail,
       selectedChapterId,
       setSelectedChapterId,
-      reload: () => {
-        void query.refetch();
-        void sync.syncNow();
+      reload: async () => {
+        await Promise.all([query.refetch(), sync.syncNow()]);
       },
       addChapter,
       readingPosition: sync.position,
@@ -117,6 +115,7 @@ export function ProjectProvider({
     [
       addChapter,
       error,
+      errorDetail,
       project,
       query.isPending,
       query.refetch,
