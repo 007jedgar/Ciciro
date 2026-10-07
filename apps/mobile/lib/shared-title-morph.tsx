@@ -234,9 +234,11 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
     (key: string, info: { text: string; style: MorphTitleStyle; frame: MorphFrame }) => {
       if (activeKeyRef.current !== key) return;
       destFrameRef.current = info;
+      // The travelling title keeps the row's text: the header can register
+      // before its own data has loaded (a placeholder such as "Untitled").
       setState((prev) =>
         prev.key === key && (prev.phase === "to-dest" || prev.phase === "at-dest")
-          ? { ...prev, text: info.text, destStyle: info.style, dest: info.frame }
+          ? { ...prev, destStyle: info.style, dest: info.frame }
           : prev
       );
       maybeStartForward(key);
@@ -359,17 +361,42 @@ export function SharedTitleMorphOverlay({
     if (visible && state.key) onShown(state.key);
   }, [visible, state.key, state.phase, onShown]);
 
-  if (!source || !sourceStyle) return null;
+  if (!source || !sourceStyle || !dest || !destStyle) return null;
+
+  // The frame this morph starts from, as plain style: the animated styles can
+  // land a frame after the overlay mounts, and until then the title would lay
+  // out unconstrained (one long line) or not at all while the row is hidden.
+  const atDest = state.phase === "to-source";
+  const startFrame = atDest ? dest : source;
+  const startFont = atDest ? destStyle : sourceStyle;
 
   return (
-    <Animated.View style={frameStyle}>
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          overflow: "hidden",
+          left: startFrame.x,
+          top: startFrame.y,
+          width: startFrame.width,
+          height: startFrame.height,
+        },
+        frameStyle,
+      ]}
+    >
       {/* Unlike the header (always one line), a row's title wraps - numberOfLines
           here would leave it a single sliver inside its own, much taller, measured
           frame for most of the animation. Clipping (`overflow: "hidden"` above) does
           the job of keeping it inside the interpolated box instead. */}
       <Animated.Text
         style={[
-          { color: sourceStyle.color, fontFamily: sourceStyle.fontFamily },
+          {
+            color: sourceStyle.color,
+            fontFamily: sourceStyle.fontFamily,
+            fontSize: startFont.fontSize,
+            letterSpacing: startFont.letterSpacing ?? 0,
+            opacity: atDest ? 0 : 1,
+          },
           fontStyle,
           sourceOpacity,
         ]}
@@ -381,7 +408,13 @@ export function SharedTitleMorphOverlay({
           numberOfLines={1}
           style={[
             StyleSheet.absoluteFill,
-            { color: destStyle.color, fontFamily: destStyle.fontFamily },
+            {
+              color: destStyle.color,
+              fontFamily: destStyle.fontFamily,
+              fontSize: startFont.fontSize,
+              letterSpacing: startFont.letterSpacing ?? 0,
+              opacity: atDest ? 1 : 0,
+            },
             fontStyle,
             destOpacity,
           ]}
