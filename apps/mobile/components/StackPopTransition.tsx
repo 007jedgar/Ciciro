@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useNavigation } from "expo-router";
 import Animated, {
   Easing,
@@ -14,6 +14,7 @@ import { DEFAULT_THEME, THEME_PALETTES } from "../lib/theme";
 import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 import { EASE_OUT, EASE_PUSH } from "../lib/motion";
 import { createArrivalSignal, StackArrivalContext } from "../lib/stack-arrival";
+import { ScreenOverlayContext } from "../lib/screen-overlay";
 import {
   ownsStackRemove,
   shouldInterceptStackRemove,
@@ -78,6 +79,10 @@ export function StackPopTransition({
     startArrival();
     ownArrival?.fire();
   }, [startArrival, ownArrival]);
+  // Content a descendant wants painted above this screen but outside the
+  // transform below (see `ScreenOverlayContext`) - a cross-screen shared-title
+  // morph, so far the only user.
+  const [overlay, setOverlay] = useState<ReactNode | null>(null);
 
   useEffect(() => {
     if (!enter) return;
@@ -159,9 +164,18 @@ export function StackPopTransition({
   // the collapse and hide whatever the pop is revealing.
   return (
     <StackArrivalContext.Provider value={ownArrival ?? outerArrival}>
-      <Animated.View style={[styles.fill, { backgroundColor: colors.bg }, style]}>
-        {children}
-      </Animated.View>
+      <ScreenOverlayContext.Provider value={setOverlay}>
+        <View style={styles.fill}>
+          <Animated.View style={[styles.fill, { backgroundColor: colors.bg }, style]}>
+            {children}
+          </Animated.View>
+          {overlay ? (
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              {overlay}
+            </View>
+          ) : null}
+        </View>
+      </ScreenOverlayContext.Provider>
     </StackArrivalContext.Provider>
   );
 }

@@ -13,6 +13,7 @@ import { useStackBack } from "../../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useAppHeaderHeight } from "../../components/AppHeader";
 import { FolderTitleEditor } from "../../components/FolderTitleEditor";
+import { folderMorphKey } from "../../lib/shared-title-morph";
 import { PlusIcon } from "../../components/icons";
 import { SkeletonList } from "../../components/Skeleton";
 import {
@@ -114,6 +115,7 @@ export default function FolderScreen() {
     <View style={layout.screen}>
       <AppHeader
         title={folder?.name || t("folder.fallbackTitle")}
+        morphKey={folderId ? folderMorphKey(folderId) : undefined}
         onBack={() => backOr("/manuscripts")}
         backAccessibilityLabel={t("folder.backToManuscripts")}
         floating

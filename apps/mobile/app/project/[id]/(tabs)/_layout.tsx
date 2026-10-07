@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHeader";
+import { manuscriptMorphKey } from "../../../../lib/shared-title-morph";
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { WritingMeter } from "../../../../components/WritingMeter";
@@ -50,9 +51,11 @@ function ToolButton({
 }
 
 function ProjectHeader({
+  projectId,
   showMeter,
   onHeightChange,
 }: {
+  projectId: string;
   showMeter: boolean;
   onHeightChange: (height: number, withMeter: boolean) => void;
 }) {
@@ -64,6 +67,7 @@ function ProjectHeader({
   return (
     <AppHeader
       title={project?.title || t("project.untitled")}
+      morphKey={manuscriptMorphKey(projectId)}
       // Pops to the list when it is underneath, and swaps to it when the app
       // was restored straight onto this manuscript and there is nothing under.
       onBack={() => backTo("/manuscripts")}
@@ -190,7 +194,7 @@ export default function ProjectTabsLayout() {
         importantForAccessibility={focused ? "no-hide-descendants" : "auto"}
         style={[{ zIndex: 20 }, headerStyle]}
       >
-        <ProjectHeader showMeter={onEditor} onHeightChange={onHeaderHeight} />
+        <ProjectHeader projectId={id} showMeter={onEditor} onHeightChange={onHeaderHeight} />
       </Animated.View>
       <Animated.View
         pointerEvents={focused ? "box-none" : "none"}

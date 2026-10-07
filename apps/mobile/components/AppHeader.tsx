@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { Pressable, StyleSheet, View, type NativeMethods } from "react-native";
 import Animated, {
   FadeIn,
   FadeInLeft,
@@ -16,6 +16,7 @@ import * as haptics from "../lib/haptics";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
 import { ChevronLeftIcon, PlusIcon, SlidersIcon } from "./icons";
+import { MorphHeaderTitle } from "./MorphHeaderTitle";
 import { ProgressiveBlur } from "./ProgressiveBlur";
 
 const TOP_GAP = 14;
@@ -42,6 +43,7 @@ export function useAppHeaderHeight(): number {
 
 export function AppHeader({
   title,
+  morphKey,
   onBack,
   backAccessibilityLabel,
   onSettings,
@@ -56,6 +58,12 @@ export function AppHeader({
   onHeightChange,
 }: {
   title: string;
+  /**
+   * When set, this title is the landing spot of a shared-title morph from a
+   * list row (see `shared-title-morph.tsx`) sharing the same key - a folder
+   * row morphing into the folder screen's header, say.
+   */
+  morphKey?: string;
   onBack?: () => void;
   backAccessibilityLabel?: string;
   onSettings?: () => void;
@@ -80,6 +88,7 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const newProgress = useSharedValue(0);
+  const rootRef = useRef<View & NativeMethods>(null);
 
   useEffect(() => {
     newProgress.value = reduceMotion
@@ -98,6 +107,7 @@ export function AppHeader({
 
   return (
     <View
+      ref={rootRef}
       style={[
         styles.root,
         { paddingTop: insets.top + TOP_GAP },
@@ -125,15 +135,24 @@ export function AppHeader({
               </Pressable>
             </Animated.View>
           ) : null}
-          <Animated.Text
-            key={title}
-            entering={reduceMotion ? undefined : FadeIn.duration(180)}
-            numberOfLines={1}
-            accessibilityRole="header"
-            style={[styles.title, { color: colors.ink }]}
-          >
-            {title}
-          </Animated.Text>
+          {morphKey ? (
+            <MorphHeaderTitle
+              morphKey={morphKey}
+              text={title}
+              style={{ color: colors.ink, fontFamily: fonts.display, fontSize: 30, letterSpacing: -0.5 }}
+              rootRef={rootRef}
+            />
+          ) : (
+            <Animated.Text
+              key={title}
+              entering={reduceMotion ? undefined : FadeIn.duration(180)}
+              numberOfLines={1}
+              accessibilityRole="header"
+              style={[styles.title, { color: colors.ink }]}
+            >
+              {title}
+            </Animated.Text>
+          )}
         </View>
         {onSettings || onNew || onAction ? (
           <View style={styles.actions}>

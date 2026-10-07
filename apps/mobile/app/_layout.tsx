@@ -18,6 +18,7 @@ import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { arrivesSettled } from "../lib/stack-arrival";
+import { SharedTitleMorphProvider } from "../lib/shared-title-morph";
 import { UpdateSync } from "../components/UpdateSync";
 import { entersWithStackPush, POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
 import { WritingDayProvider } from "../lib/writing-day-session";
@@ -143,7 +144,9 @@ export default function RootLayout() {
                   <PushRegistrationSync />
                   <WritingWidgetSync />
                   <UpdateSync />
-                  <ThemedStack />
+                  <SharedTitleMorphProvider>
+                    <ThemedStack />
+                  </SharedTitleMorphProvider>
                 </WritingDayProvider>
               </SettingsProvider>
             </SessionProvider>
