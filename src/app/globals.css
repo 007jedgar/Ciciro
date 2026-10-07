@@ -4652,6 +4652,15 @@ input[type="file"]::file-selector-button {
   font-size: 12px;
   color: var(--ink-soft);
 }
+.kb-reader-toggle input {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.kb-reader-toggle {
+  white-space: nowrap;
+}
 .kb-timeline {
   list-style: none;
   margin: 0;
@@ -4714,7 +4723,7 @@ input[type="file"]::file-selector-button {
 .kb-grid {
   border-collapse: collapse;
   font-size: 12px;
-  min-width: 100%;
+  width: 100%;
 }
 .kb-grid th,
 .kb-grid td {
@@ -4726,12 +4735,17 @@ input[type="file"]::file-selector-button {
 .kb-grid thead th {
   font-weight: 600;
   white-space: nowrap;
+}
+.kb-grid thead th.kb-char {
   text-transform: capitalize;
 }
 .kb-grid tbody th {
   font-family: var(--serif);
   font-weight: 600;
-  min-width: 96px;
+  width: 20%;
+}
+.kb-grid .pill {
+  white-space: nowrap;
 }
 .kb-cell {
   display: flex;
@@ -4745,7 +4759,6 @@ input[type="file"]::file-selector-button {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  min-width: 96px;
 }
 .kb-cell-fact {
   color: var(--ink-soft);
@@ -4753,9 +4766,10 @@ input[type="file"]::file-selector-button {
 .kb-cell-empty {
   color: var(--ink-soft);
 }
+/* Table cells ignore min-width, so the floor sits on the cell's content. */
 .kb-reader {
   color: var(--ink-soft);
-  min-width: 120px;
+  min-width: 140px;
 }
 .kb-add .knowledge-add .kb-topic-input {
   order: 0;
