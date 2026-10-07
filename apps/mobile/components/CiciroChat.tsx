@@ -531,18 +531,28 @@ export function CiciroChat({
   const activeAnchor = livePromptId ?? anchorId;
 
   /**
-   * Whether this mount opened on an already-settled transcript (a remount
-   * from cache, or a cold launch) rather than an empty thread or one with a
-   * turn already live. Only that case needs to be positioned at the tail
-   * before it is ever shown - fixed once at mount, like `historyIds` above.
+   * A settled transcript (messages present, nothing streaming or anchored)
+   * that has not yet been scrolled to its tail - true both for one seeded
+   * synchronously from cache at mount and for one that only becomes known
+   * once this mount's own fetch resolves. Either way it must stay hidden,
+   * with every row already rendered, until `openAtTail` lands it at the end.
    */
-  const needsTailOpenRef = useRef(messages.length > 0 && !streaming && !activeAnchor);
+  const needsTailOpen = messages.length > 0 && !streaming && !activeAnchor;
   /**
    * Hidden until the tail position lands, so the thread never paints at its
    * top and then visibly scrolls down. Everything else (empty, or a turn
    * already anchored/streaming) has nothing to reposition and shows at once.
    */
-  const [threadVisible, setThreadVisible] = useState(() => !needsTailOpenRef.current);
+  const [threadVisible, setThreadVisible] = useState(() => !needsTailOpen);
+  /**
+   * A settled transcript's first render must already include every row down
+   * to the tail - otherwise `openAtTail`'s scrollToEnd only reaches as far as
+   * whatever virtualization has measured so far, and the rest pop in after
+   * the thread is already shown. Tracked as state, not a mount-time ref, so a
+   * transcript that only arrives after mount (no cache yet, still loading on
+   * a cold launch) gets the same treatment once it lands.
+   */
+  const [tailRenderCount, setTailRenderCount] = useState(() => (needsTailOpen ? messages.length : 6));
 
   const openAtTail = useCallback(() => {
     if (openedAtTail.current) return;
@@ -566,16 +576,24 @@ export function CiciroChat({
   }, [anchorId, livePromptId, messages.length]);
 
   // An empty thread or one with a turn already anchored/streaming has
-  // nothing to position first, so show it immediately. The settled-transcript
-  // case is instead revealed by `openAtTail`, from the list's own content
-  // size, once it is actually positioned.
+  // nothing to position first, so show it immediately. A settled transcript
+  // not yet opened - at mount from cache, or only just arrived from this
+  // mount's own fetch - is hidden (with every row rendered) until
+  // `openAtTail`, from the list's own content size, confirms it is
+  // positioned at the end.
   useEffect(() => {
     if (messages.length === 0) {
       openedAtTail.current = false;
       setThreadVisible(true);
       return;
     }
-    if (streaming || activeAnchor) setThreadVisible(true);
+    if (streaming || activeAnchor) {
+      setThreadVisible(true);
+      return;
+    }
+    if (openedAtTail.current) return;
+    setTailRenderCount(messages.length);
+    setThreadVisible(false);
   }, [activeAnchor, messages.length, streaming]);
 
   // Safety net: if the content-size callback below never fires (an
@@ -898,7 +916,7 @@ export function CiciroChat({
         onScroll={onThreadScroll}
         onScrollBeginDrag={releaseHold}
         onContentSizeChange={() => {
-          if (needsTailOpenRef.current && !streaming && !activeAnchor) openAtTail();
+          if (!threadVisible && !streaming && !activeAnchor) openAtTail();
           restoreHold();
         }}
         onScrollToIndexFailed={(info) => {
@@ -926,7 +944,7 @@ export function CiciroChat({
         // down to the tail - otherwise `openAtTail`'s scrollToEnd only
         // reaches as far as whatever virtualization has measured so far,
         // and the rest pop in after the thread is already shown.
-        initialNumToRender={needsTailOpenRef.current ? messages.length : 6}
+        initialNumToRender={tailRenderCount}
         maxToRenderPerBatch={4}
         windowSize={7}
         updateCellsBatchingPeriod={50}
