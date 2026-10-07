@@ -471,6 +471,9 @@ export function SharedTitleMorphOverlay({
         frameStyle,
       ]}
     >
+      {/* No `numberOfLines` here: a multi-line row title forced to one line
+          inside its own (taller) frame renders as a near-invisible sliver. The
+          frame's `overflow: "hidden"` does the clipping instead. */}
       <Animated.Text
         style={[
           styles.layer,
