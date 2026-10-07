@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
 import { getAnalytics } from "@/lib/analytics-client";
 import { characterLabel, isCharacterPath, type KnowsStance } from "@/lib/knowledge-view";
@@ -83,7 +83,10 @@ export default function KnowledgeBoard({ projectId, chapters, initialCharacterPa
     }
   }, [projectId]);
 
+  const loadSeq = useRef(0);
+
   const loadFacts = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError("");
     try {
@@ -91,12 +94,14 @@ export default function KnowledgeBoard({ projectId, chapters, initialCharacterPa
       if (selected) params.set("characterPath", selected);
       const res = await fetch(`/api/projects/${projectId}/knowledge?${params.toString()}`);
       const data = await res.json().catch(() => ({}));
+      if (seq !== loadSeq.current) return;
       if (!res.ok) throw new Error(data.error || "Couldn't load the ledger.");
       setFacts(Array.isArray(data.facts) ? data.facts : []);
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Couldn't load the ledger.");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [projectId, selected]);
 

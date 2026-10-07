@@ -1,4 +1,4 @@
-import { useMutation, useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import { queryClient } from "./query";
 import { ciciro } from "./resources";
@@ -418,6 +418,7 @@ export function useKnowledgeFactsQuery(
     queryKey: queryKeys.knowledge.list(projectId, params?.characterPath, params?.includeRetired),
     queryFn: () => ciciro.knowledge.list(projectId, params),
     enabled: (options?.enabled ?? true) && Boolean(projectId),
+    placeholderData: keepPreviousData,
   });
 }
 

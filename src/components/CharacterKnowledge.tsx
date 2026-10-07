@@ -90,7 +90,13 @@ export default function CharacterKnowledge({
       <div className="knowledge-head-row">
         <div className="knowledge-head">Who knows what</div>
         {onOpenKnowledgeScreen && (
-          <button type="button" className="btn ghost small" onClick={onOpenKnowledgeScreen}>
+          <button
+            type="button"
+            className="btn ghost small"
+            disabled={dirty}
+            title={dirty ? "Save the file before leaving it." : undefined}
+            onClick={onOpenKnowledgeScreen}
+          >
             Open in Knowledge screen &rarr;
           </button>
         )}

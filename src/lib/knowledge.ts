@@ -194,7 +194,7 @@ export async function updateKnowledgeFact(
   projectId: string,
   user: PublicUser | null,
   factId: string,
-  input: { fact?: string; stance?: unknown; chapterId?: string | null }
+  input: { fact?: unknown; stance?: unknown; chapterId?: unknown }
 ): Promise<KnowledgeFactView> {
   await authorizeOwnedProject(projectId, user);
   const existing = await prisma.knowledgeFact.findFirst({
@@ -206,6 +206,7 @@ export async function updateKnowledgeFact(
   const data: { fact?: string; stance?: KnowsStance; chapterId?: string | null } = {};
 
   if (input.fact !== undefined) {
+    if (typeof input.fact !== "string") throw new AuthError("Write the fact first.", 400);
     const fact = input.fact.trim().slice(0, KNOWLEDGE_FACT_MAX);
     if (!fact) throw new AuthError("Write the fact first.", 400);
     data.fact = fact;
@@ -216,6 +217,9 @@ export async function updateKnowledgeFact(
     data.stance = stance;
   }
   if (input.chapterId !== undefined) {
+    if (input.chapterId !== null && typeof input.chapterId !== "string") {
+      throw new AuthError("Chapter not found.", 404);
+    }
     if (input.chapterId) {
       const chapter = await prisma.chapter.findFirst({
         where: { id: input.chapterId, projectId },

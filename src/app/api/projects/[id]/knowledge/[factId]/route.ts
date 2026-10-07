@@ -12,7 +12,8 @@ type Ctx = { params: Promise<{ id: string; factId: string }> };
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id, factId } = await ctx.params;
   const user = await getSessionUser(req);
-  const body = await req.json().catch(() => ({}));
+  const raw = await req.json().catch(() => ({}));
+  const body = raw && typeof raw === "object" ? raw : {};
   try {
     return NextResponse.json(await updateKnowledgeFact(id, user, factId, body));
   } catch (error) {
