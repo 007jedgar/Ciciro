@@ -48,6 +48,10 @@ import type {
   HandoffRequest,
   HealthStatus,
   ImportResult,
+  KnowledgeFact,
+  KnowledgeFactCreateRequest,
+  KnowledgeFactPatchRequest,
+  KnowledgeFactsResponse,
   LoginRequest,
   ManuscriptEdit,
   ManuscriptTargetPutRequest,
@@ -536,6 +540,41 @@ export const ciciro = {
       api<BibleFile>("/api/bible", jsonInit("POST", body, opts)),
     createPlot: (body: BibleNewPlotRequest, opts?: RequestOpts) =>
       api<BibleFile>("/api/bible", jsonInit("POST", body, opts)),
+  },
+
+  knowledge: {
+    list: (
+      projectId: string,
+      params?: { characterPath?: string; includeRetired?: boolean },
+      opts?: RequestOpts
+    ) =>
+      api<KnowledgeFactsResponse>(
+        `/api/projects/${encodeURIComponent(projectId)}/knowledge${queryString({
+          characterPath: params?.characterPath,
+          includeRetired: params?.includeRetired ? "1" : undefined,
+        })}`,
+        opts
+      ),
+    create: (projectId: string, body: KnowledgeFactCreateRequest, opts?: RequestOpts) =>
+      api<KnowledgeFact>(
+        `/api/projects/${encodeURIComponent(projectId)}/knowledge`,
+        jsonInit("POST", body, opts)
+      ),
+    patch: (
+      projectId: string,
+      factId: string,
+      body: KnowledgeFactPatchRequest,
+      opts?: RequestOpts
+    ) =>
+      api<KnowledgeFact>(
+        `/api/projects/${encodeURIComponent(projectId)}/knowledge/${encodeURIComponent(factId)}`,
+        jsonInit("PATCH", body, opts)
+      ),
+    retire: (projectId: string, factId: string, opts?: RequestOpts) =>
+      api<OkResponse>(
+        `/api/projects/${encodeURIComponent(projectId)}/knowledge/${encodeURIComponent(factId)}`,
+        jsonInit("DELETE", undefined, opts)
+      ),
   },
 
   chat: {

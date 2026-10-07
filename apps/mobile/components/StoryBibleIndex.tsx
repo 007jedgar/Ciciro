@@ -28,9 +28,11 @@ const STAGGER_MS = 40;
 export function StoryBibleIndex({
   projectId,
   onOpenFile,
+  onOpenKnowledge,
 }: {
   projectId: string;
   onOpenFile: (path: string) => void;
+  onOpenKnowledge: () => void;
 }) {
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
@@ -98,6 +100,20 @@ export function StoryBibleIndex({
           {t("bible.loadError")}
         </Text>
       ) : null}
+
+      <Section title={t("bible.sectionKnowledge")}>
+        <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(260)}>
+          <PressableCard
+            style={layout.card}
+            onPress={onOpenKnowledge}
+            accessibilityRole="button"
+            accessibilityLabel={t("bible.openA11y", { name: t("bible.knowledge.title") })}
+          >
+            <Text style={layout.cardTitle}>{t("bible.knowledge.title")}</Text>
+            <Text style={layout.cardMeta}>{t("bible.knowledge.cardMeta")}</Text>
+          </PressableCard>
+        </Animated.View>
+      </Section>
 
       <Section title={t("bible.sectionCore")}>
         {grouped.core.map((entry, i) => (

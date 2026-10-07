@@ -52,10 +52,19 @@ patterns here are how dialogue stays in character across chapters.
 **Who knows what.** Knowledge is a ledger, not another copy of the character
 sheet. Each fact is a row: which character file it belongs to
 (`characters/<slug>.md`), the line itself, whether they **know** it or only
-**believe** it, and the chapter that made it true. The character table in the
-database is not this list. Open a character file in the Story Bible and use
-**Who knows what** to add or retire a fact. Retiring marks it superseded; it
-is not deleted from the ledger's history.
+**believe** it, the chapter that made it true, and an optional source quote.
+The character table in the database is not this list.
+
+The ledger has its own screen: the **Knowledge** entry at the top of the
+Story Bible (and, on the phone, in the bible's file list). Pick a character,
+or view every character at once grouped by name. Facts show in chapter
+order, with facts that have no chapter pinned to the top as "before the
+story opens"; retired facts stay visible in a collapsed, struck-through
+section below. The screen can edit a fact's text, stance, and chapter in
+place, and add a fact with a chapter picker - the in-character-file list
+(open a character file and use **Who knows what**) still works and links
+into the Knowledge screen. Retiring marks a fact superseded; it is not
+deleted from the ledger's history.
 
 The file still shows the same lines. On every add, retire, or **Keep** from
 What changed, Ciciro rewrites only the block between `<!-- knows:start -->`

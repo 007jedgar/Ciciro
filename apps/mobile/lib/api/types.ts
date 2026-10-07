@@ -507,6 +507,37 @@ export type BibleWriteResult = {
   revision: number;
 };
 
+// The who-knows-what ledger. See src/lib/knowledge.ts.
+export type KnowledgeStance = "knows" | "believes";
+
+export type KnowledgeFact = {
+  id: string;
+  characterPath: string;
+  fact: string;
+  stance: KnowledgeStance;
+  chapterId: string | null;
+  chapter: { id: string; title: string; order: number } | null;
+  sourceQuote: string;
+  status: string;
+};
+
+export type KnowledgeFactsResponse = {
+  facts: KnowledgeFact[];
+};
+
+export type KnowledgeFactCreateRequest = {
+  characterPath: string;
+  fact: string;
+  stance: KnowledgeStance;
+  chapterId?: string | null;
+};
+
+export type KnowledgeFactPatchRequest = {
+  fact?: string;
+  stance?: KnowledgeStance;
+  chapterId?: string | null;
+};
+
 // The wire shape of an op is the editor's shape. Re-exported rather than
 // restated so a third copy cannot drift from the two that already have to
 // agree byte-for-byte (src/lib/manuscript.ts and ../manuscript.ts).
