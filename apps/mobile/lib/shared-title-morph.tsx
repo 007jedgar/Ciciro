@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -62,8 +61,6 @@ type Phase = "idle" | "to-dest" | "at-dest" | "to-source";
 type MorphState = {
   key: string | null;
   phase: Phase;
-  /** Whether the travelling title is mounted, so the row's own text can hide without leaving a gap. */
-  overlayShown: boolean;
   text: string;
   sourceStyle: MorphTitleStyle | null;
   destStyle: MorphTitleStyle | null;
@@ -74,7 +71,6 @@ type MorphState = {
 const IDLE_STATE: MorphState = {
   key: null,
   phase: "idle",
-  overlayShown: false,
   text: "",
   sourceStyle: null,
   destStyle: null,
@@ -92,12 +88,13 @@ const FORWARD_STALL_MS = 2000;
 /** Stable for the provider's lifetime, so a list holding it never re-renders as a morph advances. */
 type MorphActions = {
   progress: SharedValue<number>;
+  /** The in-flight morph's key, on the UI thread, so a row hides in the same frame the overlay first moves. */
+  flightKey: SharedValue<string | null>;
   registerSource: (key: string, record: SourceRecord) => () => void;
   beginForward: (key: string) => Promise<void>;
   registerDestination: (key: string, info: { text: string; style: MorphTitleStyle; frame: MorphFrame }) => void;
   notifyArrived: (key: string) => void;
   beginBackward: (key: string) => void;
-  markOverlayShown: (key: string) => void;
 };
 
 const SharedTitleMorphContext = createContext<MorphActions | null>(null);
@@ -120,15 +117,27 @@ export function useMorphHidden(key: string | null): boolean {
   return inFlight(useSharedTitleMorphState(), key);
 }
 
-/** Whether a row's own text should hide: only once the travelling title is actually painted over it. */
-export function useMorphSourceHidden(key: string | null): boolean {
-  const state = useSharedTitleMorphState();
-  return inFlight(state, key) && state.overlayShown;
+/**
+ * A row's own text style: hidden while the travelling title is off its
+ * starting spot. Decided on the UI thread from the same `progress` that shows
+ * the overlay (see `SharedTitleMorphOverlay`), so the two swap in one frame
+ * and the row is never blank with nothing painted over it.
+ */
+export function useMorphSourceStyle(key: string | null) {
+  const morph = useSharedTitleMorph();
+  const progress = morph?.progress;
+  const flightKey = morph?.flightKey;
+  return useAnimatedStyle(() => {
+    "worklet";
+    const hidden = key !== null && flightKey?.value === key && (progress?.value ?? 0) > 0;
+    return { opacity: hidden ? 0 : 1 };
+  }, [key, progress, flightKey]);
 }
 
 export function SharedTitleMorphProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<MorphState>(IDLE_STATE);
   const progress = useSharedValue(0);
+  const flightKey = useSharedValue<string | null>(null);
 
   const sourceRegistry = useRef(new Map<string, SourceRecord>()).current;
   // Control-flow guards live in refs, not state: they gate *when* an animation
@@ -148,16 +157,16 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
   useEffect(() => clearStallTimer, [clearStallTimer]);
 
   const finishForward = useCallback((key: string) => {
-    setState((prev) =>
-      prev.key === key && prev.phase === "to-dest" ? { ...prev, phase: "at-dest", overlayShown: false } : prev
-    );
-  }, []);
+    if (flightKey.value === key) flightKey.value = null;
+    setState((prev) => (prev.key === key && prev.phase === "to-dest" ? { ...prev, phase: "at-dest" } : prev));
+  }, [flightKey]);
 
   const finishBackward = useCallback((key: string) => {
     activeKeyRef.current = null;
     backwardStartedRef.current = null;
+    if (flightKey.value === key) flightKey.value = null;
     setState((prev) => (prev.key === key ? IDLE_STATE : prev));
-  }, []);
+  }, [flightKey]);
 
   const abandonForward = useCallback(
     (key: string) => {
@@ -167,9 +176,10 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
       destFrameRef.current = null;
       cancelAnimation(progress);
       progress.value = 0;
+      flightKey.value = null;
       setState((prev) => (prev.key === key ? IDLE_STATE : prev));
     },
-    [progress]
+    [progress, flightKey]
   );
 
   const tryStartForward = useCallback(
@@ -214,12 +224,12 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
       backwardStartedRef.current = null;
       cancelAnimation(progress);
       progress.value = 0;
+      flightKey.value = key;
       clearStallTimer();
       stallTimerRef.current = setTimeout(() => abandonForward(key), FORWARD_STALL_MS);
       setState({
         key,
         phase: "to-dest",
-        overlayShown: false,
         text: record.text,
         sourceStyle: record.style,
         destStyle: null,
@@ -227,7 +237,7 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
         dest: null,
       });
     },
-    [progress, clearStallTimer, abandonForward]
+    [progress, flightKey, clearStallTimer, abandonForward]
   );
 
   const registerDestination = useCallback(
@@ -261,36 +271,27 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
       if (backwardStartedRef.current === key) return;
       backwardStartedRef.current = key;
       clearStallTimer();
-      setState((prev) =>
-        prev.key === key ? { ...prev, phase: "to-source", overlayShown: prev.phase === "to-dest" && prev.overlayShown } : prev
-      );
+      flightKey.value = key;
+      setState((prev) => (prev.key === key ? { ...prev, phase: "to-source" } : prev));
       cancelAnimation(progress);
       progress.value = withTiming(0, { duration: STACK_POP_MS, easing: EASE_OUT }, (finished) => {
         if (finished) runOnJS(finishBackward)(key);
       });
     },
-    [progress, finishBackward, clearStallTimer]
+    [progress, flightKey, finishBackward, clearStallTimer]
   );
-
-  const markOverlayShown = useCallback((key: string) => {
-    setState((prev) =>
-      prev.key === key && !prev.overlayShown && (prev.phase === "to-dest" || prev.phase === "to-source")
-        ? { ...prev, overlayShown: true }
-        : prev
-    );
-  }, []);
 
   const actions = useMemo<MorphActions>(
     () => ({
       progress,
+      flightKey,
       registerSource,
       beginForward,
       registerDestination,
       notifyArrived,
       beginBackward,
-      markOverlayShown,
     }),
-    [progress, registerSource, beginForward, registerDestination, notifyArrived, beginBackward, markOverlayShown]
+    [progress, flightKey, registerSource, beginForward, registerDestination, notifyArrived, beginBackward]
   );
 
   return (
@@ -306,18 +307,16 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
  * both screens without inheriting the destination's own push/pop transform.
  *
  * Two stacked, crossfading `Text`s avoid a hard font-family swap: the source
- * font fades out while the destination font fades in, both sharing the same
- * interpolated position, width and size so neither pops.
+ * font fades out while the destination font fades in. Each layer is laid out
+ * once, at its own end's width and font size (so the row's layer wraps exactly
+ * like the row, and the header's like the header), and only scaled and faded
+ * as the clipping frame moves: animating `fontSize` or a text container's
+ * width instead lets the drawn text drift from its laid-out lines.
+ *
+ * The overlay shows only while `progress` is off 0, the row's own spot, in
+ * the same UI-thread frame the row hides (`useMorphSourceStyle`).
  */
-export function SharedTitleMorphOverlay({
-  state,
-  progress,
-  onShown,
-}: {
-  state: MorphState;
-  progress: SharedValue<number>;
-  onShown: (key: string) => void;
-}) {
+export function SharedTitleMorphOverlay({ state, progress }: { state: MorphState; progress: SharedValue<number> }) {
   const source = state.source;
   const dest = state.dest ?? state.source;
   const sourceStyle = state.sourceStyle;
@@ -328,8 +327,7 @@ export function SharedTitleMorphOverlay({
     if (!source || !dest) return { opacity: 0 };
     const p = progress.value;
     return {
-      position: "absolute",
-      overflow: "hidden",
+      opacity: p > 0 ? 1 : 0,
       left: interpolate(p, [0, 1], [source.x, dest.x]),
       top: interpolate(p, [0, 1], [source.y, dest.y]),
       width: interpolate(p, [0, 1], [source.width, dest.width]),
@@ -337,38 +335,28 @@ export function SharedTitleMorphOverlay({
     };
   }, [source, dest]);
 
-  const fontStyle = useAnimatedStyle(() => {
+  const sourceLayer = useAnimatedStyle(() => {
     "worklet";
     if (!sourceStyle || !destStyle) return {};
     const p = progress.value;
-    return {
-      fontSize: interpolate(p, [0, 1], [sourceStyle.fontSize, destStyle.fontSize]),
-      letterSpacing: interpolate(p, [0, 1], [sourceStyle.letterSpacing ?? 0, destStyle.letterSpacing ?? 0]),
-    };
+    const fontSize = interpolate(p, [0, 1], [sourceStyle.fontSize, destStyle.fontSize]);
+    return { opacity: 1 - p, transform: [{ scale: fontSize / sourceStyle.fontSize }] };
   }, [sourceStyle, destStyle]);
 
-  const sourceOpacity = useAnimatedStyle(() => {
+  const destLayer = useAnimatedStyle(() => {
     "worklet";
-    return { opacity: 1 - progress.value };
-  });
-  const destOpacity = useAnimatedStyle(() => {
-    "worklet";
-    return { opacity: progress.value };
-  });
-
-  const visible = Boolean(source && sourceStyle);
-  useLayoutEffect(() => {
-    if (visible && state.key) onShown(state.key);
-  }, [visible, state.key, state.phase, onShown]);
+    if (!sourceStyle || !destStyle) return {};
+    const p = progress.value;
+    const fontSize = interpolate(p, [0, 1], [sourceStyle.fontSize, destStyle.fontSize]);
+    return { opacity: p, transform: [{ scale: fontSize / destStyle.fontSize }] };
+  }, [sourceStyle, destStyle]);
 
   if (!source || !sourceStyle || !dest || !destStyle) return null;
 
   // The frame this morph starts from, as plain style: the animated styles can
-  // land a frame after the overlay mounts, and until then the title would lay
-  // out unconstrained (one long line) or not at all while the row is hidden.
+  // land a frame after the overlay mounts.
   const atDest = state.phase === "to-source";
   const startFrame = atDest ? dest : source;
-  const startFont = atDest ? destStyle : sourceStyle;
 
   return (
     <Animated.View
@@ -376,6 +364,7 @@ export function SharedTitleMorphOverlay({
         {
           position: "absolute",
           overflow: "hidden",
+          opacity: atDest ? 1 : 0,
           left: startFrame.x,
           top: startFrame.y,
           width: startFrame.width,
@@ -384,44 +373,43 @@ export function SharedTitleMorphOverlay({
         frameStyle,
       ]}
     >
-      {/* Unlike the header (always one line), a row's title wraps - numberOfLines
-          here would leave it a single sliver inside its own, much taller, measured
-          frame for most of the animation. Clipping (`overflow: "hidden"` above) does
-          the job of keeping it inside the interpolated box instead. */}
       <Animated.Text
         style={[
+          styles.layer,
           {
+            width: source.width,
             color: sourceStyle.color,
             fontFamily: sourceStyle.fontFamily,
-            fontSize: startFont.fontSize,
-            letterSpacing: startFont.letterSpacing ?? 0,
+            fontSize: sourceStyle.fontSize,
+            letterSpacing: sourceStyle.letterSpacing,
             opacity: atDest ? 0 : 1,
           },
-          fontStyle,
-          sourceOpacity,
+          sourceLayer,
         ]}
       >
         {state.text}
       </Animated.Text>
-      {destStyle ? (
-        <Animated.Text
-          numberOfLines={1}
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              color: destStyle.color,
-              fontFamily: destStyle.fontFamily,
-              fontSize: startFont.fontSize,
-              letterSpacing: startFont.letterSpacing ?? 0,
-              opacity: atDest ? 1 : 0,
-            },
-            fontStyle,
-            destOpacity,
-          ]}
-        >
-          {state.text}
-        </Animated.Text>
-      ) : null}
+      <Animated.Text
+        numberOfLines={1}
+        style={[
+          styles.layer,
+          {
+            width: dest.width,
+            color: destStyle.color,
+            fontFamily: destStyle.fontFamily,
+            fontSize: destStyle.fontSize,
+            letterSpacing: destStyle.letterSpacing,
+            opacity: atDest ? 1 : 0,
+          },
+          destLayer,
+        ]}
+      >
+        {state.text}
+      </Animated.Text>
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  layer: { position: "absolute", left: 0, top: 0, transformOrigin: "left top" },
+});

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { StyleSheet, Text, type NativeMethods, type TextProps } from "react-native";
+import { type NativeMethods, type Text, type TextProps } from "react-native";
+import Animated from "react-native-reanimated";
 import {
   type MorphTitleStyle,
-  useMorphSourceHidden,
+  useMorphSourceStyle,
   useSharedTitleMorph,
 } from "../lib/shared-title-morph";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -28,7 +29,7 @@ export function MorphRowText({
   const ref = useRef<Text & NativeMethods>(null);
   const morph = useSharedTitleMorph();
   const reduceMotion = useReduceMotion();
-  const hidden = useMorphSourceHidden(reduceMotion ? null : morphKey);
+  const hiddenStyle = useMorphSourceStyle(reduceMotion ? null : morphKey);
 
   useEffect(() => {
     if (!morph || reduceMotion) return;
@@ -49,9 +50,9 @@ export function MorphRowText({
   }, [morph, morphKey, morphStyle, children, reduceMotion]);
 
   return (
-    <Text ref={ref} style={[style, hidden ? styles.hidden : null]} {...props}>
+    <Animated.Text ref={ref} style={[style, hiddenStyle]} {...props}>
       {children}
-    </Text>
+    </Animated.Text>
   );
 }
 
@@ -63,7 +64,3 @@ export async function beginRowMorph(
   if (!morph) return;
   await morph.beginForward(morphKey);
 }
-
-const styles = StyleSheet.create({
-  hidden: { opacity: 0 },
-});
