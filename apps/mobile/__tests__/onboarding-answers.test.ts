@@ -5,6 +5,9 @@ jest.mock("../lib/prefs", () => ({
     set: (key: string, value: string) => {
       mockDisk.set(key, value);
     },
+    remove: (key: string) => {
+      mockDisk.delete(key);
+    },
   }),
 }));
 
@@ -25,6 +28,12 @@ describe("onboarding answers", () => {
   it("keeps the goal when the obstacle question was skipped", () => {
     saveOnboardingAnswers("screenplay", null);
     expect(getOnboardingAnswers()).toEqual({ kind: "screenplay", obstacle: null });
+  });
+
+  it("drops an earlier quiz's obstacle when this one skipped Q2", () => {
+    saveOnboardingAnswers("novel", "self_criticism");
+    saveOnboardingAnswers("journal", null);
+    expect(getOnboardingAnswers()).toEqual({ kind: "journal", obstacle: null });
   });
 
   it("reads back as unset if the stored value is no longer recognized", () => {

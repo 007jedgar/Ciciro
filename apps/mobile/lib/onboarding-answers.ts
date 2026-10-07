@@ -14,6 +14,7 @@ export function saveOnboardingAnswers(kind: ManuscriptKind, obstacle: Obstacle |
   try {
     getPrefs().set(KIND_KEY, kind);
     if (obstacle) getPrefs().set(OBSTACLE_KEY, obstacle);
+    else getPrefs().remove(OBSTACLE_KEY);
   } catch {
     /* web / tests / missing native module */
   }
