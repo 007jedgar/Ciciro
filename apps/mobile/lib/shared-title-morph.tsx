@@ -226,10 +226,16 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
     (key: string) => {
       cancelAnimation(progress);
       progress.value = withTiming(1, { duration: STACK_PUSH_MS, easing: EASE_PUSH }, (finished) => {
-        if (finished) runOnJS(finishForward)(key);
+        if (!finished) return;
+        // Show the header on the UI thread, in the frame the push lands: it
+        // sits under the overlay's identical dest layer until the JS side
+        // unmounts the overlay, so neither title is ever missing for a frame.
+        if (flightKey.value === key) flightKey.value = null;
+        if (overlayKey.value === key) overlayKey.value = null;
+        runOnJS(finishForward)(key);
       });
     },
-    [progress, finishForward]
+    [progress, flightKey, overlayKey, finishForward]
   );
 
   const maybeStartForward = useCallback(
