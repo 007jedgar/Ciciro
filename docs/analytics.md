@@ -176,6 +176,9 @@ property shape.
 | `knowledge_fact_kept` | Keeping a who-knows-what proposal from What changed | Web only |
 | `knowledge_fact_added` | Adding a fact on the Knowledge screen | Both. Adding from a character file's **Who knows what** list (web) does not fire this |
 | `knowledge_fact_retired` | Retiring a fact on the Knowledge screen | Both. Retiring from a character file's **Who knows what** list (web) does not fire this |
+| `knowledge_fact_replaced` | **Changes here** on the Knowledge screen: a character's view changes at the chapter in view | Both |
+| `knowledge_scrubber_used` | First move of the Knowledge screen's chapter scrubber in a visit | Both |
+| `knowledge_fact_added_via_chat` | Ciciro recording a who-knows-what fact the author asked for in chat (`record_knowledge`) | Server, for the project's owner |
 | `canvas_card_created` | Adding a card on the planning canvas | Web only |
 | `canvas_generated` (`mode`: `fill` \| `outline` \| `options`) | Accepting a Fill, Options, or Generate full outline result onto the canvas | Web only |
 | `social_sign_in_used` (`provider`) | Completing an Apple/Google sign-in | Both |

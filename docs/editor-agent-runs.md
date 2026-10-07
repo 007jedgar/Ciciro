@@ -111,7 +111,8 @@ the reorg plan and edit intent, and verifies on the lifecycle checks alone (no
 mutation is required). The turn is still routed as a conversation, so a lookup
 keeps the cheap retrieval lane but the mechanical lane is never eligible.
 `executeEditorTool` refuses those tools again for any `tool_use` that arrives
-anyway. Story-bible and open-question tools still work. The client owns the switch per conversation and restores it from the
+anyway. Story-bible tools (including the who-knows-what ledger's `record_knowledge`,
+`read_knowledge` and `revise_knowledge`) and open-question tools still work. The client owns the switch per conversation and restores it from the
 latest run's `editsAllowed` after a reload; a cleared chat starts on Allow edits.
 `src/lib/edit-mode.ts` is mirrored byte for byte in `apps/mobile/lib/`.
 
