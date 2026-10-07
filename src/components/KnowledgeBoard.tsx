@@ -505,7 +505,7 @@ export default function KnowledgeBoard({
             <tr>
               <th scope="col">Topic</th>
               {grid.characters.map((path) => (
-                <th key={path} scope="col">
+                <th key={path} scope="col" className="kb-char">
                   {characterLabel(path)}
                 </th>
               ))}
@@ -542,10 +542,12 @@ export default function KnowledgeBoard({
                   );
                 })}
                 {showReader && (
-                  <td className="kb-reader">
-                    {canon === null ? "..." : readerNoteFor(topic.label, canon) ?? (
-                      <span className="kb-cell-empty">Not in canon.md</span>
-                    )}
+                  <td>
+                    <div className="kb-reader">
+                      {canon === null ? "..." : readerNoteFor(topic.label, canon) ?? (
+                        <span className="kb-cell-empty">Not in canon.md</span>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
