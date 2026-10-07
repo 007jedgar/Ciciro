@@ -108,6 +108,14 @@ export type EventCatalog = {
   canvas_card_created: NoProperties;
   canvas_generated: { mode: "fill" | "outline" | "options" };
 
+  // Pre-signup onboarding quiz (mobile only for now - see AGENTS.md
+  // "Pre-signup onboarding"). No author text in any property.
+  onboarding_goal_selected: { kind: string };
+  onboarding_obstacle_selected: { obstacle: string };
+  onboarding_demo_viewed: { path: string };
+  onboarding_demo_completed: { path: string };
+  onboarding_skipped: { step: "goal" | "obstacle" | "demos" };
+
   // Account data. Deletion has no event: see AnalyticsAdapter.deleteUser
   // below - the person record is asked to be forgotten, not tracked once more.
   account_exported: NoProperties;

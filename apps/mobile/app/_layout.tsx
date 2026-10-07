@@ -56,6 +56,18 @@ function ThemedStack() {
           name="signup"
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
+        <Stack.Screen
+          name="onboarding-goal"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
+        <Stack.Screen
+          name="onboarding-obstacle"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
+        <Stack.Screen
+          name="onboarding-demo"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
         {/* Android's landing for a browser sign-in's ciciro://oauth deep link. */}
         <Stack.Screen name="oauth" options={{ headerShown: false, animation: "none" }} />
         <Stack.Screen

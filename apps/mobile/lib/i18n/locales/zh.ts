@@ -46,6 +46,36 @@ const zh: Translations = {
       "让模糊的事物鲜明起来。",
     ],
   },
+  onboarding: {
+    skip: "跳过",
+    goalQuestion: "你在写什么？",
+    obstacleQuestion: "是什么在阻碍你？",
+    obstacles: {
+      zone: { label: "保持专注", description: "分心的事总把你从页面上拉走。" },
+      creativity: { label: "创造力", description: "想法或方向感觉卡住了。" },
+      consistency: { label: "坚持定期动笔", description: "难的是能定期坐下来写。" },
+      block: { label: "写作瓶颈", description: "页面始终是空白的。" },
+      self_criticism: { label: "自我批评", description: "很难让粗糙的草稿保持粗糙。" },
+      unsure: { label: "还不确定", description: "目前只是想先看看。" },
+    },
+    demo: {
+      continue: "继续",
+      focus: {
+        title: "试试专注模式",
+        intro: "除了页面以外的一切都会消失。点击开始，写下你自己的一行。",
+        tryButton: "试试专注模式",
+        sample:
+          "雨已经下了三天都没停，山谷渐渐开始被淹没。她站在窗边，等待一个已经不再由她来做的决定。",
+      },
+      suggestions: {
+        title: "是建议，不是替你改写",
+        intro: "Ciciro 从不悄悄替你改写。每一处改动都只是建议，直到你点头同意。",
+        sentence: "她慢慢地走向门口。",
+        clunky: "慢慢地走向",
+        better: "飘向",
+      },
+    },
+  },
   auth: {
     signIn: "登录",
     createAccount: "创建账户",
