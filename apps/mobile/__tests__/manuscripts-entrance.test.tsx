@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react-native";
-import { View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import ManuscriptsScreen from "../app/manuscripts";
 import { fadeUpDelay } from "../lib/skeleton";
 import "../lib/i18n";
@@ -47,7 +47,10 @@ jest.mock("react-native-reanimated", () => {
 type Project = { id: string; title: string; folderId: string | null; kind: string; _count: { chapters: number } };
 
 let mockSession = { user: { id: "u1" } as { id: string } | null, ready: true };
-let mockProjects: { data: Project[] | undefined; isPending: boolean } = { data: undefined, isPending: true };
+let mockProjects: { data: Project[] | undefined; isPending: boolean; isRefetching?: boolean; refetch?: () => Promise<unknown> } = {
+  data: undefined,
+  isPending: true,
+};
 let mockFolders: { data: unknown[] | undefined; isPending: boolean } = { data: [], isPending: false };
 let mockReduceMotion = false;
 
@@ -133,6 +136,27 @@ beforeEach(() => {
   mockReduceMotion = false;
   mockFocused = true;
   lastItemLayoutAnimation = "unset";
+});
+
+describe("Manuscripts pull to refresh", () => {
+  const refreshing = () => screen.UNSAFE_getByType(RefreshControl).props.refreshing;
+
+  it("shows the spinner for a pull, not for a background refetch that would shift rows mid-push", async () => {
+    mockProjects = { data: THREE, isPending: false, isRefetching: true };
+    const view = render(<ManuscriptsScreen />);
+    expect(refreshing()).toBe(false);
+
+    const pending: (() => void)[] = [];
+    const refetch = () => new Promise<void>((resolve) => pending.push(resolve));
+    mockProjects = { data: THREE, isPending: false, refetch };
+    mockFolders = { data: [], isPending: false, refetch } as typeof mockFolders;
+    view.rerender(<ManuscriptsScreen />);
+    act(() => screen.UNSAFE_getByType(RefreshControl).props.onRefresh());
+    expect(refreshing()).toBe(true);
+
+    await act(async () => pending.forEach((resolve) => resolve()));
+    expect(refreshing()).toBe(false);
+  });
 });
 
 describe("Manuscripts list entrance", () => {

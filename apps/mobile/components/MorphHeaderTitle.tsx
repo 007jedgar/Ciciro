@@ -93,7 +93,7 @@ export function MorphHeaderTitle({
       return;
     }
     setOverlay(
-      <SharedTitleMorphOverlay state={morphState} progress={morph.progress} onShown={morph.markOverlayShown} />
+      <SharedTitleMorphOverlay state={morphState} progress={morph.progress} />
     );
     return () => setOverlay(null);
   }, [morph, hidden, morphState, setOverlay]);

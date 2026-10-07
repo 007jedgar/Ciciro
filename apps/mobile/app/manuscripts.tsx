@@ -41,6 +41,7 @@ export default function ManuscriptsScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [pulling, setPulling] = useState(false);
   const enabled = Boolean(user);
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
@@ -231,14 +232,14 @@ export default function ManuscriptsScreen() {
           }}
           refreshControl={
             <RefreshControl
-              refreshing={
-                (projectsQuery.isRefetching || foldersQuery.isRefetching) &&
-                !projectsQuery.isPending &&
-                !foldersQuery.isPending
-              }
+              // Only a pull shows the spinner: a background refetch (one fires
+              // as a row's push starts) would shift the list mid-transition.
+              refreshing={pulling}
               onRefresh={() => {
-                void projectsQuery.refetch();
-                void foldersQuery.refetch();
+                setPulling(true);
+                void Promise.allSettled([projectsQuery.refetch(), foldersQuery.refetch()]).finally(() =>
+                  setPulling(false)
+                );
               }}
               tintColor={colors.accent}
               progressViewOffset={listTop}

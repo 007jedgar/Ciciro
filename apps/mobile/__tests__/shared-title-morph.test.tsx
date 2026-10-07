@@ -8,7 +8,7 @@ import {
   SharedTitleMorphOverlay,
   SharedTitleMorphProvider,
   useMorphHidden,
-  useMorphSourceHidden,
+  useMorphSourceStyle,
   useSharedTitleMorph,
   useSharedTitleMorphState,
 } from "../lib/shared-title-morph";
@@ -30,15 +30,15 @@ let actions: ReturnType<typeof useSharedTitleMorph> = null;
 function Probe() {
   actions = useSharedTitleMorph();
   const state = useSharedTitleMorphState();
-  const rowHidden = useMorphSourceHidden(KEY);
+  const rowStyle = useMorphSourceStyle(KEY);
   const headerHidden = useMorphHidden(KEY);
   return (
     <>
-      <Text testID="row">{rowHidden ? "hidden" : "shown"}</Text>
+      <Text testID="row" style={rowStyle}>
+        row
+      </Text>
       <Text testID="header">{headerHidden ? "hidden" : "shown"}</Text>
-      {actions && state.key ? (
-        <SharedTitleMorphOverlay state={state} progress={actions.progress} onShown={() => {}} />
-      ) : null}
+      {actions && state.key ? <SharedTitleMorphOverlay state={state} progress={actions.progress} /> : null}
     </>
   );
 }
@@ -54,28 +54,31 @@ function renderProvider() {
   });
 }
 
-const rowText = () => screen.getByTestId("row").props.children;
+const rowText = () => (StyleSheet.flatten(screen.getByTestId("row").props.style).opacity === 0 ? "hidden" : "shown");
+const DEST = { x: 60, y: 50, width: 200, height: 30 };
 const headerText = () => screen.getByTestId("header").props.children;
 
 describe("shared-title morph", () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
-  it("keeps the row's title visible until the travelling title is painted over it", async () => {
+  it("keeps the row's title visible until the travelling title starts moving off it", async () => {
     renderProvider();
     await act(() => actions!.beginForward(KEY));
     expect(headerText()).toBe("hidden");
     expect(rowText()).toBe("shown");
 
-    act(() => actions!.markOverlayShown(KEY));
+    act(() => {
+      actions!.registerDestination(KEY, { text: "My Novel", style: STYLE, frame: DEST });
+      actions!.notifyArrived(KEY);
+    });
     expect(rowText()).toBe("hidden");
   });
 
   it("gives the row its title back when the destination never registers", async () => {
     renderProvider();
     await act(() => actions!.beginForward(KEY));
-    act(() => actions!.markOverlayShown(KEY));
-    expect(rowText()).toBe("hidden");
+    expect(rowText()).toBe("shown");
 
     act(() => jest.advanceTimersByTime(2000));
     expect(rowText()).toBe("shown");
@@ -112,9 +115,19 @@ describe("shared-title morph", () => {
     await act(() => actions!.beginForward(KEY));
     const [rowLayer] = screen.getAllByText("My Novel");
     let frameNode = rowLayer.parent;
-    while (frameNode && StyleSheet.flatten(frameNode.props.style)?.position !== "absolute") frameNode = frameNode.parent;
+    while (frameNode && StyleSheet.flatten(frameNode.props.style)?.overflow !== "hidden") frameNode = frameNode.parent;
     expect(StyleSheet.flatten(frameNode?.props.style)).toMatchObject({ left: FRAME.x, top: FRAME.y, width: FRAME.width, height: FRAME.height });
     expect(StyleSheet.flatten(rowLayer.props.style)).toMatchObject({ fontSize: STYLE.fontSize, opacity: 1 });
+  });
+
+  it("lays each layer out at its own end's width and size, so the row's layer wraps like the row", async () => {
+    renderProvider();
+    await act(() => actions!.beginForward(KEY));
+    const destStyle = { color: "#111", fontSize: 30 };
+    act(() => actions!.registerDestination(KEY, { text: "My Novel", style: destStyle, frame: DEST }));
+    const [rowLayer, headerLayer] = screen.getAllByText("My Novel");
+    expect(StyleSheet.flatten(rowLayer.props.style)).toMatchObject({ width: FRAME.width, fontSize: STYLE.fontSize });
+    expect(StyleSheet.flatten(headerLayer.props.style)).toMatchObject({ width: DEST.width, fontSize: destStyle.fontSize });
   });
 });
 
