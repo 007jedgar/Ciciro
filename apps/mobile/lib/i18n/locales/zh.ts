@@ -633,14 +633,6 @@ const zh: Translations = {
     openSettings: "写作设置",
     openA11y: "打开写作记录",
   },
-  target: {
-    setNano: "设定 11 月 30 日前 5 万字的目标",
-    complete: "书稿目标已达成",
-    pastDeadline_one: "已过截止日期，还差 {{count}} 字",
-    pastDeadline_other: "已过截止日期，还差 {{count}} 字",
-    pace_one: "要在 {{date}} 前写完，今天需 {{count}} 字",
-    pace_other: "要在 {{date}} 前写完，今天需 {{count}} 字",
-  },
   scratch: {
     title: "草稿本",
     cardMeta: "笔记与资料，与章节分开存放",

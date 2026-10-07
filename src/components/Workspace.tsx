@@ -29,7 +29,6 @@ import WeeklyReview from "@/components/WeeklyReview";
 import BetaReaders, { type BetaReadersTab } from "@/components/BetaReaders";
 import ThemePicker from "@/components/ThemePicker";
 import WritingMeter from "@/components/WritingMeter";
-import ManuscriptPaceMeter from "@/components/ManuscriptPaceMeter";
 import {
   SuggestModeToggle,
   SuggestionBar,
@@ -1025,7 +1024,6 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         </Link>
         <span className="title">{project.title}</span>
         <WritingMeter />
-        <ManuscriptPaceMeter projectId={project.id} />
         <span className="spacer" />
         <span className="save-state">
           {activeId && restoring.has(activeId)

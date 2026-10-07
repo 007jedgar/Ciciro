@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { manuscriptPace, nanoPreset } from "@/lib/manuscript-target";
+import { manuscriptPace } from "@/lib/manuscript-target";
 
 describe("manuscript pace", () => {
   it("ceil-divides remaining words by inclusive days left", () => {
@@ -26,14 +26,5 @@ describe("manuscript pace", () => {
     expect(manuscriptPace({ wordGoal: 500, deadline: "2026-09-30" }, 500, "2026-09-12").complete).toBe(
       true
     );
-  });
-
-  it("picks this November for NaNo when still ahead", () => {
-    expect(nanoPreset("2026-09-12")).toEqual({
-      projectId: "",
-      wordGoal: 50_000,
-      deadline: "2026-11-30",
-    });
-    expect(nanoPreset("2026-12-01").deadline).toBe("2027-11-30");
   });
 });

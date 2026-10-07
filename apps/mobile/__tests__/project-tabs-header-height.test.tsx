@@ -49,7 +49,6 @@ jest.mock("../components/AppHeader", () => {
 });
 jest.mock("../components/ManuscriptTabBar", () => ({ ManuscriptTabBar: () => null }));
 jest.mock("../components/WritingMeter", () => ({ WritingMeter: () => null }));
-jest.mock("../components/ManuscriptPaceLabel", () => ({ ManuscriptPaceLabel: () => null }));
 jest.mock("../lib/project", () => ({ useProject: () => ({ project: { id: "p1", title: "Book", chapters: [] } }) }));
 jest.mock("../lib/session", () => ({ useSession: () => ({ user: { id: "u1" }, ready: true }) }));
 jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backTo: jest.fn() }) }));

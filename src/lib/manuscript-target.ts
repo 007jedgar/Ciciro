@@ -1,7 +1,5 @@
 import { writingDayKey, shiftWritingDayKey } from "@/lib/writing-day";
 
-export const NANO_WORD_GOAL = 50_000;
-
 export type ManuscriptTargetTotals = {
   projectId: string;
   wordGoal: number;
@@ -17,14 +15,6 @@ export type ManuscriptPace = {
   pastDeadline: boolean;
   complete: boolean;
 };
-
-/** NaNoWriMo: 50k by 30 November — this year if still ahead, otherwise next. */
-export function nanoPreset(today = writingDayKey()): ManuscriptTargetTotals {
-  const year = Number(today.slice(0, 4));
-  const thisNov = `${year}-11-30`;
-  const deadline = today <= thisNov ? thisNov : `${year + 1}-11-30`;
-  return { projectId: "", wordGoal: NANO_WORD_GOAL, deadline };
-}
 
 export function daysLeftInclusive(today: string, deadline: string): number {
   if (today > deadline) return 0;
