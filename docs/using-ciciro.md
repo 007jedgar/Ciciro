@@ -281,7 +281,7 @@ Open **Outline** in the top bar (web) or the Outline tile on the Chapters tab (m
 
 ## What changed
 
-On the web, **What changed** sits in the chapter header, next to Auto-draft. It reads the open chapter only, and only when you click **Check this chapter**. It does not run when the chapter saves. One pass proposes lines for `canon.md`, `plot.md`, `timeline.md`, or a fact about what a character named in the chapter now knows or believes.
+On the web, **What changed** sits in the chapter header, next to Auto-draft. It reads the open chapter only, and only when you click **Check this chapter**. It does not run when the chapter saves. One pass proposes lines for `canon.md`, `plot.md`, `timeline.md`, or a fact about what a character named in the chapter now knows, suspects, wrongly believes, or is shown not to know, given what the ledger already holds by the end of that chapter.
 
 Each row is **Keep** or **Dismiss**. Keep appends a bullet to that file, or records the fact and refreshes the mirror at the end of the character file (see [Story bible](story-bible.md#adding-context-for-consistency)). Dismiss remembers the line, so the next check of this chapter does not offer it again. A quote that is not actually in the chapter is dropped. Nothing is written until you keep it, and a cut-off reply shows nothing. It will not create a character file for a new name.
 

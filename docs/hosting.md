@@ -331,6 +331,20 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-chat-edit-mode.sql
 exists chat fails with `no such column: editsAllowed`. Existing runs keep
 allowing edits.
 
+Reading who knows what as of a chapter adds `KnowledgeFact.supersededAtChapterId`
+and `KnowledgeFact.topic`, and moves existing `believes` facts to `suspects`
+(a second run fails on the first ALTER, which is harmless):
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-knowledge-as-of.sql
+```
+
+**Apply before merging.** Every ledger query selects both columns, so until
+they exist the Knowledge screen, the chat's knowledge tools, the continuity
+check, What changed, account deletion and the data export fail with
+`no such column: supersededAtChapterId`. The script only adds columns and an
+index, and rewrites the old stance value.
+
 ## Authentication
 
 - `POST /api/auth/signup`: create an account and start a session.

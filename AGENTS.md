@@ -99,7 +99,7 @@ A quick action (`src/lib/prompts.ts`) can be `kind: "panel"` instead of the defa
 
 ## Who-knows-what ledger
 
-`src/lib/knowledge.ts` rows are the source of truth for the who-knows-what ledger (fact × character × stance × optional chapter); the mirror block in each `characters/<slug>.md` file is derived, never authoritative. Web and mobile share the same REST endpoints (`src/app/api/projects/[id]/knowledge/`). Only two stances exist (`knows`/`believes`, `KnowsStance` in `knowledge-view.ts`) and there is no "as of chapter N" query yet: every reader sees one chapter-blind current snapshot. Do not assume either has changed without checking. Screen and UX details live in `docs/story-bible.md`.
+`KnowledgeFact` rows (`src/lib/knowledge.ts`) are the source of truth for the who-knows-what ledger; the mirror block in each `characters/<slug>.md` is derived. The four stances and the story-order rules (`inEffectAsOf`, timeline, topic grid) live in `src/lib/knowledge-ledger.ts`, mirrored byte for byte in `apps/mobile/lib/` (`test/knowledge-ledger-parity.test.ts`). A fact holds from its `chapterId` (null: before the story) until `supersededAtChapterId`; "as of chapter N" compares live `Chapter.order` on both ends, so never cache an order. Every reader of the ledger for a chapter (editor context, continuity check, What changed, the chat tools) goes through `factsAsOfChapter`, not `activeFactsForPaths`, which is the chapter-blind current snapshot. The chat's `record_knowledge` / `read_knowledge` / `revise_knowledge` (`src/lib/knowledge-tools.ts`) are bible writes outside `MANUSCRIPT_WRITE_TOOLS` and default to the run's `activeChapterId`, which both clients send with every turn. Details in `docs/story-bible.md`.
 
 ## AI allowance and billing
 
