@@ -113,6 +113,17 @@ describe("StoryBibleIndex", () => {
     unmount();
   });
 
+  it("opens the Knowledge screen from the top of the index", () => {
+    mockIndex();
+    const onOpenKnowledge = jest.fn();
+    const { unmount } = render(
+      <StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={onOpenKnowledge} />
+    );
+    fireEvent.press(screen.getByLabelText("Open Knowledge"));
+    expect(onOpenKnowledge).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
   it("keeps the add fields a gap above the keyboard", () => {
     mockIndex();
     const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={jest.fn()} />);

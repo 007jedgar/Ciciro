@@ -174,6 +174,8 @@ property shape.
 | `scratchpad_used` | Web: creating a new scratch note. Mobile: a scratch note's debounced autosave succeeds | Both, but at different moments - see "Known gaps" |
 | `state_review_run` | A What changed review of the open chapter completes | Web only |
 | `knowledge_fact_kept` | Keeping a who-knows-what proposal from What changed | Web only |
+| `knowledge_fact_added` | Adding a fact on the Knowledge screen | Both. Adding from a character file's **Who knows what** list (web) does not fire this |
+| `knowledge_fact_retired` | Retiring a fact on the Knowledge screen | Both. Retiring from a character file's **Who knows what** list (web) does not fire this |
 | `canvas_card_created` | Adding a card on the planning canvas | Web only |
 | `canvas_generated` (`mode`: `fill` \| `outline` \| `options`) | Accepting a Fill, Options, or Generate full outline result onto the canvas | Web only |
 | `social_sign_in_used` (`provider`) | Completing an Apple/Google sign-in | Both |
