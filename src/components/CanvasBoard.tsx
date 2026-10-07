@@ -117,6 +117,9 @@ export default function CanvasBoard({ projectId, onClose }: Props) {
     load().catch((e) => fail(e, "Couldn't open the canvas."));
   }, [load, fail]);
 
+  // Measures every render on purpose (any edit can change a card's height);
+  // setHeights only runs when a height actually changed, so it cannot loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const next: Record<string, number> = {};
     let changed = false;

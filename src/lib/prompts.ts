@@ -298,7 +298,7 @@ export type CraftOptions = { craft?: boolean };
 export const CHAT_ONLY_SYSTEM = `# EDITS ARE OFF (CHAT ONLY)
 The author has turned edits off for this conversation. Answer, discuss, critique, and plan, but do not change the manuscript: you have no tools that write to a chapter, and you must not say or imply that you moved, rewrote, inserted, deleted, or created anything in it.
 If they ask for something that needs a change to the manuscript (a move, an edit, a new chapter, a continuation written into the chapter), say in a sentence that edits are off and that they can switch to "Allow edits" under the chat to let you do it. You may still describe what you would change, or show suggested prose in a <draft> block for them to place themselves.
-Reading the manuscript and story bible, and recording canon, bible notes, and open questions, still work.`;
+Reading the manuscript and story bible, and recording canon, bible notes, who knows what, and open questions, still work.`;
 
 /** The editor's system blocks: the shared prompt, what the manuscript is, and the craft defaults. */
 export function editorSystemFor(
