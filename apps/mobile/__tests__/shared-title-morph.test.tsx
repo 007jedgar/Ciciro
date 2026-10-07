@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { useEffect, type ReactNode } from "react";
 import { StyleSheet, Text } from "react-native";
+import * as Reanimated from "react-native-reanimated";
 import type { ReactTestInstance } from "react-test-renderer";
 import { MorphRowText, beginRowMorph } from "../components/MorphRowText";
 import { StackPopTransition } from "../components/StackPopTransition";
@@ -200,6 +201,29 @@ describe("shared-title morph", () => {
     rerender();
     expect(headerTitleText()).toBe("hidden");
     expect(rowText()).toBe("shown");
+  });
+
+  it("shows the header's title in the frame the push lands, before the JS side has caught up", async () => {
+    renderProvider();
+    let landed: ((finished: boolean) => void) | undefined;
+    const withTiming = jest
+      .spyOn(Reanimated, "withTiming")
+      .mockImplementation(((to: number, _config: unknown, done?: (finished: boolean) => void) => {
+        landed = done;
+        return to;
+      }) as typeof Reanimated.withTiming);
+    // Hold back every UI-to-JS call, as a busy JS thread would.
+    const runOnJS = jest.spyOn(Reanimated, "runOnJS").mockImplementation(() => () => {});
+    try {
+      await landForward();
+      fireEvent(overlayFrame(screen.getAllByText("My Novel")[0]), "layout", { nativeEvent: { layout: FRAME } });
+      act(() => landed!(true));
+      rerender();
+      expect(headerTitleText()).toBe("shown");
+    } finally {
+      withTiming.mockRestore();
+      runOnJS.mockRestore();
+    }
   });
 
   it("grows the clipping frame with the scaled-up row layer, so it is never cut mid-word", async () => {
