@@ -9,8 +9,10 @@ import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { BellIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
+import { MorphRowText, beginRowMorph } from "../components/MorphRowText";
 import { SkeletonList } from "../components/Skeleton";
 import { fadeUpDelay } from "../lib/skeleton";
+import { folderMorphKey, manuscriptMorphKey, useSharedTitleMorph } from "../lib/shared-title-morph";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useSession } from "../lib/session";
@@ -42,6 +44,13 @@ export default function ManuscriptsScreen() {
   const enabled = Boolean(user);
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
+  const morph = useSharedTitleMorph();
+  const cardTitleStyle = StyleSheet.flatten(layout.cardTitle);
+  const cardTitleMorphStyle = {
+    color: String(cardTitleStyle.color ?? colors.ink),
+    fontFamily: cardTitleStyle.fontFamily,
+    fontSize: typeof cardTitleStyle.fontSize === "number" ? cardTitleStyle.fontSize : 18,
+  };
   const projects = projectsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
   const error =
@@ -254,11 +263,15 @@ export default function ManuscriptsScreen() {
                     : FadeInDown.duration(240).delay(fadeUpDelay(index));
             if (item.kind === "folder") {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
+              const folderKey = folderMorphKey(item.folder.id);
               return (
                 <Animated.View entering={entering}>
                   <PressableCard
                     style={[layout.card, styles.folderCard]}
-                    onPress={() => router.push(`/folder/${item.folder.id}`)}
+                    onPress={async () => {
+                      await beginRowMorph(morph, folderKey);
+                      router.push(`/folder/${item.folder.id}`);
+                    }}
                     accessibilityRole="button"
                     accessibilityLabel={t("manuscripts.folderA11y", { name: item.folder.name })}
                   >
@@ -266,7 +279,9 @@ export default function ManuscriptsScreen() {
                       <FolderIcon color={colors.accent} size={22} />
                     </View>
                     <View style={styles.folderCopy}>
-                      <Text style={layout.cardTitle}>{item.folder.name}</Text>
+                      <MorphRowText morphKey={folderKey} morphStyle={cardTitleMorphStyle} style={layout.cardTitle}>
+                        {item.folder.name}
+                      </MorphRowText>
                       <Text style={layout.cardMeta}>
                         {t("manuscripts.folderKind")}
                         {" · "}
@@ -283,13 +298,19 @@ export default function ManuscriptsScreen() {
                 </Animated.View>
               );
             }
+            const manuscriptKey = manuscriptMorphKey(item.project.id);
             return (
               <Animated.View entering={entering}>
                 <PressableCard
                   style={layout.card}
-                  onPress={() => router.push(`/project/${item.project.id}/chapters`)}
+                  onPress={async () => {
+                    await beginRowMorph(morph, manuscriptKey);
+                    router.push(`/project/${item.project.id}/chapters`);
+                  }}
                 >
-                  <Text style={layout.cardTitle}>{item.project.title || t("manuscripts.untitled")}</Text>
+                  <MorphRowText morphKey={manuscriptKey} morphStyle={cardTitleMorphStyle} style={layout.cardTitle}>
+                    {item.project.title || t("manuscripts.untitled")}
+                  </MorphRowText>
                   <ManuscriptMeta project={item.project} />
                   {item.project.logline ? (
                     <Text style={layout.cardMeta}>{item.project.logline}</Text>
