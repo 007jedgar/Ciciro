@@ -113,7 +113,7 @@ The chat's Allow edits / Chat only switch is per conversation and enforced on th
 
 ## Brand assets
 
-Every generated icon/mark PNG (web favicon/Apple touch icon, the Expo app icon/splash/Android adaptive icons, and the smaller "mark" badges used in-app - `apps/mobile/components/BrandMark.tsx` - and in transactional emails - `public/brand/email-mark-*.png`) comes from one script, `scripts/generate-brand-icons.mjs`; re-run it after any brand-colour or mark-shape change instead of hand-editing a PNG. A raster asset it does not cover (none currently) is a sign the script needs a new case, not a one-off export - mobile's `mark-warm.png` shipped the pre-seal ellipsis for a month after the live SVG `BrandMark` (web) and the app icon were redesigned, precisely because it lived outside this script.
+Every generated icon/mark PNG (web favicon/Apple touch icon, the Expo app icon/splash/Android adaptive icons, and the smaller "mark" badges used in-app - `apps/mobile/components/BrandMark.tsx` - and in transactional emails - `public/brand/email-mark-*.png`) comes from one script, `scripts/generate-brand-icons.mjs`; re-run it after any brand-colour or mark-shape change instead of hand-editing a PNG. A new brand raster gets a case in the script, never a one-off export, or it goes stale at the next redesign.
 
 ## Maintaining this file
 
