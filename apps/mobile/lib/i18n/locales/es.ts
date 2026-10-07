@@ -641,14 +641,6 @@ const es: Translations = {
     openSettings: "Ajustes de escritura",
     openA11y: "Abrir historial de escritura",
   },
-  target: {
-    setNano: "Fija una meta de 50.000 palabras para el 30 de nov",
-    complete: "Meta del manuscrito cumplida",
-    pastDeadline_one: "{{count}} palabra restante tras la fecha",
-    pastDeadline_other: "{{count}} palabras restantes tras la fecha",
-    pace_one: "{{count}} palabra hoy para terminar el {{date}}",
-    pace_other: "{{count}} palabras hoy para terminar el {{date}}",
-  },
   scratch: {
     title: "Bloc de notas",
     cardMeta: "Notas e investigación, aparte de tus capítulos",
