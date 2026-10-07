@@ -81,8 +81,11 @@ export function StackPopTransition({
   }, [startArrival, ownArrival]);
   // Content a descendant wants painted above this screen but outside the
   // transform below (see `ScreenOverlayContext`) - a cross-screen shared-title
-  // morph, so far the only user.
+  // morph, so far the only user. Like the arrival, a screen that does not slide
+  // in hands its descendants the slot of the push it sits inside, if any.
   const [overlay, setOverlay] = useState<ReactNode | null>(null);
+  const outerOverlay = useContext(ScreenOverlayContext);
+  const overlaySlot = enter || !outerOverlay ? setOverlay : outerOverlay;
 
   useEffect(() => {
     if (!enter) return;
@@ -164,7 +167,7 @@ export function StackPopTransition({
   // the collapse and hide whatever the pop is revealing.
   return (
     <StackArrivalContext.Provider value={ownArrival ?? outerArrival}>
-      <ScreenOverlayContext.Provider value={setOverlay}>
+      <ScreenOverlayContext.Provider value={overlaySlot}>
         <View style={styles.fill}>
           <Animated.View style={[styles.fill, { backgroundColor: colors.bg }, style]}>
             {children}

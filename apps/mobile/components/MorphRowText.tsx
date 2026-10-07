@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { StyleSheet, Text, type NativeMethods, type TextProps } from "react-native";
 import {
   type MorphTitleStyle,
-  useMorphHidden,
+  useMorphSourceHidden,
   useSharedTitleMorph,
 } from "../lib/shared-title-morph";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -28,7 +28,7 @@ export function MorphRowText({
   const ref = useRef<Text & NativeMethods>(null);
   const morph = useSharedTitleMorph();
   const reduceMotion = useReduceMotion();
-  const hidden = useMorphHidden(reduceMotion ? null : morphKey);
+  const hidden = useMorphSourceHidden(reduceMotion ? null : morphKey);
 
   useEffect(() => {
     if (!morph || reduceMotion) return;

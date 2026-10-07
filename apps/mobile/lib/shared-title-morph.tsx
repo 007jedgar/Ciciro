@@ -2,6 +2,8 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -60,6 +62,8 @@ type Phase = "idle" | "to-dest" | "at-dest" | "to-source";
 type MorphState = {
   key: string | null;
   phase: Phase;
+  /** Whether the travelling title is mounted, so the row's own text can hide without leaving a gap. */
+  overlayShown: boolean;
   text: string;
   sourceStyle: MorphTitleStyle | null;
   destStyle: MorphTitleStyle | null;
@@ -70,6 +74,7 @@ type MorphState = {
 const IDLE_STATE: MorphState = {
   key: null,
   phase: "idle",
+  overlayShown: false,
   text: "",
   sourceStyle: null,
   destStyle: null,
@@ -77,27 +82,48 @@ const IDLE_STATE: MorphState = {
   dest: null,
 };
 
-type MorphContextValue = {
-  state: MorphState;
+/**
+ * A forward morph whose destination has not registered and arrived by now is
+ * abandoned (the push was redirected, or the header never measured), so the
+ * row's title is never left hidden behind a morph that will not play.
+ */
+const FORWARD_STALL_MS = 2000;
+
+/** Stable for the provider's lifetime, so a list holding it never re-renders as a morph advances. */
+type MorphActions = {
   progress: SharedValue<number>;
   registerSource: (key: string, record: SourceRecord) => () => void;
   beginForward: (key: string) => Promise<void>;
   registerDestination: (key: string, info: { text: string; style: MorphTitleStyle; frame: MorphFrame }) => void;
   notifyArrived: (key: string) => void;
   beginBackward: (key: string) => void;
+  markOverlayShown: (key: string) => void;
 };
 
-const SharedTitleMorphContext = createContext<MorphContextValue | null>(null);
+const SharedTitleMorphContext = createContext<MorphActions | null>(null);
+const SharedTitleMorphStateContext = createContext<MorphState>(IDLE_STATE);
 
-export function useSharedTitleMorph(): MorphContextValue | null {
+export function useSharedTitleMorph(): MorphActions | null {
   return useContext(SharedTitleMorphContext);
 }
 
-/** Whether this key's own text should hide because an in-flight morph is standing in for it. */
+export function useSharedTitleMorphState(): MorphState {
+  return useContext(SharedTitleMorphStateContext);
+}
+
+function inFlight(state: MorphState, key: string | null): boolean {
+  return key !== null && state.key === key && (state.phase === "to-dest" || state.phase === "to-source");
+}
+
+/** Whether the destination header's own text should hide because an in-flight morph is standing in for it. */
 export function useMorphHidden(key: string | null): boolean {
-  const morph = useSharedTitleMorph();
-  if (!morph || !key) return false;
-  return morph.state.key === key && (morph.state.phase === "to-dest" || morph.state.phase === "to-source");
+  return inFlight(useSharedTitleMorphState(), key);
+}
+
+/** Whether a row's own text should hide: only once the travelling title is actually painted over it. */
+export function useMorphSourceHidden(key: string | null): boolean {
+  const state = useSharedTitleMorphState();
+  return inFlight(state, key) && state.overlayShown;
 }
 
 export function SharedTitleMorphProvider({ children }: { children: ReactNode }) {
@@ -112,9 +138,19 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
   const arrivedRef = useRef(false);
   const forwardStartedRef = useRef<string | null>(null);
   const backwardStartedRef = useRef<string | null>(null);
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStallTimer = useCallback(() => {
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    stallTimerRef.current = null;
+  }, []);
+
+  useEffect(() => clearStallTimer, [clearStallTimer]);
 
   const finishForward = useCallback((key: string) => {
-    setState((prev) => (prev.key === key && prev.phase === "to-dest" ? { ...prev, phase: "at-dest" } : prev));
+    setState((prev) =>
+      prev.key === key && prev.phase === "to-dest" ? { ...prev, phase: "at-dest", overlayShown: false } : prev
+    );
   }, []);
 
   const finishBackward = useCallback((key: string) => {
@@ -122,6 +158,19 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
     backwardStartedRef.current = null;
     setState((prev) => (prev.key === key ? IDLE_STATE : prev));
   }, []);
+
+  const abandonForward = useCallback(
+    (key: string) => {
+      stallTimerRef.current = null;
+      if (activeKeyRef.current !== key || forwardStartedRef.current === key) return;
+      activeKeyRef.current = null;
+      destFrameRef.current = null;
+      cancelAnimation(progress);
+      progress.value = 0;
+      setState((prev) => (prev.key === key ? IDLE_STATE : prev));
+    },
+    [progress]
+  );
 
   const tryStartForward = useCallback(
     (key: string) => {
@@ -139,9 +188,10 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
       if (forwardStartedRef.current === key) return;
       if (!destFrameRef.current || !arrivedRef.current) return;
       forwardStartedRef.current = key;
+      clearStallTimer();
       tryStartForward(key);
     },
-    [tryStartForward]
+    [tryStartForward, clearStallTimer]
   );
 
   const registerSource = useCallback((key: string, record: SourceRecord) => {
@@ -164,9 +214,12 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
       backwardStartedRef.current = null;
       cancelAnimation(progress);
       progress.value = 0;
+      clearStallTimer();
+      stallTimerRef.current = setTimeout(() => abandonForward(key), FORWARD_STALL_MS);
       setState({
         key,
         phase: "to-dest",
+        overlayShown: false,
         text: record.text,
         sourceStyle: record.style,
         destStyle: null,
@@ -174,7 +227,7 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
         dest: null,
       });
     },
-    [progress]
+    [progress, clearStallTimer, abandonForward]
   );
 
   const registerDestination = useCallback(
@@ -205,21 +258,44 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
       if (activeKeyRef.current !== key) return;
       if (backwardStartedRef.current === key) return;
       backwardStartedRef.current = key;
-      setState((prev) => (prev.key === key ? { ...prev, phase: "to-source" } : prev));
+      clearStallTimer();
+      setState((prev) =>
+        prev.key === key ? { ...prev, phase: "to-source", overlayShown: prev.phase === "to-dest" && prev.overlayShown } : prev
+      );
       cancelAnimation(progress);
       progress.value = withTiming(0, { duration: STACK_POP_MS, easing: EASE_OUT }, (finished) => {
         if (finished) runOnJS(finishBackward)(key);
       });
     },
-    [progress, finishBackward]
+    [progress, finishBackward, clearStallTimer]
   );
 
-  const value = useMemo<MorphContextValue>(
-    () => ({ state, progress, registerSource, beginForward, registerDestination, notifyArrived, beginBackward }),
-    [state, progress, registerSource, beginForward, registerDestination, notifyArrived, beginBackward]
+  const markOverlayShown = useCallback((key: string) => {
+    setState((prev) =>
+      prev.key === key && !prev.overlayShown && (prev.phase === "to-dest" || prev.phase === "to-source")
+        ? { ...prev, overlayShown: true }
+        : prev
+    );
+  }, []);
+
+  const actions = useMemo<MorphActions>(
+    () => ({
+      progress,
+      registerSource,
+      beginForward,
+      registerDestination,
+      notifyArrived,
+      beginBackward,
+      markOverlayShown,
+    }),
+    [progress, registerSource, beginForward, registerDestination, notifyArrived, beginBackward, markOverlayShown]
   );
 
-  return <SharedTitleMorphContext.Provider value={value}>{children}</SharedTitleMorphContext.Provider>;
+  return (
+    <SharedTitleMorphContext.Provider value={actions}>
+      <SharedTitleMorphStateContext.Provider value={state}>{children}</SharedTitleMorphStateContext.Provider>
+    </SharedTitleMorphContext.Provider>
+  );
 }
 
 /**
@@ -234,9 +310,11 @@ export function SharedTitleMorphProvider({ children }: { children: ReactNode }) 
 export function SharedTitleMorphOverlay({
   state,
   progress,
+  onShown,
 }: {
   state: MorphState;
   progress: SharedValue<number>;
+  onShown: (key: string) => void;
 }) {
   const source = state.source;
   const dest = state.dest ?? state.source;
@@ -275,6 +353,11 @@ export function SharedTitleMorphOverlay({
     "worklet";
     return { opacity: progress.value };
   });
+
+  const visible = Boolean(source && sourceStyle);
+  useLayoutEffect(() => {
+    if (visible && state.key) onShown(state.key);
+  }, [visible, state.key, state.phase, onShown]);
 
   if (!source || !sourceStyle) return null;
 

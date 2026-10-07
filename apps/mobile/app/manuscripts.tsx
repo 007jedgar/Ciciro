@@ -45,12 +45,14 @@ export default function ManuscriptsScreen() {
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
   const morph = useSharedTitleMorph();
-  const cardTitleStyle = StyleSheet.flatten(layout.cardTitle);
-  const cardTitleMorphStyle = {
-    color: String(cardTitleStyle.color ?? colors.ink),
-    fontFamily: cardTitleStyle.fontFamily,
-    fontSize: typeof cardTitleStyle.fontSize === "number" ? cardTitleStyle.fontSize : 18,
-  };
+  const cardTitleMorphStyle = useMemo(() => {
+    const cardTitleStyle = StyleSheet.flatten(layout.cardTitle);
+    return {
+      color: String(cardTitleStyle.color ?? colors.ink),
+      fontFamily: cardTitleStyle.fontFamily,
+      fontSize: typeof cardTitleStyle.fontSize === "number" ? cardTitleStyle.fontSize : 18,
+    };
+  }, [layout.cardTitle, colors.ink]);
   const projects = projectsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
   const error =

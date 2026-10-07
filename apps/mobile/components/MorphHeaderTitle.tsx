@@ -9,6 +9,7 @@ import {
   SharedTitleMorphOverlay,
   useMorphHidden,
   useSharedTitleMorph,
+  useSharedTitleMorphState,
   type MorphTitleStyle,
 } from "../lib/shared-title-morph";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -34,6 +35,7 @@ export function MorphHeaderTitle({
   const ref = useRef<Text & NativeMethods>(null);
   const navigation = useNavigation();
   const morph = useSharedTitleMorph();
+  const morphState = useSharedTitleMorphState();
   const reduceMotion = useReduceMotion();
   const setOverlay = useSetScreenOverlay();
   const hidden = useMorphHidden(reduceMotion ? null : morphKey);
@@ -90,9 +92,11 @@ export function MorphHeaderTitle({
       setOverlay(null);
       return;
     }
-    setOverlay(<SharedTitleMorphOverlay state={morph.state} progress={morph.progress} />);
+    setOverlay(
+      <SharedTitleMorphOverlay state={morphState} progress={morph.progress} onShown={morph.markOverlayShown} />
+    );
     return () => setOverlay(null);
-  }, [morph, hidden, morph?.state, setOverlay]);
+  }, [morph, hidden, morphState, setOverlay]);
 
   return (
     <Animated.Text
