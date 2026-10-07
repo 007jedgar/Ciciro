@@ -7,6 +7,7 @@ import { useStackArrival } from "../lib/stack-arrival";
 import { useSetScreenOverlay } from "../lib/screen-overlay";
 import {
   SharedTitleMorphOverlay,
+  useMorphDestStyle,
   useMorphHidden,
   useSharedTitleMorph,
   useSharedTitleMorphState,
@@ -39,6 +40,7 @@ export function MorphHeaderTitle({
   const reduceMotion = useReduceMotion();
   const setOverlay = useSetScreenOverlay();
   const hidden = useMorphHidden(reduceMotion ? null : morphKey);
+  const hiddenStyle = useMorphDestStyle(reduceMotion ? null : morphKey);
 
   const measureFrame = useCallback(() => {
     if (!morph || reduceMotion) return;
@@ -93,31 +95,31 @@ export function MorphHeaderTitle({
       return;
     }
     setOverlay(
-      <SharedTitleMorphOverlay state={morphState} progress={morph.progress} />
+      <SharedTitleMorphOverlay state={morphState} progress={morph.progress} onReady={morph.overlayReady} />
     );
     return () => setOverlay(null);
   }, [morph, hidden, morphState, setOverlay]);
 
+  // Hidden on the UI thread (`useMorphDestStyle`), in the same frame the
+  // overlay stands in for it; a wrapper keeps that opacity apart from the
+  // text's own `entering` fade.
   return (
-    <Animated.Text
-      ref={ref}
-      key={text}
-      onLayout={measureFrame}
-      entering={reduceMotion ? undefined : FadeIn.duration(180)}
-      numberOfLines={1}
-      accessibilityRole="header"
-      style={[
-        { color: style.color, fontFamily: style.fontFamily, fontSize: style.fontSize, letterSpacing: style.letterSpacing },
-        styles.title,
-        hidden ? styles.hidden : null,
-      ]}
-    >
-      {text}
-    </Animated.Text>
+    <Animated.View style={[styles.title, hiddenStyle]}>
+      <Animated.Text
+        ref={ref}
+        key={text}
+        onLayout={measureFrame}
+        entering={reduceMotion ? undefined : FadeIn.duration(180)}
+        numberOfLines={1}
+        accessibilityRole="header"
+        style={{ color: style.color, fontFamily: style.fontFamily, fontSize: style.fontSize, letterSpacing: style.letterSpacing }}
+      >
+        {text}
+      </Animated.Text>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { flex: 1 },
-  hidden: { opacity: 0 },
+  title: { flex: 1, minWidth: 0 },
 });
