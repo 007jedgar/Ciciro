@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, ciciro } from "./api";
 import { queryClient } from "./api/query";
 import { queryKeys } from "./api/keys";
-import type { ChatMessage, ChatStreamEvent, EditorRunInput } from "./api/types";
+import type { ChatMessage, ChatSnapshot, ChatStreamEvent, EditorRunInput } from "./api/types";
 import { failureFromError, type ChatFailure } from "./chat-errors";
 import * as haptics from "./haptics";
 import { createWritingTicker } from "./haptics";
@@ -53,6 +53,24 @@ function newClientTurnId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `turn-${Date.now().toString(36)}`;
 }
 
+function cachedSnapshot(projectId: string): ChatSnapshot | undefined {
+  return projectId
+    ? queryClient.getQueryData<ChatSnapshot>(queryKeys.chat.snapshot(projectId))
+    : undefined;
+}
+
+/**
+ * Fetches the transcript and lands it in the persisted query cache (the same
+ * one `PersistQueryClientProvider` writes to MMKV), so the next time this
+ * conversation opens - another visit, or a cold launch - it paints from that
+ * cache before this call's result comes back.
+ */
+async function fetchAndCacheSnapshot(projectId: string): Promise<ChatSnapshot> {
+  const snapshot = await ciciro.chat.get(projectId);
+  queryClient.setQueryData(queryKeys.chat.snapshot(projectId), snapshot);
+  return snapshot;
+}
+
 const CANCEL_ATTEMPTS = 8;
 const CANCEL_RETRY_MS = 750;
 
@@ -93,8 +111,15 @@ function shouldInvalidateQuestions(event: ChatStreamEvent): boolean {
 }
 
 export function useCiciroChat(projectId: string): UseCiciroChat {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seeded synchronously from the persisted cache so a remount (leaving the
+  // manuscript and coming back, or a cold launch straight into it) paints
+  // the last-seen transcript on its very first render instead of an empty
+  // thread that corrects itself once the refetch below lands.
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const cached = cachedSnapshot(projectId);
+    return cached ? hydrateChatMessages(cached) : [];
+  });
+  const [loading, setLoading] = useState(() => Boolean(projectId) && !cachedSnapshot(projectId));
   const [failure, setFailure] = useState<ChatFailure | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [stream, setStream] = useState<ChatStreamState>(emptyChatStreamState);
@@ -129,9 +154,18 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       if (!options?.keepFailure) setFailure(null);
       return;
     }
-    setLoading(true);
+    // Paint whatever is already cached before asking the server, so a
+    // remount never shows an empty thread while the real fetch is in flight.
+    const cached = cachedSnapshot(projectId);
+    if (cached) {
+      setMessages(hydrateChatMessages(cached));
+      if (!editModeTouchedRef.current) setEditModeState(editModeOfRuns(cached.runs));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     try {
-      const snapshot = await ciciro.chat.get(projectId);
+      const snapshot = await fetchAndCacheSnapshot(projectId);
       setMessages(hydrateChatMessages(snapshot));
       if (!editModeTouchedRef.current) setEditModeState(editModeOfRuns(snapshot.runs));
       if (!options?.keepFailure) setFailure(null);
@@ -246,7 +280,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
         setStreaming(false);
         setStream(emptyChatStreamState());
         try {
-          const snapshot = await ciciro.chat.get(projectId);
+          const snapshot = await fetchAndCacheSnapshot(projectId);
           setMessages((current) => mergeChatTranscript(hydrateChatMessages(snapshot), current));
           setFailure(null);
         } catch (reloadError) {
@@ -320,7 +354,11 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
     editModeTouchedRef.current = false;
     setEditModeState(DEFAULT_EDIT_MODE);
     setStream(emptyChatStreamState());
-    void queryClient.invalidateQueries({ queryKey: queryKeys.chat.snapshot(projectId) });
+    // Remove rather than invalidate: invalidating only flags the cached
+    // snapshot stale without erasing it, and the synchronous cache seed
+    // above would otherwise paint the just-archived transcript right back
+    // on the next mount, before undo or a fresh fetch had a chance to run.
+    queryClient.removeQueries({ queryKey: queryKeys.chat.snapshot(projectId) });
     return result.archivedAt;
   }, [projectId]);
 

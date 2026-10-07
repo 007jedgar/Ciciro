@@ -530,6 +530,27 @@ export function CiciroChat({
     streaming && lastMessage?.role === "user" ? lastMessage.id : null;
   const activeAnchor = livePromptId ?? anchorId;
 
+  /**
+   * Whether this mount opened on an already-settled transcript (a remount
+   * from cache, or a cold launch) rather than an empty thread or one with a
+   * turn already live. Only that case needs to be positioned at the tail
+   * before it is ever shown - fixed once at mount, like `historyIds` above.
+   */
+  const needsTailOpenRef = useRef(messages.length > 0 && !streaming && !activeAnchor);
+  /**
+   * Hidden until the tail position lands, so the thread never paints at its
+   * top and then visibly scrolls down. Everything else (empty, or a turn
+   * already anchored/streaming) has nothing to reposition and shows at once.
+   */
+  const [threadVisible, setThreadVisible] = useState(() => !needsTailOpenRef.current);
+
+  const openAtTail = useCallback(() => {
+    if (openedAtTail.current) return;
+    openedAtTail.current = true;
+    listRef.current?.scrollToEnd({ animated: false });
+    setThreadVisible(true);
+  }, []);
+
   useEffect(() => {
     if (messages.length === 0) {
       pinnedId.current = null;
@@ -544,20 +565,26 @@ export function CiciroChat({
     setReplyHeight(0);
   }, [anchorId, livePromptId, messages.length]);
 
-  // Opening a transcript lands on the latest reply. A prompt the author just
-  // sent is a different motion: that row goes to the top and then stays there
-  // while the reply streams underneath.
+  // An empty thread or one with a turn already anchored/streaming has
+  // nothing to position first, so show it immediately. The settled-transcript
+  // case is instead revealed by `openAtTail`, from the list's own content
+  // size, once it is actually positioned.
   useEffect(() => {
     if (messages.length === 0) {
       openedAtTail.current = false;
+      setThreadVisible(true);
       return;
     }
-    if (streaming || activeAnchor) return;
-    if (openedAtTail.current) return;
-    openedAtTail.current = true;
-    const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: !reduceMotion }), 50);
+    if (streaming || activeAnchor) setThreadVisible(true);
+  }, [activeAnchor, messages.length, streaming]);
+
+  // Safety net: if the content-size callback below never fires (an
+  // unexpected empty measurement), do not leave the thread hidden forever.
+  useEffect(() => {
+    if (threadVisible) return;
+    const id = setTimeout(openAtTail, 300);
     return () => clearTimeout(id);
-  }, [activeAnchor, messages.length, reduceMotion, streaming]);
+  }, [threadVisible, openAtTail]);
 
   useEffect(() => {
     if (!activeAnchor || listHeight <= 0) return;
@@ -844,6 +871,14 @@ export function CiciroChat({
       <View style={styles.thread}>
       {showsThread(clearPhase) ? (
       <ThreadFade collapse={collapse}>
+      {/*
+        Hidden until `openAtTail` confirms the list is positioned at its end,
+        so a settled transcript never paints at the top first - this is a
+        plain style, not animated, because there is nothing to reveal
+        gracefully: either it is already in the right place or it should not
+        be visible yet.
+      */}
+      <View testID="chat-thread-visibility" style={{ flex: 1, opacity: threadVisible ? 1 : 0 }}>
       <FlatList
         testID="chat-thread"
         ref={listRef}
@@ -862,7 +897,10 @@ export function CiciroChat({
         }}
         onScroll={onThreadScroll}
         onScrollBeginDrag={releaseHold}
-        onContentSizeChange={restoreHold}
+        onContentSizeChange={() => {
+          if (needsTailOpenRef.current && !streaming && !activeAnchor) openAtTail();
+          restoreHold();
+        }}
         onScrollToIndexFailed={(info) => {
           awaitingLock.current = false;
           listRef.current?.scrollToOffset({
@@ -884,7 +922,11 @@ export function CiciroChat({
         scrollEventThrottle={16}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        initialNumToRender={6}
+        // A settled transcript's first render must already include every row
+        // down to the tail - otherwise `openAtTail`'s scrollToEnd only
+        // reaches as far as whatever virtualization has measured so far,
+        // and the rest pop in after the thread is already shown.
+        initialNumToRender={needsTailOpenRef.current ? messages.length : 6}
         maxToRenderPerBatch={4}
         windowSize={7}
         updateCellsBatchingPeriod={50}
@@ -928,6 +970,7 @@ export function CiciroChat({
           ) : null
         }
       />
+      </View>
       </ThreadFade>
       ) : null}
       {showsMark(clearPhase) ? (
