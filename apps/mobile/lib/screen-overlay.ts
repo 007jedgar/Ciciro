@@ -12,10 +12,16 @@ import { createContext, useContext, type ReactNode } from "react";
  * slides/scales that screen in and out, or it would inherit that motion instead
  * of tracking its own source-to-destination path. `StackPopTransition` provides
  * this context once per screen so a descendant can hand it content to render
- * in that untransformed slot, and clear it (`null`) when done.
+ * in that untransformed slot, and clear it (`null`) when done. A wrapper that
+ * never slides in (a nested stack's first route) passes its parent's slot on
+ * instead, so the slot always sits outside every transform the screen is under.
  */
-export const ScreenOverlayContext = createContext<(node: ReactNode | null) => void>(() => {});
+export type SetScreenOverlay = (node: ReactNode | null) => void;
 
-export function useSetScreenOverlay(): (node: ReactNode | null) => void {
-  return useContext(ScreenOverlayContext);
+export const ScreenOverlayContext = createContext<SetScreenOverlay | null>(null);
+
+const noop: SetScreenOverlay = () => {};
+
+export function useSetScreenOverlay(): SetScreenOverlay {
+  return useContext(ScreenOverlayContext) ?? noop;
 }
