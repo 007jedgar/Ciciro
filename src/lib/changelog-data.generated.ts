@@ -5,6 +5,16 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "49d59f11259e",
+    "summary": "**Who knows what** is now chapter by chapter (web and phone).",
+    "text": "**Who knows what** is now chapter by chapter (web and phone). A character can know, suspect, believe wrongly, or not know something, from a chapter until the chapter it changes in; facts saved as \"believes\" read as \"suspects\". The Knowledge screen opens at the chapter you have open, with a chapter scrubber, a timeline per character that shows what ended and what replaced it, and a grid by topic with an optional Reader column from canon.md. Ciciro's editing, the continuity check and What changed now see only what characters know by the chapter in question, never a later one."
+  },
+  {
+    "id": "b6f350ee51c3",
+    "summary": "Ask Ciciro in chat to record who knows what (\"note that Joe suspects Suzy has the pen\"): it records it against the chapter you have open, or the one you name,…",
+    "text": "Ask Ciciro in chat to record who knows what (\"note that Joe suspects Suzy has the pen\"): it records it against the chapter you have open, or the one you name, says exactly what it recorded, and can change or remove it. \"What does Joe know at this point?\" answers from the ledger as of your chapter. This works in Chat only too."
+  },
+  {
     "id": "8e99383771c9",
     "summary": "Fixed: on the phone, typing in a chapter after switching from another one no longer fails to save with an \"Unexpected null or undefined value\" error.",
     "text": "Fixed: on the phone, typing in a chapter after switching from another one no longer fails to save with an \"Unexpected null or undefined value\" error."
