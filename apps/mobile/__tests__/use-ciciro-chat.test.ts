@@ -3,6 +3,7 @@ import { queryClient, queryKeys } from "../lib/api";
 import { useCiciroChat } from "../lib/use-ciciro-chat";
 import { jsonResponse, mockFetch, ndjsonResponse, parsedBody } from "./http";
 import { setSessionToken } from "../lib/session-store";
+import { chatRequestFromComposer } from "../lib/ciciro-intents";
 
 describe("useCiciroChat", () => {
   const originalFetch = globalThis.fetch;
@@ -582,5 +583,40 @@ describe("useCiciroChat", () => {
       ]);
       unmount();
     });
+  });
+
+  it("sends the open chapter with the turn, and refetches who knows what when a chat tool changes it", async () => {
+    const posts: Record<string, unknown>[] = [];
+    mockFetch(async (_input, init) => {
+      if ((init?.method ?? "GET") === "POST") {
+        posts.push(parsedBody(init as RequestInit));
+        return ndjsonResponse([
+          '{"type":"turn","id":"t1","runId":"r1"}',
+          '{"type":"tool","v":"recording who knows what"}',
+          '{"type":"knowledge_changed","characterPath":"characters/joe.md"}',
+          '{"type":"text","v":"Recorded: Joe suspects Suzy has the pen, from chapter 6."}',
+          '{"type":"done","status":"completed","runId":"r1"}',
+        ]);
+      }
+      return jsonResponse({ messages: [], runs: [] });
+    });
+    const invalidate = jest.spyOn(queryClient, "invalidateQueries");
+    const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const input = chatRequestFromComposer("Joe suspects Suzy has the pen. Record that.", {
+      projectId: "p1",
+      chapterId: "c6",
+    });
+    await act(async () => {
+      await result.current.send(input!);
+    });
+
+    expect(posts[0]).toMatchObject({ projectId: "p1", activeChapterId: "c6" });
+    const keys = invalidate.mock.calls.map((call) => JSON.stringify(call[0]?.queryKey));
+    expect(keys).toContain(JSON.stringify(["knowledge", "p1"]));
+    expect(keys).toContain(JSON.stringify(["bible", "p1", "characters/joe.md"]));
+    invalidate.mockRestore();
+    unmount();
   });
 });

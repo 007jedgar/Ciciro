@@ -53,6 +53,7 @@ export const queryKeys = {
     file: (projectId: string, path: string) => ["bible", projectId, path] as const,
   },
   knowledge: {
+    all: (projectId: string) => ["knowledge", projectId] as const,
     list: (projectId: string, characterPath?: string, includeRetired?: boolean) =>
       ["knowledge", projectId, characterPath ?? "all", includeRetired ? "with-retired" : "active"] as const,
   },

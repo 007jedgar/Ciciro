@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { KnowledgeBoard } from "../components/KnowledgeBoard";
 import {
+  useBibleFileQuery,
   useBibleIndexQuery,
   useChaptersQuery,
   useCreateKnowledgeFactMutation,
@@ -17,7 +18,11 @@ jest.mock("expo-haptics", () => ({
   NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
 }));
 
+const mockTrack = jest.fn();
+jest.mock("../lib/analytics-client", () => ({ getAnalytics: () => ({ track: mockTrack }) }));
+
 jest.mock("../lib/api", () => ({
+  useBibleFileQuery: jest.fn(),
   useBibleIndexQuery: jest.fn(),
   useChaptersQuery: jest.fn(),
   useKnowledgeFactsQuery: jest.fn(),
@@ -26,10 +31,9 @@ jest.mock("../lib/api", () => ({
   useRetireKnowledgeFactMutation: jest.fn(),
 }));
 
-const chapters = [
-  { id: "c6", title: "The Accusation", order: 6 },
-  { id: "c1", title: "The Shop", order: 1 },
-];
+const shop = { id: "c1", title: "The Shop", order: 0 };
+const attic = { id: "c2", title: "The Attic", order: 1 };
+const chapters = [attic, shop];
 
 function fact(over: Record<string, unknown>) {
   return {
@@ -37,8 +41,12 @@ function fact(over: Record<string, unknown>) {
     characterPath: "characters/joe.md",
     fact: "",
     stance: "knows",
+    topic: null,
     chapterId: null,
     chapter: null,
+    supersededAtChapterId: null,
+    supersededAtChapter: null,
+    sourceQuote: "",
     status: "active",
     ...over,
   };
@@ -46,16 +54,32 @@ function fact(over: Record<string, unknown>) {
 
 const facts = [
   fact({
-    id: "f-believes",
-    fact: "Suzy has the pen",
-    stance: "believes",
-    chapterId: "c6",
-    chapter: chapters[0],
+    id: "f-unaware",
+    fact: "Who has the pen",
+    stance: "unaware",
+    topic: "who has the pen",
+    status: "superseded",
+    supersededAtChapterId: "c2",
+    supersededAtChapter: attic,
   }),
-  fact({ id: "f-ch1", fact: "Nobody saw who took the pen", chapterId: "c1", chapter: chapters[1] }),
-  fact({ id: "f-before", fact: "The shop key hangs by the door" }),
+  fact({
+    id: "f-suspects",
+    fact: "Suzy has the pen",
+    stance: "suspects",
+    topic: "who has the pen",
+    chapterId: "c2",
+    chapter: attic,
+  }),
+  fact({ id: "f-key", fact: "The shop key hangs by the door" }),
   fact({ id: "f-old", fact: "The pen is lost for good", status: "superseded" }),
-  fact({ id: "f-suzy", characterPath: "characters/suzy.md", fact: "She has the pen" }),
+  fact({
+    id: "f-suzy",
+    characterPath: "characters/suzy.md",
+    fact: "She has the pen",
+    topic: "Who has the pen",
+    chapterId: "c1",
+    chapter: shop,
+  }),
 ];
 
 function setup() {
@@ -69,69 +93,108 @@ function setup() {
       { path: "characters/suzy.md", summary: "" },
     ],
   });
+  (useBibleFileQuery as jest.Mock).mockReturnValue({
+    data: { path: "canon.md", content: "# Canon\n- Mara has had the pen since chapter 1.\n" },
+    isPending: false,
+  });
   (useChaptersQuery as jest.Mock).mockReturnValue({ data: chapters });
-  (useKnowledgeFactsQuery as jest.Mock).mockImplementation(
-    (_id: string, params: { characterPath?: string }) => ({
-      data: {
-        facts: params.characterPath
-          ? facts.filter((f) => f.characterPath === params.characterPath)
-          : facts,
-      },
-      isPending: false,
-      isError: false,
-    })
-  );
+  (useKnowledgeFactsQuery as jest.Mock).mockReturnValue({
+    data: { facts },
+    isPending: false,
+    isError: false,
+  });
   (useCreateKnowledgeFactMutation as jest.Mock).mockReturnValue({ mutateAsync: create, isPending: false });
   (usePatchKnowledgeFactMutation as jest.Mock).mockReturnValue({ mutateAsync: patch, isPending: false });
   (useRetireKnowledgeFactMutation as jest.Mock).mockReturnValue({ mutateAsync: retire, isPending: false });
   return { create, patch, retire };
 }
 
-// Fact texts as they appear top to bottom in the rendered tree.
-function factOrder(): string[] {
-  const rendered = JSON.stringify(screen.toJSON());
-  return facts
-    .map((f) => f.fact)
-    .filter((text) => rendered.includes(JSON.stringify(text)))
-    .sort((a, b) => rendered.indexOf(JSON.stringify(a)) - rendered.indexOf(JSON.stringify(b)));
-}
+const card = (id: string) => within(screen.getByTestId(`knowledge-fact-${id}`));
 
 describe("KnowledgeBoard (mobile)", () => {
-  it("lists each character's facts in chapter order, with before-story facts first and retired facts hidden", () => {
+  it("starts at the open chapter, with later knowledge held back", () => {
     setup();
-    render(<KnowledgeBoard projectId="p1" />);
-    expect(factOrder()).toEqual([
-      "The shop key hangs by the door",
-      "Nobody saw who took the pen",
-      "Suzy has the pen",
-      "She has the pen",
-    ]);
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c1" initialCharacterPath="characters/joe.md" />);
+    expect(useKnowledgeFactsQuery).toHaveBeenLastCalledWith("p1", { includeRetired: true });
+    expect(screen.getByTestId("knowledge-as-of")).toHaveTextContent("As of the end of Ch. 1: The Shop");
+    expect(card("f-unaware").getByText("doesn't know")).toBeTruthy();
+    expect(screen.getByText("Later in the story")).toBeTruthy();
+    expect(card("f-suspects").getByText("from Ch. 2")).toBeTruthy();
+    // Retired everywhere stays out of the timeline until asked for.
     expect(screen.queryByText("The pen is lost for good")).toBeNull();
-
-    fireEvent.press(screen.getByText("Show retired (1)"));
+    fireEvent.press(screen.getByText("Show retired everywhere (1)"));
     expect(screen.getByText("The pen is lost for good")).toBeTruthy();
   });
 
-  it("scopes to the character it was opened for", () => {
+  it("shows the same character differently a chapter later, with what replaced the old view", () => {
     setup();
-    render(<KnowledgeBoard projectId="p1" initialCharacterPath="characters/suzy.md" />);
-    expect(useKnowledgeFactsQuery).toHaveBeenLastCalledWith("p1", {
-      characterPath: "characters/suzy.md",
-      includeRetired: true,
-    });
-    expect(screen.getByText("She has the pen")).toBeTruthy();
-    expect(screen.queryByText("Suzy has the pen")).toBeNull();
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c1" initialCharacterPath="characters/joe.md" />);
+    fireEvent.press(screen.getByLabelText("Later chapter"));
+    expect(screen.getByTestId("knowledge-as-of")).toHaveTextContent("As of the end of Ch. 2: The Attic");
+    expect(card("f-unaware").getByText("until Ch. 2")).toBeTruthy();
+    expect(card("f-unaware").getByText(/then suspects: Suzy has the pen/)).toBeTruthy();
+    expect(card("f-suspects").getByText("Edit")).toBeTruthy();
+    expect(screen.queryByText("Later in the story")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Earlier chapter"));
+    fireEvent.press(screen.getByLabelText("Earlier chapter"));
+    expect(screen.getByTestId("knowledge-as-of")).toHaveTextContent("Before the story opens");
+    expect(mockTrack).toHaveBeenCalledTimes(1);
+    expect(mockTrack).toHaveBeenCalledWith("knowledge_scrubber_used", {});
   });
 
-  it("adds a fact with a stance and the chapter it was learned in", async () => {
+  it("stops a fact at the chapter in view, and retires one that began there everywhere", async () => {
+    const { retire } = setup();
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c2" initialCharacterPath="characters/joe.md" />);
+    await act(async () => {
+      fireEvent.press(card("f-key").getByText("Stops here"));
+    });
+    expect(retire).toHaveBeenLastCalledWith({
+      projectId: "p1",
+      factId: "f-key",
+      characterPath: "characters/joe.md",
+      asOfChapterId: "c2",
+    });
+    await act(async () => {
+      fireEvent.press(card("f-suspects").getByText("Retire"));
+    });
+    expect(retire).toHaveBeenLastCalledWith({
+      projectId: "p1",
+      factId: "f-suspects",
+      characterPath: "characters/joe.md",
+      asOfChapterId: null,
+    });
+  });
+
+  it("records a change of view at the chapter in view", async () => {
     const { create } = setup();
-    render(<KnowledgeBoard projectId="p1" />);
-    const addSection = screen.getByPlaceholderText("What they know or believe");
-    fireEvent.changeText(addSection, "Suzy is lying");
-    const believes = screen.getAllByText("believes");
-    fireEvent.press(believes[believes.length - 1]);
-    const chapterChips = screen.getAllByText("The Accusation");
-    fireEvent.press(chapterChips[chapterChips.length - 1]);
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c2" initialCharacterPath="characters/joe.md" />);
+    fireEvent.press(card("f-key").getByText("Changes here"));
+    expect(screen.getByText("From Ch. 2, Joe now:")).toBeTruthy();
+    fireEvent.changeText(screen.getByDisplayValue("The shop key hangs by the door"), "The key is gone");
+    fireEvent.press(screen.getAllByText("believes wrongly")[0]);
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save change"));
+    });
+    expect(create).toHaveBeenCalledWith({
+      projectId: "p1",
+      body: {
+        characterPath: "characters/joe.md",
+        fact: "The key is gone",
+        stance: "believes_wrong",
+        topic: null,
+        chapterId: "c2",
+        replacesFactId: "f-key",
+      },
+    });
+  });
+
+  it("adds a fact from the chapter in view with a stance and a topic", async () => {
+    const { create } = setup();
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c2" />);
+    fireEvent.changeText(screen.getByPlaceholderText("What they know, suspect, or have wrong"), "Suzy is lying");
+    const suspects = screen.getAllByText("suspects");
+    fireEvent.press(suspects[suspects.length - 1]);
+    fireEvent.press(screen.getAllByText("who has the pen").slice(-1)[0]);
     await act(async () => {
       fireEvent.press(screen.getByText("Add"));
     });
@@ -140,41 +203,48 @@ describe("KnowledgeBoard (mobile)", () => {
       body: {
         characterPath: "characters/joe.md",
         fact: "Suzy is lying",
-        stance: "believes",
-        chapterId: "c6",
+        stance: "suspects",
+        topic: "who has the pen",
+        chapterId: "c2",
       },
     });
   });
 
   it("edits a fact in place, moving it to another chapter", async () => {
     const { patch } = setup();
-    render(<KnowledgeBoard projectId="p1" initialCharacterPath="characters/joe.md" />);
-    fireEvent.press(screen.getAllByText("Edit")[0]);
-    const input = screen.getByDisplayValue("The shop key hangs by the door");
-    fireEvent.changeText(input, "The shop key hangs by the back door");
-    const shopChips = screen.getAllByText("The Shop");
-    fireEvent.press(shopChips[0]);
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c2" initialCharacterPath="characters/joe.md" />);
+    fireEvent.press(card("f-key").getByText("Edit"));
+    fireEvent.changeText(
+      screen.getByDisplayValue("The shop key hangs by the door"),
+      "The shop key hangs by the back door"
+    );
+    fireEvent.press(screen.getAllByText("1. The Shop")[0]);
     await act(async () => {
       fireEvent.press(screen.getByText("Save"));
     });
     expect(patch).toHaveBeenCalledWith({
       projectId: "p1",
-      factId: "f-before",
+      factId: "f-key",
       characterPath: "characters/joe.md",
-      body: { fact: "The shop key hangs by the back door", stance: "knows", chapterId: "c1" },
+      body: { fact: "The shop key hangs by the back door", stance: "knows", chapterId: "c1", topic: null },
     });
   });
 
-  it("retires a fact", async () => {
-    const { retire } = setup();
-    render(<KnowledgeBoard projectId="p1" initialCharacterPath="characters/joe.md" />);
-    await act(async () => {
-      fireEvent.press(screen.getAllByText("Retire")[0]);
-    });
-    expect(retire).toHaveBeenCalledWith({
-      projectId: "p1",
-      factId: "f-before",
-      characterPath: "characters/joe.md",
-    });
+  it("lines characters up by topic as of the chapter, with the reader's canon line", () => {
+    setup();
+    render(<KnowledgeBoard projectId="p1" activeChapterId="c1" />);
+    fireEvent.press(screen.getByText("By topic"));
+    expect(screen.getAllByText("who has the pen").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Joe doesn't know: Who has the pen")).toBeTruthy();
+    expect(screen.getByLabelText("Suzy knows: She has the pen")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Later chapter"));
+    expect(screen.getByLabelText("Joe suspects: Suzy has the pen")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Reader column"));
+    expect(screen.getByText("Not in canon.md")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Joe suspects: Suzy has the pen"));
+    expect(screen.getByTestId("knowledge-fact-f-suspects")).toBeTruthy();
   });
 });

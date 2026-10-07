@@ -93,6 +93,7 @@ async function cancelServerRun(projectId: string, turnId: string): Promise<void>
 
 const PROJECT_EVENTS = ["chapter_updated", "chapter_created", "open_chapter"];
 const QUESTION_EVENTS = ["question_raised", "question_resolved"];
+const KNOWLEDGE_EVENTS = ["knowledge_changed"];
 
 /** Tool UI events arrive bare or wrapped in `{ type: "ui", event }`. */
 function uiEventType(event: ChatStreamEvent): string {
@@ -108,6 +109,15 @@ function shouldInvalidateProject(event: ChatStreamEvent): boolean {
 
 function shouldInvalidateQuestions(event: ChatStreamEvent): boolean {
   return QUESTION_EVENTS.includes(uiEventType(event));
+}
+
+/** A chat tool changed who knows what, and with it that character file's mirror block. */
+function knowledgeChangedPath(event: ChatStreamEvent): string | null {
+  if (!KNOWLEDGE_EVENTS.includes(uiEventType(event))) return null;
+  const raw = (event.type === "ui" ? (event as { event?: unknown }).event : event) as {
+    characterPath?: unknown;
+  };
+  return typeof raw?.characterPath === "string" ? raw.characterPath : "";
 }
 
 export function useCiciroChat(projectId: string): UseCiciroChat {
@@ -259,6 +269,15 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
               if (shouldInvalidateQuestions(event)) {
                 void queryClient.invalidateQueries({
                   queryKey: queryKeys.questions.all(projectId),
+                });
+              }
+              const knowledgePath = knowledgeChangedPath(event);
+              if (knowledgePath !== null) {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.all(projectId) });
+                void queryClient.invalidateQueries({
+                  queryKey: knowledgePath
+                    ? queryKeys.bible.file(projectId, knowledgePath)
+                    : queryKeys.bible.index(projectId),
                 });
               }
             },

@@ -6,6 +6,7 @@ import { AppHeader } from "../../../../components/AppHeader";
 import { KnowledgeBoard } from "../../../../components/KnowledgeBoard";
 import { useAppTheme } from "../../../../lib/settings";
 import { useSession } from "../../../../lib/session";
+import { useProject } from "../../../../lib/project";
 
 export default function KnowledgeScreen() {
   const { backOr } = useStackBack();
@@ -13,6 +14,8 @@ export default function KnowledgeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
+  // The chapter open in the manuscript: where the scrubber starts.
+  const { selectedChapterId } = useProject();
   const projectId = typeof id === "string" ? id : "";
 
   if (!ready) return null;
@@ -25,7 +28,7 @@ export default function KnowledgeScreen() {
         title={t("bible.knowledge.title")}
         onBack={() => backOr(`/project/${projectId}/bible`)}
       />
-      <KnowledgeBoard projectId={projectId} />
+      <KnowledgeBoard projectId={projectId} activeChapterId={selectedChapterId} />
     </View>
   );
 }
