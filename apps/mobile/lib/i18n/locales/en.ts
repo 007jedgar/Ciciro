@@ -68,6 +68,7 @@ const en = {
         title: "Try focus mode",
         intro: "Everything but the page disappears. Tap to begin, write a line of your own.",
         tryButton: "Try focus mode",
+        journalPlaceholder: "Write today's first line.",
         sample:
           "The rain had not stopped in three days, and the valley was beginning to flood. She stood at the window, waiting for a decision that was no longer hers to make.",
       },

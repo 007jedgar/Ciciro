@@ -19,16 +19,18 @@ import * as haptics from "../../lib/haptics";
 const DEMO_CHAPTER_ID = "onboarding-demo-focus";
 
 /**
- * Storyboard 1: a short seeded page, "Try Focus mode" hides everything but
+ * Storyboard 1: a short seeded page (or, for a journal, a blank one), "Try Focus mode" hides everything but
  * the page (the real `ChapterEditor`, with typewriter on), the user may type
  * a line of their own. Local state only - nothing here is saved.
  */
 export function FocusDemo({
   path,
+  blankPage = false,
   onContinue,
   onSkip,
 }: {
   path: DemoPath;
+  blankPage?: boolean;
   onContinue: () => void;
   onSkip: () => void;
 }) {
@@ -41,7 +43,7 @@ export function FocusDemo({
   // `onChangeText` reports plain text, not HTML (see ChapterEditor) - the
   // sample page never changes under the editor, so the user's own typing
   // stays entirely inside the native view and is never read back here.
-  const html = `<p>${t("onboarding.demo.focus.sample")}</p>`;
+  const html = blankPage ? "" : `<p>${t("onboarding.demo.focus.sample")}</p>`;
   const fade = reduceMotion ? undefined : FadeIn.duration(FOCUS_TRANSITION_MS);
   const unfade = reduceMotion ? undefined : FadeOut.duration(FOCUS_TRANSITION_MS);
 
@@ -124,6 +126,7 @@ export function FocusDemo({
           chapterId={DEMO_CHAPTER_ID}
           html={html}
           editorStyle={editorStyle}
+          placeholder={blankPage ? t("onboarding.demo.focus.journalPlaceholder") : undefined}
           resumeOffset={null}
           typewriter={on}
           onFocused={() => {}}

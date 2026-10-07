@@ -22,6 +22,11 @@ describe("onboarding answers", () => {
     expect(getOnboardingAnswers()).toEqual({ kind: "journal", obstacle: "self_criticism" });
   });
 
+  it("keeps the goal when the obstacle question was skipped", () => {
+    saveOnboardingAnswers("screenplay", null);
+    expect(getOnboardingAnswers()).toEqual({ kind: "screenplay", obstacle: null });
+  });
+
   it("reads back as unset if the stored value is no longer recognized", () => {
     mockDisk.set("onboarding-goal-kind", "short-story");
     mockDisk.set("onboarding-obstacle", "procrastination");

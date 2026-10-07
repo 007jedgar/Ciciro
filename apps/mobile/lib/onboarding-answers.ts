@@ -10,10 +10,10 @@ import { isObstacle, type Obstacle } from "./onboarding";
 const KIND_KEY = "onboarding-goal-kind";
 const OBSTACLE_KEY = "onboarding-obstacle";
 
-export function saveOnboardingAnswers(kind: ManuscriptKind, obstacle: Obstacle): void {
+export function saveOnboardingAnswers(kind: ManuscriptKind, obstacle: Obstacle | null): void {
   try {
     getPrefs().set(KIND_KEY, kind);
-    getPrefs().set(OBSTACLE_KEY, obstacle);
+    if (obstacle) getPrefs().set(OBSTACLE_KEY, obstacle);
   } catch {
     /* web / tests / missing native module */
   }
