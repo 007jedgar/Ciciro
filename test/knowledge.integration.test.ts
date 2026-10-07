@@ -143,6 +143,21 @@ describe("knowledge ledger (the Knowledge screen's API)", () => {
     expect(updated.chapter).toBeNull();
   });
 
+  it("rejects a non-string fact or chapter as a bad request", async () => {
+    const { user, project } = await seed();
+    const fact = await addKnowledgeFact(project.id, user, {
+      characterPath: "characters/joe.md",
+      fact: "He locks the shop at dusk",
+      stance: "knows",
+    });
+    await expect(updateKnowledgeFact(project.id, user, fact.id, { fact: 5 })).rejects.toMatchObject({
+      status: 400,
+    });
+    await expect(
+      updateKnowledgeFact(project.id, user, fact.id, { chapterId: { id: "x" } })
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
   it("refuses an edit from someone who does not own the project", async () => {
     const { user, project } = await seed();
     const other = await registerUser({ email: "bob@example.com", password: "long-enough-pw" });
