@@ -247,6 +247,31 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("hides and repositions a transcript that only arrives after mount - no cache yet, still loading - the same as one seeded from cache", () => {
+    const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
+    // Still loading: nothing to position yet, so the (empty) thread shows at once.
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
+
+    // The fetch resolves and delivers a settled transcript - this must hide
+    // and reposition exactly like a cache-seeded mount would, not paint at
+    // the top of the list first.
+    rerender(wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />));
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(0);
+
+    act(() => {
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+    });
+
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
+    unmount();
+  });
+
   it("shows an empty thread immediately - nothing to position first", () => {
     const { unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
     expect(
