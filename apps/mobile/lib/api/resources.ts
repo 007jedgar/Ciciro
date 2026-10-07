@@ -570,9 +570,12 @@ export const ciciro = {
         `/api/projects/${encodeURIComponent(projectId)}/knowledge/${encodeURIComponent(factId)}`,
         jsonInit("PATCH", body, opts)
       ),
-    retire: (projectId: string, factId: string, opts?: RequestOpts) =>
+    /** Stop a fact from `asOfChapterId` on (it still holds before); none retires it everywhere. */
+    retire: (projectId: string, factId: string, asOfChapterId?: string | null, opts?: RequestOpts) =>
       api<OkResponse>(
-        `/api/projects/${encodeURIComponent(projectId)}/knowledge/${encodeURIComponent(factId)}`,
+        `/api/projects/${encodeURIComponent(projectId)}/knowledge/${encodeURIComponent(factId)}${queryString({
+          asOf: asOfChapterId ?? undefined,
+        })}`,
         jsonInit("DELETE", undefined, opts)
       ),
   },

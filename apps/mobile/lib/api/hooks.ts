@@ -928,7 +928,7 @@ export function useDeletePlotPointMutation() {
 }
 
 function invalidateKnowledge(projectId: string) {
-  void queryClient.invalidateQueries({ queryKey: ["knowledge", projectId] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.all(projectId) });
 }
 
 export function useCreateKnowledgeFactMutation() {
@@ -976,11 +976,13 @@ export function useRetireKnowledgeFactMutation() {
     mutationFn: ({
       projectId,
       factId,
+      asOfChapterId,
     }: {
       projectId: string;
       factId: string;
       characterPath: string;
-    }) => ciciro.knowledge.retire(projectId, factId),
+      asOfChapterId?: string | null;
+    }) => ciciro.knowledge.retire(projectId, factId, asOfChapterId),
     onSuccess: (_data, vars) => {
       invalidateKnowledge(vars.projectId);
       void queryClient.invalidateQueries({

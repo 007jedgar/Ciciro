@@ -508,17 +508,16 @@ export type BibleWriteResult = {
 };
 
 // The who-knows-what ledger. See src/lib/knowledge.ts.
-export type KnowledgeStance = "knows" | "believes";
+// The four stances and the story-order rules live in ../knowledge-ledger.ts,
+// a byte-for-byte copy of the server's.
+import type { KnowledgeStance, LedgerFact } from "../knowledge-ledger";
 
-export type KnowledgeFact = {
-  id: string;
-  characterPath: string;
-  fact: string;
-  stance: KnowledgeStance;
+export type { KnowledgeStance };
+
+export type KnowledgeFact = LedgerFact & {
   chapterId: string | null;
-  chapter: { id: string; title: string; order: number } | null;
+  supersededAtChapterId: string | null;
   sourceQuote: string;
-  status: string;
 };
 
 export type KnowledgeFactsResponse = {
@@ -530,12 +529,16 @@ export type KnowledgeFactCreateRequest = {
   fact: string;
   stance: KnowledgeStance;
   chapterId?: string | null;
+  topic?: string | null;
+  /** Retire this fact at the new one's chapter: the character's view changed there. */
+  replacesFactId?: string;
 };
 
 export type KnowledgeFactPatchRequest = {
   fact?: string;
   stance?: KnowledgeStance;
   chapterId?: string | null;
+  topic?: string | null;
 };
 
 // The wire shape of an op is the editor's shape. Re-exported rather than
@@ -795,6 +798,7 @@ export type AutowriteRequest = {
 };
 
 export type ClientUiEvent =
+  | { type: "knowledge_changed"; characterPath: string }
   | { type: "open_chapter"; chapterId: string; number: number; title: string }
   | { type: "chapter_created"; chapter: Chapter; open: boolean }
   | {
