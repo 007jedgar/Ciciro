@@ -19,6 +19,7 @@ export function MorphRowText({
   morphStyle,
   style,
   children,
+  onTextLayout,
   ...props
 }: Omit<TextProps, "children"> & {
   morphKey: string;
@@ -27,6 +28,7 @@ export function MorphRowText({
   children: string;
 }) {
   const ref = useRef<Text & NativeMethods>(null);
+  const linesRef = useRef<{ text: string; lines: string } | null>(null);
   const morph = useSharedTitleMorph();
   const reduceMotion = useReduceMotion();
   const hiddenStyle = useMorphSourceStyle(reduceMotion ? null : morphKey);
@@ -35,6 +37,7 @@ export function MorphRowText({
     if (!morph || reduceMotion) return;
     return morph.registerSource(morphKey, {
       text: children,
+      wrappedText: () => (linesRef.current?.text === children ? linesRef.current.lines : null),
       style: morphStyle,
       measure: () =>
         new Promise((resolve) => {
@@ -50,7 +53,17 @@ export function MorphRowText({
   }, [morph, morphKey, morphStyle, children, reduceMotion]);
 
   return (
-    <Animated.Text ref={ref} style={[style, hiddenStyle]} {...props}>
+    <Animated.Text
+      ref={ref}
+      style={[style, hiddenStyle]}
+      onTextLayout={(event) => {
+        // The row's own line breaks, so the travelling title wraps exactly like it.
+        const lines = event.nativeEvent.lines.map((line) => line.text.replace(/\s+$/, ""));
+        linesRef.current = lines.length > 0 ? { text: children, lines: lines.join("\n") } : null;
+        onTextLayout?.(event);
+      }}
+      {...props}
+    >
       {children}
     </Animated.Text>
   );
