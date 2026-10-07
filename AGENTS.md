@@ -111,6 +111,10 @@ Product analytics (PostHog) sits entirely behind `AnalyticsAdapter`, never a ven
 
 The chat's Allow edits / Chat only switch is per conversation and enforced on the server per run (`EditorRun.editsAllowed`, `src/lib/edit-mode.ts`, see `docs/editor-agent-runs.md`): a new editor path that can change a chapter must go through `editorToolsFor`/`executeEditorTool`, never its own tool list. `edit-mode.ts` is mirrored in `apps/mobile/lib/` (`test/edit-mode-parity.test.ts`); a new manuscript-writing tool goes in `MANUSCRIPT_WRITE_TOOLS` (both copies), and a new chip that asks Ciciro to change the manuscript sets `writes: true`.
 
+## Brand assets
+
+Every generated icon/mark PNG (web favicon/Apple touch icon, the Expo app icon/splash/Android adaptive icons, and the smaller "mark" badges used in-app - `apps/mobile/components/BrandMark.tsx` - and in transactional emails - `public/brand/email-mark-*.png`) comes from one script, `scripts/generate-brand-icons.mjs`; re-run it after any brand-colour or mark-shape change instead of hand-editing a PNG. A raster asset it does not cover (none currently) is a sign the script needs a new case, not a one-off export - mobile's `mark-warm.png` shipped the pre-seal ellipsis for a month after the live SVG `BrandMark` (web) and the app icon were redesigned, precisely because it lived outside this script.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.
