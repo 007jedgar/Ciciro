@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { queryClient, queryKeys } from "../lib/api";
 import { useCiciroChat } from "../lib/use-ciciro-chat";
 import { jsonResponse, mockFetch, ndjsonResponse, parsedBody } from "./http";
 import { setSessionToken } from "../lib/session-store";
@@ -453,6 +454,86 @@ describe("useCiciroChat", () => {
         await result.current.retry();
       });
       expect(posts.map((post) => post.editsAllowed)).toEqual([false, false]);
+      unmount();
+    });
+  });
+
+  describe("cached transcript", () => {
+    const snapshot = {
+      messages: [
+        {
+          id: "u1",
+          role: "user" as const,
+          content: "Hi",
+          kind: "chat",
+          createdAt: "2026-09-14T00:00:00.000Z",
+        },
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: "Hello again.",
+          kind: "chat",
+          turnId: "t1",
+          createdAt: "2026-09-14T00:00:00.000Z",
+        },
+      ],
+      runs: [],
+    };
+
+    afterEach(() => {
+      queryClient.clear();
+    });
+
+    it("renders on first render with no empty state, before any fetch resolves", async () => {
+      queryClient.setQueryData(queryKeys.chat.snapshot("p1"), snapshot);
+      // Never resolves within this test, so a pass can only be explained by
+      // the synchronous cache seed, not a fast network round trip.
+      mockFetch(() => new Promise(() => {}));
+
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.messages.map((message) => message.content)).toEqual([
+        "Hi",
+        "Hello again.",
+      ]);
+      unmount();
+    });
+
+    it("paints the cached transcript instantly, then merges the background refetch and re-caches it", async () => {
+      queryClient.setQueryData(queryKeys.chat.snapshot("p1"), snapshot);
+      mockFetch(async () =>
+        jsonResponse({
+          ...snapshot,
+          messages: [
+            ...snapshot.messages,
+            {
+              id: "a2",
+              role: "assistant",
+              content: "Refreshed from the server.",
+              kind: "chat",
+              turnId: "t2",
+              createdAt: "2026-09-14T00:01:00.000Z",
+            },
+          ],
+        })
+      );
+
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      // Painted instantly from the cache, before the background refetch below.
+      expect(result.current.messages.map((message) => message.content)).toEqual([
+        "Hi",
+        "Hello again.",
+      ]);
+
+      await waitFor(() =>
+        expect(result.current.messages.some((message) => message.content === "Refreshed from the server.")).toBe(
+          true
+        )
+      );
+      expect(queryClient.getQueryData(queryKeys.chat.snapshot("p1"))).toMatchObject({
+        messages: [{ id: "u1" }, { id: "a1" }, { id: "a2" }],
+      });
       unmount();
     });
   });

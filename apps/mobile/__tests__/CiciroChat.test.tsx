@@ -227,6 +227,51 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("opens a settled transcript hidden until positioned at the end, not scrolled into view after it is shown", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    // Nothing paints yet - a cached transcript must never flash at the top
+    // of the list before landing at its tail.
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(0);
+
+    act(() => {
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+    });
+
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
+    unmount();
+  });
+
+  it("shows an empty thread immediately - nothing to position first", () => {
+    const { unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
+    unmount();
+  });
+
+  it("shows a thread that mounts already mid-turn immediately - the anchor effect positions it, not open-at-tail", () => {
+    const { unmount } = render(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          streaming
+          messages={[{ ...assistant, id: "m3", role: "user", content: "Hi" }]}
+        />
+      )
+    );
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
+    unmount();
+  });
+
   it("lifts the composer onto the keyboard and keeps the tail in reach", () => {
     const keyboardState = jest.requireMock("react-native-keyboard-controller")
       .useKeyboardState as jest.Mock;
