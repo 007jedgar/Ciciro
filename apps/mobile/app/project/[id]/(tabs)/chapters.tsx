@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, Platform, RefreshControl, Text, View } from "react-native";
 import Animated, { FadeIn, LinearTransition, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,8 @@ import {
 import { ExportCard } from "../../../../components/ExportCard";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
 import { Kicker } from "../../../../components/Kicker";
+import { ScreenErrorBoundary } from "../../../../components/ScreenErrorBoundary";
+import { ScreenErrorState } from "../../../../components/ScreenErrorState";
 import { SlideDownIn } from "../../../../components/SlideDownIn";
 import { ManuscriptTag } from "../../../../components/ManuscriptTag";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
@@ -62,10 +64,27 @@ import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
 
 export default function ChaptersScreen() {
+  return (
+    <ScreenErrorBoundary>
+      <ChaptersScreenContent />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ChaptersScreenContent() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { project, loading, error, selectedChapterId, setSelectedChapterId, flushEdits, addChapter } =
-    useProject();
+  const {
+    project,
+    loading,
+    error,
+    errorDetail,
+    reload,
+    selectedChapterId,
+    setSelectedChapterId,
+    flushEdits,
+    addChapter,
+  } = useProject();
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
   const clearance = useTabBarClearance();
@@ -78,7 +97,26 @@ export default function ChaptersScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [tagError, setTagError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryAttempted, setRetryAttempted] = useState(false);
   const reduceMotion = useReduceMotion();
+
+  useEffect(() => {
+    if (!error) setRetryAttempted(false);
+  }, [error]);
+
+  function pullToRefresh() {
+    setPulling(true);
+    void reload().finally(() => setPulling(false));
+  }
+
+  async function retry() {
+    setRetrying(true);
+    await reload();
+    setRetrying(false);
+    setRetryAttempted(true);
+  }
   // Whether the user has just created this manuscript and landed here: only that
   // first arrival slides the list down, not every later visit.
   const arriving = useRef(isNewManuscriptArrival(typeof id === "string" ? id : "")).current;
@@ -113,14 +151,6 @@ export default function ChaptersScreen() {
     return (
       <View style={[layout.padded, { paddingTop: headerHeight + 8 }]}>
         <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
-        <Text style={layout.error}>{error}</Text>
       </View>
     );
   }
@@ -280,6 +310,14 @@ export default function ChaptersScreen() {
     },
   ];
 
+  // A banner (a delete error, or a background load error with chapters still
+  // to show) already clears the header, so the list starts right under it; a
+  // load error with nothing to show instead renders inside the list as its
+  // empty state, which still needs the inset since nothing pushed the flow
+  // down for it.
+  const showInlineBanner = Boolean(deleteError) || Boolean(error && project);
+  const listTop = showInlineBanner ? 0 : headerHeight + 16;
+
   return (
     <View style={[layout.padded, { paddingTop: 0, paddingHorizontal: layout.padded.paddingHorizontal - LIST_EDGE_SLACK }]}>
       {deleteError ? (
@@ -293,6 +331,21 @@ export default function ChaptersScreen() {
           {deleteError}
         </Text>
       ) : null}
+      {error && project ? (
+        <ScreenErrorState
+          variant="inline"
+          message={error}
+          detail={errorDetail}
+          onRetry={() => void retry()}
+          retrying={retrying}
+          showRestart={retryAttempted}
+          style={{
+            marginTop: deleteError ? 8 : headerHeight + 16,
+            marginBottom: 12,
+            marginHorizontal: LIST_EDGE_SLACK,
+          }}
+        />
+      ) : null}
       <SlideDownIn enabled={arriving} delay={CHAPTERS_SLIDE_DELAY_MS}>
         <Animated.FlatList
           ref={listRef}
@@ -300,14 +353,25 @@ export default function ChaptersScreen() {
           itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          // An error line already clears the header, so the list starts under it.
+          // Inset (not padding) on iOS so the pull-to-refresh spinner sits below the header.
+          contentInset={{ top: listTop }}
+          contentOffset={{ x: 0, y: -listTop }}
+          scrollIndicatorInsets={{ top: listTop }}
           // Horizontal padding moved in from the screen edge (see LIST_EDGE_SLACK)
           // so the list's own clip frame has headroom beyond where content rests.
           contentContainerStyle={{
-            paddingTop: deleteError ? 0 : headerHeight + 16,
+            paddingTop: Platform.OS === "ios" ? 0 : listTop,
             paddingBottom: clearance,
             paddingHorizontal: LIST_EDGE_SLACK,
           }}
+          refreshControl={
+            <RefreshControl
+              refreshing={pulling}
+              onRefresh={pullToRefresh}
+              tintColor={colors.accent}
+              progressViewOffset={listTop}
+            />
+          }
           ListHeaderComponent={
             project ? (
               <View>
@@ -350,7 +414,21 @@ export default function ChaptersScreen() {
             ) : null
           }
           ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} /> : null}
-          ListEmptyComponent={<Text style={layout.body}>{t("chapters.empty")}</Text>}
+          ListEmptyComponent={
+            error && !project ? (
+              <ScreenErrorState
+                variant="full"
+                message={error}
+                detail={errorDetail}
+                onRetry={() => void retry()}
+                retrying={retrying}
+                showRestart={retryAttempted}
+                style={{ marginTop: 16 }}
+              />
+            ) : (
+              <Text style={layout.body}>{t("chapters.empty")}</Text>
+            )
+          }
           renderItem={({ item, index }) => (
             <Animated.View
               entering={

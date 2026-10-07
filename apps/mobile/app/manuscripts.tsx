@@ -10,6 +10,8 @@ import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { BellIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
 import { MorphRowText, beginRowMorph } from "../components/MorphRowText";
+import { ScreenErrorBoundary } from "../components/ScreenErrorBoundary";
+import { ScreenErrorState } from "../components/ScreenErrorState";
 import { SkeletonList } from "../components/Skeleton";
 import { fadeUpDelay } from "../lib/skeleton";
 import { folderMorphKey, manuscriptMorphKey, useSharedTitleMorph } from "../lib/shared-title-morph";
@@ -26,12 +28,15 @@ type Row =
   | { key: string; kind: "heading"; title: string }
   | { key: string; kind: "project"; project: ProjectListItem };
 
-function queryErrorMessage(error: unknown, fallback: string): string | null {
-  if (!error) return null;
-  return fallback;
+export default function ManuscriptsScreen() {
+  return (
+    <ScreenErrorBoundary>
+      <ManuscriptsScreenContent />
+    </ScreenErrorBoundary>
+  );
 }
 
-export default function ManuscriptsScreen() {
+function ManuscriptsScreenContent() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, ready } = useSession();
@@ -42,6 +47,8 @@ export default function ManuscriptsScreen() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [pulling, setPulling] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryAttempted, setRetryAttempted] = useState(false);
   const enabled = Boolean(user);
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
@@ -56,10 +63,26 @@ export default function ManuscriptsScreen() {
   }, [layout.cardTitle, colors.ink]);
   const projects = projectsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
-  const error =
-    importError ??
-    queryErrorMessage(projectsQuery.error ?? foldersQuery.error, t("errors.requestFailed"));
+  const queryError = projectsQuery.error ?? foldersQuery.error;
+  const queryErrorDetail = queryError instanceof ApiError ? queryError.message : null;
+  const friendlyQueryError = queryError ? t("manuscripts.loadError") : null;
+  const error = importError ?? friendlyQueryError;
   const reduceMotion = useReduceMotion();
+
+  useEffect(() => {
+    if (!queryError) setRetryAttempted(false);
+  }, [queryError]);
+
+  async function refetchAll() {
+    await Promise.allSettled([projectsQuery.refetch(), foldersQuery.refetch()]);
+  }
+
+  async function retry() {
+    setRetrying(true);
+    await refetchAll();
+    setRetrying(false);
+    setRetryAttempted(true);
+  }
 
   async function importManuscript() {
     if (importing) return;
@@ -189,8 +212,12 @@ export default function ManuscriptsScreen() {
     },
   ];
 
-  // An error line already clears the header, so the list starts under it.
-  const listTop = error ? 0 : headerHeight;
+  // A banner (import error or a query error with rows still to show) already
+  // clears the header, so the list starts under it; a query error with
+  // nothing to show instead renders inside the list as its empty state,
+  // which still needs the inset since nothing pushed the flow down for it.
+  const showInlineBanner = Boolean(importError) || Boolean(queryError && rows.length > 0);
+  const listTop = showInlineBanner ? 0 : headerHeight;
 
   return (
     <View style={[layout.screen, { paddingBottom: 0 }]}>
@@ -203,16 +230,27 @@ export default function ManuscriptsScreen() {
           floating
         />
       </View>
-      {error ? (
+      {importError ? (
         <Text
           style={[layout.error, { marginHorizontal: 20, marginTop: headerHeight + 12 }]}
           role="alert"
         >
-          {error}
+          {importError}
         </Text>
       ) : null}
+      {queryError && rows.length > 0 ? (
+        <ScreenErrorState
+          variant="inline"
+          message={t("manuscripts.loadError")}
+          detail={queryErrorDetail}
+          onRetry={() => void retry()}
+          retrying={retrying}
+          showRestart={retryAttempted}
+          style={{ marginHorizontal: 20, marginTop: importError ? 8 : headerHeight + 12 }}
+        />
+      ) : null}
       {loading && !error ? (
-        <View style={{ paddingHorizontal: 20, paddingTop: (error ? 0 : headerHeight) + 8 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: (showInlineBanner ? 0 : headerHeight) + 8 }}>
           <SkeletonList count={6} accessibilityLabel={t("common.loading")} />
         </View>
       ) : (
@@ -237,18 +275,28 @@ export default function ManuscriptsScreen() {
               refreshing={pulling}
               onRefresh={() => {
                 setPulling(true);
-                void Promise.allSettled([projectsQuery.refetch(), foldersQuery.refetch()]).finally(() =>
-                  setPulling(false)
-                );
+                void refetchAll().finally(() => setPulling(false));
               }}
               tintColor={colors.accent}
               progressViewOffset={listTop}
             />
           }
           ListEmptyComponent={
-            <Text style={[layout.body, { marginTop: 8 }]}>
-              {t("manuscripts.empty")}
-            </Text>
+            queryError ? (
+              <ScreenErrorState
+                variant="full"
+                message={t("manuscripts.loadError")}
+                detail={queryErrorDetail}
+                onRetry={() => void retry()}
+                retrying={retrying}
+                showRestart={retryAttempted}
+                style={{ marginTop: 16 }}
+              />
+            ) : (
+              <Text style={[layout.body, { marginTop: 8 }]}>
+                {t("manuscripts.empty")}
+              </Text>
+            )
           }
           renderItem={({ item, index }) => {
             if (item.kind === "heading") {
