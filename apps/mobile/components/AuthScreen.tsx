@@ -43,6 +43,9 @@ import { useAppTheme } from "../lib/settings";
 import { restoreLastPlace } from "../lib/last-place";
 import { useSession } from "../lib/session";
 import { fonts } from "../lib/theme";
+import type { ManuscriptKind } from "../lib/manuscript-kind";
+import type { Obstacle } from "../lib/onboarding";
+import { saveOnboardingAnswers } from "../lib/onboarding-answers";
 
 const ICON = { x: 20, y: 6, size: 46 };
 const HEADER_H = 52;
@@ -86,7 +89,14 @@ function ChevronLeft({ color }: { color: string }) {
   );
 }
 
-export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
+export function AuthScreen({
+  initialMode,
+  onboarding = null,
+}: {
+  initialMode: AuthMode;
+  /** The pre-signup quiz's answers, carried here as route params - see AGENTS.md "Pre-signup onboarding". */
+  onboarding?: { kind: ManuscriptKind; obstacle: Obstacle } | null;
+}) {
   const router = useRouter();
   const { backOr } = useStackBack();
   const insets = useSafeAreaInsets();
@@ -110,6 +120,7 @@ export function AuthScreen({ initialMode }: { initialMode: AuthMode }) {
   // next person to open sign-in must not find the last password filled in.
   function signedIn(user: PublicUser) {
     reset();
+    if (isSignup && onboarding) saveOnboardingAnswers(onboarding.kind, onboarding.obstacle);
     restoreLastPlace(router, user.id);
   }
 

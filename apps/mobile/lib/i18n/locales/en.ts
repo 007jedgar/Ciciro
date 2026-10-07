@@ -44,6 +44,42 @@ const en = {
       "Make the vague thing vivid.",
     ],
   },
+  onboarding: {
+    skip: "Skip",
+    goalQuestion: "What are you working on?",
+    obstacleQuestion: "What's getting in the way?",
+    obstacles: {
+      zone: { label: "Staying in the zone", description: "Distractions pull you out of the page." },
+      creativity: { label: "Creativity", description: "Ideas or direction feel stuck." },
+      consistency: {
+        label: "Sitting down consistently",
+        description: "Showing up regularly is the hard part.",
+      },
+      block: { label: "Writer's block", description: "The page stays blank." },
+      self_criticism: {
+        label: "Self-criticism",
+        description: "It's hard to let rough work stay rough.",
+      },
+      unsure: { label: "Not sure yet", description: "Just exploring for now." },
+    },
+    demo: {
+      continue: "Continue",
+      focus: {
+        title: "Try focus mode",
+        intro: "Everything but the page disappears. Tap to begin, write a line of your own.",
+        tryButton: "Try focus mode",
+        sample:
+          "The rain had not stopped in three days, and the valley was beginning to flood. She stood at the window, waiting for a decision that was no longer hers to make.",
+      },
+      suggestions: {
+        title: "Suggestions, not overwrites",
+        intro: "Ciciro never silently rewrites you. Every change is a suggestion until you say yes.",
+        sentence: "She walked slowly to the door.",
+        clunky: "walked slowly",
+        better: "ambled",
+      },
+    },
+  },
   auth: {
     signIn: "Sign in",
     createAccount: "Create account",

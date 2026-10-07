@@ -46,6 +46,42 @@ const es: Translations = {
       "Haz vívido lo vago.",
     ],
   },
+  onboarding: {
+    skip: "Omitir",
+    goalQuestion: "¿En qué estás trabajando?",
+    obstacleQuestion: "¿Qué se te interpone?",
+    obstacles: {
+      zone: { label: "Mantenerte concentrado", description: "Las distracciones te sacan de la página." },
+      creativity: { label: "Creatividad", description: "Las ideas o el rumbo se estancan." },
+      consistency: {
+        label: "Sentarte a escribir con constancia",
+        description: "Lo difícil es presentarte con regularidad.",
+      },
+      block: { label: "Bloqueo del escritor", description: "La página sigue en blanco." },
+      self_criticism: {
+        label: "Autocrítica",
+        description: "Es difícil dejar que un borrador siga siendo un borrador.",
+      },
+      unsure: { label: "Aún no lo sé", description: "Por ahora solo estoy explorando." },
+    },
+    demo: {
+      continue: "Continuar",
+      focus: {
+        title: "Probar el modo enfoque",
+        intro: "Todo excepto la página desaparece. Toca para empezar y escribe una línea propia.",
+        tryButton: "Probar el modo enfoque",
+        sample:
+          "La lluvia no había cesado en tres días, y el valle empezaba a inundarse. Ella permanecía junto a la ventana, esperando una decisión que ya no le correspondía tomar.",
+      },
+      suggestions: {
+        title: "Sugerencias, no reescrituras",
+        intro: "Ciciro nunca te reescribe en silencio. Todo cambio es una sugerencia hasta que tú lo apruebas.",
+        sentence: "Ella caminó despacio hacia la puerta.",
+        clunky: "caminó despacio",
+        better: "se deslizó",
+      },
+    },
+  },
   auth: {
     signIn: "Iniciar sesión",
     createAccount: "Crear cuenta",
