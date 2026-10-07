@@ -7,6 +7,7 @@ import Editor, { type EditorHandle } from "@/components/Editor";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import ChatPanel, { type ChatHandle } from "@/components/ChatPanel";
 import StoryBible from "@/components/StoryBible";
+import KnowledgeBoard from "@/components/KnowledgeBoard";
 import StyleAnalysisPanel from "@/components/StyleAnalysisPanel";
 import AutoWrite from "@/components/AutoWrite";
 import OpenQuestions from "@/components/OpenQuestions";
@@ -109,6 +110,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     initialProject.chapters[0]?.id ?? null
   );
   const [bibleOpen, setBibleOpen] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const [knowledgeCharacterPath, setKnowledgeCharacterPath] = useState<string | null>(null);
   const [styleAnalysisOpen, setStyleAnalysisOpen] = useState(false);
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
@@ -550,7 +553,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   }, [focusPhase]);
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current =
-    bibleOpen || searchOpen || repetitionOpen || continuityOpen || questionsOpen || autoWriteOpen;
+    bibleOpen ||
+    knowledgeOpen ||
+    searchOpen ||
+    repetitionOpen ||
+    continuityOpen ||
+    questionsOpen ||
+    autoWriteOpen;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
@@ -1421,7 +1430,24 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       </Presence>
 
       <Presence open={bibleOpen}>
-        <StoryBible projectId={project.id} onClose={() => setBibleOpen(false)} />
+        <StoryBible
+          projectId={project.id}
+          onClose={() => setBibleOpen(false)}
+          onOpenKnowledge={(characterPath) => {
+            setBibleOpen(false);
+            setKnowledgeCharacterPath(characterPath ?? null);
+            setKnowledgeOpen(true);
+          }}
+        />
+      </Presence>
+
+      <Presence open={knowledgeOpen}>
+        <KnowledgeBoard
+          projectId={project.id}
+          chapters={project.chapters.map((c) => ({ id: c.id, title: c.title, order: c.order }))}
+          initialCharacterPath={knowledgeCharacterPath}
+          onClose={() => setKnowledgeOpen(false)}
+        />
       </Presence>
 
       <Presence open={styleAnalysisOpen}>

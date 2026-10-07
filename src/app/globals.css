@@ -4479,6 +4479,12 @@ input[type="file"]::file-selector-button {
   font-weight: 600;
   margin-bottom: 4px;
 }
+.knowledge-head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
 .knowledge-row {
   display: flex;
   align-items: flex-start;
@@ -4499,7 +4505,100 @@ input[type="file"]::file-selector-button {
   margin-top: 8px;
 }
 .knowledge-add input {
-  flex: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+}
+.knowledge-add select {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* ---------- Knowledge board (dedicated who-knows-what screen) ---------- */
+.kb-picker {
+  margin-bottom: 10px;
+}
+.kb-picker select {
+  width: 100%;
+}
+.kb-section {
+  margin-bottom: 16px;
+}
+.kb-section-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.kb-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.kb-row .knowledge-fact {
+  flex: 1 1 100%;
+}
+.kb-row-retired {
+  opacity: 0.7;
+}
+.kb-struck {
+  text-decoration: line-through;
+}
+.kb-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.kb-edit input {
+  flex: 1 1 160px;
+  min-width: 120px;
+}
+.kb-edit select {
+  flex: 0 0 auto;
+  width: auto;
+}
+.kb-retired {
+  margin-top: 4px;
+  padding-top: 4px;
+}
+.kb-add {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 8px;
+}
+.kb-add > select {
+  width: 100%;
+  margin-bottom: 6px;
+}
+/* The add row packs a stance select, the fact text, a chapter select, and
+   Add into one flex line (`.knowledge-add`, shared with CharacterKnowledge's
+   simpler 2-field row) - too many controls for the drawer's width to fit on
+   one line without squeezing the fact field to a sliver. Give the fact text
+   its own full-width line and wrap everything else onto the next. */
+.kb-add .knowledge-add {
+  flex-wrap: wrap;
+}
+.kb-add .knowledge-add input {
+  flex: 1 1 100%;
+  order: -1;
+  min-width: 0;
+}
+.kb-add .knowledge-add select,
+.kb-add .knowledge-add button {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.pill.knows {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.pill.believes {
+  color: var(--draft);
+  border-color: var(--draft);
 }
 
 /* ---------- Planning canvas ---------- */

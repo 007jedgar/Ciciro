@@ -15,11 +15,19 @@ type Props = {
   /** Unsaved edits in the file. Facts wait, so a save cannot overwrite the mirror. */
   dirty: boolean;
   onMirrored: () => void;
+  /** Open this character in the dedicated Knowledge screen (chapter picker, edit-in-place, retired history). */
+  onOpenKnowledgeScreen?: () => void;
 };
 
 // Add or retire a fact from the character file. The table is the source of
 // truth; the parent reloads the file so the mirror block matches.
-export default function CharacterKnowledge({ projectId, characterPath, dirty, onMirrored }: Props) {
+export default function CharacterKnowledge({
+  projectId,
+  characterPath,
+  dirty,
+  onMirrored,
+  onOpenKnowledgeScreen,
+}: Props) {
   const [facts, setFacts] = useState<Fact[]>([]);
   const [fact, setFact] = useState("");
   const [stance, setStance] = useState<KnowsStance>("knows");
@@ -79,10 +87,18 @@ export default function CharacterKnowledge({ projectId, characterPath, dirty, on
 
   return (
     <section className="knowledge-box" aria-label="Who knows what">
-      <div className="knowledge-head">Who knows what</div>
+      <div className="knowledge-head-row">
+        <div className="knowledge-head">Who knows what</div>
+        {onOpenKnowledgeScreen && (
+          <button type="button" className="btn ghost small" onClick={onOpenKnowledgeScreen}>
+            Open in Knowledge screen &rarr;
+          </button>
+        )}
+      </div>
       <p className="scratch-hint">
         What this character knows or believes. Keeping a fact here rewrites the block at the end of
-        the file. Retiring one leaves it in the history of the ledger and drops it from the file.
+        the file. Retiring one leaves it in the history of the ledger and drops it from the file. The
+        Knowledge screen adds a chapter picker and shows every character in chapter order.
       </p>
       {dirty && <p className="scratch-hint">Save the file before adding or retiring a fact.</p>}
       {error && (

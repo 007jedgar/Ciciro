@@ -18,6 +18,9 @@ import type {
   EmailPreferencesResponse,
   Folder,
   FolderCreateRequest,
+  KnowledgeFact,
+  KnowledgeFactCreateRequest,
+  KnowledgeFactPatchRequest,
   LoginRequest,
   PlotPoint,
   PlotPointCreateRequest,
@@ -402,6 +405,18 @@ export function usePlotPointsQuery(projectId: string, options?: Enabled) {
   return useQuery({
     queryKey: queryKeys.plotPoints(projectId),
     queryFn: () => ciciro.plotPoints.list(projectId),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useKnowledgeFactsQuery(
+  projectId: string,
+  params?: { characterPath?: string; includeRetired?: boolean },
+  options?: Enabled
+) {
+  return useQuery({
+    queryKey: queryKeys.knowledge.list(projectId, params?.characterPath, params?.includeRetired),
+    queryFn: () => ciciro.knowledge.list(projectId, params),
     enabled: (options?.enabled ?? true) && Boolean(projectId),
   });
 }
@@ -907,6 +922,69 @@ export function useDeletePlotPointMutation() {
     onSuccess: (_data, vars) => {
       invalidateProject(vars.projectId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.plotPoints(vars.projectId) });
+    },
+  });
+}
+
+function invalidateKnowledge(projectId: string) {
+  void queryClient.invalidateQueries({ queryKey: ["knowledge", projectId] });
+}
+
+export function useCreateKnowledgeFactMutation() {
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      body,
+    }: {
+      projectId: string;
+      body: KnowledgeFactCreateRequest;
+    }) => ciciro.knowledge.create(projectId, body),
+    onSuccess: (_data: KnowledgeFact, vars) => {
+      invalidateKnowledge(vars.projectId);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bible.index(vars.projectId) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.bible.file(vars.projectId, vars.body.characterPath),
+      });
+    },
+  });
+}
+
+export function usePatchKnowledgeFactMutation() {
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      factId,
+      body,
+    }: {
+      projectId: string;
+      factId: string;
+      characterPath: string;
+      body: KnowledgeFactPatchRequest;
+    }) => ciciro.knowledge.patch(projectId, factId, body),
+    onSuccess: (_data, vars) => {
+      invalidateKnowledge(vars.projectId);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.bible.file(vars.projectId, vars.characterPath),
+      });
+    },
+  });
+}
+
+export function useRetireKnowledgeFactMutation() {
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      factId,
+    }: {
+      projectId: string;
+      factId: string;
+      characterPath: string;
+    }) => ciciro.knowledge.retire(projectId, factId),
+    onSuccess: (_data, vars) => {
+      invalidateKnowledge(vars.projectId);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.bible.file(vars.projectId, vars.characterPath),
+      });
     },
   });
 }

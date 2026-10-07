@@ -63,7 +63,7 @@ function mockIndex(options?: {
 describe("StoryBibleIndex", () => {
   it("shows the starter files even when the server omits some of them", () => {
     mockIndex();
-    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} />);
+    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={jest.fn()} />);
     expect(screen.getByLabelText("Open Canon")).toBeTruthy();
     expect(screen.getByLabelText("Open Plot")).toBeTruthy();
     expect(screen.getByLabelText("Open Style")).toBeTruthy();
@@ -76,7 +76,7 @@ describe("StoryBibleIndex", () => {
   it("opens a file from the list", () => {
     mockIndex();
     const onOpenFile = jest.fn();
-    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={onOpenFile} />);
+    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={onOpenFile} onOpenKnowledge={jest.fn()} />);
     fireEvent.press(screen.getByLabelText("Open Canon"));
     expect(onOpenFile).toHaveBeenCalledWith("canon.md");
     unmount();
@@ -95,7 +95,7 @@ describe("StoryBibleIndex", () => {
     }));
     mockIndex({ createCharacter, createPlot });
     const onOpenFile = jest.fn();
-    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={onOpenFile} />);
+    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={onOpenFile} onOpenKnowledge={jest.fn()} />);
 
     fireEvent.changeText(screen.getByLabelText("New character name"), "Mara");
     fireEvent.press(screen.getByLabelText("Add character"));
@@ -115,7 +115,7 @@ describe("StoryBibleIndex", () => {
 
   it("keeps the add fields a gap above the keyboard", () => {
     mockIndex();
-    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} />);
+    const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={jest.fn()} />);
     expect(screen.getByTestId("bible-index").props.bottomOffset).toBe(24);
     unmount();
   });

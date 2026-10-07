@@ -23,6 +23,7 @@ export type KnowledgeFactView = {
   fact: string;
   stance: KnowsStance;
   chapterId: string | null;
+  chapter: { id: string; title: string; order: number } | null;
   sourceQuote: string;
   status: string;
 };
@@ -35,6 +36,7 @@ const factSelect = {
   chapterId: true,
   sourceQuote: true,
   status: true,
+  chapter: { select: { id: true, title: true, order: true } },
 } as const;
 
 function asView(row: {
@@ -43,6 +45,7 @@ function asView(row: {
   fact: string;
   stance: string;
   chapterId: string | null;
+  chapter: { id: string; title: string; order: number } | null;
   sourceQuote: string;
   status: string;
 }): KnowledgeFactView {
@@ -100,16 +103,26 @@ async function requireCharacterFile(projectId: string, characterPath: string): P
   if (!file) throw new AuthError("That character file does not exist yet.", 400);
 }
 
+/**
+ * The ledger for the Knowledge screen. `characterPath` omitted lists every
+ * character (grouped by the caller); `includeRetired` adds superseded rows
+ * alongside active ones so a screen can show the ledger's history.
+ */
 export async function listKnowledgeFacts(
   projectId: string,
   user: PublicUser | null,
-  characterPath: string
+  options: { characterPath?: string; includeRetired?: boolean } = {}
 ): Promise<KnowledgeFactView[]> {
   await authorizeOwnedProject(projectId, user);
-  if (!isCharacterPath(characterPath)) return [];
+  const { characterPath, includeRetired } = options;
+  if (characterPath && !isCharacterPath(characterPath)) return [];
   const rows = await prisma.knowledgeFact.findMany({
-    where: { projectId, characterPath, status: "active" },
-    orderBy: { createdAt: "asc" },
+    where: {
+      projectId,
+      ...(characterPath ? { characterPath } : {}),
+      ...(includeRetired ? {} : { status: "active" }),
+    },
+    orderBy: [{ characterPath: "asc" }, { createdAt: "asc" }],
     select: factSelect,
   });
   return rows.map(asView);
@@ -174,4 +187,52 @@ export async function retireKnowledgeFact(
     data: { status: "superseded" },
   });
   await refreshMirror(projectId, fact.characterPath);
+}
+
+/** Edit a fact's text, stance, and/or chapter in place. The character it belongs to never changes. */
+export async function updateKnowledgeFact(
+  projectId: string,
+  user: PublicUser | null,
+  factId: string,
+  input: { fact?: string; stance?: unknown; chapterId?: string | null }
+): Promise<KnowledgeFactView> {
+  await authorizeOwnedProject(projectId, user);
+  const existing = await prisma.knowledgeFact.findFirst({
+    where: { id: factId, projectId },
+    select: { id: true, characterPath: true },
+  });
+  if (!existing) throw new AuthError("Fact not found.", 404);
+
+  const data: { fact?: string; stance?: KnowsStance; chapterId?: string | null } = {};
+
+  if (input.fact !== undefined) {
+    const fact = input.fact.trim().slice(0, KNOWLEDGE_FACT_MAX);
+    if (!fact) throw new AuthError("Write the fact first.", 400);
+    data.fact = fact;
+  }
+  if (input.stance !== undefined) {
+    const stance = parseStance(input.stance);
+    if (!stance) throw new AuthError("Stance must be knows or believes.", 400);
+    data.stance = stance;
+  }
+  if (input.chapterId !== undefined) {
+    if (input.chapterId) {
+      const chapter = await prisma.chapter.findFirst({
+        where: { id: input.chapterId, projectId },
+        select: { id: true },
+      });
+      if (!chapter) throw new AuthError("Chapter not found.", 404);
+      data.chapterId = chapter.id;
+    } else {
+      data.chapterId = null;
+    }
+  }
+
+  const updated = await prisma.knowledgeFact.update({
+    where: { id: existing.id },
+    data,
+    select: factSelect,
+  });
+  await refreshMirror(projectId, existing.characterPath);
+  return asView(updated);
 }

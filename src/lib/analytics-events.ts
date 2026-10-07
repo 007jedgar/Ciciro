@@ -105,6 +105,8 @@ export type EventCatalog = {
   scratchpad_used: NoProperties;
   state_review_run: NoProperties;
   knowledge_fact_kept: NoProperties;
+  knowledge_fact_added: NoProperties;
+  knowledge_fact_retired: NoProperties;
   canvas_card_created: NoProperties;
   canvas_generated: { mode: "fill" | "outline" | "options" };
 

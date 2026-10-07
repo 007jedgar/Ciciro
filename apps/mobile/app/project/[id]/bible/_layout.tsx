@@ -21,6 +21,7 @@ export default function StoryBibleStackLayout() {
         // list it came from first, then the file folding away to the right.
         options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS}
       />
+      <Stack.Screen name="knowledge" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
     </Stack>
   );
 }

@@ -10,11 +10,13 @@ type Entry = { path: string; summary: string };
 type Props = {
   projectId: string;
   onClose: () => void;
+  /** Open the dedicated Knowledge screen, optionally scoped to one character. */
+  onOpenKnowledge: (characterPath?: string) => void;
 };
 
 // The bible is now a folder of markdown files on disk. This drawer is a small
 // editor over those files - the same files the editor (Opus) reads and writes.
-export default function StoryBible({ projectId, onClose }: Props) {
+export default function StoryBible({ projectId, onClose, onOpenKnowledge }: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [content, setContent] = useState("");
@@ -85,6 +87,16 @@ export default function StoryBible({ projectId, onClose }: Props) {
 
         {!openPath ? (
           <>
+            <div
+              className="bible-item"
+              role="button"
+              onClick={() => onOpenKnowledge()}
+            >
+              <div style={{ fontWeight: 600, fontSize: 13 }}>Knowledge</div>
+              <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                Who knows what, by character, in chapter order.
+              </div>
+            </div>
             {entries.map((e) => (
               <div
                 className="bible-item"
@@ -141,6 +153,7 @@ export default function StoryBible({ projectId, onClose }: Props) {
                 characterPath={openPath}
                 dirty={!saved}
                 onMirrored={() => open(openPath)}
+                onOpenKnowledgeScreen={() => onOpenKnowledge(openPath)}
               />
             )}
           </>

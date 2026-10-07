@@ -8,13 +8,18 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// GET /api/projects/:id/knowledge?characterPath=characters/<slug>.md
+// GET /api/projects/:id/knowledge?characterPath=characters/<slug>.md&includeRetired=1
+// characterPath omitted lists every character; includeRetired=1 adds superseded facts.
 export async function GET(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await getSessionUser(req);
-  const characterPath = new URL(req.url).searchParams.get("characterPath") ?? "";
+  const url = new URL(req.url);
+  const characterPath = url.searchParams.get("characterPath") || undefined;
+  const includeRetired = url.searchParams.get("includeRetired") === "1";
   try {
-    return NextResponse.json({ facts: await listKnowledgeFacts(id, user, characterPath) });
+    return NextResponse.json({
+      facts: await listKnowledgeFacts(id, user, { characterPath, includeRetired }),
+    });
   } catch (error) {
     const failure = responseFromAuthError(error) ?? responseFromDbError(error);
     if (failure) return failure;
