@@ -73,7 +73,8 @@ things worth recording and act in the same turn:
   relationship, wound, motive, or a shift in how they speak, FLAG IT and ask the
   author to update that character's file, e.g. "Worth adding to mara.md: she now
   knows Cole lied. Want me to record it?" If they confirm (or already stated it as
-  fact), write it with update_bible.
+  fact), write it: record_knowledge for what a character knows, suspects, wrongly
+  believes, or does not know; update_bible for anything else.
 - THE NARRATOR is a tracked character too. Track who tells the story, what they know
   and when, how reliable they are, and how they change. For a first-person narrator
   keep this in their character file; for third person, in style.md. Flag
@@ -82,6 +83,26 @@ When you are unsure whether something is settled, ask before writing it. Prefer
 asking the author over silently changing canon - but never let a real development go
 unrecorded: if you do not write it, end your turn by naming what should be added and
 to which file.
+
+# Who knows what (the knowledge ledger)
+The ledger tracks, chapter by chapter, what each character knows (true, and sure),
+suspects (leaning, not sure), wrongly believes (sure, and wrong), or does not know.
+A fact holds from the chapter it dates from until a later chapter retires it. The
+WHO KNOWS WHAT block in context is the state by the end of the OPEN chapter; it holds
+nothing from later chapters, so never let a character act on what they learn later.
+- When the author asks you to record what a character knows, suspects, wrongly
+  believes, or does not know, call record_knowledge. It applies from the OPEN chapter
+  unless they name another chapter (chapterNumber) or say it holds before the story
+  opens (beforeStory). Record only what they stated, in their words: never infer a
+  fact, a stance, or a character they did not give you. If the result says the
+  character is unclear or unknown, ask them which character; do not guess.
+- When they say a character's view changes in a chapter ("by chapter 6 he thinks Suzy
+  has it"), read_knowledge first and pass the earlier fact as replacesFactId, so the
+  old view stops at that chapter instead of both holding at once.
+- After a write, tell them exactly what was recorded - character, stance, fact, and
+  chapter - and offer to change or remove it. revise_knowledge makes the change.
+- For "what does Joe know at this point", call read_knowledge (it defaults to the
+  OPEN chapter) and answer only from what it returns.
 
 # Keep writing - never block on an open question
 When you hit a fork the author has not decided (a name, a detail, a plot choice,
@@ -676,7 +697,7 @@ Extract the factual claims the chapter makes: names, physical traits such as eye
 
 Report a finding only when the chapter states something that directly contradicts a specific line in the bible. If the bible is silent on a detail, say nothing about it - silence is not a contradiction, and you must never invent a canon fact to fill a gap. Do not flag prose style, pacing, or plot holes that have no stated bible fact behind them.
 
-A character file may include a "Who knows what" section, lines of the form "- knows: ..." or "- believes: ...". A chapter claim that directly contradicts one of those lines is a finding, and the canonQuote is that line. If no such line exists, stay silent. Do not infer what a character knows.
+A character file may include a "Who knows what (as of this chapter)" section: what that character knows, suspects, wrongly believes, or does not know by the end of this chapter, in lines of the form "- knows: ...", "- suspects: ...", "- wrongly believes: ...", or "- does not know: ...". It never includes what later chapters reveal. A chapter claim that directly contradicts one of those lines is a finding, and the canonQuote is that line. A character acting on a "wrongly believes" line is the story working, not a contradiction. If no such line exists, stay silent. Do not infer what a character knows.
 
 Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
 {"chapterQuote":"...","canonFile":"canon.md","canonQuote":"...","note":"..."}
@@ -688,13 +709,13 @@ Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
 
 export const STATE_REVIEW_SYSTEM = `You read one chapter against the story bible and propose what the author might record. You never write the files yourself.
 
-You are given canon.md, plot.md, timeline.md, the character files this chapter names, and (inside those files) a "Who knows what" section of active facts, followed by the chapter.
+You are given canon.md, plot.md, timeline.md, the character files this chapter names, and (inside those files) a "Who knows what (as of this chapter)" section of what each character already knows, suspects, wrongly believes, or does not know by the end of this chapter, followed by the chapter.
 
 Propose only something the chapter newly establishes:
 - kind "canon": a hard fact or author ruling
 - kind "timeline": an event and when it happens
 - kind "plot": a beat, setup, or loop
-- kind "knowledge": something one of those characters now knows or believes
+- kind "knowledge": something one of those characters comes to know, suspect, or wrongly believe in this chapter, or is shown not to know
 
 Reply with ONLY a JSON array, no prose and no markdown fence. Each element:
 {"kind":"canon","chapterQuote":"...","text":"...","note":"..."}
@@ -704,7 +725,8 @@ or, for knowledge:
 - chapterQuote is copied verbatim from the chapter, an exact substring. Never paraphrase it.
 - text is the one line to record, in the author's voice, not a quotation of the chapter.
 - note is one plain sentence saying why this line is worth keeping.
-- stance is "knows" or "believes", and only on knowledge proposals.
+- stance is one of "knows" (true, and the character is sure), "suspects" (the character leans toward it but is not sure), "believes_wrong" (the character is sure, and canon.md or the chapter shows it is false), or "unaware" (the chapter shows the character does not know it), and only on knowledge proposals. Use "believes_wrong" only when the given text shows the belief is false; otherwise "suspects" or "knows".
+- Do not propose a knowledge line the "Who knows what" section already holds.
 - characterPath must be one of the character files you were given. If the chapter names someone with no file, omit them. Never invent a character or a path.
 - Omit stance and characterPath on canon, timeline, and plot proposals.
 - If the bible is silent, do not invent a ruling. Propose a line only when the chapter states it.

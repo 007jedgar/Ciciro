@@ -105,12 +105,19 @@ describe("continuity check", () => {
     const one = await chapterOf(project.id, "One", "<p>Aiden arrived at dawn.</p>", 0);
     const two = await chapterOf(project.id, "Two", "<p>Aiden left at dusk.</p>", 1);
     const empty = await chapterOf(project.id, "Empty", "", 2);
-    reply(
-      JSON.stringify([
-        { chapterQuote: "arrived at dawn", canonFile: "canon.md", canonQuote: "Aiden works nights.", note: "Time of day." },
-      ])
-    );
-    reply("[]");
+    // Chapters are checked concurrently, so answer by chapter, not by call order.
+    mocks.create.mockImplementation(async (req: { messages: { content: string }[] }) => ({
+      content: [
+        {
+          type: "text",
+          text: req.messages[0].content.includes("# Chapter: One")
+            ? JSON.stringify([
+                { chapterQuote: "arrived at dawn", canonFile: "canon.md", canonQuote: "Aiden works nights.", note: "Time of day." },
+              ])
+            : "[]",
+        },
+      ],
+    }));
 
     const result = await runContinuityCheck(project.id, user, { scope: "book" });
 
@@ -237,6 +244,44 @@ describe("continuity check", () => {
     expect(sent).toContain("## characters/mara.md");
     expect(sent).toContain("- knows: The vault is empty");
     expect(sent).toContain("Mara has green eyes.");
+  });
+
+  it("checks each chapter of the book against what its characters know by that chapter's end", async () => {
+    const { user, project } = await seed();
+    await writeBibleFile(project.id, "characters/joe.md", "# Joe\n> Character\nA locksmith.");
+    const early = await chapterOf(project.id, "The Shop", "<p>Joe has no idea who took the pen.</p>", 0);
+    const late = await chapterOf(project.id, "The Attic", "<p>Joe watches Suzy pocket something.</p>", 1);
+    await prisma.knowledgeFact.create({
+      data: {
+        projectId: project.id,
+        characterPath: "characters/joe.md",
+        fact: "Suzy has the pen",
+        stance: "suspects",
+        chapterId: late.id,
+        status: "active",
+      },
+    });
+    await prisma.knowledgeFact.create({
+      data: {
+        projectId: project.id,
+        characterPath: "characters/joe.md",
+        fact: "Who took the pen",
+        stance: "unaware",
+        status: "superseded",
+        supersededAtChapterId: late.id,
+      },
+    });
+    mocks.create.mockResolvedValue({ content: [{ type: "text", text: "[]" }] });
+
+    await runContinuityCheck(project.id, user, { scope: "book" });
+
+    const prompts = mocks.create.mock.calls.map((call) => call[0].messages[0].content as string);
+    const forEarly = prompts.find((p) => p.includes(`# Chapter: ${early.title}`)) ?? "";
+    const forLate = prompts.find((p) => p.includes(`# Chapter: ${late.title}`)) ?? "";
+    expect(forEarly).toContain("- does not know: Who took the pen");
+    expect(forEarly).not.toContain("Suzy has the pen");
+    expect(forLate).toContain("- suspects: Suzy has the pen");
+    expect(forLate).not.toContain("Who took the pen");
   });
 
   it("keeps checks scoped to the owner's own project", async () => {

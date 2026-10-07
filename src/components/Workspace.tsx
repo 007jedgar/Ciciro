@@ -1430,6 +1430,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       <Presence open={bibleOpen}>
         <StoryBible
           projectId={project.id}
+          activeChapter={project.chapters.find((c) => c.id === activeId) ?? null}
           onClose={() => setBibleOpen(false)}
           onOpenKnowledge={(characterPath) => {
             setBibleOpen(false);
@@ -1443,6 +1444,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <KnowledgeBoard
           projectId={project.id}
           chapters={project.chapters.map((c) => ({ id: c.id, title: c.title, order: c.order }))}
+          activeChapterId={activeId}
           initialCharacterPath={knowledgeCharacterPath}
           onClose={() => setKnowledgeOpen(false)}
         />

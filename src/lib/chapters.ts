@@ -7,6 +7,7 @@ import { ensureChaptersBlockIds } from "@/lib/block-ids";
 import { diffHtmlToOps, stampBlockIds } from "@/lib/manuscript";
 import { nextChapterTitle, normalizeKind, openingChapter } from "@/lib/manuscript-kind";
 import { chapterWordCount, isChapterEmpty } from "@/lib/text";
+import { moveKnowledgeOffChapter } from "@/lib/knowledge";
 
 /** Live chapters the author still sees. Archived rows are hidden, not deleted. */
 export const visibleChapterWhere = { archivedAt: null } as const;
@@ -241,6 +242,7 @@ export async function deleteChapter(id: string, user: PublicUser | null) {
       chapterId: id,
     });
   }
+  await moveKnowledgeOffChapter(chapter.projectId, id);
   await prisma.chapter.delete({ where: { id } });
 
   const remaining = await prisma.chapter.findMany({

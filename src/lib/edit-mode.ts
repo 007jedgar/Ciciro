@@ -33,7 +33,12 @@ export function editModeOfRuns(
   return latest ? editModeFor(latest.editsAllowed) : DEFAULT_EDIT_MODE;
 }
 
-/** Tools that change the manuscript's chapters. Story-bible and question tools are not among them. */
+/**
+ * Tools that change the manuscript's chapters. Story-bible tools (append_canon,
+ * update_bible, and the who-knows-what ledger's record_knowledge and
+ * revise_knowledge) and question tools are not among them, so a Chat only turn
+ * can still record what the author asks it to.
+ */
 export const MANUSCRIPT_WRITE_TOOLS: readonly string[] = [
   "delete_passages",
   "split_chapter_at",

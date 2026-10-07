@@ -106,6 +106,8 @@ export function backstageLine(
   } else if (
     a === "append_canon" ||
     a === "update_bible" ||
+    a === "record_knowledge" ||
+    a === "revise_knowledge" ||
     a.includes("canon") ||
     a.includes("bible")
   ) {

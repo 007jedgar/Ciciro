@@ -136,7 +136,7 @@ describe("chapter-close review", () => {
     const file = await readBibleFile(project.id, "characters/mara.md");
     expect(file).toContain("Brave.");
     expect(file).toContain("<!-- knows:start -->");
-    expect(file).toContain("- knows: The vault is empty");
+    expect(file).toMatch(/- knows \(from "[^"]+"\): The vault is empty/);
     expect(file).toContain("<!-- knows:end -->");
     expect(await readBibleFile(project.id, "canon.md")).toContain("Mara tells no one the vault is empty");
   });

@@ -95,6 +95,43 @@ describe("diffSchemas against the real Prisma schema", () => {
     expect(diffSchemas(expected, live).errors).toEqual([]);
   });
 
+  it("names the knowledge as-of script, which moves the first vocabulary's believes rows to suspects", () => {
+    // KnowledgeFact as d1-knowledge-and-canvas.sql first made it in production.
+    const original = readFileSync(join(root, "prisma/d1-knowledge-and-canvas.sql"), "utf8");
+    const staleSql = liveFrom(expected, `DROP TABLE "KnowledgeFact";\n${original}`);
+    const { errors, missing } = diffSchemas(expected, staleSql);
+    expect([...errors].sort()).toEqual([
+      "missing column KnowledgeFact.supersededAtChapterId",
+      "missing column KnowledgeFact.topic",
+    ]);
+    const scripts = upgradeScriptsFor(join(root, "prisma"), missing);
+    expect(scripts).toEqual(["prisma/d1-knowledge-as-of.sql"]);
+
+    const db = new DatabaseSync(":memory:");
+    db.exec(staleSql);
+    db.exec("PRAGMA foreign_keys = OFF;");
+    const insert = db.prepare(
+      `INSERT INTO "KnowledgeFact" ("id", "projectId", "characterPath", "fact", "stance", "updatedAt") VALUES (?, 'p', 'characters/joe.md', ?, ?, CURRENT_TIMESTAMP)`
+    );
+    insert.run("a", "Suzy has the pen", "believes");
+    insert.run("b", "He locks up at dusk", "knows");
+    db.exec(readFileSync(join(root, scripts[0]), "utf8"));
+    const rows = db
+      .prepare(`SELECT "id", "stance", "topic", "supersededAtChapterId" FROM "KnowledgeFact" ORDER BY "id"`)
+      .all();
+    expect(rows).toEqual([
+      { id: "a", stance: "suspects", topic: null, supersededAtChapterId: null },
+      { id: "b", stance: "knows", topic: null, supersededAtChapterId: null },
+    ]);
+    const fixed = db.prepare("SELECT type, name, sql FROM sqlite_master").all() as Array<{
+      type: string;
+      name: string;
+      sql: string | null;
+    }>;
+    db.close();
+    expect(diffSchemas(expected, liveSchemaSql(fixed))).toEqual({ errors: [], warnings: [], missing: [] });
+  });
+
   it("the suggested scripts bring a stale D1 back in line", () => {
     const stale = liveFrom(
       expected,

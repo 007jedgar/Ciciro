@@ -56,6 +56,7 @@ import {
 import { runRanker } from "@/lib/fast-lane";
 import type { ClientUiEvent } from "@/lib/types";
 import { isManuscriptWriteTool } from "@/lib/edit-mode";
+import { executeKnowledgeTool, KNOWLEDGE_TOOLS } from "@/lib/knowledge-tools";
 
 export type { ClientUiEvent };
 
@@ -502,6 +503,8 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
       required: ["query"],
     },
   },
+  // The who-knows-what ledger: story-bible writes, offered on Chat only turns too.
+  ...KNOWLEDGE_TOOLS,
 ];
 
 function elementBefore(html: string, at: number): ScreenplayElement | undefined {
@@ -736,6 +739,9 @@ export async function executeEditorTool(
         "Not run: the author has turned edits off for this conversation (Chat only). The manuscript was not changed. Tell them edits are off and that they can switch to Allow edits for you to make this change.",
     };
   }
+
+  const knowledge = await executeKnowledgeTool(name, input, ctx);
+  if (knowledge) return knowledge;
 
   switch (name) {
     case "list_bible": {

@@ -152,6 +152,12 @@ export type DraftInsertion = {
 /** Live UI side-effects from editor tools, streamed as {"type":"ui",...}. */
 export type ClientUiEvent =
   | {
+      // A chat tool changed the who-knows-what ledger (and that character
+      // file's mirror block), so a client holding either should refetch.
+      type: "knowledge_changed";
+      characterPath: string;
+    }
+  | {
       type: "open_chapter";
       chapterId: string;
       number: number;

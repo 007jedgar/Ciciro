@@ -5,6 +5,8 @@ import DrawerHead from "@/components/DrawerHead";
 import { reportAiLimit } from "@/lib/billing-client";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { StateProposalDraft } from "@/lib/state-review-view";
+import { StancePill } from "@/components/KnowledgeStance";
+import { characterLabel } from "@/lib/knowledge-view";
 
 type Props = {
   projectId: string;
@@ -123,9 +125,14 @@ export default function StateReviewPanel({ projectId, chapterId, chapterTitle, o
                   <div className="beta-meta">{KIND_LABEL[proposal.kind]}</div>
                   <blockquote className="beta-quote">{proposal.chapterQuote}</blockquote>
                   <p className="beta-body">
-                    {proposal.kind === "knowledge"
-                      ? `${proposal.characterPath} ${proposal.stance}: ${proposal.text}`
-                      : proposal.text}
+                    {proposal.kind === "knowledge" && proposal.stance && proposal.characterPath ? (
+                      <>
+                        <span className="knowledge-who">{characterLabel(proposal.characterPath)}</span>{" "}
+                        <StancePill stance={proposal.stance} /> {proposal.text}
+                      </>
+                    ) : (
+                      proposal.text
+                    )}
                   </p>
                   {proposal.note && <p className="scratch-hint">{proposal.note}</p>}
                   <div className="beta-actions">

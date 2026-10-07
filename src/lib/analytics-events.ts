@@ -107,6 +107,9 @@ export type EventCatalog = {
   knowledge_fact_kept: NoProperties;
   knowledge_fact_added: NoProperties;
   knowledge_fact_retired: NoProperties;
+  knowledge_fact_replaced: NoProperties;
+  knowledge_scrubber_used: NoProperties;
+  knowledge_fact_added_via_chat: NoProperties;
   canvas_card_created: NoProperties;
   canvas_generated: { mode: "fill" | "outline" | "options" };
 
