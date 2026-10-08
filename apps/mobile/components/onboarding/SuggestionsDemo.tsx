@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
+import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
+import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ChapterEditor } from "../ChapterEditor";
 import { SuggestionsPill, SuggestionsSheet } from "../SuggestionsReview";
 import { OnboardingHeader } from "./OnboardingHeader";
+import { KeyboardDoneBar } from "./KeyboardDoneBar";
 import { OnboardingThread } from "./OnboardingThread";
 import { PressableCard } from "../PressableCard";
 import { useAppTheme } from "../../lib/settings";
@@ -57,11 +60,19 @@ export function SuggestionsDemo({
   );
   const [reviewOpen, setReviewOpen] = useState(false);
   const completedRef = useRef(false);
+  const editorRef = useRef<EnrichedTextInputInstance | null>(null);
+  const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const suggestions = useMemo(() => listSuggestions(html), [html]);
 
   useEffect(() => {
     getAnalytics().track("onboarding_demo_viewed", { path });
   }, [path]);
+
+  // Tapping outside the page and the Done bar both close the keyboard, so Continue is never stranded behind it.
+  function dismissKeyboard() {
+    editorRef.current?.blur();
+    Keyboard.dismiss();
+  }
 
   function markCompleted() {
     if (completedRef.current) return;
@@ -82,18 +93,18 @@ export function SuggestionsDemo({
   };
 
   return (
-    <View style={layout.screen}>
+    <KeyboardAvoidingView style={layout.screen} behavior="padding" automaticOffset>
       <OnboardingHeader
         onBack={() => backOr("/")}
         onSkip={onSkip}
         thread={<OnboardingThread steps={steps} current="demo" />}
       />
-      <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+      <Pressable onPress={dismissKeyboard} accessible={false} style={{ paddingHorizontal: 20, paddingTop: 16 }}>
         <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.suggestions.title")}</Text>
         <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
           {t("onboarding.demo.suggestions.intro")}
         </Text>
-      </View>
+      </Pressable>
       <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
         <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />
       </View>
@@ -110,7 +121,9 @@ export function SuggestionsDemo({
           onChangeText={() => {}}
           onChangeState={() => {}}
           onChangeSelection={() => {}}
-          registerEditor={() => {}}
+          registerEditor={(ref) => {
+            editorRef.current = ref;
+          }}
           testID="onboarding-suggestions-editor"
         />
       </View>
@@ -120,6 +133,9 @@ export function SuggestionsDemo({
         onClose={() => setReviewOpen(false)}
         onResolve={resolve}
       />
+      {keyboardVisible ? (
+        <KeyboardDoneBar onPress={dismissKeyboard} />
+      ) : (
       <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24, paddingTop: 8 }}>
         <PressableCard
           accent
@@ -134,6 +150,7 @@ export function SuggestionsDemo({
           <Text style={layout.primaryBtnText}>{t("onboarding.demo.continue")}</Text>
         </PressableCard>
       </View>
-    </View>
+      )}
+    </KeyboardAvoidingView>
   );
 }
