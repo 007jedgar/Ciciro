@@ -447,7 +447,7 @@ export function AuthScreen({
                   }
                   accessibilityRole="link"
                   hitSlop={8}
-                  style={({ pressed }) => [styles.forgot, { opacity: pressed ? 0.5 : 1 }]}
+                  style={({ pressed }) => [styles.forgot, { minHeight: 44, justifyContent: "center", opacity: pressed ? 0.5 : 1 }]}
                 >
                   <Text style={[styles.forgotText, { color: colors.accent }]}>{t("auth.forgotPassword")}</Text>
                 </Pressable>
@@ -491,7 +491,7 @@ export function AuthScreen({
                 onPress={toggleMode}
                 accessibilityRole="button"
                 accessibilityLabel={isSignup ? t("auth.signInInstead") : t("auth.createInstead")}
-                style={({ pressed }) => [styles.footer, { opacity: pressed ? 0.5 : 1 }]}
+                style={({ pressed }) => [styles.footer, { minHeight: 44, justifyContent: "center", opacity: pressed ? 0.5 : 1 }]}
               >
                 <View style={styles.footerLabel}>
                   <Animated.Text style={[layout.body, styles.stackAbsCentered, signinTextStyle]}>

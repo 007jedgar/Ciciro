@@ -146,7 +146,9 @@ export function AppHeader({
             <Animated.Text
               key={title}
               entering={reduceMotion ? undefined : FadeIn.duration(180)}
-              numberOfLines={1}
+              // Two lines at most: at the largest Dynamic Type sizes a one-line title truncates to "Ma...".
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.5}
               accessibilityRole="header"
               style={[styles.title, { color: colors.ink }]}
             >
