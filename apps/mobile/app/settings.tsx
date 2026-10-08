@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { ThemeCard } from "../components/ThemeCard";
+import { ThemeWashHost } from "../components/ThemeWashHost";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
 import { ApiError, API_URL } from "../lib/api/client";
 import { ciciro } from "../lib/api";
@@ -58,6 +59,9 @@ const themeRows = THEME_META.reduce<(typeof THEME_META)[]>((rows, theme, i) => {
   else rows[rows.length - 1]!.push(theme);
   return rows;
 }, []);
+
+/** About how long `GlassSheet` takes to leave (its EXIT_MS), so a theme wash starts on a clear screen. */
+const THEME_SHEET_EXIT_MS = 240;
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
 
@@ -1059,6 +1063,9 @@ export default function SettingsScreen() {
         </Group>
       </ScrollView>
 
+      {/* Settings is presented as a modal, above the root's wash. */}
+      <ThemeWashHost />
+
       <GlassSheet
         visible={sheet !== null}
         onClose={() => setSheet(null)}
@@ -1089,10 +1096,13 @@ export default function SettingsScreen() {
                     theme={theme.id}
                     selected={settings.theme === theme.id}
                     onPress={(event) => {
-                      if (theme.id !== settings.theme) {
-                        changeTheme(theme.id, () => patch({ theme: theme.id }), event);
-                      }
                       setSheet(null);
+                      if (theme.id === settings.theme) return;
+                      // The sheet is a Modal, above the wash: let it leave first.
+                      setTimeout(
+                        () => changeTheme(theme.id, () => patch({ theme: theme.id }), event),
+                        reduceMotion ? 0 : THEME_SHEET_EXIT_MS
+                      );
                     }}
                   />
                 ))}

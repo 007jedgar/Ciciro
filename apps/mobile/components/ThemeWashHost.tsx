@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { EASE_OUT } from "../lib/motion";
 import {
+  applyThemeWash,
   finishThemeWash,
   getThemeWash,
   subscribeThemeWash,
@@ -28,7 +29,7 @@ function WashPaper({ wash }: { wash: ThemeWash }) {
     const done = () => finishThemeWash(wash.id);
     // Back on the JS thread once the paper is solid: swap, then lift the paper.
     const covered = () => {
-      wash.apply();
+      applyThemeWash(wash.id);
       opacity.value = withTiming(0, { duration: WASH_FADE_MS, easing: Easing.out(Easing.quad) }, (faded) => {
         if (faded) runOnJS(done)();
       });
@@ -67,7 +68,10 @@ function WashPaper({ wash }: { wash: ThemeWash }) {
   );
 }
 
-/** Paints the active theme wash above the whole app. Mount once, at the root. */
+/**
+ * Paints the active theme wash above everything in its parent. Mount it at the
+ * root, and inside any screen presented as a modal (those sit above the root).
+ */
 export function ThemeWashHost() {
   const wash = useSyncExternalStore(subscribeThemeWash, getThemeWash, getThemeWash);
   if (!wash) return null;

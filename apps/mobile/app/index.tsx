@@ -11,6 +11,7 @@ import { LivingPage } from "../components/LivingPage";
 import { restoreLastPlace } from "../lib/last-place";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
+import { useThemePreview } from "../lib/theme-preview-context";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 
 function BlinkingCursor({ color }: { color: string }) {
@@ -57,6 +58,14 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
   const { colors } = useAppTheme();
+  const { setPreview } = useThemePreview();
+
+  // Coming back to Welcome from the onboarding drops the look it was trying on.
+  useFocusEffect(
+    useCallback(() => {
+      setPreview(null);
+    }, [setPreview])
+  );
 
   if (!ready) {
     return (

@@ -345,7 +345,12 @@ export function AuthScreen({
         // The thread's last knot: the line finishes here, at the account.
         <Animated.View
           pointerEvents="none"
-          style={[styles.thread, { top: insets.top + HEADER_H }, titleStyle]}
+          style={[
+            styles.thread,
+            // On the brand mark's row (40 tall), to its right.
+            { top: insets.top + HEADER_H + 6 + 10, left: insets.left + 16 + 56 },
+            titleStyle,
+          ]}
         >
           <Animated.View style={signupTextStyle}>
             <OnboardingThread steps={stepsFor(onboarding.obstacles)} current="account" />
@@ -581,7 +586,7 @@ export function AuthScreen({
 }
 
 const styles = StyleSheet.create({
-  thread: { position: "absolute", left: 24, right: 24, zIndex: 2 },
+  thread: { position: "absolute", right: 24, zIndex: 2 },
   root: { flex: 1 },
   header: {
     position: "absolute",

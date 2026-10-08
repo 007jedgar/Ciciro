@@ -10,8 +10,8 @@ import Animated, {
 import { EASE_OUT } from "../../lib/motion";
 import { useAppTheme } from "../../lib/settings";
 
-const DOTS = 18;
-const BURST_MS = 760;
+const DOTS = 28;
+const BURST_MS = 900;
 
 function Dot({
   progress,
@@ -33,7 +33,7 @@ function Dot({
       transform: [
         { translateX: Math.cos(angle) * reach * p },
         // A little fall, so the dots settle instead of hanging in the air.
-        { translateY: Math.sin(angle) * reach * p + 26 * p * p },
+        { translateY: Math.sin(angle) * reach * p + 40 * p * p },
         { scale: 1 - 0.55 * p },
       ],
     };
@@ -75,8 +75,8 @@ export function SuccessBurst({ onDone }: { onDone: () => void }) {
             key={i}
             progress={progress}
             angle={(i / DOTS) * Math.PI * 2 + (i % 2) * 0.17}
-            reach={96 + (i % 3) * 38}
-            size={6 + (i % 4) * 2}
+            reach={120 + (i % 4) * 46}
+            size={9 + (i % 4) * 3}
             color={palette[i % palette.length]!}
           />
         ))}
