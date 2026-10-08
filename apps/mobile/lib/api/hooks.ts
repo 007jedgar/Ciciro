@@ -532,6 +532,15 @@ export function useDeleteProjectMutation() {
     mutationFn: (id: string) => ciciro.projects.delete(id),
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: queryKeys.projects.detail(id) });
+      // The library is what the author lands on next: drop the row from the
+      // cache now so it mounts with its final rows instead of reflowing when
+      // the refetch below arrives mid-entrance.
+      queryClient.setQueryData<ProjectListItem[]>(queryKeys.projects.list(), (list) =>
+        list?.filter((p) => p.id !== id)
+      );
+      queryClient.setQueryData<Folder[]>(queryKeys.folders.list(), (list) =>
+        list?.map((f) => removeFromFolder(f, [id]))
+      );
       void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
       invalidateFolders();
     },

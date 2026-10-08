@@ -981,7 +981,7 @@ const en = {
     savedDenied: "Saved. Allow notifications for Ciciro and the phone will start reminding you.",
     savedUnavailable: "Saved on this phone. Notifications start working on a fresh install of Ciciro.",
     scheduleFailed: "Saved, but the phone could not schedule every reminder. Try again in a moment.",
-    openSettings: "Open Settings",
+    openSettings: "Open system settings",
     delete: "Delete reminder",
     deleteConfirm: "Delete this reminder",
     daysRequired: "Pick at least one day.",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -40,6 +40,8 @@ export function ManuscriptDetails({
   const [title, setTitle] = useState(project.title);
   const [author, setAuthor] = useState(project.author);
   const [logline, setLogline] = useState(project.logline);
+  const authorRef = useRef<TextInput>(null);
+  const loglineRef = useRef<TextInput>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,10 +119,13 @@ export function ManuscriptDetails({
           setSaved(false);
         }}
         returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => authorRef.current?.focus()}
       />
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("details.authorLabel")}</Text>
       <TextInput
         {...fieldProps}
+        ref={authorRef}
         aria-label={t("details.authorLabel")}
         value={author}
         onChangeText={(next) => {
@@ -129,10 +134,13 @@ export function ManuscriptDetails({
         }}
         autoComplete="name"
         returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => loglineRef.current?.focus()}
       />
       <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{loglineLabel}</Text>
       <TextInput
         {...fieldProps}
+        ref={loglineRef}
         aria-label={loglineLabel}
         value={logline}
         onChangeText={(next) => {

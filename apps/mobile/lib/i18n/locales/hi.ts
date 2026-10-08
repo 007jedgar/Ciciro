@@ -982,7 +982,7 @@ const hi: Translations = {
     savedDenied: "सहेजा गया। Ciciro की सूचनाएँ अनुमति दें, तब फ़ोन याद दिलाना शुरू करेगा।",
     savedUnavailable: "इस फ़ोन पर सहेजा गया। सूचनाएँ Ciciro की नई इंस्टॉल पर चलती हैं।",
     scheduleFailed: "सहेजा गया, लेकिन फ़ोन हर सूचना शेड्यूल नहीं कर सका। थोड़ी देर में फिर कोशिश करें।",
-    openSettings: "सेटिंग खोलें",
+    openSettings: "सिस्टम सेटिंग खोलें",
     delete: "अनुस्मारक हटाएँ",
     deleteConfirm: "यह अनुस्मारक हटाएँ",
     daysRequired: "कम से कम एक दिन चुनें।",
