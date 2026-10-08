@@ -33,6 +33,8 @@ type Props = {
   activeChapterId?: string | null;
   /** Pre-select one character, e.g. opened from that character's file editor. */
   initialCharacterPath?: string | null;
+  /** Bumped when a chat run changes the ledger, so the open board refetches. */
+  knowledgeChange?: number;
   onClose: () => void;
 };
 
@@ -50,6 +52,7 @@ export default function KnowledgeBoard({
   chapters,
   activeChapterId,
   initialCharacterPath,
+  knowledgeChange,
   onClose,
 }: Props) {
   const sortedChapters = useMemo(() => [...chapters].sort((a, b) => a.order - b.order), [chapters]);
@@ -132,7 +135,7 @@ export default function KnowledgeBoard({
 
   useEffect(() => {
     void loadFacts();
-  }, [loadFacts]);
+  }, [loadFacts, knowledgeChange]);
 
   useEffect(() => {
     if (!addCharacter && characters.length > 0) setAddCharacter(selected || characters[0]);

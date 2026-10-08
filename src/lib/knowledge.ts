@@ -318,8 +318,9 @@ export async function addKnowledgeFact(
 
 /**
  * Retire a fact: it stops being true at `asOfChapterId` (the chapter the
- * author has in view) and keeps holding before it. With no chapter it is
- * retired everywhere. No auth: the caller already scoped the project.
+ * author has in view) and keeps holding before it. With no chapter, or the
+ * chapter the fact dates from, it is retired everywhere. No auth: the caller
+ * already scoped the project.
  */
 export async function retireKnowledgeFactUnchecked(
   projectId: string,
@@ -335,9 +336,10 @@ export async function retireKnowledgeFactUnchecked(
   if (at && at.order < anchorOrder(fact)) {
     throw new AuthError("A fact can only be retired in or after the chapter it dates from.", 400);
   }
+  const stopsAt = at && at.order > anchorOrder(fact) ? at.id : null;
   const updated = await prisma.knowledgeFact.update({
     where: { id: fact.id },
-    data: { status: "superseded", supersededAtChapterId: at?.id ?? null },
+    data: { status: "superseded", supersededAtChapterId: stopsAt },
     select: factSelect,
   });
   await refreshMirror(projectId, fact.characterPath);
@@ -374,10 +376,18 @@ export async function updateKnowledgeFactUnchecked(
 ): Promise<KnowledgeFactView> {
   const existing = await prisma.knowledgeFact.findFirst({
     where: { id: factId, projectId },
-    select: { id: true, characterPath: true, status: true },
+    select: {
+      id: true,
+      characterPath: true,
+      status: true,
+      chapter: chapterRef,
+      supersededAtChapter: chapterRef,
+    },
   });
   if (!existing) throw new AuthError("Fact not found.", 404);
 
+  let chapter = existing.chapter;
+  let stopsAt = existing.supersededAtChapter;
   const data: {
     fact?: string;
     stance?: string;
@@ -398,9 +408,10 @@ export async function updateKnowledgeFactUnchecked(
     data.stance = stance;
   }
   if (input.chapterId !== undefined) {
-    data.chapterId = input.chapterId === null || input.chapterId === ""
+    chapter = input.chapterId === null || input.chapterId === ""
       ? null
-      : (await requireChapter(projectId, input.chapterId)).id;
+      : await requireChapter(projectId, input.chapterId);
+    data.chapterId = chapter?.id ?? null;
   }
   if (input.topic !== undefined) {
     if (input.topic !== null && typeof input.topic !== "string") {
@@ -412,10 +423,17 @@ export async function updateKnowledgeFactUnchecked(
     if (existing.status === "active") {
       throw new AuthError("Only a retired fact has a chapter where it stopped.", 400);
     }
-    data.supersededAtChapterId =
+    stopsAt =
       input.supersededAtChapterId === null || input.supersededAtChapterId === ""
         ? null
-        : (await requireChapter(projectId, input.supersededAtChapterId)).id;
+        : await requireChapter(projectId, input.supersededAtChapterId);
+    data.supersededAtChapterId = stopsAt?.id ?? null;
+  }
+  const reanchored =
+    (chapter?.id ?? null) !== (existing.chapter?.id ?? null) ||
+    (stopsAt?.id ?? null) !== (existing.supersededAtChapter?.id ?? null);
+  if (reanchored && existing.status !== "active" && stopsAt && stopsAt.order <= anchorOrder({ chapter })) {
+    throw new AuthError("A retired fact can only stop being true after the chapter it dates from.", 400);
   }
 
   const updated = await prisma.knowledgeFact.update({

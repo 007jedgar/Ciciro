@@ -22,6 +22,8 @@ type Props = {
   activeChapter?: { id: string; title: string; order: number } | null;
   /** Open this character in the dedicated Knowledge screen (chapter picker, edit-in-place, retired history). */
   onOpenKnowledgeScreen?: () => void;
+  /** Bumped when a chat run changes the ledger, so the list refetches. */
+  knowledgeChange?: number;
 };
 
 // Add or retire a fact from the character file. The table is the source of
@@ -33,6 +35,7 @@ export default function CharacterKnowledge({
   onMirrored,
   activeChapter,
   onOpenKnowledgeScreen,
+  knowledgeChange,
 }: Props) {
   const [facts, setFacts] = useState<Fact[]>([]);
   const [fact, setFact] = useState("");
@@ -50,7 +53,7 @@ export default function CharacterKnowledge({
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, knowledgeChange]);
 
   async function add() {
     if (dirty || !fact.trim()) return;
