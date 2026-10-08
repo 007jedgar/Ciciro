@@ -109,7 +109,8 @@ name is unclear or has no file. "What does Joe know at this point?" reads the
 ledger as of your open chapter (`read_knowledge`). `revise_knowledge` changes,
 retires, or removes a fact when you ask. These are bible writes, so they work
 on a **Chat only** turn too. Both clients send the open chapter with every chat
-turn.
+turn, and an open Knowledge screen or character file refreshes as soon as the
+chat changes the ledger.
 
 The file still shows the same lines. On every add, retire, or **Keep** from
 What changed, Ciciro rewrites only the block between `<!-- knows:start -->`
