@@ -16,6 +16,7 @@ import {
   type WritingReminder,
 } from "../lib/writing-reminders";
 import { PressableCard } from "./PressableCard";
+import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
 import { PRESS_SCALE } from "../lib/motion";
@@ -66,6 +67,14 @@ export function WritingReminderForm({
   const dark = themed?.dark ?? false;
   const layout = themed?.layout ?? parchmentLayout;
   const colors = themed?.colors ?? parchmentColors;
+  const chipTokens = {
+    restFill: colors.panel,
+    activeFill: colors.accent,
+    restBorder: colors.line,
+    activeBorder: colors.accent,
+    restText: colors.ink,
+    activeText: colors.panel,
+  };
   const translate: ReminderTranslate = (key, options) => String(t(key, options));
 
   const [projectId, setProjectId] = useState<string | null>(reminder.projectId);
@@ -204,26 +213,18 @@ export function WritingReminderForm({
         {goals.map((goal) => {
           const selected = goal === wordGoal;
           return (
-            <TapPressable
-              scale={PRESS_SCALE.chip}
+            <SelectChip
               key={goal}
+              selected={selected}
+              tokens={chipTokens}
               accessibilityRole="button"
               accessibilityState={{ selected }}
               accessibilityLabel={t("reminders.goalValue", { count: goal })}
               onPress={() => setWordGoal(goal)}
-              style={{
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-                borderRadius: 14,
-                backgroundColor: selected ? colors.accent : colors.panel,
-                borderWidth: 1,
-                borderColor: selected ? colors.accent : colors.line,
-              }}
+              surfaceStyle={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1 }}
             >
-              <Text style={{ color: selected ? colors.panel : colors.ink, fontSize: 15 }}>
-                {t("reminders.goalValue", { count: goal })}
-              </Text>
-            </TapPressable>
+              <SelectLabel style={{ fontSize: 15 }}>{t("reminders.goalValue", { count: goal })}</SelectLabel>
+            </SelectChip>
           );
         })}
       </View>
@@ -307,27 +308,25 @@ export function WritingReminderForm({
           const selected = days.includes(day);
           const name = t(`reminders.day.${DAY_KEYS[day]}`);
           return (
-            <TapPressable
+            <SelectChip
               key={day}
+              selected={selected}
+              tokens={chipTokens}
               accessibilityRole="button"
               accessibilityLabel={name}
               accessibilityState={{ selected }}
               onPress={() => setDays(toggleReminderDay(days, day))}
-              style={{
-                flex: 1,
+              style={{ flex: 1 }}
+              surfaceStyle={{
                 minHeight: 44,
                 borderRadius: 12,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: selected ? colors.accent : colors.panel,
                 borderWidth: 1,
-                borderColor: selected ? colors.accent : colors.line,
               }}
             >
-              <Text style={{ color: selected ? colors.panel : colors.ink, fontSize: 13 }}>
-                {t(`reminders.dayShort.${DAY_KEYS[day]}`)}
-              </Text>
-            </TapPressable>
+              <SelectLabel style={{ fontSize: 13 }}>{t(`reminders.dayShort.${DAY_KEYS[day]}`)}</SelectLabel>
+            </SelectChip>
           );
         })}
       </View>
@@ -452,25 +451,33 @@ function Choice({
   onPress: () => void;
 }) {
   return (
-    <TapPressable
+    <SelectChip
       onPress={onPress}
+      selected={selected}
+      tokens={{
+        restFill: "transparent",
+        activeFill: colors.accentSoft,
+        restBorder: colors.line,
+        activeBorder: colors.accent,
+        restText: colors.ink,
+        activeText: colors.ink,
+      }}
+      scale={PRESS_SCALE.card}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={label}
-      style={{
+      style={{ marginBottom: 8 }}
+      surfaceStyle={{
         minHeight: 48,
         borderRadius: 14,
         paddingHorizontal: 14,
-        marginBottom: 8,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: selected ? colors.accentSoft : "transparent",
         borderWidth: 1,
-        borderColor: selected ? colors.accent : colors.line,
       }}
     >
-      <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{label}</Text>
-    </TapPressable>
+      <SelectLabel style={{ flex: 1, fontSize: 17 }}>{label}</SelectLabel>
+    </SelectChip>
   );
 }
 

@@ -23,6 +23,7 @@ import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
 import { getAnalytics } from "../lib/analytics-client";
 import { AlertText } from "./AlertText";
+import { SelectChip, SelectLabel, segmentSelectTokens } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 import { PRESS_SCALE } from "../lib/motion";
 
@@ -190,11 +191,14 @@ export function ShareLinks({
 
   const visibleLinks = (links.data ?? []).filter((l) => !hidden.has(l.id));
 
-  const chip = (active: boolean) => [
-    styles.chip,
-    { borderColor: active ? colors.accent : colors.line, backgroundColor: active ? colors.accentSoft : "transparent" },
-  ];
-  const chipText = (active: boolean) => [styles.chipText, { color: active ? colors.ink : colors.inkSoft }];
+  const chipTokens = {
+    restFill: "transparent",
+    activeFill: colors.accentSoft,
+    restBorder: colors.line,
+    activeBorder: colors.accent,
+    restText: colors.inkSoft,
+    activeText: colors.ink,
+  };
 
   return (
     <View style={styles.root}>
@@ -221,18 +225,19 @@ export function ShareLinks({
       <Text style={[layout.cardMeta, styles.label]}>{t("beta.links.what")}</Text>
       <View style={styles.chips}>
         {(["all", "some"] as const).map((value) => (
-          <TapPressable
-            scale={PRESS_SCALE.chip}
+          <SelectChip
             key={value}
+            selected={scope === value}
+            tokens={chipTokens}
             accessibilityRole="radio"
             accessibilityState={{ checked: scope === value }}
             onPress={() => setScope(value)}
-            style={chip(scope === value)}
+            surfaceStyle={styles.chip}
           >
-            <Text style={chipText(scope === value)}>
+            <SelectLabel style={styles.chipText}>
               {t(value === "all" ? "beta.links.whole" : "beta.links.chosen")}
-            </Text>
-          </TapPressable>
+            </SelectLabel>
+          </SelectChip>
         ))}
       </View>
       {scope === "some" ? (
@@ -278,18 +283,19 @@ export function ShareLinks({
         {SHARE_EXPIRY_PRESETS.map((days) => {
           const active = expiry === days;
           return (
-            <TapPressable
-              scale={PRESS_SCALE.chip}
+            <SelectChip
               key={days ?? "never"}
+              selected={active}
+              tokens={segmentSelectTokens(colors)}
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
               onPress={() => setExpiry(days)}
-              style={[styles.segmentBtn, active ? { backgroundColor: colors.panel } : null]}
+              surfaceStyle={styles.segmentBtn}
             >
-              <Text style={[styles.segmentText, { color: active ? colors.ink : colors.inkSoft }]}>
+              <SelectLabel style={styles.segmentText}>
                 {days === null ? t("beta.links.never") : t("beta.links.days", { count: days })}
-              </Text>
-            </TapPressable>
+              </SelectLabel>
+            </SelectChip>
           );
         })}
       </View>

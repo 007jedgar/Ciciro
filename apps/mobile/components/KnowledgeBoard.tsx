@@ -32,6 +32,7 @@ import { colors as parchmentColors, layout as parchmentLayout } from "../lib/the
 import { getAnalytics } from "../lib/analytics-client";
 import { ChapterScrubber } from "./ChapterScrubber";
 import { SkeletonList } from "./Skeleton";
+import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
 
@@ -722,30 +723,24 @@ function ChipRow({
       {options.map((opt) => {
         const active = opt.value === value;
         return (
-          <TapPressable
+          <SelectChip
             key={opt.value || "__none__"}
+            selected={active}
+            tokens={{
+              restFill: "transparent",
+              activeFill: colors.accentSoft,
+              restBorder: colors.line,
+              activeBorder: colors.accent,
+              restText: colors.inkSoft,
+              activeText: colors.accent,
+            }}
             onPress={() => onChange(opt.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            scale={PRESS_SCALE.chip}
-            style={[
-              styles.chip,
-              {
-                borderColor: active ? colors.accent : colors.line,
-                backgroundColor: active ? colors.accentSoft : "transparent",
-              },
-            ]}
+            surfaceStyle={styles.chip}
           >
-            <Text
-              style={{
-                color: active ? colors.accent : colors.inkSoft,
-                fontSize: 13,
-                fontWeight: active ? "600" : "400",
-              }}
-            >
-              {opt.label}
-            </Text>
-          </TapPressable>
+            <SelectLabel style={{ fontSize: 13, fontWeight: active ? "600" : "400" }}>{opt.label}</SelectLabel>
+          </SelectChip>
         );
       })}
     </ScrollView>

@@ -20,9 +20,9 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
+import { SelectChip, SelectLabel, segmentSelectTokens } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
-import { PRESS_SCALE } from "../lib/motion";
 
 /** What beta readers said, by chapter, to jump to, resolve, or delete. */
 export function ReaderComments({
@@ -119,18 +119,19 @@ export function ReaderComments({
           {(["open", "resolved"] as const).map((value) => {
             const active = status === value;
             return (
-              <TapPressable
-                scale={PRESS_SCALE.chip}
+              <SelectChip
                 key={value}
+                selected={active}
+                tokens={segmentSelectTokens(colors)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 onPress={() => setStatus(value)}
-                style={[styles.segmentBtn, active ? { backgroundColor: colors.panel } : null]}
+                surfaceStyle={styles.segmentBtn}
               >
-                <Text style={[styles.segmentText, { color: active ? colors.ink : colors.inkSoft }]}>
+                <SelectLabel style={styles.segmentText}>
                   {t(value === "open" ? "beta.open" : "beta.resolved")}
-                </Text>
-              </TapPressable>
+                </SelectLabel>
+              </SelectChip>
             );
           })}
         </View>
