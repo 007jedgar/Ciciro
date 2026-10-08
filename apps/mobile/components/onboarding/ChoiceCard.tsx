@@ -8,7 +8,7 @@ import { useSelectionPop } from "../../lib/use-selection-pop";
 
 /**
  * A card you can tick on and off, for a question that takes several answers:
- * the border and tint crossfade to the accent and the check pops in (and back
+ * the border and tint crossfade to the accent and the check eases in (and back
  * out) when it flips.
  */
 export function ChoiceCard({
@@ -24,11 +24,12 @@ export function ChoiceCard({
 }) {
   const { colors, layout } = useAppTheme();
   const reduceMotion = useReduceMotion();
-  const { progress, scale } = useSelectionPop(selected, reduceMotion);
+  // Only the crossfade: the shared hook's pop (a scale overshoot with a spring)
+  // is too much recoil for a list of cards you tick one after another.
+  const { progress } = useSelectionPop(selected, reduceMotion);
 
   const frame = useAnimatedStyle(() => ({
     borderColor: interpolateColor(progress.value, [0, 1], [colors.line, colors.accent]),
-    transform: [{ scale: scale.value }],
   }));
   const tint = useAnimatedStyle(() => ({ opacity: interpolate(progress.value, [0, 1], [0, 0.1]) }));
   const check = useAnimatedStyle(() => ({

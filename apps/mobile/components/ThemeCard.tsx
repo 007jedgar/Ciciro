@@ -1,8 +1,14 @@
-import { StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
-import Animated, { interpolate, useAnimatedStyle } from "react-native-reanimated";
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { CheckIcon } from "./icons";
-import { PressableCard } from "./PressableCard";
+import * as haptics from "../lib/haptics";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useSelectionPop } from "../lib/use-selection-pop";
 import { fonts, THEME_META, THEME_PALETTES, type ThemeId } from "../lib/theme";
@@ -26,19 +32,36 @@ export function ThemeCard({
   const reduceMotion = useReduceMotion();
   const palette = THEME_PALETTES[theme];
   const mode = THEME_META.find((meta) => meta.id === theme)?.mode ?? "light";
-  const { progress, scale } = useSelectionPop(selected, reduceMotion);
+  const { progress } = useSelectionPop(selected, reduceMotion);
+  // A press dips the card and nothing else. PressableCard's tint would repaint the
+  // card's own desk colour in the current theme and blank its swatch, so this
+  // is the same dip (90ms in, 180ms out) without it.
+  const pressed = useSharedValue(0);
+  const press = useAnimatedStyle(() => ({
+    transform: [{ scale: reduceMotion ? 1 : 1 - 0.03 * pressed.value }],
+  }));
 
   const ring = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
   }));
   const badge = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ scale: interpolate(progress.value, [0, 1], [0.4, 1]) * scale.value }],
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.4, 1]) }],
   }));
 
   return (
-    <PressableCard
-      onPress={onPress}
+    <Animated.View style={[{ flex: 1 }, press]}>
+    <Pressable
+      onPress={(event) => {
+        onPress(event);
+        haptics.tap();
+      }}
+      onPressIn={() => {
+        pressed.value = withTiming(1, { duration: 90, easing: Easing.out(Easing.quad) });
+      }}
+      onPressOut={() => {
+        pressed.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
+      }}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={`${t(`themes.${theme}`)}, ${t(`themes.${mode}`)}`}
@@ -64,7 +87,8 @@ export function ThemeCard({
       >
         <CheckIcon color={palette.onAccent} size={12} />
       </Animated.View>
-    </PressableCard>
+    </Pressable>
+    </Animated.View>
   );
 }
 

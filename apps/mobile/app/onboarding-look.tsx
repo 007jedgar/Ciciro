@@ -32,9 +32,9 @@ export default function OnboardingLookScreen() {
   const [picked, setPicked] = useState<ThemeId | null>(preview);
   const shown = picked ?? settings.theme;
 
-  function pick(theme: ThemeId, event: Parameters<typeof changeTheme>[2]) {
+  function pick(theme: ThemeId, event: Parameters<typeof changeTheme>[1]) {
     if (theme === shown) return;
-    if (!changeTheme(theme, () => setPreview(theme), event)) return;
+    if (!changeTheme(() => setPreview(theme), event)) return;
     setPicked(theme);
     getAnalytics().track("onboarding_theme_selected", { theme });
   }

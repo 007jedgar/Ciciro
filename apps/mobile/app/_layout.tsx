@@ -16,7 +16,7 @@ import { AnalyticsSync } from "../components/AnalyticsSync";
 import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
-import { ThemeWashHost } from "../components/ThemeWashHost";
+import { ThemeWashScope } from "../components/ThemeWashScope";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { arrivesSettled } from "../lib/stack-arrival";
 import { SharedTitleMorphProvider } from "../lib/shared-title-morph";
@@ -166,8 +166,9 @@ export default function RootLayout() {
                   <WritingWidgetSync />
                   <UpdateSync />
                   <SharedTitleMorphProvider>
-                    <ThemedStack />
-                    <ThemeWashHost />
+                    <ThemeWashScope style={{ flex: 1 }}>
+                      <ThemedStack />
+                    </ThemeWashScope>
                   </SharedTitleMorphProvider>
                 </WritingDayProvider>
               </SettingsProvider>
