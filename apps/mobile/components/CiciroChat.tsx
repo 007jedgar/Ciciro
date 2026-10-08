@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   FlatList,
@@ -505,15 +505,6 @@ export function CiciroChat({
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [promptHeight, setPromptHeight] = useState(0);
   const [replyHeight, setReplyHeight] = useState(0);
-  /** The scroll offset that keeps the anchored prompt at the top. */
-  const holdOffset = useRef<number | null>(null);
-  const holdAnchor = useRef(false);
-  const userMoved = useRef(false);
-  const awaitingLock = useRef(false);
-  const openedAtTail = useRef(false);
-  const contentSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pinAttempt = useRef(0);
-  const pinnedId = useRef<string | null>(null);
   /**
    * Messages already in the transcript when it first has rows. Those skip the
    * enter animation — playing it on every bubble is most of the cost of
@@ -532,59 +523,22 @@ export function CiciroChat({
   const activeAnchor = livePromptId ?? anchorId;
 
   /**
-   * A settled transcript (messages present, nothing streaming or anchored)
-   * that has not yet been scrolled to its tail - true both for one seeded
-   * synchronously from cache at mount and for one that only becomes known
-   * once this mount's own fetch resolves. Either way it must stay hidden,
-   * with its tail rows already rendered, until `openAtTail` lands it at the end.
+   * Newest first, so an inverted list rests - from its very first frame,
+   * cache-seeded or not - with the tail already in view: no scroll-to-end,
+   * no hiding the thread until a scroll lands, no guessing when a long
+   * thread has finished mounting. A full-mount-then-scrollToEnd approach was
+   * tried first (see git history), including an `initialScrollIndex` jump to
+   * avoid mounting hundreds of rows, but both land wrong on-device with a
+   * long thread: scroll offset estimation drifts over unmeasured rows, and
+   * timer-based "has it settled" heuristics race real (slow, markdown-heavy)
+   * batch rendering. An inverted list sidesteps the problem entirely -
+   * natural windowing mounts only what is near the tail, which is already
+   * the resting position, so there is nothing to scroll to.
    */
-  const needsTailOpen = messages.length > 0 && !streaming && !activeAnchor;
-  /**
-   * Hidden until the tail position lands, so the thread never paints at its
-   * top and then visibly scrolls down. Everything else (empty, or a turn
-   * already anchored/streaming) has nothing to reposition and shows at once.
-   */
-  const [threadVisible, setThreadVisible] = useState(() => !needsTailOpen);
-  /**
-   * A settled transcript's first render must already include every row down
-   * to the tail - otherwise `openAtTail`'s scrollToEnd only reaches as far as
-   * whatever virtualization has measured so far, and the rest pop in after
-   * the thread is already shown. Tracked as state, not a mount-time ref, so a
-   * transcript that only arrives after mount (no cache yet, still loading on
-   * a cold launch) gets the same treatment once it lands.
-   *
-   * An `initialScrollIndex` jump to a deep tail index was tried instead (to
-   * avoid mounting hundreds of rows), but on-device with a long thread it
-   * lands on a bogus offset: with no `getItemLayout` (bubble height is
-   * genuinely variable - markdown content), the estimate for ~300 unmeasured
-   * rows above the window drifts enough that `scrollToEnd` parks the list in
-   * blank space, stuck, with real content only a swipe away. Mounting
-   * everything is the version proven correct on-device; a proper fix for the
-   * mounting cost on very long threads is a real `inverted` FlatList, which
-   * is a larger, separate change.
-   */
-  const [tailRenderCount, setTailRenderCount] = useState(() => (needsTailOpen ? messages.length : 6));
-  // Adjusted during render, not from an effect: VirtualizedList's own
-  // derived-state recompute skips re-deriving its render mask whenever the
-  // item count matches what it already rendered for, so a count bumped only
-  // after commit (an effect) arrives one render too late to affect the very
-  // commit where the tail-opening transcript's rows first mount - it would
-  // silently keep the pre-settlement row count forever. Setting it in the
-  // render body lets React fold the correction into that same commit.
-  if (needsTailOpen && !openedAtTail.current && tailRenderCount < messages.length) {
-    setTailRenderCount(messages.length);
-  }
-
-  const openAtTail = useCallback(() => {
-    if (openedAtTail.current) return;
-    openedAtTail.current = true;
-    listRef.current?.scrollToEnd({ animated: false });
-    setThreadVisible(true);
-  }, []);
+  const invertedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   useEffect(() => {
     if (messages.length === 0) {
-      pinnedId.current = null;
       setAnchorId(null);
       setPromptHeight(0);
       setReplyHeight(0);
@@ -596,71 +550,26 @@ export function CiciroChat({
     setReplyHeight(0);
   }, [anchorId, livePromptId, messages.length]);
 
-  // An empty thread or one with a turn already anchored/streaming has
-  // nothing to position first, so show it immediately. A settled transcript
-  // not yet opened - at mount from cache, or only just arrived from this
-  // mount's own fetch - is hidden (with every row rendered) until
-  // `openAtTail`, from the list's own content size, confirms it is
-  // positioned at the end.
-  useLayoutEffect(() => {
-    if (messages.length === 0) {
-      openedAtTail.current = false;
-      setThreadVisible(true);
-      return;
-    }
-    if (streaming || activeAnchor) {
-      setThreadVisible(true);
-      return;
-    }
-    if (openedAtTail.current) return;
-    setThreadVisible(false);
-  }, [activeAnchor, messages.length, streaming]);
-
-  // Safety net: if the content-size callback below never fires at all (an
-  // unexpected empty measurement), do not leave the thread hidden forever.
-  // Long past the debounce below, since it exists only for that failure
-  // mode, not to bound how long a long thread takes to finish mounting.
+  // Sending a prompt while scrolled away from the tail should bring the
+  // author back to it - they just started a new turn and want to watch the
+  // reply land, same as any chat app does.
+  const scrolledForPrompt = useRef<string | null>(null);
   useEffect(() => {
-    if (threadVisible) return;
-    const id = setTimeout(openAtTail, 4000);
-    return () => clearTimeout(id);
-  }, [threadVisible, openAtTail]);
-
-  useEffect(
-    () => () => {
-      if (contentSettleTimer.current) clearTimeout(contentSettleTimer.current);
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!activeAnchor || listHeight <= 0) return;
-    if (pinnedId.current === activeAnchor) return;
-    const index = messages.findIndex((message) => message.id === activeAnchor);
-    if (index < 0) return;
-    const attempt = ++pinAttempt.current;
-    const id = setTimeout(() => {
-      if (pinAttempt.current !== attempt) return;
-      pinnedId.current = activeAnchor;
-      userMoved.current = false;
-      holdAnchor.current = false;
-      holdOffset.current = null;
-      awaitingLock.current = true;
-      listRef.current?.scrollToIndex({
-        index,
-        viewPosition: 0,
-        viewOffset: listTop,
-        animated: false,
-      });
-    }, 50);
-    return () => clearTimeout(id);
-  }, [activeAnchor, listHeight, listTop, messages]);
+    if (!livePromptId || scrolledForPrompt.current === livePromptId) return;
+    scrolledForPrompt.current = livePromptId;
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [livePromptId]);
 
   // The keyboard used to drag the thread to its tail. Leave an anchored prompt
   // where the author is reading it; only follow the tail when nothing is pinned.
+  // Offset 0 is the inverted list's own rest position - the tail - so this is
+  // a return to rest, not a scroll to the end of the data.
   useEffect(() => {
     if (keyboardLift <= 0 || activeAnchor) return;
-    const id = setTimeout(() => listRef.current?.scrollToEnd({ animated: !reduceMotion }), 50);
+    const id = setTimeout(
+      () => listRef.current?.scrollToOffset({ offset: 0, animated: !reduceMotion }),
+      50
+    );
     return () => clearTimeout(id);
   }, [activeAnchor, keyboardLift, reduceMotion]);
 
@@ -768,30 +677,18 @@ export function CiciroChat({
 
   const onThreadScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      if (awaitingLock.current) {
-        holdOffset.current = contentOffset.y;
-        holdAnchor.current = true;
-        awaitingLock.current = false;
-      } else if (
-        holdAnchor.current &&
-        !userMoved.current &&
-        holdOffset.current != null &&
-        contentOffset.y > holdOffset.current + 1
-      ) {
-        // The reply growing past the screen tries to stick the list to its
-        // tail. Put the prompt back; a shorter list is left where it landed.
-        listRef.current?.scrollToOffset({ offset: holdOffset.current, animated: false });
-      }
+      const { contentOffset, layoutMeasurement } = event.nativeEvent;
       if (messages.length === 0) {
         syncJump(0);
         return;
       }
+      // An inverted list rests at offset 0 at its own tail, so the offset
+      // already is the distance scrolled away from it - no need to work that
+      // back out from content size the way a non-inverted list would.
       syncJump(
         jumpChipOpacity(
-          contentSize.height,
-          layoutMeasurement.height,
           contentOffset.y,
+          layoutMeasurement.height,
           CHAT_JUMP_START_SCREENS,
           reduceMotion ? 0 : CHAT_JUMP_FADE_SCREENS
         )
@@ -800,38 +697,21 @@ export function CiciroChat({
     [messages.length, reduceMotion, syncJump]
   );
 
-  const releaseHold = useCallback(() => {
-    userMoved.current = true;
-    holdAnchor.current = false;
-    holdOffset.current = null;
-    awaitingLock.current = false;
-  }, []);
-
   const jumpToLatest = useCallback(() => {
     haptics.tap();
-    releaseHold();
-    listRef.current?.scrollToEnd({ animated: true });
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
     syncJump(0);
-  }, [releaseHold, syncJump]);
+  }, [syncJump]);
 
   useEffect(() => {
     if (messages.length === 0) syncJump(0);
   }, [messages.length, syncJump]);
 
-  /**
-   * A background refetch - another device, a stopped turn re-caching - can
-   * append rows below the viewport with no scroll event of its own. Follow
-   * the tail once while the author is still reading it (the jump chip is not
-   * showing); further away, the chip is the invitation, not an auto-jump.
-   */
-  const lastMessageCount = useRef(messages.length);
-  useEffect(() => {
-    const prevCount = lastMessageCount.current;
-    lastMessageCount.current = messages.length;
-    if (!openedAtTail.current || streaming || activeAnchor) return;
-    if (messages.length <= prevCount || jumpShown) return;
-    listRef.current?.scrollToEnd({ animated: !reduceMotion });
-  }, [messages.length, streaming, activeAnchor, jumpShown, reduceMotion]);
+  // A background refetch (another device, a stopped turn re-caching) that
+  // prepends newer rows needs no scroll call: those rows land at the
+  // inverted list's own start, which is exactly where offset 0 is already
+  // resting if the author has not scrolled away. Scrolled away, they stay
+  // put too - the jump chip is the invitation, not an auto-jump.
 
   // Opus 5.5's own progress note, when there's a fresh one, beats the
   // generic tool/phase labels - it says what Ciciro is actually doing.
@@ -856,11 +736,6 @@ export function CiciroChat({
   const footerMin = activeAnchor
     ? anchorFooterMinHeight(anchorGap, showStream ? 0 : replyHeight)
     : 0;
-
-  const restoreHold = useCallback(() => {
-    if (!holdAnchor.current || holdOffset.current == null || userMoved.current) return;
-    listRef.current?.scrollToOffset({ offset: holdOffset.current, animated: false });
-  }, []);
 
   const onPromptHeight = useCallback((height: number) => {
     setPromptHeight((current) => (current === height ? current : height));
@@ -933,24 +808,21 @@ export function CiciroChat({
       <View style={styles.thread}>
       {showsThread(clearPhase) ? (
       <ThreadFade collapse={collapse}>
-      {/*
-        Hidden until `openAtTail` confirms the list is positioned at its end,
-        so a settled transcript never paints at the top first - this is a
-        plain style, not animated, because there is nothing to reveal
-        gracefully: either it is already in the right place or it should not
-        be visible yet.
-      */}
-      <View testID="chat-thread-visibility" style={{ flex: 1, opacity: threadVisible ? 1 : 0 }}>
       <FlatList
         testID="chat-thread"
         ref={listRef}
+        inverted
         style={{ flex: 1 }}
-        data={messages}
+        data={invertedMessages}
+        // Inverted flips the content container's own top/bottom, so the
+        // padding that visually clears the banner at the top of the screen
+        // is written here as bottom, and the padding that clears the dock at
+        // the bottom is written as top.
         contentContainerStyle={[
           styles.list,
-          { paddingTop: listTop + 8, paddingBottom: trailingPadding },
+          { paddingBottom: listTop + 8, paddingTop: trailingPadding },
         ]}
-        scrollIndicatorInsets={{ top: listTop }}
+        scrollIndicatorInsets={{ bottom: listTop }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         onLayout={(event) => {
@@ -958,90 +830,67 @@ export function CiciroChat({
           setListHeight((current) => (current === height ? current : height));
         }}
         onScroll={onThreadScroll}
-        onScrollBeginDrag={releaseHold}
-        onContentSizeChange={() => {
-          // A long transcript's rows mounted all at once still measure in
-          // through several growing callbacks, not one final one - opening
-          // on the first firing lands `scrollToEnd` on whatever is mounted
-          // so far (the first few rows) and locks it in for good, since
-          // `openAtTail` only ever runs once. Wait for the size to stop
-          // changing before trusting it.
-          if (!threadVisible && !streaming && !activeAnchor) {
-            if (contentSettleTimer.current) clearTimeout(contentSettleTimer.current);
-            contentSettleTimer.current = setTimeout(openAtTail, 120);
-          }
-          restoreHold();
-        }}
-        onScrollToIndexFailed={(info) => {
-          awaitingLock.current = false;
-          listRef.current?.scrollToOffset({
-            offset: Math.max(0, info.averageItemLength * info.index),
-            animated: false,
-          });
-          const attempt = pinAttempt.current;
-          setTimeout(() => {
-            if (pinAttempt.current !== attempt || userMoved.current) return;
-            awaitingLock.current = true;
-            listRef.current?.scrollToIndex({
-              index: info.index,
-              viewPosition: 0,
-              viewOffset: listTop,
-              animated: false,
-            });
-          }, 60);
-        }}
         scrollEventThrottle={16}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        // A settled transcript's first render must already include every row
-        // down to the tail - otherwise `openAtTail`'s scrollToEnd only
-        // reaches as far as whatever virtualization has measured so far,
-        // and the rest pop in after the thread is already shown.
-        initialNumToRender={tailRenderCount}
+        // The resting position (offset 0) is already the tail, so only a
+        // couple of screens near it need to be there on the first frame;
+        // normal windowing takes it from there as the author scrolls up.
+        initialNumToRender={16}
         maxToRenderPerBatch={4}
         windowSize={7}
         updateCellsBatchingPeriod={50}
         ListEmptyComponent={
           streaming ? null : (
-            <ChatEmptyState colors={colors} onStarter={onComposerChange} />
+            // `inverted` flips ListEmptyComponent's own content along with
+            // everything else; counter-flip it back upright.
+            <View style={styles.counterFlip}>
+              <ChatEmptyState colors={colors} onStarter={onComposerChange} />
+            </View>
           )
         }
-        ListFooterComponent={
+        // The chronologically newest content - the anchored prompt's footer
+        // spacer and the live/settled reply - sits at the data array's own
+        // start once reversed for `inverted`, which renders as the header,
+        // not the footer. Counter-flip its content the same as the empty
+        // state.
+        ListHeaderComponent={
           showStream || footerMin > 0 ? (
-            <View
-              testID={activeAnchor ? "chat-anchor" : undefined}
-              style={footerMin > 0 ? { minHeight: footerMin } : undefined}
-              collapsable={false}
-            >
-              {showStream ? (
-                <View
-                  style={styles.assistant}
-                  onLayout={(event) => {
-                    const height = event.nativeEvent.layout.height;
-                    setReplyHeight((current) => (current === height ? current : height));
-                  }}
-                >
-                  {stream.text.trim() ? (
-                    <AssistantTurn
-                      content={stream.text}
-                      turnId={stream.turnId}
-                      live
-                      inserted={insertedKeys}
-                      onInsert={(text, index) => onInsertDraft(text, stream.turnId, index)}
-                      onShare={(text) => void Share.share({ message: text })}
-                      onRetry={onRetry}
-                      animate={liveAnimate}
-                    />
-                  ) : (
-                    <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />
-                  )}
-                </View>
-              ) : null}
+            <View style={styles.counterFlip}>
+              <View
+                testID={activeAnchor ? "chat-anchor" : undefined}
+                style={footerMin > 0 ? { minHeight: footerMin } : undefined}
+                collapsable={false}
+              >
+                {showStream ? (
+                  <View
+                    style={styles.assistant}
+                    onLayout={(event) => {
+                      const height = event.nativeEvent.layout.height;
+                      setReplyHeight((current) => (current === height ? current : height));
+                    }}
+                  >
+                    {stream.text.trim() ? (
+                      <AssistantTurn
+                        content={stream.text}
+                        turnId={stream.turnId}
+                        live
+                        inserted={insertedKeys}
+                        onInsert={(text, index) => onInsertDraft(text, stream.turnId, index)}
+                        onShare={(text) => void Share.share({ message: text })}
+                        onRetry={onRetry}
+                        animate={liveAnimate}
+                      />
+                    ) : (
+                      <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />
+                    )}
+                  </View>
+                ) : null}
+              </View>
             </View>
           ) : null
         }
       />
-      </View>
       </ThreadFade>
       ) : null}
       {showsMark(clearPhase) ? (
@@ -1190,6 +1039,8 @@ const styles = StyleSheet.create({
   thread: { flex: 1 },
   threadFill: { flex: 1 },
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
+  /** `inverted` flips a header/footer/empty component's own content too; this undoes it. */
+  counterFlip: { transform: [{ scaleY: -1 }] },
   emptyState: { alignItems: "center", marginTop: 24, gap: 14 },
   emptyText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
   starterRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
