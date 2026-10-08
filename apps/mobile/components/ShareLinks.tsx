@@ -22,6 +22,7 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
 import { getAnalytics } from "../lib/analytics-client";
+import { AlertText } from "./AlertText";
 
 export type ShareLinksHost = {
   alert: typeof Alert.alert;
@@ -302,14 +303,14 @@ export function ShareLinks({
       </Pressable>
 
       {error ? (
-        <Text style={[layout.error, styles.error]} role="alert">
+        <AlertText style={[layout.error, styles.error]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {links.isError ? (
-        <Text style={[layout.error, styles.error]} role="alert">
+        <AlertText style={[layout.error, styles.error]} role="alert">
           {t("beta.links.loadError")}
-        </Text>
+        </AlertText>
       ) : null}
 
       <View style={[styles.rule, { backgroundColor: colors.line }]} />

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchment, makeLayout } from "../lib/theme";
 import { restartApp } from "../lib/app-restart";
+import { announce } from "../lib/announce";
 import { AlertIcon } from "./icons";
 import { TapPressable } from "./TapPressable";
 
@@ -38,6 +39,10 @@ export function ScreenErrorState({
   const layout = theme?.layout ?? makeLayout(parchment);
   const [open, setOpen] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  // The error replaces the screen's content, so VoiceOver is not on it when it lands.
+  useEffect(() => {
+    announce(message);
+  }, [message]);
 
   async function handleRestart() {
     if (restarting) return;

@@ -18,6 +18,7 @@ import { shimmerBrightness, shimmerLit, shimmerPalette } from "../lib/shimmer";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { CheckIcon, PencilIcon } from "./icons";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 type Phase = "idle" | "sweep";
 
@@ -286,9 +287,9 @@ export function FolderTitleEditor({
             autoCorrect={autoCorrect}
           />
           {error ? (
-            <Text style={[layout.error, { marginTop: 0 }]} role="alert">
+            <AlertText style={[layout.error, { marginTop: 0 }]} role="alert">
               {error}
-            </Text>
+            </AlertText>
           ) : null}
         </Animated.View>
       ) : shownNotes.trim() ? (

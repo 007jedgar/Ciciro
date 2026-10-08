@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
+import { announce } from "../lib/announce";
 import { ApiError } from "../lib/api/client";
 import { useScratchNotesQuery, useUpdateScratchNoteMutation } from "../lib/api";
 import type { ScratchNote } from "../lib/api/types";
@@ -16,6 +17,7 @@ import { colors as parchmentColors, layout as parchmentLayout } from "../lib/the
 import { SkeletonList } from "./Skeleton";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 /**
  * One scratch note: a title and free text, saved a moment after typing stops.
@@ -47,6 +49,9 @@ export function ScratchNoteEditor({
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remote, setRemote] = useState<ScratchNote | null>(null);
+  useEffect(() => {
+    if (remote) announce(t("scratch.conflictTitle"));
+  }, [remote, t]);
 
   // Live copies: the debounced save and the refresh effect outlive any one render.
   const draft = useRef({ title: "", content: "" });
@@ -172,9 +177,9 @@ export function ScratchNoteEditor({
   if (!stored) {
     return (
       <View style={layout.padded}>
-        <Text style={layout.error} role="alert">
+        <AlertText style={layout.error} role="alert">
           {t("scratch.missing")}
-        </Text>
+        </AlertText>
       </View>
     );
   }
@@ -198,9 +203,9 @@ export function ScratchNoteEditor({
       bottomOffset={24}
     >
       {error ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {remote ? (
         <View style={[layout.card, { marginBottom: 12 }]} accessibilityRole="alert">

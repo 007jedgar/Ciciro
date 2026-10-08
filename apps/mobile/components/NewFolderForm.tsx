@@ -7,6 +7,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { Folder } from "../lib/types";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 type Props = {
   onCreated: (folder: Folder) => void;
@@ -65,9 +66,9 @@ export function NewFolderForm({ onCreated }: Props) {
         spellCheck={autoCorrect}
       />
       {error ? (
-        <Text style={layout.error} role="alert">
+        <AlertText style={layout.error} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       <TapPressable
         style={layout.primaryBtn}

@@ -11,13 +11,20 @@ import { LivingPage } from "../components/LivingPage";
 import { restoreLastPlace } from "../lib/last-place";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 
 function BlinkingCursor({ color }: { color: string }) {
+  const reduceMotion = useReduceMotion();
   const opacity = useSharedValue(1);
 
   useEffect(() => {
+    // Under reduce motion the cursor stays lit rather than blinking forever.
+    if (reduceMotion) {
+      opacity.value = 1;
+      return;
+    }
     opacity.value = withRepeat(withTiming(0, { duration: 530 }), -1, true);
-  }, [opacity]);
+  }, [opacity, reduceMotion]);
 
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
 

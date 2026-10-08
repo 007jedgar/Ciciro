@@ -12,6 +12,7 @@ import {
   exportManuscript,
   type ExportFormat,
 } from "../lib/export";
+import { AlertText } from "./AlertText";
 
 /** Export the manuscript as EPUB, PDF or Word through the share sheet. */
 export function ExportCard({
@@ -78,9 +79,9 @@ export function ExportCard({
         })}
       </View>
       {error ? (
-        <Text style={layout.error} role="alert">
+        <AlertText style={layout.error} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
     </View>
   );

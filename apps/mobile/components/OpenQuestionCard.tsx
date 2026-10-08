@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanim
 import { useTranslation } from "react-i18next";
 import type { OpenQuestion } from "../lib/api/types";
 import type { ColorTokens } from "../lib/theme";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { TapPressable } from "./TapPressable";
 
 /**
@@ -28,6 +29,7 @@ export function OpenQuestionCard({
   onDismiss: () => void;
 }) {
   const { t } = useTranslation();
+  const reduceMotion = useReduceMotion();
   const [answer, setAnswer] = useState("");
   const ready = Boolean(answer.trim()) && !busy;
 
@@ -35,9 +37,9 @@ export function OpenQuestionCard({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(220)}
-      exiting={FadeOut.duration(160)}
-      layout={LinearTransition.duration(200)}
+      entering={reduceMotion ? undefined : FadeIn.duration(220)}
+      exiting={reduceMotion ? undefined : FadeOut.duration(160)}
+      layout={reduceMotion ? undefined : LinearTransition.duration(200)}
       style={[styles.card, { borderColor: colors.line, backgroundColor: colors.panel }]}
     >
       <Text style={[styles.question, { color: colors.ink }]}>{question.question}</Text>

@@ -12,6 +12,7 @@ import { useExportAccountData } from "../lib/use-export-account-data";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
+import { AlertText } from "../components/AlertText";
 
 /** The word an account without a password types to confirm (the server checks it). */
 const DELETE_WORD = "DELETE";
@@ -205,9 +206,9 @@ export default function DeleteAccountScreen() {
           onSubmitEditing={() => void submit()}
         />
         {error ? (
-          <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+          <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
             {error}
-          </Text>
+          </AlertText>
         ) : null}
 
         <Pressable

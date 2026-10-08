@@ -22,6 +22,7 @@ import { SkeletonList } from "./Skeleton";
 import { PressableCard } from "./PressableCard";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 const STAGGER_MS = 40;
 
@@ -91,14 +92,14 @@ export function StoryBibleIndex({
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("bible.blurb")}</Text>
       </Animated.View>
       {error ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {index.isError ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {t("bible.loadError")}
-        </Text>
+        </AlertText>
       ) : null}
 
       <Section title={t("bible.sectionKnowledge")}>

@@ -62,6 +62,7 @@ import {
 } from "../../../../lib/new-manuscript-arrival";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
 import type { ChapterStatus } from "../../../../lib/chapter-status";
+import { AlertText } from "../../../../components/AlertText";
 
 export default function ChaptersScreen() {
   return (
@@ -321,7 +322,7 @@ function ChaptersScreenContent() {
   return (
     <View style={[layout.padded, { paddingTop: 0, paddingHorizontal: layout.padded.paddingHorizontal - LIST_EDGE_SLACK }]}>
       {deleteError ? (
-        <Text
+        <AlertText
           style={[
             layout.error,
             { marginTop: headerHeight + 16, marginBottom: 12, marginHorizontal: LIST_EDGE_SLACK },
@@ -329,7 +330,7 @@ function ChaptersScreenContent() {
           role="alert"
         >
           {deleteError}
-        </Text>
+        </AlertText>
       ) : null}
       {error && project ? (
         <ScreenErrorState
