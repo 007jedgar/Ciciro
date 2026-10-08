@@ -1058,8 +1058,11 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
   emptyState: { alignItems: "center", marginTop: 24, gap: 14 },
   emptyText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
-  actionsScroll: { marginHorizontal: -16, marginBottom: 10, flexGrow: 0 },
-  actionsRow: { gap: 8, paddingHorizontal: 16 },
+  // A scroll view clips its content, and each chip's glass casts a soft shadow
+  // below it: the padding gives the shadow room and the negative margin takes
+  // that room back out of the layout.
+  actionsScroll: { marginHorizontal: -16, marginTop: -6, marginBottom: -14, flexGrow: 0 },
+  actionsRow: { gap: 8, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 24 },
   actionChip: { paddingHorizontal: 13, paddingVertical: 8 },
   user: {
     alignSelf: "flex-end",
