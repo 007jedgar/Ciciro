@@ -38,11 +38,12 @@ export function ChapterTitleBar({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(shown);
   const [error, setError] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const saving = useRef(false);
 
   useEffect(() => {
-    if (!editing) setDraft(shown);
-  }, [editing, shown]);
+    if (!editing) setDraft(pending ?? shown);
+  }, [editing, pending, shown]);
 
   async function commit() {
     if (saving.current) return;
@@ -51,6 +52,7 @@ export function ChapterTitleBar({
     if (next === shown.trim()) return;
     saving.current = true;
     setError(false);
+    setPending(next);
     try {
       await onRename(next);
     } catch {
@@ -58,13 +60,15 @@ export function ChapterTitleBar({
       setDraft(shown);
     } finally {
       saving.current = false;
+      setPending(null);
     }
   }
 
   const placeholder = t(
     kind === "blog" ? "chapterTitle.blogPlaceholder" : kind === "journal" ? "chapterTitle.journalPlaceholder" : "chapterTitle.placeholder"
   );
-  const label = t("chapterTitle.edit", { title: shown || heading });
+  const displayed = pending ?? shown;
+  const label = t("chapterTitle.edit", { title: displayed || heading });
 
   return (
     <View style={styles.wrap}>
@@ -100,9 +104,9 @@ export function ChapterTitleBar({
           >
             <Text
               numberOfLines={1}
-              style={[styles.title, { color: shown ? colors.ink : colors.inkSoft }]}
+              style={[styles.title, { color: displayed ? colors.ink : colors.inkSoft }]}
             >
-              {shown || placeholder}
+              {displayed || placeholder}
             </Text>
             <PencilIcon color={colors.inkSoft} size={14} />
           </TapPressable>

@@ -179,15 +179,17 @@ function ManuscriptsScreenContent() {
 
   if (!user) return <Redirect href="/login" />;
 
+  function newManuscript() {
+    getAnalytics().track("cta_clicked", { cta: "new_manuscript", surface: "library" });
+    router.push("/new-manuscript");
+  }
+
   const newItems: NewMenuItem[] = [
     {
       key: "manuscript",
       label: t("manuscripts.newManuscript"),
       Icon: NewChapterIcon,
-      onPress: () => {
-        getAnalytics().track("cta_clicked", { cta: "new_manuscript", surface: "library" });
-        router.push("/new-manuscript");
-      },
+      onPress: newManuscript,
     },
     {
       key: "import",
@@ -293,7 +295,7 @@ function ManuscriptsScreenContent() {
                 <Text style={layout.body}>{t("manuscripts.empty")}</Text>
                 <TapPressable
                   style={layout.primaryBtn}
-                  onPress={() => router.push("/new-manuscript")}
+                  onPress={newManuscript}
                   accessibilityRole="button"
                   accessibilityLabel={t("manuscripts.newManuscript")}
                 >

@@ -34,6 +34,18 @@ describe("chatRequestFromIntent", () => {
     expect(selected.scope).toBe("selection");
     expect(selected.selection).toBe("the lantern");
   });
+
+  it("leaves a lingering highlight out of chapter-scoped intents", () => {
+    for (const intent of ["continue", "describe"] as const) {
+      const input = chatRequestFromIntent(intent, {
+        projectId: "p1",
+        chapterId: "c1",
+        selection: "the lantern",
+      });
+      expect(input.scope).toBe("chapter");
+      expect(input).not.toHaveProperty("selection");
+    }
+  });
 });
 
 describe("chatRequestFromComposer", () => {
