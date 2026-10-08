@@ -93,7 +93,7 @@ export function usePressFeedback({
   return useMemo(() => ({ pressed, animatedStyle, onPressIn, onPressOut }), [pressed, animatedStyle, onPressIn, onPressOut]);
 }
 
-type TintColors = { accent: string; ink: string; panel: string; panel2: string };
+type TintColors = { accent: string; ink: string; bg: string; panel: string; panel2: string };
 
 const HEX = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
 
@@ -101,9 +101,11 @@ const HEX = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
  * The fill a surface eases to while pressed, or null when it has none to ease
  * (a transparent or translucent surface just scales and dims). An accent fill
  * moves `TINT_MIX` toward the ink colour, so a label drawn in the panel colour
- * only gains contrast; anything else moves toward `panel2` (or toward ink when
- * it already sits on `panel2`, where that tint would be invisible). A card that
- * sets no fill of its own passes `assumePanel`, since it is drawn on the panel.
+ * only gains contrast; an `accent` surface rests on the accent whatever fill its
+ * style carries. A `panel` or `bg` fill moves toward `panel2` (a `panel2` fill
+ * toward ink, where that tint would be invisible), and any other solid fill (a
+ * danger button) moves toward ink like the accent. A card that sets no fill of
+ * its own passes `assumePanel`, since it is drawn on the panel.
  */
 export function pressTint(
   style: StyleProp<ViewStyle>,
@@ -112,14 +114,12 @@ export function pressTint(
 ): PressTint | null {
   const flat = StyleSheet.flatten(style)?.backgroundColor;
   const base = flat === undefined && assumePanel ? colors.panel : flat;
-  if (accent) {
-    const from = typeof base === "string" && HEX.test(base) ? base : colors.accent;
-    return { from, to: mixColors(colors.accent, colors.ink, TINT_MIX) };
-  }
+  if (accent) return { from: colors.accent, to: mixColors(colors.accent, colors.ink, TINT_MIX) };
   if (typeof base !== "string" || !HEX.test(base)) return null;
-  if (base.toLowerCase() === colors.accent.toLowerCase()) return { from: base, to: mixColors(base, colors.ink, TINT_MIX) };
-  if (base.toLowerCase() === colors.panel2.toLowerCase()) return { from: base, to: mixColors(base, colors.ink, TINT_MIX / 2) };
-  return { from: base, to: colors.panel2 };
+  const fill = base.toLowerCase();
+  if (fill === colors.panel2.toLowerCase()) return { from: base, to: mixColors(base, colors.ink, TINT_MIX / 2) };
+  if (fill === colors.panel.toLowerCase() || fill === colors.bg.toLowerCase()) return { from: base, to: colors.panel2 };
+  return { from: base, to: mixColors(base, colors.ink, TINT_MIX) };
 }
 
 /**

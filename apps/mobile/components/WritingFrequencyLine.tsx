@@ -117,10 +117,10 @@ export function WritingFrequencyLine({ counts }: { counts: Record<FrequencyPerio
 
   // After each change settles the line holds, then moves to the next period on its own (not under Reduce motion).
   useEffect(() => {
-    if (entries.length < 2 || reduceMotion) return;
+    if (entries.length < 2 || reduceMotion || busy.current) return;
     const timer = setTimeout(() => setIndex((i) => i + 1), FREQ_HOLD_MS);
     return () => clearTimeout(timer);
-  }, [settled, entries.length, reduceMotion]);
+  }, [settled, index, entries.length, reduceMotion]);
 
   if (!entry || !target) {
     return (

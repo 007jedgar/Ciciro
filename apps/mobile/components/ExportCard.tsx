@@ -20,7 +20,7 @@ import { AlertText } from "./AlertText";
 const EXPORT_READY_MS = 400;
 
 function ReadyTick({ color }: { color: string }) {
-  const progress = useDrawProgress(true);
+  const progress = useDrawProgress(true, 0, { drawOnMount: true });
   return <DrawCheck progress={progress} color={color} size={16} />;
 }
 

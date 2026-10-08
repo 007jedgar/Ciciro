@@ -20,11 +20,17 @@ export const CHECK_DRAW_MS = 320;
  * Drives a `DrawCheck`: 0 (nothing drawn) to 1 (complete). With `play` already
  * true on mount it starts complete, so a goal that was met earlier shows its
  * tick without replaying; when `play` flips to true it draws over
- * `CHECK_DRAW_MS` after `delayMs`. Reduce motion jumps to complete.
+ * `CHECK_DRAW_MS` after `delayMs`. `drawOnMount` draws it from empty even when
+ * `play` is true on mount, for a tick that only mounts once its moment arrives.
+ * Reduce motion jumps to complete.
  */
-export function useDrawProgress(play: boolean, delayMs = 0): SharedValue<number> {
+export function useDrawProgress(
+  play: boolean,
+  delayMs = 0,
+  { drawOnMount = false }: { drawOnMount?: boolean } = {}
+): SharedValue<number> {
   const reduceMotion = useReduceMotion();
-  const progress = useSharedValue(play ? 1 : 0);
+  const progress = useSharedValue(play && !drawOnMount ? 1 : 0);
   useEffect(() => {
     if (!play) {
       progress.value = 0;
