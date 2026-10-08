@@ -32,6 +32,7 @@ import { getAnalytics } from "../lib/analytics-client";
 import { ChapterScrubber } from "./ChapterScrubber";
 import { SkeletonList } from "./Skeleton";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 type Colors = typeof parchmentColors;
 type Layout = typeof parchmentLayout;
@@ -566,14 +567,14 @@ export function KnowledgeBoard({
       ) : null}
 
       {error ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {factsQuery.isError ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {t("bible.knowledge.loadError")}
-        </Text>
+        </AlertText>
       ) : null}
 
       <ChipRow

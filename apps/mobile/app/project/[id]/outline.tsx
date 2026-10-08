@@ -10,6 +10,7 @@ import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
 import { useStackBack } from "../../../lib/use-stack-back";
 import { getAnalytics } from "../../../lib/analytics-client";
+import { AlertText } from "../../../components/AlertText";
 
 function OutlineBody({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -36,9 +37,9 @@ function OutlineBody({ projectId }: { projectId: string }) {
   return (
     <View style={[layout.padded, { paddingTop: 0, flex: 1 }]}>
       {reorder.isError ? (
-        <Text style={[layout.error, { marginTop: 8 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 8 }]} role="alert">
           {t("outline.reorderError")}
-        </Text>
+        </AlertText>
       ) : null}
       {chapters.length === 0 ? (
         <Text style={[layout.body, { marginTop: 16 }]}>{t("chapters.empty")}</Text>

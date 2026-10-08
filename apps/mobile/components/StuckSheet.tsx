@@ -8,6 +8,7 @@ import { useAppTheme } from "../lib/settings";
 import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { GlassSheet } from "./GlassSheet";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 /**
  * "I'm stuck" sheet, opened from the writing tools menu. Lists a few concrete
@@ -54,9 +55,9 @@ export function StuckSheet({
           {ask.isPending ? (
             <LoadingBlock label={t("stuck.loading")} lines={4} />
           ) : ask.isError ? (
-            <Text style={{ color: colors.danger }} role="alert">
+            <AlertText style={{ color: colors.danger }} role="alert">
               {t("stuck.error")}
-            </Text>
+            </AlertText>
           ) : (
             (ask.data ?? []).map((prompt, index) => (
               <FadeUp key={prompt} index={index}>

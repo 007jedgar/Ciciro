@@ -42,11 +42,11 @@ import { useAuthFormStore } from "../lib/auth-form-store";
 import { useAppTheme } from "../lib/settings";
 import { restoreLastPlace } from "../lib/last-place";
 import { useSession } from "../lib/session";
-import { announce } from "../lib/announce";
 import { fonts } from "../lib/theme";
 import type { ManuscriptKind } from "../lib/manuscript-kind";
 import type { Obstacle } from "../lib/onboarding";
 import { saveOnboardingAnswers } from "../lib/onboarding-answers";
+import { AlertText } from "./AlertText";
 
 const ICON = { x: 20, y: 6, size: 46 };
 const HEADER_H = 52;
@@ -156,6 +156,9 @@ export function AuthScreen({
   const pw = useSharedValue(0);
   const ph = useSharedValue(0);
   const measured = useRef(false);
+  // Return moves down the form and submits from the password, as Enter does on the web form.
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const iconX = insets.left + ICON.x;
   const iconY = insets.top + ICON.y;
@@ -182,15 +185,6 @@ export function AuthScreen({
   };
 
   useEffect(() => cancelAnimation(grow), [grow]);
-
-  // iOS reads an error only when it is announced: the text itself is silent when it appears.
-  useEffect(() => {
-    if (error) announce(error);
-  }, [error]);
-  const fieldError = errors.email ?? errors.password;
-  useEffect(() => {
-    if (fieldError) announce(authFieldMessage(t, fieldError));
-  }, [fieldError, t]);
 
   // Welcome is only underneath when sign-in was opened from it. Every other
   // screen redirects here once the session is gone, and then there is nothing
@@ -369,6 +363,8 @@ export function AuthScreen({
                   <TextInput
                     style={layout.input}
                     aria-label={t("auth.name")}
+                    returnKeyType="next"
+                    onSubmitEditing={() => emailRef.current?.focus()}
                     placeholder={t("auth.namePlaceholder")}
                     placeholderTextColor={colors.inkSoft}
                     autoComplete="name"
@@ -382,6 +378,7 @@ export function AuthScreen({
               </Animated.View>
 
               <TextInput
+                ref={emailRef}
                 style={layout.input}
                 aria-label={t("auth.email")}
                 placeholder={t("auth.email")}
@@ -389,19 +386,24 @@ export function AuthScreen({
                 autoCapitalize="none"
                 autoComplete="email"
                 keyboardType="email-address"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
                 autoCorrect={settings.autoCorrect}
                 spellCheck={settings.autoCorrect}
                 value={email}
                 onChangeText={setEmail}
               />
               {errors.email ? (
-                <Text style={[layout.error, styles.fieldError]} role="alert">
+                <AlertText style={[layout.error, styles.fieldError]} role="alert">
                   {authFieldMessage(t, errors.email)}
-                </Text>
+                </AlertText>
               ) : null}
               <TextInput
+                ref={passwordRef}
                 style={layout.input}
                 aria-label={t("auth.password")}
+                returnKeyType="go"
+                onSubmitEditing={() => void submit()}
                 placeholder={isSignup ? t("auth.passwordSignupPlaceholder") : t("auth.password")}
                 placeholderTextColor={colors.inkSoft}
                 secureTextEntry
@@ -410,9 +412,9 @@ export function AuthScreen({
                 onChangeText={setPassword}
               />
               {errors.password ? (
-                <Text style={[layout.error, styles.fieldError]} role="alert">
+                <AlertText style={[layout.error, styles.fieldError]} role="alert">
                   {authFieldMessage(t, errors.password)}
-                </Text>
+                </AlertText>
               ) : null}
               {isSignup ? (
                 <Pressable
@@ -453,13 +455,13 @@ export function AuthScreen({
               {error ? (
                 <View style={[styles.formError, { borderColor: colors.danger }]}>
                   <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.danger, opacity: 0.1 }]} />
-                  <Text
+                  <AlertText
                     style={[layout.error, styles.formErrorText]}
                     role="alert"
                     numberOfLines={FORM_ERROR_LINES}
                   >
                     {error}
-                  </Text>
+                  </AlertText>
                 </View>
               ) : null}
 

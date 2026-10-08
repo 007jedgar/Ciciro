@@ -29,6 +29,7 @@ import { useAppTheme } from "../../lib/settings";
 import { useSession } from "../../lib/session";
 import { PressableCard } from "../../components/PressableCard";
 import { TapPressable } from "../../components/TapPressable";
+import { AlertText } from "../../components/AlertText";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -129,9 +130,9 @@ export default function FolderScreen() {
         scrollIndicatorInsets={{ top: headerHeight }}
       >
         {error ? (
-          <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+          <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
             {error}
-          </Text>
+          </AlertText>
         ) : null}
         {!folder && !loadError ? (
           <SkeletonList count={5} accessibilityLabel={t("common.loading")} />

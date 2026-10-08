@@ -17,6 +17,7 @@ import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 function ReviewBody({ review }: { review: Review }) {
   const { t } = useTranslation();
@@ -151,14 +152,14 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
     >
       <Text style={[layout.body, { marginBottom: 16 }]}>{t("weekly.blurb")}</Text>
       {error ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {reviews.isError ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {t("weekly.loadError")}
-        </Text>
+        </AlertText>
       ) : null}
       <PressableCard
         style={[layout.card, { marginBottom: 16 }]}

@@ -23,6 +23,7 @@ import {
   type WritingSessionTotals,
 } from "../lib/writing-session";
 import { TapPressable } from "../components/TapPressable";
+import { AlertText } from "../components/AlertText";
 
 const HEATMAP_DAYS = 28;
 const ALL_TIME_FROM = "2018-01-01";
@@ -114,9 +115,9 @@ export default function WritingHistoryScreen() {
         scrollIndicatorInsets={{ top: headerHeight }}
       >
         {error ? (
-          <Text style={layout.error} role="alert">
+          <AlertText style={layout.error} role="alert">
             {error}
-          </Text>
+          </AlertText>
         ) : null}
 
         <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{weekLabel}</Text>

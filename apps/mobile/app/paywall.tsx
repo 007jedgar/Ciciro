@@ -41,6 +41,7 @@ import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { fonts, type ColorTokens } from "../lib/theme";
 import { useStackBack } from "../lib/use-stack-back";
+import { AlertText } from "../components/AlertText";
 
 type Notice = { tone: "info" | "error"; key: string } | null;
 
@@ -266,7 +267,7 @@ export default function PaywallScreen() {
             )}
 
             {notice ? (
-              <Text
+              <AlertText
                 role="alert"
                 style={{
                   marginTop: 14,
@@ -277,7 +278,7 @@ export default function PaywallScreen() {
                 }}
               >
                 {t(notice.key)}
-              </Text>
+              </AlertText>
             ) : null}
 
             <TextButton

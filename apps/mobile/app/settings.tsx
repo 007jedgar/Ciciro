@@ -48,6 +48,7 @@ import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePur
 import { getAnalytics } from "../lib/analytics-client";
 import * as haptics from "../lib/haptics";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
+import { AlertText } from "../components/AlertText";
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
 
@@ -468,12 +469,12 @@ function PlanGroup({ entitlement, colors }: { entitlement: Entitlement; colors: 
             </Text>
           ) : null}
           {restoreNote ? (
-            <Text
+            <AlertText
               role="alert"
               style={{ marginTop: 8, fontSize: 13, lineHeight: 18, color: restoreNote.error ? colors.danger : colors.inkSoft }}
             >
               {t(restoreNote.key)}
-            </Text>
+            </AlertText>
           ) : null}
         </View>
         {actions.length > 0 ? <Hairline colors={colors} /> : null}

@@ -10,6 +10,7 @@ import { colors as parchmentColors, layout as parchmentLayout } from "../lib/the
 import type { ProjectDetail } from "../lib/types";
 import { PressableCard } from "./PressableCard";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 type Props = {
   defaultAuthor?: string;
@@ -144,9 +145,9 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
         />
       ) : null}
       {error ? (
-        <Text style={layout.error} role="alert">
+        <AlertText style={layout.error} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       <TapPressable
         style={layout.primaryBtn}

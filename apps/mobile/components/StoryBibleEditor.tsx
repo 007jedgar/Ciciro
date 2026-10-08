@@ -10,6 +10,7 @@ import { colors as parchmentColors, layout as parchmentLayout } from "../lib/the
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { SkeletonList } from "./Skeleton";
 import { getAnalytics } from "../lib/analytics-client";
+import { AlertText } from "./AlertText";
 
 export function StoryBibleEditor({
   projectId,
@@ -91,9 +92,9 @@ export function StoryBibleEditor({
   if (file.isError && !file.data) {
     return (
       <View style={layout.padded}>
-        <Text style={layout.error} role="alert">
+        <AlertText style={layout.error} role="alert">
           {t("bible.loadError")}
-        </Text>
+        </AlertText>
       </View>
     );
   }
@@ -111,9 +112,9 @@ export function StoryBibleEditor({
         style={{ flexGrow: 1 }}
       >
         {error ? (
-          <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+          <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
             {error}
-          </Text>
+          </AlertText>
         ) : null}
         <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{path}</Text>
         <TextInput

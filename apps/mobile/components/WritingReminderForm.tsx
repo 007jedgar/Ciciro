@@ -16,6 +16,7 @@ import {
   type WritingReminder,
 } from "../lib/writing-reminders";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -364,9 +365,9 @@ export function WritingReminderForm({
       ) : null}
 
       {shownError ? (
-        <Text style={layout.error} role="alert">
+        <AlertText style={layout.error} role="alert">
           {shownError}
-        </Text>
+        </AlertText>
       ) : null}
       {notice ? (
         <Text style={[layout.body, { marginTop: 12 }]} accessibilityRole="text">

@@ -16,6 +16,7 @@ import { shimmerPalette } from "../lib/shimmer";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { ShimmerText } from "./ShimmerText";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 /**
  * Where a just-typed genre is in its life.
@@ -165,9 +166,9 @@ export function ManuscriptTag({
           />
         </Animated.View>
         {error ? (
-          <Text style={[styles.error, { color: colors.danger }]} role="alert">
+          <AlertText style={[styles.error, { color: colors.danger }]} role="alert">
             {error}
-          </Text>
+          </AlertText>
         ) : null}
       </View>
     );
@@ -215,9 +216,9 @@ export function ManuscriptTag({
         </TapPressable>
       </Animated.View>
       {error ? (
-        <Text style={[styles.error, { color: colors.danger }]} role="alert">
+        <AlertText style={[styles.error, { color: colors.danger }]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
     </View>
   );

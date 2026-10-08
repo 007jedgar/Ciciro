@@ -9,6 +9,7 @@ import { ApiError, ciciro } from "../lib/api";
 import { useAppTheme } from "../lib/settings";
 import { announce } from "../lib/announce";
 import { useStackBack } from "../lib/use-stack-back";
+import { AlertText } from "../components/AlertText";
 
 /**
  * Ask for a password-reset email. The link it sends opens the web reset page
@@ -108,9 +109,9 @@ export default function ForgotPasswordScreen() {
               onSubmitEditing={() => void submit()}
             />
             {error ? (
-              <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+              <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
                 {error}
-              </Text>
+              </AlertText>
             ) : null}
             <Pressable
               onPress={() => void submit()}

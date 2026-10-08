@@ -61,6 +61,7 @@ import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 /** A circle nested in the pill, inset so it shares the field's curve. */
 const SEND_SIZE = 36;
@@ -939,9 +940,9 @@ export function CiciroChat({
         />
 
         {insertError ? (
-          <Text style={[layout.error, { marginHorizontal: 20 }]} role="alert">
+          <AlertText style={[layout.error, { marginHorizontal: 20 }]} role="alert">
             {insertError}
-          </Text>
+          </AlertText>
         ) : null}
 
         {failure ? (

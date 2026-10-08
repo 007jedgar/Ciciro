@@ -4,6 +4,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { failureMessageKey, type ChatFailure } from "../lib/chat-errors";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { storePurchasesAvailable } from "../lib/purchases";
 import { getAnalytics } from "../lib/analytics-client";
 import type { ColorTokens } from "../lib/theme";
@@ -26,6 +27,7 @@ export function ChatErrorNotice({
   onRetry?: () => void;
 }) {
   const { t } = useTranslation();
+  const reduceMotion = useReduceMotion();
   const [open, setOpen] = useState(false);
   const detail = failure.detail.trim();
   const code = [failure.status, failure.code === "unknown" ? null : failure.code]
@@ -39,7 +41,7 @@ export function ChatErrorNotice({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(200)}
+      entering={reduceMotion ? undefined : FadeIn.duration(200)}
       accessibilityRole="alert"
       style={[styles.card, { borderColor: colors.line, backgroundColor: colors.panel2 }]}
     >
@@ -98,7 +100,7 @@ export function ChatErrorNotice({
       </View>
 
       {open && detail ? (
-        <Animated.View entering={FadeIn.duration(160)} style={styles.detail}>
+        <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(160)} style={styles.detail}>
           {/* Capped so a long payload scrolls in place and Hide details stays in reach. */}
           <ScrollView
             style={[styles.detailScroll, { borderColor: colors.line }]}

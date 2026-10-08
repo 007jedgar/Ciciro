@@ -18,6 +18,7 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
+import { AlertText } from "./AlertText";
 
 /** The scratchpad's list: every note for the manuscript, newest edit first. */
 export function ScratchNotes({
@@ -76,14 +77,14 @@ export function ScratchNotes({
     >
       <Text style={[layout.body, { marginBottom: 16 }]}>{t("scratch.blurb")}</Text>
       {error ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {notes.isError ? (
-        <Text style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
+        <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {t("scratch.loadError")}
-        </Text>
+        </AlertText>
       ) : null}
       <PressableCard
         style={[layout.card, { marginBottom: 16 }]}

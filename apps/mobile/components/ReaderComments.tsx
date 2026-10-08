@@ -21,6 +21,7 @@ import { PressableCard } from "./PressableCard";
 import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
 import { TapPressable } from "./TapPressable";
+import { AlertText } from "./AlertText";
 
 /** What beta readers said, by chapter, to jump to, resolve, or delete. */
 export function ReaderComments({
@@ -145,14 +146,14 @@ export function ReaderComments({
       </View>
 
       {error ? (
-        <Text style={[layout.error, styles.error]} role="alert">
+        <AlertText style={[layout.error, styles.error]} role="alert">
           {error}
-        </Text>
+        </AlertText>
       ) : null}
       {list.isError ? (
-        <Text style={[layout.error, styles.error]} role="alert">
+        <AlertText style={[layout.error, styles.error]} role="alert">
           {t("beta.loadError")}
-        </Text>
+        </AlertText>
       ) : null}
       {list.isPending && !list.data ? (
         <SkeletonList count={3} accessibilityLabel={t("common.loading")} />

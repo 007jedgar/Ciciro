@@ -36,6 +36,7 @@ import { getAnalytics } from "../lib/analytics-client";
 import { alpha } from "./Glass";
 import { SkeletonList } from "./Skeleton";
 import { Snackbar } from "./Snackbar";
+import { AlertText } from "./AlertText";
 
 /** How long "Version restored - Undo" stays up. */
 const NOTICE_MS = 8000;
@@ -240,14 +241,14 @@ export function ChapterHistory({
           </Pressable>
         </View>
         {error ? (
-          <Text style={[layout.error, styles.error]} role="alert">
+          <AlertText style={[layout.error, styles.error]} role="alert">
             {error}
-          </Text>
+          </AlertText>
         ) : null}
         {list.isError ? (
-          <Text style={[layout.error, styles.error]} role="alert">
+          <AlertText style={[layout.error, styles.error]} role="alert">
             {t("history.loadError")}
-          </Text>
+          </AlertText>
         ) : null}
 
         <Animated.View style={crossfadeStyle}>

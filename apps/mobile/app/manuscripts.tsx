@@ -22,6 +22,7 @@ import { importManuscriptFile, isImportable, pickImportFile } from "../lib/impor
 import { getAnalytics } from "../lib/analytics-client";
 import type { Folder, ProjectListItem } from "../lib/types";
 import { PressableCard } from "../components/PressableCard";
+import { AlertText } from "../components/AlertText";
 
 type Row =
   | { key: string; kind: "folder"; folder: Folder }
@@ -232,12 +233,12 @@ function ManuscriptsScreenContent() {
         />
       </View>
       {importError ? (
-        <Text
+        <AlertText
           style={[layout.error, { marginHorizontal: 20, marginTop: headerHeight + 12 }]}
           role="alert"
         >
           {importError}
-        </Text>
+        </AlertText>
       ) : null}
       {queryError && rows.length > 0 ? (
         <ScreenErrorState

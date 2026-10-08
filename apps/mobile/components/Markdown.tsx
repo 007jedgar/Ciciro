@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { blockText, parseMarkdown, type InlineSpan, type MarkdownBlock } from "../lib/markdown";
 import type { ColorTokens } from "../lib/theme";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 
 const WORD_FADE_MS = 240;
 const BLOCK_STAGGER_MS = 40;
@@ -31,30 +32,39 @@ function Run({
   style: TextStyle;
   animate: boolean;
 }) {
-  const fade = useSharedValue(animate ? 0 : 1);
+  // Reduce motion: the words are simply there, with no fade.
+  const reduceMotion = useReduceMotion();
+  const fading = animate && !reduceMotion;
+  const fade = useSharedValue(fading ? 0 : 1);
   const animated = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   useEffect(() => {
-    if (animate) fade.value = withTiming(1, { duration: WORD_FADE_MS });
+    if (fading) fade.value = withTiming(1, { duration: WORD_FADE_MS });
     else fade.value = 1;
-  }, [animate, fade]);
+  }, [fading, fade]);
 
   return <Animated.Text style={[style, animated]}>{span.text}</Animated.Text>;
 }
 
 /** A soft bar that pulses where the editor is still writing. */
 function Caret({ color }: { color: string }) {
+  const reduceMotion = useReduceMotion();
   const pulse = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ opacity: pulse.value }));
 
   useEffect(() => {
+    // A still bar under reduce motion: an endless pulse is what that setting exists to stop.
+    if (reduceMotion) {
+      pulse.value = 1;
+      return;
+    }
     pulse.value = withRepeat(
       withSequence(withTiming(0.15, { duration: 520 }), withTiming(1, { duration: 520 })),
       -1,
       false
     );
     return () => cancelAnimation(pulse);
-  }, [pulse]);
+  }, [pulse, reduceMotion]);
 
   return <Animated.View style={[styles.caret, { backgroundColor: color }, style]} />;
 }
@@ -145,7 +155,8 @@ function BlockFrame({
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 }) {
-  if (!animate) return <View style={style}>{children}</View>;
+  const reduceMotion = useReduceMotion();
+  if (!animate || reduceMotion) return <View style={style}>{children}</View>;
   return (
     <Animated.View
       entering={FadeInDown.duration(260).delay(Math.min(index, 6) * BLOCK_STAGGER_MS)}
