@@ -799,6 +799,21 @@ export function CiciroChat({
     if (messages.length === 0) syncJump(0);
   }, [messages.length, syncJump]);
 
+  /**
+   * A background refetch - another device, a stopped turn re-caching - can
+   * append rows below the viewport with no scroll event of its own. Follow
+   * the tail once while the author is still reading it (the jump chip is not
+   * showing); further away, the chip is the invitation, not an auto-jump.
+   */
+  const lastMessageCount = useRef(messages.length);
+  useEffect(() => {
+    const prevCount = lastMessageCount.current;
+    lastMessageCount.current = messages.length;
+    if (!openedAtTail.current || streaming || activeAnchor) return;
+    if (messages.length <= prevCount || jumpShown) return;
+    listRef.current?.scrollToEnd({ animated: !reduceMotion });
+  }, [messages.length, streaming, activeAnchor, jumpShown, reduceMotion]);
+
   // Opus 5.5's own progress note, when there's a fresh one, beats the
   // generic tool/phase labels - it says what Ciciro is actually doing.
   const latestProgress = stream.progress[stream.progress.length - 1];
