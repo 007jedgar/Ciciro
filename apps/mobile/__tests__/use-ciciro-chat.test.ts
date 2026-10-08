@@ -536,5 +536,51 @@ describe("useCiciroChat", () => {
       });
       unmount();
     });
+
+    it("keeps the cached transcript long after the chat screen is gone", async () => {
+      jest.useFakeTimers();
+      try {
+        mockFetch(async () => jsonResponse(snapshot));
+        const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        unmount();
+
+        act(() => {
+          jest.advanceTimersByTime(60 * 60_000);
+        });
+
+        expect(queryClient.getQueryData(queryKeys.chat.snapshot("p1"))).toMatchObject({
+          messages: [{ id: "u1" }, { id: "a1" }],
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("keeps a just-sent prompt on screen when the turn and its reload both fail", async () => {
+      queryClient.setQueryData(queryKeys.chat.snapshot("p1"), snapshot);
+      let gets = 0;
+      mockFetch(async (_input, init) => {
+        if ((init?.method ?? "GET") === "POST") throw new TypeError("Network request failed");
+        gets += 1;
+        if (gets === 1) return jsonResponse(snapshot);
+        throw new TypeError("Network request failed");
+      });
+
+      const { result, unmount } = renderHook(() => useCiciroChat("p1"));
+      await waitFor(() => expect(gets).toBe(1));
+
+      await act(async () => {
+        await result.current.send({ projectId: "p1", message: "Tighten the ending." });
+      });
+
+      expect(result.current.failure).not.toBeNull();
+      expect(result.current.messages.map((message) => message.content)).toEqual([
+        "Hi",
+        "Hello again.",
+        "Tighten the ending.",
+      ]);
+      unmount();
+    });
   });
 });
