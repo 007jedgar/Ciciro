@@ -99,18 +99,21 @@ describe("adding a writing reminder", () => {
     mockStoredReminders = [newWritingReminder({ id: "wr_existing", projectId: "p1" })];
   });
 
-  it("opens the reminders list from the manuscripts + menu", () => {
+  it("keeps the manuscripts + menu to things you can create", () => {
     renderInSafeArea(<ManuscriptsScreen />);
     fireEvent.press(screen.getByRole("button", { name: "New manuscript", expanded: false }));
-    fireEvent.press(screen.getByLabelText("Writing reminder"));
-    expect(mockPush).toHaveBeenCalledWith("/writing-reminders");
+    expect(screen.getByLabelText("Import manuscript")).toBeTruthy();
+    expect(screen.getByLabelText("New folder")).toBeTruthy();
+    expect(screen.queryByLabelText("Writing reminder")).toBeNull();
+    expect(screen.queryByLabelText("Writing history")).toBeNull();
   });
 
   it("fires cta_clicked for the New manuscript menu item, distinct from the + trigger", () => {
     renderInSafeArea(<ManuscriptsScreen />);
     fireEvent.press(screen.getByRole("button", { name: "New manuscript", expanded: false }));
-    const [, menuItem] = screen.getAllByRole("button", { name: "New manuscript" });
-    fireEvent.press(menuItem);
+    // The trigger, the empty list's own button, then the menu item.
+    const matches = screen.getAllByRole("button", { name: "New manuscript" });
+    fireEvent.press(matches[matches.length - 1]);
     expect(mockPush).toHaveBeenCalledWith("/new-manuscript");
     expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "new_manuscript", surface: "library" });
   });

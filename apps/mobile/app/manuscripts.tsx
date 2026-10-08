@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
-import { BellIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
+import { ChevronRightIcon, FolderIcon, FolderPlusIcon, ImportIcon, NewChapterIcon } from "../components/icons";
 import { MorphRowText, beginRowMorph } from "../components/MorphRowText";
 import { ScreenErrorBoundary } from "../components/ScreenErrorBoundary";
 import { ScreenErrorState } from "../components/ScreenErrorState";
@@ -23,6 +23,7 @@ import { getAnalytics } from "../lib/analytics-client";
 import type { Folder, ProjectListItem } from "../lib/types";
 import { PressableCard } from "../components/PressableCard";
 import { AlertText } from "../components/AlertText";
+import { TapPressable } from "../components/TapPressable";
 
 type Row =
   | { key: string; kind: "folder"; folder: Folder }
@@ -191,7 +192,7 @@ function ManuscriptsScreenContent() {
     {
       key: "import",
       label: importing ? t("importFile.importing") : t("importFile.menu"),
-      Icon: NewChapterIcon,
+      Icon: ImportIcon,
       onPress: () => void importManuscript(),
     },
     {
@@ -199,18 +200,6 @@ function ManuscriptsScreenContent() {
       label: t("manuscripts.newFolder"),
       Icon: FolderPlusIcon,
       onPress: () => router.push("/new-folder"),
-    },
-    {
-      key: "history",
-      label: t("writingHistory.menu"),
-      Icon: HistoryIcon,
-      onPress: () => router.push("/writing-history"),
-    },
-    {
-      key: "reminder",
-      label: t("reminders.menu"),
-      Icon: BellIcon,
-      onPress: () => router.push("/writing-reminders"),
     },
   ];
 
@@ -300,9 +289,17 @@ function ManuscriptsScreenContent() {
                 style={{ marginTop: 16 }}
               />
             ) : (
-              <Text style={[layout.body, { marginTop: 8 }]}>
-                {t("manuscripts.empty")}
-              </Text>
+              <View style={{ marginTop: 8 }}>
+                <Text style={layout.body}>{t("manuscripts.empty")}</Text>
+                <TapPressable
+                  style={layout.primaryBtn}
+                  onPress={() => router.push("/new-manuscript")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("manuscripts.newManuscript")}
+                >
+                  <Text style={layout.primaryBtnText}>{t("manuscripts.newManuscript")}</Text>
+                </TapPressable>
+              </View>
             )
           }
           renderItem={({ item, index }) => {

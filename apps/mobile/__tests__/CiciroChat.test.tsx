@@ -97,7 +97,7 @@ describe("CiciroChat", () => {
     );
     expect(
       screen.getByText(
-        "Ask Ciciro about this manuscript, or pick Continue, Rewrite, or Describe from the writing tools."
+        "Ask Ciciro about this manuscript, or tap one of the suggestions below."
       )
     ).toBeTruthy();
     expect(screen.queryByLabelText("Send")).toBeNull();
@@ -116,15 +116,24 @@ describe("CiciroChat", () => {
     unmount();
   });
 
-  it("fills the composer from a starter chip without sending", () => {
-    const onSend = jest.fn();
-    const onComposerChange = jest.fn();
-    const { unmount } = render(
-      wrap(<CiciroChat {...idle} composer="" onComposerChange={onComposerChange} onSend={onSend} />)
+  it("sends a quick action chip's id and hides the chips while a reply streams", () => {
+    const onQuickAction = jest.fn();
+    const quickActions = [
+      { id: "critique-chapter", label: "Critique this chapter" },
+      { id: "loose-ends", label: "Find loose ends" },
+    ];
+    const { rerender, unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" quickActions={quickActions} onQuickAction={onQuickAction} />)
     );
-    fireEvent.press(screen.getByText("Describe a scene"));
-    expect(onComposerChange).toHaveBeenCalledWith("Describe a scene");
-    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Find loose ends"));
+    expect(onQuickAction).toHaveBeenCalledWith("loose-ends");
+
+    rerender(
+      wrap(
+        <CiciroChat {...idle} streaming composer="" quickActions={quickActions} onQuickAction={onQuickAction} />
+      )
+    );
+    expect(screen.queryByLabelText("Find loose ends")).toBeNull();
     unmount();
   });
 

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { CiciroChat } from "../../../../components/CiciroChat";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
 import { OpenQuestionsSheet } from "../../../../components/OpenQuestionsSheet";
+import { ProjectLoadError } from "../../../../components/ProjectLoadError";
+import { ScreenErrorBoundary } from "../../../../components/ScreenErrorBoundary";
 import { SkeletonList } from "../../../../components/Skeleton";
 import {
   ciciro,
@@ -24,12 +26,23 @@ import {
   chatRequestFromIntent,
 } from "../../../../lib/ciciro-intents";
 import { useProject } from "../../../../lib/project";
+import { normalizeKind } from "../../../../lib/manuscript-kind";
+import { quickActionsFor, chatRequestFromAction } from "../../../../lib/quick-actions";
+import { selectedTextFor } from "../../../../lib/read-aloud";
 import { useAppTheme } from "../../../../lib/settings";
 import { useCiciroChat } from "../../../../lib/use-ciciro-chat";
 import { getAnalytics } from "../../../../lib/analytics-client";
 
 export default function CiciroScreen() {
-  const { project, loading, error, selectedChapterId, recordChapterOp } = useProject();
+  return (
+    <ScreenErrorBoundary>
+      <CiciroScreenContent />
+    </ScreenErrorBoundary>
+  );
+}
+
+function CiciroScreenContent() {
+  const { project, loading, error, errorDetail, reload, selectedChapterId, recordChapterOp } = useProject();
   const { intent, questions: questionsParam, prompt: promptParam } = useLocalSearchParams<{
     intent?: string;
     questions?: string;
@@ -98,6 +111,31 @@ export default function CiciroScreen() {
     [chat.send, projectId, selectedChapterId]
   );
 
+  const kind = normalizeKind(project?.kind);
+  const quickActions = useMemo(
+    () => quickActionsFor(kind).map((action) => ({ id: action.id, label: t(`quickActions.${action.id}`) })),
+    [kind, t]
+  );
+
+  const runQuickAction = useCallback(
+    (id: string) => {
+      const action = quickActionsFor(kind).find((item) => item.id === id);
+      if (!action || !projectId || chat.streaming) return;
+      if (action.writes && chat.editMode === "chat") {
+        Alert.alert(t("quickActions.editsOffTitle"), t("quickActions.editsOffBody"));
+        return;
+      }
+      const selection = selectedChapterId ? selectedTextFor(selectedChapterId) : "";
+      if (action.scope === "selection" && !selection.trim()) {
+        Alert.alert(t("quickActions.selectFirstTitle"), t("quickActions.selectFirstBody"));
+        return;
+      }
+      getAnalytics().track("quick_action_used", { action: action.id, kind });
+      void chat.send(chatRequestFromAction(action, { projectId, chapterId: selectedChapterId, selection }));
+    },
+    [chat.editMode, chat.send, chat.streaming, kind, projectId, selectedChapterId, t]
+  );
+
   const insertDraft = useCallback(
     (text: string, turnId: string | null, index: number) => {
       const chapter = project?.chapters.find((item) => item.id === selectedChapterId);
@@ -160,6 +198,7 @@ export default function CiciroScreen() {
       chatRequestFromIntent(requested, {
         projectId,
         chapterId: selectedChapterId,
+        selection: selectedChapterId ? selectedTextFor(selectedChapterId) : "",
       })
     );
     router.setParams({ intent: undefined });
@@ -183,11 +222,7 @@ export default function CiciroScreen() {
   }
 
   if (error) {
-    return (
-      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
-        <Text style={layout.error}>{error}</Text>
-      </View>
-    );
+    return <ProjectLoadError message={error} detail={errorDetail} reload={reload} />;
   }
 
   if (!project) return null;
@@ -238,6 +273,8 @@ export default function CiciroScreen() {
         insertedKeys={insertedKeys}
         openQuestionCount={questions.data?.length ?? 0}
         onOpenQuestions={() => setQuestionsOpen(true)}
+        quickActions={quickActions}
+        onQuickAction={runQuickAction}
         bottomInset={clearance}
         // The requested-intent card already clears the header.
         topInset={requested ? 0 : headerHeight}

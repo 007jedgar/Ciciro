@@ -744,6 +744,7 @@ export default function SettingsScreen() {
       >
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
 
+        <SectionHeader label={t("settings.sectionAppearance")} colors={colors} />
         <Group colors={colors}>
           <SheetRow
             label={t("settings.language")}
@@ -769,28 +770,36 @@ export default function SettingsScreen() {
             onPress={() => setSheet("size")}
             colors={colors}
           />
-          <SheetRow
-            label={t("settings.formatting")}
-            value={t(`settings.formatChrome.${settings.formatChrome}`)}
-            onPress={() => setSheet("format")}
-            colors={colors}
-            last
-          />
-        </Group>
-
-        <Group colors={colors}>
-          <ToggleRow
-            label={t("settings.autocorrect")}
-            hint={t("settings.autocorrectHint")}
-            value={settings.autoCorrect}
-            onValueChange={(autoCorrect) => patch({ autoCorrect })}
-            colors={colors}
-          />
           <ToggleRow
             label={t("settings.reduceMotion")}
             hint={t("settings.reduceMotionHint")}
             value={settings.reduceMotion}
             onValueChange={(reduceMotion) => patch({ reduceMotion })}
+            colors={colors}
+          />
+          <ToggleRow
+            label={t("settings.haptics")}
+            hint={t("settings.hapticsHint")}
+            value={hapticsEnabled}
+            onValueChange={haptics.setHapticsEnabled}
+            colors={colors}
+            last
+          />
+        </Group>
+
+        <SectionHeader label={t("settings.sectionWriting")} colors={colors} />
+        <Group colors={colors}>
+          <SheetRow
+            label={t("settings.formatting")}
+            value={t(`settings.formatChrome.${settings.formatChrome}`)}
+            onPress={() => setSheet("format")}
+            colors={colors}
+          />
+          <ToggleRow
+            label={t("settings.autocorrect")}
+            hint={t("settings.autocorrectHint")}
+            value={settings.autoCorrect}
+            onValueChange={(autoCorrect) => patch({ autoCorrect })}
             colors={colors}
           />
           <ToggleRow
@@ -801,19 +810,17 @@ export default function SettingsScreen() {
             colors={colors}
           />
           <ToggleRow
-            label={t("settings.haptics")}
-            hint={t("settings.hapticsHint")}
-            value={hapticsEnabled}
-            onValueChange={haptics.setHapticsEnabled}
-            colors={colors}
-          />
-          <ToggleRow
             label={t("settings.typewriterMode")}
             hint={t("settings.typewriterModeHint")}
             value={settings.typewriterMode}
             onValueChange={(typewriterMode) => patch({ typewriterMode })}
             colors={colors}
+            last
           />
+        </Group>
+
+        <SectionHeader label={t("settings.sectionCiciro")} colors={colors} />
+        <Group colors={colors}>
           <ToggleRow
             label={t("settings.aiSuggestions")}
             hint={t("settings.aiSuggestionsHint")}
@@ -827,21 +834,18 @@ export default function SettingsScreen() {
             value={settings.craftDefaults}
             onValueChange={(craftDefaults) => patch({ craftDefaults })}
             colors={colors}
+            last
           />
-          <ToggleRow
-            label={t("settings.analytics")}
-            hint={t("settings.analyticsHint")}
-            value={settings.analyticsEnabled}
-            onValueChange={(analyticsEnabled) => patch({ analyticsEnabled })}
-            colors={colors}
-          />
+        </Group>
+
+        <SectionHeader label={t("settings.sectionGoals")} colors={colors} />
+        <Group colors={colors}>
           <ToggleRow
             label={t("settings.dailyGoal")}
             hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
             value={settings.showDailyGoal}
             onValueChange={(showDailyGoal) => patch({ showDailyGoal })}
             colors={colors}
-            last={!settings.showDailyGoal}
           />
           {settings.showDailyGoal ? (
             <Animated.View
@@ -859,19 +863,19 @@ export default function SettingsScreen() {
                 value={t("settings.weeklyTargetValue", { count: settings.weeklyDayTarget })}
                 onPress={() => setSheet("weekly")}
                 colors={colors}
-                last
               />
             </Animated.View>
           ) : null}
-        </Group>
-
-        <NotificationsGroup colors={colors} />
-
-        <Group colors={colors}>
           <SheetRow
             label={t("reminders.settings")}
             value={remindersValue}
             onPress={() => router.push("/writing-reminders")}
+            colors={colors}
+          />
+          <SheetRow
+            label={t("writingHistory.title")}
+            value=""
+            onPress={() => router.push("/writing-history")}
             colors={colors}
             last={!showOpenSettings}
           />
@@ -891,6 +895,8 @@ export default function SettingsScreen() {
             </Pressable>
           ) : null}
         </Group>
+
+        <NotificationsGroup colors={colors} />
 
         {entitlement ? <PlanGroup entitlement={entitlement} colors={colors} /> : null}
 
@@ -923,6 +929,19 @@ export default function SettingsScreen() {
           </>
         ) : null}
 
+        <SectionHeader label={t("settings.sectionPrivacy")} colors={colors} />
+        <Group colors={colors}>
+          <ToggleRow
+            label={t("settings.analytics")}
+            hint={t("settings.analyticsHint")}
+            value={settings.analyticsEnabled}
+            onValueChange={(analyticsEnabled) => patch({ analyticsEnabled })}
+            colors={colors}
+            last
+          />
+        </Group>
+
+        <SectionHeader label={t("settings.account")} colors={colors} />
         <Group colors={colors}>
           <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
             <Text style={{ fontSize: 17, color: colors.ink }}>{user.email}</Text>

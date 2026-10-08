@@ -116,6 +116,10 @@ export function AuthScreen({
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const isSignup = mode === "signup";
+  // Return walks the form: name, then email, then password, and on the
+  // password it submits, so nobody has to dismiss the keyboard to find the button.
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   // The form store outlives this screen, so clear it: after signing out, the
   // next person to open sign-in must not find the last password filled in.
@@ -374,6 +378,10 @@ export function AuthScreen({
                     value={name}
                     onChangeText={setName}
                     editable={isSignup}
+                    textContentType="name"
+                    returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => emailRef.current?.focus()}
                   />
                 </View>
               </Animated.View>
@@ -387,12 +395,14 @@ export function AuthScreen({
                 autoCapitalize="none"
                 autoComplete="email"
                 keyboardType="email-address"
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
+                textContentType="emailAddress"
                 autoCorrect={settings.autoCorrect}
                 spellCheck={settings.autoCorrect}
                 value={email}
                 onChangeText={setEmail}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => passwordRef.current?.focus()}
               />
               {errors.email ? (
                 <AlertText style={[layout.error, styles.fieldError]} role="alert">
@@ -403,14 +413,17 @@ export function AuthScreen({
                 ref={passwordRef}
                 style={layout.input}
                 aria-label={t("auth.password")}
-                returnKeyType="go"
-                onSubmitEditing={() => void submit()}
                 placeholder={isSignup ? t("auth.passwordSignupPlaceholder") : t("auth.password")}
                 placeholderTextColor={colors.inkSoft}
                 secureTextEntry
                 autoComplete={isSignup ? "new-password" : "password"}
+                textContentType={isSignup ? "newPassword" : "password"}
                 value={password}
                 onChangeText={setPassword}
+                returnKeyType="go"
+                onSubmitEditing={() => {
+                  if (!busy) void submit();
+                }}
               />
               {errors.password ? (
                 <AlertText style={[layout.error, styles.fieldError]} role="alert">
