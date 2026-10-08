@@ -128,6 +128,25 @@ describe("CiciroChat", () => {
     expect(root.transform).toEqual([{ scaleY: -1 }]);
   });
 
+  it("sits the empty prompt above the dock's fade, not under it", () => {
+    render(wrap(<CiciroChat {...idle} composer="" onSend={jest.fn()} />));
+    const dockHeight = 180;
+    fireEvent(screen.getByTestId("chat-dock"), "layout", {
+      nativeEvent: { layout: { height: dockHeight, width: 390, x: 0, y: 0 } },
+    });
+    const lead = -StyleSheet.flatten(screen.UNSAFE_getByType(LinearGradient).props.style).top;
+    const prompt = screen.getByText(
+      "Ask Ciciro about this manuscript, or tap one of the suggestions below."
+    );
+    // Inverted, both the container's paddingTop and the empty state's own
+    // marginTop are the space between the dock's top edge and the prompt.
+    const padding = StyleSheet.flatten(
+      screen.getByTestId("chat-thread").props.contentContainerStyle
+    ).paddingTop;
+    const margin = StyleSheet.flatten(prompt.parent?.parent?.props.style).marginTop ?? 0;
+    expect(padding - dockHeight + margin).toBeGreaterThanOrEqual(lead);
+  });
+
   it("sends a quick action chip's id and hides the chips while a reply streams", () => {
     const onQuickAction = jest.fn();
     const quickActions = [

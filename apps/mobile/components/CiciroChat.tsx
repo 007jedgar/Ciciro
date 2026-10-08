@@ -1060,7 +1060,9 @@ const styles = StyleSheet.create({
   thread: { flex: 1 },
   threadFill: { flex: 1 },
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
-  emptyState: { alignItems: "center", marginTop: 24, gap: 14 },
+  // Inverted, the layout top is the side facing the dock: clear the whole fade
+  // so the hint is not washed out where the starter chips used to sit.
+  emptyState: { alignItems: "center", marginTop: FADE_LEAD, gap: 14 },
   emptyText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
   // A scroll view clips its content, and each chip's glass casts a soft shadow
   // below it: the padding gives the shadow room and the negative margin takes
