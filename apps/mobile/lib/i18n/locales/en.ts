@@ -481,6 +481,7 @@ const en = {
     grammarAutoAcceptA11y: "Auto-accepting in {{seconds}} seconds",
     formatBar: "Formatting",
     formatSelection: "Selection format",
+    editorLabel: "Chapter text",
     formatBold: "Bold",
     formatItalic: "Italic",
     formatUnderline: "Underline",

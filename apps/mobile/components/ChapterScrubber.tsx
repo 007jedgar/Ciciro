@@ -7,6 +7,7 @@ import * as haptics from "../lib/haptics";
 import { EASE_OUT } from "../lib/motion";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { colors as parchmentColors } from "../lib/theme";
+import { announce } from "../lib/announce";
 import { TapPressable } from "./TapPressable";
 
 type Colors = typeof parchmentColors;
@@ -60,6 +61,19 @@ export function ChapterScrubber({
     onChange(next);
   }
 
+  // Set by the earlier/later buttons: VoiceOver stays on the button, so the new stop is spoken once it lands.
+  const speakNextStop = useRef(false);
+  useEffect(() => {
+    if (speakNextStop.current) {
+      speakNextStop.current = false;
+      announce(label);
+    }
+  }, [label]);
+  function step(delta: number) {
+    speakNextStop.current = true;
+    choose(value + delta);
+  }
+
   function pick(x: number) {
     if (width <= 0 || last === 0) return;
     choose(Math.round((x / width) * last));
@@ -83,7 +97,7 @@ export function ChapterScrubber({
     <View style={[styles.card, { borderColor: colors.line, backgroundColor: colors.panel }]}>
       <View style={styles.head}>
         <TapPressable
-          onPress={() => choose(value - 1)}
+          onPress={() => step(-1)}
           disabled={value <= 0}
           accessibilityRole="button"
           accessibilityLabel={t("bible.knowledge.earlier")}
@@ -101,7 +115,7 @@ export function ChapterScrubber({
           {label}
         </Text>
         <TapPressable
-          onPress={() => choose(value + 1)}
+          onPress={() => step(1)}
           disabled={value >= last}
           accessibilityRole="button"
           accessibilityLabel={t("bible.knowledge.later")}

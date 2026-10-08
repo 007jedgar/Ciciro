@@ -302,6 +302,7 @@ export function KnowledgeBoard({
         <ChipRow options={stanceOptions} value={editStance} onChange={(v) => setEditStance(parseKnowledgeStance(v) ?? "knows")} colors={colors} />
         <TextInput
           style={[layout.input, { marginBottom: 8 }]}
+          accessibilityLabel={t("bible.knowledge.factPlaceholder")}
           value={editFact}
           onChangeText={setEditFact}
           editable={!busy}
@@ -337,6 +338,7 @@ export function KnowledgeBoard({
         <ChipRow options={stanceOptions} value={changeStance} onChange={(v) => setChangeStance(parseKnowledgeStance(v) ?? "knows")} colors={colors} />
         <TextInput
           style={[layout.input, { marginBottom: 8 }]}
+          accessibilityLabel={t("bible.knowledge.factPlaceholder")}
           value={changeFact}
           onChangeText={setChangeFact}
           editable={!busy}
@@ -627,6 +629,7 @@ export function KnowledgeBoard({
         <TextInput
           style={[layout.input, { marginBottom: 8 }]}
           placeholder={t("bible.knowledge.factPlaceholder")}
+          accessibilityLabel={t("bible.knowledge.factPlaceholder")}
           placeholderTextColor={colors.inkSoft}
           value={addFact}
           onChangeText={setAddFact}
@@ -674,6 +677,7 @@ function TopicField({
       <TextInput
         style={[layout.input, { marginBottom: 8 }]}
         placeholder={t("bible.knowledge.topicPlaceholder")}
+        accessibilityLabel={t("bible.knowledge.topicPlaceholder")}
         placeholderTextColor={colors.inkSoft}
         value={value}
         onChangeText={onChange}

@@ -65,12 +65,36 @@ describe("themes", () => {
 
   it("uses the web's Archive values for Ciciro and Ciciro Night", () => {
     expect(THEME_PALETTES.ciciro).toMatchObject({ bg: "#f1ede4", panel: "#fffdf7", accent: "#2340e0", ink: "#141414" });
-    expect(THEME_PALETTES["ciciro-night"]).toMatchObject({ bg: "#121211", panel: "#1d1c19", accent: "#6b82ff" });
+    expect(THEME_PALETTES["ciciro-night"]).toMatchObject({ bg: "#121211", panel: "#1d1c19" });
   });
 
-  it("leaves the original palettes as they were", () => {
-    expect(THEME_PALETTES.parchment).toMatchObject({ bg: "#f2ebe0", accent: "#b4552d" });
-    expect(THEME_PALETTES.ember).toMatchObject({ bg: "#1a1713", accent: "#d9754a" });
+  // Accents and secondary ink nudged so text on them clears WCAG AA (see the contrast test below).
+  it("keeps the palette values that were tuned for contrast", () => {
+    expect(THEME_PALETTES["ciciro-night"]).toMatchObject({ accent: "#6d84ff" });
+    expect(THEME_PALETTES.parchment).toMatchObject({ bg: "#f2ebe0", accent: "#9b4927", inkSoft: "#6a6051" });
+    expect(THEME_PALETTES.ember).toMatchObject({ bg: "#1a1713", accent: "#db7b51" });
+    expect(THEME_PALETTES.sage).toMatchObject({ accent: "#5a6642", inkSoft: "#59645a" });
+    expect(THEME_PALETTES.ciciro).toMatchObject({ danger: "#bc3426" });
+  });
+
+  it("keeps every text colour at 4.5:1 and every field outline at 3:1 (WCAG AA) in every theme", () => {
+    const textOn: (keyof ColorTokens)[] = ["ink", "inkSoft", "accent", "draft", "danger"];
+    const surfaces: (keyof ColorTokens)[] = ["bg", "panel", "panel2", "accentSoft"];
+    const failing: string[] = [];
+    for (const { id } of THEME_META) {
+      const c = THEME_PALETTES[id];
+      for (const text of textOn) {
+        for (const surface of surfaces) {
+          if (contrast(c[text], c[surface]) < 4.5) failing.push(`${id} ${text} on ${surface}`);
+        }
+      }
+      // A filled accent carries the panel colour or the on-accent ink, whichever reads better.
+      if (contrast(c.onAccent, c.accent) < 4.5) failing.push(`${id} onAccent on accent`);
+      for (const surface of ["bg", "panel", "panel2"] as const) {
+        if (contrast(c.field, c[surface]) < 3) failing.push(`${id} field on ${surface}`);
+      }
+    }
+    expect(failing).toEqual([]);
   });
 
   it("gives every theme every token, including the paper stock", () => {

@@ -256,6 +256,7 @@ export function ChapterEditor({
         key={chapterId}
         ref={inputRef}
         testID={testID}
+        accessibilityLabel={t("manuscript.editorLabel")}
         defaultValue={mountedRef.current.enriched}
         placeholder={placeholder}
         cursorColor={editorStyle.color}

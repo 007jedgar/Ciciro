@@ -42,6 +42,7 @@ import { useAuthFormStore } from "../lib/auth-form-store";
 import { useAppTheme } from "../lib/settings";
 import { restoreLastPlace } from "../lib/last-place";
 import { useSession } from "../lib/session";
+import { announce } from "../lib/announce";
 import { fonts } from "../lib/theme";
 import type { ManuscriptKind } from "../lib/manuscript-kind";
 import type { Obstacle } from "../lib/onboarding";
@@ -181,6 +182,15 @@ export function AuthScreen({
   };
 
   useEffect(() => cancelAnimation(grow), [grow]);
+
+  // iOS reads an error only when it is announced: the text itself is silent when it appears.
+  useEffect(() => {
+    if (error) announce(error);
+  }, [error]);
+  const fieldError = errors.email ?? errors.password;
+  useEffect(() => {
+    if (fieldError) announce(authFieldMessage(t, fieldError));
+  }, [fieldError, t]);
 
   // Welcome is only underneath when sign-in was opened from it. Every other
   // screen redirects here once the session is gone, and then there is nothing
@@ -460,6 +470,9 @@ export function AuthScreen({
                   onPressIn={pressSubmitIn}
                   onPressOut={pressSubmitOut}
                   disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={busy ? t("auth.working") : isSignup ? t("auth.createAccount") : t("auth.signIn")}
+                  accessibilityState={{ disabled: busy, busy }}
                 >
                   <View style={styles.btnLabel}>
                     <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinTextStyle]}>

@@ -483,6 +483,7 @@ const es: Translations = {
     grammarAutoAcceptA11y: "Se aceptará automáticamente en {{seconds}} segundos",
     formatBar: "Formato",
     formatSelection: "Formato de la selección",
+    editorLabel: "Texto del capítulo",
     formatBold: "Negrita",
     formatItalic: "Cursiva",
     formatUnderline: "Subrayado",

@@ -52,7 +52,7 @@ describe("ChapterListCard", () => {
 
     fireEvent.press(screen.getByLabelText("Chapter 1"));
     // The number sits on the folder tab, in mono capitals.
-    expect(screen.getByText("CHAPTER 1")).toBeTruthy();
+    expect(screen.getByText("CHAPTER 1", { includeHiddenElements: true })).toBeTruthy();
     expect(onOpen).toHaveBeenCalledTimes(1);
     expect(onRequestDelete).not.toHaveBeenCalled();
   });
@@ -69,7 +69,7 @@ describe("ChapterListCard", () => {
     );
 
     expect(screen.getByLabelText("Chapter 3, The Docks")).toBeTruthy();
-    expect(screen.getByText("CHAPTER 3")).toBeTruthy();
+    expect(screen.getByText("CHAPTER 3", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByText("The Docks")).toBeTruthy();
     expect(screen.getByText("12 WORDS")).toBeTruthy();
   });

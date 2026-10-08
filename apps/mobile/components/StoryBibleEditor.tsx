@@ -121,7 +121,7 @@ export function StoryBibleEditor({
             flexGrow: 1,
             minHeight: 240,
             backgroundColor: colors.panel,
-            borderColor: colors.line,
+            borderColor: colors.field,
             borderWidth: 1,
             borderRadius: 10,
             paddingHorizontal: 14,

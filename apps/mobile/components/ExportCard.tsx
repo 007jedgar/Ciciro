@@ -68,7 +68,7 @@ export function ExportCard({
               ]}
             >
               {busy === format ? (
-                <ActivityIndicator size="small" color={colors.ink} />
+                <ActivityIndicator size="small" color={colors.ink} accessibilityLabel={t("common.loading")} />
               ) : (
                 <ExportIcon color={colors.ink} size={16} />
               )}

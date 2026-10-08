@@ -28,7 +28,8 @@ describe("GlassSheet", () => {
         </GlassSheet>
       )
     );
-    fireEvent.press(screen.getByTestId("glass-sheet-backdrop"));
+    // The scrim is hidden from VoiceOver (the sheet's Close and escape do that job) but still takes a tap.
+    fireEvent.press(screen.getByTestId("glass-sheet-backdrop", { includeHiddenElements: true }));
     expect(onClose).toHaveBeenCalledTimes(1);
     unmount();
   });
@@ -136,7 +137,8 @@ describe("GlassSheet", () => {
         </GlassSheet>
       )
     );
-    const scrim = StyleSheet.flatten(screen.getByTestId("glass-sheet-scrim").props.style);
+    // The card is a modal view for VoiceOver, so the scrim beside it is hidden to the screen reader.
+    const scrim = StyleSheet.flatten(screen.getByTestId("glass-sheet-scrim", { includeHiddenElements: true }).props.style);
     expect(scrim).toMatchObject({ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 });
     expect(scrim.backgroundColor).toBeTruthy();
     unmount();

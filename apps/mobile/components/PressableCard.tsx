@@ -65,6 +65,7 @@ export function PressableCard({ style, accent, children, onPress, onPressIn, onP
 
   return (
     <AnimatedPressable
+      accessibilityRole="button"
       {...rest}
       disabled={disabled}
       onPress={onPress ? haptics.withTap(onPress) : undefined}

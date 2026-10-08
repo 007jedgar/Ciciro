@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLocalSearchParams } from "expo-router";
@@ -7,6 +7,7 @@ import * as haptics from "../lib/haptics";
 import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
 import { ApiError, ciciro } from "../lib/api";
 import { useAppTheme } from "../lib/settings";
+import { announce } from "../lib/announce";
 import { useStackBack } from "../lib/use-stack-back";
 
 /**
@@ -22,6 +23,9 @@ export default function ForgotPasswordScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "");
   const [sentTo, setSentTo] = useState<string | null>(null);
+  useEffect(() => {
+    if (sentTo) announce(t("auth.resetSentBody", { email: sentTo }));
+  }, [sentTo, t]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

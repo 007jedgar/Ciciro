@@ -946,7 +946,7 @@ export default function SettingsScreen() {
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                   <Text style={{ flex: 1, fontSize: 17, color: colors.accent }}>{t("account.resendVerification")}</Text>
-                  {verify.busy ? <ActivityIndicator size="small" color={colors.inkSoft} /> : null}
+                  {verify.busy ? <ActivityIndicator size="small" color={colors.inkSoft} accessibilityLabel={t("common.loading")} /> : null}
                 </View>
                 {verify.note ? (
                   <Text

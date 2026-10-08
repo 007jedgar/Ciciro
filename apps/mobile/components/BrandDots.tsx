@@ -134,7 +134,12 @@ export function BrandDots({
   }, [playSignal]);
 
   const mark = (
-    <View style={{ width: size, height: size, overflow: "visible" }} pointerEvents="none">
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: size, height: size, overflow: "visible" }}
+      pointerEvents="none"
+    >
       {CX.map((cx, i) => (
         <Dot
           key={cx}
