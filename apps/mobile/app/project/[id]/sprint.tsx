@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { AppState, StyleSheet, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../../../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../../../components/AppHeader";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
 import { useStackBack } from "../../../lib/use-stack-back";
@@ -61,7 +61,7 @@ export default function SprintScreen() {
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const { id } = useLocalSearchParams<{ id: string }>();
   const day = useWritingDay();
   const active = useSyncExternalStore(subscribeActiveSprint, getActiveSprint, getActiveSprint);
@@ -158,6 +158,7 @@ export default function SprintScreen() {
         title={t("sprint.title")}
         onBack={() => backOr(`/project/${id}/manuscript`)}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: headerHeight + 8 }}>
         {phase.kind === "pick" ? (

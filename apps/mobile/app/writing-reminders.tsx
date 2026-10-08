@@ -1,7 +1,7 @@
 import { ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { useProjectsQuery } from "../lib/api";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
@@ -21,7 +21,7 @@ export default function WritingRemindersScreen() {
   const { t, i18n } = useTranslation();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const reminders = useWritingReminderList(user?.id ?? null);
   const projects = useProjectsQuery({ enabled: Boolean(user) });
   const translate: ReminderTranslate = (key, options) => String(t(key, options));
@@ -39,6 +39,7 @@ export default function WritingRemindersScreen() {
         onNew={() => router.push("/writing-reminder")}
         newAccessibilityLabel={t("reminders.add")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight, paddingBottom: 32 }}

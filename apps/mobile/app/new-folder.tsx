@@ -6,7 +6,7 @@ import {
 import { Redirect, useRouter } from "expo-router";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { NewFolderForm } from "../components/NewFolderForm";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
@@ -17,7 +17,7 @@ export default function NewFolderScreen() {
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
@@ -31,6 +31,7 @@ export default function NewFolderScreen() {
         title={t("newFolder.title")}
         onBack={() => backOr("/manuscripts")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight + 16, paddingBottom: 16 }}

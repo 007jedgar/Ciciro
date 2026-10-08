@@ -34,7 +34,7 @@ jest.mock("../lib/settings", () => ({
   },
   useOptionalAppTheme: () => ({ settings: { reduceMotion: false } }),
 }));
-jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/ManuscriptTabBar", () => ({ useTabBarClearance: () => 0 }));
 jest.mock("../components/PreviouslyOnCard", () => ({ PreviouslyOnCard: () => null }));
 jest.mock("../components/ExportCard", () => ({ ExportCard: () => null }));

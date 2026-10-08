@@ -126,6 +126,7 @@ export function AuthScreen({
   }
 
   async function submit() {
+    if (busy) return;
     setError(null);
     if (!validate(mode)) {
       haptics.warning();

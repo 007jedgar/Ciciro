@@ -4,7 +4,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as haptics from "../lib/haptics";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { ApiError, ciciro } from "../lib/api";
 import { useAppTheme } from "../lib/settings";
 import { announce } from "../lib/announce";
@@ -20,7 +20,7 @@ export default function ForgotPasswordScreen() {
   const { t } = useTranslation();
   const { backOr } = useStackBack();
   const { layout, colors, settings } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <View style={layout.screen}>
-      <AppHeader title={sentTo ? t("auth.resetSentTitle") : t("auth.forgotTitle")} onBack={() => backOr("/login")} floating />
+      <AppHeader title={sentTo ? t("auth.resetSentTitle") : t("auth.forgotTitle")} onBack={() => backOr("/login")} floating onHeightChange={onHeaderHeight} />
       <KeyboardAwareScrollView
         bottomOffset={96}
         keyboardShouldPersistTaps="handled"

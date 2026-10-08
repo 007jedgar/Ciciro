@@ -19,7 +19,7 @@ import {
 import type { EmailTopic, Entitlement, ModelRole, PushCategory } from "../lib/api/types";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
 import { ApiError, API_URL } from "../lib/api/client";
@@ -647,7 +647,7 @@ export default function SettingsScreen() {
   const { data: entitlement } = useEntitlement(Boolean(user));
   const focusMode = useFocusMode();
   const hapticsEnabled = haptics.useHapticsEnabled();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const [sheet, setSheet] = useState<SheetId | null>(null);
   const exporter = useExportAccountData();
   const reminders = useWritingReminderList(user?.id ?? null);
@@ -736,6 +736,7 @@ export default function SettingsScreen() {
         title={t("settings.title")}
         onBack={() => backOr("/manuscripts")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 20, paddingBottom: 48 }}

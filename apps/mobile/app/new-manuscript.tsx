@@ -6,7 +6,7 @@ import {
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { NewManuscriptForm } from "../components/NewManuscriptForm";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
@@ -19,7 +19,7 @@ export default function NewManuscriptScreen() {
   const { folderId } = useLocalSearchParams<{ folderId?: string }>();
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
@@ -33,6 +33,7 @@ export default function NewManuscriptScreen() {
         title={t("newManuscript.title")}
         onBack={() => backOr("/manuscripts")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight + 16, paddingBottom: 16 }}

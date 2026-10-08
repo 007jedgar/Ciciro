@@ -52,7 +52,7 @@ jest.mock("../lib/settings", () => ({
   },
 }));
 jest.mock("../lib/app-restart", () => ({ restartApp: jest.fn(async () => {}) }));
-jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/ManuscriptTabBar", () => ({ useTabBarClearance: () => 0 }));
 jest.mock("../components/PreviouslyOnCard", () => ({ PreviouslyOnCard: () => null }));
 jest.mock("../components/ManuscriptTag", () => ({ ManuscriptTag: () => null }));

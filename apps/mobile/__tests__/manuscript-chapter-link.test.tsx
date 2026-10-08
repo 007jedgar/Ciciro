@@ -49,7 +49,7 @@ jest.mock("../lib/speech", () => ({
   useDictation: () => ({ listening: false, start: jest.fn(), stop: jest.fn() }),
 }));
 jest.mock("../components/ManuscriptTabBar", () => ({ useTabBarClearance: () => 0 }));
-jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/ReaderCommentsPill", () => ({
   ReaderCommentsPill: () => null,
   useChapterReaderCommentCount: () => 0,

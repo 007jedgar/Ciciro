@@ -11,7 +11,7 @@ import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStackBack } from "../../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../../components/AppHeader";
 import { FolderTitleEditor } from "../../components/FolderTitleEditor";
 import { folderMorphKey } from "../../lib/shared-title-morph";
 import { PlusIcon } from "../../components/icons";
@@ -44,7 +44,7 @@ export default function FolderScreen() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
 
   const folderQuery = useFolderQuery(folderId, { enabled: Boolean(user) && Boolean(folderId) });
   const projectsQuery = useProjectsQuery({ enabled: Boolean(user) });
@@ -120,6 +120,7 @@ export default function FolderScreen() {
         onBack={() => backOr("/manuscripts")}
         backAccessibilityLabel={t("folder.backToManuscripts")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{
