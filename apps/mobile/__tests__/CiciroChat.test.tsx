@@ -272,7 +272,13 @@ describe("CiciroChat", () => {
     unmount();
   });
 
-  it("opens a long transcript at its tail without mounting the whole history", () => {
+  it("opens a long transcript hidden until positioned at the end, with its tail present", () => {
+    // A deep initialScrollIndex jump was tried here to avoid mounting the
+    // whole history, but on-device with a long thread and no getItemLayout
+    // (bubble height is genuinely variable) the estimate for the unmeasured
+    // rows above the window drifts enough that scrollToEnd lands in blank
+    // space - stuck, with real content only a swipe away. Mounting
+    // everything while hidden is the version proven correct on-device.
     const long: ChatMessage[] = Array.from({ length: 60 }, (_, i) => ({
       id: `m${i}`,
       role: i % 2 === 0 ? "user" : "assistant",
@@ -282,14 +288,20 @@ describe("CiciroChat", () => {
       createdAt: "2026-09-14T00:00:00.000Z",
     }));
     const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
-    // Arrives after mount, like an uncached cold load: the list must still
-    // start at the tail rather than rendering every row from the top.
+    // Arrives after mount, like an uncached cold load.
     rerender(wrap(<CiciroChat {...idle} composer="" messages={long} />));
 
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(0);
     expect(screen.getByText("Row 59")).toBeTruthy();
-    expect(screen.getByText("Row 50")).toBeTruthy();
-    expect(screen.queryByText("Row 0")).toBeNull();
-    expect(screen.queryByText("Row 30")).toBeNull();
+
+    act(() => {
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+    });
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
     unmount();
   });
 
