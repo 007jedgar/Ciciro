@@ -658,4 +658,65 @@ describe("CiciroChat", () => {
     );
     unmount();
   });
+
+  function streamPrompt() {
+    const prompt: ChatMessage = {
+      id: "u1",
+      role: "user",
+      content: "Tighten the opening.",
+      kind: "chat",
+      createdAt: "2026-09-14T00:00:00.000Z",
+    };
+    const view = render(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          streaming
+          messages={[prompt]}
+          phase="running"
+          stream={{ ...emptyChatStreamState(), text: "She opened the door." }}
+        />
+      )
+    );
+    fireEvent(screen.getByTestId("chat-thread"), "layout", {
+      nativeEvent: { layout: { height: 600, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId("chat-dock"), "layout", {
+      nativeEvent: { layout: { height: 180, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId("chat-prompt"), "layout", {
+      nativeEvent: { layout: { height: 48, width: 200, x: 0, y: 0 } },
+    });
+    const trailing = StyleSheet.flatten(
+      screen.getByTestId("chat-thread").props.contentContainerStyle
+    ).paddingTop;
+    const gap = promptAnchorGap(600, 48, trailing);
+    const scrollToOffset = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToOffset");
+    const growReply = (height: number) =>
+      fireEvent(screen.getByTestId("chat-anchor"), "layout", {
+        nativeEvent: { layout: { height, width: 390, x: 0, y: 0 } },
+      });
+    return { ...view, gap, scrollToOffset, growReply };
+  }
+
+  it("scrolls back as a streaming reply outgrows the gap, so the prompt stays at the top", () => {
+    const { gap, scrollToOffset, growReply, unmount } = streamPrompt();
+    growReply(gap);
+    expect(scrollToOffset).not.toHaveBeenCalled();
+
+    growReply(gap + 240);
+    expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: 240, animated: false });
+    growReply(gap + 500);
+    expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: 500, animated: false });
+    unmount();
+  });
+
+  it("lets go of the prompt once the author drags the thread", () => {
+    const { gap, scrollToOffset, growReply, unmount } = streamPrompt();
+    fireEvent(screen.getByTestId("chat-thread"), "scrollBeginDrag");
+    growReply(gap + 240);
+    expect(scrollToOffset).not.toHaveBeenCalled();
+    unmount();
+  });
 });
