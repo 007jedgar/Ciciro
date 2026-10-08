@@ -983,7 +983,7 @@ const es: Translations = {
     savedDenied: "Guardado. Permite las notificaciones de Ciciro y el teléfono empezará a recordártelo.",
     savedUnavailable: "Guardado en este teléfono. Las notificaciones funcionan en una instalación nueva de Ciciro.",
     scheduleFailed: "Guardado, pero el teléfono no pudo programar todas las notificaciones. Inténtalo de nuevo en un momento.",
-    openSettings: "Abrir Ajustes",
+    openSettings: "Abrir los ajustes del sistema",
     delete: "Eliminar recordatorio",
     deleteConfirm: "Eliminar este recordatorio",
     daysRequired: "Elige al menos un día.",

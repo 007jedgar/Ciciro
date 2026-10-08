@@ -116,6 +116,18 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("keeps the empty prompt upright inside the inverted list", () => {
+    render(wrap(<CiciroChat {...idle} composer="" onSend={jest.fn()} />));
+    // The inverted list flips its content; it hands the empty component the
+    // counter-flip as `style`, which the component has to apply to its root.
+    const prompt = screen.getByText(
+      "Ask Ciciro about this manuscript, or tap one of the suggestions below."
+    );
+    // The Text's own parent is its composite; the next one up is the root View.
+    const root = StyleSheet.flatten(prompt.parent?.parent?.props.style);
+    expect(root.transform).toEqual([{ scaleY: -1 }]);
+  });
+
   it("sends a quick action chip's id and hides the chips while a reply streams", () => {
     const onQuickAction = jest.fn();
     const quickActions = [

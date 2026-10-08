@@ -12,6 +12,8 @@ import {
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import Animated, {
   Easing,
@@ -320,10 +322,12 @@ function JumpChip({
  * The empty thread, before the first message: the brand mark and one
  * instructional line that points at the chips docked above the composer.
  */
-function ChatEmptyState({ colors }: { colors: ColorTokens }) {
+function ChatEmptyState({ colors, style }: { colors: ColorTokens; style?: StyleProp<ViewStyle> }) {
   const { t } = useTranslation();
+  // The inverted list clones its empty component with the counter-flip that
+  // turns it upright as `style`; dropping it leaves the text upside down.
   return (
-    <View style={styles.emptyState}>
+    <View style={[styles.emptyState, style]}>
       <BrandMark size={40} />
       <Text style={[styles.emptyText, { color: colors.inkSoft }]}>{t("ciciroTab.empty")}</Text>
     </View>

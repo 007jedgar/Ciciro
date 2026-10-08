@@ -20,7 +20,7 @@ export default function ManuscriptDetailsScreen() {
 }
 
 function ManuscriptDetailsScreenContent() {
-  const { backOr, resetTo } = useStackBack();
+  const { backOr, backTo } = useStackBack();
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user, ready } = useSession();
@@ -53,9 +53,10 @@ function ManuscriptDetailsScreenContent() {
           scrollIndicatorInsets={{ top: headerHeight }}
         >
           {project ? (
-            // Deleting leaves the whole signed-in stack, not just this screen: the
-            // manuscript's own tabs and provider are still mounted underneath it.
-            <ManuscriptDetails project={project} onDeleted={() => resetTo("/manuscripts")} />
+            // Deleting leaves the manuscript's whole stack, not just this screen. A pop
+            // back to the library (already mounted, its rows updated by the mutation)
+            // rather than a RESET: a freshly mounted library lands with its rows collapsed.
+            <ManuscriptDetails project={project} onDeleted={() => backTo("/manuscripts")} />
           ) : loading ? (
             <SkeletonList count={4} accessibilityLabel={t("common.loading")} />
           ) : (

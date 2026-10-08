@@ -414,7 +414,13 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
                     onPress={() => goTab(tab.route, index)}
                     style={styles.tab}
                   >
-                    <tab.Icon color={focused ? colors.accent : colors.inkSoft} size={24} focused={focused} />
+                    <tab.Icon color={focused ? colors.accent : colors.inkSoft} size={22} focused={focused} />
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.tabLabel, { color: focused ? colors.accent : colors.inkSoft }]}
+                    >
+                      {t(tab.labelKey)}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -483,7 +489,10 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
+    gap: 2,
   },
+  // Icons alone left three tabs a first-time writer had to guess at.
+  tabLabel: { fontSize: 10.5, lineHeight: 12, fontWeight: "600" },
   fab: {
     width: FAB_SIZE,
     height: FAB_SIZE,

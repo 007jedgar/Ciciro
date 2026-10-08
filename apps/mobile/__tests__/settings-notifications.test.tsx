@@ -121,7 +121,7 @@ describe("Settings: Notifications", () => {
     const openSettings = jest.spyOn(Linking, "openSettings").mockImplementation(async () => {});
     renderSettings();
     await act(async () => {});
-    fireEvent.press(screen.getByText("Open Settings"));
+    fireEvent.press(screen.getByText("Open system settings"));
     expect(openSettings).toHaveBeenCalled();
     openSettings.mockRestore();
   });

@@ -40,7 +40,10 @@ else stays in commit messages.
   the manuscripts list is only for creating (new manuscript, import, new
   folder), and the writing-tools grid no longer repeats Chapters and
   Typography. Sign-in and sign-up move from field to field with Return and
-  submit from the password.
+  submit from the password. The manuscript tab bar now labels its three tabs
+  (Chapters, Manuscript, Ciciro), the empty chat's prompt is no longer drawn
+  upside down, and deleting a manuscript returns to a library that shows its
+  remaining manuscripts instead of a blank list.
 
 - The phone app has the website's Archive look as two new themes, **Ciciro** and
   **Ciciro Night**, now the default for anyone who has not picked a theme. The

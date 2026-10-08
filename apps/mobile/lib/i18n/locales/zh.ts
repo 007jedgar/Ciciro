@@ -970,7 +970,7 @@ const zh: Translations = {
     savedDenied: "已保存。允许 Ciciro 发送通知后，手机会开始提醒你。",
     savedUnavailable: "已保存在这台手机上。重新安装 Ciciro 后通知才会生效。",
     scheduleFailed: "已保存，但手机未能安排全部通知。请稍后再试。",
-    openSettings: "打开设置",
+    openSettings: "打开系统设置",
     delete: "删除提醒",
     deleteConfirm: "删除这条提醒",
     daysRequired: "至少选一天。",
