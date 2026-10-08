@@ -176,6 +176,20 @@ describe("WritingMeter goal moment", () => {
     unmount();
   });
 
+  it("does not celebrate a goal while the meter is hidden", () => {
+    useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 260, activeMs: 0 });
+    const hidden = wrap(<WritingMeter />, { ...defaultSettings(), showDailyGoal: false });
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+    hidden.unmount();
+
+    const shown = wrap(<WritingMeter />);
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+    shown.unmount();
+  });
+
   it("stays quiet for a goal already celebrated today, and speaks again tomorrow", () => {
     useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 260, activeMs: 0 });
     const first = wrap(<WritingMeter />);

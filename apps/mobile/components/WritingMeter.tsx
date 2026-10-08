@@ -69,9 +69,9 @@ export function WritingMeter() {
   // the phone celebrates, once per day per account. A goal already celebrated today shows the finished tick.
   const met = goal > 0 && day.words >= goal;
   const userId = user?.id ?? "";
-  const due = met && Boolean(userId) && !hasCelebratedGoal(userId, today);
+  const due = settings.showDailyGoal && met && Boolean(userId) && !hasCelebratedGoal(userId, today);
   const [tickPlays, setTickPlays] = useState(met && !due);
-  const tickProgress = useDrawProgress(tickPlays, FLASH_UP_MS);
+  const tickProgress = useDrawProgress(met && (tickPlays || !due), FLASH_UP_MS);
   const flash = useSharedValue(0);
   useEffect(() => {
     if (!due) return;

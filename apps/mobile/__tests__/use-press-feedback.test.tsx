@@ -15,6 +15,7 @@ import {
   SELECT_FADE_MS,
   TINT_MIX,
 } from "../lib/motion";
+import { mixColors } from "../lib/color";
 import { THEME_PALETTES } from "../lib/theme";
 import { pressTint, rowHighlightTint } from "../lib/use-press-feedback";
 
@@ -64,6 +65,18 @@ describe("pressTint", () => {
     expect(pressTint({ backgroundColor: "transparent" }, colors)).toBeNull();
     expect(pressTint({ backgroundColor: "rgba(0,0,0,0.5)" }, colors)).toBeNull();
     expect(pressTint(undefined, colors)).toBeNull();
+  });
+
+  it("rests an accent card on the accent even when its style is panel-filled", () => {
+    const tint = pressTint({ backgroundColor: colors.panel }, colors, { accent: true, assumePanel: true });
+    expect(tint?.from).toBe(colors.accent);
+    expect(tint?.to).toBe(mixColors(colors.accent, colors.ink, TINT_MIX));
+  });
+
+  it("eases any other solid fill toward ink, not panel2", () => {
+    const tint = pressTint({ backgroundColor: colors.danger }, colors);
+    expect(tint).toEqual({ from: colors.danger, to: mixColors(colors.danger, colors.ink, TINT_MIX) });
+    expect(pressTint({ backgroundColor: colors.bg }, colors)).toEqual({ from: colors.bg, to: colors.panel2 });
   });
 
   it("treats a card with no fill as sitting on the panel", () => {
