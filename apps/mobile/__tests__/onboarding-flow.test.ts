@@ -6,22 +6,20 @@ describe("onboarding flow params", () => {
     const params = onboardingParams({
       kind: "journal",
       obstacles: ["block", "consistency"],
-      theme: "ember",
       reminder,
     });
     expect(params.obstacles).toBe("block,consistency");
     expect(parseOnboardingParams(params)).toEqual({
       kind: "journal",
       obstacles: ["block", "consistency"],
-      theme: "ember",
       reminder,
     });
   });
 
   it("drops anything unrecognized instead of carrying it to signup", () => {
     expect(
-      parseOnboardingParams({ kind: "poem", obstacles: "block,procrastination,block", theme: "neon", reminder: "{oops" })
-    ).toEqual({ kind: "novel", obstacles: ["block"], theme: null, reminder: null });
+      parseOnboardingParams({ kind: "poem", obstacles: "block,procrastination,block", reminder: "{oops" })
+    ).toEqual({ kind: "novel", obstacles: ["block"], reminder: null });
   });
 
   it("offers the reminder at eight in the evening, every day, for all manuscripts", () => {

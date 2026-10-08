@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { demoForAnswers, wantsReminderStep } from "../lib/onboarding";
-import { onboardingParams, parseOnboardingParams, stepsFor } from "../lib/onboarding-flow";
+import { onboardingParams, parseOnboardingParams, stepsFor, type OnboardingParams } from "../lib/onboarding-flow";
 import { FocusDemo } from "../components/onboarding/FocusDemo";
 import { SuggestionsDemo } from "../components/onboarding/SuggestionsDemo";
 import { getAnalytics } from "../lib/analytics-client";
@@ -9,7 +9,7 @@ import { getAnalytics } from "../lib/analytics-client";
 export default function OnboardingDemoScreen() {
   const router = useRouter();
   const state = parseOnboardingParams(
-    useLocalSearchParams<{ kind?: string; obstacles?: string; theme?: string; reminder?: string }>()
+    useLocalSearchParams<OnboardingParams>()
   );
   const path = demoForAnswers(state.kind, state.obstacles);
   const steps = stepsFor(state.obstacles);

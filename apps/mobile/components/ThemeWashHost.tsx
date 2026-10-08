@@ -38,7 +38,10 @@ function WashPaper({ wash }: { wash: ThemeWash }) {
       if (finished) runOnJS(covered)();
     });
     // A wash that never got to finish must not leave the next tap ignored.
-    return done;
+    return () => {
+      applyThemeWash(wash.id);
+      done();
+    };
     // One wash, one run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

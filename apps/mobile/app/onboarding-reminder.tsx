@@ -11,6 +11,7 @@ import {
   onboardingReminderDraft,
   parseOnboardingParams,
   stepsFor,
+  type OnboardingParams,
 } from "../lib/onboarding-flow";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
@@ -31,7 +32,7 @@ export default function OnboardingReminderScreen() {
   const { t } = useTranslation();
   const { layout } = useAppTheme();
   const state = parseOnboardingParams(
-    useLocalSearchParams<{ kind?: string; obstacles?: string; theme?: string; reminder?: string }>()
+    useLocalSearchParams<OnboardingParams>()
   );
   const draft = useRef<WritingReminder>(state.reminder ?? onboardingReminderDraft(createWritingReminderId())).current;
   const [busy, setBusy] = useState(false);
