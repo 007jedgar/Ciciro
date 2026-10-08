@@ -9,8 +9,8 @@ let mockProjectsData: Project[] | undefined;
 let mockProjectsError: Error | null = null;
 let mockFoldersData: unknown[] | undefined = [];
 let mockFoldersError: Error | null = null;
-const mockProjectsRefetch = jest.fn(async () => {});
-const mockFoldersRefetch = jest.fn(async () => {});
+const mockProjectsRefetch = jest.fn(async () => ({ isError: mockProjectsError !== null }));
+const mockFoldersRefetch = jest.fn(async () => ({ isError: mockFoldersError !== null }));
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -72,8 +72,8 @@ beforeEach(() => {
   mockFoldersError = null;
   mockProjectsRefetch.mockClear();
   mockFoldersRefetch.mockClear();
-  mockProjectsRefetch.mockImplementation(async () => {});
-  mockFoldersRefetch.mockImplementation(async () => {});
+  mockProjectsRefetch.mockImplementation(async () => ({ isError: mockProjectsError !== null }));
+  mockFoldersRefetch.mockImplementation(async () => ({ isError: mockFoldersError !== null }));
 });
 
 describe("Manuscripts screen error recovery", () => {
@@ -102,6 +102,7 @@ describe("Manuscripts screen error recovery", () => {
     mockProjectsRefetch.mockImplementation(async () => {
       mockProjectsData = [project("a", "Alpha")];
       mockProjectsError = null;
+      return { isError: false };
     });
 
     const { rerender } = render(<ManuscriptsScreen />);

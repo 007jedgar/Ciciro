@@ -113,9 +113,9 @@ function ChaptersScreenContent() {
 
   async function retry() {
     setRetrying(true);
-    await reload();
+    const loaded = await reload();
     setRetrying(false);
-    setRetryAttempted(true);
+    setRetryAttempted(!loaded);
   }
   // Whether the user has just created this manuscript and landed here: only that
   // first arrival slides the list down, not every later visit.

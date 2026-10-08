@@ -7,7 +7,7 @@ type MockProject = { id: string; kind: string; genre: string | null; chapters: M
 let mockProject: MockProject | null = null;
 let mockError: string | null = null;
 let mockErrorDetail: string | null = null;
-const mockReload = jest.fn(async () => {});
+const mockReload = jest.fn(async (): Promise<boolean> => mockError === null);
 
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: jest.fn(), navigate: jest.fn() }),
@@ -76,7 +76,7 @@ beforeEach(() => {
   mockError = null;
   mockErrorDetail = null;
   mockReload.mockClear();
-  mockReload.mockImplementation(async () => {});
+  mockReload.mockImplementation(async () => mockError === null);
 });
 
 describe("Chapters screen error recovery", () => {
@@ -121,6 +121,7 @@ describe("Chapters screen error recovery", () => {
     mockReload.mockImplementation(async () => {
       mockProject = { id: "p1", kind: "novel", genre: null, chapters: [chapter("c1", "Chapter One", 0)] };
       mockError = null;
+      return true;
     });
 
     const { rerender } = render(<ChaptersScreen />);
@@ -140,7 +141,7 @@ describe("Chapters screen error recovery", () => {
     mockProject = null;
     mockError = "Could not load manuscript.";
     // The retry itself fails too: the error never clears.
-    mockReload.mockImplementation(async () => {});
+    mockReload.mockImplementation(async () => false);
 
     render(<ChaptersScreen />);
     expect(screen.queryByRole("button", { name: "Restart app" })).toBeNull();
@@ -151,5 +152,34 @@ describe("Chapters screen error recovery", () => {
     });
 
     expect(screen.getByRole("button", { name: "Restart app" })).toBeTruthy();
+  });
+
+  it("does not offer Restart app on a later failure when the retry succeeded but its sync settled after the refetch", async () => {
+    mockProject = null;
+    mockError = "Could not load manuscript.";
+    let finishReload: (loaded: boolean) => void = () => {};
+    mockReload.mockImplementation(() => new Promise<boolean>((resolve) => (finishReload = resolve)));
+
+    const { rerender } = render(<ChaptersScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+      await flushMicrotasks();
+    });
+    // The refetch lands first and clears the error while the sync is still running.
+    mockProject = { id: "p1", kind: "novel", genre: null, chapters: [chapter("c1", "Chapter One", 0)] };
+    mockError = null;
+    rerender(<ChaptersScreen />);
+    await act(async () => {
+      finishReload(true);
+      await flushMicrotasks();
+    });
+
+    // A later background failure is a fresh one: no retry has failed yet.
+    mockError = "Could not load manuscript.";
+    rerender(<ChaptersScreen />);
+
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Restart app" })).toBeNull();
   });
 });
