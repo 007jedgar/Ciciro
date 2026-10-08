@@ -182,9 +182,11 @@ describe("CiciroChat", () => {
     fireEvent(screen.getByTestId("chat-dock"), "layout", {
       nativeEvent: { layout: { height: 180, width: 390, x: 0, y: 0 } },
     });
+    // Inverted flips the content container's own top/bottom, so the dock
+    // clearance the thread scrolls under is written here as paddingTop.
     const padding = StyleSheet.flatten(
       screen.getByTestId("chat-thread").props.contentContainerStyle
-    ).paddingBottom;
+    ).paddingTop;
     expect(padding).toBeGreaterThanOrEqual(180);
     unmount();
   });
@@ -227,100 +229,38 @@ describe("CiciroChat", () => {
     unmount();
   });
 
-  it("opens a settled transcript hidden until positioned at the end, not scrolled into view after it is shown", () => {
-    jest.useFakeTimers();
+  it("opens a cached transcript already at its tail, with no empty state and no scroll call", () => {
+    // An inverted list rests at offset 0 at its own tail from the very
+    // first frame, cache-seeded or not - there is nothing to hide while a
+    // scroll call lands, because no scroll call is ever needed.
     const { unmount } = render(
       wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
     );
-    // Nothing paints yet - a cached transcript must never flash at the top
-    // of the list before landing at its tail.
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(0);
-
-    act(() => {
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
-      jest.advanceTimersByTime(200);
-    });
-
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
+    const scrollToOffset = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToOffset");
+    expect(screen.getByText("A note.")).toBeTruthy();
+    expect(scrollToOffset).not.toHaveBeenCalled();
     unmount();
-    jest.useRealTimers();
   });
 
-  it("hides and repositions a transcript that only arrives after mount - no cache yet, still loading - the same as one seeded from cache", () => {
-    jest.useFakeTimers();
+  it("shows a transcript that only arrives after mount at its tail too, the same as one seeded from cache", () => {
     const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
-    // Still loading: nothing to position yet, so the (empty) thread shows at once.
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
+    const scrollToOffset = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToOffset");
 
-    // The fetch resolves and delivers a settled transcript - this must hide
-    // and reposition exactly like a cache-seeded mount would, not paint at
-    // the top of the list first.
-    rerender(wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />));
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(0);
-
-    act(() => {
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
-      jest.advanceTimersByTime(200);
-    });
-
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
-    unmount();
-    jest.useRealTimers();
-  });
-
-  it("opens a long transcript hidden until positioned at the end, with its tail present", () => {
-    // A deep initialScrollIndex jump was tried here to avoid mounting the
-    // whole history, but on-device with a long thread and no getItemLayout
-    // (bubble height is genuinely variable) the estimate for the unmeasured
-    // rows above the window drifts enough that scrollToEnd lands in blank
-    // space - stuck, with real content only a swipe away. Mounting
-    // everything while hidden is the version proven correct on-device.
-    const long: ChatMessage[] = Array.from({ length: 60 }, (_, i) => ({
-      id: `m${i}`,
-      role: i % 2 === 0 ? "user" : "assistant",
-      content: `Row ${i}`,
-      kind: "chat",
-      turnId: `t${Math.floor(i / 2)}`,
-      createdAt: "2026-09-14T00:00:00.000Z",
-    }));
-    jest.useFakeTimers();
-    const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
     // Arrives after mount, like an uncached cold load.
-    rerender(wrap(<CiciroChat {...idle} composer="" messages={long} />));
-
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(0);
-    expect(screen.getByText("Row 59")).toBeTruthy();
-
-    act(() => {
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
-      jest.advanceTimersByTime(200);
-    });
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
+    rerender(wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />));
+    expect(screen.getByText("A note.")).toBeTruthy();
+    expect(scrollToOffset).not.toHaveBeenCalled();
     unmount();
-    jest.useRealTimers();
   });
 
-  it("waits for a long transcript's growing content size to settle before opening at the tail", () => {
-    // On device, mounting hundreds of rows at once still measures in through
-    // several growing onContentSizeChange callbacks, not one final one -
-    // opening on the first of those landed scrollToEnd on whatever had
-    // mounted so far (a handful of rows) and locked it in for good, since
-    // open-at-tail only ever runs once. This reproduces that growth and
-    // proves the open waits for it to stop before trusting it.
+  it("mounts only near the tail of a long transcript, not the whole history", () => {
+    // `initialScrollIndex` and a full-mount-then-scrollToEnd were both tried
+    // first (see git history) and both land wrong on-device with a long
+    // thread - scroll offset estimation drifts over unmeasured rows, and a
+    // "has it settled" heuristic races real (slow, markdown-heavy) batch
+    // rendering. An inverted list sidesteps the problem: the resting
+    // position is already the tail, so ordinary windowing only ever has to
+    // mount what's near it.
     const long: ChatMessage[] = Array.from({ length: 60 }, (_, i) => ({
       id: `m${i}`,
       role: i % 2 === 0 ? "user" : "assistant",
@@ -329,55 +269,24 @@ describe("CiciroChat", () => {
       turnId: `t${Math.floor(i / 2)}`,
       createdAt: "2026-09-14T00:00:00.000Z",
     }));
-    jest.useFakeTimers();
     const { unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={long} />));
-    const scrollToEnd = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToEnd");
-    // open-at-tail always passes animated: false; filter out the unrelated
-    // keyboard-lift effect's own (animated) scrollToEnd, which this fixture
-    // also schedules since its default zero bottom inset leaves a positive
-    // keyboard lift gap.
-    const openCalls = () => scrollToEnd.mock.calls.filter((call) => call[0]?.animated === false);
-
-    act(() => {
-      // Three growing batches, each arriving before the previous one's
-      // settle window elapses.
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 300);
-      jest.advanceTimersByTime(60);
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 800);
-      jest.advanceTimersByTime(60);
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
-    });
-    // Still hidden and not yet scrolled - the last batch's settle window has
-    // not elapsed.
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(0);
-    expect(openCalls()).toHaveLength(0);
-
-    act(() => {
-      jest.advanceTimersByTime(200);
-    });
-    expect(openCalls()).toHaveLength(1);
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
+    expect(screen.getByText("Row 59")).toBeTruthy();
+    expect(screen.queryByText("Row 0")).toBeNull();
     unmount();
-    jest.useRealTimers();
   });
 
-  it("follows the tail once when a background refetch appends rows and the author has not scrolled away", () => {
-    jest.useFakeTimers();
+  it("shows new rows from a background refetch with no explicit scroll call, whether or not the author has scrolled away", () => {
+    // A background refetch (another device, a stopped turn re-caching) that
+    // prepends newer rows needs no scroll call: those rows land at the
+    // inverted list's own start, which is exactly where offset 0 is already
+    // resting if the author has not scrolled away - and if they have, they
+    // stay right where they are instead of being yanked back.
     const { rerender, unmount } = render(
       wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
     );
-    act(() => {
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
-      jest.advanceTimersByTime(200);
-    });
-    // Still reading the tail - the jump chip never showed.
-    scrollThread(0);
-
+    const scrollToOffset = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToOffset");
     const scrollToEnd = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToEnd");
+
     rerender(
       wrap(
         <CiciroChat
@@ -388,61 +297,9 @@ describe("CiciroChat", () => {
       )
     );
 
-    expect(scrollToEnd).toHaveBeenCalled();
-    unmount();
-    jest.useRealTimers();
-  });
-
-  it("does not yank the thread back to the tail when the author has scrolled away from it", () => {
-    jest.useFakeTimers();
-    const { rerender, unmount } = render(
-      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
-    );
-    act(() => {
-      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
-      jest.advanceTimersByTime(200);
-    });
-    // Scrolled well above the tail - the jump chip is showing.
-    scrollThread(1200 + 300);
-
-    const scrollToEnd = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToEnd");
-    rerender(
-      wrap(
-        <CiciroChat
-          {...idle}
-          composer=""
-          messages={[assistant, { ...assistant, id: "m3", content: "A reply from another device." }]}
-        />
-      )
-    );
-
+    expect(screen.getByText("A reply from another device.")).toBeTruthy();
+    expect(scrollToOffset).not.toHaveBeenCalled();
     expect(scrollToEnd).not.toHaveBeenCalled();
-    unmount();
-    jest.useRealTimers();
-  });
-
-  it("shows an empty thread immediately - nothing to position first", () => {
-    const { unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
-    unmount();
-  });
-
-  it("shows a thread that mounts already mid-turn immediately - the anchor effect positions it, not open-at-tail", () => {
-    const { unmount } = render(
-      wrap(
-        <CiciroChat
-          {...idle}
-          composer=""
-          streaming
-          messages={[{ ...assistant, id: "m3", role: "user", content: "Hi" }]}
-        />
-      )
-    );
-    expect(
-      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
-    ).toBe(1);
     unmount();
   });
 
@@ -465,7 +322,7 @@ describe("CiciroChat", () => {
       expect(screen.getByTestId("chat-dock").props.offset).toEqual({ closed: 0, opened: 86 });
       const padding = StyleSheet.flatten(
         screen.getByTestId("chat-thread").props.contentContainerStyle
-      ).paddingBottom;
+      ).paddingTop;
       expect(padding).toBe(180 + (300 + 10 - 96) + 16);
       unmount();
     } finally {
@@ -707,12 +564,13 @@ describe("CiciroChat", () => {
     unmount();
   });
 
-  function scrollThread(distanceFromBottom: number, layoutHeight = 600) {
-    const contentHeight = distanceFromBottom + layoutHeight;
+  // An inverted list rests at offset 0 at its own tail, so the scroll
+  // offset already is the distance scrolled away from it.
+  function scrollThread(distanceFromTail: number, layoutHeight = 600) {
     fireEvent.scroll(screen.getByTestId("chat-thread"), {
       nativeEvent: {
-        contentOffset: { y: 0, x: 0 },
-        contentSize: { height: contentHeight, width: 400 },
+        contentOffset: { y: distanceFromTail, x: 0 },
+        contentSize: { height: distanceFromTail + layoutHeight, width: 400 },
         layoutMeasurement: { height: layoutHeight, width: 400 },
       },
     });
@@ -761,7 +619,7 @@ describe("CiciroChat", () => {
 
     const trailing = StyleSheet.flatten(
       screen.getByTestId("chat-thread").props.contentContainerStyle
-    ).paddingBottom;
+    ).paddingTop;
     const gap = promptAnchorGap(600, 48, trailing);
     expect(StyleSheet.flatten(screen.getByTestId("chat-anchor").props.style).minHeight).toBe(gap);
 
