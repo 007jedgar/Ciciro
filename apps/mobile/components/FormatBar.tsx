@@ -1,5 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import * as haptics from "../lib/haptics";
+import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { BlockKind } from "../lib/manuscript";
 import type { BlockMark, BlockMarks } from "../lib/block-editor";
@@ -9,6 +8,7 @@ import { colors as parchmentColors, fonts } from "../lib/theme";
 import { alpha } from "./Glass";
 import { FORMAT_BAR_HEIGHT } from "../lib/format-chrome";
 import { MicIcon } from "./icons";
+import { TapPressable } from "./TapPressable";
 
 export type FormatBlockKind = Extract<
   BlockKind,
@@ -65,7 +65,6 @@ export function FormatBar({
 
   function press(action: () => void) {
     if (disabled) return;
-    haptics.tap();
     action();
   }
 
@@ -119,7 +118,7 @@ export function FormatBar({
       {dictation ? (
         <>
           <View style={[styles.gap, { backgroundColor: colors.line }]} />
-          <Pressable
+          <TapPressable
             testID="dictate-button"
             accessibilityRole="button"
             accessibilityLabel={
@@ -132,23 +131,19 @@ export function FormatBar({
               disabled: disabled && !dictation.active,
             }}
             disabled={disabled && !dictation.active}
-            onPress={() => {
-              haptics.tap();
-              dictation.onToggle();
-            }}
-            style={({ pressed }) => [
+            onPress={dictation.onToggle}
+            style={[
               styles.mark,
               {
                 backgroundColor: dictation.active
                   ? colors.accentSoft
                   : "transparent",
-                opacity:
-                  disabled && !dictation.active ? 0.4 : pressed ? 0.65 : 1,
+                opacity: disabled && !dictation.active ? 0.4 : 1,
               },
             ]}
           >
             <MicIcon color={dictation.active ? colors.accent : colors.ink} />
-          </Pressable>
+          </TapPressable>
         </>
       ) : null}
     </View>
@@ -181,18 +176,18 @@ export function FormatMark({
   onPressIn?: () => void;
 }) {
   return (
-    <Pressable
+    <TapPressable
       accessibilityRole="button"
       accessibilityLabel={a11y}
       accessibilityState={{ selected: active, disabled }}
       onPress={onPress}
       onPressIn={onPressIn}
       disabled={disabled}
-      style={({ pressed }) => [
+      style={[
         compact ? styles.markCompact : styles.mark,
         {
           backgroundColor: active ? colors.accentSoft : "transparent",
-          opacity: disabled ? 0.4 : pressed ? 0.65 : 1,
+          opacity: disabled ? 0.4 : 1,
         },
       ]}
     >
@@ -212,7 +207,7 @@ export function FormatMark({
       >
         {label}
       </Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 

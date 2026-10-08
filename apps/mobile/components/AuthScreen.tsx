@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Platform,
   Keyboard,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -53,6 +52,7 @@ import { InlineDots } from "./InlineDots";
 import { AUTH_EXIT_MS, markAuthArrival } from "../lib/auth-arrival";
 import { EASE_OUT } from "../lib/motion";
 import { AlertText } from "./AlertText";
+import { TapPressable } from "./TapPressable";
 
 const ICON = { x: 20, y: 6, size: 46 };
 const HEADER_H = 52;
@@ -253,7 +253,6 @@ export function AuthScreen({
     setError(null);
     useAuthFormStore.setState({ errors: {} });
     setMode(next);
-    haptics.select();
     const target = modeProgress(next);
     modeV.value = reduceMotion
       ? target
@@ -341,7 +340,7 @@ export function AuthScreen({
       {/* animated header: chevron and title drop into place */}
       <View style={[styles.header, { top: insets.top, height: HEADER_H }]}>
         <Animated.View style={chevronStyle}>
-          <Pressable
+          <TapPressable
             onPress={goBack}
             accessibilityRole="button"
             accessibilityLabel={t("common.back")}
@@ -349,7 +348,7 @@ export function AuthScreen({
             style={styles.backBtn}
           >
             <ChevronLeft color={colors.accent} />
-          </Pressable>
+          </TapPressable>
         </Animated.View>
         <Animated.View style={[styles.titleWrap, titleStyle]}>
           <Animated.Text
@@ -493,7 +492,7 @@ export function AuthScreen({
                 </AlertText>
               ) : null}
               {isSignup ? (
-                <Pressable
+                <TapPressable
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: marketingOptIn }}
                   accessibilityLabel={t("auth.marketingOptIn")}
@@ -514,19 +513,19 @@ export function AuthScreen({
                   <Text style={[layout.body, styles.marketingText, { color: colors.inkSoft }]}>
                     {t("auth.marketingOptIn")}
                   </Text>
-                </Pressable>
+                </TapPressable>
               ) : null}
               {isSignup ? null : (
-                <Pressable
+                <TapPressable
                   onPress={() =>
                     router.push({ pathname: "/forgot-password", params: email.trim() ? { email: email.trim() } : {} })
                   }
                   accessibilityRole="link"
                   hitSlop={8}
-                  style={({ pressed }) => [styles.forgot, { minHeight: 44, justifyContent: "center", opacity: pressed ? 0.5 : 1 }]}
+                  style={[styles.forgot, { minHeight: 44, justifyContent: "center" }]}
                 >
                   <Text style={[styles.forgotText, { color: colors.accent }]}>{t("auth.forgotPassword")}</Text>
-                </Pressable>
+                </TapPressable>
               )}
               {error ? (
                 <View style={[styles.formError, { borderColor: colors.danger }]}>
@@ -542,9 +541,9 @@ export function AuthScreen({
               ) : null}
 
               <Animated.View style={submitScaleStyle}>
-                <Pressable
+                <TapPressable
                   style={layout.primaryBtn}
-                  onPress={haptics.withTap(submit)}
+                  onPress={submit}
                   onPressIn={pressSubmitIn}
                   onPressOut={pressSubmitOut}
                   disabled={busy}
@@ -563,14 +562,15 @@ export function AuthScreen({
                       <InlineDots color={colors.panel} active={busy} reduceMotion={reduceMotion} />
                     </Animated.View>
                   </View>
-                </Pressable>
+                </TapPressable>
               </Animated.View>
 
-              <Pressable
+              <TapPressable
                 onPress={toggleMode}
+                haptic="select"
                 accessibilityRole="button"
                 accessibilityLabel={isSignup ? t("auth.signInInstead") : t("auth.createInstead")}
-                style={({ pressed }) => [styles.footer, { minHeight: 44, justifyContent: "center", opacity: pressed ? 0.5 : 1 }]}
+                style={[styles.footer, { minHeight: 44, justifyContent: "center" }]}
               >
                 <View style={styles.footerLabel}>
                   <Animated.Text style={[layout.body, styles.stackAbsCentered, signinTextStyle]}>
@@ -582,7 +582,7 @@ export function AuthScreen({
                     <Text style={{ color: colors.accent }}>{t("auth.signIn")}</Text>
                   </Animated.Text>
                 </View>
-              </Pressable>
+              </TapPressable>
             </Animated.View>
           </Animated.View>
         </View>

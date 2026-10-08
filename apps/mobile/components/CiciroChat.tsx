@@ -3,7 +3,6 @@ import {
   Alert,
   FlatList,
   Platform,
-  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -137,7 +136,7 @@ function MessageBody({
               </Text>
             ) : (
               <View style={styles.draftActions}>
-                <Pressable
+                <TapPressable
                   accessibilityRole="button"
                   accessibilityLabel={already ? t("ciciroTab.inserted") : t("ciciroTab.insert")}
                   disabled={already || !draft}
@@ -146,14 +145,14 @@ function MessageBody({
                   <Text style={{ color: already ? colors.inkSoft : colors.accent, fontWeight: "600" }}>
                     {already ? t("ciciroTab.inserted") : t("ciciroTab.insert")}
                   </Text>
-                </Pressable>
-                <Pressable
+                </TapPressable>
+                <TapPressable
                   accessibilityRole="button"
                   accessibilityLabel={t("ciciroTab.share")}
                   onPress={() => onShare(draft)}
                 >
                   <Text style={{ color: colors.accent }}>{t("ciciroTab.share")}</Text>
-                </Pressable>
+                </TapPressable>
               </View>
             )}
           </>
@@ -259,24 +258,23 @@ function ChatActionButton({
   }));
 
   function press() {
-    haptics.tap();
     onPress();
   }
 
   return (
     <Animated.View style={[styles.sendWrap, style]}>
-      <Pressable
+      <TapPressable
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={press}
-        style={({ pressed }) => [styles.send, { backgroundColor: accent, opacity: pressed ? 0.85 : 1 }]}
+        style={[styles.send, { backgroundColor: accent }]}
       >
         {icon === "stop" ? (
           <StopIcon color={iconColor} size={13} />
         ) : (
           <ArrowUpIcon color={iconColor} size={16} />
         )}
-      </Pressable>
+      </TapPressable>
     </Animated.View>
   );
 }
@@ -655,7 +653,6 @@ export function CiciroChat({
   const undoClear = useCallback(() => {
     const token = undoToken;
     if (!token) return;
-    haptics.tap();
     endCeremony();
     onUndoClear(token);
   }, [endCeremony, onUndoClear, undoToken]);
@@ -692,7 +689,6 @@ export function CiciroChat({
   );
 
   const jumpToLatest = useCallback(() => {
-    haptics.tap();
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
     syncJump(0);
   }, [syncJump]);
@@ -784,17 +780,16 @@ export function CiciroChat({
     <View style={layout.screen}>
       {bannerShown ? (
         <Animated.View entering={animate ? FadeIn.duration(220) : undefined}>
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityLabel={t("questions.banner", { count: openQuestionCount })}
             onPress={onOpenQuestions}
-            style={({ pressed }) => [
+            style={[
               styles.banner,
               {
                 marginTop: topInset + 8,
                 borderColor: colors.line,
                 backgroundColor: colors.accentSoft,
-                opacity: pressed ? 0.75 : 1,
               },
             ]}
           >
@@ -805,7 +800,7 @@ export function CiciroChat({
             <Text style={{ color: colors.accent, fontSize: 13, fontWeight: "600" }}>
               {t("questions.review")}
             </Text>
-          </Pressable>
+          </TapPressable>
         </Animated.View>
       ) : null}
 
@@ -965,7 +960,7 @@ export function CiciroChat({
                     accessibilityRole="button"
                     accessibilityLabel={action.label}
                     onPress={() => onQuickAction(action.id)}
-                    style={({ pressed }) => [styles.actionChip, { opacity: pressed ? 0.6 : 1 }]}
+                    style={styles.actionChip}
                   >
                     <Text style={{ color: colors.ink, fontSize: 13.5, fontWeight: "500" }}>{action.label}</Text>
                   </TapPressable>
@@ -980,7 +975,7 @@ export function CiciroChat({
               radius={14}
               style={{ opacity: messages.length === 0 ? 0.45 : 1 }}
             >
-              <Pressable
+              <TapPressable
                 accessibilityRole="button"
                 accessibilityState={{ disabled: clearPhase !== "idle" || messages.length === 0 }}
                 accessibilityLabel={t("ciciroTab.clear")}
@@ -996,7 +991,7 @@ export function CiciroChat({
                 <Text style={{ color: colors.inkSoft, fontSize: 13 }}>
                   {t("ciciroTab.clear")}
                 </Text>
-              </Pressable>
+              </TapPressable>
             </Glass>
             {onEditModeChange ? (
               <EditModeToggle mode={editMode} onChange={onEditModeChange} />
@@ -1004,14 +999,14 @@ export function CiciroChat({
             {jumpShown && showsThread(clearPhase) ? (
               <JumpChip opacity={jumpOpacity}>
                 <Glass dark={dark} colors={colors} radius={14}>
-                  <Pressable
+                  <TapPressable
                     accessibilityRole="button"
                     accessibilityLabel={t("ciciroTab.scrollToLatest")}
                     onPress={jumpToLatest}
                     style={styles.jump}
                   >
                     <ArrowDownIcon color={colors.inkSoft} size={16} />
-                  </Pressable>
+                  </TapPressable>
                 </Glass>
               </JumpChip>
             ) : null}

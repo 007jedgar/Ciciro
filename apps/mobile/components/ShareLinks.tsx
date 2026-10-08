@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import * as haptics from "../lib/haptics";
-import { AccessibilityInfo, Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Alert, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeInDown, LinearTransition, SlideOutLeft } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
@@ -23,6 +23,7 @@ import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
 import { getAnalytics } from "../lib/analytics-client";
 import { AlertText } from "./AlertText";
+import { TapPressable } from "./TapPressable";
 
 export type ShareLinksHost = {
   alert: typeof Alert.alert;
@@ -99,7 +100,7 @@ export function ShareLinks({
       return;
     }
     setError(null);
-    haptics.tap();
+    haptics.success();
     AccessibilityInfo.announceForAccessibility(t("beta.links.copied"));
     setCopiedId(link.id);
     if (copiedTimer.current) clearTimeout(copiedTimer.current);
@@ -219,7 +220,7 @@ export function ShareLinks({
       <Text style={[layout.cardMeta, styles.label]}>{t("beta.links.what")}</Text>
       <View style={styles.chips}>
         {(["all", "some"] as const).map((value) => (
-          <Pressable
+          <TapPressable
             key={value}
             accessibilityRole="radio"
             accessibilityState={{ checked: scope === value }}
@@ -229,7 +230,7 @@ export function ShareLinks({
             <Text style={chipText(scope === value)}>
               {t(value === "all" ? "beta.links.whole" : "beta.links.chosen")}
             </Text>
-          </Pressable>
+          </TapPressable>
         ))}
       </View>
       {scope === "some" ? (
@@ -237,7 +238,7 @@ export function ShareLinks({
           {chapters.map((chapter, index) => {
             const on = picked.has(chapter.id);
             return (
-              <Pressable
+              <TapPressable
                 key={chapter.id}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: on }}
@@ -263,7 +264,7 @@ export function ShareLinks({
                 <Text style={[layout.body, styles.pickText]} numberOfLines={1}>
                   {chapterName(index)}
                 </Text>
-              </Pressable>
+              </TapPressable>
             );
           })}
         </View>
@@ -274,7 +275,7 @@ export function ShareLinks({
         {SHARE_EXPIRY_PRESETS.map((days) => {
           const active = expiry === days;
           return (
-            <Pressable
+            <TapPressable
               key={days ?? "never"}
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
@@ -284,12 +285,12 @@ export function ShareLinks({
               <Text style={[styles.segmentText, { color: active ? colors.ink : colors.inkSoft }]}>
                 {days === null ? t("beta.links.never") : t("beta.links.days", { count: days })}
               </Text>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </View>
 
-      <Pressable
+      <TapPressable
         accessibilityRole="button"
         accessibilityLabel={t("beta.links.create")}
         accessibilityState={{ disabled: create.isPending }}
@@ -300,7 +301,7 @@ export function ShareLinks({
         <Text style={[styles.primaryBtnText, { color: colors.panel }]}>
           {create.isPending ? t("beta.links.creating") : t("beta.links.create")}
         </Text>
-      </Pressable>
+      </TapPressable>
 
       {error ? (
         <AlertText style={[layout.error, styles.error]} role="alert">
@@ -342,7 +343,7 @@ export function ShareLinks({
             </View>
             <Text style={layout.cardMeta}>{statusLine(link)}</Text>
             {active ? (
-              <Pressable
+              <TapPressable
                 onPress={() => void copyUrl(link)}
                 accessibilityRole="button"
                 accessibilityLabel={t("beta.links.copyUrl")}
@@ -355,39 +356,39 @@ export function ShareLinks({
                 {copiedId === link.id ? (
                   <Text style={[styles.url, styles.copied, { color: colors.accent }]}>{t("beta.links.copied")}</Text>
                 ) : null}
-              </Pressable>
+              </TapPressable>
             ) : null}
             <View style={styles.actions}>
               {active ? (
-                <Pressable
+                <TapPressable
                   accessibilityRole="button"
                   onPress={() => void shareLink(link)}
                   style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
                 >
                   <Text style={[styles.primaryBtnText, { color: colors.panel }]}>{t("beta.links.share")}</Text>
-                </Pressable>
+                </TapPressable>
               ) : null}
               <View style={styles.spacer} />
               {active ? (
-                <Pressable
+                <TapPressable
                   accessibilityRole="button"
                   onPress={() => confirmRevoke(link)}
                   disabled={busy}
                   hitSlop={12}
-                  style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
+                  style={[styles.ghostBtn, { opacity: busy ? 0.4 : 1 }]}
                 >
                   <Text style={[styles.ghostBtnText, { color: colors.inkSoft }]}>{t("beta.links.revoke")}</Text>
-                </Pressable>
+                </TapPressable>
               ) : null}
-              <Pressable
+              <TapPressable
                 accessibilityRole="button"
                 onPress={() => removeLink(link)}
                 disabled={busy}
                 hitSlop={12}
-                style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
+                style={[styles.ghostBtn, { opacity: busy ? 0.4 : 1 }]}
               >
                 <Text style={[styles.ghostBtnText, { color: colors.danger }]}>{t("common.delete")}</Text>
-              </Pressable>
+              </TapPressable>
             </View>
           </Animated.View>
         );

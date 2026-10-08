@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import { useAppTheme } from "../lib/settings";
 import { announce } from "../lib/announce";
 import { useStackBack } from "../lib/use-stack-back";
 import { AlertText } from "../components/AlertText";
+import { TapPressable } from "../components/TapPressable";
 
 /**
  * Ask for a password-reset email. The link it sends opens the web reset page
@@ -68,21 +69,21 @@ export default function ForgotPasswordScreen() {
           <View accessibilityLiveRegion="polite">
             <Text style={[bodyText, { marginBottom: 12 }]}>{t("auth.resetSentBody", { email: sentTo })}</Text>
             <Text style={[hintText, { marginBottom: 24 }]}>{t("auth.resetSentHint")}</Text>
-            <Pressable
+            <TapPressable
               onPress={() => backOr("/login")}
               accessibilityRole="button"
-              style={({ pressed }) => [layout.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}
+              style={layout.primaryBtn}
             >
               <Text style={layout.primaryBtnText}>{t("auth.backToSignIn")}</Text>
-            </Pressable>
-            <Pressable
+            </TapPressable>
+            <TapPressable
               onPress={() => setSentTo(null)}
               accessibilityRole="button"
               hitSlop={8}
-              style={({ pressed }) => ({ marginTop: 18, alignSelf: "center", opacity: pressed ? 0.5 : 1 })}
+              style={{ marginTop: 18, alignSelf: "center" }}
             >
               <Text style={{ fontSize: 16, color: colors.accent }}>{t("auth.useDifferentEmail")}</Text>
-            </Pressable>
+            </TapPressable>
           </View>
         ) : (
           <>
@@ -113,19 +114,19 @@ export default function ForgotPasswordScreen() {
                 {error}
               </AlertText>
             ) : null}
-            <Pressable
+            <TapPressable
               onPress={() => void submit()}
               disabled={busy}
               accessibilityRole="button"
               accessibilityState={{ busy, disabled: busy }}
-              style={({ pressed }) => [
+              style={[
                 layout.primaryBtn,
-                { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, opacity: pressed ? 0.85 : 1 },
+                { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
               ]}
             >
               {busy ? <ActivityIndicator size="small" color={colors.panel} /> : null}
               <Text style={layout.primaryBtnText}>{busy ? t("auth.sending") : t("auth.sendResetLink")}</Text>
-            </Pressable>
+            </TapPressable>
           </>
         )}
       </KeyboardAwareScrollView>

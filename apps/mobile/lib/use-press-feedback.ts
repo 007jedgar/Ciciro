@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { GestureResponderEvent, StyleProp, ViewStyle } from "react-native";
 import { StyleSheet } from "react-native";
 import { interpolateColor, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
-import { mixColors } from "./color";
+import { hexToRgb, mixColors } from "./color";
 import { PRESS_DIM, PRESS_EASE, PRESS_IN_MS, PRESS_OUT_MS, PRESS_SCALE, TINT_MIX } from "./motion";
 import { useReduceMotion } from "./use-reduce-motion";
 
@@ -10,7 +10,8 @@ import { useReduceMotion } from "./use-reduce-motion";
  * How a pressable answers a finger.
  * - `scale`: dips in scale, eases to `PRESS_DIM.surface` opacity and (when it has a solid fill) tints.
  * - `dim`: opacity only, `PRESS_DIM.link`, for a bare text link or icon with no surface to scale.
- * - `none`: nothing visual (a scrim, a wrapper whose children already respond).
+ * - `none`: no scale or dim (a scrim, a wrapper whose children already respond). A `tint` still eases,
+ *   which is how a full-bleed list row gets its highlight without shrinking.
  */
 export type PressFeedback = "scale" | "dim" | "none";
 
@@ -24,7 +25,7 @@ type Options = {
   dim?: number;
   /** The surface's own rest opacity (a disabled button at .45), which the press dims from. */
   restOpacity?: number;
-  /** Fill colours to ease between; omit for a surface with no solid fill. */
+  /** Fill colours to ease between, whatever the feedback kind; omit for a surface with no fill to ease. */
   tint?: PressTint | null;
   /** Release duration override (the tab-bar FAB lets go faster). */
   outMs?: number;
@@ -60,11 +61,11 @@ export function usePressFeedback({
   const reduceMotion = useReduceMotion();
   const pressed = useSharedValue(0);
 
-  const active = feedback !== "none";
+  const active = feedback !== "none" || tint !== null;
   const scaleDelta = active && feedback === "scale" && !reduceMotion ? 1 - (scale ?? PRESS_SCALE.button) : 0;
-  const dimDelta = active ? 1 - (dim ?? (feedback === "dim" ? PRESS_DIM.link : PRESS_DIM.surface)) : 0;
-  const tintFrom = feedback === "scale" && tint ? tint.from : null;
-  const tintTo = feedback === "scale" && tint ? tint.to : null;
+  const dimDelta = feedback !== "none" ? 1 - (dim ?? (feedback === "dim" ? PRESS_DIM.link : PRESS_DIM.surface)) : 0;
+  const tintFrom = tint ? tint.from : null;
+  const tintTo = tint ? tint.to : null;
 
   const animatedStyle = useAnimatedStyle(() => {
     const progress = pressed.value;
@@ -119,4 +120,17 @@ export function pressTint(
   if (base.toLowerCase() === colors.accent.toLowerCase()) return { from: base, to: mixColors(base, colors.ink, TINT_MIX) };
   if (base.toLowerCase() === colors.panel2.toLowerCase()) return { from: base, to: mixColors(base, colors.ink, TINT_MIX / 2) };
   return { from: base, to: colors.panel2 };
+}
+
+/**
+ * The pressed highlight of a full-bleed list row (settings rows, history rows):
+ * `panel2` fades in under the finger, from the row's own fill when it has a
+ * solid one and from nothing when it is transparent. Pair it with
+ * `feedback="none"` so the row lights up instead of shrinking.
+ */
+export function rowHighlightTint(style: StyleProp<ViewStyle>, colors: Pick<TintColors, "panel2">): PressTint {
+  const base = StyleSheet.flatten(style)?.backgroundColor;
+  if (typeof base === "string" && HEX.test(base)) return { from: base, to: colors.panel2 };
+  const { r, g, b } = hexToRgb(colors.panel2);
+  return { from: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0)`, to: colors.panel2 };
 }

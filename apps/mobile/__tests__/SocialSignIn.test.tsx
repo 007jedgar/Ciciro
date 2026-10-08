@@ -15,6 +15,7 @@ jest.mock("../lib/session", () => ({
   useSession: () => ({ signInWithApple: mockSignInWithApple, signInWithBrowser: mockSignInWithBrowser }),
 }));
 jest.mock("../lib/settings", () => ({
+  useOptionalAppTheme: () => null,
   useAppTheme: () => ({ colors: jest.requireActual("../lib/theme").colors, dark: false }),
 }));
 jest.mock("../lib/social-sign-in", () => ({

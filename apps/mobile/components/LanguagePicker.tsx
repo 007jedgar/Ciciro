@@ -32,7 +32,6 @@ export function LanguagePicker({
               accessibilityState={{ selected: active }}
               accessibilityLabel={opt.nativeName}
               hitSlop={8}
-              style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
             >
               <Text
                 style={{

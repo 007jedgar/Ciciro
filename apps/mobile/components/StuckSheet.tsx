@@ -64,9 +64,9 @@ export function StuckSheet({
                 <TapPressable
                   accessibilityRole="button"
                   onPress={() => use(prompt)}
-                  style={({ pressed }) => [
+                  style={[
                     styles.prompt,
-                    { borderColor: colors.line, backgroundColor: colors.panel, opacity: pressed ? 0.7 : 1 },
+                    { borderColor: colors.line, backgroundColor: colors.panel },
                   ]}
                 >
                   <Text style={[styles.promptText, { color: colors.ink }]}>{prompt}</Text>

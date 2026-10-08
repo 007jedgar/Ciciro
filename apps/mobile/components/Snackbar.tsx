@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { announce } from "../lib/announce";
 import type { ColorTokens } from "../lib/theme";
 import { Glass } from "./Glass";
+import { TapPressable } from "./TapPressable";
 
 /**
  * A line of glass that says what just happened and offers to take it back.
@@ -41,14 +42,14 @@ export function Snackbar({
             {message}
           </Text>
           {actionLabel && onAction ? (
-            <Pressable
+            <TapPressable
               accessibilityRole="button"
               accessibilityLabel={actionLabel}
               onPress={onAction}
               hitSlop={10}
             >
               <Text style={[styles.action, { color: colors.accent }]}>{actionLabel}</Text>
-            </Pressable>
+            </TapPressable>
           ) : null}
         </View>
       </Glass>

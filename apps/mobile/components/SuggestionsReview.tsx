@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,7 @@ import { alpha } from "./Glass";
 import { GlassSheet } from "./GlassSheet";
 import { EditorIcon } from "./icons";
 import { RollingNumber } from "./RollingNumber";
+import { TapPressable } from "./TapPressable";
 
 // Tracked changes on the phone. The editor shows them inline (underline for
 // added words, strikethrough for removed ones); this is where the author
@@ -68,20 +69,20 @@ export function SuggestionsPill({
     authors: suggestionAuthors(suggestions, t("suggestions.someone")),
   });
   return (
-    <Pressable
+    <TapPressable
       testID="suggestions-pill"
       accessibilityRole="button"
       accessibilityLabel={`${label}. ${t("suggestions.review")}`}
       onPress={onOpen}
-      style={({ pressed }) => [
+      style={[
         styles.pill,
-        { borderColor: colors.line, backgroundColor: colors.accentSoft, opacity: pressed ? 0.75 : 1 },
+        { borderColor: colors.line, backgroundColor: colors.accentSoft },
       ]}
     >
       <EditorIcon color={colors.accent} size={18} />
       <PillLabel label={label} count={suggestions.length} color={colors.ink} />
       <Text style={[styles.pillAction, { color: colors.accent }]}>{t("suggestions.review")}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -164,26 +165,28 @@ export function SuggestionReviewCard({
             ))}
       </Text>
       <View style={styles.actions}>
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={`${t("suggestions.reject")}: ${changeSentence(summary, t)}`}
           onPress={() => onResolve("reject")}
+          haptic="none"
           disabled={resolving !== null}
           hitSlop={8}
-          style={({ pressed }) => [styles.secondary, { borderColor: colors.line, opacity: pressed ? 0.7 : 1 }]}
+          style={[styles.secondary, { borderColor: colors.line }]}
         >
           <Text style={[styles.secondaryLabel, { color: colors.ink }]}>{t("suggestions.reject")}</Text>
-        </Pressable>
-        <Pressable
+        </TapPressable>
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={`${t("suggestions.accept")}: ${changeSentence(summary, t)}`}
           onPress={() => onResolve("accept")}
+          haptic="none"
           disabled={resolving !== null}
           hitSlop={8}
-          style={({ pressed }) => [styles.primary, { backgroundColor: colors.accent, opacity: pressed ? 0.82 : 1 }]}
+          style={[styles.primary, { backgroundColor: colors.accent }]}
         >
           <Text style={[styles.primaryLabel, { color: colors.panel }]}>{t("suggestions.accept")}</Text>
-        </Pressable>
+        </TapPressable>
       </View>
     </Animated.View>
   );
@@ -263,26 +266,28 @@ export function SuggestionsSheet({
         <Text style={[styles.blurb, { color: colors.inkSoft }]}>{t("suggestions.blurb")}</Text>
         {count > 1 ? (
           <View style={styles.allRow}>
-            <Pressable
+            <TapPressable
               testID="suggestions-reject-all"
               accessibilityRole="button"
               onPress={() => resolve("reject")}
+              haptic="none"
               disabled={resolving !== null}
               hitSlop={8}
-              style={({ pressed }) => [styles.secondary, { borderColor: colors.line, opacity: pressed ? 0.7 : 1 }]}
+              style={[styles.secondary, { borderColor: colors.line }]}
             >
               <Text style={[styles.secondaryLabel, { color: colors.ink }]}>{t("suggestions.rejectAll")}</Text>
-            </Pressable>
-            <Pressable
+            </TapPressable>
+            <TapPressable
               testID="suggestions-accept-all"
               accessibilityRole="button"
               onPress={() => resolve("accept")}
+              haptic="none"
               disabled={resolving !== null}
               hitSlop={8}
-              style={({ pressed }) => [styles.primary, { backgroundColor: colors.accent, opacity: pressed ? 0.82 : 1 }]}
+              style={[styles.primary, { backgroundColor: colors.accent }]}
             >
               <Text style={[styles.primaryLabel, { color: colors.panel }]}>{t("suggestions.acceptAll")}</Text>
-            </Pressable>
+            </TapPressable>
           </View>
         ) : null}
         {suggestions.map((summary) => (

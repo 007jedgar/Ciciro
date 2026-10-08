@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import * as haptics from "../lib/haptics";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors } from "../lib/theme";
-import { usePressFeedback, pressTint, type PressFeedback } from "../lib/use-press-feedback";
+import { pressTint, rowHighlightTint, usePressFeedback, type PressFeedback } from "../lib/use-press-feedback";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -19,6 +19,13 @@ type Props = Omit<PressableProps, "style"> & {
   feedback?: PressFeedback;
   /** Pressed scale for `feedback="scale"`: `PRESS_SCALE.button` (default), `.card`, `.chip` or `.fab`. */
   scale?: number;
+  /** A full-bleed list row: fade `panel2` in under the finger. Use with `feedback="none"` so it lights up, not shrinks. */
+  highlight?: boolean;
+  /**
+   * The haptic on press: the light `tap` for a button (default), the `select` detent for choosing among options,
+   * or `none` when the handler gives its own (a result haptic such as `success`).
+   */
+  haptic?: "tap" | "select" | "none";
 };
 
 /**
@@ -28,13 +35,13 @@ type Props = Omit<PressableProps, "style"> & {
  * role (tab, radio, link).
  */
 export const TapPressable = forwardRef<View, Props>(function TapPressable(
-  { onPress, onPressIn, onPressOut, style, feedback = "scale", scale, ...rest },
+  { onPress, onPressIn, onPressOut, style, feedback = "scale", scale, highlight, haptic = "tap", ...rest },
   ref
 ) {
   const colors = useOptionalAppTheme()?.colors ?? parchmentColors;
   const flat = StyleSheet.flatten(style);
   const restOpacity = typeof flat?.opacity === "number" ? flat.opacity : 1;
-  const tint = feedback === "scale" ? pressTint(style, colors) : null;
+  const tint = highlight ? rowHighlightTint(style, colors) : feedback === "scale" ? pressTint(style, colors) : null;
   const press = usePressFeedback({ feedback, scale, restOpacity, tint });
 
   return (
@@ -42,7 +49,7 @@ export const TapPressable = forwardRef<View, Props>(function TapPressable(
       ref={ref}
       accessibilityRole="button"
       {...rest}
-      onPress={onPress ? haptics.withTap(onPress) : undefined}
+      onPress={onPress && haptic === "tap" ? haptics.withTap(onPress) : onPress && haptic === "select" ? haptics.withSelect(onPress) : onPress}
       onPressIn={(event) => {
         press.onPressIn();
         onPressIn?.(event);
@@ -51,7 +58,7 @@ export const TapPressable = forwardRef<View, Props>(function TapPressable(
         press.onPressOut();
         onPressOut?.(event);
       }}
-      style={feedback === "none" ? style : [style, press.animatedStyle]}
+      style={feedback === "none" && !tint ? style : [style, press.animatedStyle]}
     />
   );
 });

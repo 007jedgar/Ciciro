@@ -145,3 +145,11 @@ export function withTap<Args extends unknown[]>(handler: ((...args: Args) => voi
     tap();
   };
 }
+
+/** `withTap` for choosing among options: the selection detent instead of the light tap. */
+export function withSelect<Args extends unknown[]>(handler: ((...args: Args) => void) | undefined) {
+  return (...args: Args) => {
+    handler?.(...args);
+    select();
+  };
+}

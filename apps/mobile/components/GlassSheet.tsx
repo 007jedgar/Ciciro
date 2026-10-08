@@ -36,6 +36,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { GlassSheetBorder } from "./GlassSheetBorder";
 import { CloseIcon } from "./icons";
 import { alpha } from "./Glass";
+import { TapPressable } from "./TapPressable";
 
 export {
   GLASS_SHEET_RADIUS,
@@ -376,22 +377,21 @@ export function GlassSheet({
                     >
                       {title ?? " "}
                     </Text>
-                    <Pressable
+                    <TapPressable
                       testID={`${testID}-close`}
                       onPress={dismiss}
                       accessibilityRole="button"
                       accessibilityLabel={t("common.close")}
                       hitSlop={10}
-                      style={({ pressed }) => [
+                      style={[
                         styles.closeBtn,
                         {
                           backgroundColor: alpha(ink, dark ? 0.14 : 0.08),
-                          opacity: pressed ? 0.65 : 1,
                         },
                       ]}
                     >
                       <CloseIcon color={ink} size={14} />
-                    </Pressable>
+                    </TapPressable>
                   </View>
                   <View style={styles.children}>{children}</View>
                 </View>

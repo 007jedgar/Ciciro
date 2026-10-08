@@ -61,9 +61,9 @@ export function ChatErrorNotice({
               getAnalytics().track("cta_clicked", { cta: "see_pro", surface: "chat_error" });
               router.push("/paywall");
             }}
-            style={({ pressed }) => [
+            style={[
               styles.retry,
-              { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
+              { backgroundColor: colors.accent },
             ]}
           >
             <Text style={[styles.retryLabel, { color: colors.panel }]}>{t("billing.seePro")}</Text>
@@ -74,9 +74,9 @@ export function ChatErrorNotice({
             accessibilityRole="button"
             accessibilityLabel={t("ciciroTab.retry")}
             onPress={onRetry}
-            style={({ pressed }) => [
+            style={[
               styles.retry,
-              { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
+              { backgroundColor: colors.accent },
             ]}
           >
             <Text style={[styles.retryLabel, { color: colors.panel }]}>
