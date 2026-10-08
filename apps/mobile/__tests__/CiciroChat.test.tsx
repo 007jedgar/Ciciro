@@ -228,6 +228,7 @@ describe("CiciroChat", () => {
   });
 
   it("opens a settled transcript hidden until positioned at the end, not scrolled into view after it is shown", () => {
+    jest.useFakeTimers();
     const { unmount } = render(
       wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
     );
@@ -239,15 +240,18 @@ describe("CiciroChat", () => {
 
     act(() => {
       screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+      jest.advanceTimersByTime(200);
     });
 
     expect(
       StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
     ).toBe(1);
     unmount();
+    jest.useRealTimers();
   });
 
   it("hides and repositions a transcript that only arrives after mount - no cache yet, still loading - the same as one seeded from cache", () => {
+    jest.useFakeTimers();
     const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
     // Still loading: nothing to position yet, so the (empty) thread shows at once.
     expect(
@@ -264,12 +268,14 @@ describe("CiciroChat", () => {
 
     act(() => {
       screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+      jest.advanceTimersByTime(200);
     });
 
     expect(
       StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
     ).toBe(1);
     unmount();
+    jest.useRealTimers();
   });
 
   it("opens a long transcript hidden until positioned at the end, with its tail present", () => {
@@ -287,6 +293,7 @@ describe("CiciroChat", () => {
       turnId: `t${Math.floor(i / 2)}`,
       createdAt: "2026-09-14T00:00:00.000Z",
     }));
+    jest.useFakeTimers();
     const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
     // Arrives after mount, like an uncached cold load.
     rerender(wrap(<CiciroChat {...idle} composer="" messages={long} />));
@@ -298,19 +305,74 @@ describe("CiciroChat", () => {
 
     act(() => {
       screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+      jest.advanceTimersByTime(200);
     });
     expect(
       StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
     ).toBe(1);
     unmount();
+    jest.useRealTimers();
+  });
+
+  it("waits for a long transcript's growing content size to settle before opening at the tail", () => {
+    // On device, mounting hundreds of rows at once still measures in through
+    // several growing onContentSizeChange callbacks, not one final one -
+    // opening on the first of those landed scrollToEnd on whatever had
+    // mounted so far (a handful of rows) and locked it in for good, since
+    // open-at-tail only ever runs once. This reproduces that growth and
+    // proves the open waits for it to stop before trusting it.
+    const long: ChatMessage[] = Array.from({ length: 60 }, (_, i) => ({
+      id: `m${i}`,
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `Row ${i}`,
+      kind: "chat",
+      turnId: `t${Math.floor(i / 2)}`,
+      createdAt: "2026-09-14T00:00:00.000Z",
+    }));
+    jest.useFakeTimers();
+    const { unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={long} />));
+    const scrollToEnd = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToEnd");
+    // open-at-tail always passes animated: false; filter out the unrelated
+    // keyboard-lift effect's own (animated) scrollToEnd, which this fixture
+    // also schedules since its default zero bottom inset leaves a positive
+    // keyboard lift gap.
+    const openCalls = () => scrollToEnd.mock.calls.filter((call) => call[0]?.animated === false);
+
+    act(() => {
+      // Three growing batches, each arriving before the previous one's
+      // settle window elapses.
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 300);
+      jest.advanceTimersByTime(60);
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 800);
+      jest.advanceTimersByTime(60);
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+    });
+    // Still hidden and not yet scrolled - the last batch's settle window has
+    // not elapsed.
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(0);
+    expect(openCalls()).toHaveLength(0);
+
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    expect(openCalls()).toHaveLength(1);
+    expect(
+      StyleSheet.flatten(screen.getByTestId("chat-thread-visibility").props.style).opacity
+    ).toBe(1);
+    unmount();
+    jest.useRealTimers();
   });
 
   it("follows the tail once when a background refetch appends rows and the author has not scrolled away", () => {
+    jest.useFakeTimers();
     const { rerender, unmount } = render(
       wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
     );
     act(() => {
       screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+      jest.advanceTimersByTime(200);
     });
     // Still reading the tail - the jump chip never showed.
     scrollThread(0);
@@ -328,14 +390,17 @@ describe("CiciroChat", () => {
 
     expect(scrollToEnd).toHaveBeenCalled();
     unmount();
+    jest.useRealTimers();
   });
 
   it("does not yank the thread back to the tail when the author has scrolled away from it", () => {
+    jest.useFakeTimers();
     const { rerender, unmount } = render(
       wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
     );
     act(() => {
       screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+      jest.advanceTimersByTime(200);
     });
     // Scrolled well above the tail - the jump chip is showing.
     scrollThread(1200 + 300);
@@ -353,6 +418,7 @@ describe("CiciroChat", () => {
 
     expect(scrollToEnd).not.toHaveBeenCalled();
     unmount();
+    jest.useRealTimers();
   });
 
   it("shows an empty thread immediately - nothing to position first", () => {
