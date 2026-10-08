@@ -161,10 +161,6 @@ export function AuthScreen({
   const pw = useSharedValue(0);
   const ph = useSharedValue(0);
   const measured = useRef(false);
-  // Return moves down the form and submits from the password, as Enter does on the web form.
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-
   const iconX = insets.left + ICON.x;
   const iconY = insets.top + ICON.y;
 
@@ -368,8 +364,6 @@ export function AuthScreen({
                   <TextInput
                     style={layout.input}
                     aria-label={t("auth.name")}
-                    returnKeyType="next"
-                    onSubmitEditing={() => emailRef.current?.focus()}
                     placeholder={t("auth.namePlaceholder")}
                     placeholderTextColor={colors.inkSoft}
                     autoComplete="name"
