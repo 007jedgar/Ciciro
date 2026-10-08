@@ -659,14 +659,17 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  const prompt: ChatMessage = {
+    id: "u1",
+    role: "user",
+    content: "Tighten the opening.",
+    kind: "chat",
+    createdAt: "2026-09-14T00:00:00.000Z",
+  };
+  const streamingReply = { ...emptyChatStreamState(), text: "She opened the door." };
+  const heldPosition = () => screen.UNSAFE_getByType(FlatList).props.maintainVisibleContentPosition;
+
   function streamPrompt() {
-    const prompt: ChatMessage = {
-      id: "u1",
-      role: "user",
-      content: "Tighten the opening.",
-      kind: "chat",
-      createdAt: "2026-09-14T00:00:00.000Z",
-    };
     const view = render(
       wrap(
         <CiciroChat
@@ -675,7 +678,7 @@ describe("CiciroChat", () => {
           streaming
           messages={[prompt]}
           phase="running"
-          stream={{ ...emptyChatStreamState(), text: "She opened the door." }}
+          stream={streamingReply}
         />
       )
     );
@@ -688,35 +691,55 @@ describe("CiciroChat", () => {
     fireEvent(screen.getByTestId("chat-prompt"), "layout", {
       nativeEvent: { layout: { height: 48, width: 200, x: 0, y: 0 } },
     });
-    const trailing = StyleSheet.flatten(
-      screen.getByTestId("chat-thread").props.contentContainerStyle
-    ).paddingTop;
-    const gap = promptAnchorGap(600, 48, trailing);
+    return view;
+  }
+
+  it("has the list itself keep a streaming prompt's row still, with no scroll call per chunk", () => {
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" streaming messages={[prompt]} phase="running" />)
+    );
+    expect(heldPosition()).toBeUndefined();
+    unmount();
+
+    const view = streamPrompt();
+    expect(heldPosition()).toEqual({ minIndexForVisible: 0 });
     const scrollToOffset = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToOffset");
-    const growReply = (height: number) =>
+    for (const height of [800, 1400, 2600]) {
       fireEvent(screen.getByTestId("chat-anchor"), "layout", {
         nativeEvent: { layout: { height, width: 390, x: 0, y: 0 } },
       });
-    return { ...view, gap, scrollToOffset, growReply };
-  }
-
-  it("scrolls back as a streaming reply outgrows the gap, so the prompt stays at the top", () => {
-    const { gap, scrollToOffset, growReply, unmount } = streamPrompt();
-    growReply(gap);
+    }
     expect(scrollToOffset).not.toHaveBeenCalled();
-
-    growReply(gap + 240);
-    expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: 240, animated: false });
-    growReply(gap + 500);
-    expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: 500, animated: false });
-    unmount();
+    expect(heldPosition()).toEqual({ minIndexForVisible: 0 });
+    view.unmount();
   });
 
   it("lets go of the prompt once the author drags the thread", () => {
-    const { gap, scrollToOffset, growReply, unmount } = streamPrompt();
+    const { unmount } = streamPrompt();
     fireEvent(screen.getByTestId("chat-thread"), "scrollBeginDrag");
-    growReply(gap + 240);
-    expect(scrollToOffset).not.toHaveBeenCalled();
+    expect(heldPosition()).toBeUndefined();
     unmount();
+  });
+
+  it("lets go of the prompt once the reply settles, and never holds a thread opened at rest", () => {
+    const { rerender, unmount } = streamPrompt();
+    rerender(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          streaming={false}
+          messages={[prompt, { ...assistant, content: "She opened the door." }]}
+        />
+      )
+    );
+    expect(heldPosition()).toBeUndefined();
+    unmount();
+
+    const atRest = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[prompt, assistant]} />)
+    );
+    expect(heldPosition()).toBeUndefined();
+    atRest.unmount();
   });
 });
