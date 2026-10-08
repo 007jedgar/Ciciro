@@ -511,6 +511,7 @@ export function CiciroChat({
   const userMoved = useRef(false);
   const awaitingLock = useRef(false);
   const openedAtTail = useRef(false);
+  const contentSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinAttempt = useRef(0);
   const pinnedId = useRef<string | null>(null);
   /**
@@ -615,13 +616,22 @@ export function CiciroChat({
     setThreadVisible(false);
   }, [activeAnchor, messages.length, streaming]);
 
-  // Safety net: if the content-size callback below never fires (an
+  // Safety net: if the content-size callback below never fires at all (an
   // unexpected empty measurement), do not leave the thread hidden forever.
+  // Long past the debounce below, since it exists only for that failure
+  // mode, not to bound how long a long thread takes to finish mounting.
   useEffect(() => {
     if (threadVisible) return;
-    const id = setTimeout(openAtTail, 300);
+    const id = setTimeout(openAtTail, 4000);
     return () => clearTimeout(id);
   }, [threadVisible, openAtTail]);
+
+  useEffect(
+    () => () => {
+      if (contentSettleTimer.current) clearTimeout(contentSettleTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!activeAnchor || listHeight <= 0) return;
@@ -950,7 +960,16 @@ export function CiciroChat({
         onScroll={onThreadScroll}
         onScrollBeginDrag={releaseHold}
         onContentSizeChange={() => {
-          if (!threadVisible && !streaming && !activeAnchor) openAtTail();
+          // A long transcript's rows mounted all at once still measure in
+          // through several growing callbacks, not one final one - opening
+          // on the first firing lands `scrollToEnd` on whatever is mounted
+          // so far (the first few rows) and locks it in for good, since
+          // `openAtTail` only ever runs once. Wait for the size to stop
+          // changing before trusting it.
+          if (!threadVisible && !streaming && !activeAnchor) {
+            if (contentSettleTimer.current) clearTimeout(contentSettleTimer.current);
+            contentSettleTimer.current = setTimeout(openAtTail, 120);
+          }
           restoreHold();
         }}
         onScrollToIndexFailed={(info) => {
