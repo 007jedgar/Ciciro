@@ -7,6 +7,9 @@ export const TYPEWRITER_MIN_TEXT_HEIGHT = 160;
 /** How long the chrome fade/slide takes entering or leaving focus mode. Reduce motion collapses this to near-instant. */
 export const FOCUS_TRANSITION_MS = 280;
 
+/** Height of the slim row that holds the exit control while focus mode hides the header. */
+export const FOCUS_BAR_HEIGHT = 36;
+
 /** Focus mode belongs to this device only, so it lives in local prefs, not synced settings. */
 const FOCUS_KEY = "focus-mode";
 

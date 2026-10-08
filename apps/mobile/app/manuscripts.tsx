@@ -1,7 +1,14 @@
 import { ManuscriptMeta } from "../components/ManuscriptMeta";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown, LinearTransition, SlideInRight } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  LinearTransition,
+  SlideInRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { Redirect, useIsFocused, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -14,6 +21,13 @@ import { ScreenErrorBoundary } from "../components/ScreenErrorBoundary";
 import { ScreenErrorState } from "../components/ScreenErrorState";
 import { SkeletonList } from "../components/Skeleton";
 import { fadeUpDelay } from "../lib/skeleton";
+import { EASE_OUT } from "../lib/motion";
+import {
+  AUTH_ARRIVE_MS,
+  AUTH_ARRIVE_RISE,
+  AUTH_ROWS_LEAD_MS,
+  consumeAuthArrival,
+} from "../lib/auth-arrival";
 import { folderMorphKey, manuscriptMorphKey, useSharedTitleMorph } from "../lib/shared-title-morph";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
@@ -52,6 +66,18 @@ function ManuscriptsScreenContent() {
   const [retrying, setRetrying] = useState(false);
   const [retryAttempted, setRetryAttempted] = useState(false);
   const enabled = Boolean(user);
+  const reduceMotion = useReduceMotion();
+  // Mounted right after signing in or up: the page fades in rising, and its rows follow.
+  const [afterAuth] = useState(consumeAuthArrival);
+  const arrive = useSharedValue(afterAuth && !reduceMotion ? 0 : 1);
+  useEffect(() => {
+    if (arrive.value < 1) arrive.value = withTiming(1, { duration: AUTH_ARRIVE_MS, easing: EASE_OUT });
+  }, [arrive]);
+  const arriveStyle = useAnimatedStyle(() => ({
+    opacity: arrive.value,
+    transform: [{ translateY: (1 - arrive.value) * AUTH_ARRIVE_RISE }],
+  }));
+  const rowsLead = afterAuth && !reduceMotion ? AUTH_ROWS_LEAD_MS : 0;
   const projectsQuery = useProjectsQuery({ enabled });
   const foldersQuery = useFoldersQuery({ enabled });
   const morph = useSharedTitleMorph();
@@ -69,7 +95,6 @@ function ManuscriptsScreenContent() {
   const queryErrorDetail = queryError instanceof ApiError ? queryError.message : null;
   const friendlyQueryError = queryError ? t("manuscripts.loadError") : null;
   const error = importError ?? friendlyQueryError;
-  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     if (!queryError) setRetryAttempted(false);
@@ -213,7 +238,7 @@ function ManuscriptsScreenContent() {
   const listTop = showInlineBanner ? 0 : headerHeight;
 
   return (
-    <View style={[layout.screen, { paddingBottom: 0 }]}>
+    <Animated.View style={[layout.screen, { paddingBottom: 0 }, arriveStyle]}>
       <View style={{ zIndex: 20 }}>
         <AppHeader
           title={t("manuscripts.title")}
@@ -317,7 +342,7 @@ function ManuscriptsScreenContent() {
                   ? SlideInRight.duration(260)
                   : revealed.current
                     ? undefined
-                    : FadeInDown.duration(240).delay(fadeUpDelay(index));
+                    : FadeInDown.duration(240).delay(rowsLead + fadeUpDelay(index));
             if (item.kind === "folder") {
               const count = item.folder._count?.projects ?? item.folder.projects.length;
               const folderKey = folderMorphKey(item.folder.id);
@@ -384,7 +409,7 @@ function ManuscriptsScreenContent() {
         items={newItems}
         closeLabel={t("manuscripts.closeMenu")}
       />
-    </View>
+    </Animated.View>
   );
 }
 

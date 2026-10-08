@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
 import { ThemeCard } from "../components/ThemeCard";
-import { ThemeWashHost } from "../components/ThemeWashHost";
+import { ThemeWashScope } from "../components/ThemeWashScope";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
 import { ApiError, API_URL } from "../lib/api/client";
 import { ciciro } from "../lib/api";
@@ -745,7 +745,8 @@ export default function SettingsScreen() {
                   : undefined;
 
   return (
-    <View style={layout.screen}>
+    // Presented as a modal, above the root's wash, so it brings its own.
+    <ThemeWashScope style={layout.screen}>
       <AppHeader
         title={t("settings.title")}
         onBack={() => backOr("/manuscripts")}
@@ -1063,9 +1064,6 @@ export default function SettingsScreen() {
         </Group>
       </ScrollView>
 
-      {/* Settings is presented as a modal, above the root's wash. */}
-      <ThemeWashHost />
-
       <GlassSheet
         visible={sheet !== null}
         onClose={() => setSheet(null)}
@@ -1100,7 +1098,7 @@ export default function SettingsScreen() {
                       if (theme.id === settings.theme) return;
                       // The sheet is a Modal, above the wash: let it leave first.
                       setTimeout(
-                        () => changeTheme(theme.id, () => patch({ theme: theme.id }), event),
+                        () => changeTheme(() => patch({ theme: theme.id }), event),
                         reduceMotion ? 0 : THEME_SHEET_EXIT_MS
                       );
                     }}
@@ -1183,6 +1181,6 @@ export default function SettingsScreen() {
             ))
           : null}
       </GlassSheet>
-    </View>
+    </ThemeWashScope>
   );
 }

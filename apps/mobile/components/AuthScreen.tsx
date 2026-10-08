@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Platform,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -48,7 +49,9 @@ import { stepsFor, type OnboardingState } from "../lib/onboarding-flow";
 import { commitWritingReminders } from "../lib/writing-reminder-store";
 import { useThemePreview } from "../lib/theme-preview-context";
 import { OnboardingThread } from "./onboarding/OnboardingThread";
-import { SuccessBurst } from "./onboarding/SuccessBurst";
+import { InlineDots } from "./InlineDots";
+import { AUTH_EXIT_MS, markAuthArrival } from "../lib/auth-arrival";
+import { EASE_OUT } from "../lib/motion";
 import { AlertText } from "./AlertText";
 
 const ICON = { x: 20, y: 6, size: 46 };
@@ -115,13 +118,15 @@ export function AuthScreen({
     useAuthFormStore();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 0 form showing, 1 handed off to the list; fades the screen's content out.
+  const exit = useSharedValue(0);
+  // 0 label, 1 progress dots; the label stays put under them so the button never reflows.
+  const busyV = useSharedValue(0);
   const [nameH, setNameH] = useState(NAME_ROW_FALLBACK);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const isSignup = mode === "signup";
   const { setPreview, adoptPreview } = useThemePreview();
-  // Set when an onboarding sign-up created the account: plays the burst, then runs this.
-  const [burst, setBurst] = useState<(() => void) | null>(null);
   // Return walks the form: name, then email, then password, and on the
   // password it submits, so nobody has to dismiss the keyboard to find the button.
   const emailRef = useRef<TextInput>(null);
@@ -129,12 +134,26 @@ export function AuthScreen({
 
   // The form store outlives this screen, so clear it: after signing out, the
   // next person to open sign-in must not find the last password filled in.
+  // Auth fades out to the page colour, then the list mounts at that colour and
+  // fades in rising (see `lib/auth-arrival.ts`), so success is one move, not a cut.
+  function handOff(arrive: () => void) {
+    Keyboard.dismiss();
+    markAuthArrival();
+    if (reduceMotion) {
+      arrive();
+      return;
+    }
+    exit.value = withTiming(1, { duration: AUTH_EXIT_MS, easing: EASE_OUT }, (finished) => {
+      if (finished) runOnJS(arrive)();
+    });
+  }
+
   function signedIn(user: PublicUser, created = isSignup) {
     reset();
     const arrive = () => restoreLastPlace(router, user.id);
     if (!isSignup || !onboarding) {
       setPreview(null);
-      arrive();
+      handOff(arrive);
       return;
     }
     saveOnboardingAnswers(onboarding.kind, onboarding.obstacles);
@@ -143,14 +162,13 @@ export function AuthScreen({
     // reminder go only to a brand-new account.
     if (!created) {
       setPreview(null);
-      arrive();
+      handOff(arrive);
       return;
     }
     if (onboarding.reminder) commitWritingReminders(user.id, [onboarding.reminder]);
     adoptPreview();
     haptics.success();
-    if (reduceMotion) arrive();
-    else setBurst(() => arrive);
+    handOff(arrive);
   }
 
   async function submit() {
@@ -290,6 +308,14 @@ export function AuthScreen({
   // --- in-place mode swap ----------------------------------------------------
   const signinTextStyle = useAnimatedStyle(() => ({ opacity: 1 - modeV.value }));
   const signupTextStyle = useAnimatedStyle(() => ({ opacity: modeV.value }));
+  // The submit label also gives way to the progress dots while busy.
+  const signinBtnTextStyle = useAnimatedStyle(() => ({ opacity: (1 - modeV.value) * (1 - busyV.value) }));
+  const signupBtnTextStyle = useAnimatedStyle(() => ({ opacity: modeV.value * (1 - busyV.value) }));
+  const busyDotsStyle = useAnimatedStyle(() => ({ opacity: busyV.value }));
+  const exitStyle = useAnimatedStyle(() => ({ opacity: 1 - exit.value }));
+  useEffect(() => {
+    busyV.value = reduceMotion ? (busy ? 1 : 0) : withTiming(busy ? 1 : 0, { duration: 200, easing: EASE_OUT });
+  }, [busy, busyV, reduceMotion]);
   const nameFieldStyle = useAnimatedStyle(() => ({
     height: modeV.value * nameH,
     opacity: modeV.value,
@@ -311,7 +337,7 @@ export function AuthScreen({
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      {burst ? <SuccessBurst onDone={burst} /> : null}
+      <Animated.View style={[StyleSheet.absoluteFill, exitStyle]}>
       {/* animated header: chevron and title drop into place */}
       <View style={[styles.header, { top: insets.top, height: HEADER_H }]}>
         <Animated.View style={chevronStyle}>
@@ -527,12 +553,15 @@ export function AuthScreen({
                   accessibilityState={{ disabled: busy, busy }}
                 >
                   <View style={styles.btnLabel}>
-                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinTextStyle]}>
-                      {busy ? t("auth.working") : t("auth.signIn")}
+                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinBtnTextStyle]}>
+                      {t("auth.signIn")}
                     </Animated.Text>
-                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupTextStyle]}>
-                      {busy ? t("auth.working") : t("auth.createAccount")}
+                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupBtnTextStyle]}>
+                      {t("auth.createAccount")}
                     </Animated.Text>
+                    <Animated.View style={[StyleSheet.absoluteFill, styles.btnDots, busyDotsStyle]} pointerEvents="none">
+                      <InlineDots color={colors.panel} active={busy} reduceMotion={reduceMotion} />
+                    </Animated.View>
                   </View>
                 </Pressable>
               </Animated.View>
@@ -580,6 +609,7 @@ export function AuthScreen({
         pointerEvents="none"
       >
         <BrandDots size={ICON.size * 0.62} color={colors.accent} interactive={false} />
+      </Animated.View>
       </Animated.View>
     </View>
   );
@@ -641,6 +671,7 @@ const styles = StyleSheet.create({
   },
   formErrorText: { marginTop: 0, fontSize: 13, lineHeight: 18 },
   nameMeasure: { position: "absolute", left: 0, right: 0, top: 0 },
+  btnDots: { alignItems: "center", justifyContent: "center" },
   btnLabel: { height: 20, alignSelf: "stretch", alignItems: "center", justifyContent: "center" },
   footer: { marginTop: 16, alignSelf: "stretch" },
   forgot: { alignSelf: "flex-end", marginTop: -4, marginBottom: 10 },

@@ -12,15 +12,12 @@ import { WritingMeter } from "../../../../components/WritingMeter";
 import { FocusIcon, HeadphonesIcon } from "../../../../components/icons";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
-import { FOCUS_TRANSITION_MS, focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
+import { FOCUS_BAR_HEIGHT, FOCUS_TRANSITION_MS, focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
 import * as haptics from "../../../../lib/haptics";
 import { useAppTheme } from "../../../../lib/settings";
 import { TAB_SLIDE_SPEC, tabSlideInterpolator } from "../../../../lib/manuscript-tab-slide";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 import { useStackBack } from "../../../../lib/use-stack-back";
-
-/** Height of the slim row that holds the exit control while focus mode hides the header. */
-const FOCUS_BAR_HEIGHT = 36;
 
 /** A tappable pill (icon plus label) for the tools row under the project title. */
 function ToolButton({

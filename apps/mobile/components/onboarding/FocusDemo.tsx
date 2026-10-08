@@ -4,8 +4,9 @@ import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-co
 import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { ChapterEditor } from "../ChapterEditor";
+import { FocusCollapse } from "./FocusCollapse";
 import { OnboardingHeader } from "./OnboardingHeader";
 import { KeyboardDoneBar } from "./KeyboardDoneBar";
 import { OnboardingThread } from "./OnboardingThread";
@@ -16,7 +17,7 @@ import { useStackBack } from "../../lib/use-stack-back";
 import { useReduceMotion } from "../../lib/use-reduce-motion";
 import { getAnalytics } from "../../lib/analytics-client";
 import { fonts } from "../../lib/theme";
-import { FOCUS_TRANSITION_MS } from "../../lib/focus-mode";
+import { FOCUS_BAR_HEIGHT, FOCUS_TRANSITION_MS } from "../../lib/focus-mode";
 import type { DemoPath } from "../../lib/onboarding";
 import type { OnboardingStep } from "../../lib/onboarding-flow";
 import { FocusIcon } from "../icons";
@@ -65,8 +66,19 @@ export function FocusDemo({
   const html = blankPage
     ? ""
     : SAMPLE_KEYS.map((key) => `<p>${t(`onboarding.demo.focus.${key}`)}</p>`).join("");
-  const fade = reduceMotion ? undefined : FadeIn.duration(FOCUS_TRANSITION_MS);
-  const unfade = reduceMotion ? undefined : FadeOut.duration(FOCUS_TRANSITION_MS);
+  // One value drives every part of the transition, like the real editor's focus
+  // mode (app/project/[id]/(tabs)/_layout.tsx): same duration, same easing.
+  const focus = useSharedValue(0);
+  useEffect(() => {
+    focus.value = withTiming(on ? 1 : 0, { duration: reduceMotion ? 1 : FOCUS_TRANSITION_MS });
+  }, [on, reduceMotion, focus]);
+  const exitBarStyle = useAnimatedStyle(() => ({
+    opacity: focus.value,
+    transform: [{ translateY: -12 * (1 - focus.value) }],
+  }));
+  // The page sits under the status bar and the exit link once the header is gone.
+  const focusTopSpace = insets.top + FOCUS_BAR_HEIGHT;
+  const focusTopStyle = useAnimatedStyle(() => ({ height: focusTopSpace * focus.value }));
 
   useEffect(() => {
     getAnalytics().track("onboarding_demo_viewed", { path });
@@ -99,36 +111,39 @@ export function FocusDemo({
     // The keyboard lifts the page instead of covering it, so the line being
     // typed is always in view.
     <KeyboardAvoidingView style={layout.screen} behavior="padding" automaticOffset>
-      {on ? (
-        <Animated.View
-          entering={fade}
-          exiting={unfade}
-          style={{ paddingHorizontal: 20, alignItems: "flex-end", paddingTop: insets.top + 14 }}
+      <FocusCollapse progress={focus} direction={-1} hidden={on}>
+        <OnboardingHeader
+          onBack={() => backOr("/")}
+          onSkip={onSkip}
+          thread={<OnboardingThread steps={steps} current="demo" />}
+        />
+      </FocusCollapse>
+
+      {/* Takes the header's place in focus mode, so the page ends up where the
+          real editor's does: below the status bar, under the exit link. */}
+      <Animated.View style={focusTopStyle} />
+      <Animated.View
+        pointerEvents={on ? "auto" : "none"}
+        style={[
+          { position: "absolute", top: insets.top + 14, right: 20, zIndex: 5 },
+          exitBarStyle,
+        ]}
+      >
+        <TapPressable
+          onPress={() => setOn(false)}
+          accessibilityRole="button"
+          accessibilityLabel={t("settings.exitFocus")}
+          hitSlop={10}
+          style={{ paddingVertical: 8 }}
         >
-          <TapPressable
-            onPress={() => setOn(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t("settings.exitFocus")}
-            hitSlop={10}
-            style={{ paddingVertical: 8 }}
-          >
-            <Text style={{ color: colors.inkSoft, fontSize: 13 }}>{t("settings.exitFocus")}</Text>
-          </TapPressable>
-        </Animated.View>
-      ) : (
-        <Animated.View entering={fade} exiting={unfade}>
-          <OnboardingHeader
-            onBack={() => backOr("/")}
-            onSkip={onSkip}
-            thread={<OnboardingThread steps={steps} current="demo" />}
-          />
-        </Animated.View>
-      )}
+          <Text style={{ color: colors.inkSoft, fontSize: 13 }}>{t("settings.exitFocus")}</Text>
+        </TapPressable>
+      </Animated.View>
 
       {/* The intro and the page share one scroller: at a large text size the
           intro would otherwise leave the page no height, so it scrolls away
-          instead. The editor keeps its place in this tree, so toggling focus
-          mode never remounts it (and never loses what was typed). */}
+          instead. Nothing here mounts or unmounts when focus mode toggles, so the
+          editor is never remounted (and never loses what was typed). */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1 }}
@@ -136,42 +151,40 @@ export function FocusDemo({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {on ? null : (
-          <Animated.View entering={fade} exiting={unfade}>
-            <Pressable
-              onPress={dismissKeyboard}
-              accessible={false}
-              style={{ paddingHorizontal: 20, paddingTop: 16 }}
+        <FocusCollapse progress={focus} direction={-1} hidden={on}>
+          <Pressable
+            onPress={dismissKeyboard}
+            accessible={false}
+            style={{ paddingHorizontal: 20, paddingTop: 16 }}
+          >
+            <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.focus.title")}</Text>
+            <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
+              {t("onboarding.demo.focus.intro")}
+            </Text>
+            <PressableCard
+              onPress={tryFocus}
+              accessibilityRole="button"
+              accessibilityLabel={t("onboarding.demo.focus.tryButton")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                alignSelf: "flex-start",
+                borderWidth: 1,
+                borderColor: colors.line,
+                backgroundColor: colors.panel,
+                borderRadius: 999,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+              }}
             >
-              <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.focus.title")}</Text>
-              <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
-                {t("onboarding.demo.focus.intro")}
+              <FocusIcon color={colors.accent} size={16} />
+              <Text style={{ color: colors.ink, fontWeight: "600" }}>
+                {t("onboarding.demo.focus.tryButton")}
               </Text>
-              <PressableCard
-                onPress={tryFocus}
-                accessibilityRole="button"
-                accessibilityLabel={t("onboarding.demo.focus.tryButton")}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  alignSelf: "flex-start",
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  backgroundColor: colors.panel,
-                  borderRadius: 999,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                }}
-              >
-                <FocusIcon color={colors.accent} size={16} />
-                <Text style={{ color: colors.ink, fontWeight: "600" }}>
-                  {t("onboarding.demo.focus.tryButton")}
-                </Text>
-              </PressableCard>
-            </Pressable>
-          </Animated.View>
-        )}
+            </PressableCard>
+          </Pressable>
+        </FocusCollapse>
 
         <View
           style={{
@@ -203,18 +216,21 @@ export function FocusDemo({
 
       {keyboardVisible ? (
         <KeyboardDoneBar onPress={dismissKeyboard} />
-      ) : on ? null : (
-        <Animated.View entering={fade} exiting={unfade} style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24, paddingTop: 8 }}>
-          <PressableCard
-            accent
-            onPress={finish}
-            accessibilityRole="button"
-            accessibilityLabel={t("onboarding.demo.continue")}
-            style={[layout.primaryBtn, { marginTop: 0 }]}
-          >
-            <Text style={layout.primaryBtnText}>{t("onboarding.demo.continue")}</Text>
-          </PressableCard>
-        </Animated.View>
+      ) : (
+        // Continue slides down and away as focus comes in, and back on the way out.
+        <FocusCollapse progress={focus} direction={1} hidden={on}>
+          <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24, paddingTop: 8 }}>
+            <PressableCard
+              accent
+              onPress={finish}
+              accessibilityRole="button"
+              accessibilityLabel={t("onboarding.demo.continue")}
+              style={[layout.primaryBtn, { marginTop: 0 }]}
+            >
+              <Text style={layout.primaryBtnText}>{t("onboarding.demo.continue")}</Text>
+            </PressableCard>
+          </View>
+        </FocusCollapse>
       )}
     </KeyboardAvoidingView>
   );

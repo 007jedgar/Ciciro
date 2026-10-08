@@ -1,19 +1,20 @@
-// The "wash" that changes the app's theme: new paper spreads from the spot that
-// was tapped until it covers everything, the theme swaps underneath, and the
-// paper fades away to reveal the app already wearing it. One state, read by
-// `ThemeWashHost` at the root (and inside modal-presented screens like Settings,
-// which sit above it) so the Settings sheet and the onboarding step share it.
-// See AGENTS.md "Pre-signup onboarding".
+// The "wash" that changes the app's theme: a circle opens from the spot that was
+// tapped, and inside it the real screen shows, already painted in the new theme,
+// while outside it the old look stays until the circle reaches it. One state,
+// read by `ThemeWashScope` (at the root, and inside modal-presented screens like
+// Settings, which sit above it) so the Settings sheet and the onboarding step
+// share it. See AGENTS.md "Mobile motion".
 
-export const WASH_SPREAD_MS = 420;
-export const WASH_FADE_MS = 260;
+/** How long the circle takes to open. */
+export const WASH_REVEAL_MS = 560;
+/** The beat between swapping the theme and opening the circle, for the new look to paint under the snapshot. */
+export const WASH_REPAINT_MS = 90;
 
 export type ThemeWash = {
   id: number;
   x: number;
   y: number;
-  color: string;
-  /** Runs once the paper covers the screen, when the theme is swapped. */
+  /** Swaps the theme. Runs once, under the snapshot, just before the circle opens. */
   apply: () => void;
 };
 
