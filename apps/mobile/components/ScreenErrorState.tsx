@@ -87,10 +87,10 @@ export function ScreenErrorState({
           accessibilityState={{ disabled: retrying, busy: retrying }}
           disabled={retrying}
           onPress={onRetry}
-          style={({ pressed }) => [
+          style={[
             inline ? styles.pill : layout.primaryBtn,
             inline ? { backgroundColor: colors.accent } : styles.fullPrimaryBtn,
-            { opacity: pressed || retrying ? 0.75 : 1 },
+            { opacity: retrying ? 0.75 : 1 },
           ]}
         >
           <Text style={inline ? [styles.pillLabel, { color: colors.panel }] : layout.primaryBtnText}>
@@ -104,9 +104,9 @@ export function ScreenErrorState({
             accessibilityState={{ disabled: restarting, busy: restarting }}
             disabled={restarting}
             onPress={() => void handleRestart()}
-            style={({ pressed }) => [
+            style={[
               inline ? styles.ghostPill : layout.ghostBtn,
-              { opacity: pressed || restarting ? 0.6 : 1 },
+              { opacity: restarting ? 0.6 : 1 },
             ]}
           >
             <Text style={inline ? [styles.pillLabel, { color: colors.accent }] : layout.ghostBtnText}>

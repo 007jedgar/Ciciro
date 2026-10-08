@@ -30,6 +30,7 @@ jest.mock("../lib/project", () => ({
 jest.mock("../lib/session", () => ({ useSession: () => ({ user: { id: "u1" }, ready: true }) }));
 jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backTo: jest.fn() }) }));
 jest.mock("../lib/settings", () => ({
+  useOptionalAppTheme: () => null,
   useAppTheme: () => {
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
     return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };

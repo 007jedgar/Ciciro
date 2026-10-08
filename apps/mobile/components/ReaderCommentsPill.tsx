@@ -29,9 +29,9 @@ export function ReaderCommentsPill({ projectId, chapterId }: { projectId: string
       accessibilityHint={t("beta.pillHint")}
       onPress={() => router.push(betaReadersHref(projectId, chapterId) as never)}
       hitSlop={6}
-      style={({ pressed }) => [
+      style={[
         styles.pill,
-        { backgroundColor: colors.accentSoft, opacity: pressed ? 0.7 : 1 },
+        { backgroundColor: colors.accentSoft },
       ]}
     >
       <Text style={[styles.text, { color: colors.accent }]}>{label}</Text>

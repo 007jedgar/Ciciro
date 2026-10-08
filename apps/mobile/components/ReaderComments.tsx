@@ -193,7 +193,7 @@ export function ReaderComments({
                     accessibilityRole="button"
                     onPress={() => onJump(comment)}
                     hitSlop={8}
-                    style={({ pressed }) => [styles.ghostBtn, styles.firstGhostBtn, { opacity: pressed ? 0.6 : 1 }]}
+                    style={[styles.ghostBtn, styles.firstGhostBtn]}
                   >
                     <Text style={[styles.ghostBtnText, { color: colors.accent }]}>
                       {t(comment.anchor.length > 0 ? "beta.showInText" : "beta.showParagraph")}
@@ -208,7 +208,7 @@ export function ReaderComments({
                   onPress={() => removeComment(comment)}
                   disabled={busy}
                   hitSlop={8}
-                  style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
+                  style={[styles.ghostBtn, { opacity: busy ? 0.4 : 1 }]}
                 >
                   <Text style={[styles.ghostBtnText, { color: colors.danger }]}>{t("common.delete")}</Text>
                 </TapPressable>

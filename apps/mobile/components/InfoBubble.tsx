@@ -9,12 +9,12 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { Glass } from "./Glass";
 import { InfoIcon } from "./icons";
+import { TapPressable } from "./TapPressable";
 
 const PANEL_MAX = 264;
 const EDGE = 16;
@@ -77,7 +77,6 @@ export function InfoBubble({
   }, [open]);
 
   function openPopup() {
-    haptics.tap();
     buttonRef.current?.measureInWindow((x, y, width, height) => {
       setAnchor({ x, y, width, height });
     });
@@ -94,7 +93,7 @@ export function InfoBubble({
 
   return (
     <>
-      <Pressable
+      <TapPressable
         ref={buttonRef}
         testID={testID}
         accessibilityRole="button"
@@ -102,10 +101,10 @@ export function InfoBubble({
         accessibilityState={{ expanded: open }}
         hitSlop={8}
         onPress={openPopup}
-        style={({ pressed }) => [styles.hit, { opacity: pressed ? 0.5 : 1 }]}
+        style={styles.hit}
       >
         <InfoIcon color={colors.inkSoft} size={14} />
-      </Pressable>
+      </TapPressable>
       <Modal
         visible={open}
         transparent

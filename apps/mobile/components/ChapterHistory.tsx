@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -37,6 +37,7 @@ import { alpha } from "./Glass";
 import { SkeletonList } from "./Skeleton";
 import { Snackbar } from "./Snackbar";
 import { AlertText } from "./AlertText";
+import { TapPressable } from "./TapPressable";
 
 /** How long "Version restored - Undo" stays up. */
 const NOTICE_MS = 8000;
@@ -227,7 +228,7 @@ export function ChapterHistory({
             onSubmitEditing={() => void saveSnapshot()}
             returnKeyType="done"
           />
-          <Pressable
+          <TapPressable
             accessibilityRole="button"
             accessibilityLabel={t("history.save")}
             accessibilityState={{ disabled: busy }}
@@ -238,7 +239,7 @@ export function ChapterHistory({
             <Text style={[styles.primaryBtnText, { color: colors.panel }]}>
               {save.isPending ? t("history.saving") : t("history.save")}
             </Text>
-          </Pressable>
+          </TapPressable>
         </View>
         {error ? (
           <AlertText style={[layout.error, styles.error]} role="alert">
@@ -268,7 +269,7 @@ export function ChapterHistory({
                 layout={reduceMotion ? undefined : LinearTransition.duration(ACCORDION_MS)}
                 style={[layout.card, styles.card, open ? { borderColor: colors.inkSoft } : null]}
               >
-                <Pressable
+                <TapPressable
                   accessibilityRole="button"
                   accessibilityLabel={t("history.versionA11y", { title, time, words })}
                   accessibilityState={{ expanded: open }}
@@ -276,13 +277,13 @@ export function ChapterHistory({
                     setSelectedId(open ? null : snapshot.id);
                     setMode("changes");
                   }}
-                  style={({ pressed }) => [styles.row, pressed ? { backgroundColor: colors.panel2 } : null]}
+                  style={styles.row}
                 >
                   <Text style={layout.cardTitle} numberOfLines={1}>
                     {title}
                   </Text>
                   <Text style={layout.cardMeta}>{`${time} · ${words}`}</Text>
-                </Pressable>
+                </TapPressable>
                 {open ? (
                   <Animated.View
                     entering={reduceMotion ? undefined : FadeIn.duration(ACCORDION_MS)}
@@ -293,7 +294,7 @@ export function ChapterHistory({
                       {(["changes", "text"] as const).map((value) => {
                         const active = mode === value;
                         return (
-                          <Pressable
+                          <TapPressable
                             key={value}
                             accessibilityRole="button"
                             accessibilityState={{ selected: active }}
@@ -308,7 +309,7 @@ export function ChapterHistory({
                             >
                               {value === "changes" ? t("history.changes") : t("history.fullText")}
                             </Text>
-                          </Pressable>
+                          </TapPressable>
                         );
                       })}
                     </View>
@@ -336,19 +337,19 @@ export function ChapterHistory({
                       </Text>
                     )}
                     <View style={styles.actions}>
-                      <Pressable
+                      <TapPressable
                         accessibilityRole="button"
                         accessibilityLabel={t("common.delete")}
                         disabled={busy}
                         onPress={() => confirmDelete(snapshot)}
                         hitSlop={8}
-                        style={({ pressed }) => [styles.ghostBtn, { opacity: busy ? 0.4 : pressed ? 0.6 : 1 }]}
+                        style={[styles.ghostBtn, { opacity: busy ? 0.4 : 1 }]}
                       >
                         <Text style={[styles.ghostBtnText, { color: colors.danger }]}>
                           {t("common.delete")}
                         </Text>
-                      </Pressable>
-                      <Pressable
+                      </TapPressable>
+                      <TapPressable
                         accessibilityRole="button"
                         accessibilityLabel={t("history.restore")}
                         accessibilityState={{ disabled: busy || !selected }}
@@ -362,7 +363,7 @@ export function ChapterHistory({
                         <Text style={[styles.primaryBtnText, { color: colors.panel }]}>
                           {restoring ? t("history.restoring") : t("history.restore")}
                         </Text>
-                      </Pressable>
+                      </TapPressable>
                     </View>
                   </Animated.View>
                 ) : null}

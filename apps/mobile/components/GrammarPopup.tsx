@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import * as haptics from "../lib/haptics";
+import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   autoAcceptProgress,
@@ -9,6 +8,7 @@ import {
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { Glass, alpha } from "./Glass";
+import { TapPressable } from "./TapPressable";
 
 function clip(value: string, max = 48): string {
   const trimmed = value.replace(/\s+/g, " ").trim();
@@ -49,7 +49,6 @@ export function GrammarPopup({
   }, [shownAt, durationMs, reduceMotion, now]);
 
   function choose(action: () => void) {
-    haptics.tap();
     action();
   }
 
@@ -89,31 +88,31 @@ export function GrammarPopup({
           <Text style={[styles.replacement, { color: colors.accent }]}>{clip(replacement)}</Text>
         </Text>
         <View style={styles.actions}>
-          <Pressable
+          <TapPressable
             testID="grammar-ignore"
             accessibilityRole="button"
             accessibilityLabel={t("manuscript.grammarIgnore")}
             onPress={() => choose(onIgnore)}
-            style={({ pressed }) => [styles.btn, { opacity: pressed ? 0.6 : 1 }]}
+            style={styles.btn}
           >
             <Text style={[styles.btnLabel, { color: colors.inkSoft }]}>
               {t("manuscript.grammarIgnore")}
             </Text>
-          </Pressable>
-          <Pressable
+          </TapPressable>
+          <TapPressable
             testID="grammar-accept"
             accessibilityRole="button"
             accessibilityLabel={t("manuscript.grammarAccept")}
             onPress={() => choose(onAccept)}
-            style={({ pressed }) => [
+            style={[
               styles.btn,
-              { backgroundColor: alpha(colors.accent, dark ? 0.28 : 0.16), opacity: pressed ? 0.7 : 1 },
+              { backgroundColor: alpha(colors.accent, dark ? 0.28 : 0.16) },
             ]}
           >
             <Text style={[styles.btnLabel, styles.acceptLabel, { color: colors.accent }]}>
               {t("manuscript.grammarAccept")}
             </Text>
-          </Pressable>
+          </TapPressable>
         </View>
       </View>
     </Glass>

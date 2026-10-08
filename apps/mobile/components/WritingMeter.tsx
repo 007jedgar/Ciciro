@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -16,6 +16,7 @@ import {
   writingDayKey,
 } from "../lib/writing-day";
 import { InfoBubble } from "./InfoBubble";
+import { TapPressable } from "./TapPressable";
 
 export function WritingMeter() {
   const { t } = useTranslation();
@@ -63,7 +64,7 @@ export function WritingMeter() {
 
   return (
     <View style={styles.wrap}>
-      <Pressable
+      <TapPressable
         onPress={() => router.push("/writing-history")}
         accessibilityRole="button"
         accessibilityLabel={`${count}. ${weekLabel}. ${t("writingHistory.openA11y")}`}
@@ -83,7 +84,7 @@ export function WritingMeter() {
         <Text style={[styles.week, { color: colors.inkSoft }]} numberOfLines={1}>
           {weekLabel}
         </Text>
-      </Pressable>
+      </TapPressable>
       <InfoBubble
         title={title}
         body={`${count}\n${status}\n${weekLabel}`}

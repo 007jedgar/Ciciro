@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { Redirect, Tabs, useLocalSearchParams, useRouter, useSegments } from "expo-router";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
@@ -13,11 +13,11 @@ import { FocusIcon, HeadphonesIcon } from "../../../../components/icons";
 import { useProject } from "../../../../lib/project";
 import { useSession } from "../../../../lib/session";
 import { FOCUS_BAR_HEIGHT, FOCUS_TRANSITION_MS, focusChromeHidden, setFocusMode, useFocusMode } from "../../../../lib/focus-mode";
-import * as haptics from "../../../../lib/haptics";
 import { useAppTheme } from "../../../../lib/settings";
 import { TAB_SLIDE_SPEC, tabSlideInterpolator } from "../../../../lib/manuscript-tab-slide";
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 import { useStackBack } from "../../../../lib/use-stack-back";
+import { TapPressable } from "../../../../components/TapPressable";
 
 /** A tappable pill (icon plus label) for the tools row under the project title. */
 function ToolButton({
@@ -31,19 +31,19 @@ function ToolButton({
 }) {
   const { colors } = useAppTheme();
   return (
-    <Pressable
+    <TapPressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={haptics.withTap(onPress)}
+      onPress={onPress}
       hitSlop={6}
-      style={({ pressed }) => [
+      style={[
         styles.tool,
-        { borderColor: colors.line, backgroundColor: colors.panel, opacity: pressed ? 0.6 : 1 },
+        { borderColor: colors.line, backgroundColor: colors.panel },
       ]}
     >
       <Icon color={colors.accent} size={16} />
       <Text style={[styles.toolText, { color: colors.ink }]}>{label}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -218,7 +218,7 @@ export default function ProjectTabsLayout() {
           exitBarStyle,
         ]}
       >
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityLabel={t("settings.exitFocus")}
           onPress={() => setFocusMode(false)}
@@ -226,7 +226,7 @@ export default function ProjectTabsLayout() {
           style={{ opacity: 0.45 }}
         >
           <Text style={{ fontSize: 13, color: colors.inkSoft }}>{t("settings.exitFocus")}</Text>
-        </Pressable>
+        </TapPressable>
       </Animated.View>
       <View style={{ flex: 1 }}>
         <Tabs

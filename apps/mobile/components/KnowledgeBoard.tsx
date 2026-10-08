@@ -26,6 +26,7 @@ import {
   readerNoteFor,
   type LedgerChapter,
 } from "../lib/knowledge-ledger";
+import { PRESS_SCALE } from "../lib/motion";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import { getAnalytics } from "../lib/analytics-client";
@@ -319,10 +320,10 @@ export function KnowledgeBoard({
         />
         <ChipRow options={chapterOptions} value={editChapterId} onChange={setEditChapterId} colors={colors} />
         <View style={styles.factActions}>
-          <TapPressable onPress={() => void saveEdit()} disabled={busy || !editFact.trim()} accessibilityRole="button">
+          <TapPressable onPress={() => void saveEdit()} disabled={busy || !editFact.trim()} accessibilityRole="button" feedback="dim">
             <Text style={[styles.action, { color: colors.accent, fontWeight: "600" }]}>{t("bible.knowledge.save")}</Text>
           </TapPressable>
-          <TapPressable onPress={() => setEditingId(null)} disabled={busy} accessibilityRole="button">
+          <TapPressable onPress={() => setEditingId(null)} disabled={busy} accessibilityRole="button" feedback="dim">
             <Text style={[styles.action, { color: colors.inkSoft }]}>{t("bible.knowledge.cancel")}</Text>
           </TapPressable>
         </View>
@@ -354,12 +355,12 @@ export function KnowledgeBoard({
           busy={busy}
         />
         <View style={styles.factActions}>
-          <TapPressable onPress={() => void saveChange(fact)} disabled={busy || !changeFact.trim()} accessibilityRole="button">
+          <TapPressable onPress={() => void saveChange(fact)} disabled={busy || !changeFact.trim()} accessibilityRole="button" feedback="dim">
             <Text style={[styles.action, { color: colors.accent, fontWeight: "600" }]}>
               {t("bible.knowledge.saveChange")}
             </Text>
           </TapPressable>
-          <TapPressable onPress={() => setChangingId(null)} disabled={busy} accessibilityRole="button">
+          <TapPressable onPress={() => setChangingId(null)} disabled={busy} accessibilityRole="button" feedback="dim">
             <Text style={[styles.action, { color: colors.inkSoft }]}>{t("bible.knowledge.cancel")}</Text>
           </TapPressable>
         </View>
@@ -408,15 +409,15 @@ export function KnowledgeBoard({
               ) : null}
               {state === "in_effect" ? (
                 <View style={styles.factActions}>
-                  <TapPressable onPress={() => startEdit(fact)} disabled={busy} accessibilityRole="button">
+                  <TapPressable onPress={() => startEdit(fact)} disabled={busy} accessibilityRole="button" feedback="dim">
                     <Text style={[styles.action, { color: colors.accent }]}>{t("bible.knowledge.edit")}</Text>
                   </TapPressable>
                   {stopsHere(fact) ? (
-                    <TapPressable onPress={() => startChange(fact)} disabled={busy} accessibilityRole="button">
+                    <TapPressable onPress={() => startChange(fact)} disabled={busy} accessibilityRole="button" feedback="dim">
                       <Text style={[styles.action, { color: colors.accent }]}>{t("bible.knowledge.changesHere")}</Text>
                     </TapPressable>
                   ) : null}
-                  <TapPressable onPress={() => void retire(fact)} disabled={busy} accessibilityRole="button">
+                  <TapPressable onPress={() => void retire(fact)} disabled={busy} accessibilityRole="button" feedback="dim">
                     <Text style={[styles.action, { color: colors.inkSoft }]}>
                       {stopsHere(fact) ? t("bible.knowledge.stopsHere") : t("bible.knowledge.retire")}
                     </Text>
@@ -448,7 +449,7 @@ export function KnowledgeBoard({
                   </View>
                   <Text style={[styles.factText, { color: colors.ink }]}>{fact.fact}</Text>
                   <View style={styles.factActions}>
-                    <TapPressable onPress={() => startEdit(fact)} disabled={busy} accessibilityRole="button">
+                    <TapPressable onPress={() => startEdit(fact)} disabled={busy} accessibilityRole="button" feedback="dim">
                       <Text style={[styles.action, { color: colors.accent }]}>{t("bible.knowledge.edit")}</Text>
                     </TapPressable>
                   </View>
@@ -463,6 +464,7 @@ export function KnowledgeBoard({
             <TapPressable
               onPress={() => setExpandedRetired((prev) => ({ ...prev, [path]: !prev[path] }))}
               accessibilityRole="button"
+              feedback="dim"
             >
               <Text style={[styles.retiredToggle, { color: colors.accent }]}>
                 {expandedRetired[path]
@@ -518,6 +520,7 @@ export function KnowledgeBoard({
                   <TapPressable
                     key={path}
                     style={styles.gridCell}
+                    scale={PRESS_SCALE.card}
                     accessibilityRole="button"
                     accessibilityLabel={`${bibleFileLabel(path)} ${stanceLabel(fact.stance)}: ${fact.fact}`}
                     onPress={() => {
@@ -724,6 +727,7 @@ function ChipRow({
             onPress={() => onChange(opt.value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
+            scale={PRESS_SCALE.chip}
             style={[
               styles.chip,
               {

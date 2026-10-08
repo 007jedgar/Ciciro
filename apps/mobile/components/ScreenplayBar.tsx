@@ -1,6 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
@@ -10,6 +9,7 @@ import {
   cycleElement,
   type ScreenplayElement,
 } from "../lib/manuscript-kind";
+import { TapPressable } from "./TapPressable";
 
 const LABEL_KEYS: Record<ScreenplayElement, string> = {
   "scene-heading": "screenplay.sceneHeading",
@@ -41,7 +41,6 @@ export function ScreenplayBar({
 
   function press(next: ScreenplayElement) {
     if (disabled) return;
-    haptics.tap();
     onSetElement(next);
   }
 
@@ -68,18 +67,18 @@ export function ScreenplayBar({
           {SCREENPLAY_ELEMENTS.map((el) => {
             const active = el === element;
             return (
-              <Pressable
+              <TapPressable
                 key={el}
                 accessibilityRole="button"
                 accessibilityLabel={t(LABEL_KEYS[el])}
                 accessibilityState={{ selected: active, disabled }}
                 disabled={disabled}
                 onPress={() => press(el)}
-                style={({ pressed }) => [
+                style={[
                   styles.chip,
                   {
                     backgroundColor: active ? colors.accent : "transparent",
-                    opacity: disabled ? 0.4 : pressed ? 0.65 : 1,
+                    opacity: disabled ? 0.4 : 1,
                   },
                 ]}
               >
@@ -93,7 +92,7 @@ export function ScreenplayBar({
                 >
                   {t(LABEL_KEYS[el])}
                 </Text>
-              </Pressable>
+              </TapPressable>
             );
           })}
         </ScrollView>
@@ -106,14 +105,14 @@ export function ScreenplayBar({
           style={styles.fade}
         />
       </View>
-      <Pressable
+      <TapPressable
         accessibilityRole="button"
         accessibilityLabel={t("screenplay.next")}
         disabled={disabled}
         onPress={() => press(cycleElement(element))}
-        style={({ pressed }) => [
+        style={[
           styles.next,
-          { opacity: disabled ? 0.4 : pressed ? 0.65 : 1 },
+          { opacity: disabled ? 0.4 : 1 },
         ]}
       >
         <Text
@@ -126,7 +125,7 @@ export function ScreenplayBar({
         >
           Tab
         </Text>
-      </Pressable>
+      </TapPressable>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Linking, ScrollView, Switch, Text, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -52,6 +52,7 @@ import * as haptics from "../lib/haptics";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
+import { TapPressable } from "../components/TapPressable";
 
 /** The theme sheet shows the themes two to a row. */
 const themeRows = THEME_META.reduce<(typeof THEME_META)[]>((rows, theme, i) => {
@@ -115,19 +116,21 @@ function SheetRow({
 }) {
   return (
     <>
-      <Pressable
-        onPress={haptics.withTap(onPress)}
+      <TapPressable
+        onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={value ? `${label}, ${value}` : label}
-        style={({ pressed }) => ({
+        style={{
           minHeight: 52,
           paddingHorizontal: 16,
           paddingVertical: 12,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
-          backgroundColor: pressed ? colors.panel2 : "transparent",
-        })}
+          backgroundColor: "transparent",
+        }}
+        highlight
+        feedback="none"
       >
         <Text style={{ flex: 1, fontSize: 17, color: tone === "danger" ? colors.danger : colors.ink }}>
           {label}
@@ -138,7 +141,7 @@ function SheetRow({
           </Text>
         ) : null}
         <ChevronRightIcon color={colors.inkSoft} size={16} />
-      </Pressable>
+      </TapPressable>
       {last ? null : <Hairline colors={colors} />}
     </>
   );
@@ -248,12 +251,12 @@ function OptionRow({
   preview?: "serif" | "sans";
 }) {
   return (
-    <Pressable
-      onPress={haptics.withTap(onPress)}
+    <TapPressable
+      onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityHint={hint}
-      style={({ pressed }) => ({
+      style={{
         minHeight: hint ? 64 : 48,
         borderRadius: 14,
         paddingHorizontal: 14,
@@ -261,11 +264,13 @@ function OptionRow({
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
-        backgroundColor: selected ? colors.accentSoft : pressed ? colors.panel2 : "transparent",
+        backgroundColor: selected ? colors.accentSoft : "transparent",
         borderWidth: 1,
         borderColor: selected ? colors.accent : "transparent",
         marginBottom: 8,
-      })}
+      }}
+      highlight
+      feedback="none"
     >
       {swatch ? (
         <View
@@ -294,7 +299,7 @@ function OptionRow({
         ) : null}
       </View>
       {selected ? <CheckIcon color={colors.accent} size={16} /> : null}
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -338,20 +343,22 @@ function ActionRow({
 }) {
   return (
     <>
-      <Pressable
-        onPress={haptics.withTap(onPress)}
+      <TapPressable
+        onPress={onPress}
         disabled={busy}
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ busy }}
-        style={({ pressed }) => ({
+        style={{
           minHeight: 52,
           paddingHorizontal: 16,
           flexDirection: "row",
           alignItems: "center",
           gap: 12,
-          backgroundColor: pressed ? colors.panel2 : "transparent",
-        })}
+          backgroundColor: "transparent",
+        }}
+        highlight
+        feedback="none"
       >
         <Text style={{ flex: 1, fontSize: 17, color: tone === "accent" ? colors.accent : colors.ink }}>{label}</Text>
         {busy ? (
@@ -360,7 +367,7 @@ function ActionRow({
             <ActivityIndicator size="small" color={colors.inkSoft} />
           </>
         ) : null}
-      </Pressable>
+      </TapPressable>
       {last ? null : <Hairline colors={colors} />}
     </>
   );
@@ -558,21 +565,23 @@ function NotificationsGroup({ colors }: { colors: ColorTokens }) {
             <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
               <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{t("settings.pushOffHint")}</Text>
             </View>
-            <Pressable
+            <TapPressable
               onPress={() => void (permission === "denied" ? Linking.openSettings() : enable())}
               accessibilityRole="button"
               accessibilityLabel={permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
-              style={({ pressed }) => ({
+              style={{
                 minHeight: 52,
                 paddingHorizontal: 16,
                 justifyContent: "center",
-                backgroundColor: pressed ? colors.panel2 : "transparent",
-              })}
+                backgroundColor: "transparent",
+              }}
+              highlight
+              feedback="none"
             >
               <Text style={{ fontSize: 17, color: colors.accent }}>
                 {permission === "denied" ? t("reminders.openSettings") : t("settings.pushEnable")}
               </Text>
-            </Pressable>
+            </TapPressable>
           </Animated.View>
         </Group>
       </>
@@ -895,19 +904,21 @@ export default function SettingsScreen() {
             last={!showOpenSettings}
           />
           {showOpenSettings ? (
-            <Pressable
+            <TapPressable
               onPress={() => void Linking.openSettings()}
               accessibilityRole="button"
               accessibilityLabel={t("reminders.openSettings")}
-              style={({ pressed }) => ({
+              style={{
                 minHeight: 52,
                 paddingHorizontal: 16,
                 justifyContent: "center",
-                backgroundColor: pressed ? colors.panel2 : "transparent",
-              })}
+                backgroundColor: "transparent",
+              }}
+              highlight
+              feedback="none"
             >
               <Text style={{ fontSize: 17, color: colors.accent }}>{t("reminders.openSettings")}</Text>
-            </Pressable>
+            </TapPressable>
           ) : null}
         </Group>
 
@@ -967,19 +978,21 @@ export default function SettingsScreen() {
           <Hairline colors={colors} />
           {user.emailVerified === false ? (
             <>
-              <Pressable
+              <TapPressable
                 onPress={() => void resendVerification()}
                 disabled={verify.busy}
                 accessibilityRole="button"
                 accessibilityLabel={t("account.resendVerification")}
                 accessibilityState={{ busy: verify.busy }}
-                style={({ pressed }) => ({
+                style={{
                   minHeight: 52,
                   paddingHorizontal: 16,
                   paddingVertical: 12,
                   justifyContent: "center",
-                  backgroundColor: pressed ? colors.panel2 : "transparent",
-                })}
+                  backgroundColor: "transparent",
+                }}
+                highlight
+                feedback="none"
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                   <Text style={{ flex: 1, fontSize: 17, color: colors.accent }}>{t("account.resendVerification")}</Text>
@@ -993,38 +1006,42 @@ export default function SettingsScreen() {
                     {verify.note}
                   </Text>
                 ) : null}
-              </Pressable>
+              </TapPressable>
               <Hairline colors={colors} />
             </>
           ) : null}
-          <Pressable
+          <TapPressable
             onPress={() => void Linking.openURL(`${API_URL}/privacy`)}
             accessibilityRole="button"
             accessibilityLabel={t("settings.privacyPolicy")}
-            style={({ pressed }) => ({
+            style={{
               minHeight: 52,
               paddingHorizontal: 16,
               justifyContent: "center",
-              backgroundColor: pressed ? colors.panel2 : "transparent",
-            })}
+              backgroundColor: "transparent",
+            }}
+            highlight
+            feedback="none"
           >
             <Text style={{ fontSize: 17, color: colors.ink }}>{t("settings.privacyPolicy")}</Text>
-          </Pressable>
+          </TapPressable>
           <Hairline colors={colors} />
-          <Pressable
+          <TapPressable
             onPress={exporter.run}
             disabled={exporter.busy}
             accessibilityRole="button"
             accessibilityLabel={t("account.exportData")}
             accessibilityState={{ busy: exporter.busy }}
-            style={({ pressed }) => ({
+            style={{
               minHeight: 52,
               paddingHorizontal: 16,
               flexDirection: "row",
               alignItems: "center",
               gap: 12,
-              backgroundColor: pressed ? colors.panel2 : "transparent",
-            })}
+              backgroundColor: "transparent",
+            }}
+            highlight
+            feedback="none"
           >
             <Text style={{ flex: 1, fontSize: 17, color: colors.ink }}>{t("account.exportData")}</Text>
             {exporter.busy ? (
@@ -1033,23 +1050,25 @@ export default function SettingsScreen() {
                 <ActivityIndicator size="small" color={colors.inkSoft} />
               </>
             ) : null}
-          </Pressable>
+          </TapPressable>
           <Hairline colors={colors} />
-          <Pressable
+          <TapPressable
             // A plain replace only swaps the focused screen, leaving settings'
             // own nested ancestors (manuscripts, the manuscript, ...) mounted
             // as modal-presented screens underneath - resetTo dismisses them too.
             onPress={() => void logout().then(() => resetTo("/"))}
             accessibilityRole="button"
-            style={({ pressed }) => ({
+            style={{
               minHeight: 52,
               paddingHorizontal: 16,
               justifyContent: "center",
-              backgroundColor: pressed ? colors.panel2 : "transparent",
-            })}
+              backgroundColor: "transparent",
+            }}
+            highlight
+            feedback="none"
           >
             <Text style={{ fontSize: 17, color: colors.danger }}>{t("settings.signOut")}</Text>
-          </Pressable>
+          </TapPressable>
         </Group>
 
         <Group colors={colors}>

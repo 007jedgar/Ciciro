@@ -1,10 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import * as haptics from "../lib/haptics";
 import { useTranslation } from "react-i18next";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { Glass } from "./Glass";
 import { FormatMark, type FormatBlockKind } from "./FormatBar";
+import { TapPressable } from "./TapPressable";
 
 export function FormatPressMenu({
   kind = "paragraph",
@@ -39,23 +40,22 @@ export function FormatPressMenu({
         accessibilityLabel={t("manuscript.formatPress")}
         style={styles.row}
       >
-        <Pressable
+        <TapPressable
           accessibilityRole="menuitem"
           accessibilityLabel={t("manuscript.formatParagraph")}
           accessibilityState={{ selected: kind === "paragraph" }}
           onPressIn={() => press("paragraph")}
-          style={({ pressed }) => [
+          style={[
             styles.kind,
             {
               backgroundColor: kind === "paragraph" ? colors.accentSoft : "transparent",
-              opacity: pressed ? 0.65 : 1,
             },
           ]}
         >
           <Text style={[styles.kindLabel, { color: kind === "paragraph" ? colors.accent : colors.inkSoft }]}>
             {t("manuscript.formatParagraph")}
           </Text>
-        </Pressable>
+        </TapPressable>
         {blockBtns.map((btn) => (
           <FormatMark
             key={btn.id}

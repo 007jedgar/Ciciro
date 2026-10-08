@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -13,6 +13,7 @@ import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
 import { AlertText } from "../components/AlertText";
+import { TapPressable } from "../components/TapPressable";
 
 /** The word an account without a password types to confirm (the server checks it). */
 const DELETE_WORD = "DELETE";
@@ -122,10 +123,10 @@ export default function DeleteAccountScreen() {
             <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
               {t("billing.deleteStoreBody", { store: t(storeKey) })}
             </Text>
-            <Pressable
+            <TapPressable
               onPress={() => void openStoreSubscriptions(subscribed.manageUrl)}
               accessibilityRole="button"
-              style={({ pressed }) => ({
+              style={{
                 marginTop: 12,
                 alignSelf: "flex-start",
                 borderRadius: 10,
@@ -133,11 +134,13 @@ export default function DeleteAccountScreen() {
                 borderColor: colors.line,
                 paddingHorizontal: 14,
                 paddingVertical: 9,
-                backgroundColor: pressed ? colors.panel2 : colors.bg,
-              })}
+                backgroundColor: colors.bg,
+              }}
+              highlight
+              feedback="none"
             >
               <Text style={{ fontSize: 15, color: colors.ink }}>{t("billing.manage")}</Text>
-            </Pressable>
+            </TapPressable>
           </View>
         ) : subscribed ? (
           <Text style={[layout.body, { fontSize: 15, lineHeight: 22, marginBottom: 20 }]}>
@@ -159,12 +162,12 @@ export default function DeleteAccountScreen() {
           <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
             {t("account.exportFirstHint")}
           </Text>
-          <Pressable
+          <TapPressable
             onPress={exporter.run}
             disabled={exporter.busy || busy}
             accessibilityRole="button"
             accessibilityState={{ busy: exporter.busy, disabled: exporter.busy || busy }}
-            style={({ pressed }) => ({
+            style={{
               marginTop: 12,
               alignSelf: "flex-start",
               flexDirection: "row",
@@ -175,14 +178,16 @@ export default function DeleteAccountScreen() {
               borderColor: colors.line,
               paddingHorizontal: 14,
               paddingVertical: 9,
-              backgroundColor: pressed ? colors.panel2 : colors.bg,
-            })}
+              backgroundColor: colors.bg,
+            }}
+            highlight
+            feedback="none"
           >
             {exporter.busy ? <ActivityIndicator size="small" color={colors.inkSoft} /> : null}
             <Text style={{ fontSize: 15, color: colors.ink }}>
               {exporter.busy ? t("account.exporting") : t("account.exportData")}
             </Text>
-          </Pressable>
+          </TapPressable>
         </View>
 
         <Text style={{ fontSize: 13, color: colors.inkSoft, marginBottom: 8 }}>
@@ -212,12 +217,12 @@ export default function DeleteAccountScreen() {
           </AlertText>
         ) : null}
 
-        <Pressable
+        <TapPressable
           onPress={() => void submit()}
           disabled={!canDelete}
           accessibilityRole="button"
           accessibilityState={{ disabled: !canDelete, busy }}
-          style={({ pressed }) => ({
+          style={{
             marginTop: 4,
             minHeight: 52,
             borderRadius: 14,
@@ -226,14 +231,14 @@ export default function DeleteAccountScreen() {
             flexDirection: "row",
             gap: 8,
             backgroundColor: colors.danger,
-            opacity: canDelete ? (pressed ? 0.85 : 1) : 0.45,
-          })}
+            opacity: canDelete ? 1 : 0.45,
+          }}
         >
           {busy ? <ActivityIndicator size="small" color={colors.panel} /> : null}
           <Text style={{ fontSize: 17, fontWeight: "600", color: colors.panel }}>
             {busy ? t("account.deleting") : t("account.deleteButton")}
           </Text>
-        </Pressable>
+        </TapPressable>
       </KeyboardAwareScrollView>
     </View>
   );

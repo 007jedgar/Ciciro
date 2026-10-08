@@ -8,6 +8,7 @@ const mockFlushEdits = jest.fn(async () => true);
 const mockReload = jest.fn();
 jest.mock("../lib/project", () => ({ useProject: () => ({ flushEdits: mockFlushEdits, reload: mockReload }) }));
 jest.mock("../lib/settings", () => ({
+  useOptionalAppTheme: () => null,
   useAppTheme: () => {
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
     return { colors, layout: makeLayout(colors), settings: { autoCorrect: true } };

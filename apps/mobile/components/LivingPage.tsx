@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -34,6 +33,7 @@ import { LanguagePicker } from "./LanguagePicker";
 import { asStringList, asStringMatrix } from "../lib/i18n";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
+import { TapPressable } from "./TapPressable";
 
 const FONT_SIZE = 24;
 const LINE_H = 44;
@@ -417,7 +417,6 @@ export function LivingPage({
     });
 
   const beginByTap = () => {
-    haptics.select();
     lift.value = withTiming(1, { duration: reduceMotion ? 220 : 560, easing: Easing.out(Easing.cubic) });
     setPeeled(true);
   };
@@ -489,8 +488,10 @@ export function LivingPage({
           style={[styles.hint, { bottom: Math.max(H * 0.08, insets.bottom + 52) }, hintStyle]}
           pointerEvents={peeled ? "none" : "auto"}
         >
-          <Pressable
+          <TapPressable
             onPress={beginByTap}
+            haptic="select"
+            feedback="dim"
             accessibilityRole="button"
             accessibilityLabel={t("livingPage.beginA11y")}
             hitSlop={20}
@@ -509,7 +510,7 @@ export function LivingPage({
             <Text style={[styles.hintText, { color: colors.inkSoft }]}>
               {t("livingPage.swipeUp")}
             </Text>
-          </Pressable>
+          </TapPressable>
         </Animated.View>
 
         {/* glass over the page, thickening with the swipe */}
@@ -534,24 +535,24 @@ export function LivingPage({
           <Animated.View
             style={[styles.primaryGlow, { shadowColor: colors.accent }, glowStyle]}
           >
-            <Pressable
+            <TapPressable
               onPress={onCreate}
               accessibilityRole="button"
-              style={({ pressed }) => [
+              style={[
                 styles.primary,
-                { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 },
+                { backgroundColor: colors.accent },
               ]}
             >
               <Text style={[styles.primaryText, { color: colors.panel }]}>
                 {t("livingPage.createAccount")}
               </Text>
-            </Pressable>
+            </TapPressable>
           </Animated.View>
-          <Pressable onPress={onSignIn} accessibilityRole="button" style={styles.ghost}>
+          <TapPressable onPress={onSignIn} accessibilityRole="button" style={styles.ghost}>
             <Text style={[styles.ghostText, { color: colors.accent }]}>
               {t("livingPage.alreadyHaveAccount")}
             </Text>
-          </Pressable>
+          </TapPressable>
         </Animated.View>
 
         <View

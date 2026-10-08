@@ -72,11 +72,11 @@ export function OpenQuestionCard({
           accessibilityLabel={t("questions.answer")}
           disabled={!ready}
           onPress={() => onAnswer(answer.trim())}
-          style={({ pressed }) => [
+          style={[
             styles.primary,
             {
               backgroundColor: colors.accent,
-              opacity: !ready ? 0.4 : pressed ? 0.82 : 1,
+              opacity: !ready ? 0.4 : 1,
             },
           ]}
         >

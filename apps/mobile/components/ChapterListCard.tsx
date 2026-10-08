@@ -102,7 +102,7 @@ export function ChapterListCard({
               disabled={deleting}
               accessibilityRole="button"
               accessibilityLabel={t("history.openA11y", { title: customTitle ?? numbered })}
-              style={({ pressed }) => [styles.action, { opacity: deleting ? 0.4 : pressed ? 0.5 : 1 }]}
+              style={[styles.action, { opacity: deleting ? 0.4 : 1 }]}
             >
               <VersionHistoryIcon color={colors.inkSoft} />
             </TapPressable>
@@ -112,7 +112,7 @@ export function ChapterListCard({
             disabled={deleting}
             accessibilityRole="button"
             accessibilityLabel={t("chapters.deleteA11y", { title: customTitle ?? numbered })}
-            style={({ pressed }) => [styles.action, { opacity: deleting ? 0.4 : pressed ? 0.5 : 1 }]}
+            style={[styles.action, { opacity: deleting ? 0.4 : 1 }]}
           >
             <TrashIcon color={colors.danger} />
           </TapPressable>

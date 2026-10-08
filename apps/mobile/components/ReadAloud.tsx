@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { getLocales } from "expo-localization";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +25,7 @@ import {
   type VoiceOption,
 } from "../lib/read-aloud";
 import { getAnalytics } from "../lib/analytics-client";
+import { TapPressable } from "./TapPressable";
 
 export type ReadAloudVoice = VoiceOption;
 
@@ -198,7 +199,7 @@ export function ReadAloud({
               })}
         </Text>
         {sortedVoices.length > 0 ? (
-          <Pressable
+          <TapPressable
             onPress={() => setVoiceOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={`${t("readAloud.voice")}: ${voiceName}`}
@@ -208,7 +209,7 @@ export function ReadAloud({
             <Text style={{ color: colors.ink, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
               {voiceName}  ›
             </Text>
-          </Pressable>
+          </TapPressable>
         ) : null}
         <View onLayout={(e) => (bodyY.current = e.nativeEvent.layout.y)}>
         {lines.map((line, lineIndex) => {
@@ -256,16 +257,16 @@ export function ReadAloud({
         ]}
       >
         {state === "playing" ? (
-          <Pressable
+          <TapPressable
             onPress={() => readerRef.current?.pause()}
             accessibilityRole="button"
             accessibilityLabel={t("readAloud.pause")}
             style={[styles.button, { backgroundColor: colors.accent }]}
           >
             <Text style={styles.buttonText}>{t("readAloud.pause")}</Text>
-          </Pressable>
+          </TapPressable>
         ) : (
-          <Pressable
+          <TapPressable
             onPress={play}
             disabled={shown.length === 0}
             accessibilityRole="button"
@@ -275,9 +276,9 @@ export function ReadAloud({
             <Text style={styles.buttonText}>
               {state === "paused" ? t("readAloud.resume") : t("readAloud.play")}
             </Text>
-          </Pressable>
+          </TapPressable>
         )}
-        <Pressable
+        <TapPressable
           onPress={stop}
           disabled={state === "idle"}
           accessibilityRole="button"
@@ -285,8 +286,8 @@ export function ReadAloud({
           style={[styles.button, { borderWidth: 1, borderColor: colors.line, opacity: state === "idle" ? 0.5 : 1 }]}
         >
           <Text style={[styles.buttonText, { color: colors.ink }]}>{t("readAloud.stop")}</Text>
-        </Pressable>
-        <Pressable
+        </TapPressable>
+        <TapPressable
           onPress={() => {
             setReadAloudPrefs({ rate: nextRate });
             readerRef.current?.setRate(nextRate);
@@ -296,7 +297,7 @@ export function ReadAloud({
           style={[styles.speed, { borderColor: colors.line, backgroundColor: colors.accentSoft }]}
         >
           <Text style={{ color: colors.accent, fontSize: 16, fontWeight: "600" }}>{prefs.rate}x</Text>
-        </Pressable>
+        </TapPressable>
       </View>
       <GlassSheet
         visible={voiceOpen}
@@ -311,7 +312,7 @@ export function ReadAloud({
             .map((opt) => {
               const selected = prefs.voice === opt.identifier;
               return (
-                <Pressable
+                <TapPressable
                   key={opt.identifier ?? "default"}
                   onPress={() => pickVoice(opt.identifier)}
                   accessibilityRole="button"
@@ -320,7 +321,7 @@ export function ReadAloud({
                   style={[styles.option, { backgroundColor: selected ? colors.accentSoft : "transparent" }]}
                 >
                   <Text style={{ color: selected ? colors.accent : colors.ink, fontSize: 16 }}>{opt.label}</Text>
-                </Pressable>
+                </TapPressable>
               );
             })}
         </ScrollView>

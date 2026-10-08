@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, type NativeMethods } from "react-native";
+import { StyleSheet, View, type NativeMethods } from "react-native";
 import Animated, {
   FadeIn,
   FadeInLeft,
@@ -12,12 +12,12 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import * as haptics from "../lib/haptics";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
 import { ChevronLeftIcon, PlusIcon, SlidersIcon } from "./icons";
 import { MorphHeaderTitle } from "./MorphHeaderTitle";
 import { ProgressiveBlur } from "./ProgressiveBlur";
+import { TapPressable } from "./TapPressable";
 
 const TOP_GAP = 14;
 const ROW_HEIGHT = 38;
@@ -112,7 +112,6 @@ export function AppHeader({
   }));
 
   function handleBack() {
-    haptics.tap();
     onBack?.();
   }
 
@@ -135,15 +134,15 @@ export function AppHeader({
         <View style={styles.lead}>
           {onBack ? (
             <Animated.View entering={reduceMotion ? undefined : FadeInLeft.duration(220)}>
-              <Pressable
+              <TapPressable
                 onPress={handleBack}
                 accessibilityRole="button"
                 accessibilityLabel={backAccessibilityLabel ?? t("common.back")}
                 hitSlop={10}
-                style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.5 : 1 }]}
+                style={styles.iconBtn}
               >
                 <ChevronLeftIcon color={colors.ink} />
-              </Pressable>
+              </TapPressable>
             </Animated.View>
           ) : null}
           {morphKey ? (
@@ -171,17 +170,16 @@ export function AppHeader({
           <View style={styles.actions}>
             {onAction && actionLabel ? (
               <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(180)}>
-                <Pressable
+                <TapPressable
                   onPress={onAction}
                   disabled={actionDisabled}
                   accessibilityRole="button"
                   accessibilityLabel={actionLabel}
                   hitSlop={10}
-                  style={({ pressed }) => [
+                  style={[
                     styles.actionBtn,
                     {
                       backgroundColor: actionDisabled ? colors.panel2 : colors.accent,
-                      opacity: pressed ? 0.85 : 1,
                     },
                   ]}
                 >
@@ -193,36 +191,36 @@ export function AppHeader({
                   >
                     {actionLabel}
                   </Animated.Text>
-                </Pressable>
+                </TapPressable>
               </Animated.View>
             ) : null}
             {onSettings ? (
-              <Pressable
+              <TapPressable
                 onPress={onSettings}
                 accessibilityRole="button"
                 accessibilityLabel={t("common.settings")}
                 hitSlop={10}
-                style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.5 : 1 }]}
+                style={styles.iconBtn}
               >
                 <SlidersIcon color={colors.inkSoft} />
-              </Pressable>
+              </TapPressable>
             ) : null}
             {onNew ? (
-              <Pressable
+              <TapPressable
                 onPress={onNew}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: newExpanded }}
                 accessibilityLabel={newAccessibilityLabel ?? t("manuscripts.newA11y")}
                 hitSlop={10}
-                style={({ pressed }) => [
+                style={[
                   styles.newBtn,
-                  { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 },
+                  { backgroundColor: colors.accent },
                 ]}
               >
                 <Animated.View style={newIconStyle}>
                   <PlusIcon color={colors.panel} />
                 </Animated.View>
-              </Pressable>
+              </TapPressable>
             ) : null}
           </View>
         ) : null}

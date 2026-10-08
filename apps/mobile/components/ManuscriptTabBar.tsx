@@ -43,6 +43,7 @@ import {
   SlidersIcon,
   SparkleIcon,
 } from "./icons";
+import { TapPressable } from "./TapPressable";
 
 const BUBBLE_W = 64;
 const BUBBLE_H = 44;
@@ -347,7 +348,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
             {actions.map((action, index) => {
               const tint = action.tone === "ai" ? colors.accent : colors.ink;
               return (
-                <Pressable
+                <TapPressable
                   key={action.key}
                   accessibilityRole="button"
                   accessibilityLabel={t(action.labelKey)}
@@ -377,7 +378,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
                       </Text>
                     </>
                   )}
-                </Pressable>
+                </TapPressable>
               );
             })}
           </View>
@@ -406,7 +407,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
               {tabs.map((tab, index) => {
                 const focused = index === activeIndex;
                 return (
-                  <Pressable
+                  <TapPressable
                     key={tab.name}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: focused }}
@@ -421,14 +422,14 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
                     >
                       {t(tab.labelKey)}
                     </Text>
-                  </Pressable>
+                  </TapPressable>
                 );
               })}
             </View>
           </Glass>
         </Animated.View>
 
-        <Pressable
+        <TapPressable
           accessibilityRole="button"
           accessibilityState={{ expanded: open }}
           accessibilityLabel={open ? t("manuscriptTabBar.close") : t("manuscriptTabBar.open")}
@@ -440,7 +441,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
           <Animated.View style={fabIconStyle}>
             <PlusIcon color={colors.panel} size={22} />
           </Animated.View>
-        </Pressable>
+        </TapPressable>
       </Animated.View>
       {stuckChapterId ? (
         <StuckSheet

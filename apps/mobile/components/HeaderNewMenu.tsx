@@ -7,11 +7,11 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import * as haptics from "../lib/haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { Glass, alpha } from "./Glass";
+import { TapPressable } from "./TapPressable";
 
 const SPRING = { damping: 15, stiffness: 190, mass: 0.7 } as const;
 
@@ -70,7 +70,6 @@ export function HeaderNewMenu({
   }));
 
   function choose(item: NewMenuItem) {
-    haptics.tap();
     onClose();
     item.onPress();
   }
@@ -90,11 +89,11 @@ export function HeaderNewMenu({
               {i > 0 ? (
                 <View style={[styles.divider, { backgroundColor: alpha(colors.line, 0.7) }]} />
               ) : null}
-              <Pressable
+              <TapPressable
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
                 onPress={() => choose(item)}
-                style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
+                style={styles.row}
               >
                 <View
                   style={[
@@ -105,7 +104,7 @@ export function HeaderNewMenu({
                   <item.Icon color={colors.ink} size={21} />
                 </View>
                 <Text style={[styles.rowLabel, { color: colors.ink }]}>{item.label}</Text>
-              </Pressable>
+              </TapPressable>
             </Fragment>
           ))}
         </Glass>

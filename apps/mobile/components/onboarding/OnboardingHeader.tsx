@@ -29,7 +29,7 @@ export function OnboardingHeader({
         accessibilityRole="button"
         accessibilityLabel={t("common.back")}
         hitSlop={10}
-        style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.5 : 1 }]}
+        style={styles.iconBtn}
       >
         <ChevronLeftIcon color={colors.ink} />
       </TapPressable>
@@ -39,7 +39,7 @@ export function OnboardingHeader({
         accessibilityRole="button"
         accessibilityLabel={t("onboarding.skip")}
         hitSlop={10}
-        style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.6 : 1 }]}
+        style={styles.skipBtn}
       >
         <Text style={[styles.skipText, { color: colors.accent }]}>{t("onboarding.skip")}</Text>
       </TapPressable>

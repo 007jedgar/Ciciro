@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import type { EditMode } from "../lib/edit-mode";
 import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
-import * as haptics from "../lib/haptics";
 import { Glass } from "./Glass";
+import { TapPressable } from "./TapPressable";
 
 const MODES: EditMode[] = ["edits", "chat"];
 const SPRING = { damping: 15, stiffness: 190, mass: 0.7 } as const;
@@ -59,15 +59,16 @@ export function EditModeToggle({
         {MODES.map((value, index) => {
           const selected = mode === value;
           return (
-            <Pressable
+            <TapPressable
               key={value}
+              haptic="select"
+              feedback="dim"
               accessibilityRole="radio"
               accessibilityState={{ checked: selected }}
               accessibilityLabel={t(`ciciroTab.editMode.${value}`)}
               accessibilityHint={t(`ciciroTab.editMode.${value}Hint`)}
               onPress={() => {
                 if (!selected) {
-                  haptics.select();
                   onChange(value);
                 }
               }}
@@ -91,7 +92,7 @@ export function EditModeToggle({
               >
                 {t(`ciciroTab.editMode.${value}`)}
               </Text>
-            </Pressable>
+            </TapPressable>
           );
         })}
       </View>

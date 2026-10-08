@@ -103,7 +103,7 @@ function StatusChip({
       accessibilityState={{ selected: active, disabled }}
       accessibilityLabel={label}
       hitSlop={6}
-      style={({ pressed }) => [{ opacity: disabled ? 0.4 : pressed ? 0.55 : 1 }]}
+      style={[{ opacity: disabled ? 0.4 : 1 }]}
     >
       <Animated.View style={[styles.chip, active ? undefined : styles.chipInactive, chipStyle]}>
         <Animated.Text style={[styles.text, textStyle]}>{label.toUpperCase()}</Animated.Text>

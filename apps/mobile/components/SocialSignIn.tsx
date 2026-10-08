@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as haptics from "../lib/haptics";
 import Svg, { Path } from "react-native-svg";
@@ -15,6 +15,7 @@ import {
   type SocialButton,
 } from "../lib/social-auth";
 import { appleSheetAvailable } from "../lib/social-sign-in";
+import { TapPressable } from "./TapPressable";
 
 const BUTTON_H = 48;
 const RADIUS = 8;
@@ -147,21 +148,22 @@ export function SocialSignIn({
           : { bg: dark ? "#131314" : "#fff", fg: dark ? "#e3e3e3" : "#1f1f1f", border: dark ? "#8e918f" : "#747775" };
         const label = apple ? t("auth.continueWithApple") : t("auth.continueWithGoogle");
         return (
-          <Pressable
+          <TapPressable
             key={button}
             onPress={() => run(button)}
+            haptic="none"
             disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={label}
-            style={({ pressed }) => [
+            style={[
               styles.button,
               { backgroundColor: palette.bg, borderColor: palette.border },
-              (pressed || disabled) && styles.disabled,
+              disabled && styles.disabled,
             ]}
           >
             {apple ? <AppleLogo color={palette.fg} /> : <GoogleLogo />}
             <Text style={[styles.label, { color: palette.fg }]}>{label}</Text>
-          </Pressable>
+          </TapPressable>
         );
       })}
       <View style={styles.divider} accessibilityRole="none">

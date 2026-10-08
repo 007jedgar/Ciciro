@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, ScrollView, Text, View } from "react-native";
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -42,6 +42,7 @@ import { useAppTheme } from "../lib/settings";
 import { fonts, type ColorTokens } from "../lib/theme";
 import { useStackBack } from "../lib/use-stack-back";
 import { AlertText } from "../components/AlertText";
+import { TapPressable } from "../components/TapPressable";
 
 type Notice = { tone: "info" | "error"; key: string } | null;
 
@@ -417,8 +418,8 @@ function PackageOption({
   }));
 
   return (
-    <Pressable
-      onPress={haptics.withTap(onPress)}
+    <TapPressable
+      onPress={onPress}
       disabled={disabled}
       accessibilityRole="radio"
       accessibilityState={{ selected, disabled }}
@@ -466,7 +467,7 @@ function PackageOption({
           <Text style={{ fontSize: 16, color: colors.ink, fontVariant: ["tabular-nums"] }}>{price}</Text>
         </Animated.View>
       )}
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -503,13 +504,13 @@ function Disclosure({ pkg, colors }: { pkg: ProPackage; colors: ColorTokens }) {
 function LegalLinks({ colors }: { colors: ColorTokens }) {
   const { t } = useTranslation();
   const link = (label: string, path: string) => (
-    <Pressable
+    <TapPressable
       onPress={() => void Linking.openURL(`${API_URL}${path}`)}
       accessibilityRole="link"
       hitSlop={8}
     >
       <Text style={{ fontSize: 13, color: colors.accent }}>{label}</Text>
-    </Pressable>
+    </TapPressable>
   );
   return (
     <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 10, marginTop: 14 }}>
@@ -563,12 +564,12 @@ function PrimaryButton({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={haptics.withTap(onPress)}
+    <TapPressable
+      onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled, busy }}
-      style={({ pressed }) => ({
+      style={{
         minHeight: 52,
         borderRadius: 14,
         alignItems: "center",
@@ -576,12 +577,12 @@ function PrimaryButton({
         flexDirection: "row",
         gap: 8,
         backgroundColor: colors.accent,
-        opacity: disabled && !busy ? 0.45 : pressed ? 0.85 : 1,
-      })}
+        opacity: disabled && !busy ? 0.45 : 1,
+      }}
     >
       {busy ? <ActivityIndicator size="small" color={colors.panel} /> : null}
       <Text style={{ fontSize: 17, fontWeight: "600", color: colors.panel }}>{label}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
 
@@ -597,21 +598,21 @@ function TextButton({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={haptics.withTap(onPress)}
+    <TapPressable
+      onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      style={({ pressed }) => ({
+      style={{
         alignSelf: "center",
         minHeight: 44,
         paddingHorizontal: 16,
         justifyContent: "center",
         marginTop: 6,
-        opacity: disabled ? 0.45 : pressed ? 0.6 : 1,
-      })}
+        opacity: disabled ? 0.45 : 1,
+      }}
     >
       <Text style={{ fontSize: 16, color: colors.accent }}>{label}</Text>
-    </Pressable>
+    </TapPressable>
   );
 }
