@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FlatList, Platform, RefreshControl, Text, View } from "react-native";
+import { FlatList, RefreshControl, Text, View } from "react-native";
 import Animated, { FadeIn, LinearTransition, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -353,14 +353,11 @@ function ChaptersScreenContent() {
           itemLayoutAnimation={reduceMotion ? undefined : LinearTransition.duration(200)}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          // Inset (not padding) on iOS so the pull-to-refresh spinner sits below the header.
-          contentInset={{ top: listTop }}
-          contentOffset={{ x: 0, y: -listTop }}
           scrollIndicatorInsets={{ top: listTop }}
           // Horizontal padding moved in from the screen edge (see LIST_EDGE_SLACK)
           // so the list's own clip frame has headroom beyond where content rests.
           contentContainerStyle={{
-            paddingTop: Platform.OS === "ios" ? 0 : listTop,
+            paddingTop: listTop,
             paddingBottom: clearance,
             paddingHorizontal: LIST_EDGE_SLACK,
           }}
