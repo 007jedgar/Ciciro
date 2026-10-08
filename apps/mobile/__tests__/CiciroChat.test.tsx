@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, StyleSheet } from "react-native";
+import { Alert, FlatList, StyleSheet } from "react-native";
 import type { ReactNode } from "react";
 import { CiciroChat } from "../components/CiciroChat";
 import { defaultSettings } from "../lib/app-settings";
@@ -290,6 +290,56 @@ describe("CiciroChat", () => {
     expect(screen.getByText("Row 50")).toBeTruthy();
     expect(screen.queryByText("Row 0")).toBeNull();
     expect(screen.queryByText("Row 30")).toBeNull();
+    unmount();
+  });
+
+  it("follows the tail once when a background refetch appends rows and the author has not scrolled away", () => {
+    const { rerender, unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    act(() => {
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+    });
+    // Still reading the tail - the jump chip never showed.
+    scrollThread(0);
+
+    const scrollToEnd = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToEnd");
+    rerender(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          messages={[assistant, { ...assistant, id: "m3", content: "A reply from another device." }]}
+        />
+      )
+    );
+
+    expect(scrollToEnd).toHaveBeenCalled();
+    unmount();
+  });
+
+  it("does not yank the thread back to the tail when the author has scrolled away from it", () => {
+    const { rerender, unmount } = render(
+      wrap(<CiciroChat {...idle} composer="" messages={[assistant]} />)
+    );
+    act(() => {
+      screen.getByTestId("chat-thread").props.onContentSizeChange(390, 1200);
+    });
+    // Scrolled well above the tail - the jump chip is showing.
+    scrollThread(1200 + 300);
+
+    const scrollToEnd = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance, "scrollToEnd");
+    rerender(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          messages={[assistant, { ...assistant, id: "m3", content: "A reply from another device." }]}
+        />
+      )
+    );
+
+    expect(scrollToEnd).not.toHaveBeenCalled();
     unmount();
   });
 
