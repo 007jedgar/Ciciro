@@ -28,7 +28,7 @@ export default function OnboardingLookScreen() {
   const { layout, settings } = useAppTheme();
   const { preview, setPreview } = useThemePreview();
   const changeTheme = useThemeChange();
-  const state = parseOnboardingParams(useLocalSearchParams<{ kind?: string; obstacles?: string; theme?: string }>());
+  const state = parseOnboardingParams(useLocalSearchParams<{ kind?: string; obstacles?: string }>());
   const [picked, setPicked] = useState<ThemeId | null>(preview);
   const shown = picked ?? settings.theme;
 
@@ -42,13 +42,13 @@ export default function OnboardingLookScreen() {
   function next() {
     router.push({
       pathname: "/onboarding-demo",
-      params: onboardingParams({ ...state, theme: picked }),
+      params: onboardingParams(state),
     });
   }
 
   function skip() {
     getAnalytics().track("onboarding_skipped", { step: "theme" });
-    router.push({ pathname: "/signup", params: onboardingParams({ ...state, theme: picked }) });
+    router.push({ pathname: "/signup", params: onboardingParams(state) });
   }
 
   const rows: (typeof THEME_META)[] = [];

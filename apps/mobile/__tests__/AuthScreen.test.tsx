@@ -7,7 +7,7 @@ import { ThemePreviewContext } from "../lib/theme-preview-context";
 import { onboardingReminderDraft, type OnboardingState } from "../lib/onboarding-flow";
 import { useAuthFormStore } from "../lib/auth-form-store";
 import "../lib/i18n";
-import { makeLayout, THEME_PALETTES } from "../lib/theme";
+import { makeLayout, THEME_PALETTES, type ThemeId } from "../lib/theme";
 
 const mockLogin = jest.fn();
 const mockSignup = jest.fn();
@@ -46,12 +46,12 @@ jest.mock("../lib/session", () => ({
 const mockSetPreview = jest.fn();
 const mockAdoptPreview = jest.fn();
 
-function renderOnboardingSignup(onboarding: OnboardingState) {
+function renderOnboardingSignup(onboarding: OnboardingState, preview: ThemeId | null = "ember") {
   const settings = defaultSettings();
   const colors = THEME_PALETTES[settings.theme];
   return render(
     <ThemePreviewContext.Provider
-      value={{ preview: onboarding.theme, setPreview: mockSetPreview, adoptPreview: mockAdoptPreview }}
+      value={{ preview, setPreview: mockSetPreview, adoptPreview: mockAdoptPreview }}
     >
       <AppThemeContext.Provider
         value={{ settings, colors, layout: makeLayout(colors, settings.editorFont), dark: false, patch: jest.fn() }}
@@ -128,7 +128,7 @@ describe("Sign in from the keyboard", () => {
 
 describe("Signing up from the onboarding", () => {
   const reminder = onboardingReminderDraft("wr_onboarding");
-  const quiz: OnboardingState = { kind: "novel", obstacles: ["consistency"], theme: "ember", reminder };
+  const quiz: OnboardingState = { kind: "novel", obstacles: ["consistency"], reminder };
 
   beforeAll(async () => {
     await i18n.changeLanguage("en");

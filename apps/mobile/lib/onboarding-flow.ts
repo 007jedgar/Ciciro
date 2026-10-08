@@ -5,7 +5,6 @@
 
 import { normalizeKind, type ManuscriptKind } from "./manuscript-kind";
 import { parseObstacles, serializeObstacles, wantsReminderStep, type Obstacle } from "./onboarding";
-import { isThemeId, type ThemeId } from "./theme";
 import {
   DEFAULT_REMINDER_MINUTE,
   newWritingReminder,
@@ -19,14 +18,12 @@ export const ONBOARDING_REMINDER_HOUR = 20;
 export type OnboardingState = {
   kind: ManuscriptKind;
   obstacles: Obstacle[];
-  theme: ThemeId | null;
   reminder: WritingReminder | null;
 };
 
 export type OnboardingParams = {
   kind?: string;
   obstacles?: string;
-  theme?: string;
   reminder?: string;
 };
 
@@ -47,7 +44,6 @@ export function parseOnboardingParams(params: OnboardingParams): OnboardingState
   return {
     kind: normalizeKind(params.kind),
     obstacles: parseObstacles(params.obstacles),
-    theme: isThemeId(params.theme) ? params.theme : null,
     reminder,
   };
 }
@@ -57,7 +53,6 @@ export function onboardingParams(state: Partial<OnboardingState>): Record<string
   const out: Record<string, string> = {};
   if (state.kind) out.kind = state.kind;
   if (state.obstacles && state.obstacles.length > 0) out.obstacles = serializeObstacles(state.obstacles);
-  if (state.theme) out.theme = state.theme;
   if (state.reminder) out.reminder = JSON.stringify(state.reminder);
   return out;
 }

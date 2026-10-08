@@ -23,10 +23,10 @@ import { FocusIcon } from "../icons";
 import * as haptics from "../../lib/haptics";
 
 const DEMO_CHAPTER_ID = "onboarding-demo-focus";
-/** Enough prose to scroll through, so the demo is a page and not a single line. */
 /** From this text size up the intro and the page scroll together, and the page keeps at least this much height. */
 const LARGE_TEXT_SCALE = 1.3;
 const LARGE_TEXT_PAGE_HEIGHT = 320;
+/** Enough prose to scroll through, so the demo is a page and not a single line. */
 const SAMPLE_KEYS = ["sample", "sample2", "sample3", "sample4"] as const;
 
 /**
