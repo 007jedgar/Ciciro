@@ -343,10 +343,12 @@ async function reviseKnowledge(input: Record<string, unknown>, ctx: ToolCtx): Pr
       const chapter = chooseChapter(input, chapters, ctx);
       if ("error" in chapter) return { status, content: `Not changed: ${chapter.error}` };
       const row = await retireKnowledgeFactUnchecked(ctx.projectId, factId, chapter.chapterId);
-      const from = chapter.chapterId ? `from ${chapterName(chapters, chapter.chapterId)} on` : "everywhere";
+      const content = row.supersededAtChapterId
+        ? `Retired from ${chapterName(chapters, row.supersededAtChapterId)} on: ${describeFact(row, chapters)}. It still holds before then. Tell the author exactly that.`
+        : `Retired everywhere: ${describeFact(row, chapters)}. It no longer holds in any chapter. Tell the author exactly that.`;
       return {
         status,
-        content: `Retired ${from}: ${describeFact(row, chapters)}. It still holds before then. Tell the author exactly that.`,
+        content,
         ui: changed(row.characterPath),
         mutationCount: 1,
       };

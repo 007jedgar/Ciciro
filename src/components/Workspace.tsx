@@ -111,6 +111,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [bibleOpen, setBibleOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [knowledgeCharacterPath, setKnowledgeCharacterPath] = useState<string | null>(null);
+  const [knowledgeChange, setKnowledgeChange] = useState(0);
   const [styleAnalysisOpen, setStyleAnalysisOpen] = useState(false);
   const [autoWriteOpen, setAutoWriteOpen] = useState(false);
   const [questionsOpen, setQuestionsOpen] = useState(false);
@@ -910,6 +911,10 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // Mid-turn side-effects from editor tools (move/insert/create/open chapter).
   const onUiEvent = useCallback(
     (evt: ClientUiEvent) => {
+      if (evt.type === "knowledge_changed") {
+        setKnowledgeChange((n) => n + 1);
+        return;
+      }
       if (evt.type === "open_chapter") {
         selectChapterForAi(evt.chapterId);
         return;
@@ -1431,6 +1436,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         <StoryBible
           projectId={project.id}
           activeChapter={project.chapters.find((c) => c.id === activeId) ?? null}
+          knowledgeChange={knowledgeChange}
           onClose={() => setBibleOpen(false)}
           onOpenKnowledge={(characterPath) => {
             setBibleOpen(false);
@@ -1446,6 +1452,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           chapters={project.chapters.map((c) => ({ id: c.id, title: c.title, order: c.order }))}
           activeChapterId={activeId}
           initialCharacterPath={knowledgeCharacterPath}
+          knowledgeChange={knowledgeChange}
           onClose={() => setKnowledgeOpen(false)}
         />
       </Presence>

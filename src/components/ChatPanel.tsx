@@ -503,7 +503,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         } else if (
           evt.type === "open_chapter" ||
           evt.type === "chapter_created" ||
-          evt.type === "chapter_updated"
+          evt.type === "chapter_updated" ||
+          evt.type === "knowledge_changed"
         ) {
           onUiEventRef.current?.(evt as unknown as ClientUiEvent);
         } else if (evt.type === "done") {

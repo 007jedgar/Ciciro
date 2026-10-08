@@ -1,6 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { registerUser } from "@/lib/auth/session";
+import { SESSION_HEADER } from "@/lib/auth/constants";
+import { createSession, registerUser } from "@/lib/auth/session";
+import { PATCH } from "@/app/api/projects/[id]/knowledge/[factId]/route";
 import { createProject } from "@/lib/projects";
 import { readBibleFile, writeBibleFile } from "@/lib/bible";
 import { buildEditorContext } from "@/lib/context";
@@ -153,6 +156,62 @@ describe("who knows what, as of a chapter", () => {
     });
     await retireKnowledgeFact(project.id, user, b.id, null);
     for (const chapter of chapters) expect(await facts(project.id, chapter.id)).not.toContain("The key is lost");
+  });
+
+  it("retires a fact everywhere when it is retired at the chapter it dates from", async () => {
+    const { user, project, chapters } = await seed();
+    const a = await addKnowledgeFact(project.id, user, {
+      characterPath: "characters/joe.md",
+      fact: "The door sticks",
+      stance: "knows",
+      chapterId: chapters[2].id,
+    });
+    const retired = await retireKnowledgeFact(project.id, user, a.id, chapters[2].id);
+    expect(retired).toMatchObject({ status: "superseded", supersededAtChapterId: null });
+    for (const chapter of chapters) expect(await facts(project.id, chapter.id)).not.toContain("The door sticks");
+  });
+
+  it("refuses an edit that leaves a retired fact stopping at or before the chapter it dates from", async () => {
+    const { user, project, chapters } = await seed();
+    const token = await createSession(user.id);
+    const patch = (factId: string, body: unknown) =>
+      PATCH(
+        new NextRequest(`http://localhost/api/projects/${project.id}/knowledge/${factId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json", [SESSION_HEADER]: token },
+          body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ id: project.id, factId }) }
+      );
+    const a = await addKnowledgeFact(project.id, user, {
+      characterPath: "characters/joe.md",
+      fact: "The door sticks",
+      stance: "knows",
+      chapterId: chapters[2].id,
+    });
+    await retireKnowledgeFact(project.id, user, a.id, chapters[4].id);
+
+    for (const body of [
+      { chapterId: chapters[5].id },
+      { chapterId: chapters[4].id },
+      { supersededAtChapterId: chapters[1].id },
+      { supersededAtChapterId: chapters[2].id },
+    ]) {
+      const res = await patch(a.id, body);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe(
+        "A retired fact can only stop being true after the chapter it dates from."
+      );
+    }
+    expect(await prisma.knowledgeFact.findUniqueOrThrow({ where: { id: a.id } })).toMatchObject({
+      chapterId: chapters[2].id,
+      supersededAtChapterId: chapters[4].id,
+    });
+
+    const moved = await patch(a.id, { chapterId: chapters[3].id, fact: "The door still sticks" });
+    expect(moved.status).toBe(200);
+    expect(await facts(project.id, chapters[3].id)).toEqual(["The door still sticks"]);
+    expect(await facts(project.id, chapters[4].id)).toEqual([]);
   });
 
   it("refuses a replacement for another character or one before the fact began", async () => {

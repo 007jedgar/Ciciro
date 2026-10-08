@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DrawerHead from "@/components/DrawerHead";
 import CharacterKnowledge from "@/components/CharacterKnowledge";
 import { getAnalytics } from "@/lib/analytics-client";
@@ -14,11 +14,19 @@ type Props = {
   onOpenKnowledge: (characterPath?: string) => void;
   /** The chapter open in the editor, for the character file's ledger box. */
   activeChapter?: { id: string; title: string; order: number } | null;
+  /** Bumped when a chat run changes the ledger, so an open character file reloads its mirror block. */
+  knowledgeChange?: number;
 };
 
 // The bible is now a folder of markdown files on disk. This drawer is a small
 // editor over those files - the same files the editor (Opus) reads and writes.
-export default function StoryBible({ projectId, onClose, onOpenKnowledge, activeChapter }: Props) {
+export default function StoryBible({
+  projectId,
+  onClose,
+  onOpenKnowledge,
+  activeChapter,
+  knowledgeChange,
+}: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [content, setContent] = useState("");
@@ -45,6 +53,14 @@ export default function StoryBible({ projectId, onClose, onOpenKnowledge, active
     setContent(data.content || "");
     setSaved(true);
   }
+
+  const seenKnowledgeChange = useRef(knowledgeChange);
+  useEffect(() => {
+    if (seenKnowledgeChange.current === knowledgeChange) return;
+    seenKnowledgeChange.current = knowledgeChange;
+    if (openPath && saved && /^characters\/[^/]+\.md$/.test(openPath)) void open(openPath);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knowledgeChange]);
 
   async function save() {
     if (!openPath) return;
@@ -157,6 +173,7 @@ export default function StoryBible({ projectId, onClose, onOpenKnowledge, active
                 onMirrored={() => open(openPath)}
                 activeChapter={activeChapter}
                 onOpenKnowledgeScreen={() => onOpenKnowledge(openPath)}
+                knowledgeChange={knowledgeChange}
               />
             )}
           </>

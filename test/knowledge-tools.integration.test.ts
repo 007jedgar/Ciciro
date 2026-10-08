@@ -205,4 +205,34 @@ describe("chat knowledge tools", () => {
     const missing = await executeEditorTool("revise_knowledge", { factId: row.id, fact: "x" }, ctx);
     expect(missing.content).toBe("Not done: Fact not found.");
   });
+
+  it("retires everywhere at the fact's own chapter, and refuses moving it past where it stopped", async () => {
+    const project = await seed();
+    const ctx = { projectId: project.id, activeChapterId: project.chapters[1].id };
+    await executeEditorTool("record_knowledge", { character: "Joe", stance: "knows", fact: "Mara took it" }, ctx);
+    await executeEditorTool("record_knowledge", { character: "Joe", stance: "knows", fact: "The door sticks" }, ctx);
+    const [first, second] = await rows(project.id);
+
+    const everywhere = await executeEditorTool("revise_knowledge", { factId: first.id, retire: true }, ctx);
+    expect(everywhere.content).toMatch(/^Retired everywhere: /);
+    expect(everywhere.content).not.toContain("still holds before then");
+    expect(await prisma.knowledgeFact.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({
+      status: "superseded",
+      supersededAtChapterId: null,
+    });
+
+    await executeEditorTool(
+      "revise_knowledge",
+      { factId: second.id, retire: true },
+      { ...ctx, activeChapterId: project.chapters[3].id }
+    );
+    const moved = await executeEditorTool("revise_knowledge", { factId: second.id, chapterNumber: 5 }, ctx);
+    expect(moved.content).toBe(
+      "Not done: A retired fact can only stop being true after the chapter it dates from."
+    );
+    expect(await prisma.knowledgeFact.findUniqueOrThrow({ where: { id: second.id } })).toMatchObject({
+      chapterId: project.chapters[1].id,
+      supersededAtChapterId: project.chapters[3].id,
+    });
+  });
 });
