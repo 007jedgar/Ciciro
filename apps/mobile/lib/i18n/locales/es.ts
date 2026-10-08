@@ -752,6 +752,17 @@ const es: Translations = {
     emptyValue: "—",
     openSettings: "Ajustes de escritura",
     openA11y: "Abrir historial de escritura",
+    frequency: {
+      sentence: "Has escrito {{what}} {{when}}",
+      once: "una vez",
+      twice: "dos veces",
+      times: "{{n}} veces",
+      thisWeek: "esta semana",
+      thisMonth: "este mes",
+      thisYear: "este año",
+      empty: "Una página en blanco es un buen lugar para empezar.",
+      hint: "Muestra otro período de tiempo",
+    },
   },
   scratch: {
     title: "Bloc de notas",

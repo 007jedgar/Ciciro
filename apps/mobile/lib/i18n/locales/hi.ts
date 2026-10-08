@@ -751,6 +751,17 @@ const hi: Translations = {
     emptyValue: "—",
     openSettings: "लेखन सेटिंग्स",
     openA11y: "लेखन इतिहास खोलें",
+    frequency: {
+      sentence: "आपने {{when}} {{what}} लिखा है",
+      once: "एक बार",
+      twice: "दो बार",
+      times: "{{n}} बार",
+      thisWeek: "इस सप्ताह",
+      thisMonth: "इस महीने",
+      thisYear: "इस साल",
+      empty: "एक खाली पन्ना शुरू करने के लिए बिल्कुल ठीक जगह है।",
+      hint: "समय की एक और अवधि दिखाता है",
+    },
   },
   scratch: {
     title: "स्क्रैचपैड",
