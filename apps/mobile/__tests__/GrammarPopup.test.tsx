@@ -40,7 +40,7 @@ describe("GrammarPopup", () => {
     });
     clock = 1_000 + GRAMMAR_AUTO_ACCEPT_MS / 2;
     act(() => {
-      jest.advanceTimersByTime(50);
+      jest.advanceTimersByTime(250);
     });
     expect(screen.getByTestId("grammar-auto-accept")).toHaveProp("accessibilityValue", {
       min: 0,

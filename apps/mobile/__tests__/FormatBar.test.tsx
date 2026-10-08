@@ -48,4 +48,14 @@ describe("FormatBar", () => {
       },
     );
   });
+
+  it("pulses a ring off the mic only while it is listening", () => {
+    const base = { onToggleMark: jest.fn(), onSetKind: jest.fn() };
+    const { rerender } = render(<FormatBar {...base} dictation={{ active: false, onToggle: jest.fn() }} />);
+    expect(screen.queryByTestId("mic-pulse")).toBeNull();
+    rerender(<FormatBar {...base} dictation={{ active: true, onToggle: jest.fn() }} />);
+    expect(screen.getByTestId("mic-pulse")).toBeTruthy();
+    rerender(<FormatBar {...base} dictation={{ active: false, onToggle: jest.fn() }} />);
+    expect(screen.queryByTestId("mic-pulse")).toBeNull();
+  });
 });
