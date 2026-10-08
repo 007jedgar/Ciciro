@@ -181,7 +181,7 @@ export function ScratchNoteEditor({
 
   const field = {
     backgroundColor: colors.panel,
-    borderColor: colors.line,
+    borderColor: colors.field,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,

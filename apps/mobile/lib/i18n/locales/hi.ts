@@ -482,6 +482,7 @@ const hi: Translations = {
     grammarAutoAcceptA11y: "{{seconds}} सेकंड में अपने आप स्वीकार होगा",
     formatBar: "फ़ॉर्मैटिंग",
     formatSelection: "चयन फ़ॉर्मैट",
+    editorLabel: "अध्याय का पाठ",
     formatBold: "बोल्ड",
     formatItalic: "इटैलिक",
     formatUnderline: "रेखांकित",

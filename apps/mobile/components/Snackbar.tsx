@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import { announce } from "../lib/announce";
 import type { ColorTokens } from "../lib/theme";
 import { Glass } from "./Glass";
 
@@ -24,6 +26,8 @@ export function Snackbar({
   dark: boolean;
   reduceMotion?: boolean;
 }) {
+  // The snackbar appears without focus, so VoiceOver would never read it.
+  useEffect(() => announce(message), [message]);
   return (
     <Animated.View
       entering={reduceMotion ? undefined : FadeInDown.duration(220)}

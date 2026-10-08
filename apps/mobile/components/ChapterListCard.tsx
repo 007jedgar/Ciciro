@@ -57,7 +57,10 @@ export function ChapterListCard({
 
   return (
     <View style={styles.file}>
+      {/* The folder tab repeats the row's label, so VoiceOver skips it. */}
       <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
         style={[
           styles.tab,
           { backgroundColor: selected ? colors.accent : colors.band },
@@ -85,6 +88,7 @@ export function ChapterListCard({
             onPress={onOpen}
             accessibilityRole="button"
             accessibilityLabel={a11y}
+            accessibilityState={{ selected }}
             style={{ flex: 1, minWidth: 0 }}
           >
             {customTitle ? <Text style={[styles.title, { color: colors.ink }]}>{customTitle}</Text> : null}

@@ -186,7 +186,7 @@ export default function PaywallScreen() {
 
         {entitlementQuery.isPending ? (
           <Centered>
-            <ActivityIndicator color={colors.inkSoft} />
+            <ActivityIndicator color={colors.inkSoft} accessibilityLabel={t("common.loading")} />
           </Centered>
         ) : !entitlement ? (
           <Centered>
@@ -234,7 +234,7 @@ export default function PaywallScreen() {
               </View>
             ) : packages === null ? (
               <Centered>
-                <ActivityIndicator color={colors.inkSoft} />
+                <ActivityIndicator color={colors.inkSoft} accessibilityLabel={t("common.loading")} />
               </Centered>
             ) : packages.length === 0 ? (
               <Text style={[layout.body, { textAlign: "center", paddingVertical: 16 }]}>

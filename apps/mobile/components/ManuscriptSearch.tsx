@@ -12,6 +12,7 @@ import {
   type SearchResult,
 } from "../lib/search";
 import { useAppTheme } from "../lib/settings";
+import { announce } from "../lib/announce";
 import { switchColors } from "../lib/switch-theme";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
@@ -118,6 +119,11 @@ export function ManuscriptSearch({
               result.truncated ? ` ${t("search.truncated", { shown: result.matches.length })}` : ""
             }`
         : t("search.idle");
+  // The count sits in a field the author is typing in; iOS only reads it when it is announced.
+  const summaryReady = Boolean(error || notice || result);
+  useEffect(() => {
+    if (summaryReady) announce(summary);
+  }, [summary, summaryReady]);
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
@@ -166,7 +172,7 @@ export function ManuscriptSearch({
           {...switchColors(colors)}
           accessibilityLabel={t("search.wholeWord")}
         />
-        {busy ? <ActivityIndicator color={colors.accent} style={{ marginLeft: "auto" }} /> : null}
+        {busy ? <ActivityIndicator color={colors.accent} style={{ marginLeft: "auto" }} accessibilityLabel={t("common.loading")} /> : null}
       </View>
       <TapPressable
         onPress={confirmReplaceAll}

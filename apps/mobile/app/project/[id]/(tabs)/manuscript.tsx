@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-co
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import * as haptics from "../../../../lib/haptics";
+import { announce } from "../../../../lib/announce";
 import type { EnrichedTextInputInstance, OnChangeStateEvent } from "react-native-enriched-html";
 import {
   ChapterEditor,
@@ -584,6 +585,10 @@ export default function ManuscriptScreen() {
   // arriving mid-write waits its turn instead of overwriting the first.
   const dictationQueue = useRef<Promise<void>>(Promise.resolve());
   const [dictationNotice, setDictationNotice] = useState<DictationError | null>(null);
+  // The notice shows over the page, not where VoiceOver is focused, so it is spoken too.
+  useEffect(() => {
+    if (dictationNotice) announce(t(DICTATION_NOTICES[dictationNotice]));
+  }, [dictationNotice, t]);
   const onDictationPhrase = useCallback(
     (text: string) => {
       const lang = dictationLocale(i18n.language);

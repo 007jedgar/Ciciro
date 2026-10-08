@@ -472,6 +472,7 @@ const zh: Translations = {
     grammarAutoAcceptA11y: "{{seconds}} 秒后自动接受",
     formatBar: "格式",
     formatSelection: "选中格式",
+    editorLabel: "章节正文",
     formatBold: "粗体",
     formatItalic: "斜体",
     formatUnderline: "下划线",

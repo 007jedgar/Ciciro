@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import { useTranslation } from "react-i18next";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
@@ -77,6 +78,7 @@ export function GlassSheet({
   snapPoints?: GlassSnapPoint[];
   testID?: string;
 }) {
+  const { t } = useTranslation();
   const theme = useOptionalAppTheme();
   const osReduce = useReducedMotion();
   const reduceMotion = Boolean(theme?.settings.reduceMotion || osReduce);
@@ -294,10 +296,10 @@ export function GlassSheet({
           pointerEvents={closing ? "none" : "auto"}
         >
           <Animated.View testID={`${testID}-scrim`} style={[styles.backdrop, backdropStyle]}>
+            {/* The sheet's Close button and the escape gesture are the VoiceOver way out, so the scrim is not a stop. */}
             <Pressable
               testID={`${testID}-backdrop`}
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss"
+              accessible={false}
               onPress={dismiss}
               style={StyleSheet.absoluteFill}
             />
@@ -305,6 +307,9 @@ export function GlassSheet({
           <GestureDetector gesture={pan}>
             <Animated.View
               testID={`${testID}-card`}
+              // Keeps VoiceOver inside the sheet; the two-finger escape gesture closes it.
+              accessibilityViewIsModal
+              onAccessibilityEscape={dismiss}
               style={[
                 styles.card,
                 {
@@ -375,7 +380,7 @@ export function GlassSheet({
                       testID={`${testID}-close`}
                       onPress={dismiss}
                       accessibilityRole="button"
-                      accessibilityLabel="Close"
+                      accessibilityLabel={t("common.close")}
                       hitSlop={10}
                       style={({ pressed }) => [
                         styles.closeBtn,

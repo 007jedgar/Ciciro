@@ -265,7 +265,7 @@ function AddRow({
       <TextInput
         style={[
           styles.input,
-          { backgroundColor: colors.panel, borderColor: colors.line, color: colors.ink },
+          { backgroundColor: colors.panel, borderColor: colors.field, color: colors.ink },
         ]}
         accessibilityLabel={placeholder}
         placeholder={placeholder}

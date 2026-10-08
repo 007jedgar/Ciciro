@@ -216,7 +216,7 @@ export function ChapterHistory({
         <Text style={[layout.body, styles.blurb]}>{t("history.blurb")}</Text>
         <View style={styles.saveRow}>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.panel, borderColor: colors.line, color: colors.ink }]}
+            style={[styles.input, { backgroundColor: colors.panel, borderColor: colors.field, color: colors.ink }]}
             accessibilityLabel={t("history.namePlaceholder")}
             placeholder={t("history.namePlaceholder")}
             placeholderTextColor={colors.inkSoft}

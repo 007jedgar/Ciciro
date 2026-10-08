@@ -7,6 +7,10 @@ export function BrandMark({ size = 64, style }: { size?: number; style?: StylePr
   return (
     <Image
       source={MARK}
+      // Decorative: the screen around it already says what it is.
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no"
       accessibilityIgnoresInvertColors
       style={[{ width: size, height: size, borderRadius: size * 0.22 }, style]}
     />

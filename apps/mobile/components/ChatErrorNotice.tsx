@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { storePurchasesAvailable } from "../lib/purchases";
 import { getAnalytics } from "../lib/analytics-client";
 import type { ColorTokens } from "../lib/theme";
 import { AlertIcon } from "./icons";
+import { announce } from "../lib/announce";
 import { TapPressable } from "./TapPressable";
 
 /**
@@ -32,6 +33,9 @@ export function ChatErrorNotice({
     .join(" · ");
   // The monthly allowance ran out on the free plan: the one way forward is Pro.
   const offerPro = failure.code === "aiLimit" && failure.plan !== "pro" && storePurchasesAvailable();
+  const message = t(failureMessageKey(failure));
+  // The card appears in the middle of the chat, where VoiceOver is not looking.
+  useEffect(() => announce(message), [message]);
 
   return (
     <Animated.View
@@ -42,7 +46,7 @@ export function ChatErrorNotice({
       <View style={styles.head}>
         <AlertIcon color={colors.danger} size={17} />
         <Text style={[styles.message, { color: colors.ink }]}>
-          {t(failureMessageKey(failure))}
+          {message}
         </Text>
       </View>
 
