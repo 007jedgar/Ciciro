@@ -98,6 +98,7 @@ export function ChapterListCard({
           </TapPressable>
           {onOpenHistory ? (
             <TapPressable
+              feedback="dim"
               onPress={onOpenHistory}
               disabled={deleting}
               accessibilityRole="button"
@@ -108,6 +109,7 @@ export function ChapterListCard({
             </TapPressable>
           ) : null}
           <TapPressable
+            feedback="dim"
             onPress={onRequestDelete}
             disabled={deleting}
             accessibilityRole="button"
@@ -118,7 +120,7 @@ export function ChapterListCard({
           </TapPressable>
         </View>
         {preview ? (
-          <TapPressable onPress={onOpen} accessible={false}>
+          <TapPressable feedback="dim" onPress={onOpen} accessible={false}>
             <Text
               testID="chapter-preview"
               style={[styles.preview, { color: colors.inkSoft }]}

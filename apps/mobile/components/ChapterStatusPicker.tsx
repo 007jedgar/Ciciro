@@ -12,6 +12,7 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, fonts } from "../lib/theme";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useSelectionPop } from "../lib/use-selection-pop";
+import { PRESS_SCALE } from "../lib/motion";
 
 /**
  * Manuscript stage as paper stock: a draft is blush, a revised chapter butter,
@@ -97,6 +98,7 @@ function StatusChip({
 
   return (
     <TapPressable
+      scale={PRESS_SCALE.chip}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"

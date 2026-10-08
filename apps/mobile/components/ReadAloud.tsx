@@ -26,6 +26,7 @@ import {
 } from "../lib/read-aloud";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 export type ReadAloudVoice = VoiceOption;
 
@@ -200,6 +201,7 @@ export function ReadAloud({
         </Text>
         {sortedVoices.length > 0 ? (
           <TapPressable
+            scale={PRESS_SCALE.card}
             onPress={() => setVoiceOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={`${t("readAloud.voice")}: ${voiceName}`}
@@ -288,6 +290,7 @@ export function ReadAloud({
           <Text style={[styles.buttonText, { color: colors.ink }]}>{t("readAloud.stop")}</Text>
         </TapPressable>
         <TapPressable
+          scale={PRESS_SCALE.chip}
           onPress={() => {
             setReadAloudPrefs({ rate: nextRate });
             readerRef.current?.setRate(nextRate);
@@ -313,6 +316,7 @@ export function ReadAloud({
               const selected = prefs.voice === opt.identifier;
               return (
                 <TapPressable
+                  scale={PRESS_SCALE.chip}
                   key={opt.identifier ?? "default"}
                   onPress={() => pickVoice(opt.identifier)}
                   accessibilityRole="button"

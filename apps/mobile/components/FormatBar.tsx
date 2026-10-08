@@ -9,6 +9,7 @@ import { alpha } from "./Glass";
 import { FORMAT_BAR_HEIGHT } from "../lib/format-chrome";
 import { MicIcon } from "./icons";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 export type FormatBlockKind = Extract<
   BlockKind,
@@ -119,6 +120,7 @@ export function FormatBar({
         <>
           <View style={[styles.gap, { backgroundColor: colors.line }]} />
           <TapPressable
+            scale={PRESS_SCALE.chip}
             testID="dictate-button"
             accessibilityRole="button"
             accessibilityLabel={
@@ -177,6 +179,7 @@ export function FormatMark({
 }) {
   return (
     <TapPressable
+      scale={PRESS_SCALE.chip}
       accessibilityRole="button"
       accessibilityLabel={a11y}
       accessibilityState={{ selected: active, disabled }}

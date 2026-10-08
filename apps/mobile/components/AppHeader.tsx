@@ -18,6 +18,7 @@ import { ChevronLeftIcon, PlusIcon, SlidersIcon } from "./icons";
 import { MorphHeaderTitle } from "./MorphHeaderTitle";
 import { ProgressiveBlur } from "./ProgressiveBlur";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 const TOP_GAP = 14;
 const ROW_HEIGHT = 38;
@@ -135,6 +136,7 @@ export function AppHeader({
           {onBack ? (
             <Animated.View entering={reduceMotion ? undefined : FadeInLeft.duration(220)}>
               <TapPressable
+                feedback="dim"
                 onPress={handleBack}
                 accessibilityRole="button"
                 accessibilityLabel={backAccessibilityLabel ?? t("common.back")}
@@ -196,6 +198,7 @@ export function AppHeader({
             ) : null}
             {onSettings ? (
               <TapPressable
+                feedback="dim"
                 onPress={onSettings}
                 accessibilityRole="button"
                 accessibilityLabel={t("common.settings")}
@@ -207,6 +210,7 @@ export function AppHeader({
             ) : null}
             {onNew ? (
               <TapPressable
+                scale={PRESS_SCALE.fab}
                 onPress={onNew}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: newExpanded }}

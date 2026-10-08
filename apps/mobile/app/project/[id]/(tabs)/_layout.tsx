@@ -18,6 +18,7 @@ import { TAB_SLIDE_SPEC, tabSlideInterpolator } from "../../../../lib/manuscript
 import { useReduceMotion } from "../../../../lib/use-reduce-motion";
 import { useStackBack } from "../../../../lib/use-stack-back";
 import { TapPressable } from "../../../../components/TapPressable";
+import { PRESS_SCALE } from "../../../../lib/motion";
 
 /** A tappable pill (icon plus label) for the tools row under the project title. */
 function ToolButton({
@@ -32,6 +33,7 @@ function ToolButton({
   const { colors } = useAppTheme();
   return (
     <TapPressable
+      scale={PRESS_SCALE.chip}
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
@@ -219,6 +221,7 @@ export default function ProjectTabsLayout() {
         ]}
       >
         <TapPressable
+          feedback="dim"
           accessibilityRole="button"
           accessibilityLabel={t("settings.exitFocus")}
           onPress={() => setFocusMode(false)}

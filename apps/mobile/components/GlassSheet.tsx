@@ -37,6 +37,7 @@ import { GlassSheetBorder } from "./GlassSheetBorder";
 import { CloseIcon } from "./icons";
 import { alpha } from "./Glass";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 export {
   GLASS_SHEET_RADIUS,
@@ -378,6 +379,7 @@ export function GlassSheet({
                       {title ?? " "}
                     </Text>
                     <TapPressable
+                      scale={PRESS_SCALE.fab}
                       testID={`${testID}-close`}
                       onPress={dismiss}
                       accessibilityRole="button"

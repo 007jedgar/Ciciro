@@ -17,6 +17,7 @@ import { colors as parchmentColors, fonts } from "../lib/theme";
 import { ShimmerText } from "./ShimmerText";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 /**
  * Where a just-typed genre is in its life.
@@ -179,6 +180,7 @@ export function ManuscriptTag({
     <View style={styles.wrap}>
       <Animated.View style={[styles.popRow, popStyle]}>
         <TapPressable
+          scale={PRESS_SCALE.chip}
           accessibilityRole="button"
           accessibilityLabel={
             hasGenre

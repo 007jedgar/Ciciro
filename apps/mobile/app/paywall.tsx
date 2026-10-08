@@ -15,7 +15,7 @@ import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { CheckIcon, InfoIcon } from "../components/icons";
 import { ciciro, type Entitlement } from "../lib/api";
 import { API_URL } from "../lib/api/client";
-import { EASE_OUT } from "../lib/motion";
+import { EASE_OUT, PRESS_SCALE } from "../lib/motion";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useSelectionPop } from "../lib/use-selection-pop";
 import {
@@ -422,51 +422,44 @@ function PackageOption({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="radio"
+      scale={PRESS_SCALE.card}
       accessibilityState={{ selected, disabled }}
       accessibilityLabel={[label, price, equivalent].filter(Boolean).join(", ")}
     >
-      {({ pressed }) => (
+      <Animated.View
+        style={[
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            minHeight: 64,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderRadius: 14,
+            borderWidth: 1,
+          },
+          cardStyle,
+        ]}
+      >
         <Animated.View
           style={[
             {
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 14,
-              minHeight: 64,
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderRadius: 14,
-              borderWidth: 1,
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: colors.panel,
             },
-            cardStyle,
+            dotStyle,
           ]}
-        >
-          {pressed && !selected ? (
-            <View
-              pointerEvents="none"
-              style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 13, backgroundColor: colors.panel2 }}
-            />
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 17, fontWeight: "600", color: colors.ink }}>{label}</Text>
+          {equivalent ? (
+            <Text style={{ marginTop: 2, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{equivalent}</Text>
           ) : null}
-          <Animated.View
-            style={[
-              {
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                backgroundColor: colors.panel,
-              },
-              dotStyle,
-            ]}
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.ink }}>{label}</Text>
-            {equivalent ? (
-              <Text style={{ marginTop: 2, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{equivalent}</Text>
-            ) : null}
-          </View>
-          <Text style={{ fontSize: 16, color: colors.ink, fontVariant: ["tabular-nums"] }}>{price}</Text>
-        </Animated.View>
-      )}
+        </View>
+        <Text style={{ fontSize: 16, color: colors.ink, fontVariant: ["tabular-nums"] }}>{price}</Text>
+      </Animated.View>
     </TapPressable>
   );
 }
@@ -505,6 +498,7 @@ function LegalLinks({ colors }: { colors: ColorTokens }) {
   const { t } = useTranslation();
   const link = (label: string, path: string) => (
     <TapPressable
+      feedback="dim"
       onPress={() => void Linking.openURL(`${API_URL}${path}`)}
       accessibilityRole="link"
       hitSlop={8}
@@ -599,6 +593,7 @@ function TextButton({
 }) {
   return (
     <TapPressable
+      feedback="dim"
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"

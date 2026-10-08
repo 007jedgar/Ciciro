@@ -85,6 +85,7 @@ export function OpenQuestionCard({
           </Text>
         </TapPressable>
         <TapPressable
+          feedback="dim"
           accessibilityRole="button"
           accessibilityLabel={t("questions.dismiss")}
           disabled={busy}

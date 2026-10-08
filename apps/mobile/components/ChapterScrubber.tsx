@@ -97,6 +97,7 @@ export function ChapterScrubber({
     <View style={[styles.card, { borderColor: colors.line, backgroundColor: colors.panel }]}>
       <View style={styles.head}>
         <TapPressable
+          feedback="dim"
           onPress={() => step(-1)}
           disabled={value <= 0}
           accessibilityRole="button"
@@ -115,6 +116,7 @@ export function ChapterScrubber({
           {label}
         </Text>
         <TapPressable
+          feedback="dim"
           onPress={() => step(1)}
           disabled={value >= last}
           accessibilityRole="button"

@@ -213,6 +213,7 @@ export function ScratchNoteEditor({
           <Text style={layout.cardMeta}>{t("scratch.conflictBody")}</Text>
           <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
             <TapPressable
+              feedback="dim"
               onPress={takeTheirs}
               accessibilityRole="button"
               accessibilityLabel={t("scratch.useTheirs")}
@@ -222,6 +223,7 @@ export function ScratchNoteEditor({
               </Text>
             </TapPressable>
             <TapPressable
+              feedback="dim"
               onPress={keepMine}
               accessibilityRole="button"
               accessibilityLabel={t("scratch.keepMine")}

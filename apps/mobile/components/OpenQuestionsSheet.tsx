@@ -104,6 +104,7 @@ export function OpenQuestionsSheet({
         {resolved.length > 0 ? (
           <>
             <TapPressable
+              feedback="dim"
               accessibilityRole="button"
               accessibilityState={{ expanded: showResolved }}
               accessibilityLabel={t("questions.resolvedCount", { count: resolved.length })}

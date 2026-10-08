@@ -18,6 +18,7 @@ import {
 import { PressableCard } from "./PressableCard";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -204,6 +205,7 @@ export function WritingReminderForm({
           const selected = goal === wordGoal;
           return (
             <TapPressable
+              scale={PRESS_SCALE.chip}
               key={goal}
               accessibilityRole="button"
               accessibilityState={{ selected }}
@@ -272,6 +274,7 @@ export function WritingReminderForm({
           </Text>
           <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
             <TapPressable
+              feedback="dim"
               accessibilityRole="button"
               accessibilityLabel={t("reminders.suggestHourAccept")}
               onPress={() => {
@@ -285,6 +288,7 @@ export function WritingReminderForm({
               </Text>
             </TapPressable>
             <TapPressable
+              feedback="dim"
               accessibilityRole="button"
               accessibilityLabel={t("reminders.suggestHourDismiss")}
               onPress={() => setDismissedSuggestion(true)}

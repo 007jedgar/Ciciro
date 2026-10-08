@@ -26,6 +26,8 @@ type Props = Omit<PressableProps, "style"> & {
    * or `none` when the handler gives its own (a result haptic such as `success`).
    */
   haptic?: "tap" | "select" | "none";
+  /** Release duration for `feedback="scale"` when it should differ from `PRESS_OUT_MS` (the tab-bar FAB lets go faster). */
+  releaseMs?: number;
 };
 
 /**
@@ -35,14 +37,14 @@ type Props = Omit<PressableProps, "style"> & {
  * role (tab, radio, link).
  */
 export const TapPressable = forwardRef<View, Props>(function TapPressable(
-  { onPress, onPressIn, onPressOut, style, feedback = "scale", scale, highlight, haptic = "tap", ...rest },
+  { onPress, onPressIn, onPressOut, style, feedback = "scale", scale, highlight, haptic = "tap", releaseMs, ...rest },
   ref
 ) {
   const colors = useOptionalAppTheme()?.colors ?? parchmentColors;
   const flat = StyleSheet.flatten(style);
   const restOpacity = typeof flat?.opacity === "number" ? flat.opacity : 1;
   const tint = highlight ? rowHighlightTint(style, colors) : feedback === "scale" ? pressTint(style, colors) : null;
-  const press = usePressFeedback({ feedback, scale, restOpacity, tint });
+  const press = usePressFeedback({ feedback, scale, restOpacity, tint, outMs: releaseMs });
 
   return (
     <AnimatedPressable

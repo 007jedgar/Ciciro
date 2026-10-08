@@ -43,6 +43,7 @@ import {
   SlidersIcon,
   SparkleIcon,
 } from "./icons";
+import { FAB_RELEASE_MS, PRESS_SCALE } from "../lib/motion";
 import { TapPressable } from "./TapPressable";
 
 const BUBBLE_W = 64;
@@ -171,7 +172,6 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
 
   const progress = useSharedValue(0);
   const bubble = useSharedValue(activeIndex);
-  const fabPress = useSharedValue(0);
   const seg = useSharedValue(0);
   // 0 with the keyboard down, 1 with it up: the bar tucks below the screen edge
   // with the keyboard instead of being covered by it.
@@ -294,10 +294,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
     ],
   }));
   const fabIconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { rotate: `${interpolate(progress.value, [0, 1], [0, 45])}deg` },
-      { scale: interpolate(fabPress.value, [0, 1], [1, 0.9]) },
-    ],
+    transform: [{ rotate: `${interpolate(progress.value, [0, 1], [0, 45])}deg` }],
   }));
   const bubbleStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: bubble.value * seg.value + (seg.value - BUBBLE_W) / 2 }],
@@ -353,31 +350,26 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
                   accessibilityRole="button"
                   accessibilityLabel={t(action.labelKey)}
                   onPress={() => runAction(action)}
+                  scale={PRESS_SCALE.chip}
                   style={styles.cell}
                 >
-                  {({ pressed }) => (
-                    <>
-                      <ActionTile
-                        index={index}
-                        open={open}
-                        reduceMotion={reduceMotion}
-                        style={[
-                          styles.tile,
-                          {
-                            backgroundColor: alpha(colors.panel2, dark ? 0.55 : 0.7),
-                            borderColor: alpha(colors.line, 0.7),
-                            opacity: pressed ? 0.6 : 1,
-                            transform: [{ scale: pressed ? 0.94 : 1 }],
-                          },
-                        ]}
-                      >
-                        <action.Icon color={tint} size={24} />
-                      </ActionTile>
-                      <Text numberOfLines={2} style={[styles.cellLabel, { color: colors.inkSoft }]}>
-                        {t(action.labelKey)}
-                      </Text>
-                    </>
-                  )}
+                  <ActionTile
+                  index={index}
+                  open={open}
+                  reduceMotion={reduceMotion}
+                  style={[
+                    styles.tile,
+                    {
+                      backgroundColor: alpha(colors.panel2, dark ? 0.55 : 0.7),
+                      borderColor: alpha(colors.line, 0.7),
+                    },
+                  ]}
+                >
+                  <action.Icon color={tint} size={24} />
+                </ActionTile>
+                <Text numberOfLines={2} style={[styles.cellLabel, { color: colors.inkSoft }]}>
+                  {t(action.labelKey)}
+                </Text>
                 </TapPressable>
               );
             })}
@@ -413,6 +405,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
                     accessibilityState={{ selected: focused }}
                     accessibilityLabel={t(tab.labelKey)}
                     onPress={() => goTab(tab.route, index)}
+                    scale={PRESS_SCALE.chip}
                     style={styles.tab}
                   >
                     <tab.Icon color={focused ? colors.accent : colors.inkSoft} size={22} focused={focused} />
@@ -434,8 +427,8 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
           accessibilityState={{ expanded: open }}
           accessibilityLabel={open ? t("manuscriptTabBar.close") : t("manuscriptTabBar.open")}
           onPress={toggle}
-          onPressIn={() => (fabPress.value = withTiming(1, { duration: 90 }))}
-          onPressOut={() => (fabPress.value = withTiming(0, { duration: 140 }))}
+          scale={PRESS_SCALE.fab}
+          releaseMs={FAB_RELEASE_MS}
           style={[styles.fab, { backgroundColor: colors.accent, shadowColor: colors.accent }]}
         >
           <Animated.View style={fabIconStyle}>

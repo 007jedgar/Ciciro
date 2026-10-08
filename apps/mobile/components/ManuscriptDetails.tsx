@@ -204,6 +204,7 @@ export function ManuscriptDetails({
       ) : null}
 
       <TapPressable
+        feedback="dim"
         style={[layout.ghostBtn, { marginTop: 24 }]}
         onPress={confirmDelete}
         disabled={remove.isPending}

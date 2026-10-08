@@ -65,6 +65,7 @@ export function WritingMeter() {
   return (
     <View style={styles.wrap}>
       <TapPressable
+        feedback="dim"
         onPress={() => router.push("/writing-history")}
         accessibilityRole="button"
         accessibilityLabel={`${count}. ${weekLabel}. ${t("writingHistory.openA11y")}`}

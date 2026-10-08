@@ -10,6 +10,7 @@ import {
   type ScreenplayElement,
 } from "../lib/manuscript-kind";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 const LABEL_KEYS: Record<ScreenplayElement, string> = {
   "scene-heading": "screenplay.sceneHeading",
@@ -68,6 +69,7 @@ export function ScreenplayBar({
             const active = el === element;
             return (
               <TapPressable
+                scale={PRESS_SCALE.chip}
                 key={el}
                 accessibilityRole="button"
                 accessibilityLabel={t(LABEL_KEYS[el])}
@@ -106,6 +108,7 @@ export function ScreenplayBar({
         />
       </View>
       <TapPressable
+        feedback="dim"
         accessibilityRole="button"
         accessibilityLabel={t("screenplay.next")}
         disabled={disabled}

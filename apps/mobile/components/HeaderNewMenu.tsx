@@ -90,6 +90,7 @@ export function HeaderNewMenu({
                 <View style={[styles.divider, { backgroundColor: alpha(colors.line, 0.7) }]} />
               ) : null}
               <TapPressable
+                feedback="dim"
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
                 onPress={() => choose(item)}

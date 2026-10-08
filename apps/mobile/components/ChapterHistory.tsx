@@ -38,6 +38,7 @@ import { SkeletonList } from "./Skeleton";
 import { Snackbar } from "./Snackbar";
 import { AlertText } from "./AlertText";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 /** How long "Version restored - Undo" stays up. */
 const NOTICE_MS = 8000;
@@ -270,6 +271,8 @@ export function ChapterHistory({
                 style={[layout.card, styles.card, open ? { borderColor: colors.inkSoft } : null]}
               >
                 <TapPressable
+                  highlight
+                  feedback="none"
                   accessibilityRole="button"
                   accessibilityLabel={t("history.versionA11y", { title, time, words })}
                   accessibilityState={{ expanded: open }}
@@ -295,6 +298,7 @@ export function ChapterHistory({
                         const active = mode === value;
                         return (
                           <TapPressable
+                            scale={PRESS_SCALE.chip}
                             key={value}
                             accessibilityRole="button"
                             accessibilityState={{ selected: active }}
@@ -338,6 +342,7 @@ export function ChapterHistory({
                     )}
                     <View style={styles.actions}>
                       <TapPressable
+                        feedback="dim"
                         accessibilityRole="button"
                         accessibilityLabel={t("common.delete")}
                         disabled={busy}

@@ -86,6 +86,7 @@ export function ChatErrorNotice({
         ) : null}
         {detail ? (
           <TapPressable
+            feedback="dim"
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
             accessibilityLabel={t(open ? "ciciroTab.hideDetails" : "ciciroTab.showDetails")}

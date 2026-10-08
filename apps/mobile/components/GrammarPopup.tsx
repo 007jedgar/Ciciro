@@ -89,6 +89,7 @@ export function GrammarPopup({
         </Text>
         <View style={styles.actions}>
           <TapPressable
+            feedback="dim"
             testID="grammar-ignore"
             accessibilityRole="button"
             accessibilityLabel={t("manuscript.grammarIgnore")}

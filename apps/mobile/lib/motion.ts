@@ -19,6 +19,8 @@ export const EASE_PUSH = Easing.bezier(0.32, 0.72, 0, 1);
  */
 export const PRESS_IN_MS = 90;
 export const PRESS_OUT_MS = 180;
+/** The FAB lets go a little faster than a button. */
+export const FAB_RELEASE_MS = 140;
 export const PRESS_EASE = Easing.out(Easing.quad);
 
 /** Pressed scale by surface. Reduce motion drops the scale and keeps the tint and dim. */

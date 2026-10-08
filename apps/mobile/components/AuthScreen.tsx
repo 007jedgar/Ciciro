@@ -320,20 +320,6 @@ export function AuthScreen({
     opacity: modeV.value,
   }));
 
-  // --- submit button squish ---------------------------------------------------
-  const submitScale = useSharedValue(1);
-  const submitScaleStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: submitScale.value }, { scaleY: 2 - submitScale.value }],
-  }));
-  const pressSubmitIn = () => {
-    if (reduceMotion) return;
-    submitScale.value = withTiming(0.93, { duration: 90, easing: Easing.out(Easing.quad) });
-  };
-  const pressSubmitOut = () => {
-    if (reduceMotion) return;
-    submitScale.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.back(2)) });
-  };
-
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Animated.View style={[StyleSheet.absoluteFill, exitStyle]}>
@@ -341,6 +327,7 @@ export function AuthScreen({
       <View style={[styles.header, { top: insets.top, height: HEADER_H }]}>
         <Animated.View style={chevronStyle}>
           <TapPressable
+            feedback="dim"
             onPress={goBack}
             accessibilityRole="button"
             accessibilityLabel={t("common.back")}
@@ -493,6 +480,7 @@ export function AuthScreen({
               ) : null}
               {isSignup ? (
                 <TapPressable
+                  feedback="dim"
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: marketingOptIn }}
                   accessibilityLabel={t("auth.marketingOptIn")}
@@ -517,6 +505,7 @@ export function AuthScreen({
               ) : null}
               {isSignup ? null : (
                 <TapPressable
+                  feedback="dim"
                   onPress={() =>
                     router.push({ pathname: "/forgot-password", params: email.trim() ? { email: email.trim() } : {} })
                   }
@@ -540,32 +529,29 @@ export function AuthScreen({
                 </View>
               ) : null}
 
-              <Animated.View style={submitScaleStyle}>
-                <TapPressable
-                  style={layout.primaryBtn}
-                  onPress={submit}
-                  onPressIn={pressSubmitIn}
-                  onPressOut={pressSubmitOut}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={busy ? t("auth.working") : isSignup ? t("auth.createAccount") : t("auth.signIn")}
-                  accessibilityState={{ disabled: busy, busy }}
-                >
-                  <View style={styles.btnLabel}>
-                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinBtnTextStyle]}>
-                      {t("auth.signIn")}
-                    </Animated.Text>
-                    <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupBtnTextStyle]}>
-                      {t("auth.createAccount")}
-                    </Animated.Text>
-                    <Animated.View style={[StyleSheet.absoluteFill, styles.btnDots, busyDotsStyle]} pointerEvents="none">
-                      <InlineDots color={colors.panel} active={busy} reduceMotion={reduceMotion} />
-                    </Animated.View>
-                  </View>
-                </TapPressable>
-              </Animated.View>
+              <TapPressable
+                style={layout.primaryBtn}
+                onPress={submit}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={busy ? t("auth.working") : isSignup ? t("auth.createAccount") : t("auth.signIn")}
+                accessibilityState={{ disabled: busy, busy }}
+              >
+                <View style={styles.btnLabel}>
+                  <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signinBtnTextStyle]}>
+                    {t("auth.signIn")}
+                  </Animated.Text>
+                  <Animated.Text style={[layout.primaryBtnText, styles.stackAbsCentered, signupBtnTextStyle]}>
+                    {t("auth.createAccount")}
+                  </Animated.Text>
+                  <Animated.View style={[StyleSheet.absoluteFill, styles.btnDots, busyDotsStyle]} pointerEvents="none">
+                    <InlineDots color={colors.panel} active={busy} reduceMotion={reduceMotion} />
+                  </Animated.View>
+                </View>
+              </TapPressable>
 
               <TapPressable
+                feedback="dim"
                 onPress={toggleMode}
                 haptic="select"
                 accessibilityRole="button"

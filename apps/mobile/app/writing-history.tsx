@@ -182,6 +182,7 @@ export default function WritingHistoryScreen() {
         ) : null}
 
         <TapPressable
+          feedback="dim"
           onPress={() => router.push("/settings")}
           accessibilityRole="button"
           style={{ marginTop: 24 }}

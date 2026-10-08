@@ -26,6 +26,7 @@ export function LanguagePicker({
           const active = activeId === opt.id;
           return (
             <TapPressable
+              feedback="dim"
               key={opt.id}
               onPress={() => void setAppLocale(opt.id)}
               accessibilityRole="button"
