@@ -1,4 +1,4 @@
-import type { EditorRunInput, EditorScope } from "./api/types";
+import type { EditorRunInput, EditorScope } from "./api/editor-run-input";
 import type { ManuscriptKind } from "./manuscript-kind";
 
 /**

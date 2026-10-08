@@ -747,23 +747,9 @@ export type BibleNewPlotRequest = {
   newPlot: string;
 };
 
-export type EditorScope = "selection" | "chapter" | "book";
-
-export type EditorRunInput = {
-  projectId: string;
-  message?: string;
-  activeChapterId?: string | null;
-  selection?: string;
-  kind?: string;
-  scope?: EditorScope;
-  autoMode?: boolean;
-  /** False for a Chat only turn; the server keeps it for the whole run. */
-  editsAllowed?: boolean;
-  resumeTurnId?: string;
-  continueFrom?: string;
-  forceCompact?: boolean;
-  clientTurnId?: string;
-};
+// Kept in a module with no imports so the web's typecheck can follow
+// test/quick-actions-parity.test.ts into quick-actions.ts without reaching react-native.
+export type { EditorRunInput, EditorScope } from "./editor-run-input";
 
 export type CompactResult =
   | { compacted: false }

@@ -20,9 +20,19 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     "text": "Fixed: on the phone, typing in a chapter after switching from another one no longer fails to save with an \"Unexpected null or undefined value\" error."
   },
   {
-    "id": "8c36f7097858",
-    "summary": "An empty Ciciro chat on the phone now offers starter prompts (Continue this chapter, Describe a scene, Ask about the story).",
-    "text": "An empty Ciciro chat on the phone now offers starter prompts (Continue this chapter, Describe a scene, Ask about the story). Tapping one fills the message box for you to edit before sending; it does not send on its own."
+    "id": "5e8eb03edf28",
+    "summary": "The phone's Ciciro chat now has the website's quick-action chips above the message box (What needs work most?, Critique this chapter, Tighten dialogue, Find lo…",
+    "text": "The phone's Ciciro chat now has the website's quick-action chips above the message box (What needs work most?, Critique this chapter, Tighten dialogue, Find loose ends, and the rest, different for a novel, screenplay, blog post or journal). A tap sends the brief; the ones that work on a passage need words highlighted in the manuscript first, and the ones that change the manuscript need Allow edits. This replaces the three starter prompts the empty chat used to offer. Rewrite from the writing tools now works on the words you have highlighted."
+  },
+  {
+    "id": "e2b381867c13",
+    "summary": "On the phone, a manuscript has a **Manuscript details** tool (in the Tools row on the chapters screen) to change its title, author and logline, move it between…",
+    "text": "On the phone, a manuscript has a **Manuscript details** tool (in the Tools row on the chapters screen) to change its title, author and logline, move it between folders, or delete it. Chapters can be renamed from a title line above the page, which also says which chapter you are in. The chapters screen shows the manuscript's total word count."
+  },
+  {
+    "id": "0d983283fa45",
+    "summary": "Phone Settings is grouped under Appearance, Writing, Ciciro, Goals and reminders, and Privacy, and Writing history is listed there.",
+    "text": "Phone Settings is grouped under Appearance, Writing, Ciciro, Goals and reminders, and Privacy, and Writing history is listed there. The + menu on the manuscripts list is only for creating (new manuscript, import, new folder), and the writing-tools grid no longer repeats Chapters and Typography. Sign-in and sign-up move from field to field with Return and submit from the password. The manuscript tab bar now labels its three tabs (Chapters, Manuscript, Ciciro), the empty chat's prompt is no longer drawn upside down, and deleting a manuscript returns to a library that shows its remaining manuscripts instead of a blank list."
   },
   {
     "id": "7d924e0b53e7",
