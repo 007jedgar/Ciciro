@@ -2,9 +2,15 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { NewManuscriptForm } from "../components/NewManuscriptForm";
 import { ApiError } from "../lib/api";
 import { createManuscript } from "../lib/manuscripts";
+import * as haptics from "../lib/haptics";
 
 jest.mock("../lib/manuscripts", () => ({
   createManuscript: jest.fn(),
+}));
+
+jest.mock("../lib/haptics", () => ({
+  ...jest.requireActual("../lib/haptics"),
+  success: jest.fn(),
 }));
 
 const createManuscriptMock = createManuscript as jest.MockedFunction<typeof createManuscript>;
@@ -36,6 +42,7 @@ describe("NewManuscriptForm", () => {
         genre: "Mystery",
       });
       expect(onCreated).toHaveBeenCalledWith(project);
+      expect(haptics.success).toHaveBeenCalledTimes(1);
     });
   });
 

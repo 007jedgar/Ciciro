@@ -1,5 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
+import * as haptics from "../lib/haptics";
+import { DrawCheck, useDrawProgress } from "./DrawCheck";
 import { alpha } from "./Glass";
 import { TapPressable } from "./TapPressable";
 import { useTranslation } from "react-i18next";
@@ -54,8 +56,13 @@ export function ChapterStatusPicker({
           inactiveText={colors.inkSoft}
           lineColor={colors.line}
           reduceMotion={reduceMotion}
+          showTick={value === "final"}
           onPress={() => {
-            if (!disabled && value !== current) onChange(value);
+            if (disabled || value === current) return;
+            // Final is the one stage that means done: the success haptic, and the tick draws on the pill.
+            if (value === "final") haptics.success();
+            else haptics.select();
+            onChange(value);
           }}
         />
       ))}
@@ -72,6 +79,7 @@ function StatusChip({
   inactiveText,
   lineColor,
   reduceMotion,
+  showTick,
   onPress,
 }: {
   active: boolean;
@@ -82,6 +90,8 @@ function StatusChip({
   inactiveText: string;
   lineColor: string;
   reduceMotion: boolean;
+  /** Draws a tick before the label while active, which is how the Final pill shows it is done. */
+  showTick: boolean;
   onPress: () => void;
 }) {
   const { progress, scale } = useSelectionPop(active, reduceMotion);
@@ -92,6 +102,8 @@ function StatusChip({
     borderColor: interpolateColor(progress.value, [0, 1], [lineColor, fill]),
     transform: [{ scale: scale.value }],
   }));
+  const tick = useDrawProgress(active && showTick);
+  const tickSlot = useAnimatedStyle(() => ({ width: TICK_SIZE * tick.value, opacity: tick.value }));
   const textStyle = useAnimatedStyle(() => ({
     color: interpolateColor(progress.value, [0, 1], [inactiveText, activeText]),
   }));
@@ -99,6 +111,7 @@ function StatusChip({
   return (
     <TapPressable
       scale={PRESS_SCALE.chip}
+      haptic="none"
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
@@ -108,15 +121,27 @@ function StatusChip({
       style={[{ opacity: disabled ? 0.4 : 1 }]}
     >
       <Animated.View style={[styles.chip, active ? undefined : styles.chipInactive, chipStyle]}>
-        <Animated.Text style={[styles.text, textStyle]}>{label.toUpperCase()}</Animated.Text>
+        <View style={styles.chipRow}>
+          {showTick ? (
+            <Animated.View style={[styles.tickSlot, tickSlot]}>
+              <DrawCheck progress={tick} color={activeText} size={TICK_SIZE} strokeWidth={3} />
+            </Animated.View>
+          ) : null}
+          <Animated.Text style={[styles.text, textStyle]}>{label.toUpperCase()}</Animated.Text>
+        </View>
       </Animated.View>
     </TapPressable>
   );
 }
 
+/** The Final pill's tick, drawn in before the label. */
+const TICK_SIZE = 12;
+
 const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12 },
   chip: { borderWidth: 1, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 4 },
+  chipRow: { flexDirection: "row", alignItems: "center" },
+  tickSlot: { overflow: "hidden" },
   chipInactive: { borderStyle: "dashed" },
   text: { fontFamily: fonts.mono, fontSize: 10.5, letterSpacing: 0.8 },
 });

@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "../lib/api";
 import { createManuscript } from "../lib/manuscripts";
 import { getAnalytics } from "../lib/analytics-client";
+import * as haptics from "../lib/haptics";
 import { MANUSCRIPT_KINDS, type ManuscriptKind } from "../lib/manuscript-kind";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
-import type { ProjectDetail } from "../lib/types";
+import type { ProjectCreated } from "../lib/api/types";
 import { PressableCard } from "./PressableCard";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
@@ -15,7 +16,7 @@ import { AlertText } from "./AlertText";
 type Props = {
   defaultAuthor?: string;
   folderId?: string;
-  onCreated: (project: ProjectDetail) => void;
+  onCreated: (project: ProjectCreated) => void;
 };
 
 export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: Props) {
@@ -49,6 +50,8 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
         kind: project.kind ?? "novel",
         isFirstProject: project.isFirstProject,
       });
+      // Making a manuscript is a completion: the success haptic for every one, the flourish only for the first.
+      haptics.success();
       onCreated(project);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("newManuscript.createError"));

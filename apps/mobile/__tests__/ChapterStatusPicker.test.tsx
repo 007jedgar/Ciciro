@@ -1,9 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import * as Haptics from "expo-haptics";
 import { ChapterStatusPicker } from "../components/ChapterStatusPicker";
 
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
+  selectionAsync: jest.fn(async () => {}),
+  notificationAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
+  NotificationFeedbackType: { Success: "success" },
 }));
 
 describe("ChapterStatusPicker", () => {
@@ -44,5 +48,14 @@ describe("ChapterStatusPicker", () => {
     rerender(<ChapterStatusPicker status="draft" onChange={onChange} disabled />);
     fireEvent.press(screen.getByRole("button", { name: "Revised" }));
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("gives the success haptic for Final and the selection detent for other stages", () => {
+    render(<ChapterStatusPicker status="draft" onChange={() => {}} />);
+    fireEvent.press(screen.getByRole("button", { name: "Revised" }));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole("button", { name: "Final" }));
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith("success");
   });
 });

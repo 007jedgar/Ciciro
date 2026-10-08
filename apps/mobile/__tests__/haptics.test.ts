@@ -140,3 +140,25 @@ describe("writing tick", () => {
     expect(mockHaptics.impactAsync).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("celebrate", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it("is a success notification followed a beat later by one soft thump", () => {
+    const { celebrate, CELEBRATE_TRAIL_MS } = load();
+    celebrate();
+    expect(mockHaptics.notificationAsync).toHaveBeenCalledWith("success");
+    expect(mockHaptics.impactAsync).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(CELEBRATE_TRAIL_MS);
+    expect(mockHaptics.impactAsync).toHaveBeenCalledWith("soft");
+  });
+
+  it("is silent with haptics off", () => {
+    const { celebrate, setHapticsEnabled } = load();
+    setHapticsEnabled(false);
+    celebrate();
+    jest.advanceTimersByTime(500);
+    expect(totalCalls()).toBe(0);
+  });
+});
