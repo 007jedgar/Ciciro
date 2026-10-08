@@ -260,17 +260,13 @@ function ChatActionButton({
     transform: [{ scale: 0.35 + appear.value * 0.65 }],
   }));
 
-  function press() {
-    onPress();
-  }
-
   return (
     <Animated.View style={[styles.sendWrap, style]}>
       <TapPressable
         scale={PRESS_SCALE.fab}
         accessibilityRole="button"
         accessibilityLabel={label}
-        onPress={press}
+        onPress={onPress}
         style={[styles.send, { backgroundColor: accent }]}
       >
         {icon === "stop" ? (

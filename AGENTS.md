@@ -89,7 +89,7 @@ The chrome fonts (Newsreader, Instrument Sans, JetBrains Mono) are embedded at b
 
 ## Mobile haptics
 
-Every haptic goes through `apps/mobile/lib/haptics.ts`, never `expo-haptics` directly, so the device-local Settings switch (local prefs like focus mode, default on) silences all of them. Buttons and pills use `TapPressable` (`apps/mobile/components/TapPressable.tsx`), and other shared pressables (`PressableCard`, Settings rows) wrap their handler in `withTap`; the chat stream ticks via `createWritingTicker` and ends with `success()`/`warning()` in `use-ciciro-chat.ts`.
+Every haptic goes through `apps/mobile/lib/haptics.ts`, never `expo-haptics` directly, so the device-local Settings switch (local prefs like focus mode, default on) silences all of them. Buttons and pills use `TapPressable` (`apps/mobile/components/TapPressable.tsx`), and other shared pressables (`PressableCard`, Settings rows) wrap their handler in `withTap`; the chat stream ticks via `createWritingTicker` and ends with `success()`/`warning()` in `use-ciciro-chat.ts`. A completion moment (goal met, sprint finished) uses `haptics.celebrate()`, never a hand-rolled pair of haptics.
 
 ## Mobile screen error recovery
 
