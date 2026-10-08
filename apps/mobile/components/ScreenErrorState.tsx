@@ -116,6 +116,7 @@ export function ScreenErrorState({
             accessibilityLabel={t(open ? "errors.hideDetails" : "errors.showDetails")}
             onPress={() => setOpen((value) => !value)}
             hitSlop={8}
+            style={inline ? undefined : styles.fullDetailToggle}
           >
             <Text style={{ color: colors.inkSoft, fontSize: 13 }}>
               {t(open ? "errors.hideDetails" : "errors.showDetails")}
@@ -152,6 +153,7 @@ const styles = StyleSheet.create({
   fullMessage: { textAlign: "center" },
   fullActions: { alignItems: "stretch", alignSelf: "stretch", marginTop: 20, gap: 4 },
   fullPrimaryBtn: { alignSelf: "stretch" },
+  fullDetailToggle: { alignSelf: "center", paddingVertical: 10 },
   fullDetail: { marginTop: 16, alignSelf: "stretch" },
   inlineWrap: {
     padding: 14,

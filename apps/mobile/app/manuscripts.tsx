@@ -247,7 +247,11 @@ function ManuscriptsScreenContent() {
           onRetry={() => void retry()}
           retrying={retrying}
           showRestart={retryAttempted}
-          style={{ marginHorizontal: 20, marginTop: importError ? 8 : headerHeight + 12 }}
+          style={{
+            marginHorizontal: 20,
+            marginTop: importError ? 8 : headerHeight + 12,
+            marginBottom: 12,
+          }}
         />
       ) : null}
       {loading && !error ? (
