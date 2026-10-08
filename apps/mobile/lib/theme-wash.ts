@@ -3,7 +3,7 @@
 // while outside it the old look stays until the circle reaches it. One state,
 // read by `ThemeWashScope` (at the root, and inside modal-presented screens like
 // Settings, which sit above it) so the Settings sheet and the onboarding step
-// share it. See AGENTS.md "Mobile motion".
+// share it. See AGENTS.md "Pre-signup onboarding (mobile)".
 
 /** How long the circle takes to open. */
 export const WASH_REVEAL_MS = 560;
@@ -50,8 +50,8 @@ export function startThemeWash(wash: Omit<ThemeWash, "id">): boolean {
 }
 
 /**
- * Swaps the theme, once per wash however many hosts are painting it (a screen
- * presented as a modal is above the root host, so it mounts its own).
+ * Swaps the theme, once per wash however many scopes are painting it (a screen
+ * presented as a modal is above the root scope, so it mounts its own).
  */
 export function applyThemeWash(id: number): void {
   if (current?.id !== id || appliedId === id) return;
