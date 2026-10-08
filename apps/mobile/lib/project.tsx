@@ -13,7 +13,8 @@ type ProjectState = {
   errorDetail: string | null;
   selectedChapterId: string | null;
   setSelectedChapterId: (id: string) => void;
-  reload: () => Promise<void>;
+  /** Refetch the project and sync; resolves `false` when the project still fails to load. */
+  reload: () => Promise<boolean>;
   addChapter: (title?: string) => Promise<Chapter>;
   readingPosition: ReplicaReadingPosition | null;
   recordReadingPosition: (next: {
@@ -102,7 +103,8 @@ export function ProjectProvider({
       selectedChapterId,
       setSelectedChapterId,
       reload: async () => {
-        await Promise.all([query.refetch(), sync.syncNow()]);
+        const [result] = await Promise.all([query.refetch(), sync.syncNow()]);
+        return !result.isError;
       },
       addChapter,
       readingPosition: sync.position,

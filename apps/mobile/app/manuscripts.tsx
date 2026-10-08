@@ -74,14 +74,15 @@ function ManuscriptsScreenContent() {
   }, [queryError]);
 
   async function refetchAll() {
-    await Promise.allSettled([projectsQuery.refetch(), foldersQuery.refetch()]);
+    const results = await Promise.allSettled([projectsQuery.refetch(), foldersQuery.refetch()]);
+    return results.every((r) => r.status === "fulfilled" && !r.value.isError);
   }
 
   async function retry() {
     setRetrying(true);
-    await refetchAll();
+    const loaded = await refetchAll();
     setRetrying(false);
-    setRetryAttempted(true);
+    setRetryAttempted(!loaded);
   }
 
   async function importManuscript() {
