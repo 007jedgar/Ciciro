@@ -2,9 +2,9 @@ import { Platform } from "react-native";
 import type { PersistedClient, Persister } from "@tanstack/react-query-persist-client";
 
 // Persist the react-query cache so a warm reopen paints the last-seen
-// manuscripts (and any open project) instantly, then revalidates in the
-// background. MMKV is a synchronous native key-value store, so restore is
-// effectively free on launch.
+// manuscripts (and any open project or Ciciro chat transcript) instantly,
+// then revalidates in the background. MMKV is a synchronous native key-value
+// store, so restore is effectively free on launch.
 
 const CACHE_KEY = "ciciro-react-query-cache";
 // Bump when the persisted shape changes (query keys, cached response types)
