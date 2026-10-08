@@ -44,9 +44,11 @@ export function promptAnchorGap(
 }
 
 /**
- * Footer height once the reply has left the footer and taken its own row.
- * While the reply is still streaming inside the footer, pass 0 so the footer
- * itself holds the whole gap and growing text does not change the list height.
+ * Height of the spacer under the anchored prompt (the inverted thread's list
+ * header, so it renders below the newest row) once the reply has left the
+ * spacer and taken its own row. While the reply is still streaming inside the
+ * spacer, pass 0 so the spacer itself holds the whole gap and growing text
+ * does not change the list height.
  */
 export function anchorFooterMinHeight(gap: number, replyHeightOutside: number): number {
   return Math.max(0, gap - Math.max(0, replyHeightOutside));
