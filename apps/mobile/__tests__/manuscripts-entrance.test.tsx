@@ -105,7 +105,7 @@ jest.mock("../lib/settings", () => ({
   },
   useOptionalAppTheme: () => ({ settings: { reduceMotion: mockReduceMotion } }),
 }));
-jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/HeaderNewMenu", () => ({ HeaderNewMenu: () => null }));
 jest.mock("../lib/import", () => ({
   importManuscriptFile: jest.fn(),

@@ -40,7 +40,7 @@ jest.mock("../lib/use-stack-back", () => ({
 
 jest.mock("../components/AppHeader", () => ({
   AppHeader: () => null,
-  useAppHeaderHeight: () => 0,
+  useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}],
 }));
 
 jest.mock("../components/GlassSheet", () => ({

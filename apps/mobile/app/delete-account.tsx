@@ -4,7 +4,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as haptics from "../lib/haptics";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { ApiError } from "../lib/api";
 import { storeLabelKey, useEntitlement } from "../lib/billing";
 import { openStoreSubscriptions } from "../lib/purchases";
@@ -35,7 +35,7 @@ export default function DeleteAccountScreen() {
   const { t } = useTranslation();
   const { user, ready, deleteAccount } = useSession();
   const { layout, colors } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const exporter = useExportAccountData();
   const { data: entitlement } = useEntitlement(Boolean(user));
   const [proof, setProof] = useState("");
@@ -82,6 +82,7 @@ export default function DeleteAccountScreen() {
         title={t("account.deleteAccount")}
         onBack={() => backOr("/settings")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <KeyboardAwareScrollView
         // Room for the Delete button under the field, so it stays tappable over the keyboard.

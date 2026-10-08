@@ -11,7 +11,7 @@ import { Redirect } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as haptics from "../lib/haptics";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { CheckIcon, InfoIcon } from "../components/icons";
 import { ciciro, type Entitlement } from "../lib/api";
 import { API_URL } from "../lib/api/client";
@@ -57,7 +57,7 @@ export default function PaywallScreen() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const reduceMotion = useReduceMotion();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const insets = useSafeAreaInsets();
   const entitlementQuery = useEntitlement(Boolean(user));
   const entitlement = entitlementQuery.data ?? null;
@@ -159,7 +159,7 @@ export default function PaywallScreen() {
 
   return (
     <View style={layout.screen}>
-      <AppHeader title={t("billing.title")} onBack={() => backOr("/settings")} floating />
+      <AppHeader title={t("billing.title")} onBack={() => backOr("/settings")} floating onHeightChange={onHeaderHeight} />
       <ScrollView
         contentContainerStyle={{
           padding: 20,

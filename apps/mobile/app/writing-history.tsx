@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { useWritingDaysQuery } from "../lib/api";
 import { ciciro } from "../lib/api/resources";
 import { useSession } from "../lib/session";
@@ -39,7 +39,7 @@ export default function WritingHistoryScreen() {
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const todaySnap = useWritingDay();
   const today = todaySnap.date || writingDayKey();
   const range = useWritingDaysQuery(ALL_TIME_FROM, today, { enabled: Boolean(user) });
@@ -109,6 +109,7 @@ export default function WritingHistoryScreen() {
         title={t("writingHistory.title")}
         onBack={() => backOr("/manuscripts")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight, paddingBottom: 32 }}

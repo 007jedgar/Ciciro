@@ -16,7 +16,7 @@ jest.mock("expo-haptics", () => ({
 }));
 jest.mock("expo-router", () => ({ useLocalSearchParams: () => mockParams }));
 jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backOr: mockBackOr }) }));
-jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../lib/api", () => {
   class ApiError extends Error {
     status: number;

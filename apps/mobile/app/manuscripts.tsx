@@ -6,7 +6,7 @@ import { Redirect, useIsFocused, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
 import { BellIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon, HistoryIcon, NewChapterIcon } from "../components/icons";
 import { MorphRowText, beginRowMorph } from "../components/MorphRowText";
@@ -43,7 +43,7 @@ function ManuscriptsScreenContent() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const [menuOpen, setMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -230,6 +230,7 @@ function ManuscriptsScreenContent() {
           onNew={() => setMenuOpen((o) => !o)}
           newExpanded={menuOpen}
           floating
+          onHeightChange={onHeaderHeight}
         />
       </View>
       {importError ? (

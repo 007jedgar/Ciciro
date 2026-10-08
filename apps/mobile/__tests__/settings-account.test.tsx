@@ -31,7 +31,7 @@ jest.mock("expo-router", () => ({
 jest.mock("../lib/use-stack-back", () => ({
   useStackBack: () => ({ backOr: jest.fn(), resetTo: mockResetTo }),
 }));
-jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/GlassSheet", () => ({ GlassSheet: () => null }));
 jest.mock("../lib/session", () => ({
   useSession: () => ({ user: mockUser, ready: true, logout: mockLogout, refresh: mockRefresh }),

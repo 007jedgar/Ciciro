@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type NativeMethods } from "react-native";
 import Animated, {
   FadeIn,
@@ -39,6 +39,17 @@ export function useAppHeaderHeight(): number {
   const measured = useContext(AppHeaderHeightContext);
   const top = useSafeAreaInsets().top;
   return measured ?? top + TOP_GAP + ROW_HEIGHT + BOTTOM_GAP;
+}
+
+/**
+ * For a screen that floats its own header: the header's height, measured
+ * once it lays out (a long or large-text title wraps to a second line), and
+ * the callback to pass as its `onHeightChange`.
+ */
+export function useMeasuredAppHeaderHeight(): [number, (height: number) => void] {
+  const estimate = useAppHeaderHeight();
+  const [measured, setMeasured] = useState<number | null>(null);
+  return [measured ?? estimate, setMeasured];
 }
 
 export function AppHeader({

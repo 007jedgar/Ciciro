@@ -47,7 +47,7 @@ jest.mock("../lib/settings", () => ({
   },
 }));
 jest.mock("../lib/app-restart", () => ({ restartApp: jest.fn(async () => {}) }));
-jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0 }));
+jest.mock("../components/AppHeader", () => ({ AppHeader: () => null, useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/HeaderNewMenu", () => ({ HeaderNewMenu: () => null }));
 jest.mock("../lib/import", () => ({
   importManuscriptFile: jest.fn(),

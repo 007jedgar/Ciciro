@@ -3,7 +3,7 @@ import { Linking, ScrollView, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { AppHeader, useAppHeaderHeight } from "../components/AppHeader";
+import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { WritingReminderForm, type ManuscriptChoice } from "../components/WritingReminderForm";
 import { ciciro, useProjectsQuery } from "../lib/api";
 import i18n from "../lib/i18n";
@@ -45,7 +45,7 @@ export default function WritingReminderScreen() {
   const { t } = useTranslation();
   const { user, ready } = useSession();
   const { layout, settings } = useAppTheme();
-  const headerHeight = useAppHeaderHeight();
+  const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
   const params = useLocalSearchParams<{
     id?: string | string[];
     projectId?: string | string[];
@@ -206,6 +206,7 @@ export default function WritingReminderScreen() {
         title={reminderId ? t("reminders.editTitle") : t("reminders.title")}
         onBack={() => backOr("/manuscripts")}
         floating
+        onHeightChange={onHeaderHeight}
       />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight + 8, paddingBottom: 40 }}
