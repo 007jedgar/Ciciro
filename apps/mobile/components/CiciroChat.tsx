@@ -68,6 +68,8 @@ const SEND_SIZE = 36;
 const FADE_LEAD = 130;
 /** Air between the composer and the top of the keyboard. */
 const KEYBOARD_GAP = 10;
+/** Rows a settled transcript renders when it opens at its tail: a screenful or more. */
+const TAIL_OPEN_ROWS = 10;
 
 /**
  * A Ciciro reply: prose on the page, drafts in a card.
@@ -535,7 +537,7 @@ export function CiciroChat({
    * that has not yet been scrolled to its tail - true both for one seeded
    * synchronously from cache at mount and for one that only becomes known
    * once this mount's own fetch resolves. Either way it must stay hidden,
-   * with every row already rendered, until `openAtTail` lands it at the end.
+   * with its tail rows already rendered, until `openAtTail` lands it at the end.
    */
   const needsTailOpen = messages.length > 0 && !streaming && !activeAnchor;
   /**
@@ -545,14 +547,23 @@ export function CiciroChat({
    */
   const [threadVisible, setThreadVisible] = useState(() => !needsTailOpen);
   /**
-   * A settled transcript's first render must already include every row down
-   * to the tail - otherwise `openAtTail`'s scrollToEnd only reaches as far as
-   * whatever virtualization has measured so far, and the rest pop in after
-   * the thread is already shown. Tracked as state, not a mount-time ref, so a
-   * transcript that only arrives after mount (no cache yet, still loading on
-   * a cold launch) gets the same treatment once it lands.
+   * Where a settled transcript's list starts rendering: the last
+   * `TAIL_OPEN_ROWS` rows, through `initialScrollIndex`, so it opens at its
+   * tail without mounting the whole history - the rows above stay a spacer
+   * until windowing reaches them. Fixed when the transcript first needs
+   * opening (seeded from cache at mount, or only just arrived from this
+   * mount's own fetch) and kept for that list's life, since
+   * `initialScrollIndex` is read only when the list mounts; the list is keyed
+   * on it so a transcript that lands after mount gets a fresh one.
    */
-  const [tailRenderCount, setTailRenderCount] = useState(() => (needsTailOpen ? messages.length : 6));
+  const [tailStart, setTailStart] = useState<number | null>(() =>
+    needsTailOpen ? Math.max(0, messages.length - TAIL_OPEN_ROWS) : null
+  );
+  if (messages.length === 0) {
+    if (tailStart !== null) setTailStart(null);
+  } else if (needsTailOpen && !openedAtTail.current && tailStart === null) {
+    setTailStart(Math.max(0, messages.length - TAIL_OPEN_ROWS));
+  }
 
   const openAtTail = useCallback(() => {
     if (openedAtTail.current) return;
@@ -578,7 +589,7 @@ export function CiciroChat({
   // An empty thread or one with a turn already anchored/streaming has
   // nothing to position first, so show it immediately. A settled transcript
   // not yet opened - at mount from cache, or only just arrived from this
-  // mount's own fetch - is hidden (with every row rendered) until
+  // mount's own fetch - is hidden (rendered from `tailStart`) until
   // `openAtTail`, from the list's own content size, confirms it is
   // positioned at the end.
   useLayoutEffect(() => {
@@ -592,7 +603,6 @@ export function CiciroChat({
       return;
     }
     if (openedAtTail.current) return;
-    setTailRenderCount(messages.length);
     setThreadVisible(false);
   }, [activeAnchor, messages.length, streaming]);
 
@@ -898,6 +908,7 @@ export function CiciroChat({
       */}
       <View testID="chat-thread-visibility" style={{ flex: 1, opacity: threadVisible ? 1 : 0 }}>
       <FlatList
+        key={tailStart === null ? "head" : "tail"}
         testID="chat-thread"
         ref={listRef}
         style={{ flex: 1 }}
@@ -920,6 +931,9 @@ export function CiciroChat({
           restoreHold();
         }}
         onScrollToIndexFailed={(info) => {
+          // The list's own jump to `initialScrollIndex` before its rows are
+          // measured; `openAtTail` puts it at the end right after.
+          if (!openedAtTail.current && info.index === tailStart) return;
           awaitingLock.current = false;
           listRef.current?.scrollToOffset({
             offset: Math.max(0, info.averageItemLength * info.index),
@@ -940,11 +954,14 @@ export function CiciroChat({
         scrollEventThrottle={16}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        // A settled transcript's first render must already include every row
-        // down to the tail - otherwise `openAtTail`'s scrollToEnd only
-        // reaches as far as whatever virtualization has measured so far,
-        // and the rest pop in after the thread is already shown.
-        initialNumToRender={tailRenderCount}
+        // A settled transcript renders from its tail (see `tailStart`), so
+        // `openAtTail`'s scrollToEnd lands on rows that are already there.
+        initialScrollIndex={tailStart ?? undefined}
+        initialNumToRender={tailStart === null ? 6 : TAIL_OPEN_ROWS}
+        // Opened mid-list, the rows above the tail are an estimated spacer
+        // until windowing renders them; keep what is on screen still when
+        // their real heights land.
+        maintainVisibleContentPosition={tailStart ? { minIndexForVisible: 0 } : undefined}
         maxToRenderPerBatch={4}
         windowSize={7}
         updateCellsBatchingPeriod={50}

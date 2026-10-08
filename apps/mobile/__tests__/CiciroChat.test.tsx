@@ -272,6 +272,27 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("opens a long transcript at its tail without mounting the whole history", () => {
+    const long: ChatMessage[] = Array.from({ length: 60 }, (_, i) => ({
+      id: `m${i}`,
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `Row ${i}`,
+      kind: "chat",
+      turnId: `t${Math.floor(i / 2)}`,
+      createdAt: "2026-09-14T00:00:00.000Z",
+    }));
+    const { rerender, unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
+    // Arrives after mount, like an uncached cold load: the list must still
+    // start at the tail rather than rendering every row from the top.
+    rerender(wrap(<CiciroChat {...idle} composer="" messages={long} />));
+
+    expect(screen.getByText("Row 59")).toBeTruthy();
+    expect(screen.getByText("Row 50")).toBeTruthy();
+    expect(screen.queryByText("Row 0")).toBeNull();
+    expect(screen.queryByText("Row 30")).toBeNull();
+    unmount();
+  });
+
   it("shows an empty thread immediately - nothing to position first", () => {
     const { unmount } = render(wrap(<CiciroChat {...idle} composer="" messages={[]} />));
     expect(
