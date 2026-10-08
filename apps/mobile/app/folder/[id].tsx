@@ -30,6 +30,7 @@ import { useSession } from "../../lib/session";
 import { PressableCard } from "../../components/PressableCard";
 import { TapPressable } from "../../components/TapPressable";
 import { AlertText } from "../../components/AlertText";
+import { PRESS_SCALE } from "../../lib/motion";
 
 function errorText(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -155,11 +156,12 @@ export default function FolderScreen() {
             ) : (
               folder.projects.map((item) => (
                 <View key={item.id} style={layout.card}>
-                  <TapPressable onPress={() => router.push(`/project/${item.id}/chapters`)}>
+                  <TapPressable scale={PRESS_SCALE.card} onPress={() => router.push(`/project/${item.id}/chapters`)}>
                     <Text style={layout.cardTitle}>{item.title || t("manuscripts.untitled")}</Text>
                     <ManuscriptMeta project={item} />
                   </TapPressable>
                   <TapPressable
+                    feedback="dim"
                     onPress={() => remove(item.id)}
                     accessibilityRole="button"
                     accessibilityLabel={t("folder.removeA11y", { title: item.title })}
@@ -192,6 +194,7 @@ export default function FolderScreen() {
             ) : null}
 
             <TapPressable
+              feedback="dim"
               style={layout.ghostBtn}
               onPress={confirmDelete}
               accessibilityRole="button"
@@ -206,6 +209,7 @@ export default function FolderScreen() {
       </ScrollView>
       {folder ? (
         <TapPressable
+          scale={PRESS_SCALE.fab}
           accessibilityRole="button"
           accessibilityLabel={t("folder.startNewA11y")}
           onPress={() =>

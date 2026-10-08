@@ -44,6 +44,7 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
       <View style={styles.head}>
         <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
         <TapPressable
+          feedback="dim"
           accessibilityRole="button"
           accessibilityLabel={t("recap.dismiss")}
           hitSlop={10}

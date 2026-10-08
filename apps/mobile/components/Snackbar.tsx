@@ -43,6 +43,7 @@ export function Snackbar({
           </Text>
           {actionLabel && onAction ? (
             <TapPressable
+              feedback="dim"
               accessibilityRole="button"
               accessibilityLabel={actionLabel}
               onPress={onAction}

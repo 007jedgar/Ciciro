@@ -18,6 +18,7 @@ import { SkeletonList } from "./Skeleton";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 function ReviewBody({ review }: { review: Review }) {
   const { t } = useTranslation();
@@ -182,6 +183,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
       {selected ? (
         <View style={{ marginBottom: 20 }}>
           <TapPressable
+            feedback="dim"
             onLongPress={() => confirmDelete(selected)}
             accessibilityHint={t("weekly.deleteHint")}
             accessibilityActions={[{ name: "delete", label: t("common.delete") }]}
@@ -199,6 +201,7 @@ export function WeeklyReview({ projectId }: { projectId: string }) {
           <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{t("weekly.past")}</Text>
           {list.map((r) => (
             <TapPressable
+              scale={PRESS_SCALE.card}
               key={r.id}
               style={[layout.card, { marginBottom: 12 }]}
               onPress={() => setSelectedId(r.id)}

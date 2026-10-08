@@ -24,6 +24,7 @@ import { UndoSnackbar } from "./UndoSnackbar";
 import { getAnalytics } from "../lib/analytics-client";
 import { AlertText } from "./AlertText";
 import { TapPressable } from "./TapPressable";
+import { PRESS_SCALE } from "../lib/motion";
 
 export type ShareLinksHost = {
   alert: typeof Alert.alert;
@@ -221,6 +222,7 @@ export function ShareLinks({
       <View style={styles.chips}>
         {(["all", "some"] as const).map((value) => (
           <TapPressable
+            scale={PRESS_SCALE.chip}
             key={value}
             accessibilityRole="radio"
             accessibilityState={{ checked: scope === value }}
@@ -239,6 +241,7 @@ export function ShareLinks({
             const on = picked.has(chapter.id);
             return (
               <TapPressable
+                feedback="dim"
                 key={chapter.id}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: on }}
@@ -276,6 +279,7 @@ export function ShareLinks({
           const active = expiry === days;
           return (
             <TapPressable
+              scale={PRESS_SCALE.chip}
               key={days ?? "never"}
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
@@ -344,6 +348,7 @@ export function ShareLinks({
             <Text style={layout.cardMeta}>{statusLine(link)}</Text>
             {active ? (
               <TapPressable
+                scale={PRESS_SCALE.card}
                 onPress={() => void copyUrl(link)}
                 accessibilityRole="button"
                 accessibilityLabel={t("beta.links.copyUrl")}
@@ -371,6 +376,7 @@ export function ShareLinks({
               <View style={styles.spacer} />
               {active ? (
                 <TapPressable
+                  feedback="dim"
                   accessibilityRole="button"
                   onPress={() => confirmRevoke(link)}
                   disabled={busy}
@@ -381,6 +387,7 @@ export function ShareLinks({
                 </TapPressable>
               ) : null}
               <TapPressable
+                feedback="dim"
                 accessibilityRole="button"
                 onPress={() => removeLink(link)}
                 disabled={busy}

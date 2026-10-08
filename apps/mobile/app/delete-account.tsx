@@ -136,8 +136,6 @@ export default function DeleteAccountScreen() {
                 paddingVertical: 9,
                 backgroundColor: colors.bg,
               }}
-              highlight
-              feedback="none"
             >
               <Text style={{ fontSize: 15, color: colors.ink }}>{t("billing.manage")}</Text>
             </TapPressable>
@@ -180,8 +178,6 @@ export default function DeleteAccountScreen() {
               paddingVertical: 9,
               backgroundColor: colors.bg,
             }}
-            highlight
-            feedback="none"
           >
             {exporter.busy ? <ActivityIndicator size="small" color={colors.inkSoft} /> : null}
             <Text style={{ fontSize: 15, color: colors.ink }}>

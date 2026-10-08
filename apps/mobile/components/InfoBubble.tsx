@@ -94,6 +94,7 @@ export function InfoBubble({
   return (
     <>
       <TapPressable
+        feedback="dim"
         ref={buttonRef}
         testID={testID}
         accessibilityRole="button"

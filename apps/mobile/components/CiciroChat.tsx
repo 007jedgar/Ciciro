@@ -64,6 +64,7 @@ import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 /** A circle nested in the pill, inset so it shares the field's curve. */
 const SEND_SIZE = 36;
@@ -137,6 +138,7 @@ function MessageBody({
             ) : (
               <View style={styles.draftActions}>
                 <TapPressable
+                  feedback="dim"
                   accessibilityRole="button"
                   accessibilityLabel={already ? t("ciciroTab.inserted") : t("ciciroTab.insert")}
                   disabled={already || !draft}
@@ -147,6 +149,7 @@ function MessageBody({
                   </Text>
                 </TapPressable>
                 <TapPressable
+                  feedback="dim"
                   accessibilityRole="button"
                   accessibilityLabel={t("ciciroTab.share")}
                   onPress={() => onShare(draft)}
@@ -264,6 +267,7 @@ function ChatActionButton({
   return (
     <Animated.View style={[styles.sendWrap, style]}>
       <TapPressable
+        scale={PRESS_SCALE.fab}
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={press}
@@ -781,6 +785,7 @@ export function CiciroChat({
       {bannerShown ? (
         <Animated.View entering={animate ? FadeIn.duration(220) : undefined}>
           <TapPressable
+            scale={PRESS_SCALE.card}
             accessibilityRole="button"
             accessibilityLabel={t("questions.banner", { count: openQuestionCount })}
             onPress={onOpenQuestions}
@@ -957,6 +962,7 @@ export function CiciroChat({
               {quickActions.map((action) => (
                 <Glass key={action.id} dark={dark} colors={colors} radius={16}>
                   <TapPressable
+                    scale={PRESS_SCALE.chip}
                     accessibilityRole="button"
                     accessibilityLabel={action.label}
                     onPress={() => onQuickAction(action.id)}
@@ -976,6 +982,7 @@ export function CiciroChat({
               style={{ opacity: messages.length === 0 ? 0.45 : 1 }}
             >
               <TapPressable
+                feedback="dim"
                 accessibilityRole="button"
                 accessibilityState={{ disabled: clearPhase !== "idle" || messages.length === 0 }}
                 accessibilityLabel={t("ciciroTab.clear")}
@@ -1000,6 +1007,7 @@ export function CiciroChat({
               <JumpChip opacity={jumpOpacity}>
                 <Glass dark={dark} colors={colors} radius={14}>
                   <TapPressable
+                    scale={PRESS_SCALE.fab}
                     accessibilityRole="button"
                     accessibilityLabel={t("ciciroTab.scrollToLatest")}
                     onPress={jumpToLatest}

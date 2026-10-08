@@ -9,6 +9,7 @@ import { FadeUp, LoadingBlock } from "./LoadingBlock";
 import { GlassSheet } from "./GlassSheet";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 /**
  * "I'm stuck" sheet, opened from the writing tools menu. Lists a few concrete
@@ -62,6 +63,7 @@ export function StuckSheet({
             (ask.data ?? []).map((prompt, index) => (
               <FadeUp key={prompt} index={index}>
                 <TapPressable
+                  scale={PRESS_SCALE.card}
                   accessibilityRole="button"
                   onPress={() => use(prompt)}
                   style={[
@@ -76,6 +78,7 @@ export function StuckSheet({
           )}
           <View style={styles.more}>
             <TapPressable
+              feedback="dim"
               accessibilityRole="button"
               disabled={ask.isPending}
               onPress={() => mutate({ projectId, chapterId })}

@@ -19,6 +19,7 @@ import { colors as parchmentColors, layout as parchmentLayout } from "../lib/the
 import { CheckIcon, PencilIcon } from "./icons";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 type Phase = "idle" | "sweep";
 
@@ -251,6 +252,7 @@ export function FolderTitleEditor({
         </View>
         {editing ? (
           <TapPressable
+            scale={PRESS_SCALE.fab}
             accessibilityRole="button"
             accessibilityLabel={t("folder.saveA11y")}
             accessibilityState={{ disabled: !draftName.trim() }}
@@ -263,6 +265,7 @@ export function FolderTitleEditor({
           </TapPressable>
         ) : (
           <TapPressable
+            feedback="dim"
             accessibilityRole="button"
             accessibilityLabel={t("folder.editA11y")}
             onPress={startEdit}

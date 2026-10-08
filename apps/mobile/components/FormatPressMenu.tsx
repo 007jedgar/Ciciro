@@ -41,6 +41,7 @@ export function FormatPressMenu({
         style={styles.row}
       >
         <TapPressable
+          feedback="dim"
           accessibilityRole="menuitem"
           accessibilityLabel={t("manuscript.formatParagraph")}
           accessibilityState={{ selected: kind === "paragraph" }}

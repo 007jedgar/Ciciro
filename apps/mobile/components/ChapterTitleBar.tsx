@@ -96,6 +96,7 @@ export function ChapterTitleBar({
           />
         ) : (
           <TapPressable
+            feedback="dim"
             onPress={() => setEditing(true)}
             accessibilityRole="button"
             accessibilityLabel={label}

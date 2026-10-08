@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { POP_PEAK, POP_SPRING, POP_UP_MS, SELECT_FADE_MS } from "./motion";
 import {
   Easing,
   useSharedValue,
@@ -7,8 +8,6 @@ import {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-
-const CROSSFADE_MS = 180;
 
 /**
  * Drives the crossfade + scale pop a single-select pill or row plays when its
@@ -32,13 +31,13 @@ export function useSelectionPop(
       return;
     }
     progress.value = withTiming(active ? 1 : 0, {
-      duration: CROSSFADE_MS,
+      duration: SELECT_FADE_MS,
       easing: Easing.out(Easing.cubic),
     });
     if (active && !reduceMotion) {
       scale.value = withSequence(
-        withTiming(1.06, { duration: 90, easing: Easing.out(Easing.cubic) }),
-        withSpring(1, { damping: 14, stiffness: 220 })
+        withTiming(POP_PEAK, { duration: POP_UP_MS, easing: Easing.out(Easing.cubic) }),
+        withSpring(1, POP_SPRING)
       );
     }
     // Only a change in `active` should retrigger the crossfade/pop.

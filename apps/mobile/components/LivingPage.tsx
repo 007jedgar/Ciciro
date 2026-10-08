@@ -548,7 +548,7 @@ export function LivingPage({
               </Text>
             </TapPressable>
           </Animated.View>
-          <TapPressable onPress={onSignIn} accessibilityRole="button" style={styles.ghost}>
+          <TapPressable feedback="dim" onPress={onSignIn} accessibilityRole="button" style={styles.ghost}>
             <Text style={[styles.ghostText, { color: colors.accent }]}>
               {t("livingPage.alreadyHaveAccount")}
             </Text>

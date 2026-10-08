@@ -77,6 +77,7 @@ export default function ForgotPasswordScreen() {
               <Text style={layout.primaryBtnText}>{t("auth.backToSignIn")}</Text>
             </TapPressable>
             <TapPressable
+              feedback="dim"
               onPress={() => setSentTo(null)}
               accessibilityRole="button"
               hitSlop={8}

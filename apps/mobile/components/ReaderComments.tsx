@@ -22,6 +22,7 @@ import { SkeletonList } from "./Skeleton";
 import { UndoSnackbar } from "./UndoSnackbar";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { PRESS_SCALE } from "../lib/motion";
 
 /** What beta readers said, by chapter, to jump to, resolve, or delete. */
 export function ReaderComments({
@@ -119,6 +120,7 @@ export function ReaderComments({
             const active = status === value;
             return (
               <TapPressable
+                scale={PRESS_SCALE.chip}
                 key={value}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
@@ -190,6 +192,7 @@ export function ReaderComments({
               <View style={styles.actions}>
                 {comment.anchor ? (
                   <TapPressable
+                    feedback="dim"
                     accessibilityRole="button"
                     onPress={() => onJump(comment)}
                     hitSlop={8}
@@ -204,6 +207,7 @@ export function ReaderComments({
                 )}
                 <View style={styles.spacer} />
                 <TapPressable
+                  feedback="dim"
                   accessibilityRole="button"
                   onPress={() => removeComment(comment)}
                   disabled={busy}

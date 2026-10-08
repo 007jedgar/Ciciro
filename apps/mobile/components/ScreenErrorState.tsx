@@ -116,6 +116,7 @@ export function ScreenErrorState({
         ) : null}
         {detail ? (
           <TapPressable
+            feedback="dim"
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
             accessibilityLabel={t(open ? "errors.hideDetails" : "errors.showDetails")}

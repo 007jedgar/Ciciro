@@ -208,6 +208,7 @@ export function ManuscriptSearch({
           {group.matches.map((match) => (
             <View key={matchKey(match)} style={[layout.card, { marginBottom: 8, padding: 12 }]}>
               <TapPressable
+                feedback="dim"
                 onPress={() => onJump(match)}
                 accessibilityRole="button"
                 accessibilityLabel={t("search.jump", { title: group.title || t("chapters.newTitle") })}
@@ -219,6 +220,7 @@ export function ManuscriptSearch({
                 </Text>
               </TapPressable>
               <TapPressable
+                feedback="dim"
                 onPress={() => void replace(match)}
                 disabled={busy}
                 accessibilityRole="button"

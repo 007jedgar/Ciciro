@@ -213,6 +213,7 @@ export default function SprintScreen() {
               <Text style={layout.primaryBtnText}>{t("sprint.writeNow")}</Text>
             </TapPressable>
             <TapPressable
+              feedback="dim"
               style={{ marginTop: 16, alignItems: "center" }}
               onPress={stopEarly}
               accessibilityRole="button"
@@ -236,6 +237,7 @@ export default function SprintScreen() {
               <Text style={layout.primaryBtnText}>{t("sprint.backToManuscript")}</Text>
             </TapPressable>
             <TapPressable
+              feedback="dim"
               style={{ marginTop: 16 }}
               onPress={() => setPhase({ kind: "pick" })}
               accessibilityRole="button"
