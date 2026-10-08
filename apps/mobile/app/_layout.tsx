@@ -16,6 +16,7 @@ import { AnalyticsSync } from "../components/AnalyticsSync";
 import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
+import { ThemeWashHost } from "../components/ThemeWashHost";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { arrivesSettled } from "../lib/stack-arrival";
 import { SharedTitleMorphProvider } from "../lib/shared-title-morph";
@@ -66,7 +67,15 @@ function ThemedStack() {
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
         <Stack.Screen
+          name="onboarding-look"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
+        <Stack.Screen
           name="onboarding-demo"
+          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
+        />
+        <Stack.Screen
+          name="onboarding-reminder"
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
         {/* Android's landing for a browser sign-in's ciciro://oauth deep link. */}
@@ -158,6 +167,7 @@ export default function RootLayout() {
                   <UpdateSync />
                   <SharedTitleMorphProvider>
                     <ThemedStack />
+                    <ThemeWashHost />
                   </SharedTitleMorphProvider>
                 </WritingDayProvider>
               </SettingsProvider>

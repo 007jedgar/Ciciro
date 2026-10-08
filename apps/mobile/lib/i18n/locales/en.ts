@@ -55,6 +55,16 @@ const en = {
   },
   onboarding: {
     skip: "Skip",
+    progress: "Step {{current}} of {{total}}",
+    continue: "Continue",
+    obstacleHint: "Pick as many as apply.",
+    lookTitle: "Pick a look",
+    lookBody: "Tap one and the whole app changes. You can switch any time in Settings.",
+    reminderTitle: "When will you write?",
+    reminderBody: "Pick the days and a time and Ciciro will nudge you. It asks to send notifications when you create the reminder.",
+    reminderCreate: "Create reminder",
+    reminderNotNow: "Not now",
+    reminderDenied: "Notifications are off for Ciciro, so this reminder is saved but silent. Turn them on in Settings and it starts working.",
     goalQuestion: "What are you working on?",
     obstacleQuestion: "What's getting in the way?",
     obstacles: {
@@ -80,6 +90,12 @@ const en = {
         journalPlaceholder: "Write today's first line.",
         sample:
           "The rain had not stopped in three days, and the valley was beginning to flood. She stood at the window, waiting for a decision that was no longer hers to make.",
+        sample2:
+          "Somewhere upstream a dam had given way. The first she knew of it was the sound: a long, low note, like a cello being drawn across the whole valley at once.",
+        sample3:
+          "Her brother's boots were still by the door. He had left in a hurry, which was the only way he had ever left anything, and she had not yet decided whether to forgive him for it.",
+        sample4:
+          "By evening the water had reached the garden wall. She lit the lamp, set out two cups, and began, at last, to write the letter she had been avoiding all winter.",
       },
       suggestions: {
         title: "Suggestions, not overwrites",

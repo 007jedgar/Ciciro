@@ -138,7 +138,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     getAnalytics().track("signed_in", { method: "apple", platform: ANALYTICS_PLATFORM });
     getAnalytics().track("social_sign_in_used", { provider: "apple" });
     if (data.takeover) announceTakeover(data.takeover);
-    return next;
+    return { user: next, created: data.created === true };
   }, []);
 
   const signInWithBrowser = useCallback(async (provider: BrowserProvider, marketingOptIn = false) => {
@@ -151,7 +151,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     getAnalytics().track("signed_in", { method: handoff.provider ?? provider, platform: ANALYTICS_PLATFORM });
     getAnalytics().track("social_sign_in_used", { provider: handoff.provider ?? provider });
     if (handoff.takeover) announceTakeover(handoff.takeover);
-    return next;
+    return { user: next, created: handoff.created };
   }, []);
 
   const endAccount = useCallback(() => {

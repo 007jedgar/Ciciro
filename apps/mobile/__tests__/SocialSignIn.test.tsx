@@ -56,10 +56,10 @@ describe("SocialSignIn", () => {
 
   it("signs in with Google through the browser flow", async () => {
     const user = { id: "u1", email: "a@gmail.com", name: "" };
-    mockSignInWithBrowser.mockResolvedValueOnce(user);
+    mockSignInWithBrowser.mockResolvedValueOnce({ user, created: true });
     const props = renderButtons();
     fireEvent.press(screen.getByLabelText("Continue with Google"));
-    await waitFor(() => expect(props.onSignedIn).toHaveBeenCalledWith(user));
+    await waitFor(() => expect(props.onSignedIn).toHaveBeenCalledWith(user, true));
     expect(mockSignInWithBrowser).toHaveBeenCalledWith("google", false);
     expect(props.onBusyChange).toHaveBeenCalledWith(true);
   });

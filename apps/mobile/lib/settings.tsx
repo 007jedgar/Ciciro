@@ -13,8 +13,9 @@ import {
   type SettingsSaved,
 } from "./app-settings";
 import { AppThemeContext, type AppThemeState } from "./app-theme-context";
+import { ThemePreviewContext } from "./theme-preview-context";
 import { useSession } from "./session";
-import { isDarkTheme, makeLayout, THEME_PALETTES } from "./theme";
+import { isDarkTheme, makeLayout, THEME_PALETTES, type ThemeId } from "./theme";
 
 export { useAppTheme, useOptionalAppTheme } from "./app-theme-context";
 export type { AppThemeState };
@@ -70,6 +71,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The onboarding theme preview (lib/theme-preview-context.ts): worn by the
+  // whole app, never cached or synced, kept by a new account via `adoptPreview`.
+  const [preview, setPreviewState] = useState<ThemeId | null>(null);
+  const previewRef = useRef<ThemeId | null>(null);
+  const userRef = useRef(user);
+  userRef.current = user;
+  const adoptPending = useRef(false);
+  const reconciledFor = useRef<string | null>(null);
 
   const commit = useCallback(
     (next: AppSettings, saved: SettingsSaved, sync: "patch" | "put" | "none", userId?: string | null) => {
@@ -105,9 +114,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [user]
   );
 
+  // Gives the account that just signed up the theme it previewed, on top of the
+  // settings it loaded (so a stale device cache cannot win over the pick).
+  const adopt = useCallback(
+    (userId: string) => {
+      adoptPending.current = false;
+      const theme = previewRef.current;
+      if (theme) commit(applyPatch(settingsRef.current, { theme }), true, "patch", userId);
+      previewRef.current = null;
+      setPreviewState(null);
+    },
+    [commit]
+  );
+
   useEffect(() => {
     const local = readCache();
     commit(local.settings, local.saved, "none");
+    reconciledFor.current = null;
     if (!user) return;
     let cancelled = false;
     void (async () => {
@@ -126,11 +149,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       } catch {
         /* stay local */
       }
+      if (cancelled) return;
+      reconciledFor.current = user.id;
+      if (adoptPending.current) adopt(user.id);
     })();
     return () => {
       cancelled = true;
     };
-  }, [user, commit]);
+  }, [user, commit, adopt]);
 
   const patch = useCallback(
     (partial: SettingsPatch) => {
@@ -139,7 +165,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [commit, user?.id]
   );
 
-  const colors = THEME_PALETTES[settings.theme];
+  const setPreview = useCallback((theme: ThemeId | null) => {
+    previewRef.current = theme;
+    if (theme === null) adoptPending.current = false;
+    setPreviewState(theme);
+    // The status bar and system chrome follow what is on screen, saved or not.
+    Appearance.setColorScheme?.(isDarkTheme(theme ?? settingsRef.current.theme) ? "dark" : "light");
+  }, []);
+
+  const adoptPreview = useCallback(() => {
+    const current = userRef.current;
+    if (current && reconciledFor.current === current.id) adopt(current.id);
+    else adoptPending.current = true;
+  }, [adopt]);
+
+  const previewValue = useMemo(
+    () => ({ preview, setPreview, adoptPreview }),
+    [preview, setPreview, adoptPreview]
+  );
+
+  const shownTheme = preview ?? settings.theme;
+  const colors = THEME_PALETTES[shownTheme];
   const layout = useMemo(
     () => makeLayout(colors, settings.editorFont),
     [colors, settings.editorFont]
@@ -149,11 +195,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       settings,
       colors,
       layout,
-      dark: isDarkTheme(settings.theme),
+      dark: isDarkTheme(shownTheme),
       patch,
     }),
-    [settings, colors, layout, patch]
+    [settings, colors, layout, patch, shownTheme]
   );
 
-  return <AppThemeContext.Provider value={value}>{children}</AppThemeContext.Provider>;
+  return (
+    <ThemePreviewContext.Provider value={previewValue}>
+      <AppThemeContext.Provider value={value}>{children}</AppThemeContext.Provider>
+    </ThemePreviewContext.Provider>
+  );
 }

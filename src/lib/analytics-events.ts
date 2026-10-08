@@ -116,10 +116,14 @@ export type EventCatalog = {
   // Pre-signup onboarding quiz (mobile only for now - see AGENTS.md
   // "Pre-signup onboarding"). No author text in any property.
   onboarding_goal_selected: { kind: string };
-  onboarding_obstacle_selected: { obstacle: string };
+  // Comma-separated obstacle ids in tap order (the question takes several).
+  onboarding_obstacle_selected: { obstacles: string; count: number };
+  onboarding_theme_selected: { theme: string };
+  // Whether the person allowed notifications when they created the reminder.
+  onboarding_reminder_created: { permission: "granted" | "denied" | "unavailable" };
   onboarding_demo_viewed: { path: string };
   onboarding_demo_completed: { path: string };
-  onboarding_skipped: { step: "goal" | "obstacle" | "demos" };
+  onboarding_skipped: { step: "goal" | "obstacle" | "theme" | "demos" | "reminder" };
 
   // Account data. Deletion has no event: see AnalyticsAdapter.deleteUser
   // below - the person record is asked to be forgotten, not tracked once more.

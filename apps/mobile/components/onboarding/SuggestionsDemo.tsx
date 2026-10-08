@@ -5,12 +5,14 @@ import { useTranslation } from "react-i18next";
 import { ChapterEditor } from "../ChapterEditor";
 import { SuggestionsPill, SuggestionsSheet } from "../SuggestionsReview";
 import { OnboardingHeader } from "./OnboardingHeader";
-import { TapPressable } from "../TapPressable";
+import { OnboardingThread } from "./OnboardingThread";
+import { PressableCard } from "../PressableCard";
 import { useAppTheme } from "../../lib/settings";
 import { useStackBack } from "../../lib/use-stack-back";
 import { getAnalytics } from "../../lib/analytics-client";
 import { fonts } from "../../lib/theme";
 import type { DemoPath } from "../../lib/onboarding";
+import type { OnboardingStep } from "../../lib/onboarding-flow";
 import { CICIRO_AUTHOR, listSuggestions, resolveSuggestions, type SuggestionAction } from "../../lib/suggestions";
 
 const DEMO_CHAPTER_ID = "onboarding-demo-suggestions";
@@ -33,10 +35,12 @@ function demoHtml(sentence: string, clunky: string, better: string): string {
  */
 export function SuggestionsDemo({
   path,
+  steps,
   onContinue,
   onSkip,
 }: {
   path: DemoPath;
+  steps: readonly OnboardingStep[];
   onContinue: () => void;
   onSkip: () => void;
 }) {
@@ -79,7 +83,11 @@ export function SuggestionsDemo({
 
   return (
     <View style={layout.screen}>
-      <OnboardingHeader onBack={() => backOr("/")} onSkip={onSkip} />
+      <OnboardingHeader
+        onBack={() => backOr("/")}
+        onSkip={onSkip}
+        thread={<OnboardingThread steps={steps} current="demo" />}
+      />
       <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
         <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.suggestions.title")}</Text>
         <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
@@ -113,17 +121,18 @@ export function SuggestionsDemo({
         onResolve={resolve}
       />
       <View style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24, paddingTop: 8 }}>
-        <TapPressable
+        <PressableCard
+          accent
           onPress={() => {
             markCompleted();
             onContinue();
           }}
           accessibilityRole="button"
           accessibilityLabel={t("onboarding.demo.continue")}
-          style={layout.primaryBtn}
+          style={[layout.primaryBtn, { marginTop: 0 }]}
         >
           <Text style={layout.primaryBtnText}>{t("onboarding.demo.continue")}</Text>
-        </TapPressable>
+        </PressableCard>
       </View>
     </View>
   );
