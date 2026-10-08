@@ -750,6 +750,17 @@ const en = {
     emptyValue: "—",
     openSettings: "Writing settings",
     openA11y: "Open writing history",
+    frequency: {
+      sentence: "You've written {{what}} {{when}}",
+      once: "once",
+      twice: "twice",
+      times: "{{n}} times",
+      thisWeek: "this week",
+      thisMonth: "this month",
+      thisYear: "this year",
+      empty: "A blank page is a fine place to start.",
+      hint: "Shows another stretch of time",
+    },
   },
   scratch: {
     title: "Scratchpad",

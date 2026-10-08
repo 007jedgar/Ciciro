@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { Easing, withDelay, withTiming } from "react-native-reanimated";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
@@ -7,6 +8,8 @@ import { useWritingDaysQuery } from "../lib/api";
 import { ciciro } from "../lib/api/resources";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
+import { fadeUpDelay } from "../lib/skeleton";
+import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useStackBack } from "../lib/use-stack-back";
 import { useWritingDay } from "../lib/writing-day-session";
 import {
@@ -22,11 +25,37 @@ import {
   SITTING_AVG_MIN_COUNT,
   type WritingSessionTotals,
 } from "../lib/writing-session";
+import { FadeUp } from "../components/LoadingBlock";
+import { RollingNumber } from "../components/RollingNumber";
+import { Skeleton } from "../components/Skeleton";
 import { TapPressable } from "../components/TapPressable";
+import { WritingFrequencyLine } from "../components/WritingFrequencyLine";
+import { countWritingFrequency } from "../lib/writing-frequency";
 import { AlertText } from "../components/AlertText";
 
 const HEATMAP_DAYS = 28;
 const ALL_TIME_FROM = "2018-01-01";
+
+/** A heatmap cell scales and fades in, each a little after the one before. */
+const CELL_IN_MS = 320;
+const CELL_STAGGER_MS = 16;
+const CELL_STAGGER_MAX_MS = 440;
+
+function cellEntering(index: number) {
+  const delay = Math.min(index * CELL_STAGGER_MS, CELL_STAGGER_MAX_MS);
+  const duration = CELL_IN_MS;
+  return () => {
+    "worklet";
+    const timing = { duration, easing: Easing.out(Easing.cubic) };
+    return {
+      initialValues: { opacity: 0, transform: [{ scale: 0.55 }] },
+      animations: {
+        opacity: withDelay(delay, withTiming(1, timing)),
+        transform: [{ scale: withDelay(delay, withTiming(1, timing)) }],
+      },
+    };
+  };
+}
 
 function heatOpacity(words: number, maxWords: number): number {
   if (words <= 0 || maxWords <= 0) return 0;
@@ -40,6 +69,7 @@ export default function WritingHistoryScreen() {
   const { user, ready } = useSession();
   const { layout, colors } = useAppTheme();
   const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
+  const reduceMotion = useReduceMotion();
   const todaySnap = useWritingDay();
   const today = todaySnap.date || writingDayKey();
   const range = useWritingDaysQuery(ALL_TIME_FROM, today, { enabled: Boolean(user) });
@@ -84,6 +114,7 @@ export default function WritingHistoryScreen() {
     () => buckets.reduce((max, row) => Math.max(max, row.words), 0),
     [buckets]
   );
+  const frequency = useMemo(() => countWritingFrequency(merged, today), [merged, today]);
   const avgSittingMs = useMemo(() => {
     if (!sessions || sessions.length < SITTING_AVG_MIN_COUNT) return null;
     return averageSittingDurationMs(sessions);
@@ -92,6 +123,7 @@ export default function WritingHistoryScreen() {
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
 
+  const loading = range.isPending && !range.data;
   const weekLabel = t("writingHistory.daysOfLast7", { count: summary.daysInLast7 });
   const error = range.isError ? t("writingHistory.loadError") : null;
   const timeAtKeys =
@@ -121,65 +153,75 @@ export default function WritingHistoryScreen() {
           </AlertText>
         ) : null}
 
-        <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{weekLabel}</Text>
+        {loading ? (
+          <HistorySkeleton lineHeight={34} />
+        ) : (
+          <>
+            <FadeUp index={0} style={{ marginBottom: 16 }}>
+              <WritingFrequencyLine counts={frequency} />
+            </FadeUp>
 
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 4,
-            marginBottom: 20,
-          }}
-          accessibilityLabel={t("writingHistory.heatmapA11y")}
-        >
-          {buckets.map((row) => (
-            <View
-              key={row.date}
-              style={{
-                width: "12.5%",
-                aspectRatio: 1,
-                maxWidth: 36,
-                borderRadius: 3,
-                backgroundColor: row.words > 0 ? colors.accent : colors.line,
-                opacity: row.words > 0 ? heatOpacity(row.words, maxWords) : 0.35,
-              }}
-              accessibilityLabel={`${row.date}: ${row.words}`}
+            <FadeUp index={1}>
+              <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{weekLabel}</Text>
+
+              <View style={styles.heat} accessibilityLabel={t("writingHistory.heatmapA11y")}>
+                {buckets.map((row, i) => (
+                  <Animated.View
+                    key={row.date}
+                    entering={reduceMotion ? undefined : cellEntering(i)}
+                    style={styles.heatCell}
+                    accessibilityLabel={`${row.date}: ${t("writingHistory.wordsValue", { count: row.words })}`}
+                  >
+                    <View
+                      style={[
+                        styles.heatFill,
+                        row.words > 0
+                          ? { backgroundColor: colors.accent, opacity: heatOpacity(row.words, maxWords) }
+                          : { backgroundColor: colors.panel2, borderWidth: 1, borderColor: colors.line },
+                      ]}
+                    />
+                  </Animated.View>
+                ))}
+              </View>
+            </FadeUp>
+
+            <StatRow
+              index={2}
+              label={t("writingHistory.week")}
+              value={t("writingHistory.wordsValue", { count: summary.weekWords })}
+              from={t("writingHistory.wordsValue", { count: 0 })}
+              colors={colors}
             />
-          ))}
-        </View>
-
-        <StatRow
-          label={t("writingHistory.week")}
-          value={t("writingHistory.wordsValue", { count: summary.weekWords })}
-          colors={colors}
-        />
-        <StatRow
-          label={t("writingHistory.month")}
-          value={t("writingHistory.wordsValue", { count: summary.monthWords })}
-          colors={colors}
-        />
-        <StatRow
-          label={t("writingHistory.allTime")}
-          value={t("writingHistory.wordsValue", { count: summary.allTimeWords })}
-          colors={colors}
-        />
-        <StatRow
-          label={t("writingHistory.bestDay")}
-          value={
-            summary.bestDay
-              ? t("writingHistory.bestDayValue", {
-                  count: summary.bestDay.words,
-                  date: summary.bestDay.date,
-                })
-              : t("writingHistory.emptyValue")
-          }
-          colors={colors}
-        />
-        <StatRow label={t("writingHistory.timeAtKeys")} value={timeAtKeys} colors={colors} last />
-
-        {range.isPending && !range.data ? (
-          <Text style={[layout.body, { marginTop: 16 }]}>{t("common.loading")}</Text>
-        ) : null}
+            <StatRow
+              index={3}
+              label={t("writingHistory.month")}
+              value={t("writingHistory.wordsValue", { count: summary.monthWords })}
+              from={t("writingHistory.wordsValue", { count: 0 })}
+              colors={colors}
+            />
+            <StatRow
+              index={4}
+              label={t("writingHistory.allTime")}
+              value={t("writingHistory.wordsValue", { count: summary.allTimeWords })}
+              from={t("writingHistory.wordsValue", { count: 0 })}
+              colors={colors}
+            />
+            <StatRow
+              index={5}
+              label={t("writingHistory.bestDay")}
+              value={
+                summary.bestDay
+                  ? t("writingHistory.bestDayValue", {
+                      count: summary.bestDay.words,
+                      date: summary.bestDay.date,
+                    })
+                  : t("writingHistory.emptyValue")
+              }
+              colors={colors}
+            />
+            <StatRow index={6} label={t("writingHistory.timeAtKeys")} value={timeAtKeys} colors={colors} last />
+          </>
+        )}
 
         <TapPressable
           feedback="dim"
@@ -197,29 +239,75 @@ export default function WritingHistoryScreen() {
 function StatRow({
   label,
   value,
+  from,
+  index,
   colors,
   last,
 }: {
   label: string;
   value: string;
+  /** Where a rolling figure starts: it rolls up to `value` as the row arrives. Leave out for text that just appears. */
+  from?: string;
+  index: number;
   colors: { ink: string; inkSoft: string; line: string };
   last?: boolean;
 }) {
+  const reduceMotion = useReduceMotion();
+  const rolls = from !== undefined && !reduceMotion;
+  const [shown, setShown] = useState(rolls ? from : value);
+  useEffect(() => {
+    if (!rolls) {
+      setShown(value);
+      return;
+    }
+    // Wait for the row to fade up, then roll the figure up to its value (and on to later changes).
+    const timer = setTimeout(() => setShown(value), fadeUpDelay(index) + FIGURE_ROLL_LEAD_MS);
+    return () => clearTimeout(timer);
+  }, [value, rolls, index]);
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        justifyContent: "space-between",
-        gap: 12,
-        paddingVertical: 12,
-        borderBottomWidth: last ? 0 : 1,
-        borderBottomColor: colors.line,
-      }}
+    <FadeUp
+      index={index}
+      style={[
+        styles.statRow,
+        { borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.line },
+      ]}
     >
       <Text style={{ fontSize: 16, color: colors.inkSoft }}>{label}</Text>
-      <Text style={{ fontSize: 16, color: colors.ink, textAlign: "right", flexShrink: 1 }}>
-        {value}
-      </Text>
+      <View style={styles.statValue}>
+        {rolls ? (
+          <RollingNumber value={shown} style={{ fontSize: 16, lineHeight: 22, color: colors.ink }} />
+        ) : (
+          <Text style={{ fontSize: 16, color: colors.ink, textAlign: "right", flexShrink: 1 }}>{value}</Text>
+        )}
+      </View>
+    </FadeUp>
+  );
+}
+
+/** What stands in while the history loads: the shapes of the line, the heatmap and the stat rows. */
+function HistorySkeleton({ lineHeight }: { lineHeight: number }) {
+  const { t } = useTranslation();
+  const label = t("common.loading");
+  return (
+    <View testID="writing-history-skeleton">
+      <Skeleton width="68%" height={lineHeight - 6} radius={8} accessibilityLabel={label} style={{ marginBottom: 20 }} />
+      <Skeleton width="36%" height={13} radius={6} accessibilityLabel={label} style={{ marginBottom: 12 }} />
+      <Skeleton height={SKELETON_HEAT_HEIGHT} radius={8} accessibilityLabel={label} style={{ marginBottom: 24 }} />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} height={16} radius={6} accessibilityLabel={label} style={{ marginVertical: 14 }} />
+      ))}
     </View>
   );
 }
+
+/** The rolling figure starts a beat after its row begins to fade up. */
+const FIGURE_ROLL_LEAD_MS = 160;
+const SKELETON_HEAT_HEIGHT = 150;
+
+const styles = StyleSheet.create({
+  heat: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginBottom: 20 },
+  heatCell: { width: "12.5%", aspectRatio: 1, maxWidth: 36 },
+  heatFill: { flex: 1, borderRadius: 3 },
+  statRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, paddingVertical: 12 },
+  statValue: { flexShrink: 1, alignItems: "flex-end" },
+});

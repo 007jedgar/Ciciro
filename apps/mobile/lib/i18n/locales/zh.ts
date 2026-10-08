@@ -739,6 +739,17 @@ const zh: Translations = {
     emptyValue: "—",
     openSettings: "写作设置",
     openA11y: "打开写作记录",
+    frequency: {
+      sentence: "{{when}}你写了{{what}}",
+      once: "一次",
+      twice: "两次",
+      times: "{{n}} 次",
+      thisWeek: "这周",
+      thisMonth: "这个月",
+      thisYear: "今年",
+      empty: "一页空白，正是开始的好地方。",
+      hint: "显示另一段时间",
+    },
   },
   scratch: {
     title: "草稿本",

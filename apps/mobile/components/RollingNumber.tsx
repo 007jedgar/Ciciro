@@ -11,15 +11,15 @@ import { useReduceMotion } from "../lib/use-reduce-motion";
 const TICK_MS = 220;
 
 /**
- * A number that ticks like a slot counter: when it changes the old digits slide
+ * A number (or a short formatted figure such as "2,310 words") that ticks like a slot counter: when it changes the old digits slide
  * up and out while the new ones rise in from below. The current value sits in
  * normal flow so the box is always the right width; the leaving one is laid
  * over it. With reduce motion it just changes.
  */
-export function RollingNumber({ value, style }: { value: number; style?: TextStyle }) {
+export function RollingNumber({ value, style }: { value: number | string; style?: TextStyle }) {
   const reduceMotion = useReduceMotion();
   const [shown, setShown] = useState(value);
-  const [leaving, setLeaving] = useState<number | null>(null);
+  const [leaving, setLeaving] = useState<number | string | null>(null);
   const first = useRef(true);
   const progress = useSharedValue(1);
   const lineHeight = (style?.lineHeight ?? style?.fontSize ?? 16) as number;
