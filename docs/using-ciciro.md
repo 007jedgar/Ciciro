@@ -25,6 +25,11 @@ The workspace needs a wide window. In a browser narrower than about 700px (a
 phone), a manuscript opens to an **Open in the app** screen that hands you to the
 Ciciro app instead.
 
+On the phone, the title line above the page says which chapter you are in and
+renames it (tap it, type, and leave the field to save). The **Manuscript
+details** tool in the Chapters tab's Tools row changes the manuscript's title,
+author and logline, files it in a folder, or deletes it.
+
 Start a project from the manuscript list, then fill the [story
 bible](story-bible.md) before asking for long passages. Empty canon produces
 confident but ungrounded prose.
@@ -110,6 +115,12 @@ type a custom request when it does not.
 
 Selection-scoped chips need a highlight in the manuscript. Chapter-scoped chips
 use whichever chapter is open.
+
+On the phone the same chips sit in a row above the message box in the Ciciro
+tab (all of them but Continuity check, which opens a panel the phone does not
+have yet). They hide while Ciciro is answering or the keyboard is up. A chip that
+changes the manuscript, like Fix misplaced passages, asks you to switch to
+**Allow edits** first.
 
 ## Auto insert vs Auto-draft
 
