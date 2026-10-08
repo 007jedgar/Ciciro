@@ -2,7 +2,8 @@
 // was tapped until it covers everything, the theme swaps underneath, and the
 // paper fades away to reveal the app already wearing it. One state, read by
 // `ThemeWashHost` at the root (and inside modal-presented screens like Settings,
-// which sit above it) so the Settings sheet and the onboarding step share it. See AGENTS.md "Mobile motion".
+// which sit above it) so the Settings sheet and the onboarding step share it.
+// See AGENTS.md "Pre-signup onboarding".
 
 export const WASH_SPREAD_MS = 420;
 export const WASH_FADE_MS = 260;
