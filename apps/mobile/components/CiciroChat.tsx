@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   View,
-  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
@@ -69,6 +68,8 @@ const SEND_SIZE = 36;
 const FADE_LEAD = 130;
 /** Air between the composer and the top of the keyboard. */
 const KEYBOARD_GAP = 10;
+/** Data index 0 of the reversed thread is the held prompt; the list skips its own header. */
+const HOLD_PROMPT_ROW = { minIndexForVisible: 0 } as const;
 
 /**
  * A Ciciro reply: prose on the page, drafts in a card.
@@ -557,16 +558,16 @@ export function CiciroChat({
   const scrolledForPrompt = useRef<string | null>(null);
   /**
    * The prompt whose reply is streaming and still held at the top. The live
-   * reply grows at offset 0, which pushes the prompt up and off the screen;
-   * the hold scrolls back by however far the reply has outgrown the gap below
-   * the prompt. Dragging the thread lets go of it, and so does the reply
-   * settling into its own row.
+   * reply grows at offset 0, which would push the prompt up and off the
+   * screen; while held, the native list keeps the prompt's row still in the
+   * same frame the reply grows. Dragging the thread lets go of it, and so
+   * does the reply settling into its own row.
    */
-  const heldPrompt = useRef<string | null>(null);
+  const [heldPrompt, setHeldPrompt] = useState<string | null>(null);
   useEffect(() => {
     if (!livePromptId || scrolledForPrompt.current === livePromptId) return;
     scrolledForPrompt.current = livePromptId;
-    heldPrompt.current = livePromptId;
+    setHeldPrompt(livePromptId);
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, [livePromptId]);
 
@@ -747,20 +748,15 @@ export function CiciroChat({
     ? anchorFooterMinHeight(anchorGap, showStream ? 0 : replyHeight)
     : 0;
 
-  const releaseHold = useCallback(() => {
-    heldPrompt.current = null;
-  }, []);
-
-  const onAnchorLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      if (!showStream || !activeAnchor || anchorGap <= 0) return;
-      if (heldPrompt.current !== activeAnchor) return;
-      const overflow = event.nativeEvent.layout.height - anchorGap;
-      if (overflow <= 0) return;
-      listRef.current?.scrollToOffset({ offset: overflow, animated: false });
-    },
-    [activeAnchor, anchorGap, showStream]
-  );
+  // Only once the gap below the prompt is measured: a gap that is still
+  // settling would move the held row, and the list would follow it.
+  const holdingPrompt =
+    showStream &&
+    activeAnchor != null &&
+    heldPrompt === activeAnchor &&
+    promptHeight > 0 &&
+    anchorGap > 0;
+  const releaseHold = useCallback(() => setHeldPrompt(null), []);
 
   const onPromptHeight = useCallback((height: number) => {
     setPromptHeight((current) => (current === height ? current : height));
@@ -866,6 +862,7 @@ export function CiciroChat({
         windowSize={7}
         updateCellsBatchingPeriod={50}
         onScrollBeginDrag={releaseHold}
+        maintainVisibleContentPosition={holdingPrompt ? HOLD_PROMPT_ROW : undefined}
         ListEmptyComponent={
           streaming ? null : <ChatEmptyState colors={colors} onStarter={onComposerChange} />
         }
@@ -879,7 +876,6 @@ export function CiciroChat({
             <View
               testID={activeAnchor ? "chat-anchor" : undefined}
               style={footerMin > 0 ? { minHeight: footerMin } : undefined}
-              onLayout={onAnchorLayout}
               collapsable={false}
             >
               {showStream ? (
