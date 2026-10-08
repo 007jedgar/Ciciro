@@ -1,9 +1,18 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useWritingDaysQuery } from "../lib/api";
+import { hasCelebratedGoal, markGoalCelebrated } from "../lib/celebrations";
+import { mixColors } from "../lib/color";
+import * as haptics from "../lib/haptics";
 import { EASE_OUT } from "../lib/motion";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
@@ -15,8 +24,14 @@ import {
   shiftWritingDayKey,
   writingDayKey,
 } from "../lib/writing-day";
+import { DrawCheck, useDrawProgress } from "./DrawCheck";
 import { InfoBubble } from "./InfoBubble";
 import { TapPressable } from "./TapPressable";
+
+/** The goal-met flash: up to a lighter accent, then back, with the tick drawing as it peaks. */
+const FLASH_UP_MS = 160;
+const FLASH_DOWN_MS = 640;
+const FLASH_LIFT = 0.45;
 
 export function WritingMeter() {
   const { t } = useTranslation();
@@ -49,12 +64,37 @@ export function WritingMeter() {
   useEffect(() => {
     ratioV.value = reduceMotion ? ratio : withTiming(ratio, { duration: 280, easing: EASE_OUT });
   }, [ratio, reduceMotion, ratioV]);
-  const fillStyle = useAnimatedStyle(() => ({ width: `${ratioV.value * 100}%` }));
+
+  // Reaching the goal closes the loop: the fill flashes brighter, a tick draws itself in beside the week line and
+  // the phone celebrates, once per day per account. A goal already celebrated today shows the finished tick.
+  const met = goal > 0 && day.words >= goal;
+  const userId = user?.id ?? "";
+  const due = met && Boolean(userId) && !hasCelebratedGoal(userId, today);
+  const [tickPlays, setTickPlays] = useState(met && !due);
+  const tickProgress = useDrawProgress(tickPlays, FLASH_UP_MS);
+  const flash = useSharedValue(0);
+  useEffect(() => {
+    if (!due) return;
+    markGoalCelebrated(userId, today);
+    haptics.celebrate();
+    setTickPlays(true);
+    if (!reduceMotion) {
+      flash.value = withSequence(
+        withTiming(1, { duration: FLASH_UP_MS, easing: EASE_OUT }),
+        withTiming(0, { duration: FLASH_DOWN_MS, easing: EASE_OUT })
+      );
+    }
+  }, [due, userId, today, reduceMotion, flash]);
+  const accent = colors.accent;
+  const bright = mixColors(colors.accent, "#ffffff", FLASH_LIFT);
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${ratioV.value * 100}%`,
+    backgroundColor: interpolateColor(flash.value, [0, 1], [accent, bright]),
+  }));
 
   if (!settings.showDailyGoal) return null;
 
   const remaining = Math.max(0, goal - day.words);
-  const met = goal > 0 && day.words >= goal;
   const title = t("settings.meterTitle");
   const count = t("settings.meterA11y", { words: day.words, goal });
   const status = met
@@ -68,7 +108,7 @@ export function WritingMeter() {
         feedback="dim"
         onPress={() => router.push("/writing-history")}
         accessibilityRole="button"
-        accessibilityLabel={`${count}. ${weekLabel}. ${t("writingHistory.openA11y")}`}
+        accessibilityLabel={`${count}. ${met ? `${t("settings.meterDone")}. ` : ""}${weekLabel}. ${t("writingHistory.openA11y")}`}
         style={styles.barPress}
       >
         <View
@@ -79,12 +119,15 @@ export function WritingMeter() {
           style={styles.bar}
         >
           <View style={[styles.track, { backgroundColor: colors.line }]}>
-            <Animated.View style={[styles.fill, fillStyle, { backgroundColor: colors.accent }]} />
+            <Animated.View style={[styles.fill, fillStyle]} />
           </View>
         </View>
-        <Text style={[styles.week, { color: colors.inkSoft }]} numberOfLines={1}>
-          {weekLabel}
-        </Text>
+        <View style={styles.weekRow}>
+          <Text style={[styles.week, { color: colors.inkSoft }]} numberOfLines={1}>
+            {weekLabel}
+          </Text>
+          <DrawCheck progress={tickProgress} color={colors.accent} size={16} />
+        </View>
       </TapPressable>
       <InfoBubble
         title={title}
@@ -121,7 +164,14 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 999,
   },
+  weekRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   week: {
     fontSize: 12,
+    flexShrink: 1,
   },
 });

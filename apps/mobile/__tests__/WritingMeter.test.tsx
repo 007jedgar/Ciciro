@@ -1,4 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import * as Haptics from "expo-haptics";
+import { getPrefs } from "../lib/prefs";
+import { setHapticsEnabled } from "../lib/haptics";
 import type { ReactNode } from "react";
 import { InfoBubble } from "../components/InfoBubble";
 import { WritingMeter } from "../components/WritingMeter";
@@ -9,8 +12,21 @@ import { useWritingDay } from "../lib/writing-day-session";
 
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
-  ImpactFeedbackStyle: { Light: "light" },
+  notificationAsync: jest.fn(async () => {}),
+  ImpactFeedbackStyle: { Light: "light", Soft: "soft" },
+  NotificationFeedbackType: { Success: "success" },
 }));
+
+jest.mock("../lib/prefs", () => {
+  const disk = new Map<string, string>();
+  return {
+    getPrefs: () => ({
+      getString: (key: string) => disk.get(key),
+      set: (key: string, value: string) => void disk.set(key, value),
+      clearAll: () => disk.clear(),
+    }),
+  };
+});
 
 jest.mock("expo-blur", () => {
   const { View } = require("react-native");
@@ -39,9 +55,9 @@ jest.mock("expo-router", () => ({
 
 const useWritingDayMock = useWritingDay as jest.MockedFunction<typeof useWritingDay>;
 
-function wrap(ui: ReactNode, settings = defaultSettings()) {
+function themed(ui: ReactNode, settings = defaultSettings()) {
   const colors = THEME_PALETTES[settings.theme];
-  return render(
+  return (
     <AppThemeContext.Provider
       value={{
         settings,
@@ -54,6 +70,10 @@ function wrap(ui: ReactNode, settings = defaultSettings()) {
       {ui}
     </AppThemeContext.Provider>
   );
+}
+
+function wrap(ui: ReactNode, settings = defaultSettings()) {
+  return render(themed(ui, settings));
 }
 
 describe("InfoBubble", () => {
@@ -122,5 +142,53 @@ describe("WritingMeter", () => {
     fireEvent.press(screen.getByLabelText("About Daily writing goal"));
     expect(screen.getByText(/1 word left/)).toBeTruthy();
     unmount();
+  });
+});
+
+describe("WritingMeter goal moment", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    setHapticsEnabled(true);
+    (getPrefs() as unknown as { clearAll: () => void }).clearAll();
+    jest.clearAllMocks();
+    useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 240, activeMs: 0 });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("celebrates once when the day's words cross the goal, not on every render", () => {
+    const { rerender, unmount } = wrap(<WritingMeter />);
+    expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+
+    useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 250, activeMs: 0 });
+    rerender(themed(<WritingMeter />));
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+    expect(Haptics.impactAsync).toHaveBeenCalledWith("soft");
+
+    useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 300, activeMs: 0 });
+    rerender(themed(<WritingMeter />));
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it("stays quiet for a goal already celebrated today, and speaks again tomorrow", () => {
+    useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 260, activeMs: 0 });
+    const first = wrap(<WritingMeter />);
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    const again = wrap(<WritingMeter />);
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+    again.unmount();
+
+    useWritingDayMock.mockReturnValue({ date: "2026-09-15", words: 260, activeMs: 0 });
+    const tomorrow = wrap(<WritingMeter />);
+    expect(Haptics.notificationAsync).toHaveBeenCalledTimes(2);
+    tomorrow.unmount();
   });
 });

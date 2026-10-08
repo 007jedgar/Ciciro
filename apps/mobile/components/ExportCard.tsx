@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import * as haptics from "../lib/haptics";
+import { DrawCheck, useDrawProgress } from "./DrawCheck";
 import { PressableCard } from "./PressableCard";
 import { ExportIcon } from "./icons";
 import { useAppTheme } from "../lib/settings";
@@ -14,6 +16,14 @@ import {
 } from "../lib/export";
 import { AlertText } from "./AlertText";
 
+/** How long the finished tick shows before the share sheet opens. */
+const EXPORT_READY_MS = 400;
+
+function ReadyTick({ color }: { color: string }) {
+  const progress = useDrawProgress(true);
+  return <DrawCheck progress={progress} color={color} size={16} />;
+}
+
 /** Export the manuscript as EPUB, PDF or Word through the share sheet. */
 export function ExportCard({
   projectId,
@@ -25,6 +35,8 @@ export function ExportCard({
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
+  // The format whose file is ready: its spinner becomes a tick for a beat before the share sheet opens.
+  const [ready, setReady] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function run(format: ExportFormat) {
@@ -32,7 +44,14 @@ export function ExportCard({
     setError(null);
     setBusy(format);
     try {
-      await exportManuscript(projectId, format, { flush: flushEdits });
+      await exportManuscript(projectId, format, {
+        flush: flushEdits,
+        beforeShare: async () => {
+          setReady(format);
+          haptics.success();
+          await new Promise((resolve) => setTimeout(resolve, EXPORT_READY_MS));
+        },
+      });
     } catch (err) {
       setError(
         err instanceof ExportUnavailableError
@@ -43,6 +62,7 @@ export function ExportCard({
       );
     } finally {
       setBusy(null);
+      setReady(null);
     }
   }
 
@@ -68,7 +88,9 @@ export function ExportCard({
                 { borderColor: colors.ink, backgroundColor: "transparent", opacity: busy && busy !== format ? 0.5 : 1 },
               ]}
             >
-              {busy === format ? (
+              {ready === format ? (
+                <ReadyTick color={colors.ink} />
+              ) : busy === format ? (
                 <ActivityIndicator size="small" color={colors.ink} accessibilityLabel={t("common.loading")} />
               ) : (
                 <ExportIcon color={colors.ink} size={16} />

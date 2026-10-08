@@ -6,6 +6,7 @@ import {
 } from "../lib/chapters-intro";
 import {
   consumeNewManuscriptArrival,
+  isFirstManuscriptArrival,
   isNewManuscriptArrival,
   markNewManuscriptArrival,
 } from "../lib/new-manuscript-arrival";
@@ -47,6 +48,18 @@ describe("new manuscript arrival", () => {
     expect(isNewManuscriptArrival("a")).toBe(true);
     consumeNewManuscriptArrival("a");
     expect(isNewManuscriptArrival("a")).toBe(false);
+  });
+
+  it("flags only an account's first manuscript for the one-time flourish", () => {
+    markNewManuscriptArrival("a", true);
+    expect(isFirstManuscriptArrival("a")).toBe(true);
+    expect(isFirstManuscriptArrival("b")).toBe(false);
+    consumeNewManuscriptArrival("a");
+    expect(isFirstManuscriptArrival("a")).toBe(false);
+
+    markNewManuscriptArrival("a");
+    expect(isNewManuscriptArrival("a")).toBe(true);
+    expect(isFirstManuscriptArrival("a")).toBe(false);
   });
 
   it("does not mistake another manuscript for the new one", () => {

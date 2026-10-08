@@ -88,6 +88,18 @@ export function success() {
   fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
 
+/** How long the soft thump trails the success notification in `celebrate`. */
+export const CELEBRATE_TRAIL_MS = 90;
+
+/**
+ * A completion that deserves more than `success`: the success notification and,
+ * a beat later, one soft thump. Only for a goal reached or a sprint finished.
+ */
+export function celebrate() {
+  success();
+  setTimeout(() => fire(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft)), CELEBRATE_TRAIL_MS);
+}
+
 export function warning() {
   fire(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
 }

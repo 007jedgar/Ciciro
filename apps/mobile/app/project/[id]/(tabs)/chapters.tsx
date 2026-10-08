@@ -20,6 +20,7 @@ import {
   TimerIcon,
 } from "../../../../components/icons";
 import { ExportCard } from "../../../../components/ExportCard";
+import { FirstManuscriptBurst } from "../../../../components/FirstManuscriptBurst";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
 import { Kicker } from "../../../../components/Kicker";
 import { ScreenErrorBoundary } from "../../../../components/ScreenErrorBoundary";
@@ -59,6 +60,7 @@ import {
 } from "../../../../lib/chapters-intro";
 import {
   consumeNewManuscriptArrival,
+  isFirstManuscriptArrival,
   isNewManuscriptArrival,
 } from "../../../../lib/new-manuscript-arrival";
 import type { Chapter, ProjectDetail } from "../../../../lib/types";
@@ -122,6 +124,7 @@ function ChaptersScreenContent() {
   // Whether the user has just created this manuscript and landed here: only that
   // first arrival slides the list down, not every later visit.
   const arriving = useRef(isNewManuscriptArrival(typeof id === "string" ? id : "")).current;
+  const firstManuscript = useRef(isFirstManuscriptArrival(typeof id === "string" ? id : "")).current;
   const loaded = Boolean(project);
   useEffect(() => {
     if (arriving && loaded && typeof id === "string") consumeNewManuscriptArrival(id);
@@ -353,6 +356,9 @@ function ChaptersScreenContent() {
             marginHorizontal: LIST_EDGE_SLACK,
           }}
         />
+      ) : null}
+      {firstManuscript && !reduceMotion ? (
+        <FirstManuscriptBurst top={headerHeight + 24} color={colors.accent} delayMs={CHAPTERS_SLIDE_DELAY_MS + 320} />
       ) : null}
       <SlideDownIn enabled={arriving} delay={CHAPTERS_SLIDE_DELAY_MS}>
         <Animated.FlatList

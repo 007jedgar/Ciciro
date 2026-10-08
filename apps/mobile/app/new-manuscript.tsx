@@ -43,7 +43,7 @@ export default function NewManuscriptScreen() {
           defaultAuthor={user.name}
           folderId={typeof folderId === "string" ? folderId : undefined}
           onCreated={(project) => {
-            markNewManuscriptArrival(project.id);
+            markNewManuscriptArrival(project.id, project.isFirstProject);
             router.replace(`/project/${project.id}/chapters`);
           }}
         />

@@ -35,12 +35,13 @@ export class ExportUnsyncedError extends Error {
  * Download the rendered manuscript from the hosted export route and hand it to
  * the OS share sheet (Save to Files, Books, AirDrop, mail, ...). `flush` pushes
  * edits still queued in the local replica so the server renders the latest text,
- * and resolves false when some could not be sent.
+ * and resolves false when some could not be sent. `beforeShare` runs once the file
+ * is ready and before the sheet opens.
  */
 export async function exportManuscript(
   projectId: string,
   format: ExportFormat,
-  opts?: { flush?: () => Promise<boolean> }
+  opts?: { flush?: () => Promise<boolean>; beforeShare?: () => Promise<void> }
 ): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) throw new ExportUnavailableError();
   if (opts?.flush && !(await opts.flush())) throw new ExportUnsyncedError();
@@ -48,6 +49,8 @@ export async function exportManuscript(
   const file = new File(Paths.cache, filename);
   file.create({ overwrite: true });
   file.write(new Uint8Array(bytes));
+  // The manuscript is ready: let the caller acknowledge it before the share sheet covers the screen.
+  await opts?.beforeShare?.();
   await Sharing.shareAsync(file.uri, {
     ...SHARE_TYPES[format],
     dialogTitle: filename,
