@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   View,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
@@ -554,9 +555,18 @@ export function CiciroChat({
   // author back to it - they just started a new turn and want to watch the
   // reply land, same as any chat app does.
   const scrolledForPrompt = useRef<string | null>(null);
+  /**
+   * The prompt whose reply is streaming and still held at the top. The live
+   * reply grows at offset 0, which pushes the prompt up and off the screen;
+   * the hold scrolls back by however far the reply has outgrown the gap below
+   * the prompt. Dragging the thread lets go of it, and so does the reply
+   * settling into its own row.
+   */
+  const heldPrompt = useRef<string | null>(null);
   useEffect(() => {
     if (!livePromptId || scrolledForPrompt.current === livePromptId) return;
     scrolledForPrompt.current = livePromptId;
+    heldPrompt.current = livePromptId;
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, [livePromptId]);
 
@@ -737,6 +747,21 @@ export function CiciroChat({
     ? anchorFooterMinHeight(anchorGap, showStream ? 0 : replyHeight)
     : 0;
 
+  const releaseHold = useCallback(() => {
+    heldPrompt.current = null;
+  }, []);
+
+  const onAnchorLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      if (!showStream || !activeAnchor || anchorGap <= 0) return;
+      if (heldPrompt.current !== activeAnchor) return;
+      const overflow = event.nativeEvent.layout.height - anchorGap;
+      if (overflow <= 0) return;
+      listRef.current?.scrollToOffset({ offset: overflow, animated: false });
+    },
+    [activeAnchor, anchorGap, showStream]
+  );
+
   const onPromptHeight = useCallback((height: number) => {
     setPromptHeight((current) => (current === height ? current : height));
   }, []);
@@ -840,53 +865,47 @@ export function CiciroChat({
         maxToRenderPerBatch={4}
         windowSize={7}
         updateCellsBatchingPeriod={50}
+        onScrollBeginDrag={releaseHold}
         ListEmptyComponent={
-          streaming ? null : (
-            // `inverted` flips ListEmptyComponent's own content along with
-            // everything else; counter-flip it back upright.
-            <View style={styles.counterFlip}>
-              <ChatEmptyState colors={colors} onStarter={onComposerChange} />
-            </View>
-          )
+          streaming ? null : <ChatEmptyState colors={colors} onStarter={onComposerChange} />
         }
         // The chronologically newest content - the anchored prompt's footer
         // spacer and the live/settled reply - sits at the data array's own
         // start once reversed for `inverted`, which renders as the header,
-        // not the footer. Counter-flip its content the same as the empty
-        // state.
+        // not the footer. VirtualizedList already counter-flips the header
+        // and empty components upright.
         ListHeaderComponent={
           showStream || footerMin > 0 ? (
-            <View style={styles.counterFlip}>
-              <View
-                testID={activeAnchor ? "chat-anchor" : undefined}
-                style={footerMin > 0 ? { minHeight: footerMin } : undefined}
-                collapsable={false}
-              >
-                {showStream ? (
-                  <View
-                    style={styles.assistant}
-                    onLayout={(event) => {
-                      const height = event.nativeEvent.layout.height;
-                      setReplyHeight((current) => (current === height ? current : height));
-                    }}
-                  >
-                    {stream.text.trim() ? (
-                      <AssistantTurn
-                        content={stream.text}
-                        turnId={stream.turnId}
-                        live
-                        inserted={insertedKeys}
-                        onInsert={(text, index) => onInsertDraft(text, stream.turnId, index)}
-                        onShare={(text) => void Share.share({ message: text })}
-                        onRetry={onRetry}
-                        animate={liveAnimate}
-                      />
-                    ) : (
-                      <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />
-                    )}
-                  </View>
-                ) : null}
-              </View>
+            <View
+              testID={activeAnchor ? "chat-anchor" : undefined}
+              style={footerMin > 0 ? { minHeight: footerMin } : undefined}
+              onLayout={onAnchorLayout}
+              collapsable={false}
+            >
+              {showStream ? (
+                <View
+                  style={styles.assistant}
+                  onLayout={(event) => {
+                    const height = event.nativeEvent.layout.height;
+                    setReplyHeight((current) => (current === height ? current : height));
+                  }}
+                >
+                  {stream.text.trim() ? (
+                    <AssistantTurn
+                      content={stream.text}
+                      turnId={stream.turnId}
+                      live
+                      inserted={insertedKeys}
+                      onInsert={(text, index) => onInsertDraft(text, stream.turnId, index)}
+                      onShare={(text) => void Share.share({ message: text })}
+                      onRetry={onRetry}
+                      animate={liveAnimate}
+                    />
+                  ) : (
+                    <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />
+                  )}
+                </View>
+              ) : null}
             </View>
           ) : null
         }
@@ -1039,8 +1058,6 @@ const styles = StyleSheet.create({
   thread: { flex: 1 },
   threadFill: { flex: 1 },
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
-  /** `inverted` flips a header/footer/empty component's own content too; this undoes it. */
-  counterFlip: { transform: [{ scaleY: -1 }] },
   emptyState: { alignItems: "center", marginTop: 24, gap: 14 },
   emptyText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
   starterRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
