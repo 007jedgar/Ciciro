@@ -22,6 +22,9 @@ import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
 import { ReaderCommentsPill, useChapterReaderCommentCount } from "../../../../components/ReaderCommentsPill";
 import { useTabBarClearance } from "../../../../components/ManuscriptTabBar";
+import { ChapterTitleBar } from "../../../../components/ChapterTitleBar";
+import { ProjectLoadError } from "../../../../components/ProjectLoadError";
+import { ScreenErrorBoundary } from "../../../../components/ScreenErrorBoundary";
 import { SkeletonList } from "../../../../components/Skeleton";
 import { SuggestionsPill, SuggestionsSheet } from "../../../../components/SuggestionsReview";
 import { ciciro } from "../../../../lib/api";
@@ -68,6 +71,7 @@ import {
 import { dictationLocale, insertDictation } from "../../../../lib/dictation";
 import { useDictation, type DictationError } from "../../../../lib/speech";
 import { useProject } from "../../../../lib/project";
+import { useRenameChapter } from "../../../../lib/use-rename-chapter";
 import { FOCUS_TRANSITION_MS, useFocusMode } from "../../../../lib/focus-mode";
 import { blockHasSuggestions } from "../../../../lib/suggestion-review";
 import {
@@ -78,6 +82,7 @@ import {
 } from "../../../../lib/suggestions";
 import { setReadAloudSelection } from "../../../../lib/read-aloud";
 import { blocksPlainText } from "../../../../lib/read-aloud-text";
+import { TapPressable } from "../../../../components/TapPressable";
 import { useAppTheme } from "../../../../lib/settings";
 import { fonts } from "../../../../lib/theme";
 import type { Chapter } from "../../../../lib/types";
@@ -121,10 +126,21 @@ function paragraphAtOffset(text: string, offset: number): string {
 }
 
 export default function ManuscriptScreen() {
+  return (
+    <ScreenErrorBoundary>
+      <ManuscriptScreenContent />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ManuscriptScreenContent() {
   const {
     project,
     loading,
     error,
+    errorDetail,
+    reload,
+    addChapter,
     selectedChapterId,
     setSelectedChapterId,
     readingPosition,
@@ -133,6 +149,7 @@ export default function ManuscriptScreen() {
     setEditingBlockIds,
   } = useProject();
   const router = useRouter();
+  const renameChapter = useRenameChapter();
   const { chapterId: linkedChapterId } = useLocalSearchParams<{ chapterId?: string }>();
   // A link (a "Ciciro finished writing" notification) names the chapter to
   // open. Applied once, then cleared, so later picks are the author's own.
@@ -660,17 +677,21 @@ export default function ManuscriptScreen() {
   }
 
   if (error) {
-    return (
-      <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
-        <Text style={layout.error}>{error}</Text>
-      </View>
-    );
+    return <ProjectLoadError message={error} detail={errorDetail} reload={reload} />;
   }
 
   if (!chapter) {
     return (
       <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
         <Text style={layout.body}>{t("manuscript.noChapters")}</Text>
+        <TapPressable
+          style={layout.primaryBtn}
+          onPress={() => void addChapter().catch(() => haptics.warning())}
+          accessibilityRole="button"
+          accessibilityLabel={t("manuscript.addFirstChapter")}
+        >
+          <Text style={layout.primaryBtnText}>{t("manuscript.addFirstChapter")}</Text>
+        </TapPressable>
       </View>
     );
   }
@@ -707,6 +728,15 @@ export default function ManuscriptScreen() {
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
+          {!focusMode ? (
+            <ChapterTitleBar
+              key={chapter.id}
+              kind={normalizeKind(project?.kind)}
+              number={(project?.chapters.findIndex((c) => c.id === chapter.id) ?? 0) + 1}
+              title={chapter.title}
+              onRename={(title) => renameChapter(chapter.id, title)}
+            />
+          ) : null}
           {showPills ? (
             <View testID="editor-pills" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
               <SuggestionsPill suggestions={suggestions} onOpen={() => setReviewOpen(true)} />

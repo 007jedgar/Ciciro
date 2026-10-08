@@ -42,7 +42,6 @@ import {
   RewriteIcon,
   SlidersIcon,
   SparkleIcon,
-  TypeIcon,
 } from "./icons";
 
 const BUBBLE_W = 64;
@@ -278,8 +277,6 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
       tone: "tool",
       run: openReminder,
     },
-    { key: "chapters", Icon: ChaptersIcon, labelKey: "manuscriptTabBar.chapters", tone: "tool", run: () => router.navigate(`/project/${projectId}/chapters` as never) },
-    { key: "typography", Icon: TypeIcon, labelKey: "manuscriptTabBar.typography", tone: "tool", run: () => router.push("/settings") },
     { key: "settings", Icon: SlidersIcon, labelKey: "manuscriptTabBar.settings", tone: "tool", run: () => router.push("/settings") },
   ];
 

@@ -36,7 +36,9 @@ jest.mock("../lib/project", () => ({
     setEditingBlockIds: jest.fn(),
   }),
 }));
+jest.mock("../lib/use-rename-chapter", () => ({ useRenameChapter: () => jest.fn() }));
 jest.mock("../lib/settings", () => ({
+  useOptionalAppTheme: () => null,
   useAppTheme: () => ({
     layout: { padded: {}, error: {}, body: {}, screen: {} },
     colors: { ink: "#000" },

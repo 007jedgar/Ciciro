@@ -13,6 +13,7 @@ import {
   HeadphonesIcon,
   HistoryIcon,
   ImportIcon,
+  InfoIcon,
   OutlineIcon,
   PencilIcon,
   SearchIcon,
@@ -248,22 +249,40 @@ function ChaptersScreenContent() {
 
   const tools: ProjectTool[] = [
     {
-      key: "sprint",
-      label: t("sprint.title"),
-      icon: <TimerIcon color={colors.accent} />,
-      onPress: () => router.push(`/project/${projectId}/sprint` as never),
-    },
-    {
       key: "bible",
       label: t("bible.title"),
       icon: <BookIcon color={colors.accent} />,
       onPress: () => router.push(bibleIndexHref(projectId) as never),
     },
     {
+      key: "outline",
+      label: t("outline.title"),
+      icon: <OutlineIcon color={colors.accent} />,
+      onPress: () => router.push(outlineHref(projectId) as never),
+    },
+    {
+      key: "search",
+      label: t("search.title"),
+      icon: <SearchIcon color={colors.accent} />,
+      onPress: () => router.push(`/project/${projectId}/search` as never),
+    },
+    {
       key: "scratch",
       label: t("scratch.title"),
       icon: <PencilIcon color={colors.accent} size={24} />,
       onPress: () => router.push(scratchListHref(projectId) as never),
+    },
+    {
+      key: "sprint",
+      label: t("sprint.title"),
+      icon: <TimerIcon color={colors.accent} />,
+      onPress: () => router.push(`/project/${projectId}/sprint` as never),
+    },
+    {
+      key: "listen",
+      label: t("readAloud.title"),
+      icon: <HeadphonesIcon color={colors.accent} size={24} />,
+      onPress: () => router.push(`/project/${projectId}/listen` as never),
     },
     {
       key: "weekly",
@@ -284,30 +303,18 @@ function ChaptersScreenContent() {
       onPress: () => router.push(betaReadersHref(projectId) as never),
     },
     {
-      key: "search",
-      label: t("search.title"),
-      icon: <SearchIcon color={colors.accent} />,
-      onPress: () => router.push(`/project/${projectId}/search` as never),
-    },
-    {
-      key: "outline",
-      label: t("outline.title"),
-      icon: <OutlineIcon color={colors.accent} />,
-      onPress: () => router.push(outlineHref(projectId) as never),
-    },
-    {
-      key: "listen",
-      label: t("readAloud.title"),
-      icon: <HeadphonesIcon color={colors.accent} size={24} />,
-      onPress: () => router.push(`/project/${projectId}/listen` as never),
-    },
-    {
       key: "import",
       label: importing ? t("importFile.importing") : t("importFile.chaptersCard"),
       a11yLabel: t("importFile.chaptersCard"),
       icon: <ImportIcon color={colors.accent} />,
       busy: importing,
       onPress: () => void importChapters(),
+    },
+    {
+      key: "details",
+      label: t("details.title"),
+      icon: <InfoIcon color={colors.accent} size={24} />,
+      onPress: () => router.push(`/project/${projectId}/details` as never),
     },
   ];
 

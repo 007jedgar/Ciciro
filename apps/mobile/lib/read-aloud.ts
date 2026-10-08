@@ -93,6 +93,10 @@ let selection: ReadAloudSelection | null = null;
 export function setReadAloudSelection(next: ReadAloudSelection | null) {
   selection = next && next.start !== next.end && next.text ? next : null;
 }
+/** The text the writer has highlighted in this chapter right now, or "" when nothing is. */
+export function selectedTextFor(chapterId: string): string {
+  return selection && selection.chapterId === chapterId ? selection.text : "";
+}
 /** The saved selection for this chapter, if the offsets still cover the same text in `plain`. */
 export function readAloudSelectionFor(chapterId: string, plain: string): { start: number; end: number } | null {
   if (!selection || selection.chapterId !== chapterId) return null;

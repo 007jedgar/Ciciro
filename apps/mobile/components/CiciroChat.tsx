@@ -4,6 +4,7 @@ import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -315,44 +316,16 @@ function JumpChip({
   );
 }
 
-const STARTER_KEYS = ["continue", "scene", "ask"] as const;
-
 /**
- * The empty thread, before the first message: the brand mark, the usual
- * instructional line, and a few starter chips that fill the composer so an
- * author can edit a prompt before sending rather than being committed to it.
+ * The empty thread, before the first message: the brand mark and one
+ * instructional line that points at the chips docked above the composer.
  */
-function ChatEmptyState({
-  colors,
-  onStarter,
-}: {
-  colors: ColorTokens;
-  onStarter: (text: string) => void;
-}) {
+function ChatEmptyState({ colors }: { colors: ColorTokens }) {
   const { t } = useTranslation();
   return (
     <View style={styles.emptyState}>
       <BrandMark size={40} />
       <Text style={[styles.emptyText, { color: colors.inkSoft }]}>{t("ciciroTab.empty")}</Text>
-      <View style={styles.starterRow}>
-        {STARTER_KEYS.map((key) => {
-          const label = t(`ciciroTab.starters.${key}`);
-          return (
-            <TapPressable
-              key={key}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              onPress={() => onStarter(label)}
-              style={({ pressed }) => [
-                styles.starterChip,
-                { borderColor: colors.line, backgroundColor: colors.accentSoft, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Text style={[styles.starterText, { color: colors.ink }]}>{label}</Text>
-            </TapPressable>
-          );
-        })}
-      </View>
     </View>
   );
 }
@@ -451,6 +424,8 @@ export function CiciroChat({
   insertedKeys,
   openQuestionCount = 0,
   onOpenQuestions,
+  quickActions,
+  onQuickAction,
   bottomInset,
   topInset = 0,
 }: {
@@ -477,6 +452,9 @@ export function CiciroChat({
   insertedKeys: Set<string>;
   openQuestionCount?: number;
   onOpenQuestions?: () => void;
+  /** Chips above the composer that send a ready-made brief; hidden while a reply streams or the keyboard is up. */
+  quickActions?: { id: string; label: string }[];
+  onQuickAction?: (id: string) => void;
   bottomInset: number;
   /** Height of a floating header the thread scrolls underneath. */
   topInset?: number;
@@ -865,7 +843,7 @@ export function CiciroChat({
         onScrollBeginDrag={releaseHold}
         maintainVisibleContentPosition={holdingPrompt ? HOLD_PROMPT_ROW : undefined}
         ListEmptyComponent={
-          streaming ? null : <ChatEmptyState colors={colors} onStarter={onComposerChange} />
+          streaming ? null : <ChatEmptyState colors={colors} />
         }
         // The chronologically newest content - the anchored prompt's footer
         // spacer and the live/settled reply - sits at the data array's own
@@ -968,6 +946,29 @@ export function CiciroChat({
             underneath this whole dock, and a plain label would have prose
             running straight through it.
           */}
+          {quickActions?.length && onQuickAction && !streaming && keyboardHeight === 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={styles.actionsScroll}
+              contentContainerStyle={styles.actionsRow}
+              testID="chat-quick-actions"
+            >
+              {quickActions.map((action) => (
+                <Glass key={action.id} dark={dark} colors={colors} radius={16}>
+                  <TapPressable
+                    accessibilityRole="button"
+                    accessibilityLabel={action.label}
+                    onPress={() => onQuickAction(action.id)}
+                    style={({ pressed }) => [styles.actionChip, { opacity: pressed ? 0.6 : 1 }]}
+                  >
+                    <Text style={{ color: colors.ink, fontSize: 13.5, fontWeight: "500" }}>{action.label}</Text>
+                  </TapPressable>
+                </Glass>
+              ))}
+            </ScrollView>
+          ) : null}
           <View style={styles.chromeRow}>
             <Glass
               dark={dark}
@@ -1057,14 +1058,9 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
   emptyState: { alignItems: "center", marginTop: 24, gap: 14 },
   emptyText: { fontSize: 15, lineHeight: 22, textAlign: "center" },
-  starterRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 },
-  starterChip: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  starterText: { fontSize: 13.5, fontWeight: "500" },
+  actionsScroll: { marginHorizontal: -16, marginBottom: 10, flexGrow: 0 },
+  actionsRow: { gap: 8, paddingHorizontal: 16 },
+  actionChip: { paddingHorizontal: 13, paddingVertical: 8 },
   user: {
     alignSelf: "flex-end",
     maxWidth: "88%",
