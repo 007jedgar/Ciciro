@@ -209,6 +209,7 @@ function ToggleRow({
           onValueChange={haptics.withTap(onValueChange)}
           {...switchColors(colors)}
           accessibilityLabel={label}
+          accessibilityHint={hint}
         />
       </View>
       {last ? null : <Hairline colors={colors} />}

@@ -9,8 +9,13 @@ import { fonts } from "../lib/theme";
 export function Kicker({ label, count }: { label: string; count?: string }) {
   const { colors } = useAppTheme();
   return (
-    <View style={styles.row} accessibilityRole="header">
-      <Text style={[styles.label, { color: colors.inkSoft }]}>
+    <View style={styles.row}>
+      {/* The heading is spoken in its own case, not as the shouted capitals on screen. */}
+      <Text
+        style={[styles.label, { color: colors.inkSoft }]}
+        accessibilityRole="header"
+        accessibilityLabel={count ? `${label}, ${count}` : label}
+      >
         {count ? `${label.toUpperCase()} / ${count.toUpperCase()}` : label.toUpperCase()}
       </Text>
       <View style={[styles.rule, { backgroundColor: colors.line }]} />
