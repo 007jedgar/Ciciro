@@ -53,7 +53,8 @@ export const queryKeys = {
     file: (projectId: string, path: string) => ["bible", projectId, path] as const,
   },
   chat: {
-    snapshot: (projectId: string) => ["chat", projectId] as const,
+    all: ["chat"] as const,
+    snapshot: (projectId: string) => [...queryKeys.chat.all, projectId] as const,
     insertions: (projectId: string) => ["chat-insertions", projectId] as const,
   },
 };

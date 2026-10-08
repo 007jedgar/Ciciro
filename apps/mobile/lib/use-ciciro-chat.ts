@@ -154,16 +154,7 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
       if (!options?.keepFailure) setFailure(null);
       return;
     }
-    // Paint whatever is already cached before asking the server, so a
-    // remount never shows an empty thread while the real fetch is in flight.
-    const cached = cachedSnapshot(projectId);
-    if (cached) {
-      setMessages(hydrateChatMessages(cached));
-      if (!editModeTouchedRef.current) setEditModeState(editModeOfRuns(cached.runs));
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
+    if (!cachedSnapshot(projectId)) setLoading(true);
     try {
       const snapshot = await fetchAndCacheSnapshot(projectId);
       setMessages(hydrateChatMessages(snapshot));
@@ -182,11 +173,18 @@ export function useCiciroChat(projectId: string): UseCiciroChat {
   }, [projectId]);
 
   useEffect(() => {
-    // Another manuscript is another conversation.
+    // Another manuscript is another conversation. Paint whatever is already
+    // cached for it before asking the server, so switching never shows an
+    // empty thread while the real fetch is in flight.
     editModeTouchedRef.current = false;
-    setEditModeState(DEFAULT_EDIT_MODE);
+    const cached = cachedSnapshot(projectId);
+    if (cached) {
+      setMessages(hydrateChatMessages(cached));
+      setLoading(false);
+    }
+    setEditModeState(cached ? editModeOfRuns(cached.runs) : DEFAULT_EDIT_MODE);
     void reload();
-  }, [reload]);
+  }, [projectId, reload]);
 
   const setEditMode = useCallback((mode: EditMode) => {
     editModeTouchedRef.current = true;

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   FlatList,
@@ -581,7 +581,7 @@ export function CiciroChat({
   // mount's own fetch - is hidden (with every row rendered) until
   // `openAtTail`, from the list's own content size, confirms it is
   // positioned at the end.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (messages.length === 0) {
       openedAtTail.current = false;
       setThreadVisible(true);

@@ -4,6 +4,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { focusManager, onlineManager, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ApiError } from "./client";
+import { queryKeys } from "./keys";
 import { CACHE_BUSTER, CACHE_MAX_AGE, queryPersister } from "./persister";
 
 export function shouldRetryQuery(failureCount: number, error: Error): boolean {
@@ -12,7 +13,7 @@ export function shouldRetryQuery(failureCount: number, error: Error): boolean {
 }
 
 export function createQueryClient(): QueryClient {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 30_000,
@@ -24,6 +25,8 @@ export function createQueryClient(): QueryClient {
       },
     },
   });
+  client.setQueryDefaults(queryKeys.chat.all, { gcTime: CACHE_MAX_AGE });
+  return client;
 }
 
 export const queryClient = createQueryClient();
