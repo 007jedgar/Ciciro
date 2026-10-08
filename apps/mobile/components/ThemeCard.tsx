@@ -94,7 +94,6 @@ export function ThemeCard({
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 10,

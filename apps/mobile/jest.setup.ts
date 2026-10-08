@@ -33,7 +33,7 @@ jest.mock("@shopify/react-native-skia", () => {
     makeImageFromView: async () => ({}),
     LinearGradient: passthrough,
     SweepGradient: passthrough,
-    Skia: { Path: { Make: () => ({ addCircle: () => {} }), MakeFromSVGString: () => ({}) } },
+    Skia: { Path: { Make: () => ({ addCircle: () => {} }), Circle: () => ({}), MakeFromSVGString: () => ({}) } },
     vec: (x: number, y: number) => ({ x, y }),
   };
 });
