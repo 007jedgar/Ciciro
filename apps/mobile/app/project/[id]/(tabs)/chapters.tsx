@@ -413,7 +413,9 @@ function ChaptersScreenContent() {
                 />
                 <Kicker
                   label={t("chapters.kicker")}
-                  count={t("chapters.entries", { count: chapters.length })}
+                  count={`${t("chapters.entries", { count: chapters.length })} / ${t("chapters.wordCount", {
+                    count: chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0),
+                  })}`}
                 />
               </View>
             ) : null

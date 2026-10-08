@@ -22,9 +22,25 @@ else stays in commit messages.
 - Fixed: on the phone, typing in a chapter after switching from another one no
   longer fails to save with an "Unexpected null or undefined value" error.
 
-- An empty Ciciro chat on the phone now offers starter prompts (Continue this
-  chapter, Describe a scene, Ask about the story). Tapping one fills the message
-  box for you to edit before sending; it does not send on its own.
+- The phone's Ciciro chat now has the website's quick-action chips above the
+  message box (What needs work most?, Critique this chapter, Tighten dialogue,
+  Find loose ends, and the rest, different for a novel, screenplay, blog post
+  or journal). A tap sends the brief; the ones that work on a passage need
+  words highlighted in the manuscript first, and the ones that change the
+  manuscript need Allow edits. This replaces the three starter prompts the
+  empty chat used to offer. Rewrite from the writing tools now works on the
+  words you have highlighted.
+- On the phone, a manuscript has a **Manuscript details** tool (in the Tools
+  row on the chapters screen) to change its title, author and logline, move it
+  between folders, or delete it. Chapters can be renamed from a title line
+  above the page, which also says which chapter you are in. The chapters
+  screen shows the manuscript's total word count.
+- Phone Settings is grouped under Appearance, Writing, Ciciro, Goals and
+  reminders, and Privacy, and Writing history is listed there. The + menu on
+  the manuscripts list is only for creating (new manuscript, import, new
+  folder), and the writing-tools grid no longer repeats Chapters and
+  Typography. Sign-in and sign-up move from field to field with Return and
+  submit from the password.
 
 - The phone app has the website's Archive look as two new themes, **Ciciro** and
   **Ciciro Night**, now the default for anyone who has not picked a theme. The
