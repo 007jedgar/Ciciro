@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import {
   Canvas,
@@ -19,9 +19,21 @@ import {
   type ThemeWash,
 } from "../lib/theme-wash";
 
-/** Innermost scope last: a modal-presented screen's scope sits above the root's, and is the one on screen. */
-const scopes: number[] = [];
+/**
+ * The scopes mounted now. The one that washes is the innermost (deepest in the tree), the latest
+ * mounted among equals: a screen's own scope sits above the root's, and is the one on screen.
+ * Mount order alone cannot say: a parent's effects run after its children's.
+ */
+const scopes: { id: number; depth: number }[] = [];
 let nextScope = 1;
+
+function innermost(): number | undefined {
+  let top: { id: number; depth: number } | undefined;
+  for (const scope of scopes) if (!top || scope.depth >= top.depth) top = scope;
+  return top?.id;
+}
+
+const ScopeDepth = createContext(-1);
 
 /**
  * Wraps a full-screen view so a theme change can wash across it. The wash takes
@@ -36,6 +48,7 @@ let nextScope = 1;
 export function ThemeWashScope({ style, children }: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
   const ref = useRef<View>(null);
   const id = useRef(nextScope++).current;
+  const depth = useContext(ScopeDepth) + 1;
   const wash = useSyncExternalStore(subscribeThemeWash, getThemeWash, getThemeWash);
   const [reveal, setReveal] = useState<{ wash: ThemeWash; image: SkImage } | null>(null);
   const handled = useRef(0);
@@ -43,12 +56,12 @@ export function ThemeWashScope({ style, children }: { style?: StyleProp<ViewStyl
   const inFlight = useRef(0);
 
   useEffect(() => {
-    scopes.push(id);
+    scopes.push({ id, depth });
     return () => {
-      const at = scopes.indexOf(id);
+      const at = scopes.findIndex((scope) => scope.id === id);
       if (at >= 0) scopes.splice(at, 1);
     };
-  }, [id]);
+  }, [id, depth]);
 
   // Unmounting mid-wash (Settings dismissed with Android back) must not lose the
   // theme the person tapped: swap it, then free the next tap.
@@ -62,7 +75,7 @@ export function ThemeWashScope({ style, children }: { style?: StyleProp<ViewStyl
   );
 
   useEffect(() => {
-    if (!wash || handled.current === wash.id || scopes[scopes.length - 1] !== id) return;
+    if (!wash || handled.current === wash.id || innermost() !== id) return;
     handled.current = wash.id;
     inFlight.current = wash.id;
     const skip = () => {
@@ -79,7 +92,7 @@ export function ThemeWashScope({ style, children }: { style?: StyleProp<ViewStyl
 
   return (
     <View ref={ref} collapsable={false} style={style}>
-      {children}
+      <ScopeDepth.Provider value={depth}>{children}</ScopeDepth.Provider>
       {reveal ? (
         <WashReveal
           wash={reveal.wash}

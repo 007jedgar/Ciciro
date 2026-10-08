@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ScrollView, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { ThemeWashScope } from "../ThemeWashScope";
 import { OnboardingHeader } from "./OnboardingHeader";
 import { OnboardingThread } from "./OnboardingThread";
 import { WriteInTitle } from "./WriteInTitle";
@@ -60,8 +61,10 @@ export function OnboardingFrame({
 }) {
   const { layout } = useAppTheme();
   const insets = useSafeAreaInsets();
+  // Its own wash scope: the root's snapshot cannot see a native-stack screen's contents
+  // (it comes back black), so the Pick a look step washes within its own view.
   return (
-    <View style={layout.screen}>
+    <ThemeWashScope style={layout.screen}>
       <OnboardingHeader onBack={onBack} onSkip={onSkip} thread={<OnboardingThread steps={steps} current={step} />} />
       <ScrollView
         style={{ flex: 1 }}
@@ -82,6 +85,6 @@ export function OnboardingFrame({
           {footer}
         </Rise>
       ) : null}
-    </View>
+    </ThemeWashScope>
   );
 }

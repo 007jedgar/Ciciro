@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { LayoutChangeEvent } from "react-native";
+import { StyleSheet, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 
 /**
@@ -23,9 +23,11 @@ export function FocusCollapse({
   children: ReactNode;
 }) {
   const natural = useSharedValue(0);
-  // Re-measured whenever it changes (a larger text size, a rotated phone).
+  // Re-measured whenever it changes (a larger text size, a rotated phone), but only
+  // while it is fully open: as the outer height closes, the layout squeezes the
+  // block with it, and that squeezed height is not its natural one.
   const onLayout = (event: LayoutChangeEvent) => {
-    natural.value = event.nativeEvent.layout.height;
+    if (progress.value === 0) natural.value = event.nativeEvent.layout.height;
   };
 
   const outer = useAnimatedStyle(() =>
@@ -43,9 +45,14 @@ export function FocusCollapse({
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       style={outer}
     >
-      <Animated.View onLayout={onLayout} style={inner}>
+      <Animated.View onLayout={onLayout} style={[styles.inner, inner]}>
         {children}
       </Animated.View>
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  // Never squeezed by the shrinking outer: it slides and fades, it does not reflow.
+  inner: { flexShrink: 0 },
+});
