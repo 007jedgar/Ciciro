@@ -146,8 +146,10 @@ describe("Manuscripts pull to refresh", () => {
     const view = render(<ManuscriptsScreen />);
     expect(refreshing()).toBe(false);
 
+    // React Query's refetch resolves to the query's result, never undefined.
     const pending: (() => void)[] = [];
-    const refetch = () => new Promise<void>((resolve) => pending.push(resolve));
+    const refetch = () =>
+      new Promise<{ isError: boolean }>((resolve) => pending.push(() => resolve({ isError: false })));
     mockProjects = { data: THREE, isPending: false, refetch };
     mockFolders = { data: [], isPending: false, refetch } as typeof mockFolders;
     view.rerender(<ManuscriptsScreen />);
