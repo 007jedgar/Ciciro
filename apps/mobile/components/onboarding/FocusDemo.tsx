@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { ChapterEditor } from "../ChapterEditor";
 import { OnboardingHeader } from "./OnboardingHeader";
+import { KeyboardDoneBar } from "./KeyboardDoneBar";
 import { OnboardingThread } from "./OnboardingThread";
 import { PressableCard } from "../PressableCard";
 import { TapPressable } from "../TapPressable";
@@ -23,8 +24,9 @@ import * as haptics from "../../lib/haptics";
 
 const DEMO_CHAPTER_ID = "onboarding-demo-focus";
 /** Enough prose to scroll through, so the demo is a page and not a single line. */
-/** At this text size the intro would leave the page no room above the keyboard, so it steps aside while typing. */
+/** From this text size up the intro and the page scroll together, and the page keeps at least this much height. */
 const LARGE_TEXT_SCALE = 1.3;
+const LARGE_TEXT_PAGE_HEIGHT = 320;
 const SAMPLE_KEYS = ["sample", "sample2", "sample3", "sample4"] as const;
 
 /**
@@ -56,7 +58,7 @@ export function FocusDemo({
   const editorRef = useRef<EnrichedTextInputInstance | null>(null);
   const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const { fontScale } = useWindowDimensions();
-  const compact = keyboardVisible && fontScale > LARGE_TEXT_SCALE;
+  const largeText = fontScale > LARGE_TEXT_SCALE;
   // `onChangeText` reports plain text, not HTML (see ChapterEditor) - the
   // sample page never changes under the editor, so the user's own typing
   // stays entirely inside the native view and is never read back here.
@@ -120,18 +122,31 @@ export function FocusDemo({
             onSkip={onSkip}
             thread={<OnboardingThread steps={steps} current="demo" />}
           />
-          <Pressable
-            onPress={dismissKeyboard}
-            accessible={false}
-            style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: compact ? 4 : 0 }}
-          >
-            <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.focus.title")}</Text>
-            {compact ? null : (
+        </Animated.View>
+      )}
+
+      {/* The intro and the page share one scroller: at a large text size the
+          intro would otherwise leave the page no height, so it scrolls away
+          instead. The editor keeps its place in this tree, so toggling focus
+          mode never remounts it (and never loses what was typed). */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1 }}
+        scrollEnabled={largeText && !on}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {on ? null : (
+          <Animated.View entering={fade} exiting={unfade}>
+            <Pressable
+              onPress={dismissKeyboard}
+              accessible={false}
+              style={{ paddingHorizontal: 20, paddingTop: 16 }}
+            >
+              <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.focus.title")}</Text>
               <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
                 {t("onboarding.demo.focus.intro")}
               </Text>
-            )}
-            {compact ? null : (
               <PressableCard
                 onPress={tryFocus}
                 accessibilityRole="button"
@@ -154,57 +169,40 @@ export function FocusDemo({
                   {t("onboarding.demo.focus.tryButton")}
                 </Text>
               </PressableCard>
-            )}
-          </Pressable>
-        </Animated.View>
-      )}
+            </Pressable>
+          </Animated.View>
+        )}
 
-      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
-        <ChapterEditor
-          chapterId={DEMO_CHAPTER_ID}
-          html={html}
-          editorStyle={editorStyle}
-          placeholder={blankPage ? t("onboarding.demo.focus.journalPlaceholder") : undefined}
-          resumeOffset={null}
-          typewriter={on}
-          onFocused={() => {}}
-          onBlurred={() => {}}
-          onChangeText={() => {}}
-          onChangeState={() => {}}
-          onChangeSelection={() => {}}
-          registerEditor={(ref) => {
-            editorRef.current = ref;
+        <View
+          style={{
+            flex: 1,
+            paddingHorizontal: 20,
+            paddingTop: 8,
+            minHeight: largeText && !on ? LARGE_TEXT_PAGE_HEIGHT : 0,
           }}
-          testID="onboarding-focus-editor"
-        />
-      </View>
+        >
+          <ChapterEditor
+            chapterId={DEMO_CHAPTER_ID}
+            html={html}
+            editorStyle={editorStyle}
+            placeholder={blankPage ? t("onboarding.demo.focus.journalPlaceholder") : undefined}
+            resumeOffset={null}
+            typewriter={on}
+            onFocused={() => {}}
+            onBlurred={() => {}}
+            onChangeText={() => {}}
+            onChangeState={() => {}}
+            onChangeSelection={() => {}}
+            registerEditor={(ref) => {
+              editorRef.current = ref;
+            }}
+            testID="onboarding-focus-editor"
+          />
+        </View>
+      </ScrollView>
 
       {keyboardVisible ? (
-        // A button that does not depend on the keyboard having its own: Continue
-        // is back the moment the keyboard is down.
-        <Animated.View
-          entering={fade}
-          exiting={unfade}
-          style={{ paddingHorizontal: 20, paddingVertical: 8, alignItems: "flex-end" }}
-        >
-          <PressableCard
-            onPress={dismissKeyboard}
-            accessibilityRole="button"
-            accessibilityLabel={t("onboarding.demo.focus.hideKeyboard")}
-            style={{
-              borderWidth: 1,
-              borderColor: colors.line,
-              backgroundColor: colors.panel,
-              borderRadius: 999,
-              paddingVertical: 8,
-              paddingHorizontal: 18,
-            }}
-          >
-            <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 15 }}>
-              {t("onboarding.demo.focus.doneTyping")}
-            </Text>
-          </PressableCard>
-        </Animated.View>
+        <KeyboardDoneBar onPress={dismissKeyboard} />
       ) : on ? null : (
         <Animated.View entering={fade} exiting={unfade} style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24, paddingTop: 8 }}>
           <PressableCard
