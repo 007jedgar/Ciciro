@@ -1,8 +1,8 @@
 // The "wash" that changes the app's theme: new paper spreads from the spot that
 // was tapped until it covers everything, the theme swaps underneath, and the
 // paper fades away to reveal the app already wearing it. One state, read by
-// `ThemeWashHost` at the root so the Settings sheet and the onboarding step
-// share it. See AGENTS.md "Mobile motion".
+// `ThemeWashHost` at the root (and inside modal-presented screens like Settings,
+// which sit above it) so the Settings sheet and the onboarding step share it. See AGENTS.md "Mobile motion".
 
 export const WASH_SPREAD_MS = 420;
 export const WASH_FADE_MS = 260;
@@ -17,6 +17,7 @@ export type ThemeWash = {
 };
 
 let current: ThemeWash | null = null;
+let appliedId = 0;
 let nextId = 1;
 const listeners = new Set<() => void>();
 
@@ -44,6 +45,16 @@ export function startThemeWash(wash: Omit<ThemeWash, "id">): boolean {
   current = { ...wash, id: nextId++ };
   emit();
   return true;
+}
+
+/**
+ * Swaps the theme, once per wash however many hosts are painting it (a screen
+ * presented as a modal is above the root host, so it mounts its own).
+ */
+export function applyThemeWash(id: number): void {
+  if (current?.id !== id || appliedId === id) return;
+  appliedId = id;
+  current.apply();
 }
 
 export function finishThemeWash(id: number): void {

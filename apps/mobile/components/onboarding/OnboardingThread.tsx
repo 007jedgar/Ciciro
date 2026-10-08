@@ -7,7 +7,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
   ZoomIn,
   type SharedValue,
@@ -47,8 +46,8 @@ export function OnboardingThread({ steps, current }: { steps: readonly Onboardin
     // The knot you arrive at pops once, as the line reaches it.
     pop.value = withSequence(
       withTiming(1, { duration: DRAW_MS - 140 }),
-      withSpring(1.45, { damping: 7, stiffness: 320 }),
-      withSpring(1, { damping: 12, stiffness: 240 })
+      withTiming(1.5, { duration: 130, easing: EASE_OUT }),
+      withTiming(1, { duration: 260, easing: EASE_OUT })
     );
     // Only a change of screen redraws the thread.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +99,7 @@ function ThreadPiece({
 }) {
   const node = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(progress.value, [i - 0.4, i], [idle, done]),
+    borderRadius: NODE / 2,
     transform: [{ scale: isCurrent ? pop.value : 1 }],
   }));
   const fill = useAnimatedStyle(() => ({
@@ -107,7 +107,10 @@ function ThreadPiece({
   }));
   return (
     <>
-      <Animated.View entering={entering} layout={LinearTransition.duration(260)} style={[styles.node, node]} />
+      {/* The layout animation lives on a wrapper: the knot's own style animates transform. */}
+      <Animated.View entering={entering} layout={LinearTransition.duration(260)}>
+        <Animated.View style={[styles.node, node]} />
+      </Animated.View>
       {last ? null : (
         <Animated.View layout={LinearTransition.duration(260)} style={[styles.track, { backgroundColor: idle }]}>
           <Animated.View style={[styles.fill, { backgroundColor: done }, fill]} />

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useEffect, useRef, useState } from "react";
+import { Keyboard, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
+import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
@@ -22,6 +23,8 @@ import * as haptics from "../../lib/haptics";
 
 const DEMO_CHAPTER_ID = "onboarding-demo-focus";
 /** Enough prose to scroll through, so the demo is a page and not a single line. */
+/** At this text size the intro would leave the page no room above the keyboard, so it steps aside while typing. */
+const LARGE_TEXT_SCALE = 1.3;
 const SAMPLE_KEYS = ["sample", "sample2", "sample3", "sample4"] as const;
 
 /**
@@ -50,6 +53,10 @@ export function FocusDemo({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const [on, setOn] = useState(false);
+  const editorRef = useRef<EnrichedTextInputInstance | null>(null);
+  const keyboardVisible = useKeyboardState((state) => state.isVisible);
+  const { fontScale } = useWindowDimensions();
+  const compact = keyboardVisible && fontScale > LARGE_TEXT_SCALE;
   // `onChangeText` reports plain text, not HTML (see ChapterEditor) - the
   // sample page never changes under the editor, so the user's own typing
   // stays entirely inside the native view and is never read back here.
@@ -66,6 +73,12 @@ export function FocusDemo({
   function tryFocus() {
     haptics.impact("medium");
     setOn(true);
+  }
+
+  // Works with any keyboard: tapping outside the page and the Done bar both end up here.
+  function dismissKeyboard() {
+    editorRef.current?.blur();
+    Keyboard.dismiss();
   }
 
   function finish() {
@@ -107,34 +120,42 @@ export function FocusDemo({
             onSkip={onSkip}
             thread={<OnboardingThread steps={steps} current="demo" />}
           />
-          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+          <Pressable
+            onPress={dismissKeyboard}
+            accessible={false}
+            style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: compact ? 4 : 0 }}
+          >
             <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.focus.title")}</Text>
-            <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
-              {t("onboarding.demo.focus.intro")}
-            </Text>
-            <PressableCard
-              onPress={tryFocus}
-              accessibilityRole="button"
-              accessibilityLabel={t("onboarding.demo.focus.tryButton")}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                alignSelf: "flex-start",
-                borderWidth: 1,
-                borderColor: colors.line,
-                backgroundColor: colors.panel,
-                borderRadius: 999,
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-              }}
-            >
-              <FocusIcon color={colors.accent} size={16} />
-              <Text style={{ color: colors.ink, fontWeight: "600" }}>
-                {t("onboarding.demo.focus.tryButton")}
+            {compact ? null : (
+              <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>
+                {t("onboarding.demo.focus.intro")}
               </Text>
-            </PressableCard>
-          </View>
+            )}
+            {compact ? null : (
+              <PressableCard
+                onPress={tryFocus}
+                accessibilityRole="button"
+                accessibilityLabel={t("onboarding.demo.focus.tryButton")}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  alignSelf: "flex-start",
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  backgroundColor: colors.panel,
+                  borderRadius: 999,
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                }}
+              >
+                <FocusIcon color={colors.accent} size={16} />
+                <Text style={{ color: colors.ink, fontWeight: "600" }}>
+                  {t("onboarding.demo.focus.tryButton")}
+                </Text>
+              </PressableCard>
+            )}
+          </Pressable>
         </Animated.View>
       )}
 
@@ -151,12 +172,40 @@ export function FocusDemo({
           onChangeText={() => {}}
           onChangeState={() => {}}
           onChangeSelection={() => {}}
-          registerEditor={() => {}}
+          registerEditor={(ref) => {
+            editorRef.current = ref;
+          }}
           testID="onboarding-focus-editor"
         />
       </View>
 
-      {on ? null : (
+      {keyboardVisible ? (
+        // A button that does not depend on the keyboard having its own: Continue
+        // is back the moment the keyboard is down.
+        <Animated.View
+          entering={fade}
+          exiting={unfade}
+          style={{ paddingHorizontal: 20, paddingVertical: 8, alignItems: "flex-end" }}
+        >
+          <PressableCard
+            onPress={dismissKeyboard}
+            accessibilityRole="button"
+            accessibilityLabel={t("onboarding.demo.focus.hideKeyboard")}
+            style={{
+              borderWidth: 1,
+              borderColor: colors.line,
+              backgroundColor: colors.panel,
+              borderRadius: 999,
+              paddingVertical: 8,
+              paddingHorizontal: 18,
+            }}
+          >
+            <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 15 }}>
+              {t("onboarding.demo.focus.doneTyping")}
+            </Text>
+          </PressableCard>
+        </Animated.View>
+      ) : on ? null : (
         <Animated.View entering={fade} exiting={unfade} style={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24, paddingTop: 8 }}>
           <PressableCard
             accent

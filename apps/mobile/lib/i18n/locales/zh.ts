@@ -83,6 +83,8 @@ const zh: Translations = {
         title: "试试专注模式",
         intro: "除了页面以外的一切都会消失。点击开始，写下你自己的一行。",
         tryButton: "试试专注模式",
+        doneTyping: "完成",
+        hideKeyboard: "收起键盘",
         journalPlaceholder: "写下今天的第一行。",
         sample:
           "雨已经下了三天都没停，山谷渐渐开始被淹没。她站在窗边，等待一个已经不再由她来做的决定。",

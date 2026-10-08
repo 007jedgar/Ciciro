@@ -47,6 +47,7 @@ export default function OnboardingReminderScreen() {
     if (busy) return;
     setBusy(true);
     setNotice(null);
+    setShowOpenSettings(false);
     const permission = await requestReminderPermission(t("reminders.channel"));
     setBusy(false);
     getAnalytics().track("onboarding_reminder_created", {
