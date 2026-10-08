@@ -9,8 +9,8 @@ import {
   cycleElement,
   type ScreenplayElement,
 } from "../lib/manuscript-kind";
+import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
-import { PRESS_SCALE } from "../lib/motion";
 
 const LABEL_KEYS: Record<ScreenplayElement, string> = {
   "scene-heading": "screenplay.sceneHeading",
@@ -68,33 +68,29 @@ export function ScreenplayBar({
           {SCREENPLAY_ELEMENTS.map((el) => {
             const active = el === element;
             return (
-              <TapPressable
-                scale={PRESS_SCALE.chip}
+              <SelectChip
                 key={el}
+                selected={active}
+                tokens={{
+                  restFill: "transparent",
+                  activeFill: colors.accent,
+                  restBorder: "transparent",
+                  activeBorder: colors.accent,
+                  restText: colors.ink,
+                  activeText: colors.bg,
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={t(LABEL_KEYS[el])}
                 accessibilityState={{ selected: active, disabled }}
                 disabled={disabled}
                 onPress={() => press(el)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: active ? colors.accent : "transparent",
-                    opacity: disabled ? 0.4 : 1,
-                  },
-                ]}
+                style={{ opacity: disabled ? 0.4 : 1 }}
+                surfaceStyle={styles.chip}
               >
-                <Text
-                  style={{
-                    fontFamily: fonts.sans,
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: active ? colors.bg : colors.ink,
-                  }}
-                >
+                <SelectLabel style={{ fontFamily: fonts.sans, fontSize: 13, fontWeight: "600" }}>
                   {t(LABEL_KEYS[el])}
-                </Text>
-              </TapPressable>
+                </SelectLabel>
+              </SelectChip>
             );
           })}
         </ScrollView>

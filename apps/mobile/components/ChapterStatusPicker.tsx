@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, { interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 import { alpha } from "./Glass";
 import { TapPressable } from "./TapPressable";

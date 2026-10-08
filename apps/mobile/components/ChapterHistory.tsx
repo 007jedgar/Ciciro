@@ -37,8 +37,8 @@ import { alpha } from "./Glass";
 import { SkeletonList } from "./Skeleton";
 import { Snackbar } from "./Snackbar";
 import { AlertText } from "./AlertText";
+import { SelectChip, SelectLabel, segmentSelectTokens } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
-import { PRESS_SCALE } from "../lib/motion";
 
 /** How long "Version restored - Undo" stays up. */
 const NOTICE_MS = 8000;
@@ -297,23 +297,19 @@ export function ChapterHistory({
                       {(["changes", "text"] as const).map((value) => {
                         const active = mode === value;
                         return (
-                          <TapPressable
-                            scale={PRESS_SCALE.chip}
+                          <SelectChip
                             key={value}
+                            selected={active}
+                            tokens={segmentSelectTokens(colors)}
                             accessibilityRole="button"
                             accessibilityState={{ selected: active }}
                             onPress={() => setMode(value)}
-                            style={[styles.segmentBtn, active ? { backgroundColor: colors.panel } : null]}
+                            surfaceStyle={styles.segmentBtn}
                           >
-                            <Text
-                              style={[
-                                styles.segmentText,
-                                { color: active ? colors.ink : colors.inkSoft },
-                              ]}
-                            >
+                            <SelectLabel style={styles.segmentText}>
                               {value === "changes" ? t("history.changes") : t("history.fullText")}
-                            </Text>
-                          </TapPressable>
+                            </SelectLabel>
+                          </SelectChip>
                         );
                       })}
                     </View>

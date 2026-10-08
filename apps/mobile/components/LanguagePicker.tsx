@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { currentLocale, LOCALE_OPTIONS, setAppLocale, type AppLocale } from "../lib/i18n";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
-import { PressableCard } from "./PressableCard";
+import { PRESS_SCALE } from "../lib/motion";
+import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 
 export function LanguagePicker({
@@ -56,24 +57,27 @@ export function LanguagePicker({
       {LOCALE_OPTIONS.map((opt) => {
         const active = activeId === opt.id;
         return (
-          <PressableCard
+          <SelectChip
             key={opt.id}
+            selected={active}
+            tokens={{
+              restFill: colors.panel,
+              activeFill: colors.accentSoft,
+              restBorder: colors.line,
+              activeBorder: colors.accent,
+              restText: colors.ink,
+              activeText: colors.ink,
+            }}
+            scale={PRESS_SCALE.card}
             onPress={() => void setAppLocale(opt.id)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={opt.nativeName}
-            style={[
-              layout.card,
-              {
-                width: "47%",
-                marginBottom: 0,
-                borderColor: active ? colors.accent : colors.line,
-                backgroundColor: active ? colors.accentSoft : colors.panel,
-              },
-            ]}
+            style={{ width: "47%" }}
+            surfaceStyle={[layout.card, { marginBottom: 0 }]}
           >
-            <Text style={layout.cardTitle}>{opt.nativeName}</Text>
-          </PressableCard>
+            <SelectLabel style={layout.cardTitle}>{opt.nativeName}</SelectLabel>
+          </SelectChip>
         );
       })}
     </View>

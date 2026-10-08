@@ -33,7 +33,7 @@ import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { switchColors } from "../lib/switch-theme";
 import { setFocusMode, useFocusMode } from "../lib/focus-mode";
-import { EASE_OUT } from "../lib/motion";
+import { EASE_OUT, PRESS_SCALE } from "../lib/motion";
 import { getReminderPermission, requestReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
@@ -52,6 +52,7 @@ import * as haptics from "../lib/haptics";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
 import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
+import { SelectCheck, SelectChip, SelectLabel } from "../components/SelectChip";
 import { TapPressable } from "../components/TapPressable";
 
 /** The theme sheet shows the themes two to a row. */
@@ -251,12 +252,23 @@ function OptionRow({
   preview?: "serif" | "sans";
 }) {
   return (
-    <TapPressable
+    <SelectChip
       onPress={onPress}
+      selected={selected}
+      tokens={{
+        restFill: "transparent",
+        activeFill: colors.accentSoft,
+        restBorder: "transparent",
+        activeBorder: colors.accent,
+        restText: colors.ink,
+        activeText: colors.ink,
+      }}
+      scale={PRESS_SCALE.card}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityHint={hint}
-      style={{
+      style={{ marginBottom: 8 }}
+      surfaceStyle={{
         minHeight: hint ? 64 : 48,
         borderRadius: 14,
         paddingHorizontal: 14,
@@ -264,13 +276,8 @@ function OptionRow({
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
-        backgroundColor: selected ? colors.accentSoft : "transparent",
         borderWidth: 1,
-        borderColor: selected ? colors.accent : "transparent",
-        marginBottom: 8,
       }}
-      highlight
-      feedback="none"
     >
       {swatch ? (
         <View
@@ -285,21 +292,22 @@ function OptionRow({
         />
       ) : null}
       <View style={{ flex: 1 }}>
-        <Text
+        <SelectLabel
           style={{
             fontSize: 17,
-            color: colors.ink,
             fontFamily: preview === "serif" ? fonts.serif : preview === "sans" ? fonts.sans : undefined,
           }}
         >
           {label}
-        </Text>
+        </SelectLabel>
         {hint ? (
           <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{hint}</Text>
         ) : null}
       </View>
-      {selected ? <CheckIcon color={colors.accent} size={16} /> : null}
-    </TapPressable>
+      <SelectCheck>
+        <CheckIcon color={colors.accent} size={16} />
+      </SelectCheck>
+    </SelectChip>
   );
 }
 

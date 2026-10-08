@@ -25,6 +25,7 @@ import {
   type VoiceOption,
 } from "../lib/read-aloud";
 import { getAnalytics } from "../lib/analytics-client";
+import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 import { PRESS_SCALE } from "../lib/motion";
 
@@ -315,17 +316,26 @@ export function ReadAloud({
             .map((opt) => {
               const selected = prefs.voice === opt.identifier;
               return (
-                <TapPressable
-                  scale={PRESS_SCALE.chip}
+                <SelectChip
                   key={opt.identifier ?? "default"}
+                  selected={selected}
+                  tokens={{
+                    restFill: "transparent",
+                    activeFill: colors.accentSoft,
+                    restBorder: "transparent",
+                    activeBorder: "transparent",
+                    restText: colors.ink,
+                    activeText: colors.accent,
+                  }}
+                  scale={PRESS_SCALE.card}
                   onPress={() => pickVoice(opt.identifier)}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   accessibilityLabel={opt.label}
-                  style={[styles.option, { backgroundColor: selected ? colors.accentSoft : "transparent" }]}
+                  surfaceStyle={styles.option}
                 >
-                  <Text style={{ color: selected ? colors.accent : colors.ink, fontSize: 16 }}>{opt.label}</Text>
-                </TapPressable>
+                  <SelectLabel style={{ fontSize: 16 }}>{opt.label}</SelectLabel>
+                </SelectChip>
               );
             })}
         </ScrollView>
