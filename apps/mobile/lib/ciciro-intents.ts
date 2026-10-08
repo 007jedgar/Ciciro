@@ -35,7 +35,7 @@ export function chatRequestFromIntent(
   ctx: { projectId: string; chapterId: string | null; selection?: string }
 ): EditorRunInput {
   const spec = INTENT_PROMPTS[intent];
-  const selection = ctx.selection?.trim() ?? "";
+  const selection = spec.scope === "selection" ? (ctx.selection?.trim() ?? "") : "";
   return {
     projectId: ctx.projectId,
     message: spec.message,

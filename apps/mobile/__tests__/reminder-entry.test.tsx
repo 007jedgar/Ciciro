@@ -118,6 +118,17 @@ describe("adding a writing reminder", () => {
     expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "new_manuscript", surface: "library" });
   });
 
+  it("fires the same cta_clicked from the empty library's New manuscript button", () => {
+    renderInSafeArea(<ManuscriptsScreen />);
+    const trigger = screen.getByRole("button", { name: "New manuscript", expanded: false });
+    const emptyButton = screen
+      .getAllByRole("button", { name: "New manuscript" })
+      .find((button) => button !== trigger);
+    fireEvent.press(emptyButton!);
+    expect(mockPush).toHaveBeenCalledWith("/new-manuscript");
+    expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "new_manuscript", surface: "library" });
+  });
+
   it("edits the existing reminder for the current manuscript", () => {
     renderInSafeArea(<ManuscriptTabBar projectId="p1" />);
     fireEvent.press(screen.getByLabelText("Writing tools"));

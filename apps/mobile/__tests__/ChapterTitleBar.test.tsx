@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { ChapterTitleBar } from "../components/ChapterTitleBar";
 import { defaultSettings } from "../lib/app-settings";
@@ -36,6 +36,27 @@ describe("ChapterTitleBar", () => {
     fireEvent.changeText(field, "  After the Storm ");
     fireEvent(field, "submitEditing");
     await waitFor(() => expect(onRename).toHaveBeenCalledWith("After the Storm"));
+    unmount();
+  });
+
+  it("shows the new title while the save is still in flight", async () => {
+    let finish: () => void = () => {};
+    const onRename = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const { unmount } = render(
+      wrap(<ChapterTitleBar kind="novel" number={2} title="The Storm" onRename={onRename} />)
+    );
+    fireEvent.press(screen.getByLabelText("Rename The Storm"));
+    const field = screen.getByLabelText("Chapter title");
+    fireEvent.changeText(field, " After the Storm ");
+    fireEvent(field, "submitEditing");
+    expect(await screen.findByText("After the Storm")).toBeTruthy();
+    expect(screen.queryByText("The Storm")).toBeNull();
+    await act(async () => finish());
     unmount();
   });
 
