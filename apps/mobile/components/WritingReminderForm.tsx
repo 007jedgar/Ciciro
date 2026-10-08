@@ -15,6 +15,7 @@ import {
   type Weekday,
   type WritingReminder,
 } from "../lib/writing-reminders";
+import { PressableCard } from "./PressableCard";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
 
@@ -35,6 +36,7 @@ export function WritingReminderForm({
   onOpenSettings,
   onSave,
   onDelete,
+  onboarding = false,
 }: {
   reminder: WritingReminder;
   manuscripts: ManuscriptChoice[];
@@ -51,6 +53,12 @@ export function WritingReminderForm({
   onOpenSettings?: () => void;
   onSave: (next: WritingReminder) => void;
   onDelete?: () => void;
+  /**
+   * The pre-signup onboarding's reminder step: a person with no manuscripts yet,
+   * so no blurb (the screen has its own), no scope choice (it is for all their
+   * writing), no pause switch, and the button reads "Create reminder".
+   */
+  onboarding?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const themed = useOptionalAppTheme();
@@ -137,7 +145,7 @@ export function WritingReminderForm({
 
   return (
     <View>
-      <Text style={[layout.body, { marginBottom: 16 }]}>{t("reminders.blurb")}</Text>
+      {onboarding ? null : <Text style={[layout.body, { marginBottom: 16 }]}>{t("reminders.blurb")}</Text>}
 
       <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.preview")}</Text>
       <View
@@ -161,30 +169,34 @@ export function WritingReminderForm({
         )}
       </View>
 
-      <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.scope")}</Text>
-      <Choice
-        label={t("reminders.general")}
-        selected={projectId == null}
-        colors={colors}
-        onPress={() => setProjectId(null)}
-      />
-      {manuscripts.map((manuscript) => (
-        <Choice
-          key={manuscript.id}
-          label={manuscript.title}
-          selected={projectId === manuscript.id}
-          colors={colors}
-          onPress={() => setProjectId(manuscript.id)}
-        />
-      ))}
-      {projectId && !known && manuscriptsReady ? (
-        <Choice
-          label={t("reminders.missingManuscript")}
-          selected
-          colors={colors}
-          onPress={() => setProjectId(projectId)}
-        />
-      ) : null}
+      {onboarding ? null : (
+        <>
+          <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.scope")}</Text>
+          <Choice
+            label={t("reminders.general")}
+            selected={projectId == null}
+            colors={colors}
+            onPress={() => setProjectId(null)}
+          />
+          {manuscripts.map((manuscript) => (
+            <Choice
+              key={manuscript.id}
+              label={manuscript.title}
+              selected={projectId === manuscript.id}
+              colors={colors}
+              onPress={() => setProjectId(manuscript.id)}
+            />
+          ))}
+          {projectId && !known && manuscriptsReady ? (
+            <Choice
+              label={t("reminders.missingManuscript")}
+              selected
+              colors={colors}
+              onPress={() => setProjectId(projectId)}
+            />
+          ) : null}
+        </>
+      )}
 
       <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.goal")}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -316,28 +328,30 @@ export function WritingReminderForm({
         })}
       </View>
 
-      <View
-        style={{
-          marginTop: 20,
-          minHeight: 52,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 17, color: colors.ink }}>{t("reminders.enabled")}</Text>
-          <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
-            {t("reminders.enabledHint")}
-          </Text>
+      {onboarding ? null : (
+        <View
+          style={{
+            marginTop: 20,
+            minHeight: 52,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, color: colors.ink }}>{t("reminders.enabled")}</Text>
+            <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>
+              {t("reminders.enabledHint")}
+            </Text>
+          </View>
+          <Switch
+            value={enabled}
+            onValueChange={setEnabled}
+            {...switchColors(colors)}
+            accessibilityLabel={t("reminders.enabled")}
+          />
         </View>
-        <Switch
-          value={enabled}
-          onValueChange={setEnabled}
-          {...switchColors(colors)}
-          accessibilityLabel={t("reminders.enabled")}
-        />
-      </View>
+      )}
 
       {projectId ? (
         <View
@@ -385,17 +399,18 @@ export function WritingReminderForm({
         </TapPressable>
       ) : null}
 
-      <TapPressable
+      <PressableCard
+        accent
         style={[layout.primaryBtn, { marginTop: 16, opacity: busy ? 0.6 : 1 }]}
         onPress={save}
         disabled={busy}
         accessibilityRole="button"
-        accessibilityLabel={t("reminders.save")}
+        accessibilityLabel={onboarding ? t("onboarding.reminderCreate") : t("reminders.save")}
       >
         <Text style={layout.primaryBtnText}>
-          {busy ? t("reminders.saving") : t("reminders.save")}
+          {busy ? t("reminders.saving") : onboarding ? t("onboarding.reminderCreate") : t("reminders.save")}
         </Text>
-      </TapPressable>
+      </PressableCard>
 
       {onDelete ? (
         <TapPressable

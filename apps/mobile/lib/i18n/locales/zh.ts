@@ -57,6 +57,16 @@ const zh: Translations = {
   },
   onboarding: {
     skip: "跳过",
+    progress: "第 {{current}} 步，共 {{total}} 步",
+    continue: "继续",
+    obstacleHint: "有几个选几个。",
+    lookTitle: "选一个外观",
+    lookBody: "点一下，整个应用就会改变。你随时可以在设置里更换。",
+    reminderTitle: "你打算什么时候写？",
+    reminderBody: "选好日子和时间，Ciciro 会提醒你。创建提醒时，它会请求发送通知的权限。",
+    reminderCreate: "创建提醒",
+    reminderNotNow: "暂时不用",
+    reminderDenied: "Ciciro 的通知已关闭，所以这个提醒已保存，但不会出声。在设置里打开通知，它就会开始生效。",
     goalQuestion: "你在写什么？",
     obstacleQuestion: "是什么在阻碍你？",
     obstacles: {
@@ -76,6 +86,12 @@ const zh: Translations = {
         journalPlaceholder: "写下今天的第一行。",
         sample:
           "雨已经下了三天都没停，山谷渐渐开始被淹没。她站在窗边，等待一个已经不再由她来做的决定。",
+        sample2:
+          "上游某处，一道堤坝已经崩塌。她最先察觉的是声音：一个悠长低沉的音符，像是有人用大提琴一下拉过整座山谷。",
+        sample3:
+          "她哥哥的靴子还留在门边。他走得很匆忙，而匆忙是他离开任何东西时唯一的方式，她还没有决定要不要为此原谅他。",
+        sample4:
+          "傍晚时，水已经漫到了花园的围墙。她点亮灯，摆出两只杯子，终于开始写那封她整个冬天都在回避的信。",
       },
       suggestions: {
         title: "是建议，不是替你改写",

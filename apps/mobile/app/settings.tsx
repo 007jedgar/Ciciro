@@ -21,6 +21,7 @@ import { useStackBack } from "../lib/use-stack-back";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { GlassSheet } from "../components/GlassSheet";
+import { ThemeCard } from "../components/ThemeCard";
 import { CheckIcon, ChevronRightIcon } from "../components/icons";
 import { ApiError, API_URL } from "../lib/api/client";
 import { ciciro } from "../lib/api";
@@ -48,7 +49,15 @@ import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePur
 import { getAnalytics } from "../lib/analytics-client";
 import * as haptics from "../lib/haptics";
 import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
+import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
+
+/** The theme sheet shows the themes two to a row. */
+const themeRows = THEME_META.reduce<(typeof THEME_META)[]>((rows, theme, i) => {
+  if (i % 2 === 0) rows.push([theme]);
+  else rows[rows.length - 1]!.push(theme);
+  return rows;
+}, []);
 
 type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
 
@@ -642,6 +651,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
+  const changeTheme = useThemeChange();
   const reduceMotion = useReduceMotion();
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
   const { data: entitlement } = useEntitlement(Boolean(user));
@@ -1069,21 +1079,27 @@ export default function SettingsScreen() {
               />
             ))
           : null}
-        {sheet === "theme"
-          ? THEME_META.map((theme) => (
-              <OptionRow
-                key={theme.id}
-                label={`${t(`themes.${theme.id}`)} · ${t(`themes.${theme.mode}`)}`}
-                selected={settings.theme === theme.id}
-                colors={colors}
-                swatch={THEME_PALETTES[theme.id].bg}
-                onPress={() => {
-                  patch({ theme: theme.id as ThemeId });
-                  setSheet(null);
-                }}
-              />
-            ))
-          : null}
+        {sheet === "theme" ? (
+          <View accessibilityRole="radiogroup" style={{ gap: 10, paddingBottom: 8 }}>
+            {themeRows.map((row) => (
+              <View key={row[0]!.id} style={{ flexDirection: "row", gap: 10 }}>
+                {row.map((theme) => (
+                  <ThemeCard
+                    key={theme.id}
+                    theme={theme.id}
+                    selected={settings.theme === theme.id}
+                    onPress={(event) => {
+                      if (theme.id !== settings.theme) {
+                        changeTheme(theme.id, () => patch({ theme: theme.id }), event);
+                      }
+                      setSheet(null);
+                    }}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
+        ) : null}
         {sheet === "font"
           ? (["serif", "sans"] as const).map((font) => (
               <OptionRow

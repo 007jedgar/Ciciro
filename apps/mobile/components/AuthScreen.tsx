@@ -43,9 +43,12 @@ import { useAppTheme } from "../lib/settings";
 import { restoreLastPlace } from "../lib/last-place";
 import { useSession } from "../lib/session";
 import { fonts } from "../lib/theme";
-import type { ManuscriptKind } from "../lib/manuscript-kind";
-import type { Obstacle } from "../lib/onboarding";
 import { saveOnboardingAnswers } from "../lib/onboarding-answers";
+import { stepsFor, type OnboardingState } from "../lib/onboarding-flow";
+import { commitWritingReminders } from "../lib/writing-reminder-store";
+import { useThemePreview } from "../lib/theme-preview-context";
+import { OnboardingThread } from "./onboarding/OnboardingThread";
+import { SuccessBurst } from "./onboarding/SuccessBurst";
 import { AlertText } from "./AlertText";
 
 const ICON = { x: 20, y: 6, size: 46 };
@@ -96,7 +99,7 @@ export function AuthScreen({
 }: {
   initialMode: AuthMode;
   /** The pre-signup quiz's answers, carried here as route params - see AGENTS.md "Pre-signup onboarding". */
-  onboarding?: { kind: ManuscriptKind; obstacle: Obstacle | null } | null;
+  onboarding?: OnboardingState | null;
 }) {
   const router = useRouter();
   const { backOr } = useStackBack();
@@ -116,6 +119,9 @@ export function AuthScreen({
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const isSignup = mode === "signup";
+  const { setPreview, adoptPreview } = useThemePreview();
+  // Set when an onboarding sign-up created the account: plays the burst, then runs this.
+  const [burst, setBurst] = useState<(() => void) | null>(null);
   // Return walks the form: name, then email, then password, and on the
   // password it submits, so nobody has to dismiss the keyboard to find the button.
   const emailRef = useRef<TextInput>(null);
@@ -123,10 +129,28 @@ export function AuthScreen({
 
   // The form store outlives this screen, so clear it: after signing out, the
   // next person to open sign-in must not find the last password filled in.
-  function signedIn(user: PublicUser) {
+  function signedIn(user: PublicUser, created = isSignup) {
     reset();
-    if (isSignup && onboarding) saveOnboardingAnswers(onboarding.kind, onboarding.obstacle);
-    restoreLastPlace(router, user.id);
+    const arrive = () => restoreLastPlace(router, user.id);
+    if (!isSignup || !onboarding) {
+      setPreview(null);
+      arrive();
+      return;
+    }
+    saveOnboardingAnswers(onboarding.kind, onboarding.obstacles);
+    // A social sign-in on this screen can land on an account that already
+    // existed. Its settings and reminders are its own: the quiz's theme and
+    // reminder go only to a brand-new account.
+    if (!created) {
+      setPreview(null);
+      arrive();
+      return;
+    }
+    if (onboarding.reminder) commitWritingReminders(user.id, [onboarding.reminder]);
+    adoptPreview();
+    haptics.success();
+    if (reduceMotion) arrive();
+    else setBurst(() => arrive);
   }
 
   async function submit() {
@@ -141,7 +165,7 @@ export function AuthScreen({
       const user = isSignup
         ? await signup({ email: email.trim(), password, name: name.trim() || undefined, marketingOptIn })
         : await login(email.trim(), password);
-      signedIn(user);
+      signedIn(user, isSignup);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("errors.network"));
       setBusy(false);
@@ -287,6 +311,7 @@ export function AuthScreen({
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
+      {burst ? <SuccessBurst onDone={burst} /> : null}
       {/* animated header: chevron and title drop into place */}
       <View style={[styles.header, { top: insets.top, height: HEADER_H }]}>
         <Animated.View style={chevronStyle}>
@@ -315,6 +340,18 @@ export function AuthScreen({
           </Animated.Text>
         </Animated.View>
       </View>
+
+      {onboarding ? (
+        // The thread's last knot: the line finishes here, at the account.
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.thread, { top: insets.top + HEADER_H }, titleStyle]}
+        >
+          <Animated.View style={signupTextStyle}>
+            <OnboardingThread steps={stepsFor(onboarding.obstacles)} current="account" />
+          </Animated.View>
+        </Animated.View>
+      ) : null}
 
       <KeyboardAwareScrollView
         style={styles.kav}
@@ -544,6 +581,7 @@ export function AuthScreen({
 }
 
 const styles = StyleSheet.create({
+  thread: { position: "absolute", left: 24, right: 24, zIndex: 2 },
   root: { flex: 1 },
   header: {
     position: "absolute",

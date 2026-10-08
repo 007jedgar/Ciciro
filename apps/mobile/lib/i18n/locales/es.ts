@@ -57,6 +57,16 @@ const es: Translations = {
   },
   onboarding: {
     skip: "Omitir",
+    progress: "Paso {{current}} de {{total}}",
+    continue: "Continuar",
+    obstacleHint: "Elige todos los que apliquen.",
+    lookTitle: "Elige un aspecto",
+    lookBody: "Toca uno y toda la app cambia. Puedes cambiarlo cuando quieras en Ajustes.",
+    reminderTitle: "¿Cuándo vas a escribir?",
+    reminderBody: "Elige los días y una hora y Ciciro te avisará. Pedirá permiso para enviar notificaciones cuando crees el recordatorio.",
+    reminderCreate: "Crear recordatorio",
+    reminderNotNow: "Ahora no",
+    reminderDenied: "Las notificaciones están desactivadas para Ciciro, así que este recordatorio queda guardado pero en silencio. Actívalas en Ajustes y empezará a funcionar.",
     goalQuestion: "¿En qué estás trabajando?",
     obstacleQuestion: "¿Qué se te interpone?",
     obstacles: {
@@ -82,6 +92,12 @@ const es: Translations = {
         journalPlaceholder: "Escribe la primera línea de hoy.",
         sample:
           "La lluvia no había cesado en tres días, y el valle empezaba a inundarse. Ella permanecía junto a la ventana, esperando una decisión que ya no le correspondía tomar.",
+        sample2:
+          "En algún punto río arriba, una presa había cedido. Lo primero que supo fue el sonido: una nota larga y grave, como un violonchelo que recorriera el valle entero de una sola vez.",
+        sample3:
+          "Las botas de su hermano seguían junto a la puerta. Se había ido con prisa, que era la única manera en que había dejado jamás algo, y ella aún no había decidido si perdonárselo.",
+        sample4:
+          "Al anochecer el agua había llegado al muro del jardín. Encendió la lámpara, puso dos tazas y empezó, por fin, a escribir la carta que llevaba todo el invierno evitando.",
       },
       suggestions: {
         title: "Sugerencias, no reescrituras",

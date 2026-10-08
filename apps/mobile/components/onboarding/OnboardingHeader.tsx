@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -5,8 +6,19 @@ import { useAppTheme } from "../../lib/settings";
 import { ChevronLeftIcon } from "../icons";
 import { TapPressable } from "../TapPressable";
 
-/** The back + Skip row every onboarding screen shares - Skip always lands on signup. */
-export function OnboardingHeader({ onBack, onSkip }: { onBack: () => void; onSkip: () => void }) {
+/**
+ * The back + Skip row every onboarding screen shares - Skip always lands on
+ * signup. The progress thread sits between the two.
+ */
+export function OnboardingHeader({
+  onBack,
+  onSkip,
+  thread,
+}: {
+  onBack: () => void;
+  onSkip: () => void;
+  thread?: ReactNode;
+}) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -21,6 +33,7 @@ export function OnboardingHeader({ onBack, onSkip }: { onBack: () => void; onSki
       >
         <ChevronLeftIcon color={colors.ink} />
       </TapPressable>
+      <View style={styles.thread}>{thread}</View>
       <TapPressable
         onPress={onSkip}
         accessibilityRole="button"
@@ -41,6 +54,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
   },
+  thread: { flex: 1, marginHorizontal: 14 },
   iconBtn: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   skipBtn: { paddingVertical: 10, paddingHorizontal: 4 },
   skipText: { fontSize: 15, fontWeight: "600" },

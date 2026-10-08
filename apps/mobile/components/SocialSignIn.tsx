@@ -68,7 +68,7 @@ export function SocialSignIn({
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
   onError: (message: string | null) => void;
-  onSignedIn: (user: PublicUser) => void;
+  onSignedIn: (user: PublicUser, created: boolean) => void;
   /** Only applied when this sign-in creates an account (the signup screen). */
   marketingOptIn?: boolean;
 }) {
@@ -98,11 +98,11 @@ export function SocialSignIn({
     onError(null);
     onBusyChange(true);
     try {
-      const user =
+      const result =
         button === "apple-native"
           ? await signInWithApple(marketingOptIn)
           : await signInWithBrowser(button === "google" ? "google" : "apple", marketingOptIn);
-      if (user) onSignedIn(user);
+      if (result) onSignedIn(result.user, result.created);
       else onBusyChange(false);
     } catch (error) {
       onError(
