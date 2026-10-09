@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AlertText } from "../../../components/AlertText";
@@ -129,9 +129,8 @@ function DeadlineScreenContent() {
     }
   }
 
-  function onPickDate(event: DateTimePickerEvent, picked?: Date) {
-    if (Platform.OS === "android") setAndroidPickerOpen(false);
-    if (event.type !== "set" || !picked) return;
+  function onPickDate(picked: Date) {
+    setAndroidPickerOpen(false);
     setDraft({ ...form, date: writingDayKey(picked) });
   }
 
@@ -171,7 +170,9 @@ function DeadlineScreenContent() {
                     goal: formatCount(snapshot.wordGoal, i18n.language),
                   })}
                 </Text>
-                <Kicker label={t("deadline.kicker")} />
+                <View style={{ marginTop: 24 }}>
+                  <Kicker label={t("deadline.kicker")} />
+                </View>
                 <View style={[layout.card, { marginTop: 0, marginBottom: 24 }]}>
                   <Text
                     testID="deadline-verdict"
@@ -225,7 +226,7 @@ function DeadlineScreenContent() {
                   mode="date"
                   display="compact"
                   value={dayToDate(form.date)}
-                  onChange={onPickDate}
+                  onValueChange={(_event, picked) => onPickDate(picked)}
                   minimumDate={dayToDate(form.date < today ? form.date : today)}
                   themeVariant={dark ? "dark" : "light"}
                   accentColor={colors.accent}
@@ -234,7 +235,12 @@ function DeadlineScreenContent() {
               )}
             </View>
             {Platform.OS === "android" && androidPickerOpen ? (
-              <DateTimePicker mode="date" value={dayToDate(form.date)} onChange={onPickDate} />
+              <DateTimePicker
+                mode="date"
+                value={dayToDate(form.date)}
+                onValueChange={(_event, picked) => onPickDate(picked)}
+                onDismiss={() => setAndroidPickerOpen(false)}
+              />
             ) : null}
 
             {error ? (

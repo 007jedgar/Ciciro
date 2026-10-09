@@ -9,8 +9,8 @@ import { PressableCard } from "../../../../components/PressableCard";
 import { ProjectTools, type ProjectTool } from "../../../../components/ProjectTools";
 import {
   BookIcon,
-  CalendarIcon,
   CommentIcon,
+  FlagIcon,
   HeadphonesIcon,
   HistoryIcon,
   ImportIcon,
@@ -292,7 +292,7 @@ function ChaptersScreenContent() {
     {
       key: "deadline",
       label: t("deadline.title"),
-      icon: <CalendarIcon color={colors.accent} />,
+      icon: <FlagIcon color={colors.accent} />,
       onPress: () => router.push(`/project/${projectId}/deadline` as never),
     },
     {
