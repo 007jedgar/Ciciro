@@ -135,6 +135,16 @@ function ThemedStack() {
           }}
         />
         <Stack.Screen
+          name="writing-exercise"
+          options={{
+            title: t("exercise.title"),
+            headerShown: false,
+            // Swiping away would drop writing that is kept nowhere else: the screen asks before closing.
+            gestureEnabled: false,
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
+          }}
+        />
+        <Stack.Screen
           name="project/[id]"
           options={{ headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
         />

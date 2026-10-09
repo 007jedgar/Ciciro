@@ -92,6 +92,9 @@ export type EventCatalog = {
   export_completed: { format: "epub" | "pdf" | "markdown" | "docx" };
   snapshot_restored: NoProperties;
   writing_sprint_completed: { durationMinutes?: number };
+  // The guided Observe / React / Narrate exercise (mobile). No author text: the exercise id and a whole-minute length only.
+  writing_exercise_started: { exercise: string };
+  writing_exercise_completed: { exercise: string; durationMinutes: number };
   outline_reordered: NoProperties;
   story_bible_edited: { file: "canon" | "plot" | "style" | "timeline" };
   character_created: NoProperties;
