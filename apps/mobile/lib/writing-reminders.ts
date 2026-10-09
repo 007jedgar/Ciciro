@@ -171,10 +171,16 @@ export function toggleReminderDay(days: readonly Weekday[], day: Weekday): Weekd
   return WEEKDAYS.filter((item) => selected.has(item));
 }
 
-export function formatReminderClock(hour: number, minute: number, locale: string): string {
+/** "8:00 AM", or "8 AM" with `compact` when the minutes are zero (a row with little room). */
+export function formatReminderClock(
+  hour: number,
+  minute: number,
+  locale: string,
+  options: { compact?: boolean } = {}
+): string {
   return new Intl.DateTimeFormat(locale, {
     hour: "numeric",
-    minute: "2-digit",
+    minute: options.compact && minute === 0 ? undefined : "2-digit",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
 }

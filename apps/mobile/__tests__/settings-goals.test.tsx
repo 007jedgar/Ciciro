@@ -106,7 +106,7 @@ describe("Settings: goals and reminders", () => {
     await renderSettings({ showDailyGoal: true, dailyWordGoal: 500 });
 
     expect(screen.getByLabelText("Word goal, 500 words a day")).toBeTruthy();
-    expect(screen.getByLabelText(/^Writing reminders, Weekdays at 8:00\sPM$/)).toBeTruthy();
+    expect(screen.getByLabelText(/^Writing reminders, Weekdays at 8\sPM$/)).toBeTruthy();
     expect(screen.getByLabelText("Writing history, 3 of the last 7 days")).toBeTruthy();
   });
 });

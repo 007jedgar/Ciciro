@@ -143,10 +143,11 @@ describe("writing reminders", () => {
     const summary = (reminders: WritingReminder[]) =>
       reminderSettingsSummary({ reminders, locale: "en-US", t });
     expect(summary([])).toBe("Off");
-    expect(summary([reminder({ days: [1, 2, 3, 4, 5], hour: 20 })])).toBe("Weekdays at 8:00 PM");
-    expect(summary([reminder({ days: [0, 6], hour: 9 })])).toBe("Weekends at 9:00 AM");
-    expect(summary([reminder({ days: [...WEEKDAYS], hour: 8 })])).toBe("Every day at 8:00 AM");
-    expect(summary([reminder({ days: [1, 3], hour: 8 })])).toBe("Mo We at 8:00 AM");
+    expect(summary([reminder({ days: [1, 2, 3, 4, 5], hour: 20 })])).toBe("Weekdays at 8 PM");
+    expect(summary([reminder({ days: [0, 6], hour: 9 })])).toBe("Weekends at 9 AM");
+    expect(summary([reminder({ days: [...WEEKDAYS], hour: 8 })])).toBe("Every day at 8 AM");
+    expect(summary([reminder({ days: [1, 3], hour: 8 })])).toBe("Mo We at 8 AM");
+    expect(summary([reminder({ days: [1, 3], hour: 8, minute: 30 })])).toBe("Mo We at 8:30 AM");
     expect(summary([reminder({ enabled: false })])).toBe("1 off");
     expect(summary([reminder({ id: "a" }), reminder({ id: "b" })])).toBe("2 on");
     expect(summary([reminder({ id: "a" }), reminder({ id: "b", enabled: false })])).toBe("1 on, 1 off");

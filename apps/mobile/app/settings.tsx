@@ -132,11 +132,11 @@ function SheetRow({
         highlight
         feedback="none"
       >
-        <Text style={{ flex: 1, fontSize: 17, color: tone === "danger" ? colors.danger : colors.ink }}>
+        <Text style={{ flexGrow: 1, flexShrink: 0, fontSize: 17, color: tone === "danger" ? colors.danger : colors.ink }}>
           {label}
         </Text>
         {value ? (
-          <Text style={{ fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
+          <Text style={{ flexShrink: 1, fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
             {value}
           </Text>
         ) : null}

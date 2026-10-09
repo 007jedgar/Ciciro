@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { useProjectsQuery } from "../lib/api";
@@ -30,15 +30,18 @@ export default function WritingRemindersScreen() {
   const [permission, setPermission] = useState<string | null>(null);
 
   // Reminders are saved with or without notification permission; this is where a person finds out the phone is quiet.
-  useEffect(() => {
-    let cancelled = false;
-    void getReminderPermission(t("reminders.channel")).then((status) => {
-      if (!cancelled) setPermission(status);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
+  // Read again on every focus, since the form that saved one is what asks for permission.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void getReminderPermission(t("reminders.channel")).then((status) => {
+        if (!cancelled) setPermission(status);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [t])
+  );
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;

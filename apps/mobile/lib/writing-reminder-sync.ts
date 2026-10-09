@@ -179,7 +179,7 @@ export function reminderSettingsSummary(input: {
   if (only?.enabled) {
     return t("reminders.settingsSummary", {
       days: reminderDaySummary(only.days, t),
-      time: formatReminderClock(only.hour, only.minute, locale),
+      time: formatReminderClock(only.hour, only.minute, locale, { compact: true }),
     });
   }
   if (active.length === 0) return t("reminders.settingsValueOff", { count: paused });
