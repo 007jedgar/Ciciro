@@ -142,11 +142,14 @@ describe("autowrite finished while disconnected", () => {
     expect(drafting).not.toBeNull();
     await reader.cancel(); // stand-in for a disconnect / the app backgrounding
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // The push goes out after the chapter is saved, behind several queries and
+    // a fetch, so wait for it rather than for a fixed time a slow runner can miss.
+    const sendCalls = () => calls.filter((c) => c.url.endsWith("/send"));
+    await vi.waitFor(() => expect(sendCalls()).toHaveLength(1), { timeout: 5000 });
 
     const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: a.chapterId } });
     expect(chapter.content).toContain(EDITED);
-    const sent = calls.filter((c) => c.url.endsWith("/send"));
+    const sent = sendCalls();
     expect(sent).toHaveLength(1);
     expect((sent[0].body as { to: string; title: string; data: unknown }[])[0]).toMatchObject({
       to: "ExponentPushToken[ada]",
