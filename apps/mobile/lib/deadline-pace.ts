@@ -8,7 +8,8 @@
  * The comparison is the words a day the deadline still asks for against the
  * words a day the author wrote across the last `PACE_WINDOW_DAYS` finished days.
  * Today is left out of the average (it is only part written) but its words are
- * already in `manuscriptWords`, so they still shorten the road.
+ * already in `manuscriptWords`, so they still shorten the road. Days before the
+ * window are never averaged; they only tell a returning writer from a new one.
  */
 
 export const PACE_WINDOW_DAYS = 14;
@@ -28,7 +29,7 @@ export type DeadlineStatus =
   | "onTrack"
   /** Recent pace falls short of what is needed. */
   | "behind"
-  /** No words in the window yet, so there is nothing to compare. */
+  /** A first-time writer with no words in the window yet, so there is nothing to compare. */
   | "gettingStarted";
 
 export type WritingDayWords = { date: string; words: number };
@@ -44,7 +45,7 @@ export type DeadlineSnapshot = {
   daysLeft: number;
   /** Words a day still needed to land on the date; null once past due or complete. */
   neededPerDay: number | null;
-  /** Words a day over the window; null when there is no window to average. */
+  /** Words a day over the window (0 for a writer who has stalled); null when there is nothing to compare. */
   recentPerDay: number | null;
 };
 
@@ -67,9 +68,11 @@ export function addDays(date: string, delta: number): string {
 
 /**
  * The average words a day over the finished days in the window before `today`.
- * The window starts at the author's first written day inside it, so a new
- * writer's few days are not watered down by a fortnight they were not here for.
- * Null when `today` leaves no finished day to average; 0 when nothing was written.
+ * A writer with words from before the window is averaged over all of it, so a
+ * lull counts against them; a writer whose first words fall inside the window
+ * is averaged from that first day, so a fortnight they were not here for does
+ * not water down their few days. Null when `today` leaves no finished day to
+ * average; 0 when nothing was written in the window.
  */
 export function recentWordsPerDay(days: readonly WritingDayWords[], today: string): number | null {
   const windowStart = addDays(today, -PACE_WINDOW_DAYS);
@@ -82,7 +85,13 @@ export function recentWordsPerDay(days: readonly WritingDayWords[], today: strin
     if (first === null || day.date < first) first = day.date;
   }
   if (first === null) return 0;
-  return total / (daysBetween(first, yesterday) + 1);
+  const from = wroteBefore(days, windowStart) ? windowStart : first;
+  return total / (daysBetween(from, yesterday) + 1);
+}
+
+/** Whether any words were written on a day before `date`. */
+export function wroteBefore(days: readonly WritingDayWords[], date: string): boolean {
+  return days.some((day) => day.date < date && day.words > 0);
 }
 
 export function deadlineSnapshot(input: {
@@ -90,7 +99,10 @@ export function deadlineSnapshot(input: {
   /** YYYY-MM-DD, inclusive: the author can still write on that day. */
   deadline: string;
   manuscriptWords: number;
-  /** The author's days of writing, any range; only the window before `today` is read. */
+  /**
+   * The author's days of writing, any range. Only the window before `today` is
+   * averaged; earlier days only show whether the author has written before it.
+   */
   days: readonly WritingDayWords[];
   /** The author's local day, YYYY-MM-DD. */
   today: string;
@@ -111,8 +123,13 @@ export function deadlineSnapshot(input: {
   const needed = remaining / daysLeft;
   const neededPerDay = Math.ceil(needed);
   const recent = recentWordsPerDay(input.days, input.today);
-  if (recent === null || recent === 0) {
+  if (recent === null) {
     return { ...base, status: "gettingStarted", neededPerDay, recentPerDay: null };
+  }
+  if (recent === 0) {
+    return wroteBefore(input.days, addDays(input.today, -PACE_WINDOW_DAYS))
+      ? { ...base, status: "behind", neededPerDay, recentPerDay: 0 }
+      : { ...base, status: "gettingStarted", neededPerDay, recentPerDay: null };
   }
 
   const ratio = recent / needed;

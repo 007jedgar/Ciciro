@@ -988,6 +988,10 @@ const en = {
         "A little more pace would help. To finish by the due date you need about {{needed}} word a day, and lately it has been about {{recent}}.",
       behind_other:
         "A little more pace would help. To finish by the due date you need about {{needed}} words a day, and lately it has been about {{recent}}.",
+      stalled_one:
+        "Time to pick up the pace. To finish by the due date you need about {{needed}} word a day, and there has been little writing in the last two weeks.",
+      stalled_other:
+        "Time to pick up the pace. To finish by the due date you need about {{needed}} words a day, and there has been little writing in the last two weeks.",
       onTrack_one:
         "You are on track. You need about {{needed}} word a day and you have been writing about {{recent}}.",
       onTrack_other:

@@ -1,12 +1,15 @@
 import { useEffect, useMemo } from "react";
 import { useManuscriptTargetQuery, useWritingDaysQuery } from "./api";
 import { markDeadlineCelebrated, hasCelebratedDeadline } from "./celebrations";
-import { addDays, deadlineSnapshot, PACE_WINDOW_DAYS, type DeadlineSnapshot } from "./deadline-pace";
+import { addDays, deadlineSnapshot, type DeadlineSnapshot } from "./deadline-pace";
 import { getAnalytics } from "./analytics-client";
 import * as haptics from "./haptics";
 import { useProject } from "./project";
 import { useSession } from "./session";
 import { writingDayKey } from "./writing-day";
+
+/** How far back writing days are read: the pace window, plus enough before it to tell a returning writer from a new one. */
+const HISTORY_DAYS = 60;
 
 export type DeadlineState = {
   /** Null until the server has answered, so nothing shows a number about to change. */
@@ -25,7 +28,8 @@ export type DeadlineState = {
  * A manuscript's deadline and how it is going, for the chapters card and the
  * deadline screen. Words come from the open manuscript (so what was just typed
  * counts) and fall back to the server's total; the pace comes from the author's
- * writing days over the last two weeks. Meeting the target plays the goal-met
+ * writing days over the last two weeks, read against whether they wrote before
+ * that. Meeting the target plays the goal-met
  * moment once, here, whichever of the two is on screen first.
  */
 export function useDeadline(projectId: string): DeadlineState {
@@ -33,7 +37,7 @@ export function useDeadline(projectId: string): DeadlineState {
   const { project } = useProject();
   const query = useManuscriptTargetQuery(projectId, { enabled: Boolean(user) });
   const today = writingDayKey();
-  const days = useWritingDaysQuery(addDays(today, -PACE_WINDOW_DAYS), today, { enabled: Boolean(user) });
+  const days = useWritingDaysQuery(addDays(today, -HISTORY_DAYS), today, { enabled: Boolean(user) });
 
   const target = query.data?.target ?? null;
   const manuscriptWords = project

@@ -990,6 +990,10 @@ const es: Translations = {
         "Un poco más de ritmo ayudaría. Para terminar a tiempo necesitas unas {{needed}} palabra al día, y últimamente han sido unas {{recent}}.",
       behind_other:
         "Un poco más de ritmo ayudaría. Para terminar a tiempo necesitas unas {{needed}} palabras al día, y últimamente han sido unas {{recent}}.",
+      stalled_one:
+        "Es momento de retomar el ritmo. Para terminar a tiempo necesitas unas {{needed}} palabra al día, y en las últimas dos semanas se ha escrito poco.",
+      stalled_other:
+        "Es momento de retomar el ritmo. Para terminar a tiempo necesitas unas {{needed}} palabras al día, y en las últimas dos semanas se ha escrito poco.",
       onTrack_one:
         "Vas al día. Necesitas unas {{needed}} palabra al día y has escrito unas {{recent}}.",
       onTrack_other:

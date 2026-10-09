@@ -16,8 +16,8 @@ export function DeadlineCard({ projectId }: { projectId: string }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { layout } = useAppTheme();
-  const { snapshot } = useDeadline(projectId);
-  if (!snapshot) return null;
+  const { snapshot, loaded } = useDeadline(projectId);
+  if (!snapshot || !loaded) return null;
 
   const complete = snapshot.status === "complete";
   const headline = complete ? t("deadline.status.complete") : dueText(t, snapshot);

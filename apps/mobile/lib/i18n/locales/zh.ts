@@ -972,6 +972,8 @@ const zh: Translations = {
       gettingStarted_other: "要按时完成，每天大约需要写 {{needed}} 字。先写上几天，Ciciro 就能告诉你进展如何。",
       behind_one: "再快一点会更稳妥。要按时完成，每天大约需要写 {{needed}} 字，而最近大约是 {{recent}} 字。",
       behind_other: "再快一点会更稳妥。要按时完成，每天大约需要写 {{needed}} 字，而最近大约是 {{recent}} 字。",
+      stalled_one: "是时候加快节奏了。要按时完成，每天大约需要写 {{needed}} 字，而最近两周写得很少。",
+      stalled_other: "是时候加快节奏了。要按时完成，每天大约需要写 {{needed}} 字，而最近两周写得很少。",
       onTrack_one: "进度正常。每天大约需要写 {{needed}} 字，你最近每天大约写 {{recent}} 字。",
       onTrack_other: "进度正常。每天大约需要写 {{needed}} 字，你最近每天大约写 {{recent}} 字。",
       ahead_one: "你的进度领先。每天大约需要写 {{needed}} 字，你最近每天大约写 {{recent}} 字。",

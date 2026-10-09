@@ -239,6 +239,7 @@ function DeadlineScreenContent() {
                 mode="date"
                 value={dayToDate(form.date)}
                 onValueChange={(_event, picked) => onPickDate(picked)}
+                minimumDate={dayToDate(form.date < today ? form.date : today)}
                 onDismiss={() => setAndroidPickerOpen(false)}
               />
             ) : null}

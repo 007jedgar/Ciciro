@@ -39,7 +39,8 @@ export function verdictText(t: TFunction, snapshot: DeadlineSnapshot, locale: st
     });
   }
   const needed = snapshot.neededPerDay ?? 0;
-  return t(`deadline.verdict.${status}`, {
+  const key = status === "behind" && snapshot.recentPerDay === 0 ? "stalled" : status;
+  return t(`deadline.verdict.${key}`, {
     count: needed,
     needed: formatCount(needed, locale),
     recent: formatCount(snapshot.recentPerDay ?? 0, locale),

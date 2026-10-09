@@ -42,6 +42,12 @@ describe("deadline text", () => {
     expect(verdictText(t, snap(), "en")).toContain("You need about 600 words a day");
   });
 
+  it("asks a writer who has stalled to pick up the pace", () => {
+    expect(verdictText(t, snap({ days: [{ date: "2026-09-01", words: 900 }] }), "en")).toBe(
+      "Time to pick up the pace. To finish by the due date you need about 600 words a day, and there has been little writing in the last two weeks."
+    );
+  });
+
   it("is calm when the date has passed or the target is met", () => {
     expect(verdictText(t, snap({ deadline: "2026-10-08" }), "en")).toBe(
       "The due date has passed with 6,000 words to go. Choose a new date whenever you like."
@@ -61,6 +67,9 @@ describe("deadline text", () => {
       const text = verdictText(t, snap({ days: [{ date: "2026-10-08", words: 200 }] }), lang);
       expect(text).toContain("600");
       expect(text).not.toContain("deadline.");
+      const stalled = verdictText(t, snap({ days: [{ date: "2026-09-01", words: 900 }] }), lang);
+      expect(stalled).toContain("600");
+      expect(stalled).not.toContain("deadline.");
     }
   });
 

@@ -45,6 +45,11 @@ describe("recent writing pace", () => {
     expect(recentWordsPerDay(steady(400, 3), TODAY)).toBe(400);
   });
 
+  it("averages a returning writer over the whole window, lull included", () => {
+    const days = [{ date: addDays(TODAY, -40), words: 800 }, { date: addDays(TODAY, -1), words: 1_400 }];
+    expect(recentWordsPerDay(days, TODAY)).toBe(100);
+  });
+
   it("ignores days older than the window", () => {
     expect(recentWordsPerDay([{ date: addDays(TODAY, -15), words: 5_000 }], TODAY)).toBe(0);
   });
@@ -97,6 +102,25 @@ describe("deadline snapshot", () => {
   it("has nothing to compare before any words are written", () => {
     const s = deadlineSnapshot({ ...base, deadline: "2026-10-18", days: [] });
     expect(s).toMatchObject({ status: "gettingStarted", neededPerDay: 600, recentPerDay: null });
+  });
+
+  it("does not read one burst after a lull as ahead", () => {
+    // 600 a day needed; months of writing, then 13 quiet days and 1,000 words yesterday.
+    const days = [...steady(500, 60).filter((d) => d.date < addDays(TODAY, -14)), { date: addDays(TODAY, -1), words: 1_000 }];
+    const s = deadlineSnapshot({ ...base, deadline: "2026-10-18", days });
+    expect(s).toMatchObject({ status: "behind", neededPerDay: 600, recentPerDay: 71 });
+  });
+
+  it("tells a writer who has stalled to pick up the pace, with the words a day needed", () => {
+    const days = [{ date: addDays(TODAY, -20), words: 900 }];
+    const s = deadlineSnapshot({ ...base, deadline: "2026-10-18", days });
+    expect(s).toMatchObject({ status: "behind", neededPerDay: 600, recentPerDay: 0 });
+  });
+
+  it("keeps a first-time writer getting started, and averages their first days alone", () => {
+    expect(deadlineSnapshot({ ...base, deadline: "2026-10-18", days: [] }).status).toBe("gettingStarted");
+    const s = deadlineSnapshot({ ...base, deadline: "2026-10-18", days: steady(700, 2) });
+    expect(s).toMatchObject({ status: "onTrack", recentPerDay: 700 });
   });
 
   it("counts the due date itself as a day to write", () => {
