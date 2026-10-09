@@ -74,9 +74,10 @@ function WritingExerciseContent() {
 
   const leave = useCallback(() => backOr("/manuscripts"), [backOr]);
 
-  // Closing early would lose writing that lives nowhere else, so it asks first.
+  // Closing would lose writing that lives nowhere else, so it asks first until it is kept or copied.
   const requestClose = useCallback(() => {
-    if (step.kind === "done" || !hasWriting(texts)) {
+    const takenAway = step.kind === "done" && (created.current !== null || copied);
+    if (takenAway || !hasWriting(texts)) {
       leave();
       return;
     }
@@ -84,7 +85,7 @@ function WritingExerciseContent() {
       { text: t("exercise.leave.stay"), style: "cancel" },
       { text: t("exercise.leave.go"), style: "destructive", onPress: leave },
     ]);
-  }, [step.kind, texts, leave, t]);
+  }, [step.kind, copied, texts, leave, t]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -200,7 +201,7 @@ function WritingExerciseContent() {
             copied={copied}
             onKeep={() => void keep()}
             onCopy={() => void copy()}
-            onClose={leave}
+            onClose={requestClose}
           />
         ) : null}
       </Animated.View>

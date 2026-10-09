@@ -23,6 +23,8 @@ export function useExerciseClock(
   const [elapsedMs, setElapsedMs] = useState(0);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
 
   useEffect(() => {
     progress.value = 0;
@@ -34,7 +36,7 @@ export function useExerciseClock(
       const elapsed = Math.min(totalMs, Date.now() - startedAt);
       setElapsedMs(elapsed);
       const fraction = fractionOf(elapsed, totalMs);
-      progress.value = reduceMotion ? fraction : withTiming(fraction, { duration: RING_EASE_MS, easing: Easing.linear });
+      progress.value = reduceMotionRef.current ? fraction : withTiming(fraction, { duration: RING_EASE_MS, easing: Easing.linear });
       if (elapsed >= totalMs && !finished) {
         finished = true;
         clearInterval(timer);
@@ -43,7 +45,7 @@ export function useExerciseClock(
     };
     const timer = setInterval(tick, TICK_MS);
     return () => clearInterval(timer);
-  }, [active, totalMs, reduceMotion, progress]);
+  }, [active, totalMs, progress]);
 
   return { progress, elapsedMs, done: active && elapsedMs >= totalMs };
 }

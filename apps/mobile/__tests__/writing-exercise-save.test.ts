@@ -37,8 +37,10 @@ describe("keepExerciseAsManuscript", () => {
     });
   });
 
-  it("retries only the chapter write when the manuscript already exists", async () => {
-    const fetchMock = jest.fn(async () => jsonResponse({ id: "c1" }));
+  it("retries only the chapter write, at the entry's current revision, when the manuscript already exists", async () => {
+    const fetchMock = jest.fn(async (url: string, init?: { method?: string }) =>
+      init?.method === "PATCH" ? jsonResponse({ id: "c1" }) : jsonResponse([{ id: "c1", revision: 3 }])
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const onCreated = jest.fn();
 
@@ -52,7 +54,10 @@ describe("keepExerciseAsManuscript", () => {
     });
 
     expect(onCreated).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).endsWith("/api/projects"))).toBe(false);
+    const patchCall = fetchMock.mock.calls.find((call) => call[1]?.method === "PATCH") as unknown[];
+    expect(String(patchCall[0])).toMatch(/\/api\/chapters\/c1$/);
+    expect(JSON.parse((patchCall[1] as { body: string }).body).expectedRevision).toBe(3);
   });
 
   it("reports a failed chapter write after the manuscript exists, for the caller to retry", async () => {
