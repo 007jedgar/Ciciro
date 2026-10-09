@@ -35,7 +35,7 @@ export type PressFeedbackHandle = {
   /** 0 at rest, 1 fully pressed; for a caller that drives its own extra motion off the press. */
   pressed: SharedValue<number>;
   /** Merge after the surface's own style. Empty for `feedback="none"`. */
-  animatedStyle: ReturnType<typeof useAnimatedStyle>;
+  animatedStyle: ReturnType<typeof useAnimatedStyle<ViewStyle>>;
   onPressIn: (event?: GestureResponderEvent) => void;
   onPressOut: (event?: GestureResponderEvent) => void;
 };

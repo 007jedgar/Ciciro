@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ScrollView, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { ScrollView, Text, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { ThemeWashScope } from "../ThemeWashScope";
