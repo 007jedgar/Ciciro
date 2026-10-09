@@ -5,6 +5,15 @@ else stays in commit messages.
 
 ## Unreleased
 
+- On the phone, a manuscript can have a **deadline**: a due date and a word
+  target for the whole manuscript, set from the new Deadline tool on its
+  chapters screen (and changed or removed there). A ring fills as the words
+  arrive and closes with a tick when the target is met. Ciciro reads your last
+  two weeks of writing against the words a day the deadline still needs and
+  says plainly whether you are comfortably ahead, on track, or would do well to
+  pick up the pace, with the daily words it takes. Deadlines are optional and
+  independent of the daily word goal.
+
 - On the iPhone, highlighting words in the chapter editor shows the same menu
   under the selection (above it, clear of the system Cut and Copy bar, when the
   keyboard leaves no room). One word offers its synonyms as chips, with the rest
