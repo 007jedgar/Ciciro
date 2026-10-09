@@ -114,6 +114,8 @@ import type {
   ChapterOpsPushResponse,
   CorrectRequest,
   CorrectResponse,
+  SynonymsRequest,
+  SynonymsResponse,
 } from "./types";
 import type { AppSettings, SettingsPatch } from "../app-settings";
 
@@ -642,6 +644,11 @@ export const ciciro = {
   correct: {
     post: (body: CorrectRequest, opts?: RequestOpts) =>
       api<CorrectResponse>("/api/correct", jsonInit("POST", body, opts)),
+  },
+
+  synonyms: {
+    post: (body: SynonymsRequest, opts?: RequestOpts) =>
+      api<SynonymsResponse>("/api/synonyms", jsonInit("POST", body, opts)),
   },
 
   sync: {

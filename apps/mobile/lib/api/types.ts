@@ -882,6 +882,10 @@ export type CorrectResponse = CorrectRequest & {
   spans: CorrectionSpan[];
 };
 
+export type SynonymsRequest = { word: string; before: string; after: string };
+
+export type SynonymsResponse = { synonyms: string[] };
+
 export type ImportResult = {
   projectId: string;
   title: string;

@@ -81,6 +81,14 @@ export type EventCatalog = {
   // Feature usage - one event per distinct feature, see docs/analytics.md
   chat_message_sent: NoProperties;
   quick_action_used: { action: string; kind: string };
+  // The menu over highlighted text: `action` is the button pressed and `target`
+  // whether one word or a passage was selected. Never the text itself.
+  selection_action_used: {
+    action: "comment" | "rewrite" | "describe" | "expand" | "fix";
+    target: "word" | "passage";
+  };
+  // A synonym swapped in for the highlighted word; `more` when it came from the overflow list.
+  synonym_used: { more: boolean };
   autowrite_used: NoProperties;
   suggestion_accepted: NoProperties;
   suggestion_rejected: NoProperties;
