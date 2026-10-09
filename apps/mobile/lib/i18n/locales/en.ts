@@ -938,6 +938,66 @@ const en = {
     notifyBody_one: "Your {{count}} minute sprint is done.",
     notifyBody_other: "Your {{count}} minute sprint is done.",
   },
+  deadline: {
+    title: "Deadline",
+    blurb:
+      "Set a due date and a word target for this manuscript. Ciciro will tell you whether you are on pace.",
+    kicker: "How it is going",
+    targetLabel: "Word target",
+    targetHint_one: "The whole manuscript, when it is done. {{words}} word written so far.",
+    targetHint_other: "The whole manuscript, when it is done. {{words}} words written so far.",
+    targetA11y: "Word target for the whole manuscript",
+    targetInvalid: "Enter a word target of at least 1.",
+    dueLabel: "Due date",
+    dueA11y: "Due date, {{date}}",
+    set: "Set deadline",
+    saveChanges: "Save changes",
+    saving: "Saving",
+    saved: "Deadline saved.",
+    saveError: "Could not save the deadline.",
+    remove: "Remove deadline",
+    removeConfirm: "Remove this deadline? Your writing is not affected.",
+    removeYes: "Yes, remove it",
+    removed: "Deadline removed.",
+    removeError: "Could not remove the deadline.",
+    loadError: "Could not load the deadline.",
+    progress: "{{written}} of {{goal}} words",
+    percentA11y: "{{percent}} percent of the word target written",
+    dueToday: "Due today",
+    dueTomorrow: "Due tomorrow",
+    dueIn_one: "Due in {{count}} day",
+    dueIn_other: "Due in {{count}} days",
+    passed: "Due date passed",
+    status: {
+      complete: "Target reached",
+      pastDue: "Date passed",
+      ahead: "Comfortably ahead",
+      onTrack: "On track",
+      behind: "Needs more pace",
+      gettingStarted: "Just getting started",
+    },
+    verdict: {
+      complete: "You reached your word target. Nicely done.",
+      pastDue_one: "The due date has passed with {{words}} word to go. Choose a new date whenever you like.",
+      pastDue_other: "The due date has passed with {{words}} words to go. Choose a new date whenever you like.",
+      gettingStarted_one:
+        "You need about {{needed}} word a day to finish by the due date. Write for a few days and Ciciro can tell you how it is going.",
+      gettingStarted_other:
+        "You need about {{needed}} words a day to finish by the due date. Write for a few days and Ciciro can tell you how it is going.",
+      behind_one:
+        "A little more pace would help. To finish by the due date you need about {{needed}} word a day, and lately it has been about {{recent}}.",
+      behind_other:
+        "A little more pace would help. To finish by the due date you need about {{needed}} words a day, and lately it has been about {{recent}}.",
+      onTrack_one:
+        "You are on track. You need about {{needed}} word a day and you have been writing about {{recent}}.",
+      onTrack_other:
+        "You are on track. You need about {{needed}} words a day and you have been writing about {{recent}}.",
+      ahead_one:
+        "You are comfortably ahead. You need about {{needed}} word a day and you have been writing about {{recent}}.",
+      ahead_other:
+        "You are comfortably ahead. You need about {{needed}} words a day and you have been writing about {{recent}}.",
+    },
+  },
   exercise: {
     menu: "Writing exercise",
     title: "Observe, react, narrate",

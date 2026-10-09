@@ -100,6 +100,10 @@ export type EventCatalog = {
   export_completed: { format: "epub" | "pdf" | "markdown" | "docx" };
   snapshot_restored: NoProperties;
   writing_sprint_completed: { durationMinutes?: number };
+  // A manuscript's deadline (mobile). Counts only, never the title or any text: `daysAhead` is whole days from today to the due date.
+  deadline_saved: { created: boolean; daysAhead: number };
+  deadline_removed: NoProperties;
+  deadline_met: NoProperties;
   // The guided Observe / React / Narrate exercise (mobile). No author text: the exercise id and a whole-minute length only.
   writing_exercise_started: { exercise: string };
   writing_exercise_completed: { exercise: string; durationMinutes: number };

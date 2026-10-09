@@ -643,6 +643,18 @@ export function TimerIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** A month page with its binding rings: a due date. */
+export function CalendarIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke={color} strokeWidth={2} />
+      <Line x1="3.5" y1="10.5" x2="20.5" y2="10.5" stroke={color} strokeWidth={2} />
+      <Line x1="8" y1="3" x2="8" y2="7" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="16" y1="3" x2="16" y2="7" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** An arrow into a tray: bring a file in. */
 export function ImportIcon({ color, size = 24 }: IconProps) {
   return (

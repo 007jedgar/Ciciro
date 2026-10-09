@@ -9,6 +9,7 @@ import { PressableCard } from "../../../../components/PressableCard";
 import { ProjectTools, type ProjectTool } from "../../../../components/ProjectTools";
 import {
   BookIcon,
+  CalendarIcon,
   CommentIcon,
   HeadphonesIcon,
   HistoryIcon,
@@ -19,6 +20,7 @@ import {
   SearchIcon,
   TimerIcon,
 } from "../../../../components/icons";
+import { DeadlineCard } from "../../../../components/DeadlineCard";
 import { ExportCard } from "../../../../components/ExportCard";
 import { FirstManuscriptBurst } from "../../../../components/FirstManuscriptBurst";
 import { PreviouslyOnCard } from "../../../../components/PreviouslyOnCard";
@@ -288,6 +290,12 @@ function ChaptersScreenContent() {
       onPress: () => router.push(`/project/${projectId}/listen` as never),
     },
     {
+      key: "deadline",
+      label: t("deadline.title"),
+      icon: <CalendarIcon color={colors.accent} />,
+      onPress: () => router.push(`/project/${projectId}/deadline` as never),
+    },
+    {
       key: "weekly",
       label: t("weekly.title"),
       icon: <HistoryIcon color={colors.accent} />,
@@ -387,6 +395,7 @@ function ChaptersScreenContent() {
             project ? (
               <View>
                 <PreviouslyOnCard projectId={projectId} />
+                <DeadlineCard projectId={projectId} />
                 {kind === "blog" && project.logline ? (
                   <Text style={[layout.body, { fontStyle: "italic", marginBottom: 12 }]}>
                     {project.logline}

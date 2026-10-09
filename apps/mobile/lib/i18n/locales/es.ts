@@ -940,6 +940,66 @@ const es: Translations = {
     notifyBody_one: "Tu sprint de {{count}} minuto ha terminado.",
     notifyBody_other: "Tu sprint de {{count}} minutos ha terminado.",
   },
+  deadline: {
+    title: "Fecha límite",
+    blurb:
+      "Elige una fecha de entrega y una meta de palabras para este manuscrito. Ciciro te dirá si vas a buen ritmo.",
+    kicker: "Cómo va",
+    targetLabel: "Meta de palabras",
+    targetHint_one: "El manuscrito completo, cuando esté terminado. Llevas {{words}} palabra.",
+    targetHint_other: "El manuscrito completo, cuando esté terminado. Llevas {{words}} palabras.",
+    targetA11y: "Meta de palabras de todo el manuscrito",
+    targetInvalid: "Escribe una meta de al menos 1 palabra.",
+    dueLabel: "Fecha de entrega",
+    dueA11y: "Fecha de entrega, {{date}}",
+    set: "Fijar fecha límite",
+    saveChanges: "Guardar cambios",
+    saving: "Guardando",
+    saved: "Fecha límite guardada.",
+    saveError: "No se pudo guardar la fecha límite.",
+    remove: "Quitar fecha límite",
+    removeConfirm: "¿Quitar esta fecha límite? Tu escritura no se ve afectada.",
+    removeYes: "Sí, quitarla",
+    removed: "Fecha límite quitada.",
+    removeError: "No se pudo quitar la fecha límite.",
+    loadError: "No se pudo cargar la fecha límite.",
+    progress: "{{written}} de {{goal}} palabras",
+    percentA11y: "{{percent}} por ciento de la meta de palabras escrito",
+    dueToday: "Vence hoy",
+    dueTomorrow: "Vence mañana",
+    dueIn_one: "Vence en {{count}} día",
+    dueIn_other: "Vence en {{count}} días",
+    passed: "La fecha ya pasó",
+    status: {
+      complete: "Meta alcanzada",
+      pastDue: "Fecha pasada",
+      ahead: "Con buena ventaja",
+      onTrack: "Al día",
+      behind: "Necesita más ritmo",
+      gettingStarted: "Apenas empezando",
+    },
+    verdict: {
+      complete: "Alcanzaste tu meta de palabras. Muy bien.",
+      pastDue_one: "La fecha de entrega pasó y falta {{words}} palabra. Elige una nueva fecha cuando quieras.",
+      pastDue_other: "La fecha de entrega pasó y faltan {{words}} palabras. Elige una nueva fecha cuando quieras.",
+      gettingStarted_one:
+        "Necesitas unas {{needed}} palabra al día para terminar a tiempo. Escribe unos días y Ciciro podrá decirte cómo vas.",
+      gettingStarted_other:
+        "Necesitas unas {{needed}} palabras al día para terminar a tiempo. Escribe unos días y Ciciro podrá decirte cómo vas.",
+      behind_one:
+        "Un poco más de ritmo ayudaría. Para terminar a tiempo necesitas unas {{needed}} palabra al día, y últimamente han sido unas {{recent}}.",
+      behind_other:
+        "Un poco más de ritmo ayudaría. Para terminar a tiempo necesitas unas {{needed}} palabras al día, y últimamente han sido unas {{recent}}.",
+      onTrack_one:
+        "Vas al día. Necesitas unas {{needed}} palabra al día y has escrito unas {{recent}}.",
+      onTrack_other:
+        "Vas al día. Necesitas unas {{needed}} palabras al día y has escrito unas {{recent}}.",
+      ahead_one:
+        "Vas con buena ventaja. Necesitas unas {{needed}} palabra al día y has escrito unas {{recent}}.",
+      ahead_other:
+        "Vas con buena ventaja. Necesitas unas {{needed}} palabras al día y has escrito unas {{recent}}.",
+    },
+  },
   exercise: {
     menu: "Ejercicio de escritura",
     title: "Observa, reacciona, narra",

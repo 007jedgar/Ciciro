@@ -46,6 +46,7 @@ export default function ProjectStackLayout() {
       <Stack.Screen name="beta-readers" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="weekly-review" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="details" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
+      <Stack.Screen name="deadline" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="share-links" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
     </Stack>
   );
