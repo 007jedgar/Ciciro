@@ -86,6 +86,8 @@ type ShellValue = {
   /** The header's height when open, once measured. */
   headerHeight: SharedValue<number>;
   focusHidden: boolean;
+  /** True while a carry is in the air: back, Skip and the screens ignore taps until the next screen is pushed. */
+  carrying: boolean;
   setFocusHidden: (hidden: boolean) => void;
   claim: (chrome: { step: OnboardingStep; steps: readonly OnboardingStep[]; handlers: MutableRefObject<Handlers> }) => void;
   back: () => void;
@@ -136,6 +138,8 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
     steps: [],
   });
   const [focusHidden, setFocusHidden] = useState(false);
+  const [carrying, setCarrying] = useState(false);
+  const inFlight = useRef(0);
   const focus = useSharedValue(0);
   const headerHeight = useSharedValue(0);
 
@@ -161,8 +165,12 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const back = useCallback(() => handlers.current?.current.onBack(), []);
-  const skip = useCallback(() => handlers.current?.current.onSkip(), []);
+  const back = useCallback(() => {
+    if (inFlight.current === 0) handlers.current?.current.onBack();
+  }, []);
+  const skip = useCallback(() => {
+    if (inFlight.current === 0) handlers.current?.current.onSkip();
+  }, []);
   const retract = useCallback((step: OnboardingStep) => {
     setChips((current) => {
       const kept = chipsBefore(current, step);
@@ -208,7 +216,7 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
     [landings, unhide]
   );
 
-  const fly = useCallback<ShellValue["fly"]>(
+  const carry = useCallback<ShellValue["fly"]>(
     async (requests, options) => {
       const added = requests.map((request) => request.chip);
       // Reduce motion: no flight, the chips just fade into the row.
@@ -268,6 +276,20 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
     [reduceMotion, chipNodes, labelNodes, landings, unhide]
   );
 
+  const fly = useCallback<ShellValue["fly"]>(
+    async (requests, options) => {
+      inFlight.current += 1;
+      setCarrying(true);
+      try {
+        await carry(requests, options);
+      } finally {
+        inFlight.current -= 1;
+        if (inFlight.current === 0 && mounted.current) setCarrying(false);
+      }
+    },
+    [carry]
+  );
+
   const value = useMemo<ShellValue>(
     () => ({
       chips,
@@ -278,6 +300,7 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
       focus,
       headerHeight,
       focusHidden,
+      carrying,
       setFocusHidden,
       claim,
       back,
@@ -289,7 +312,7 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
       registerLabel,
       registerRoot,
     }),
-    [chips, hidden, flights, chrome, focus, headerHeight, focusHidden, claim, back, skip, retract, fly, landed, registerChip, registerLabel, registerRoot]
+    [chips, hidden, flights, chrome, focus, headerHeight, focusHidden, carrying, claim, back, skip, retract, fly, landed, registerChip, registerLabel, registerRoot]
   );
 
   return <OnboardingShellContext.Provider value={value}>{children}</OnboardingShellContext.Provider>;

@@ -72,4 +72,24 @@ describe("OnboardingShell chips", () => {
     expect(view.getByLabelText("Your answers: Novel")).toBeTruthy();
     view.unmount();
   });
+
+  it("ignores back and Skip while a carry is in the air", async () => {
+    const view = mount();
+    const onBack = jest.fn();
+    const onSkip = jest.fn();
+    act(() => shell.claim({ step: "obstacle", steps: ["goal", "obstacle"], handlers: { current: { onBack, onSkip } } }));
+    await act(async () => {
+      const flying = shell.fly([request("kind", "goal", "Novel")]);
+      shell.back();
+      shell.skip();
+      await flying;
+    });
+    expect(onBack).not.toHaveBeenCalled();
+    expect(onSkip).not.toHaveBeenCalled();
+    act(() => shell.back());
+    act(() => shell.skip());
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onSkip).toHaveBeenCalledTimes(1);
+    view.unmount();
+  });
 });

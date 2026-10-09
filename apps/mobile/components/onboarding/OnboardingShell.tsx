@@ -26,7 +26,7 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
 
 function ShellBody({ children }: { children: ReactNode }) {
   const { layout } = useAppTheme();
-  const { step, steps, focus, headerHeight, focusHidden, back, skip, registerRoot } = useOnboardingShell();
+  const { step, steps, focus, headerHeight, focusHidden, carrying, back, skip, registerRoot } = useOnboardingShell();
   // Its own wash scope, above the screens: the root's snapshot cannot see a
   // native-stack screen's contents (it comes back black), so Pick a look washes
   // within the onboarding's own view, header and all.
@@ -35,6 +35,7 @@ function ShellBody({ children }: { children: ReactNode }) {
       <View
         ref={(node) => registerRoot(node as unknown as Measurable | null)}
         collapsable={false}
+        pointerEvents={carrying ? "none" : "auto"}
         style={{ flex: 1 }}
       >
         {/* Closes up behind the focus demo's focus mode, as the page takes its place. */}
