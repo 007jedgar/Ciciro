@@ -30,8 +30,8 @@ export function ThemeCard({
   const { progress } = useSelectionPop(selected, reduceMotion);
   // A press dips the card and nothing else: the engine without its tint, since
   // TapPressable's tint would repaint the card's own desk colour in the current
-  // theme and blank its swatch.
-  const press = usePressFeedback({ feedback: "scale" });
+  // theme and blank its swatch, and without its dim, which would wash the swatch.
+  const press = usePressFeedback({ feedback: "scale", dim: 1 });
 
   const ring = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
 import * as Haptics from "expo-haptics";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { TapPressable } from "../components/TapPressable";
+import { ThemeCard } from "../components/ThemeCard";
 import { setHapticsEnabled } from "../lib/haptics";
 import {
   FREQ_DELETE_MS,
@@ -17,7 +18,7 @@ import {
 } from "../lib/motion";
 import { mixColors } from "../lib/color";
 import { THEME_PALETTES } from "../lib/theme";
-import { pressTint, rowHighlightTint } from "../lib/use-press-feedback";
+import { pressTint, rowHighlightTint, usePressFeedback } from "../lib/use-press-feedback";
 
 jest.mock("../lib/prefs", () => {
   const disk = new Map<string, string>();
@@ -81,6 +82,42 @@ describe("pressTint", () => {
 
   it("treats a card with no fill as sitting on the panel", () => {
     expect(pressTint(undefined, colors, { assumePanel: true })).toEqual({ from: colors.panel, to: colors.panel2 });
+  });
+});
+
+describe("usePressFeedback", () => {
+  function pressedStyle(options: Parameters<typeof usePressFeedback>[0]) {
+    const { result, rerender } = renderHook(() => usePressFeedback(options));
+    act(() => result.current.onPressIn());
+    rerender({});
+    return result.current.animatedStyle as { opacity: number; transform: { scale: number }[] };
+  }
+
+  it("dips and dims a scale press by default", () => {
+    const style = pressedStyle({ feedback: "scale" });
+    expect(style.transform[0].scale).toBeCloseTo(PRESS_SCALE.button);
+    expect(style.opacity).toBeCloseTo(PRESS_DIM.surface);
+  });
+
+  it("keeps the dip but leaves opacity at rest with dim: 1", () => {
+    const style = pressedStyle({ feedback: "scale", dim: 1 });
+    expect(style.transform[0].scale).toBeCloseTo(PRESS_SCALE.button);
+    expect(style.opacity).toBe(1);
+  });
+});
+
+describe("ThemeCard", () => {
+  it("dips under a finger without dimming or tinting its swatch", () => {
+    const { rerender } = render(<ThemeCard theme="ciciro" selected={false} onPress={jest.fn()} />);
+    const card = screen.getByRole("radio");
+    fireEvent(card, "pressIn");
+    rerender(<ThemeCard theme="ciciro" selected={false} onPress={jest.fn()} />);
+    let node = screen.getByRole("radio").parent;
+    while (node && !StyleSheet.flatten(node.props.style)?.transform) node = node.parent;
+    const wrapper = StyleSheet.flatten(node?.props.style);
+    expect(wrapper.transform).toEqual([{ scale: PRESS_SCALE.button }]);
+    expect(wrapper.opacity).toBe(1);
+    expect(wrapper.backgroundColor).toBeUndefined();
   });
 });
 
