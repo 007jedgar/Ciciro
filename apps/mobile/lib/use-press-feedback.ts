@@ -41,8 +41,8 @@ export type PressFeedbackHandle = {
 };
 
 /**
- * The one press-feedback engine: `PressableCard`, `TapPressable`, the auth
- * submit and the tab-bar plus button all drive off this, so the timing, the
+ * The one press-feedback engine: `PressableCard`, `TapPressable`, `ThemeCard`,
+ * the auth submit and the tab-bar plus button all drive off this, so the timing, the
  * scale/dim values and the reduce-motion rule live in one place (`lib/motion.ts`).
  * Reduce motion drops the scale and the eased timing but keeps the dim and the
  * tint (an instant swap), so a touch is still acknowledged.

@@ -119,6 +119,25 @@ describe("ThemeCard", () => {
     expect(wrapper.opacity).toBe(1);
     expect(wrapper.backgroundColor).toBeUndefined();
   });
+
+  it("picks its theme with one tap and settles back to rest on release", () => {
+    setHapticsEnabled(true);
+    jest.clearAllMocks();
+    const onPress = jest.fn();
+    const { rerender } = render(<ThemeCard theme="ciciro" selected={false} onPress={onPress} />);
+    const card = screen.getByRole("radio");
+    fireEvent(card, "pressIn");
+    fireEvent.press(card);
+    fireEvent(card, "pressOut");
+    rerender(<ThemeCard theme="ciciro" selected={false} onPress={onPress} />);
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+    let node = screen.getByRole("radio").parent;
+    while (node && !StyleSheet.flatten(node.props.style)?.transform) node = node.parent;
+    const wrapper = StyleSheet.flatten(node?.props.style);
+    expect(wrapper.transform).toEqual([{ scale: 1 }]);
+    expect(wrapper.opacity).toBe(1);
+  });
 });
 
 describe("rowHighlightTint", () => {
