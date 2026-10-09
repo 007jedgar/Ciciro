@@ -162,6 +162,8 @@ property shape.
 | `export_completed` (`format`) | A manuscript or chapter export's share sheet/download succeeds | Both |
 | `snapshot_restored` | Restoring a chapter snapshot (not the undo-of-restore) | Both |
 | `writing_sprint_completed` (`durationMinutes?`) | A writing sprint ends (timeout, early end, or foreground catch-up) | Mobile only (sprints are a mobile-only feature) |
+| `writing_exercise_started` (`exercise`) | Begin is tapped on the guided Observe / React / Narrate exercise | Mobile only; no author text, the id is `observe_react_narrate` |
+| `writing_exercise_completed` (`exercise`, `durationMinutes`) | The exercise's last part is finished (not on leaving early) | Mobile only; whole minutes from Begin |
 | `outline_reordered` | Chapters are reordered (drag or arrow buttons) | Both |
 | `story_bible_edited` (`file`) | Saving one of the four core bible files (`canon`/`plot`/`style`/`timeline`) | Both. Editing a character or plot-thread file (`characters/*.md`, `plot/*.md`) through the same editor does not fire this - the catalog's `file` union is the four core files only |
 | `character_created` | Adding a character from the bible index | Both |

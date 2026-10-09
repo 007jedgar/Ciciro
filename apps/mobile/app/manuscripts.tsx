@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, useFoldersQuery, useProjectsQuery } from "../lib/api";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { HeaderNewMenu, type NewMenuItem } from "../components/HeaderNewMenu";
-import { ChevronRightIcon, FolderIcon, FolderPlusIcon, ImportIcon, NewChapterIcon } from "../components/icons";
+import { ChevronRightIcon, FocusIcon, FolderIcon, FolderPlusIcon, ImportIcon, NewChapterIcon } from "../components/icons";
 import { MorphRowText, beginRowMorph } from "../components/MorphRowText";
 import { ScreenErrorBoundary } from "../components/ScreenErrorBoundary";
 import { ScreenErrorState } from "../components/ScreenErrorState";
@@ -221,6 +221,15 @@ function ManuscriptsScreenContent() {
       label: importing ? t("importFile.importing") : t("importFile.menu"),
       Icon: ImportIcon,
       onPress: () => void importManuscript(),
+    },
+    {
+      key: "exercise",
+      label: t("exercise.menu"),
+      Icon: FocusIcon,
+      onPress: () => {
+        getAnalytics().track("cta_clicked", { cta: "writing_exercise", surface: "library" });
+        router.push("/writing-exercise");
+      },
     },
     {
       key: "folder",
