@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Editor as TiptapEditor } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -49,6 +50,25 @@ import {
   type DocSentence,
 } from "@/lib/tts-doc";
 import { dictationParts, prepareDictation } from "@/lib/dictation";
+import SelectionMenu, { type SelectionMenuData } from "@/components/SelectionMenu";
+import {
+  matchCase,
+  selectionActionsFor,
+  selectionKind,
+  synonymContext,
+  synonymEligible,
+  type SelectionActionId,
+} from "@/lib/selection-menu";
+import {
+  anchorCenter,
+  isMacPlatform,
+  isMenuShortcut,
+  MENU_EDGE,
+  menuAnnouncement,
+  shortcutLabel,
+  wordRange,
+} from "@/lib/selection-menu-view";
+import { lookupSynonyms } from "@/lib/synonyms-client";
 
 export type EditorHandle = {
   /** True once the page is mounted and can take the writes below. */
@@ -112,6 +132,12 @@ type Props = {
   onReady?: () => void;
   /** Fired with the word count whenever an accepted suggestion was Ciciro's. */
   onSuggestionsAccepted?: (words: number) => void;
+  /**
+   * A button in the menu over highlighted text was pressed. Returns false when
+   * the action could not start (the chat is still answering), true or nothing
+   * otherwise.
+   */
+  onSelectionAction?: (action: SelectionActionId, text: string) => boolean | void;
 };
 
 const PLACEHOLDERS: Record<ManuscriptKind, string> = {
@@ -139,6 +165,9 @@ function revealRange(editor: TiptapEditor, from: number, to: number) {
 }
 
 const CARD_WIDTH = 320;
+
+/** How long a selection must hold still before the menu over it shows. */
+const MENU_SETTLE_MS = 150;
 
 /** What a suggestion adds and removes, read straight off the document marks. */
 function suggestionDetail(editor: TiptapEditor, id: string): SuggestionDetail | null {
@@ -202,10 +231,12 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     readOnly = false,
     onReady,
     onSuggestionsAccepted,
+    onSelectionAction,
   },
   ref
 ) {
   const { settings } = useSettings();
+  const mac = isMacPlatform(typeof navigator === "undefined" ? undefined : navigator.platform);
   const shellRef = useRef<HTMLDivElement>(null);
   const [activeSuggestion, setActiveSuggestion] = useState<ActiveSuggestion | null>(null);
   // Escape closes the card until the caret moves to a different suggestion.
@@ -226,6 +257,21 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   commentHighlightsRef.current = commentHighlights;
 
   const [element, setCurrentElement] = useState<ScreenplayElement | null>(null);
+
+  // The menu over highlighted text. `dragging` holds it back while the writer
+  // is still pulling out a selection, and `dismissedMenu` (the selection it was
+  // closed over) keeps Escape from being undone by the next update.
+  const [selectionMenu, setSelectionMenu] = useState<SelectionMenuData | null>(null);
+  const selectionMenuRef = useRef<SelectionMenuData | null>(null);
+  selectionMenuRef.current = selectionMenu;
+  const [menuFocusRequest, setMenuFocusRequest] = useState(0);
+  const menuFocused = useRef(false);
+  const dragging = useRef(false);
+  const dismissedMenu = useRef<string | null>(null);
+  const menuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshMenuRef = useRef<(delay?: number) => void>(() => {});
+  const onSelectionActionRef = useRef(onSelectionAction);
+  onSelectionActionRef.current = onSelectionAction;
 
   // Set once the writer has put the caret somewhere (or one was put back for them).
   const placedCaret = useRef(false);
@@ -261,10 +307,12 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         const caret = caretFromEditor(editor);
         if (caret) onCaret(caret);
       }
+      refreshMenuRef.current(MENU_SETTLE_MS);
     },
     onTransaction: ({ editor, transaction }) => {
       if (transaction.docChanged || transaction.selectionSet) showSuggestionAt(editor);
       if (!transaction.docChanged) return;
+      refreshMenuRef.current(0);
       const map = insertPositions.current;
       for (const [key, pos] of map) {
         map.set(key, transaction.mapping.map(pos));
@@ -273,15 +321,40 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     onFocus: ({ editor }) => {
       placedCaret.current = true;
       showSuggestionAt(editor);
+      refreshMenuRef.current(0);
     },
-    onBlur: () => showSuggestionAt(null),
+    onBlur: () => {
+      showSuggestionAt(null);
+      // Focus may be on its way into the menu: look once it has settled.
+      setTimeout(() => refreshMenuRef.current(0), 0);
+    },
     editorProps: {
+      handleDOMEvents: {
+        mousedown: () => {
+          dragging.current = true;
+          setSelectionMenu(null);
+          return false;
+        },
+      },
       handleKeyDown: (view, event) => {
+        if (isMenuShortcut(event) && selectionMenuRef.current) {
+          event.preventDefault();
+          setMenuFocusRequest((n) => n + 1);
+          return true;
+        }
         if (event.key !== "Escape") return false;
         const id = suggestionAt(view.state);
-        if (!id || dismissedSuggestion.current === id) return false;
-        dismissedSuggestion.current = id;
-        setActiveSuggestion(null);
+        if (id && dismissedSuggestion.current !== id) {
+          dismissedSuggestion.current = id;
+          setActiveSuggestion(null);
+          return true;
+        }
+        const open = selectionMenuRef.current;
+        if (!open) return false;
+        // Closing the menu is this Escape's whole job: not focus mode's too.
+        dismissedMenu.current = open.key;
+        setSelectionMenu(null);
+        event.stopPropagation();
         return true;
       },
       attributes: {
@@ -312,6 +385,180 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     setActiveSuggestion({ detail, top: end.bottom - box.top + 8, left });
     onActiveSuggestionRef.current?.(id);
   }, []);
+
+  // Work out whether the menu shows over the current selection, and where.
+  const showMenuNow = useCallback((ed: TiptapEditor | null) => {
+    const shell = shellRef.current;
+    if (dragging.current) return;
+    if (!ed || ed.isDestroyed || !shell) {
+      setSelectionMenu(null);
+      return;
+    }
+    const { selection } = ed.state;
+    const { from, to } = selection;
+    const text = ed.state.doc.textBetween(from, to, "\n");
+    const kind = selectionKind(text);
+    const key = `${from}:${to}`;
+    if (dismissedMenu.current && dismissedMenu.current !== key) dismissedMenu.current = null;
+    const inside = ed.isFocused || menuFocused.current;
+    if (
+      selection.empty ||
+      !(selection instanceof TextSelection) ||
+      kind === "none" ||
+      !inside ||
+      !ed.isEditable ||
+      dismissedMenu.current === key
+    ) {
+      setSelectionMenu(null);
+      return;
+    }
+    const box = shell.getBoundingClientRect();
+    const start = ed.view.coordsAtPos(from);
+    const end = ed.view.coordsAtPos(to);
+    const pane = ed.view.dom.closest<HTMLElement>(".editor-pane");
+    const paneBox = pane?.getBoundingClientRect();
+    // Scrolled out of the page: nothing to point at.
+    if (paneBox && (end.bottom < paneBox.top || start.top > paneBox.bottom)) {
+      setSelectionMenu(null);
+      return;
+    }
+    let context: SelectionMenuData["context"] = null;
+    if (kind === "word" && selection.$from.sameParent(selection.$to)) {
+      const range = wordRange(from, text);
+      if (range && synonymEligible(range.word)) {
+        const parent = selection.$from.parent;
+        const block = parent.textBetween(0, parent.content.size, "\n", "\n");
+        const offset = selection.$from.parentOffset + range.lead.length;
+        const found = synonymContext(block, offset, offset + range.word.length);
+        if (found.word === range.word) context = found;
+      }
+    }
+    const next: SelectionMenuData = {
+      key,
+      target: kind,
+      actions: selectionActionsFor(kind),
+      startTop: Math.round(start.top - box.top),
+      endBottom: Math.round(end.bottom - box.top),
+      centerX: Math.round(anchorCenter(start.left, end.left) - box.left),
+      // Never above the text: the page's own controls sit up there.
+      minTop: paneBox ? Math.max(0, Math.round(paneBox.top - box.top)) : 0,
+      minLeft: Math.round((paneBox ? paneBox.left - box.left : 0) + MENU_EDGE),
+      maxRight: Math.round((paneBox ? paneBox.right - box.left : box.width) - MENU_EDGE),
+      context,
+    };
+    setSelectionMenu((was) =>
+      was &&
+      was.key === next.key &&
+      was.startTop === next.startTop &&
+      was.endBottom === next.endBottom &&
+      was.centerX === next.centerX &&
+      was.minTop === next.minTop &&
+      was.minLeft === next.minLeft &&
+      was.maxRight === next.maxRight
+        ? was
+        : next
+    );
+  }, []);
+
+  // A collapsed selection hides the menu at once; a live one waits `delay` so
+  // the menu does not flicker while a selection is being extended by keys.
+  refreshMenuRef.current = (delay = 0) => {
+    if (menuTimer.current) clearTimeout(menuTimer.current);
+    menuTimer.current = null;
+    if (editor && !editor.isDestroyed && editor.state.selection.empty) {
+      showMenuNow(editor);
+      return;
+    }
+    if (delay <= 0) {
+      showMenuNow(editor);
+      return;
+    }
+    menuTimer.current = setTimeout(() => {
+      menuTimer.current = null;
+      showMenuNow(editor);
+    }, delay);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (menuTimer.current) clearTimeout(menuTimer.current);
+    };
+  }, []);
+
+  // The writer let go of the mouse: the selection is theirs now.
+  useEffect(() => {
+    const up = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      refreshMenuRef.current(0);
+    };
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
+  }, []);
+
+  // The menu follows its selection when the page scrolls or the window resizes.
+  useEffect(() => {
+    if (!editor) return;
+    const pane = editor.view.dom.closest<HTMLElement>(".editor-pane");
+    let frame = 0;
+    const follow = () => {
+      if (!selectionMenuRef.current || frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        refreshMenuRef.current(0);
+      });
+    };
+    pane?.addEventListener("scroll", follow, { passive: true });
+    window.addEventListener("resize", follow);
+    return () => {
+      cancelAnimationFrame(frame);
+      pane?.removeEventListener("scroll", follow);
+      window.removeEventListener("resize", follow);
+    };
+  }, [editor]);
+
+  const dismissMenu = useCallback(() => {
+    const open = selectionMenuRef.current;
+    if (open) dismissedMenu.current = open.key;
+    setSelectionMenu(null);
+  }, []);
+
+  const onMenuAction = useCallback(
+    (action: SelectionActionId) => {
+      const open = selectionMenuRef.current;
+      if (!editor || !open) return;
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to, "\n");
+      getAnalytics().track("selection_action_used", { action, target: open.target });
+      dismissMenu();
+      onSelectionActionRef.current?.(action, text);
+      // Comment hands the keyboard to the chat; the rest leave it on the page.
+      if (action !== "comment") editor.commands.focus();
+    },
+    [editor, dismissMenu]
+  );
+
+  // A synonym replaces just the word, so quotes and full stops around it stay.
+  // It goes in as an ordinary edit: tracked like typing when Suggest is on.
+  const onPickSynonym = useCallback(
+    (synonym: string, more: boolean) => {
+      const open = selectionMenuRef.current;
+      if (!editor || editor.isDestroyed || !open?.context) return;
+      const { state, view } = editor;
+      const { from, to } = state.selection;
+      const range = wordRange(from, state.doc.textBetween(from, to, "\n"));
+      if (!range || range.word !== open.context.word) return;
+      const next = matchCase(range.word, synonym);
+      // The word's own bold, italic and so on carry over to what replaces it.
+      const marks = state.doc.resolve(range.from + 1).marks();
+      const tr = state.tr.replaceWith(range.from, range.to, state.schema.text(next, marks));
+      tr.setSelection(TextSelection.create(tr.doc, range.from + next.length));
+      view.dispatch(tr);
+      view.focus();
+      getAnalytics().track("synonym_used", { more });
+    },
+    [editor]
+  );
 
   useEffect(() => {
     if (!editor) return;
@@ -654,6 +901,25 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
         </div>
       ) : null}
       <EditorContent editor={editor} />
+      <SelectionMenu
+        menu={selectionMenu}
+        lookup={lookupSynonyms}
+        onAction={onMenuAction}
+        onSynonym={onPickSynonym}
+        onEscape={() => {
+          dismissMenu();
+          editor?.commands.focus();
+        }}
+        onFocusChange={(inside) => {
+          menuFocused.current = inside;
+          if (!inside) refreshMenuRef.current(0);
+        }}
+        focusRequest={menuFocusRequest}
+        shortcut={shortcutLabel(mac)}
+      />
+      <div className="selection-menu-live" role="status" aria-live="polite">
+        {selectionMenu ? menuAnnouncement(mac) : ""}
+      </div>
       {activeSuggestion ? (
         <SuggestionCard
           detail={activeSuggestion.detail}

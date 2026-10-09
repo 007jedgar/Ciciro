@@ -22,6 +22,7 @@ import EditModeToggle from "@/components/EditModeToggle";
 import { countWords } from "@/lib/text";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
+import { SELECTION_TURN, selectionBrief, type SelectionBriefId } from "@/lib/selection-menu";
 import type {
   ChatMessage,
   ChatSnapshot,
@@ -68,6 +69,17 @@ export type ChatHandle = {
   send: (message: string, kind?: string, scope?: Scope) => void;
   /** Send now, or leave it in the composer while a reply is still streaming. */
   offer: (message: string) => void;
+  /**
+   * Start a comment: focus the composer with `start` in it (the highlighted
+   * text is attached when the message is sent). A draft the author already
+   * began is kept.
+   */
+  compose: (start: string) => void;
+  /**
+   * Send the brief for a selection action. False when Ciciro is still
+   * answering, in which case the panel says so instead of dropping it.
+   */
+  runSelectionAction: (action: SelectionBriefId) => boolean;
 };
 
 type Props = {
@@ -281,6 +293,9 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   // it); a cleared thread starts over on Allow edits.
   const [editMode, setEditMode] = useState<EditMode>(DEFAULT_EDIT_MODE);
   const [editsNotice, setEditsNotice] = useState(false);
+  // "Still answering" after a menu action that could not start.
+  const [busyNotice, setBusyNotice] = useState(false);
+  const composeStartRef = useRef("");
   const editModeTouchedRef = useRef(false);
   const [insertedKeys, setInsertedKeys] = useState<Set<string>>(new Set());
   const [conn, setConn] = useState<ConnState>("online");
@@ -976,6 +991,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
 
   const sendRef = useRef(send);
   sendRef.current = send;
+  const kindRef = useRef(kind);
+  kindRef.current = kind;
   useImperativeHandle(
     ref,
     () => ({
@@ -989,9 +1006,42 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         setInput(message);
         composerRef.current?.focus();
       },
+      compose: (start: string) => {
+        const was = composeStartRef.current;
+        composeStartRef.current = start;
+        setInput((current) => (current.trim() === "" || current === was ? start : current));
+        // After React has put the text in, so the caret can go after it.
+        setTimeout(() => {
+          const box = composerRef.current;
+          if (!box) return;
+          box.focus();
+          box.setSelectionRange(box.value.length, box.value.length);
+        }, 0);
+      },
+      runSelectionAction: (action: SelectionBriefId) => {
+        if (streamingRef.current) {
+          setBusyNotice(true);
+          return false;
+        }
+        void sendRef.current(
+          selectionBrief(action, kindRef.current),
+          SELECTION_TURN.kind,
+          SELECTION_TURN.scope
+        );
+        return true;
+      },
     }),
     []
   );
+
+  useEffect(() => {
+    if (!busyNotice) return;
+    const timer = setTimeout(() => setBusyNotice(false), 6000);
+    return () => clearTimeout(timer);
+  }, [busyNotice]);
+  useEffect(() => {
+    if (!streaming) setBusyNotice(false);
+  }, [streaming]);
 
   async function clearChat() {
     if (streaming) return;
@@ -1339,6 +1389,14 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
       )}
 
       <div className="composer">
+        {busyNotice && (
+          <div className="edits-notice" role="status">
+            <span>
+              Ciciro is still replying. Wait for it to finish, or press Stop,
+              then try again.
+            </span>
+          </div>
+        )}
         {editsNotice && editMode === "chat" && (
           <div className="edits-notice" role="status">
             <span>

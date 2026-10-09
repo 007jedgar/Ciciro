@@ -44,6 +44,7 @@ import {
   describeAiInvolvement,
 } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
+import { commentQuote } from "@/lib/selection-menu";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
@@ -1332,6 +1333,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   kind={kind}
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
+                  onSelectionAction={(action, text) => {
+                    if (action === "comment") {
+                      chatRef.current?.compose(commentQuote(text));
+                      return true;
+                    }
+                    return chatRef.current?.runSelectionAction(action) ?? false;
+                  }}
                   onSuggestionsAccepted={(words) => {
                     const id = activeIdRef.current;
                     if (!id) return;
