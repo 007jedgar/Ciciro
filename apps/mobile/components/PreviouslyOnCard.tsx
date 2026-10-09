@@ -42,57 +42,58 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
   }
   if (!recap.data) return null;
   return (
+    // Entrance and reflow live on a wrapper: the card's own tilt is a transform a layout animation would overwrite.
     <Animated.View
-      testID="previously-on"
       entering={reduceMotion ? undefined : FadeInDown.duration(240)}
       layout={reduceMotion ? undefined : LinearTransition.duration(200)}
-      style={[styles.card, { backgroundColor: colors.butter }]}
     >
-      <View style={styles.head}>
-        <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
-        <TapPressable
-          feedback="dim"
-          accessibilityRole="button"
-          accessibilityLabel={t("recap.dismiss")}
-          hitSlop={10}
-          onPress={() => {
-            dismissRecap(projectId);
-            setDue(false);
-          }}
+      <View testID="previously-on" style={[styles.card, { backgroundColor: colors.butter }]}>
+        <View style={styles.head}>
+          <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
+          <TapPressable
+            feedback="dim"
+            accessibilityRole="button"
+            accessibilityLabel={t("recap.dismiss")}
+            hitSlop={10}
+            onPress={() => {
+              dismissRecap(projectId);
+              setDue(false);
+            }}
+          >
+            <Text style={[styles.dismiss, { color: colors.paperInk }]}>{t("recap.dismiss")}</Text>
+          </TapPressable>
+        </View>
+        <View style={[styles.rule, { borderColor: colors.paperInk }]} />
+        <Text
+          numberOfLines={expanded ? undefined : RECAP_LINES}
+          style={[styles.body, { color: colors.paperInk }]}
         >
-          <Text style={[styles.dismiss, { color: colors.paperInk }]}>{t("recap.dismiss")}</Text>
-        </TapPressable>
+          {recap.data.text}
+        </Text>
+        <Text
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          onTextLayout={(e) => setOverflows(e.nativeEvent.lines.length > RECAP_LINES)}
+          style={[styles.body, styles.measure]}
+        >
+          {recap.data.text}
+        </Text>
+        {overflows ? (
+          <TapPressable
+            feedback="dim"
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            hitSlop={10}
+            onPress={() => setExpanded((v) => !v)}
+            style={styles.more}
+          >
+            <Text style={[styles.dismiss, { color: colors.paperInk }]}>
+              {expanded ? t("recap.less") : t("recap.more")}
+            </Text>
+          </TapPressable>
+        ) : null}
       </View>
-      <View style={[styles.rule, { borderColor: colors.paperInk }]} />
-      <Text
-        numberOfLines={expanded ? undefined : RECAP_LINES}
-        style={[styles.body, { color: colors.paperInk }]}
-      >
-        {recap.data.text}
-      </Text>
-      <Text
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        pointerEvents="none"
-        onTextLayout={(e) => setOverflows(e.nativeEvent.lines.length > RECAP_LINES)}
-        style={[styles.body, styles.measure]}
-      >
-        {recap.data.text}
-      </Text>
-      {overflows ? (
-        <TapPressable
-          feedback="dim"
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
-          hitSlop={10}
-          onPress={() => setExpanded((v) => !v)}
-          style={styles.more}
-        >
-          <Text style={[styles.dismiss, { color: colors.paperInk }]}>
-            {expanded ? t("recap.less") : t("recap.more")}
-          </Text>
-        </TapPressable>
-      ) : null}
     </Animated.View>
   );
 }

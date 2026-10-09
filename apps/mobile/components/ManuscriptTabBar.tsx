@@ -53,7 +53,7 @@ const BUBBLE_INSET = 4;
 /** Gap between the bubble and the neighbouring tab, so a middle tab reads as a rounded rectangle. */
 const BUBBLE_GAP = 6;
 /** Corner radius of the bubble's inner (non-pill-hugging) ends: a super rounded rectangle. */
-const BUBBLE_MID_RADIUS = 20;
+const BUBBLE_MID_RADIUS = 18;
 const FAB_SIZE = 60;
 const BAR_MARGIN = 16;
 /** Space between the elongated pill and the round action button. */
