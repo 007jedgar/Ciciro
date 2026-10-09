@@ -53,15 +53,15 @@ describe("Word goal screen", () => {
     });
   });
 
-  it("starts on No goal, with no days-per-week choice to make", () => {
-    renderScreen();
+  it("shows No goal selected when the goal is off, with no days-per-week choice to make", () => {
+    renderScreen({ showDailyGoal: false });
     expect(selected("No goal")).toBe(true);
     expect(selected("250 words a day")).toBe(false);
     expect(screen.queryByText("Days per week")).toBeNull();
   });
 
   it("sets a goal, which also turns the meter on", () => {
-    const { patch } = renderScreen();
+    const { patch } = renderScreen({ showDailyGoal: false });
     fireEvent.press(screen.getByRole("radio", { name: "500 words a day" }));
     expect(patch).toHaveBeenCalledWith({ showDailyGoal: true, dailyWordGoal: 500 });
   });

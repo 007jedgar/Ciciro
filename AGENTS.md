@@ -83,7 +83,7 @@ Reach for animation that has a visible beginning and end the person can complete
 
 ## Word goal and reminders are optional
 
-Nobody needs a daily word goal. Settings' "Goals and reminders" is three plain rows (Word goal, Writing reminders, Writing history), each opening its own screen (`app/word-goal.tsx`, `writing-reminders.tsx`, `writing-history.tsx`); nothing is adjusted inline. "No goal" is `showDailyGoal: false` (the default, in both `settings.ts` copies) and keeps the stored `dailyWordGoal` only as the number the next goal starts from, so anything goal-dependent (the writing meter, widget, a reminder skipped on a met day) reads `activeDailyGoal(settings)` (`lib/app-settings.ts`, 0 = none), never `dailyWordGoal`. A reminder's own `wordGoal` is `number | null` and independent of that setting: null saves and notifies ("Time to write") with no count, and the onboarding reminder step saves that way by default.
+Nobody needs a daily word goal. Settings' "Goals and reminders" is three plain rows (Word goal, Writing reminders, Writing history), each opening its own screen (`app/word-goal.tsx`, `writing-reminders.tsx`, `writing-history.tsx`); nothing is adjusted inline. The goal is on by default but can be turned off: "No goal" is `showDailyGoal: false`, which keeps the stored `dailyWordGoal` only as the number the next goal starts from, so anything goal-dependent (the writing meter, widget, a reminder skipped on a met day) reads `activeDailyGoal(settings)` (`lib/app-settings.ts`, 0 = none), never `dailyWordGoal`. A reminder's own `wordGoal` is `number | null` and independent of that setting: null saves and notifies ("Time to write") with no count, and the onboarding reminder step saves that way by default.
 
 ## Mobile themes and fonts
 

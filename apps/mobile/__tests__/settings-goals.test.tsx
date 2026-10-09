@@ -92,7 +92,7 @@ describe("Settings: goals and reminders", () => {
     expect(screen.queryByLabelText("Daily words")).toBeNull();
     expect(screen.queryByLabelText("Days per week")).toBeNull();
 
-    fireEvent.press(screen.getByLabelText("Word goal, Off"));
+    fireEvent.press(screen.getByLabelText("Word goal, 250 words a day"));
     expect(mockPush).toHaveBeenLastCalledWith("/word-goal");
     fireEvent.press(screen.getByLabelText("Writing reminders, Off"));
     expect(mockPush).toHaveBeenLastCalledWith("/writing-reminders");

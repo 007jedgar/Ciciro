@@ -55,10 +55,7 @@ jest.mock("expo-router", () => ({
 
 const useWritingDayMock = useWritingDay as jest.MockedFunction<typeof useWritingDay>;
 
-// The goal is off by default; the meter's own tests want it on.
-const withGoal = () => ({ ...defaultSettings(), showDailyGoal: true });
-
-function themed(ui: ReactNode, settings = withGoal()) {
+function themed(ui: ReactNode, settings = defaultSettings()) {
   const colors = THEME_PALETTES[settings.theme];
   return (
     <AppThemeContext.Provider
@@ -75,7 +72,7 @@ function themed(ui: ReactNode, settings = withGoal()) {
   );
 }
 
-function wrap(ui: ReactNode, settings = withGoal()) {
+function wrap(ui: ReactNode, settings = defaultSettings()) {
   return render(themed(ui, settings));
 }
 
@@ -104,7 +101,7 @@ describe("WritingMeter", () => {
   });
 
   it("hides when the daily goal is turned off", () => {
-    const { unmount } = wrap(<WritingMeter />, { ...withGoal(), showDailyGoal: false });
+    const { unmount } = wrap(<WritingMeter />, { ...defaultSettings(), showDailyGoal: false });
     expect(screen.queryByRole("progressbar")).toBeNull();
     expect(screen.queryByTestId("writing-meter-info")).toBeNull();
     unmount();
@@ -181,7 +178,7 @@ describe("WritingMeter goal moment", () => {
 
   it("does not celebrate a goal while the meter is hidden", () => {
     useWritingDayMock.mockReturnValue({ date: "2026-09-14", words: 260, activeMs: 0 });
-    const hidden = wrap(<WritingMeter />, { ...withGoal(), showDailyGoal: false });
+    const hidden = wrap(<WritingMeter />, { ...defaultSettings(), showDailyGoal: false });
     act(() => {
       jest.advanceTimersByTime(200);
     });

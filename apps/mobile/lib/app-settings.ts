@@ -53,7 +53,7 @@ export function defaultSettings(): AppSettings {
     chatWidth: 380,
     dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
-    showDailyGoal: false,
+    showDailyGoal: true,
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,

@@ -31,7 +31,7 @@ describe("app settings", () => {
     expect(s.chatWidth).toBe(720);
     expect(s.dailyWordGoal).toBe(250);
     expect(s.weeklyDayTarget).toBe(4);
-    expect(s.showDailyGoal).toBe(false);
+    expect(s.showDailyGoal).toBe(true);
     expect(s.typewriterMode).toBe(false);
     expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);

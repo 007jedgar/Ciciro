@@ -16,7 +16,7 @@ describe("activeDailyGoal", () => {
   it("is the stored goal while it is on, and 0 (none) while it is off", () => {
     expect(activeDailyGoal({ showDailyGoal: true, dailyWordGoal: 500 })).toBe(500);
     expect(activeDailyGoal({ showDailyGoal: false, dailyWordGoal: 500 })).toBe(0);
-    expect(activeDailyGoal(defaultSettings())).toBe(0);
+    expect(activeDailyGoal(defaultSettings())).toBe(250);
   });
 });
 
@@ -38,7 +38,7 @@ describe("app settings", () => {
     expect(s.chatWidth).toBe(720);
     expect(s.dailyWordGoal).toBe(250);
     expect(s.weeklyDayTarget).toBe(4);
-    expect(s.showDailyGoal).toBe(false);
+    expect(s.showDailyGoal).toBe(true);
     expect(s.formatChrome).toBe("smart");
     expect(nearestFontSize(14)).toBe(15);
   });
@@ -53,7 +53,7 @@ describe("app settings", () => {
       reduceMotion: false,
       dailyWordGoal: 250,
       weeklyDayTarget: 4,
-      showDailyGoal: false,
+      showDailyGoal: true,
       formatChrome: "smart",
       updatedAt: SETTINGS_EPOCH,
     });
