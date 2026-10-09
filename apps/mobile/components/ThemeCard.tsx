@@ -43,36 +43,36 @@ export function ThemeCard({
 
   return (
     <Animated.View style={[{ flex: 1 }, press.animatedStyle]}>
-    <Pressable
-      onPress={haptics.withTap(onPress)}
-      onPressIn={press.onPressIn}
-      onPressOut={press.onPressOut}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={`${t(`themes.${theme}`)}, ${t(`themes.${mode}`)}`}
-      style={[styles.card, { backgroundColor: palette.bg, borderColor: palette.line }]}
-    >
-      <View style={[styles.page, { backgroundColor: palette.panel, borderColor: palette.line }]}>
-        <View style={[styles.line, { width: "58%", backgroundColor: palette.accent }]} />
-        <View style={[styles.line, { width: "88%", backgroundColor: palette.ink, opacity: 0.55 }]} />
-        <View style={[styles.line, { width: "74%", backgroundColor: palette.ink, opacity: 0.55 }]} />
-        <View style={[styles.line, { width: "36%", backgroundColor: palette.ink, opacity: 0.55 }]} />
-      </View>
-      <Text style={[styles.name, { color: palette.ink }]} numberOfLines={1}>
-        {t(`themes.${theme}`)}
-      </Text>
-      <Text style={[styles.mode, { color: palette.inkSoft }]}>{t(`themes.${mode}`)}</Text>
-      <Animated.View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, styles.ring, { borderColor: palette.accent }, ring]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.badge, { backgroundColor: palette.accent }, badge]}
+      <Pressable
+        onPress={haptics.withTap(onPress)}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+        accessibilityLabel={`${t(`themes.${theme}`)}, ${t(`themes.${mode}`)}`}
+        style={[styles.card, { backgroundColor: palette.bg, borderColor: palette.line }]}
       >
-        <CheckIcon color={palette.onAccent} size={12} />
-      </Animated.View>
-    </Pressable>
+        <View style={[styles.page, { backgroundColor: palette.panel, borderColor: palette.line }]}>
+          <View style={[styles.line, { width: "58%", backgroundColor: palette.accent }]} />
+          <View style={[styles.line, { width: "88%", backgroundColor: palette.ink, opacity: 0.55 }]} />
+          <View style={[styles.line, { width: "74%", backgroundColor: palette.ink, opacity: 0.55 }]} />
+          <View style={[styles.line, { width: "36%", backgroundColor: palette.ink, opacity: 0.55 }]} />
+        </View>
+        <Text style={[styles.name, { color: palette.ink }]} numberOfLines={1}>
+          {t(`themes.${theme}`)}
+        </Text>
+        <Text style={[styles.mode, { color: palette.inkSoft }]}>{t(`themes.${mode}`)}</Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.ring, { borderColor: palette.accent }, ring]}
+        />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.badge, { backgroundColor: palette.accent }, badge]}
+        >
+          <CheckIcon color={palette.onAccent} size={12} />
+        </Animated.View>
+      </Pressable>
     </Animated.View>
   );
 }
