@@ -345,6 +345,30 @@ check, What changed, account deletion and the data export fail with
 `no such column: supersededAtChapterId`. The script only adds columns and an
 index, and rewrites the old stance value.
 
+## iOS beta signups
+
+The landing page's "Join the iOS beta" form posts to `POST /api/beta-signup`
+(public, no account) and stores one `BetaSignup` row per address: normalized
+lowercase `email` (unique), `source`, `createdAt`, and a hash of the caller's
+address used only to rate-limit new signups (5 per address per hour; a repeat
+of a listed address succeeds without a new row). A hidden `website` field is a
+honeypot: a filled one is dropped silently. Nothing is emailed; invites are sent
+by hand. It is outside account deletion and the data export (`UNOWNED_MODELS`
+in `src/lib/account/delete.ts`).
+
+New table: apply before merging, or the form answers 500.
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-beta-signups.sql
+```
+
+See or export the list (production):
+
+```bash
+wrangler d1 execute ciciro --remote --command 'SELECT email, source, createdAt FROM "BetaSignup" ORDER BY createdAt'
+wrangler d1 execute ciciro --remote --json --command 'SELECT email, createdAt FROM "BetaSignup" ORDER BY createdAt' > beta-signups.json
+```
+
 ## Authentication
 
 - `POST /api/auth/signup`: create an account and start a session.

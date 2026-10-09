@@ -5,6 +5,7 @@ import { SESSION_COOKIE, SESSION_HEADER } from "@/lib/auth/constants";
 import { getSessionUser } from "@/lib/auth/session";
 import {
   PURGED_MODELS,
+  UNOWNED_MODELS,
   deleteAccount,
   purgeAccountData,
   type PreDeleteHook,
@@ -34,13 +35,14 @@ describe("account deletion", () => {
   });
 
   it("names every model in the purge", () => {
-    expect([...PURGED_MODELS].sort()).toEqual(allModelNames().sort());
+    expect([...PURGED_MODELS, ...UNOWNED_MODELS].sort()).toEqual(allModelNames().sort());
   });
 
   it("the seed reaches every model", async () => {
     await seedAccount("coverage");
     const counts = await countAllModels();
     for (const [model, count] of Object.entries(counts)) {
+      if ((UNOWNED_MODELS as readonly string[]).includes(model)) continue;
       expect(count, `${model} has no seeded row`).toBeGreaterThan(0);
     }
   });

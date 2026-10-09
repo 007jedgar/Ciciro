@@ -1051,3 +1051,18 @@ model CanvasEdge {
   @@index([projectId])
   @@index([toId])
 }
+
+// A visitor who asked, from the landing page, to join the iOS TestFlight beta.
+// No account behind it, so it is not part of account deletion or the data
+// export (see UNOWNED_MODELS in src/lib/account/delete.ts). `email` is
+// normalized lowercase and unique. `ipHash` is sha256 of the caller's address,
+// kept only to rate-limit new signups; the address itself is never stored.
+model BetaSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String   @default("landing")
+  ipHash    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+}

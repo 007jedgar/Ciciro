@@ -43,7 +43,7 @@ Each hosted request gets its own `PrismaClient` (`src/lib/db.ts`: one isolate-wi
 
 ## Account data
 
-Every Prisma model must be both purged by account deletion and written by the data export (`src/lib/account/`, see `docs/account-data.md`); `test/account-delete.integration.test.ts` and `test/account-export.integration.test.ts` fail when a new model is missing from either. Outside-service cleanup at deletion (Stripe cancel, Apple token revoke) goes in `PRE_DELETE_HOOKS`, not the route.
+Every Prisma model must be both purged by account deletion and written by the data export (`src/lib/account/`, see `docs/account-data.md`); `test/account-delete.integration.test.ts` and `test/account-export.integration.test.ts` fail when a new model is missing from either. Outside-service cleanup at deletion (Stripe cancel, Apple token revoke) goes in `PRE_DELETE_HOOKS`, not the route. A model no account owns (`BetaSignup`, the landing page's iOS beta list) goes in `UNOWNED_MODELS` (`src/lib/account/delete.ts`) instead.
 
 ## Password-attempt rate limiting
 

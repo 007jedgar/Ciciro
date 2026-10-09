@@ -37,6 +37,7 @@ export async function wipeDatabase(): Promise<void> {
   // Not FK-owned by User/Project/Folder when it records a login attempt
   // against an email with no account, so cascades do not reach it.
   await prisma.passwordAttempt.deleteMany();
+  await prisma.betaSignup.deleteMany();
   await prisma.user.deleteMany();
   await prisma.project.deleteMany();
   await prisma.folder.deleteMany();
