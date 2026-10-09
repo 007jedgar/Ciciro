@@ -149,7 +149,7 @@ export function initialFrame(copy: WelcomeCopy): WelcomeFrame {
   const card = copy.cards.novel;
   return cloneFrame(
     { before: copy.before, word: copy.words.novel, after: copy.after, caret: null, selection: null, blink: false },
-    { kind: "novel", label: card.label, typed: [], caret: 0, selected: false }
+    { kind: "novel", label: card.label, typed: [""], caret: 0, selected: false }
   );
 }
 
@@ -187,7 +187,7 @@ export function* welcomeSteps(copy: WelcomeCopy): Generator<WelcomeStep, never, 
     const card = copy.cards[kind];
     c.kind = kind;
     c.label = card.label;
-    c.typed = [];
+    c.typed = [""];
     c.selected = false;
     c.caret = 0;
     yield snap(lead);
@@ -215,12 +215,12 @@ export function* welcomeSteps(copy: WelcomeCopy): Generator<WelcomeStep, never, 
     }
   }
 
-  function* rewrite(part: "before" | "after", to: string): Generator<WelcomeStep, void, undefined> {
+  function* rewrite(part: "before" | "after", to: string, lead = HEADLINE_MOVE_MS): Generator<WelcomeStep, void, undefined> {
     const edit = diffEdit(h[part], to);
     if (!edit) return;
     h.caret = { part, at: edit.at };
     h.blink = false;
-    yield snap(HEADLINE_MOVE_MS);
+    yield snap(lead);
     if (edit.deleted) {
       h.selection = { part, from: edit.at, to: edit.at + edit.deleted.length };
       h.caret = null;
@@ -240,9 +240,9 @@ export function* welcomeSteps(copy: WelcomeCopy): Generator<WelcomeStep, never, 
   h.caret = { part: "after", at: h.after.length };
   h.blink = true;
   yield snap(HEADLINE_MOVE_MS);
-  h.blink = false;
-  yield* rewrite("before", copy.beforeFinal);
-  yield* rewrite("after", copy.afterFinal);
+  const moved = diffEdit(h.before, copy.beforeFinal) ? HEADLINE_MOVE_MS : HEADLINE_BLINK_MS;
+  yield* rewrite("before", copy.beforeFinal, HEADLINE_BLINK_MS);
+  yield* rewrite("after", copy.afterFinal, moved);
   h.caret = { part: "word", at: h.word.length };
   h.blink = true;
   yield snap(HEADLINE_MOVE_MS);

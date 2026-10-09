@@ -4,6 +4,7 @@ import { MANUSCRIPT_KINDS } from "../lib/manuscript-kind";
 import { headlineLines, welcomeCopy } from "../lib/welcome-copy";
 import {
   CARD_ROLES,
+  HEADLINE_BLINK_MS,
   WELCOME_KINDS,
   diffEdit,
   graphemes,
@@ -157,6 +158,24 @@ describe("welcomeSteps", () => {
     const copy = await copyFor("en");
     const first = initialFrame(copy);
     expect(sentence(first)).toBe("Write the book you keep meaning to.");
-    expect(first.card.typed).toEqual([]);
+    expect(first.card.typed).toEqual([""]);
+    expect(first.card.caret).toBe(0);
+  });
+
+  it("keeps a caret in the card from the hand-off until the first letters land", async () => {
+    const copy = await copyFor("en");
+    const [first, second] = take(copy, 2);
+    expect(first.frame.card.typed[first.frame.card.caret!]).toBe("");
+    expect(second.frame.card.typed[0].length).toBeGreaterThan(0);
+  });
+
+  it.each(LOCALES)("lets the caret blink at the end of the headline before it goes back, in %s", async (locale) => {
+    const copy = await copyFor(locale);
+    const steps = take(copy, 3000);
+    const blinking = steps.findIndex((s) => s.frame.headline.blink && s.frame.headline.caret?.part === "after");
+    expect(blinking).toBeGreaterThan(0);
+    expect(steps[blinking].frame.headline.caret!.at).toBe(copy.after.length);
+    expect(steps[blinking + 1].wait).toBe(HEADLINE_BLINK_MS);
+    expect(steps[blinking + 1].frame.headline.blink).toBe(false);
   });
 });
