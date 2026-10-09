@@ -31,27 +31,55 @@ const en = {
     hideDetails: "Hide details",
     screenCrashed: "Something went wrong loading this screen.",
   },
-  livingPage: {
-    swipeUp: "Swipe up to begin",
-    beginA11y: "Begin - create your account or sign in",
+  welcome: {
+    eyebrow: "A place to write",
+    // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".
+    // The word slot carries its own article or measure word, so a language can inflect it.
+    headline: {
+      before: "Write the ",
+      after: " you keep meaning to.",
+      beforeFinal: "Keep writing the ",
+      afterFinal: " you’ve been meaning to.",
+      // How many lines the final sentence takes at the headline size, so the page does not shift as the word changes.
+      lines: "3",
+      words: { novel: "book", journal: "journal", screenplay: "screenplay", blog: "blog post" },
+    },
+    sub: "Ciciro keeps your chapters, your notes and your editor in one quiet place.",
     createAccount: "Create your account",
     alreadyHaveAccount: "I already have an account",
-    passages: [
-      ["a ship on open water,", "a storm gathering overhead,", "a sky brimming with stars."],
-      ["she kept the letter for years,", "unopened, in a coat pocket,", "until the winter it mattered."],
-      ["the city slept under snow,", "one window still burned yellow,", "somebody was writing."],
-      ["begin with one true sentence,", "then another,", "and a world follows."],
-      ["the senator smiled for the room,", "shook every hand but one,", "and left before the questions."],
-      ["we mistake motion for meaning,", "and speed for arrival,", "but only stillness sees."],
-    ],
-    ledes: [
-      "Turn a sentence into a world.",
-      "Bring your ideas into focus.",
-      "Turn musings into meaning.",
-      "Give scattered thoughts a shape.",
-      "Write your way to clarity.",
-      "Make the vague thing vivid.",
-    ],
+    // What the page types for each kind: one string per block (the styles live in components/WelcomeScreen.tsx).
+    card: {
+      novel: {
+        label: "Chapter one",
+        blocks: [
+          "The lighthouse had been dark for eleven years when Mara climbed the stairs and found the lamp still warm. Someone had been keeping it for her.",
+        ],
+      },
+      journal: {
+        label: "Entry · today",
+        blocks: [
+          "Thursday, 9 October",
+          "Rain all morning. I finally wrote the page I have been avoiding, and it was not half as bad as I feared.",
+        ],
+      },
+      screenplay: {
+        label: "Sequence one",
+        blocks: [
+          "Int. lighthouse - night",
+          "Mara climbs the last step. The lamp is warm.",
+          "Mara",
+          "Someone was here. Someone was waiting.",
+        ],
+      },
+      blog: {
+        label: "Post · draft",
+        blocks: [
+          "Why I write at 6am",
+          "Notes on a small, stubborn habit",
+          "The house is quiet, the kettle is slow, and for forty minutes nobody needs anything from me.",
+        ],
+      },
+    },
   },
   onboarding: {
     skip: "Skip",

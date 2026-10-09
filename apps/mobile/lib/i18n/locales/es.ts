@@ -33,27 +33,55 @@ const es: Translations = {
     hideDetails: "Ocultar detalles",
     screenCrashed: "Algo salió mal al cargar esta pantalla.",
   },
-  livingPage: {
-    swipeUp: "Desliza hacia arriba para empezar",
-    beginA11y: "Empezar: crea tu cuenta o inicia sesión",
+  welcome: {
+    eyebrow: "Un lugar para escribir",
+    // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".
+    // The word slot carries its own article or measure word, so a language can inflect it.
+    headline: {
+      before: "Escribe ",
+      after: " que siempre quieres escribir.",
+      beforeFinal: "Sigue escribiendo ",
+      afterFinal: " que llevas tiempo queriendo escribir.",
+      // How many lines the final sentence takes at the headline size, so the page does not shift as the word changes.
+      lines: "4",
+      words: { novel: "el libro", journal: "el diario", screenplay: "el guion", blog: "el blog" },
+    },
+    sub: "Ciciro guarda tus capítulos, tus notas y tu editor en un solo lugar tranquilo.",
     createAccount: "Crea tu cuenta",
     alreadyHaveAccount: "Ya tengo una cuenta",
-    passages: [
-      ["un barco en mar abierto,", "una tormenta que se acerca,", "un cielo lleno de estrellas."],
-      ["guardó la carta por años,", "sin abrir, en un bolsillo,", "hasta el invierno en que importó."],
-      ["la ciudad dormía bajo nieve,", "una ventana aún ardía amarilla,", "alguien estaba escribiendo."],
-      ["empieza con una frase cierta,", "luego otra,", "y un mundo te sigue."],
-      ["el senador sonrió a la sala,", "estrechó todas las manos menos una,", "y se fue antes de las preguntas."],
-      ["confundimos el movimiento con el sentido,", "y la velocidad con la llegada,", "pero solo la calma ve."],
-    ],
-    ledes: [
-      "Convierte una frase en un mundo.",
-      "Enfoca tus ideas.",
-      "Convierte cavilaciones en sentido.",
-      "Dale forma a lo disperso.",
-      "Escribe hasta ver claro.",
-      "Haz vívido lo vago.",
-    ],
+    // What the page types for each kind: one string per block (the styles live in components/WelcomeScreen.tsx).
+    card: {
+      novel: {
+        label: "Capítulo uno",
+        blocks: [
+          "El faro llevaba once años apagado cuando Mara subió la escalera y encontró la lámpara aún tibia. Alguien la había estado cuidando para ella.",
+        ],
+      },
+      journal: {
+        label: "Entrada · hoy",
+        blocks: [
+          "jueves, 9 de octubre",
+          "Lluvia toda la mañana. Por fin escribí la página que venía evitando, y no fue ni la mitad de mala de lo que temía.",
+        ],
+      },
+      screenplay: {
+        label: "Secuencia uno",
+        blocks: [
+          "Int. faro - noche",
+          "Mara sube el último escalón. La lámpara está tibia.",
+          "Mara",
+          "Alguien estuvo aquí. Alguien esperaba.",
+        ],
+      },
+      blog: {
+        label: "Entrada · borrador",
+        blocks: [
+          "Por qué escribo a las 6 de la mañana",
+          "Notas sobre un hábito pequeño y terco",
+          "La casa está en silencio, el hervidor tarda, y durante cuarenta minutos nadie me pide nada.",
+        ],
+      },
+    },
   },
   onboarding: {
     skip: "Omitir",

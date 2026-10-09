@@ -10,6 +10,11 @@ jest.mock("expo-secure-store", () => ({
   deleteItemAsync: jest.fn(async () => {}),
 }));
 
+jest.mock("expo-splash-screen", () => ({
+  preventAutoHideAsync: jest.fn(async () => true),
+  hideAsync: jest.fn(async () => true),
+}));
+
 jest.mock("expo-localization", () => ({
   getLocales: jest.fn(() => [{ languageCode: "en", languageTag: "en-US" }]),
 }));

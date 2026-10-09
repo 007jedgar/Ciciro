@@ -1,6 +1,5 @@
 import i18n, {
   asStringList,
-  asStringMatrix,
   isAppLocale,
   resolveDeviceLocale,
   setAppLocale,
@@ -45,12 +44,12 @@ describe("i18n", () => {
     expect(i18n.t("chapters.wordCount", { count: 12 })).toBe("12 词");
   });
 
-  it("returns living-page passages and ledes as lists", () => {
-    const passages = asStringMatrix(i18n.t("livingPage.passages", { returnObjects: true }));
-    const ledes = asStringList(i18n.t("livingPage.ledes", { returnObjects: true }));
-    expect(passages).toHaveLength(en.livingPage.passages.length);
-    expect(ledes).toHaveLength(en.livingPage.ledes.length);
-    expect(passages[0]?.length).toBeGreaterThan(0);
+  it("returns the welcome screen's page copy as lists", () => {
+    for (const kind of ["novel", "journal", "screenplay", "blog"] as const) {
+      const blocks = asStringList(i18n.t(`welcome.card.${kind}.blocks`, { returnObjects: true }));
+      expect(blocks).toHaveLength(en.welcome.card[kind].blocks.length);
+      expect(blocks[0]?.length).toBeGreaterThan(0);
+    }
   });
 
   it("maps device language codes onto the supported set", () => {

@@ -33,27 +33,55 @@ const zh: Translations = {
     hideDetails: "隐藏详情",
     screenCrashed: "加载此页面时出了点问题。",
   },
-  livingPage: {
-    swipeUp: "向上滑动开始",
-    beginA11y: "开始 — 创建账户或登录",
+  welcome: {
+    eyebrow: "写作的地方",
+    // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".
+    // The word slot carries its own article or measure word, so a language can inflect it.
+    headline: {
+      before: "写下你一直想写的",
+      after: "。",
+      beforeFinal: "继续写下你一直想写的",
+      afterFinal: "。",
+      // How many lines the final sentence takes at the headline size, so the page does not shift as the word changes.
+      lines: "2",
+      words: { novel: "那本书", journal: "那篇日记", screenplay: "那个剧本", blog: "那篇博客" },
+    },
+    sub: "Ciciro 把你的章节、笔记和编辑器放在一个安静的地方。",
     createAccount: "创建账户",
     alreadyHaveAccount: "我已有账户",
-    passages: [
-      ["一艘船在开阔的水上，", "一场风暴在头顶聚起，", "满天都是星星。"],
-      ["那封信她收了多年，", "未拆开，放在外套口袋，", "直到那个冬天它才要紧。"],
-      ["城市在雪下沉睡，", "一扇窗仍亮着黄光，", "有人正在写。"],
-      ["从一句真话开始，", "然后再一句，", "一个世界便跟着来。"],
-      ["参议员对全场微笑，", "握遍每只手，只漏一只，", "问题还没出口人已走。"],
-      ["我们把动作当成意义，", "把速度当成抵达，", "唯有静止才能看见。"],
-    ],
-    ledes: [
-      "把一句话写成一个世界。",
-      "让想法变得清晰。",
-      "把思索写成意义。",
-      "给散落的念头一个形状。",
-      "写到澄明为止。",
-      "让模糊的事物鲜明起来。",
-    ],
+    // What the page types for each kind: one string per block (the styles live in components/WelcomeScreen.tsx).
+    card: {
+      novel: {
+        label: "第一章",
+        blocks: [
+          "灯塔熄灭了十一年，玛拉爬上楼梯，发现灯仍是温的。有人一直在替她守着。",
+        ],
+      },
+      journal: {
+        label: "条目 · 今天",
+        blocks: [
+          "10 月 9 日，星期四",
+          "整个上午都在下雨。我终于写完了一直躲着的那一页，没有想象中那么糟。",
+        ],
+      },
+      screenplay: {
+        label: "段落一",
+        blocks: [
+          "内景。灯塔 - 夜",
+          "玛拉踏上最后一级台阶。灯是温的。",
+          "玛拉",
+          "有人来过。有人在等。",
+        ],
+      },
+      blog: {
+        label: "文章 · 草稿",
+        blocks: [
+          "我为什么早上六点写作",
+          "关于一个微小而固执的习惯",
+          "房子很安静，水壶烧得很慢，四十分钟里没有人需要我。",
+        ],
+      },
+    },
   },
   onboarding: {
     skip: "跳过",
