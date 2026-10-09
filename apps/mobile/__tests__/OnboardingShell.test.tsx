@@ -4,7 +4,20 @@ import { StoryChips } from "../components/onboarding/StoryChips";
 import { defaultSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
 import { colors, makeLayout } from "../lib/theme";
-import { OnboardingShellProvider, useOnboardingShell, type CarryRequest } from "../lib/onboarding-shell";
+import { OnboardingShellProvider, useCarry, useOnboardingShell, type CarryRequest } from "../lib/onboarding-shell";
+
+const blurs: (() => void)[] = [];
+jest.mock("expo-router", () => {
+  const { useEffect } = jest.requireActual("react");
+  return {
+    useFocusEffect: (effect: () => void | (() => void)) => {
+      useEffect(() => {
+        const cleanup = effect();
+        if (cleanup) blurs.push(cleanup);
+      }, [effect]);
+    },
+  };
+});
 
 // The Reanimated mock resolves every animation at once and reports no layout, so a flight
 // has nothing to measure here: these cover the chips the shell keeps, which is what a
@@ -12,8 +25,11 @@ import { OnboardingShellProvider, useOnboardingShell, type CarryRequest } from "
 
 let shell: ReturnType<typeof useOnboardingShell>;
 
+let carry: ReturnType<typeof useCarry>;
+
 function Probe() {
   shell = useOnboardingShell();
+  carry = useCarry();
   return <Text>probe</Text>;
 }
 
@@ -91,5 +107,46 @@ describe("OnboardingShell chips", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(onSkip).toHaveBeenCalledTimes(1);
     view.unmount();
+  });
+
+  it("does not let a screen left mid-flight push, and takes back its chips", async () => {
+    const view = mount();
+    await act(async () => {
+      await shell.fly([request("kind", "goal", "Novel")]);
+    });
+    let flying: boolean | undefined;
+    await act(async () => {
+      const pending = carry.fly([request("obstacle:zone", "obstacle", "Creativity")]);
+      blurs.forEach((blur) => blur());
+      flying = await pending;
+    });
+    expect(flying).toBe(false);
+    expect(view.getByLabelText("Your answers: Novel")).toBeTruthy();
+    view.unmount();
+  });
+
+  it("lets go of input when a measurement never reports back", async () => {
+    jest.useFakeTimers();
+    try {
+      const view = mount();
+      const onBack = jest.fn();
+      act(() => shell.claim({ step: "goal", steps: ["goal"], handlers: { current: { onBack, onSkip: jest.fn() } } }));
+      const stalled = { ...request("kind", "goal", "Novel"), card: { measureInWindow: () => {} } };
+      let done = false;
+      act(() => {
+        void shell.fly([stalled]).then(() => {
+          done = true;
+        });
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(5000);
+      });
+      expect(done).toBe(true);
+      act(() => shell.back());
+      expect(onBack).toHaveBeenCalledTimes(1);
+      view.unmount();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

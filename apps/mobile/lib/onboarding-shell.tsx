@@ -280,8 +280,9 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
     async (requests, options) => {
       inFlight.current += 1;
       setCarrying(true);
+      const ceiling = CARRY_MS + requests.length * CARRY_STAGGER_MS + 1000;
       try {
-        await carry(requests, options);
+        await Promise.race([carry(requests, options), wait(ceiling)]);
       } finally {
         inFlight.current -= 1;
         if (inFlight.current === 0 && mounted.current) setCarrying(false);
@@ -353,17 +354,24 @@ export function useOnboardingChrome({
  * the screen fades (`fadeStyle`, applied by `OnboardingFrame`), the card takes
  * off, and it resolves when the next screen is due. The fade is undone when the
  * screen is shown again, so coming back to it finds it whole. A second tap
- * while one is in the air does nothing (`fly` resolves false).
+ * while one is in the air does nothing (`fly` resolves false), and so does a
+ * flight whose screen was left meanwhile (a hardware back or an edge swipe), so
+ * its caller never pushes on top of wherever the person went.
  */
 export function useCarry() {
-  const { fly: shellFly } = useOnboardingShell();
+  const { fly: shellFly, retract } = useOnboardingShell();
   const reduceMotion = useReduceMotion();
   const leave = useSharedValue(0);
   const busy = useRef(false);
+  const focused = useRef(false);
   useFocusEffect(
     useCallback(() => {
       leave.value = 0;
       busy.current = false;
+      focused.current = true;
+      return () => {
+        focused.current = false;
+      };
     }, [leave])
   );
   const fadeStyle = useAnimatedStyle(() => ({ opacity: 1 - leave.value }));
@@ -379,9 +387,12 @@ export function useCarry() {
           if (!reduceMotion) leave.value = withTiming(1, { duration: CARRY_LEAVE_MS });
         },
       });
-      return true;
+      if (focused.current) return true;
+      const step = requests[0]?.chip.step;
+      if (step) retract(step);
+      return false;
     },
-    [shellFly, reduceMotion, leave]
+    [shellFly, retract, reduceMotion, leave]
   );
   return { fly, fadeStyle };
 }
