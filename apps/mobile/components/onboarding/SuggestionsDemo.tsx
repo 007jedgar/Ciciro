@@ -6,13 +6,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { ChapterEditor } from "../ChapterEditor";
 import { SuggestionsPill, SuggestionsSheet } from "../SuggestionsReview";
-import { OnboardingHeader } from "./OnboardingHeader";
 import { KeyboardDoneBar } from "./KeyboardDoneBar";
-import { OnboardingThread } from "./OnboardingThread";
 import { PressableCard } from "../PressableCard";
 import { useAppTheme } from "../../lib/settings";
 import { useStackBack } from "../../lib/use-stack-back";
 import { getAnalytics } from "../../lib/analytics-client";
+import { useOnboardingChrome } from "../../lib/onboarding-shell";
 import { fonts } from "../../lib/theme";
 import type { DemoPath } from "../../lib/onboarding";
 import type { OnboardingStep } from "../../lib/onboarding-flow";
@@ -63,6 +62,7 @@ export function SuggestionsDemo({
   const editorRef = useRef<EnrichedTextInputInstance | null>(null);
   const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const suggestions = useMemo(() => listSuggestions(html), [html]);
+  useOnboardingChrome({ step: "demo", steps, onBack: () => backOr("/"), onSkip });
 
   useEffect(() => {
     getAnalytics().track("onboarding_demo_viewed", { path });
@@ -94,11 +94,6 @@ export function SuggestionsDemo({
 
   return (
     <KeyboardAvoidingView style={layout.screen} behavior="padding" automaticOffset>
-      <OnboardingHeader
-        onBack={() => backOr("/")}
-        onSkip={onSkip}
-        thread={<OnboardingThread steps={steps} current="demo" />}
-      />
       <Pressable onPress={dismissKeyboard} accessible={false} style={{ paddingHorizontal: 20, paddingTop: 16 }}>
         <Text style={[layout.title, { fontSize: 22 }]}>{t("onboarding.demo.suggestions.title")}</Text>
         <Text style={[layout.body, { marginTop: 6, marginBottom: 14 }]}>

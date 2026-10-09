@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import type { ReactNode, Ref } from "react";
+import { Pressable, StyleSheet, type PressableProps, type StyleProp, type View, type ViewStyle } from "react-native";
 import Animated from "react-native-reanimated";
 import { mixColors } from "../lib/color";
 import * as haptics from "../lib/haptics";
@@ -24,6 +24,8 @@ type Props = Omit<PressableProps, "style" | "children"> & {
   /** Filled accent style for primary actions. When true, backgroundColor is overridden to accent. */
   accent?: boolean;
   children?: ReactNode;
+  /** The pressable's native view, for a caller that has to measure it. */
+  ref?: Ref<View>;
 };
 
 /**

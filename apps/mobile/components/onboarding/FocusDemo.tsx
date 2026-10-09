@@ -4,18 +4,17 @@ import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-co
 import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { ChapterEditor } from "../ChapterEditor";
 import { FocusCollapse } from "./FocusCollapse";
-import { OnboardingHeader } from "./OnboardingHeader";
 import { KeyboardDoneBar } from "./KeyboardDoneBar";
-import { OnboardingThread } from "./OnboardingThread";
 import { PressableCard } from "../PressableCard";
 import { TapPressable } from "../TapPressable";
 import { useAppTheme } from "../../lib/settings";
 import { useStackBack } from "../../lib/use-stack-back";
 import { useReduceMotion } from "../../lib/use-reduce-motion";
 import { getAnalytics } from "../../lib/analytics-client";
+import { useOnboardingChrome, useOnboardingShell } from "../../lib/onboarding-shell";
 import { fonts } from "../../lib/theme";
 import { FOCUS_BAR_HEIGHT, FOCUS_TRANSITION_MS } from "../../lib/focus-mode";
 import type { DemoPath } from "../../lib/onboarding";
@@ -68,13 +67,27 @@ export function FocusDemo({
     : SAMPLE_KEYS.map((key) => `<p>${t(`onboarding.demo.focus.${key}`)}</p>`).join("");
   // One value drives every part of the transition, like the real editor's focus
   // mode (app/project/[id]/(tabs)/_layout.tsx): same duration, same easing.
-  const focus = useSharedValue(0);
+  // The header is the onboarding layout's, above this screen: focus mode closes it
+  // by driving the progress it shares (see `OnboardingShell`).
+  const { focus, headerHeight, setFocusHidden } = useOnboardingShell();
+  useOnboardingChrome({ step: "demo", steps, onBack: () => backOr("/"), onSkip });
   useEffect(() => {
     focus.value = withTiming(on ? 1 : 0, { duration: reduceMotion ? 1 : FOCUS_TRANSITION_MS });
-  }, [on, reduceMotion, focus]);
+    setFocusHidden(on);
+  }, [on, reduceMotion, focus, setFocusHidden]);
+  // Leaving the demo hands back a header that is open.
+  useEffect(
+    () => () => {
+      focus.value = 0;
+      setFocusHidden(false);
+    },
+    [focus, setFocusHidden]
+  );
+  // The link is placed from the top of the window; the screen starts below the
+  // header, so it rides up with the header's height as that closes.
   const exitBarStyle = useAnimatedStyle(() => ({
     opacity: focus.value,
-    transform: [{ translateY: -12 * (1 - focus.value) }],
+    transform: [{ translateY: -12 * (1 - focus.value) - headerHeight.value * (1 - focus.value) }],
   }));
   // The page sits under the status bar and the exit link once the header is gone.
   const focusTopSpace = insets.top + FOCUS_BAR_HEIGHT;
@@ -111,14 +124,6 @@ export function FocusDemo({
     // The keyboard lifts the page instead of covering it, so the line being
     // typed is always in view.
     <KeyboardAvoidingView style={layout.screen} behavior="padding" automaticOffset>
-      <FocusCollapse progress={focus} direction={-1} hidden={on}>
-        <OnboardingHeader
-          onBack={() => backOr("/")}
-          onSkip={onSkip}
-          thread={<OnboardingThread steps={steps} current="demo" />}
-        />
-      </FocusCollapse>
-
       {/* Takes the header's place in focus mode, so the page ends up where the
           real editor's does: below the status bar, under the exit link. */}
       <Animated.View style={focusTopStyle} />

@@ -1,9 +1,9 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { demoForAnswers, wantsReminderStep } from "../lib/onboarding";
-import { onboardingParams, parseOnboardingParams, stepsFor, type OnboardingParams } from "../lib/onboarding-flow";
-import { FocusDemo } from "../components/onboarding/FocusDemo";
-import { SuggestionsDemo } from "../components/onboarding/SuggestionsDemo";
-import { getAnalytics } from "../lib/analytics-client";
+import { demoForAnswers, wantsReminderStep } from "../../lib/onboarding";
+import { onboardingParams, parseOnboardingParams, stepsFor, type OnboardingParams } from "../../lib/onboarding-flow";
+import { FocusDemo } from "../../components/onboarding/FocusDemo";
+import { SuggestionsDemo } from "../../components/onboarding/SuggestionsDemo";
+import { getAnalytics } from "../../lib/analytics-client";
 
 /** The one demo the answers open - see `demoForAnswers` in lib/onboarding.ts. */
 export default function OnboardingDemoScreen() {
@@ -17,7 +17,7 @@ export default function OnboardingDemoScreen() {
   function finish() {
     const params = onboardingParams(state);
     // People who said showing up is the hard part get the reminder form next.
-    if (wantsReminderStep(state.obstacles)) router.push({ pathname: "/onboarding-reminder", params });
+    if (wantsReminderStep(state.obstacles)) router.push({ pathname: "/onboarding/reminder", params });
     else router.push({ pathname: "/signup", params });
   }
 

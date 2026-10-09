@@ -2,22 +2,25 @@ import { useRef, useState } from "react";
 import { Linking, Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { OnboardingFrame, Rise } from "../components/onboarding/OnboardingFrame";
-import { TapPressable } from "../components/TapPressable";
-import { WritingReminderForm } from "../components/WritingReminderForm";
-import { getAnalytics } from "../lib/analytics-client";
+import { OnboardingFrame, Rise } from "../../components/onboarding/OnboardingFrame";
+import { useCarryLooks } from "../../components/onboarding/carry-looks";
+import { TapPressable } from "../../components/TapPressable";
+import { WritingReminderForm } from "../../components/WritingReminderForm";
+import { getAnalytics } from "../../lib/analytics-client";
 import {
   onboardingParams,
   onboardingReminderDraft,
   parseOnboardingParams,
   stepsFor,
   type OnboardingParams,
-} from "../lib/onboarding-flow";
-import { useAppTheme } from "../lib/settings";
-import { useStackBack } from "../lib/use-stack-back";
-import { requestReminderPermission } from "../lib/writing-reminder-notifications";
-import { reminderSaveOutcome } from "../lib/writing-reminder-sync";
-import { createWritingReminderId, type WritingReminder } from "../lib/writing-reminders";
+} from "../../lib/onboarding-flow";
+import { useAppTheme } from "../../lib/settings";
+import { useStackBack } from "../../lib/use-stack-back";
+import { useCarry, useCarryNodes } from "../../lib/onboarding-shell";
+import { reminderChipLabel } from "../../lib/onboarding-story";
+import { requestReminderPermission } from "../../lib/writing-reminder-notifications";
+import { reminderSaveOutcome } from "../../lib/writing-reminder-sync";
+import { createWritingReminderId, type WritingReminder } from "../../lib/writing-reminders";
 
 /**
  * Shown after the demo to anyone who picked "Sitting down consistently": the
@@ -26,11 +29,19 @@ import { createWritingReminderId, type WritingReminder } from "../lib/writing-re
  * scheduled by `AuthScreen` only if the sign-up creates one - see AGENTS.md
  * "Pre-signup onboarding". Free for everyone; nothing here checks an entitlement.
  */
+/** One frame on, so a state just set (the button back to "Create reminder") has been drawn. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 export default function OnboardingReminderScreen() {
   const router = useRouter();
   const { backOr } = useStackBack();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { layout } = useAppTheme();
+  const carry = useCarry();
+  const nodes = useCarryNodes();
+  const looks = useCarryLooks();
   const state = parseOnboardingParams(
     useLocalSearchParams<OnboardingParams>()
   );
@@ -40,7 +51,26 @@ export default function OnboardingReminderScreen() {
   const [showOpenSettings, setShowOpenSettings] = useState(false);
   const deniedNoticeShown = useRef(false);
 
-  function toSignup(reminder: WritingReminder | null) {
+  async function toSignup(reminder: WritingReminder | null) {
+    if (reminder) {
+      // The button settles into the last chip before signup, which this screen does not
+      // outlive: the chip has landed by the time the sign-up screen fades in.
+      await nextFrame();
+      const source = nodes.get("reminder");
+      const label = reminderChipLabel(reminder, i18n.language, (key, options) => String(t(key, options)));
+      const flying = await carry.fly(
+        [
+          {
+            chip: { id: "reminder", step: "reminder", label },
+            card: source.card,
+            title: source.title,
+            look: looks.button(t("onboarding.reminderCreate")),
+          },
+        ],
+        { settle: true }
+      );
+      if (!flying) return;
+    }
     router.push({ pathname: "/signup", params: onboardingParams({ ...state, reminder }) });
   }
 
@@ -70,20 +100,20 @@ export default function OnboardingReminderScreen() {
       case "unavailable-notice":
         // Nothing to turn on in Settings: say so once, then let the next press through.
         if (deniedNoticeShown.current) {
-          toSignup(next);
+          void toSignup(next);
           return;
         }
         deniedNoticeShown.current = true;
         setNotice(t("reminders.savedUnavailable"));
         return;
       default:
-        toSignup(next);
+        void toSignup(next);
     }
   }
 
   function notNow() {
     getAnalytics().track("onboarding_skipped", { step: "reminder" });
-    toSignup(null);
+    void toSignup(null);
   }
 
   return (
@@ -94,12 +124,15 @@ export default function OnboardingReminderScreen() {
       body={t("onboarding.reminderBody")}
       onBack={() => backOr("/")}
       onSkip={notNow}
+      leave={carry.fadeStyle}
     >
       <Rise index={2}>
         <WritingReminderForm
           onboarding
           reminder={draft}
           manuscripts={[]}
+          saveRef={nodes.cardRef("reminder")}
+          saveLabelRef={nodes.titleRef("reminder")}
           busy={busy}
           notice={notice}
           openSettingsLabel={showOpenSettings ? t("reminders.openSettings") : null}

@@ -58,24 +58,9 @@ function ThemedStack() {
           name="signup"
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
+        {/* The quiz's own navigator (app/onboarding/_layout.tsx): it fades in as one. */}
         <Stack.Screen
-          name="onboarding-goal"
-          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
-        />
-        <Stack.Screen
-          name="onboarding-obstacle"
-          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
-        />
-        <Stack.Screen
-          name="onboarding-look"
-          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
-        />
-        <Stack.Screen
-          name="onboarding-demo"
-          options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
-        />
-        <Stack.Screen
-          name="onboarding-reminder"
+          name="onboarding"
           options={{ headerShown: false, animation: "fade", animationDuration: 260 }}
         />
         {/* Android's landing for a browser sign-in's ciciro://oauth deep link. */}

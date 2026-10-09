@@ -58,6 +58,7 @@ const es: Translations = {
   onboarding: {
     skip: "Omitir",
     progress: "Paso {{current}} de {{total}}",
+    answersSummary: "Tus respuestas: {{answers}}",
     continue: "Continuar",
     obstacleHint: "Elige todos los que apliquen.",
     lookTitle: "Elige un aspecto",

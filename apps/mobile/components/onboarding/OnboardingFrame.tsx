@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import { ScrollView, Text, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeInDown } from "react-native-reanimated";
-import { ThemeWashScope } from "../ThemeWashScope";
-import { OnboardingHeader } from "./OnboardingHeader";
-import { OnboardingThread } from "./OnboardingThread";
+import Animated, { FadeInDown, type AnimatedStyle } from "react-native-reanimated";
 import { WriteInTitle } from "./WriteInTitle";
 import { fadeUpDelay } from "../../lib/skeleton";
+import { useOnboardingChrome } from "../../lib/onboarding-shell";
 import { useAppTheme } from "../../lib/settings";
 import { useReduceMotion } from "../../lib/use-reduce-motion";
 import type { OnboardingStep } from "../../lib/onboarding-flow";
@@ -35,10 +33,13 @@ export function Rise({
 }
 
 /**
- * The shared skeleton of the quiz screens: back, the progress thread and Skip
- * on top, a title that writes itself in, then the content rising in one block
- * at a time (the title is block 0). `footer` pins to the bottom, above the home
- * indicator, and rises last.
+ * The shared skeleton of the quiz screens: a title that writes itself in, then
+ * the content rising in one block at a time (the title is block 0). `footer`
+ * pins to the bottom, above the home indicator, and rises last. The header
+ * above it (back, the progress thread, Skip, the answer chips) is not here: it
+ * belongs to the onboarding layout and stays put between steps - this only tells
+ * it where the screen sits and what back and Skip do. `leave` fades the whole
+ * screen when a card flies off it (see `useCarry`).
  */
 export function OnboardingFrame({
   steps,
@@ -47,6 +48,7 @@ export function OnboardingFrame({
   body,
   onBack,
   onSkip,
+  leave,
   footer,
   children,
 }: {
@@ -56,19 +58,18 @@ export function OnboardingFrame({
   body?: string;
   onBack: () => void;
   onSkip: () => void;
+  leave?: StyleProp<AnimatedStyle<StyleProp<ViewStyle>>>;
   footer?: ReactNode;
   children: ReactNode;
 }) {
   const { layout } = useAppTheme();
   const insets = useSafeAreaInsets();
-  // Its own wash scope: the root's snapshot cannot see a native-stack screen's contents
-  // (it comes back black), so the Pick a look step washes within its own view.
+  useOnboardingChrome({ step, steps, onBack, onSkip });
   return (
-    <ThemeWashScope style={layout.screen}>
-      <OnboardingHeader onBack={onBack} onSkip={onSkip} thread={<OnboardingThread steps={steps} current={step} />} />
+    <Animated.View style={[{ flex: 1 }, leave]}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 24 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -85,6 +86,6 @@ export function OnboardingFrame({
           {footer}
         </Rise>
       ) : null}
-    </ThemeWashScope>
+    </Animated.View>
   );
 }

@@ -43,3 +43,17 @@ export const SELECT_FADE_MS = 180;
 export const FREQ_HOLD_MS = 2600;
 export const FREQ_DELETE_MS = 26;
 export const FREQ_TYPE_MS = 42;
+
+/**
+ * The onboarding "carry" (see `lib/onboarding-shell.tsx`): the card a person taps
+ * flies into a chip in the header over `CARRY_MS`. The screen it leaves fades
+ * over `CARRY_LEAVE_MS`, the next screen is pushed `CARRY_PUSH_MS` in (so it
+ * arrives as the card is leaving), and several cards (the obstacles) set off
+ * `CARRY_STAGGER_MS` apart.
+ */
+export const CARRY_MS = 460;
+export const CARRY_LEAVE_MS = 180;
+export const CARRY_PUSH_MS = 200;
+export const CARRY_STAGGER_MS = 50;
+/** Reduce motion: the chip just fades in. */
+export const CARRY_FADE_MS = 140;

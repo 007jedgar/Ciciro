@@ -56,6 +56,7 @@ const en = {
   onboarding: {
     skip: "Skip",
     progress: "Step {{current}} of {{total}}",
+    answersSummary: "Your answers: {{answers}}",
     continue: "Continue",
     obstacleHint: "Pick as many as apply.",
     lookTitle: "Pick a look",
