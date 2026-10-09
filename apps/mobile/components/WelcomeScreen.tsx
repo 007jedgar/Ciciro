@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AppState, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
+import { AppState, Platform, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { useIsFocused } from "expo-router";
 import Animated, {
   cancelAnimation,
@@ -145,6 +145,8 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
   const lines = headlineLines(t);
   const { frame, swapping } = useWelcomeFrame(copy, { play: phase === "done" && focused && appActive, reduceMotion });
   const sentence = headlineSentence(copy);
+  // The italic face is Latin only: Devanagari and Chinese fall back to a heavier system face when asked for it.
+  const italicWord = i18n.language === "en" || i18n.language === "es";
 
   // Where the card's first three lines are, so the splash's dots know where to land.
   const copyRef = useRef<View>(null);
@@ -184,9 +186,11 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
 
   return (
     <View
-      style={[styles.root, { backgroundColor: colors.bg, paddingTop: insets.top + 36, paddingBottom: Math.max(insets.bottom, 14) + 8 }]}
+      style={[styles.root, { backgroundColor: colors.bg, paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 14) + 8 }]}
       onLayout={measure}
     >
+      <View style={styles.topSpacer} />
+
       <Rise index={0} style={styles.eyebrowRow}>
         <View style={[styles.eyebrowDot, { backgroundColor: colors.vermilion }]} />
         <Text style={[styles.eyebrow, { color: colors.inkSoft }]}>{t("welcome.eyebrow")}</Text>
@@ -205,7 +209,7 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
             style={[styles.headline, { color: colors.ink }]}
           >
             {headlinePart(h, "before", selectionOnBg, caret)}
-            <Text style={styles.word}>{headlinePart(h, "word", selectionOnBg, caret)}</Text>
+            <Text style={italicWord ? styles.word : undefined}>{headlinePart(h, "word", selectionOnBg, caret)}</Text>
             {headlinePart(h, "after", selectionOnBg, caret)}
           </Text>
         </Animated.View>
@@ -245,6 +249,8 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
         </View>
       </Animated.View>
 
+      <View style={styles.spacer} />
+
       <Rise index={4} style={styles.primaryWrap}>
         <TapPressable onPress={onCreate} style={[styles.primary, { backgroundColor: colors.ink }]}>
           <Text style={[styles.primaryText, { color: colors.bg }]}>{t("welcome.createAccount")}</Text>
@@ -269,13 +275,14 @@ const styles = StyleSheet.create({
   eyebrowDot: { width: 7, height: 7, borderRadius: 3.5, marginRight: 8 },
   eyebrow: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase" },
   headline: { fontFamily: fonts.display, fontSize: HEAD_SIZE, lineHeight: HEAD_LINE, letterSpacing: -0.5 },
-  word: { fontFamily: fonts.displayItalic },
+  // iOS flattens an italic face to upright unless the style says italic too; Android's file is already the italic.
+  word: { fontFamily: fonts.displayItalic, ...(Platform.OS === "ios" ? { fontStyle: "italic" as const } : {}) },
   sub: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 22, marginTop: 14, marginBottom: 22, maxWidth: 330 },
   card: {
     flexGrow: 1,
     flexShrink: 1,
     minHeight: 170,
-    maxHeight: 244,
+    maxHeight: 300,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
@@ -288,7 +295,9 @@ const styles = StyleSheet.create({
   cardLabel: { position: "absolute", left: 50, top: 22, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase" },
   copy: { position: "absolute", left: 50, top: 66, right: 14 },
   blockGap: { marginTop: 6 },
-  primaryWrap: { marginTop: 22 },
+  topSpacer: { flexGrow: 1, flexShrink: 1, minHeight: 24 },
+  spacer: { flexGrow: 1.2, flexShrink: 1, minHeight: 22 },
+  primaryWrap: {},
   primary: { height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center" },
   primaryText: { fontFamily: fonts.uiBold, fontSize: 16 },
   ghost: { height: 44, alignItems: "center", justifyContent: "center" },

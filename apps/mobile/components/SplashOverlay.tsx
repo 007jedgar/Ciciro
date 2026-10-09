@@ -9,7 +9,7 @@ import Animated, {
   useSharedValue,
   type SharedValue,
 } from "react-native-reanimated";
-import { hexToRgb, mixColors } from "../lib/color";
+import { hexToRgb255, mixColors } from "../lib/color";
 import { useSession } from "../lib/session";
 import { useOptionalAppTheme } from "../lib/settings";
 import {
@@ -30,10 +30,7 @@ import { easeInOut, easeOut, mix, seg } from "../lib/worklet-math";
 import { useTimingOnFirstFrame } from "../lib/use-timing-on-first-frame";
 
 type Rgb = [number, number, number];
-const toRgb = (hex: string): Rgb => {
-  const { r, g, b } = hexToRgb(hex);
-  return [r, g, b];
-};
+const toRgb = hexToRgb255;
 
 type Shared = { clock: SharedValue<number>; flyOn: SharedValue<number>; fade: SharedValue<number> };
 

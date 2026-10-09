@@ -1,4 +1,4 @@
-import { contrastRatio, hexToRgb, hslToRgb, mixColors, rgbToHex, rgbToHsl, rotateHue } from "../lib/color";
+import { contrastRatio, hexToRgb, hexToRgb255, hslToRgb, mixColors, rgbToHex, rgbToHsl, rotateHue } from "../lib/color";
 
 describe("hexToRgb", () => {
   it("reads both shorthand and full hex", () => {
@@ -54,5 +54,12 @@ describe("contrastRatio", () => {
   it("is 21 for black on white and 1 for a colour on itself", () => {
     expect(contrastRatio("#000", "#fff")).toBeCloseTo(21, 5);
     expect(contrastRatio("#b4552d", "#b4552d")).toBeCloseTo(1, 5);
+  });
+});
+
+describe("hexToRgb255", () => {
+  it("gives the 0..255 channels an animated rgb() colour takes", () => {
+    expect(hexToRgb255("#e8442c")).toEqual([232, 68, 44]);
+    expect(hexToRgb255("#fff")).toEqual([255, 255, 255]);
   });
 });
