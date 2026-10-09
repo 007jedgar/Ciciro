@@ -3,6 +3,7 @@ import { AppState, Platform } from "react-native";
 import { useWritingDaysQuery } from "../lib/api";
 import { getLastPlace } from "../lib/last-place";
 import { useSession } from "../lib/session";
+import { activeDailyGoal } from "../lib/app-settings";
 import { useAppTheme } from "../lib/settings";
 import {
   countWritingDaysInWindow,
@@ -43,12 +44,13 @@ export function WritingWidgetSync() {
     return countWritingDaysInWindow(merged, today);
   }, [range.data?.days, day.date, day.words, day.activeMs, today]);
 
+  const goal = activeDailyGoal(settings);
   const publishRef = useRef(() => {});
   publishRef.current = () => {
     if (Platform.OS !== "ios" || !user) return;
     const snapshot = buildWritingWidgetSnapshot({
       words: day.words,
-      goal: settings.dailyWordGoal,
+      goal,
       daysInLast7,
       lastPlace: getLastPlace(user.id),
     });
@@ -57,7 +59,7 @@ export function WritingWidgetSync() {
 
   useEffect(() => {
     publishRef.current();
-  }, [user?.id, day.words, settings.dailyWordGoal, daysInLast7, day.date]);
+  }, [user?.id, day.words, goal, daysInLast7, day.date]);
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;

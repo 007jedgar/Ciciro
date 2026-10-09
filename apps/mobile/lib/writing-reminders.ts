@@ -9,7 +9,6 @@
 export const REMINDER_WORD_GOALS = [100, 250, 500, 1000] as const;
 export const MAX_WRITING_REMINDERS = 10;
 export const REMINDER_NOTIFICATION_PREFIX = "ciciro.reminder.";
-export const DEFAULT_REMINDER_WORD_GOAL = 250;
 export const DEFAULT_REMINDER_HOUR = 8;
 export const DEFAULT_REMINDER_MINUTE = 0;
 
@@ -23,7 +22,8 @@ export type WritingReminder = {
   id: string;
   /** null is a general writing goal, not one manuscript. */
   projectId: string | null;
-  wordGoal: number;
+  /** Optional: null is a plain "time to write" nudge with no number attached. */
+  wordGoal: number | null;
   hour: number;
   minute: number;
   days: Weekday[];
@@ -71,7 +71,7 @@ export function newWritingReminder(input: {
   return {
     id: input.id,
     projectId: input.projectId ?? null,
-    wordGoal: DEFAULT_REMINDER_WORD_GOAL,
+    wordGoal: null,
     hour: DEFAULT_REMINDER_HOUR,
     minute: DEFAULT_REMINDER_MINUTE,
     days: [...WEEKDAYS],
@@ -107,7 +107,10 @@ export function parseWritingReminder(raw: unknown): WritingReminder | null {
   ) {
     return null;
   }
-  if (typeof src.wordGoal !== "number" || !Number.isFinite(src.wordGoal)) return null;
+  // Reminders saved before the goal became optional all carry a number.
+  if (src.wordGoal != null && (typeof src.wordGoal !== "number" || !Number.isFinite(src.wordGoal))) {
+    return null;
+  }
   if (!Array.isArray(src.days)) return null;
   const rawDays: unknown[] = src.days;
   const days = WEEKDAYS.filter((day) =>
@@ -117,7 +120,7 @@ export function parseWritingReminder(raw: unknown): WritingReminder | null {
   return {
     id: src.id,
     projectId: typeof src.projectId === "string" ? src.projectId : null,
-    wordGoal: Math.min(5000, Math.max(50, Math.round(src.wordGoal))),
+    wordGoal: typeof src.wordGoal === "number" ? Math.min(5000, Math.max(50, Math.round(src.wordGoal))) : null,
     hour: src.hour,
     minute: src.minute,
     days,
@@ -176,8 +179,17 @@ export function formatReminderClock(hour: number, minute: number, locale: string
   }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
 }
 
+const WORK_WEEK: readonly Weekday[] = [1, 2, 3, 4, 5];
+const WEEKEND: readonly Weekday[] = [0, 6];
+
+function sameDays(days: readonly Weekday[], expected: readonly Weekday[]): boolean {
+  return days.length === expected.length && expected.every((day) => days.includes(day));
+}
+
 export function reminderDaySummary(days: readonly Weekday[], t: ReminderTranslate): string {
   if (days.length === WEEKDAYS.length) return t("reminders.everyDay");
+  if (sameDays(days, WORK_WEEK)) return t("reminders.weekdays");
+  if (sameDays(days, WEEKEND)) return t("reminders.weekends");
   return days.map((day) => t(`reminders.dayShort.${DAY_KEYS[day]}`)).join(" ");
 }
 
@@ -191,10 +203,14 @@ export function reminderNotificationText(
   projectTitle: string | null | undefined,
   t: ReminderTranslate
 ): { title: string; body: string } {
+  const goal = reminder.wordGoal;
   if (reminder.projectId == null) {
     return {
       title: t("reminders.notify.generalTitle"),
-      body: t("reminders.notify.generalBody", { count: reminder.wordGoal }),
+      body:
+        goal == null
+          ? t("reminders.notify.generalBodyNoGoal")
+          : t("reminders.notify.generalBody", { count: goal }),
     };
   }
   const title = projectTitle?.trim()
@@ -202,7 +218,10 @@ export function reminderNotificationText(
     : t("reminders.notify.missingTitle");
   return {
     title: t("reminders.notify.manuscriptTitle", { title }),
-    body: t("reminders.notify.manuscriptBody", { count: reminder.wordGoal, title }),
+    body:
+      goal == null
+        ? t("reminders.notify.manuscriptBodyNoGoal", { title })
+        : t("reminders.notify.manuscriptBody", { count: goal, title }),
   };
 }
 

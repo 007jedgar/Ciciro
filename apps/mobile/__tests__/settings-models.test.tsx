@@ -8,6 +8,7 @@ import { AppThemeContext } from "../lib/app-theme-context";
 import "../lib/i18n";
 import { makeLayout, THEME_PALETTES } from "../lib/theme";
 
+jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: "light" },

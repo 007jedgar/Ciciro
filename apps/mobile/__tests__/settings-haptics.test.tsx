@@ -9,6 +9,7 @@ import "../lib/i18n";
 import { makeLayout, THEME_PALETTES } from "../lib/theme";
 
 const mockDisk = new Map<string, string>();
+jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("../lib/prefs", () => ({
   getPrefs: () => ({
     getString: (key: string) => mockDisk.get(key),

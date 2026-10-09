@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ciciro, useProjectsQuery } from "../lib/api";
 import i18n from "../lib/i18n";
 import { useSession } from "../lib/session";
+import { activeDailyGoal } from "../lib/app-settings";
 import { useAppTheme } from "../lib/settings";
 import {
   projectsListReady,
@@ -65,6 +66,7 @@ export function WritingReminderSync() {
   const { i18n: instance } = useTranslation();
   const { user } = useSession();
   const { settings } = useAppTheme();
+  const dailyGoal = activeDailyGoal(settings);
   const day = useWritingDay();
   const userId = user?.id ?? null;
   const projects = useProjectsQuery({ enabled: Boolean(userId) });
@@ -113,7 +115,7 @@ export function WritingReminderSync() {
           t: translate,
           requestPermission: false,
           todayWords: snapshot.words,
-          dailyWordGoal: settings.dailyWordGoal,
+          dailyWordGoal: dailyGoal,
           bodyOverrides,
         });
       })();
@@ -128,11 +130,11 @@ export function WritingReminderSync() {
       unsub();
       appSub.remove();
     };
-  }, [userId, titles, instance.language, projects.data, settings.dailyWordGoal]);
+  }, [userId, titles, instance.language, projects.data, dailyGoal]);
 
   useEffect(() => {
     if (!userId || !titles) return;
-    const met = settings.dailyWordGoal > 0 && day.words >= settings.dailyWordGoal;
+    const met = dailyGoal > 0 && day.words >= dailyGoal;
     if (met && !goalMetRef.current) {
       goalMetRef.current = true;
       void (async () => {
@@ -145,14 +147,14 @@ export function WritingReminderSync() {
           t: translate,
           requestPermission: false,
           todayWords: day.words,
-          dailyWordGoal: settings.dailyWordGoal,
+          dailyWordGoal: dailyGoal,
           bodyOverrides,
         });
       })();
     } else if (!met) {
       goalMetRef.current = false;
     }
-  }, [userId, titles, day.words, settings.dailyWordGoal]);
+  }, [userId, titles, day.words, dailyGoal]);
 
   useEffect(() => {
     let cancelled = false;

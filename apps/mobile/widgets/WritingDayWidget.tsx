@@ -52,10 +52,13 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
     </ZStack>
   );
 
+  // A goal is optional: with none (0) the widget shows today's words on their own.
+  const hasGoal = goal > 0;
+
   if (family === "accessoryInline") {
     return (
       <Text modifiers={[widgetURL(url), foregroundStyle(ink)]}>
-        {`${words}/${goal} · ${days}/7`}
+        {hasGoal ? `${words}/${goal} · ${days}/7` : `${words} · ${days}/7`}
       </Text>
     );
   }
@@ -66,7 +69,7 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
         <Text modifiers={[font({ size: 16, weight: "bold" }), foregroundStyle(ink)]}>
           {String(words)}
         </Text>
-        <Text modifiers={[font({ size: 10 }), foregroundStyle(soft)]}>{`/ ${goal}`}</Text>
+        <Text modifiers={[font({ size: 10 }), foregroundStyle(soft)]}>{hasGoal ? `/ ${goal}` : "words"}</Text>
       </VStack>
     );
   }
@@ -75,7 +78,7 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
     return (
       <VStack modifiers={[widgetURL(url), padding({ all: 6 })]}>
         <Text modifiers={[font({ size: 14, weight: "semibold" }), foregroundStyle(ink)]}>
-          {`${words} of ${goal}`}
+          {hasGoal ? `${words} of ${goal}` : `${words} words`}
         </Text>
         <Text modifiers={[font({ size: 12 }), foregroundStyle(soft)]}>
           {`${days} of the last 7`}
@@ -89,7 +92,7 @@ const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetE
       <VStack modifiers={[widgetURL(url), padding({ all: 12 })]}>
         <Text modifiers={[font({ size: 13 }), foregroundStyle(soft)]}>Today</Text>
         <Text modifiers={[font({ size: 22, weight: "bold" }), foregroundStyle(ink)]}>
-          {`${words} / ${goal}`}
+          {hasGoal ? `${words} / ${goal}` : `${words} words`}
         </Text>
         <Text modifiers={[font({ size: 13 }), foregroundStyle(soft)]}>
           {`${days} of the last 7 days`}

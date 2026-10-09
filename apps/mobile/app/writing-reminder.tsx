@@ -7,6 +7,7 @@ import { AppHeader, useMeasuredAppHeaderHeight } from "../components/AppHeader";
 import { WritingReminderForm, type ManuscriptChoice } from "../components/WritingReminderForm";
 import { ciciro, useProjectsQuery } from "../lib/api";
 import i18n from "../lib/i18n";
+import { activeDailyGoal } from "../lib/app-settings";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 import { useStackBack } from "../lib/use-stack-back";
@@ -158,7 +159,7 @@ export default function WritingReminderScreen() {
       t: translate,
       requestPermission: false,
       todayWords: getWritingDaySnapshot().words,
-      dailyWordGoal: settings.dailyWordGoal,
+      dailyWordGoal: activeDailyGoal(settings),
     });
     setBusy(false);
 

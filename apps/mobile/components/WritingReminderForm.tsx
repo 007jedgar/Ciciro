@@ -19,7 +19,7 @@ import { PressableCard } from "./PressableCard";
 import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
-import { PRESS_SCALE } from "../lib/motion";
+import { ChoiceRow } from "./ChoiceRow";
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -78,7 +78,7 @@ export function WritingReminderForm({
   const translate: ReminderTranslate = (key, options) => String(t(key, options));
 
   const [projectId, setProjectId] = useState<string | null>(reminder.projectId);
-  const [wordGoal, setWordGoal] = useState(reminder.wordGoal);
+  const [wordGoal, setWordGoal] = useState<number | null>(reminder.wordGoal);
   const [hour, setHour] = useState(reminder.hour);
   const [minute, setMinute] = useState(reminder.minute);
   const [days, setDays] = useState<Weekday[]>(reminder.days);
@@ -91,7 +91,7 @@ export function WritingReminderForm({
 
   const goals = useMemo(() => {
     const choices: number[] = [...REMINDER_WORD_GOALS];
-    if (!choices.includes(wordGoal)) choices.push(wordGoal);
+    if (wordGoal != null && !choices.includes(wordGoal)) choices.push(wordGoal);
     return choices.sort((a, b) => a - b);
   }, [wordGoal]);
 
@@ -182,14 +182,14 @@ export function WritingReminderForm({
       {onboarding ? null : (
         <>
           <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.scope")}</Text>
-          <Choice
+          <ChoiceRow
             label={t("reminders.general")}
             selected={projectId == null}
             colors={colors}
             onPress={() => setProjectId(null)}
           />
           {manuscripts.map((manuscript) => (
-            <Choice
+            <ChoiceRow
               key={manuscript.id}
               label={manuscript.title}
               selected={projectId === manuscript.id}
@@ -198,7 +198,7 @@ export function WritingReminderForm({
             />
           ))}
           {projectId && !known && manuscriptsReady ? (
-            <Choice
+            <ChoiceRow
               label={t("reminders.missingManuscript")}
               selected
               colors={colors}
@@ -210,20 +210,21 @@ export function WritingReminderForm({
 
       <Text style={[sectionLabel, { color: colors.inkSoft }]}>{t("reminders.goal")}</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {goals.map((goal) => {
+        {[null, ...goals].map((goal) => {
           const selected = goal === wordGoal;
+          const label = goal == null ? t("reminders.noGoal") : t("reminders.goalValue", { count: goal });
           return (
             <SelectChip
-              key={goal}
+              key={goal ?? "none"}
               selected={selected}
               tokens={chipTokens}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              accessibilityLabel={t("reminders.goalValue", { count: goal })}
+              accessibilityLabel={label}
               onPress={() => setWordGoal(goal)}
               surfaceStyle={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1 }}
             >
-              <SelectLabel style={{ fontSize: 15 }}>{t("reminders.goalValue", { count: goal })}</SelectLabel>
+              <SelectLabel style={{ fontSize: 15 }}>{label}</SelectLabel>
             </SelectChip>
           );
         })}
@@ -436,48 +437,6 @@ export function WritingReminderForm({
         </TapPressable>
       ) : null}
     </View>
-  );
-}
-
-function Choice({
-  label,
-  selected,
-  colors,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  colors: { ink: string; accent: string; accentSoft: string; panel2: string; line: string };
-  onPress: () => void;
-}) {
-  return (
-    <SelectChip
-      onPress={onPress}
-      selected={selected}
-      tokens={{
-        restFill: "transparent",
-        activeFill: colors.accentSoft,
-        restBorder: colors.line,
-        activeBorder: colors.accent,
-        restText: colors.ink,
-        activeText: colors.ink,
-      }}
-      scale={PRESS_SCALE.card}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      style={{ marginBottom: 8 }}
-      surfaceStyle={{
-        minHeight: 48,
-        borderRadius: 14,
-        paddingHorizontal: 14,
-        flexDirection: "row",
-        alignItems: "center",
-        borderWidth: 1,
-      }}
-    >
-      <SelectLabel style={{ flex: 1, fontSize: 17 }}>{label}</SelectLabel>
-    </SelectChip>
   );
 }
 

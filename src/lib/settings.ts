@@ -66,7 +66,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     chatWidth: DEFAULT_CHAT_WIDTH,
     dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
-    showDailyGoal: true,
+    showDailyGoal: false,
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,

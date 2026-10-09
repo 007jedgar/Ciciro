@@ -134,6 +134,14 @@ function ThemedStack() {
           }}
         />
         <Stack.Screen
+          name="word-goal"
+          options={{
+            title: t("settings.wordGoal"),
+            headerShown: false,
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
+          }}
+        />
+        <Stack.Screen
           name="writing-history"
           options={{
             title: t("writingHistory.title"),

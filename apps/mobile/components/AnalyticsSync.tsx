@@ -45,6 +45,7 @@ function screenNameForPath(pathname: string): string {
   if (pathname === "/settings") return "settings";
   if (pathname === "/delete-account") return "delete_account";
   if (pathname === "/writing-reminder" || pathname === "/writing-reminders") return "writing_reminder";
+  if (pathname === "/word-goal") return "word_goal";
   if (pathname === "/writing-history") return "writing_history";
   if (pathname.includes("/project/")) {
     if (pathname.endsWith("/ciciro")) return "chat";

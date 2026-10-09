@@ -53,7 +53,7 @@ export function defaultSettings(): AppSettings {
     chatWidth: 380,
     dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
     weeklyDayTarget: DEFAULT_WEEKLY_DAY_TARGET,
-    showDailyGoal: true,
+    showDailyGoal: false,
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,
@@ -115,6 +115,16 @@ export function normalizeSettings(raw: unknown): AppSettings {
         ? new Date(src.updatedAt).toISOString()
         : defaults.updatedAt,
   };
+}
+
+/**
+ * The daily word goal in force, or 0 for none. A goal is optional: with
+ * `showDailyGoal` off the stored `dailyWordGoal` is only the number the next
+ * goal starts from, so anything goal-dependent (the meter, the widget, a
+ * reminder skipped on a met day) reads this, never `dailyWordGoal` directly.
+ */
+export function activeDailyGoal(settings: Pick<AppSettings, "showDailyGoal" | "dailyWordGoal">): number {
+  return settings.showDailyGoal ? settings.dailyWordGoal : 0;
 }
 
 export function applyPatch(current: AppSettings, patch: SettingsPatch): AppSettings {
