@@ -10,7 +10,7 @@ else stays in commit messages.
   selected tab in the manuscript tab bar now fills its whole segment of the bar,
   rounder at the two ends and flatter in the middle. The Ciciro chat shows its
   quick-action chips on an empty chat only; once you are talking they sit behind
-  a Suggestions button. "Previously on" is now two or three sentences (web and
+  a sparkle button. "Previously on" is now two or three sentences (web and
   phone), and the phone clamps it to five lines with Show more.
 
 - **Who knows what** is now chapter by chapter (web and phone). A character
