@@ -531,6 +531,7 @@ const hi: Translations = {
     stop: "रोकें",
     sending: "सोच रहा है…",
     sendError: "Ciciro उत्तर नहीं दे सका। फिर कोशिश करें।",
+    suggestions: "सुझाव",
     clear: "चैट साफ़ करें",
     editMode: {
       label: "चैट विकल्प",
@@ -795,6 +796,8 @@ const hi: Translations = {
     title: "पिछली बार",
     dismiss: "हटाएँ",
     loading: "अब तक की कहानी याद कर रहे हैं…",
+    more: "और दिखाएँ",
+    less: "कम दिखाएँ",
   },
   stuck: {
     pill: "मैं अटक गया हूँ",

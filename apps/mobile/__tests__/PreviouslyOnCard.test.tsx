@@ -51,6 +51,30 @@ describe("PreviouslyOnCard", () => {
     expect(screen.queryByTestId("previously-on")).toBeNull();
   });
 
+  it("clamps a long recap to five lines and expands on request", () => {
+    dueMock.mockReturnValue(true);
+    const text = "You left Marta on the pier. ".repeat(12);
+    recapMock.mockReturnValue({ data: { text, generatedAt: "" } });
+    render(wrap(<PreviouslyOnCard projectId="p1" />));
+    expect(screen.queryByText("Show more")).toBeNull();
+    const measure = screen.getAllByText(text, { includeHiddenElements: true }).find((n) => n.props.onTextLayout);
+    fireEvent(measure!, "textLayout", { nativeEvent: { lines: new Array(7).fill({}) } });
+    expect(screen.getByText(text).props.numberOfLines).toBe(5);
+    fireEvent.press(screen.getByText("Show more"));
+    expect(screen.getByText(text).props.numberOfLines).toBeUndefined();
+    fireEvent.press(screen.getByText("Show less"));
+    expect(screen.getByText(text).props.numberOfLines).toBe(5);
+  });
+
+  it("offers no toggle when the recap fits", () => {
+    dueMock.mockReturnValue(true);
+    recapMock.mockReturnValue({ data: { text: "Short.", generatedAt: "" } });
+    render(wrap(<PreviouslyOnCard projectId="p1" />));
+    const measure = screen.getAllByText("Short.", { includeHiddenElements: true }).find((n) => n.props.onTextLayout);
+    fireEvent(measure!, "textLayout", { nativeEvent: { lines: new Array(2).fill({}) } });
+    expect(screen.queryByText("Show more")).toBeNull();
+  });
+
   it("holds the card's place with skeleton lines while the recap is written", () => {
     dueMock.mockReturnValue(true);
     recapMock.mockReturnValue({ data: undefined, isPending: true });

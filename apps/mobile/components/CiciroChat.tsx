@@ -3,7 +3,6 @@ import {
   Alert,
   FlatList,
   Platform,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -18,6 +17,7 @@ import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
+  FadeOut,
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
@@ -59,7 +59,7 @@ import { ChatErrorNotice } from "./ChatErrorNotice";
 import { EditModeToggle } from "./EditModeToggle";
 import { CiciroThinking } from "./CiciroThinking";
 import { alpha, Glass } from "./Glass";
-import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, StopIcon } from "./icons";
+import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, SparkleIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
 import { Snackbar } from "./Snackbar";
 import { TapPressable } from "./TapPressable";
@@ -319,6 +319,8 @@ function JumpChip({
 /**
  * The empty thread, before the first message: the brand mark and one
  * instructional line that points at the chips docked above the composer.
+ * Once the conversation has begun the chips tuck away behind a Suggestions
+ * button instead of crowding every screen.
  */
 function ChatEmptyState({ colors, style }: { colors: ColorTokens; style?: StyleProp<ViewStyle> }) {
   const { t } = useTranslation();
@@ -454,7 +456,11 @@ export function CiciroChat({
   insertedKeys: Set<string>;
   openQuestionCount?: number;
   onOpenQuestions?: () => void;
-  /** Chips above the composer that send a ready-made brief; hidden while a reply streams or the keyboard is up. */
+  /**
+   * Chips above the composer that send a ready-made brief. Shown on an empty chat; once the
+   * conversation has begun they sit behind a Suggestions button and close again when one is
+   * used. Always hidden while a reply streams or the keyboard is up.
+   */
   quickActions?: { id: string; label: string }[];
   onQuickAction?: (id: string) => void;
   bottomInset: number;
@@ -477,6 +483,14 @@ export function CiciroChat({
    */
   const keyboardHeight = useKeyboardState((state) => (state.isVisible ? state.height : 0));
   const stickyOffset = Math.max(0, bottomInset - KEYBOARD_GAP);
+  const hasSuggestions = Boolean(quickActions?.length && onQuickAction);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const suggestionsIdle = !streaming && keyboardHeight === 0;
+  const suggestionsShown = hasSuggestions && suggestionsIdle && (messages.length === 0 || suggestionsOpen);
+  // Typing, a reply streaming in or an emptied chat each put the chips away for the next time.
+  useEffect(() => {
+    if (!suggestionsIdle || composer) setSuggestionsOpen(false);
+  }, [suggestionsIdle, composer]);
   // What the raised dock hides that the resting one did not, so the last reply
   // stays reachable with the keyboard up.
   const keyboardLift = Math.max(0, keyboardHeight + KEYBOARD_GAP - bottomInset);
@@ -946,8 +960,10 @@ export function CiciroChat({
             underneath this whole dock, and a plain label would have prose
             running straight through it.
           */}
-          {quickActions?.length && onQuickAction && !streaming && keyboardHeight === 0 ? (
-            <ScrollView
+          {suggestionsShown && quickActions && onQuickAction ? (
+            <Animated.ScrollView
+              entering={animate ? FadeInDown.duration(180) : undefined}
+              exiting={animate ? FadeOut.duration(120) : undefined}
               horizontal
               showsHorizontalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -961,14 +977,17 @@ export function CiciroChat({
                     scale={PRESS_SCALE.chip}
                     accessibilityRole="button"
                     accessibilityLabel={action.label}
-                    onPress={() => onQuickAction(action.id)}
+                    onPress={() => {
+                      setSuggestionsOpen(false);
+                      onQuickAction(action.id);
+                    }}
                     style={styles.actionChip}
                   >
                     <Text style={{ color: colors.ink, fontSize: 13.5, fontWeight: "500" }}>{action.label}</Text>
                   </TapPressable>
                 </Glass>
               ))}
-            </ScrollView>
+            </Animated.ScrollView>
           ) : null}
           <View style={styles.chromeRow}>
             <Glass
@@ -998,6 +1017,23 @@ export function CiciroChat({
             </Glass>
             {onEditModeChange ? (
               <EditModeToggle mode={editMode} onChange={onEditModeChange} />
+            ) : null}
+            {hasSuggestions && messages.length > 0 && suggestionsIdle ? (
+              <Glass dark={dark} colors={colors} radius={14}>
+                <TapPressable
+                  feedback="dim"
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: suggestionsOpen }}
+                  accessibilityLabel={t("ciciroTab.suggestions")}
+                  onPress={() => setSuggestionsOpen((open) => !open)}
+                  style={styles.suggest}
+                >
+                  <SparkleIcon color={suggestionsOpen ? colors.accent : colors.inkSoft} size={14} />
+                  <Text style={{ color: suggestionsOpen ? colors.accent : colors.inkSoft, fontSize: 13 }}>
+                    {t("ciciroTab.suggestions")}
+                  </Text>
+                </TapPressable>
+              </Glass>
             ) : null}
             {jumpShown && showsThread(clearPhase) ? (
               <JumpChip opacity={jumpOpacity}>
@@ -1127,6 +1163,7 @@ const styles = StyleSheet.create({
   },
   clear: { paddingHorizontal: 13, paddingVertical: 7 },
   jump: { paddingHorizontal: 10, paddingVertical: 7 },
+  suggest: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 7 },
   bubble: {
     minHeight: 52,
   },

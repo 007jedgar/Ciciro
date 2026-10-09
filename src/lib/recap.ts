@@ -21,6 +21,8 @@ const RECAP_CHAPTERS = 5;
 const TAIL_CHARS = 700;
 const STUCK_TAIL_CHARS = 2000;
 const BIBLE_CHARS = 1500;
+/** Bumped when the recap prompt changes, so recaps cached under the old one are rewritten. */
+const RECAP_PROMPT_VERSION = "r2";
 
 function textOf(res: Anthropic.Message): string {
   return res.content
@@ -73,7 +75,7 @@ export async function getRecap(
     })
     .join("\n\n");
 
-  const fingerprint = fingerprintText(source);
+  const fingerprint = `${RECAP_PROMPT_VERSION}:${fingerprintText(source)}`;
   const cached = await prisma.projectRecap.findUnique({ where: { projectId } });
   const asRecap = (row: { content: string; generatedAt: Date }): Recap => ({
     text: row.content,
@@ -87,7 +89,7 @@ export async function getRecap(
   try {
     const res = await getAnthropic().messages.create({
       model: DRAFTER_FAST_MODEL,
-      max_tokens: 350,
+      max_tokens: 250,
       system: RECAP_SYSTEM,
       messages: [{ role: "user", content: source }],
     });
