@@ -13,6 +13,7 @@ export function FocusCollapse({
   progress,
   direction,
   hidden,
+  natural: naturalOut,
   children,
 }: {
   progress: SharedValue<number>;
@@ -20,9 +21,12 @@ export function FocusCollapse({
   direction: -1 | 1;
   /** True once it is gone: hides it from touch and screen readers. */
   hidden: boolean;
+  /** Where the measured natural height is kept, for someone else to read it (the focus demo's exit link). */
+  natural?: SharedValue<number>;
   children: ReactNode;
 }) {
-  const natural = useSharedValue(0);
+  const ownNatural = useSharedValue(0);
+  const natural = naturalOut ?? ownNatural;
   // Re-measured whenever it changes (a larger text size, a rotated phone), but only
   // while it is fully open: as the outer height closes, the layout squeezes the
   // block with it, and that squeezed height is not its natural one.

@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { interpolate, interpolateColor, useAnimatedStyle } from "react-native-reanimated";
 import { CheckIcon } from "../icons";
@@ -16,11 +17,16 @@ export function ChoiceCard({
   description,
   selected,
   onPress,
+  cardRef,
+  titleRef,
 }: {
   title: string;
   description: string;
   selected: boolean;
   onPress: () => void;
+  /** The card and its title, for the carry to fly from (see `useCarry`). */
+  cardRef?: Ref<View>;
+  titleRef?: Ref<Text>;
 }) {
   const { colors, layout } = useAppTheme();
   const reduceMotion = useReduceMotion();
@@ -40,6 +46,7 @@ export function ChoiceCard({
   return (
     <Animated.View style={frame}>
       <PressableCard
+        ref={cardRef}
         onPress={onPress}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: selected }}
@@ -52,7 +59,9 @@ export function ChoiceCard({
           style={[StyleSheet.absoluteFill, { backgroundColor: colors.accent, borderRadius: 10 }, tint]}
         />
         <View style={{ flex: 1 }}>
-          <Text style={layout.cardTitle}>{title}</Text>
+          <Text ref={titleRef} style={layout.cardTitle}>
+            {title}
+          </Text>
           <Text style={layout.cardMeta}>{description}</Text>
         </View>
         <View style={[styles.box, { borderColor: colors.field }]}>

@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
 import Animated, { interpolate, useAnimatedStyle } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -18,10 +19,15 @@ export function ThemeCard({
   theme,
   selected,
   onPress,
+  cardRef,
+  nameRef,
 }: {
   theme: ThemeId;
   selected: boolean;
   onPress: (event: GestureResponderEvent) => void;
+  /** The card and its name, for the onboarding's carry to fly from (see `useCarry`). */
+  cardRef?: Ref<View>;
+  nameRef?: Ref<Text>;
 }) {
   const { t } = useTranslation();
   const reduceMotion = useReduceMotion();
@@ -44,6 +50,7 @@ export function ThemeCard({
   return (
     <Animated.View style={[{ flex: 1 }, press.animatedStyle]}>
       <Pressable
+        ref={cardRef}
         onPress={haptics.withTap(onPress)}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
@@ -58,7 +65,7 @@ export function ThemeCard({
           <View style={[styles.line, { width: "74%", backgroundColor: palette.ink, opacity: 0.55 }]} />
           <View style={[styles.line, { width: "36%", backgroundColor: palette.ink, opacity: 0.55 }]} />
         </View>
-        <Text style={[styles.name, { color: palette.ink }]} numberOfLines={1}>
+        <Text ref={nameRef} style={[styles.name, { color: palette.ink }]} numberOfLines={1}>
           {t(`themes.${theme}`)}
         </Text>
         <Text style={[styles.mode, { color: palette.inkSoft }]}>{t(`themes.${mode}`)}</Text>
@@ -77,7 +84,37 @@ export function ThemeCard({
   );
 }
 
+/**
+ * The selected card's face, still: what the onboarding's floating copy of it
+ * shows until it has shrunk into its chip (see `useCarry`). The name is left
+ * out, since the copy flies it on its own.
+ */
+export function ThemeCardFlightFace({ theme }: { theme: ThemeId }) {
+  const { t } = useTranslation();
+  const palette = THEME_PALETTES[theme];
+  const mode = THEME_META.find((meta) => meta.id === theme)?.mode ?? "light";
+  return (
+    <View style={styles.face}>
+      <View style={[styles.page, { backgroundColor: palette.panel, borderColor: palette.line }]}>
+        <View style={[styles.line, { width: "58%", backgroundColor: palette.accent }]} />
+        <View style={[styles.line, { width: "88%", backgroundColor: palette.ink, opacity: 0.55 }]} />
+        <View style={[styles.line, { width: "74%", backgroundColor: palette.ink, opacity: 0.55 }]} />
+        <View style={[styles.line, { width: "36%", backgroundColor: palette.ink, opacity: 0.55 }]} />
+      </View>
+      <Text style={[styles.name, { opacity: 0 }]} numberOfLines={1}>
+        {t(`themes.${theme}`)}
+      </Text>
+      <Text style={[styles.mode, { color: palette.inkSoft }]}>{t(`themes.${mode}`)}</Text>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.ring, { borderColor: palette.accent }]} />
+      <View pointerEvents="none" style={[styles.badge, { backgroundColor: palette.accent }]}>
+        <CheckIcon color={palette.onAccent} size={12} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  face: { padding: 10, width: "100%", height: "100%" },
   card: {
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,

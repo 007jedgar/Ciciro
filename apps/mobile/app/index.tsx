@@ -79,7 +79,7 @@ export default function WelcomeScreen() {
 
   return (
     <LivingPage
-      onCreate={() => router.push("/onboarding-goal")}
+      onCreate={() => router.push("/onboarding/goal")}
       onSignIn={() => router.push("/login")}
     />
   );

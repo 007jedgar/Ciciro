@@ -2,14 +2,16 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { OBSTACLES, toggleObstacle, type Obstacle } from "../lib/onboarding";
-import { PressableCard } from "../components/PressableCard";
-import { ChoiceCard } from "../components/onboarding/ChoiceCard";
-import { OnboardingFrame, Rise } from "../components/onboarding/OnboardingFrame";
-import { useAppTheme } from "../lib/settings";
-import { useStackBack } from "../lib/use-stack-back";
-import { getAnalytics } from "../lib/analytics-client";
-import { onboardingParams, parseOnboardingParams, stepsFor } from "../lib/onboarding-flow";
+import { OBSTACLES, toggleObstacle, type Obstacle } from "../../lib/onboarding";
+import { PressableCard } from "../../components/PressableCard";
+import { ChoiceCard } from "../../components/onboarding/ChoiceCard";
+import { OnboardingFrame, Rise } from "../../components/onboarding/OnboardingFrame";
+import { useAppTheme } from "../../lib/settings";
+import { useStackBack } from "../../lib/use-stack-back";
+import { getAnalytics } from "../../lib/analytics-client";
+import { onboardingParams, parseOnboardingParams, stepsFor } from "../../lib/onboarding-flow";
+import { useCarry, useCarryNodes } from "../../lib/onboarding-shell";
+import { useCarryLooks } from "../../components/onboarding/carry-looks";
 
 /** Q2 of the pre-signup onboarding quiz: "What's getting in the way?" Pick as many as apply. */
 export default function OnboardingObstacleScreen() {
@@ -21,15 +23,32 @@ export default function OnboardingObstacleScreen() {
   const { kind } = parseOnboardingParams(params);
   const [selected, setSelected] = useState<Obstacle[]>([]);
   const ready = selected.length > 0;
+  const carry = useCarry();
+  const nodes = useCarryNodes();
+  const looks = useCarryLooks();
 
   function toggle(obstacle: Obstacle) {
     setSelected((current) => toggleObstacle(current, obstacle));
   }
 
-  function next() {
+  async function next() {
     if (!ready) return;
+    // Each ticked card flies into a chip of its own, in the order they were ticked.
+    const flying = await carry.fly(
+      selected.map((obstacle) => {
+        const label = t(`onboarding.obstacles.${obstacle}.label`);
+        const source = nodes.get(obstacle);
+        return {
+          chip: { id: `obstacle:${obstacle}`, step: "obstacle" as const, label },
+          card: source.card,
+          title: source.title,
+          look: looks.choice(label, t(`onboarding.obstacles.${obstacle}.description`)),
+        };
+      })
+    );
+    if (!flying) return;
     getAnalytics().track("onboarding_obstacle_selected", { obstacles: selected.join(","), count: selected.length });
-    router.push({ pathname: "/onboarding-look", params: onboardingParams({ kind, obstacles: selected }) });
+    router.push({ pathname: "/onboarding/look", params: onboardingParams({ kind, obstacles: selected }) });
   }
 
   function skip() {
@@ -46,10 +65,11 @@ export default function OnboardingObstacleScreen() {
       body={t("onboarding.obstacleHint")}
       onBack={() => backOr("/")}
       onSkip={skip}
+      leave={carry.fadeStyle}
       footer={
         <PressableCard
           accent
-          onPress={next}
+          onPress={() => void next()}
           disabled={!ready}
           accessibilityRole="button"
           accessibilityLabel={t("onboarding.continue")}
@@ -64,6 +84,8 @@ export default function OnboardingObstacleScreen() {
         {OBSTACLES.map((option, i) => (
           <Rise key={option} index={i + 2}>
             <ChoiceCard
+              cardRef={nodes.cardRef(option)}
+              titleRef={nodes.titleRef(option)}
               title={t(`onboarding.obstacles.${option}.label`)}
               description={t(`onboarding.obstacles.${option}.description`)}
               selected={selected.includes(option)}

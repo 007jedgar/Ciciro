@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Ref } from "react";
 import { Platform, Switch, Text, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useTranslation } from "react-i18next";
@@ -39,6 +39,8 @@ export function WritingReminderForm({
   onSave,
   onDelete,
   onboarding = false,
+  saveRef,
+  saveLabelRef,
 }: {
   reminder: WritingReminder;
   manuscripts: ManuscriptChoice[];
@@ -61,6 +63,9 @@ export function WritingReminderForm({
    * writing), no pause switch, and the button reads "Create reminder".
    */
   onboarding?: boolean;
+  /** The save button and its label, for the onboarding's carry to fly from. */
+  saveRef?: Ref<View>;
+  saveLabelRef?: Ref<Text>;
 }) {
   const { t, i18n } = useTranslation();
   const themed = useOptionalAppTheme();
@@ -403,6 +408,7 @@ export function WritingReminderForm({
       ) : null}
 
       <PressableCard
+        ref={saveRef}
         accent
         style={[layout.primaryBtn, { marginTop: 16, opacity: busy ? 0.6 : 1 }]}
         onPress={save}
@@ -410,7 +416,7 @@ export function WritingReminderForm({
         accessibilityRole="button"
         accessibilityLabel={onboarding ? t("onboarding.reminderCreate") : t("reminders.save")}
       >
-        <Text style={layout.primaryBtnText}>
+        <Text ref={saveLabelRef} style={layout.primaryBtnText}>
           {busy ? t("reminders.saving") : onboarding ? t("onboarding.reminderCreate") : t("reminders.save")}
         </Text>
       </PressableCard>

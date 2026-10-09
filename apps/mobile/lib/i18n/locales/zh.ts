@@ -58,6 +58,7 @@ const zh: Translations = {
   onboarding: {
     skip: "跳过",
     progress: "第 {{current}} 步，共 {{total}} 步",
+    answersSummary: "你的回答：{{answers}}",
     continue: "继续",
     obstacleHint: "有几个选几个。",
     lookTitle: "选一个外观",

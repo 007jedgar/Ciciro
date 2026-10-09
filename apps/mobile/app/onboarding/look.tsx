@@ -2,16 +2,18 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { PressableCard } from "../components/PressableCard";
-import { ThemeCard } from "../components/ThemeCard";
-import { OnboardingFrame, Rise } from "../components/onboarding/OnboardingFrame";
-import { useAppTheme } from "../lib/settings";
-import { useStackBack } from "../lib/use-stack-back";
-import { getAnalytics } from "../lib/analytics-client";
-import { onboardingParams, parseOnboardingParams, stepsFor } from "../lib/onboarding-flow";
-import { THEME_META, type ThemeId } from "../lib/theme";
-import { useThemePreview } from "../lib/theme-preview-context";
-import { useThemeChange } from "../lib/use-theme-change";
+import { PressableCard } from "../../components/PressableCard";
+import { ThemeCard } from "../../components/ThemeCard";
+import { OnboardingFrame, Rise } from "../../components/onboarding/OnboardingFrame";
+import { useAppTheme } from "../../lib/settings";
+import { useStackBack } from "../../lib/use-stack-back";
+import { getAnalytics } from "../../lib/analytics-client";
+import { onboardingParams, parseOnboardingParams, stepsFor } from "../../lib/onboarding-flow";
+import { THEME_META, type ThemeId } from "../../lib/theme";
+import { useThemePreview } from "../../lib/theme-preview-context";
+import { useThemeChange } from "../../lib/use-theme-change";
+import { useCarry, useCarryNodes } from "../../lib/onboarding-shell";
+import { useCarryLooks } from "../../components/onboarding/carry-looks";
 
 const COLUMNS = 2;
 
@@ -31,6 +33,9 @@ export default function OnboardingLookScreen() {
   const state = parseOnboardingParams(useLocalSearchParams<{ kind?: string; obstacles?: string }>());
   const [picked, setPicked] = useState<ThemeId | null>(preview);
   const shown = picked ?? settings.theme;
+  const carry = useCarry();
+  const nodes = useCarryNodes();
+  const looks = useCarryLooks();
 
   function pick(theme: ThemeId, event: Parameters<typeof changeTheme>[1]) {
     if (theme === shown) return;
@@ -39,9 +44,21 @@ export default function OnboardingLookScreen() {
     getAnalytics().track("onboarding_theme_selected", { theme });
   }
 
-  function next() {
+  async function next() {
+    // The look on show - picked or the one already worn - flies into the header as the answer.
+    const name = t(`themes.${shown}`);
+    const source = nodes.get(shown);
+    const flying = await carry.fly([
+      {
+        chip: { id: "theme", step: "look", label: name },
+        card: source.card,
+        title: source.title,
+        look: looks.theme(shown, name),
+      },
+    ]);
+    if (!flying) return;
     router.push({
-      pathname: "/onboarding-demo",
+      pathname: "/onboarding/demo",
       params: onboardingParams(state),
     });
   }
@@ -62,10 +79,11 @@ export default function OnboardingLookScreen() {
       body={t("onboarding.lookBody")}
       onBack={() => backOr("/")}
       onSkip={skip}
+      leave={carry.fadeStyle}
       footer={
         <PressableCard
           accent
-          onPress={next}
+          onPress={() => void next()}
           accessibilityRole="button"
           accessibilityLabel={t("onboarding.continue")}
           style={[layout.primaryBtn, { marginTop: 0 }]}
@@ -81,6 +99,8 @@ export default function OnboardingLookScreen() {
               <ThemeCard
                 key={meta.id}
                 theme={meta.id}
+                cardRef={nodes.cardRef(meta.id)}
+                nameRef={nodes.titleRef(meta.id)}
                 selected={shown === meta.id}
                 onPress={(event) => pick(meta.id, event)}
               />

@@ -58,6 +58,7 @@ const hi: Translations = {
   onboarding: {
     skip: "छोड़ें",
     progress: "चरण {{current}} / {{total}}",
+    answersSummary: "आपके उत्तर: {{answers}}",
     continue: "जारी रखें",
     obstacleHint: "जितने लागू हों, उतने चुनें।",
     lookTitle: "एक लुक चुनें",
