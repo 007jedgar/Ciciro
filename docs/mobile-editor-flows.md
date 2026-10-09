@@ -232,7 +232,7 @@ flowchart TD
   ACK --> METER["WritingMeter: synced + remaining pending vs dailyWordGoal"]
 ```
 
-`writingDayKey` is the **device timezone** calendar day. There is no streak. Settings `dailyWordGoal` is display-only.
+`writingDayKey` is the **device timezone** calendar day. There is no streak. Settings `dailyWordGoal` is display-only, and optional: with `showDailyGoal` off there is no goal and the meter is hidden.
 
 ---
 

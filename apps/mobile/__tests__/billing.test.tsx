@@ -22,6 +22,7 @@ const mockOpenStore = jest.fn();
 const mockLoadPackages = jest.fn();
 let mockStoreAvailable = true;
 
+jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
   notificationAsync: jest.fn(async () => {}),

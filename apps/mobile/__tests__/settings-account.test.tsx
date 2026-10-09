@@ -15,6 +15,7 @@ let mockUser: { id: string; email: string; emailVerified?: boolean } = { id: "u1
 const mockRunExport = jest.fn();
 let mockExportBusy = false;
 
+jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: "light" },

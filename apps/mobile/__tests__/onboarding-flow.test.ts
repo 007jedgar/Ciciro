@@ -28,6 +28,13 @@ describe("onboarding flow params", () => {
     expect(draft.days).toHaveLength(7);
   });
 
+  it("offers it with no word goal, and keeps that through the signup route params", () => {
+    const draft = onboardingReminderDraft("wr_x");
+    expect(draft.wordGoal).toBeNull();
+    const back = parseOnboardingParams(onboardingParams({ kind: "novel", obstacles: ["consistency"], reminder: draft }));
+    expect(back.reminder).toEqual(draft);
+  });
+
   it("adds the reminder step only for the consistency obstacle", () => {
     expect(stepsFor(["block"])).toEqual(["goal", "obstacle", "look", "demo", "account"]);
     expect(stepsFor(["block", "consistency"])).toEqual(["goal", "obstacle", "look", "demo", "reminder", "account"]);

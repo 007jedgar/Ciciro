@@ -9,13 +9,19 @@ jest.mock("@react-native-community/datetimepicker", () => {
   return { __esModule: true, default: (props: object) => <View {...props} /> };
 });
 
+/** A reminder that carries a word goal (a new one has none). */
+const withGoal = (input: Parameters<typeof newWritingReminder>[0], wordGoal = 250) => ({
+  ...newWritingReminder(input),
+  wordGoal,
+});
+
 const manuscripts = [
   { id: "p1", title: "Night Watch" },
   { id: "p2", title: "The Quiet Year" },
 ];
 
 describe("WritingReminderForm", () => {
-  it("starts general and changes the notification when a manuscript is chosen", () => {
+  it("starts general with no word goal and changes the notification when a manuscript is chosen", () => {
     const onSave = jest.fn();
     render(
       <WritingReminderForm
@@ -26,7 +32,9 @@ describe("WritingReminderForm", () => {
     );
 
     expect(screen.getByText("Time to write")).toBeTruthy();
-    expect(screen.getByText("250 words today.")).toBeTruthy();
+    expect(screen.getByText("Even a few words count today.")).toBeTruthy();
+    expect(screen.getByText("Word goal (optional)")).toBeTruthy();
+    expect(screen.getByLabelText("No goal").props.accessibilityState).toEqual({ selected: true });
     expect(screen.getByRole("radio", { name: "All writing" }).props.accessibilityState).toEqual({
       selected: true,
     });
@@ -34,8 +42,8 @@ describe("WritingReminderForm", () => {
     fireEvent.press(screen.getByRole("radio", { name: "Night Watch" }));
 
     expect(screen.getByText("Time to write Night Watch")).toBeTruthy();
-    expect(screen.getByText("250 words on Night Watch.")).toBeTruthy();
-    expect(screen.queryByText("250 words today.")).toBeNull();
+    expect(screen.getByText("A little time on Night Watch.")).toBeTruthy();
+    expect(screen.queryByText("Even a few words count today.")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("500 words"));
     expect(screen.getByText("500 words on Night Watch.")).toBeTruthy();
@@ -54,11 +62,45 @@ describe("WritingReminderForm", () => {
     });
   });
 
+  it("saves with no word goal, and can clear one back to none", () => {
+    const onSave = jest.fn();
+    render(
+      <WritingReminderForm
+        reminder={newWritingReminder({ id: "wr_8" })}
+        manuscripts={manuscripts}
+        onSave={onSave}
+      />
+    );
+
+    fireEvent.press(screen.getByLabelText("Save reminder"));
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ id: "wr_8", wordGoal: null }));
+
+    fireEvent.press(screen.getByLabelText("250 words"));
+    expect(screen.getByText("250 words today.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("No goal"));
+    expect(screen.getByText("Even a few words count today.")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Save reminder"));
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ wordGoal: null }));
+  });
+
+  it("keeps a saved goal when editing and lists a custom one", () => {
+    render(
+      <WritingReminderForm
+        reminder={withGoal({ id: "wr_9" }, 300)}
+        manuscripts={manuscripts}
+        onSave={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("300 words today.")).toBeTruthy();
+    expect(screen.getByLabelText("300 words").props.accessibilityState).toEqual({ selected: true });
+  });
+
   it("opens on the manuscript it was started from and can switch back to general", () => {
     const onSave = jest.fn();
     render(
       <WritingReminderForm
-        reminder={newWritingReminder({ id: "wr_2", projectId: "p2" })}
+        reminder={withGoal({ id: "wr_2", projectId: "p2" })}
         manuscripts={manuscripts}
         onSave={onSave}
       />
@@ -154,7 +196,7 @@ describe("WritingReminderForm", () => {
   it("does not flash unavailable while manuscript titles are still loading", () => {
     render(
       <WritingReminderForm
-        reminder={newWritingReminder({ id: "wr_5", projectId: "p1" })}
+        reminder={withGoal({ id: "wr_5", projectId: "p1" })}
         manuscripts={[]}
         manuscriptsReady={false}
         fallbackTitle="Night Watch"
@@ -171,7 +213,7 @@ describe("WritingReminderForm", () => {
   it("shows unavailable only after titles have settled without the manuscript", () => {
     render(
       <WritingReminderForm
-        reminder={newWritingReminder({ id: "wr_6", projectId: "gone" })}
+        reminder={withGoal({ id: "wr_6", projectId: "gone" })}
         manuscripts={manuscripts}
         manuscriptsReady
         onSave={jest.fn()}

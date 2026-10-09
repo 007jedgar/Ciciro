@@ -52,6 +52,11 @@ else stays in commit messages.
   (Chapters, Manuscript, Ciciro), the empty chat's prompt is no longer drawn
   upside down, and deleting a manuscript returns to a library that shows its
   remaining manuscripts instead of a blank list.
+- On the phone, Settings' Goals and reminders is now three rows (Word goal,
+  Writing reminders, Writing history), each opening its own screen instead of
+  adjusting the goal inline. A word goal is optional: pick **No goal** on the
+  Word goal screen to hide the writing meter, and a writing reminder can be
+  saved without a word count, so it simply says "Time to write".
 
 - The phone app has the website's Archive look as two new themes, **Ciciro** and
   **Ciciro Night**, now the default for anyone who has not picked a theme. The

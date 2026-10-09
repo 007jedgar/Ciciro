@@ -40,6 +40,11 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     "text": "Phone Settings is grouped under Appearance, Writing, Ciciro, Goals and reminders, and Privacy, and Writing history is listed there. The + menu on the manuscripts list is only for creating (new manuscript, import, new folder), and the writing-tools grid no longer repeats Chapters and Typography. Sign-in and sign-up move from field to field with Return and submit from the password. The manuscript tab bar now labels its three tabs (Chapters, Manuscript, Ciciro), the empty chat's prompt is no longer drawn upside down, and deleting a manuscript returns to a library that shows its remaining manuscripts instead of a blank list."
   },
   {
+    "id": "b01fd1519d84",
+    "summary": "On the phone, Settings' Goals and reminders is now three rows (Word goal, Writing reminders, Writing history), each opening its own screen instead of adjusting…",
+    "text": "On the phone, Settings' Goals and reminders is now three rows (Word goal, Writing reminders, Writing history), each opening its own screen instead of adjusting the goal inline. A word goal is optional: pick **No goal** on the Word goal screen to hide the writing meter, and a writing reminder can be saved without a word count, so it simply says \"Time to write\"."
+  },
+  {
     "id": "7d924e0b53e7",
     "summary": "The phone app has the website's Archive look as two new themes, **Ciciro** and **Ciciro Night**, now the default for anyone who has not picked a theme.",
     "text": "The phone app has the website's Archive look as two new themes, **Ciciro** and **Ciciro Night**, now the default for anyone who has not picked a theme. The chapters screen is restyled in it (new typefaces, folder-tab chapter cards, paper-stock stage chips) and the app's text uses Newsreader, Instrument Sans and JetBrains Mono. Four themes are renamed: Sage is **Marginalia**, Ember is **First Edition**, Walnut is **Bookshelf**, Candle is **Dog-Ear**; Parchment and Inkwell keep their names, and everyone keeps the theme they picked. This needs a new app build; an over-the-air update does not carry the fonts."

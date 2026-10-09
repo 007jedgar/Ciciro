@@ -117,6 +117,16 @@ export function normalizeSettings(raw: unknown): AppSettings {
   };
 }
 
+/**
+ * The daily word goal in force, or 0 for none. A goal is optional: with
+ * `showDailyGoal` off the stored `dailyWordGoal` is only the number the next
+ * goal starts from, so anything goal-dependent (the meter, the widget, a
+ * reminder skipped on a met day) reads this, never `dailyWordGoal` directly.
+ */
+export function activeDailyGoal(settings: Pick<AppSettings, "showDailyGoal" | "dailyWordGoal">): number {
+  return settings.showDailyGoal ? settings.dailyWordGoal : 0;
+}
+
 export function applyPatch(current: AppSettings, patch: SettingsPatch): AppSettings {
   return { ...current, ...patch, updatedAt: new Date().toISOString() };
 }

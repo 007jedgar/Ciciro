@@ -37,6 +37,7 @@ import { EASE_OUT, PRESS_SCALE } from "../lib/motion";
 import { getReminderPermission, requestReminderPermission } from "../lib/writing-reminder-notifications";
 import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import { useWritingReminderList } from "../lib/writing-reminder-store";
+import { useDaysWrittenInLast7 } from "../lib/use-days-written";
 import { useExportAccountData } from "../lib/use-export-account-data";
 import {
   allowanceResetsOn,
@@ -65,7 +66,7 @@ const themeRows = THEME_META.reduce<(typeof THEME_META)[]>((rows, theme, i) => {
 /** About how long `GlassSheet` takes to leave (its EXIT_MS), so a theme wash starts on a clear screen. */
 const THEME_SHEET_EXIT_MS = 240;
 
-type SheetId = "language" | "theme" | "font" | "size" | "format" | "goal" | "weekly";
+type SheetId = "language" | "theme" | "font" | "size" | "format";
 
 const MODEL_ROLE_LABELS: Record<ModelRole, string> = {
   editor: "settings.modelEditor",
@@ -74,8 +75,6 @@ const MODEL_ROLE_LABELS: Record<ModelRole, string> = {
   router: "settings.modelRouter",
 };
 
-const WORD_GOALS = [100, 250, 500] as const;
-const WEEKLY_TARGETS = [3, 4, 5, 6, 7] as const;
 
 function Group({ children, colors }: { children: ReactNode; colors: ColorTokens }) {
   const reduceMotion = useReduceMotion();
@@ -133,11 +132,11 @@ function SheetRow({
         highlight
         feedback="none"
       >
-        <Text style={{ flex: 1, fontSize: 17, color: tone === "danger" ? colors.danger : colors.ink }}>
+        <Text style={{ flexGrow: 1, flexShrink: 0, fontSize: 17, color: tone === "danger" ? colors.danger : colors.ink }}>
           {label}
         </Text>
         {value ? (
-          <Text style={{ fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
+          <Text style={{ flexShrink: 1, fontSize: 16, color: colors.inkSoft }} numberOfLines={1}>
             {value}
           </Text>
         ) : null}
@@ -669,7 +668,7 @@ function EmailPreferencesGroup({ colors }: { colors: ColorTokens }) {
 export default function SettingsScreen() {
   const router = useRouter();
   const { backOr, resetTo } = useStackBack();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, ready, logout, refresh } = useSession();
   const { settings, patch, layout, colors } = useAppTheme();
   const changeTheme = useThemeChange();
@@ -683,9 +682,6 @@ export default function SettingsScreen() {
   const exporter = useExportAccountData();
   const reminders = useWritingReminderList(user?.id ?? null);
   const [verify, setVerify] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
-  const [notificationPermission, setNotificationPermission] = useState<
-    "granted" | "denied" | "undetermined" | "unavailable" | null
-  >(null);
 
   // Pick up a confirmation made in the browser since the session was loaded.
   useEffect(() => {
@@ -711,33 +707,16 @@ export default function SettingsScreen() {
     }
   }
 
-  useEffect(() => {
-    let cancelled = false;
-    void getReminderPermission(t("reminders.channel")).then((status) => {
-      if (!cancelled) setNotificationPermission(status);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
-
-  const activeReminders = reminders.filter((item) => item.enabled).length;
-  const pausedReminders = reminders.length - activeReminders;
-  const remindersGranted = notificationPermission === "granted";
-  const remindersValue =
-    notificationPermission == null
-      ? "…"
-      : !remindersGranted
-        ? t("reminders.settingsDenied")
-        : reminderSettingsSummary({
-            active: activeReminders,
-            paused: pausedReminders,
-            t: (key, options) => String(t(key, options)),
-          });
-  const showOpenSettings =
-    notificationPermission != null &&
-    notificationPermission !== "granted" &&
-    notificationPermission !== "unavailable";
+  const remindersValue = reminderSettingsSummary({
+    reminders,
+    locale: i18n.language,
+    t: (key, options) => String(t(key, options)),
+  });
+  const wordGoalValue = settings.showDailyGoal
+    ? t("wordGoal.perDay", { count: settings.dailyWordGoal })
+    : t("wordGoal.off");
+  const daysWritten = useDaysWrittenInLast7({ enabled: Boolean(user) });
+  const historyValue = daysWritten == null ? "" : t("writingHistory.daysOfLast7", { count: daysWritten });
   const locale = currentLocale();
   const localeName = LOCALE_OPTIONS.find((opt) => opt.id === locale)?.nativeName ?? locale;
 
@@ -755,11 +734,7 @@ export default function SettingsScreen() {
             ? t("settings.size")
             : sheet === "format"
               ? t("settings.formatting")
-              : sheet === "goal"
-                ? t("settings.wordGoal")
-                : sheet === "weekly"
-                  ? t("settings.weeklyTarget")
-                  : undefined;
+              : undefined;
 
   return (
     // Presented as a modal, above the root's wash, so it brings its own.
@@ -872,32 +847,12 @@ export default function SettingsScreen() {
 
         <SectionHeader label={t("settings.sectionGoals")} colors={colors} />
         <Group colors={colors}>
-          <ToggleRow
-            label={t("settings.dailyGoal")}
-            hint={t("settings.dailyGoalHint", { count: settings.weeklyDayTarget })}
-            value={settings.showDailyGoal}
-            onValueChange={(showDailyGoal) => patch({ showDailyGoal })}
+          <SheetRow
+            label={t("settings.wordGoal")}
+            value={wordGoalValue}
+            onPress={() => router.push("/word-goal")}
             colors={colors}
           />
-          {settings.showDailyGoal ? (
-            <Animated.View
-              entering={reduceMotion ? undefined : FadeIn.duration(200)}
-              exiting={reduceMotion ? undefined : FadeOut.duration(150)}
-            >
-              <SheetRow
-                label={t("settings.wordGoal")}
-                value={t("settings.dailyGoalValue", { count: settings.dailyWordGoal })}
-                onPress={() => setSheet("goal")}
-                colors={colors}
-              />
-              <SheetRow
-                label={t("settings.weeklyTarget")}
-                value={t("settings.weeklyTargetValue", { count: settings.weeklyDayTarget })}
-                onPress={() => setSheet("weekly")}
-                colors={colors}
-              />
-            </Animated.View>
-          ) : null}
           <SheetRow
             label={t("reminders.settings")}
             value={remindersValue}
@@ -906,28 +861,11 @@ export default function SettingsScreen() {
           />
           <SheetRow
             label={t("writingHistory.title")}
-            value=""
+            value={historyValue}
             onPress={() => router.push("/writing-history")}
             colors={colors}
-            last={!showOpenSettings}
+            last
           />
-          {showOpenSettings ? (
-            <TapPressable
-              onPress={() => void Linking.openSettings()}
-              accessibilityRole="button"
-              accessibilityLabel={t("reminders.openSettings")}
-              style={{
-                minHeight: 52,
-                paddingHorizontal: 16,
-                justifyContent: "center",
-                backgroundColor: "transparent",
-              }}
-              highlight
-              feedback="none"
-            >
-              <Text style={{ fontSize: 17, color: colors.accent }}>{t("reminders.openSettings")}</Text>
-            </TapPressable>
-          ) : null}
         </Group>
 
         <NotificationsGroup colors={colors} />
@@ -1174,34 +1112,6 @@ export default function SettingsScreen() {
                 colors={colors}
                 onPress={() => {
                   patch({ formatChrome: home as FormatChrome });
-                  setSheet(null);
-                }}
-              />
-            ))
-          : null}
-        {sheet === "goal"
-          ? WORD_GOALS.map((goal) => (
-              <OptionRow
-                key={goal}
-                label={t("settings.dailyGoalValue", { count: goal })}
-                selected={settings.dailyWordGoal === goal}
-                colors={colors}
-                onPress={() => {
-                  patch({ dailyWordGoal: goal });
-                  setSheet(null);
-                }}
-              />
-            ))
-          : null}
-        {sheet === "weekly"
-          ? WEEKLY_TARGETS.map((days) => (
-              <OptionRow
-                key={days}
-                label={t("settings.weeklyTargetValue", { count: days })}
-                selected={settings.weeklyDayTarget === days}
-                colors={colors}
-                onPress={() => {
-                  patch({ weeklyDayTarget: days });
                   setSheet(null);
                 }}
               />

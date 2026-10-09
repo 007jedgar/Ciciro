@@ -1,4 +1,5 @@
 import {
+  activeDailyGoal,
   applyPatch,
   defaultSettings,
   nearestFontSize,
@@ -10,6 +11,14 @@ import {
   withPhoneDefaultTheme,
   type AppSettings,
 } from "../lib/app-settings";
+
+describe("activeDailyGoal", () => {
+  it("is the stored goal while it is on, and 0 (none) while it is off", () => {
+    expect(activeDailyGoal({ showDailyGoal: true, dailyWordGoal: 500 })).toBe(500);
+    expect(activeDailyGoal({ showDailyGoal: false, dailyWordGoal: 500 })).toBe(0);
+    expect(activeDailyGoal(defaultSettings())).toBe(250);
+  });
+});
 
 describe("app settings", () => {
   it("fills defaults and clamps values", () => {

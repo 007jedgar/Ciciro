@@ -1,5 +1,9 @@
 import type { WritingReminder } from "./writing-reminders";
-import { reminderHrefFromNotificationData } from "./writing-reminders";
+import {
+  formatReminderClock,
+  reminderDaySummary,
+  reminderHrefFromNotificationData,
+} from "./writing-reminders";
 import { getAnalytics } from "./analytics-client";
 import { serverPushHrefFromNotificationData } from "./push-notifications";
 
@@ -157,17 +161,31 @@ export function reminderSaveOutcome(input: {
   return { action: "navigate-back" };
 }
 
+/**
+ * Settings' one-line value for the Writing reminders row: "Off" with none,
+ * "Weekdays at 8 PM" for a lone reminder, a count of the on and the paused
+ * otherwise.
+ */
 export function reminderSettingsSummary(input: {
-  active: number;
-  paused: number;
+  reminders: readonly WritingReminder[];
+  locale: string;
   t: (key: string, options?: Record<string, unknown>) => string;
 }): string {
-  const { active, paused, t } = input;
-  if (active === 0 && paused === 0) return t("reminders.none");
-  if (paused === 0) return t("reminders.settingsValueOn", { count: active });
-  if (active === 0) return t("reminders.settingsValueOff", { count: paused });
+  const { reminders, locale, t } = input;
+  const active = reminders.filter((item) => item.enabled);
+  const paused = reminders.length - active.length;
+  if (reminders.length === 0) return t("reminders.settingsNone");
+  const only = reminders.length === 1 ? reminders[0]! : null;
+  if (only?.enabled) {
+    return t("reminders.settingsSummary", {
+      days: reminderDaySummary(only.days, t),
+      time: formatReminderClock(only.hour, only.minute, locale, { compact: true }),
+    });
+  }
+  if (active.length === 0) return t("reminders.settingsValueOff", { count: paused });
+  if (paused === 0) return t("reminders.settingsValueOn", { count: active.length });
   return t("reminders.settingsValueMixed", {
-    on: t("reminders.settingsValueOn", { count: active }),
+    on: t("reminders.settingsValueOn", { count: active.length }),
     off: t("reminders.settingsValueOff", { count: paused }),
   });
 }

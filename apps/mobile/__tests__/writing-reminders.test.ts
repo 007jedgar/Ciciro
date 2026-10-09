@@ -14,6 +14,7 @@ import {
   type ReminderTranslate,
   type WritingReminder,
 } from "../lib/writing-reminders";
+import { reminderSettingsSummary } from "../lib/writing-reminder-sync";
 import {
   memoryReminderStorage,
   readNotificationIds,
@@ -34,7 +35,7 @@ import type { PlannedReminderNotification } from "../lib/writing-reminders";
 const t: ReminderTranslate = (key, options) => String(i18n.t(key, options));
 
 function reminder(overrides: Partial<WritingReminder> = {}): WritingReminder {
-  return { ...newWritingReminder({ id: "wr_1" }), ...overrides };
+  return { ...newWritingReminder({ id: "wr_1" }), wordGoal: 250, ...overrides };
 }
 
 describe("writing reminders", () => {
@@ -110,6 +111,46 @@ describe("writing reminders", () => {
     expect(missing.body).toBe("250 words on your manuscript.");
     expect(missing.title).not.toBe(general.title);
     expect(book.body).not.toBe(general.body);
+  });
+
+  it("works with no word goal: a new reminder has none, and notification copy never mentions a count", () => {
+    expect(newWritingReminder({ id: "wr_new" })).toMatchObject({ wordGoal: null, hour: 8, minute: 0 });
+
+    const general = reminderNotificationText({ projectId: null, wordGoal: null }, null, t);
+    const book = reminderNotificationText({ projectId: "p1", wordGoal: null }, "Night Watch", t);
+    expect(general).toEqual({ title: "Time to write", body: "Even a few words count today." });
+    expect(book).toEqual({
+      title: "Time to write Night Watch",
+      body: "A little time on Night Watch.",
+    });
+  });
+
+  it("reads reminders saved before the goal was optional, and ones saved without it", () => {
+    const parsed = parseWritingReminders([
+      { id: "old", projectId: null, wordGoal: 250, hour: 8, minute: 0, days: [1], enabled: true },
+      { id: "none", projectId: null, wordGoal: null, hour: 20, minute: 0, days: [1], enabled: true },
+      { id: "absent", projectId: null, hour: 20, minute: 0, days: [1], enabled: true },
+      { id: "junk", projectId: null, wordGoal: "lots", hour: 20, minute: 0, days: [1], enabled: true },
+    ]);
+    expect(parsed.map((item) => [item.id, item.wordGoal])).toEqual([
+      ["old", 250],
+      ["none", null],
+      ["absent", null],
+    ]);
+  });
+
+  it("summarises a reminder row for Settings", () => {
+    const summary = (reminders: WritingReminder[]) =>
+      reminderSettingsSummary({ reminders, locale: "en-US", t });
+    expect(summary([])).toBe("Off");
+    expect(summary([reminder({ days: [1, 2, 3, 4, 5], hour: 20 })])).toBe("Weekdays at 8 PM");
+    expect(summary([reminder({ days: [0, 6], hour: 9 })])).toBe("Weekends at 9 AM");
+    expect(summary([reminder({ days: [...WEEKDAYS], hour: 8 })])).toBe("Every day at 8 AM");
+    expect(summary([reminder({ days: [1, 3], hour: 8 })])).toBe("Mo We at 8 AM");
+    expect(summary([reminder({ days: [1, 3], hour: 8, minute: 30 })])).toBe("Mo We at 8:30 AM");
+    expect(summary([reminder({ enabled: false })])).toBe("1 off");
+    expect(summary([reminder({ id: "a" }), reminder({ id: "b" })])).toBe("2 on");
+    expect(summary([reminder({ id: "a" }), reminder({ id: "b", enabled: false })])).toBe("1 on, 1 off");
   });
 
   it("schedules only the next occurrence, and skips today when the daily goal is met", () => {

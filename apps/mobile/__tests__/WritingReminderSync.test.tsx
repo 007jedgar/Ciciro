@@ -33,9 +33,11 @@ jest.mock("../lib/session", () => ({
   useSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
 }));
 
+let mockSettings: { dailyWordGoal: number; showDailyGoal: boolean } = { dailyWordGoal: 250, showDailyGoal: true };
+
 jest.mock("../lib/settings", () => ({
   useAppTheme: () => ({
-    settings: { dailyWordGoal: 250 },
+    settings: mockSettings,
   }),
 }));
 
@@ -273,6 +275,7 @@ describe("WritingReminderSync", () => {
     mockSubscribe.mockReturnValue(() => {});
     mockProjectsData = undefined;
     mockUserId = "u1";
+    mockSettings = { dailyWordGoal: 250, showDailyGoal: true };
     resetWritingReminderLaunchGateForTests();
   });
 
@@ -323,5 +326,18 @@ describe("WritingReminderSync", () => {
       )
     );
     expect(mockCommitReminders).not.toHaveBeenCalled();
+  });
+
+  it("passes the daily goal on, and none when the goal is off", async () => {
+    mockProjectsData = [];
+    const first = render(<WritingReminderSync />);
+    await waitFor(() => expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({ dailyWordGoal: 250 })));
+    first.unmount();
+
+    // A hidden goal keeps its number, but it must not skip a reminder on a "met" day.
+    mockPublish.mockClear();
+    mockSettings = { dailyWordGoal: 250, showDailyGoal: false };
+    render(<WritingReminderSync />);
+    await waitFor(() => expect(mockPublish).toHaveBeenCalledWith(expect.objectContaining({ dailyWordGoal: 0 })));
   });
 });

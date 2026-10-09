@@ -8,6 +8,7 @@ import { makeLayout, THEME_PALETTES } from "../lib/theme";
 import { getReminderPermission, requestReminderPermission } from "../lib/writing-reminder-notifications";
 import { usePatchPushPreferencesMutation, usePushPreferencesQuery } from "../lib/api/hooks";
 
+jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: "light" },

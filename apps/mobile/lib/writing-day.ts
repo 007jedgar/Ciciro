@@ -3,6 +3,8 @@ export const HEARTBEAT_MS = 2_000;
 export const DEFAULT_DAILY_WORD_GOAL = 250;
 export const DAILY_WORD_GOAL_MIN = 50;
 export const DAILY_WORD_GOAL_MAX = 10_000;
+/** The goals the Word goal screen offers (a saved goal outside these is listed too). */
+export const DAILY_WORD_GOAL_PRESETS = [100, 250, 500, 1000] as const;
 export const DEFAULT_WEEKLY_DAY_TARGET = 4;
 export const WEEKLY_DAY_TARGET_MIN = 1;
 export const WEEKLY_DAY_TARGET_MAX = 7;

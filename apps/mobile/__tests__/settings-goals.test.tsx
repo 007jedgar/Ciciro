@@ -1,12 +1,17 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import i18n from "i18next";
 import SettingsScreen from "../app/settings";
 import { defaultSettings, type AppSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
 import "../lib/i18n";
 import { makeLayout, THEME_PALETTES } from "../lib/theme";
+import { newWritingReminder, type WritingReminder } from "../lib/writing-reminders";
 
-jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
+const mockPush = jest.fn();
+let mockReminders: WritingReminder[] = [];
+let mockDaysWritten: number | null = null;
+
+jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => mockDaysWritten }));
+
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: "light" },
@@ -18,7 +23,7 @@ jest.mock("expo-blur", () => {
 });
 
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: jest.fn() }),
   Redirect: () => null,
   useFocusEffect: () => {},
 }));
@@ -29,7 +34,8 @@ jest.mock("../lib/use-stack-back", () => ({
 
 jest.mock("../components/AppHeader", () => ({
   AppHeader: () => null,
-  useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}],
+  useAppHeaderHeight: () => 0,
+  useMeasuredAppHeaderHeight: () => [0, () => {}],
 }));
 
 jest.mock("../components/GlassSheet", () => ({
@@ -46,7 +52,7 @@ jest.mock("../lib/writing-reminder-notifications", () => ({
 }));
 
 jest.mock("../lib/writing-reminder-store", () => ({
-  useWritingReminderList: () => [],
+  useWritingReminderList: () => mockReminders,
 }));
 
 jest.mock("../lib/api/hooks", () => ({
@@ -58,7 +64,7 @@ jest.mock("../lib/api/hooks", () => ({
   usePatchPushPreferencesMutation: () => ({ mutate: jest.fn() }),
 }));
 
-function renderSettings(overrides: Partial<AppSettings> = {}) {
+async function renderSettings(overrides: Partial<AppSettings> = {}) {
   const settings = { ...defaultSettings(), ...overrides };
   const colors = THEME_PALETTES[settings.theme];
   const patch = jest.fn();
@@ -69,51 +75,38 @@ function renderSettings(overrides: Partial<AppSettings> = {}) {
       <SettingsScreen />
     </AppThemeContext.Provider>
   );
+  await act(async () => {});
   return patch;
 }
 
-describe("Settings: Experimental writing prompt", () => {
-  afterEach(async () => {
-    await act(async () => {
-      await i18n.changeLanguage("en");
-    });
+describe("Settings: goals and reminders", () => {
+  beforeEach(() => {
+    mockPush.mockClear();
+    mockReminders = [];
+    mockDaysWritten = null;
   });
 
-  it("is off by default and turns on through the synced settings patch", async () => {
-    const patch = renderSettings();
-    await act(async () => {});
+  it("is three plain rows that open their own screens, with nothing to adjust inline", async () => {
+    await renderSettings();
 
-    const toggle = screen.getByLabelText("Experimental writing prompt");
-    expect(toggle.props.value).toBe(false);
-    expect(
-      screen.getByText("Ciciro drafts with rules against common AI writing habits, then checks each draft.")
-    ).toBeTruthy();
+    expect(screen.queryByLabelText("Daily words")).toBeNull();
+    expect(screen.queryByLabelText("Days per week")).toBeNull();
 
-    fireEvent(toggle, "valueChange", true);
-    expect(patch).toHaveBeenCalledWith({ craftDefaults: true });
+    fireEvent.press(screen.getByLabelText("Word goal, 250 words a day"));
+    expect(mockPush).toHaveBeenLastCalledWith("/word-goal");
+    fireEvent.press(screen.getByLabelText("Writing reminders, Off"));
+    expect(mockPush).toHaveBeenLastCalledWith("/writing-reminders");
+    fireEvent.press(screen.getByLabelText("Writing history"));
+    expect(mockPush).toHaveBeenLastCalledWith("/writing-history");
   });
 
-  it("shows the stored value and turns it off", async () => {
-    const patch = renderSettings({ craftDefaults: true });
-    await act(async () => {});
+  it("summarises each row's current value", async () => {
+    mockReminders = [{ ...newWritingReminder({ id: "r1" }), days: [1, 2, 3, 4, 5], hour: 20 }];
+    mockDaysWritten = 3;
+    await renderSettings({ showDailyGoal: true, dailyWordGoal: 500 });
 
-    const toggle = screen.getByLabelText("Experimental writing prompt");
-    expect(toggle.props.value).toBe(true);
-    fireEvent(toggle, "valueChange", false);
-    expect(patch).toHaveBeenCalledWith({ craftDefaults: false });
-  });
-
-  it.each([
-    ["es", "Indicación de escritura experimental"],
-    ["hi", "प्रायोगिक लेखन प्रॉम्प्ट"],
-    ["zh", "实验性写作提示"],
-  ])("translates the label in %s", async (lang, label) => {
-    await act(async () => {
-      await i18n.changeLanguage(lang);
-    });
-    renderSettings();
-    await act(async () => {});
-    expect(screen.getByLabelText(label)).toBeTruthy();
-    expect(screen.queryByText("Experimental writing prompt")).toBeNull();
+    expect(screen.getByLabelText("Word goal, 500 words a day")).toBeTruthy();
+    expect(screen.getByLabelText(/^Writing reminders, Weekdays at 8\sPM$/)).toBeTruthy();
+    expect(screen.getByLabelText("Writing history, 3 of the last 7 days")).toBeTruthy();
   });
 });
