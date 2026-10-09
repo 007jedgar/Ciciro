@@ -24,7 +24,7 @@ import { loadWritingReminders } from "../lib/writing-reminder-store";
 import { writingReminderEntryForProject } from "../lib/writing-reminder-sync";
 import { openTodayEntry } from "../lib/journal";
 import { normalizeKind } from "../lib/manuscript-kind";
-import { keyboardHideProgress } from "../lib/manuscript-tab-bar";
+import { keyboardHideProgress, tabBubble } from "../lib/manuscript-tab-bar";
 import { Glass, alpha } from "./Glass";
 import { StuckSheet } from "./StuckSheet";
 import {
@@ -46,10 +46,14 @@ import {
 import { FAB_RELEASE_MS, PRESS_SCALE } from "../lib/motion";
 import { TapPressable } from "./TapPressable";
 
-const BUBBLE_W = 64;
-const BUBBLE_H = 44;
 const PILL_PAD = 10;
 const PILL_HEIGHT = 60;
+/** Gap between the selected-tab bubble and the pill's edge; the bubble nearly fills its segment. */
+const BUBBLE_INSET = 4;
+/** Gap between the bubble and the neighbouring tab, so a middle tab reads as a rounded rectangle. */
+const BUBBLE_GAP = 6;
+/** Corner radius of the bubble's inner (non-pill-hugging) ends: a super rounded rectangle. */
+const BUBBLE_MID_RADIUS = 18;
 const FAB_SIZE = 60;
 const BAR_MARGIN = 16;
 /** Space between the elongated pill and the round action button. */
@@ -166,6 +170,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
     { name: "manuscript", route: `/project/${projectId}/manuscript`, Icon: EditorIcon, labelKey: "project.manuscript" },
     { name: "ciciro", route: `/project/${projectId}/ciciro`, Icon: CiciroTabIcon, labelKey: "project.ciciro" },
   ];
+  const tabCount = tabs.length;
   const last = segments[segments.length - 1];
   const found = tabs.findIndex((tab) => tab.name === last);
   const activeIndex = found >= 0 ? found : 1;
@@ -296,9 +301,23 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
   const fabIconStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${interpolate(progress.value, [0, 1], [0, 45])}deg` }],
   }));
-  const bubbleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: bubble.value * seg.value + (seg.value - BUBBLE_W) / 2 }],
-  }));
+  // Same-scope locals, not module constants, so the worklet below always has them on the UI runtime.
+  const pad = PILL_PAD;
+  const pillHeight = PILL_HEIGHT;
+  const inset = BUBBLE_INSET;
+  const gap = BUBBLE_GAP;
+  const midRadius = BUBBLE_MID_RADIUS;
+  const bubbleStyle = useAnimatedStyle(() => {
+    const frame = tabBubble(bubble.value, tabCount, seg.value, pad, pillHeight, inset, gap, midRadius);
+    return {
+      left: frame.left,
+      width: frame.width,
+      borderTopLeftRadius: frame.leftRadius,
+      borderBottomLeftRadius: frame.leftRadius,
+      borderTopRightRadius: frame.rightRadius,
+      borderBottomRightRadius: frame.rightRadius,
+    };
+  });
 
   const barRowStyle = useAnimatedStyle(() => {
     const hideProgress = Math.max(keyboardHideProgress(keyboard.height.value), hiddenProgress.value);
@@ -471,11 +490,8 @@ const styles = StyleSheet.create({
   },
   bubble: {
     position: "absolute",
-    top: (PILL_HEIGHT - BUBBLE_H) / 2,
-    left: 0,
-    width: BUBBLE_W,
-    height: BUBBLE_H,
-    borderRadius: BUBBLE_H / 2,
+    top: BUBBLE_INSET,
+    height: PILL_HEIGHT - BUBBLE_INSET * 2,
     borderWidth: StyleSheet.hairlineWidth,
   },
   tab: {

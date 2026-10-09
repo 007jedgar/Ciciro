@@ -503,7 +503,7 @@ You get the chapters they worked on most recently in story order, each with a be
 The chapter marked "(edited most recently)" is where they last worked.
 
 Rules:
-- 3-5 sentences of plain prose, addressed to the author ("You left Marta ...").
+- 2-3 sentences of plain prose, 60 words at most (it must fit in four or five lines on a phone), addressed to the author ("You left Marta ...").
 - Say where the story stands and what was written last (the marked chapter), so they can pick up the thread.
 - Use only what the text says. Never invent events, names, or plans.
 - No praise, no critique, no headings, no bullet points, no preamble.

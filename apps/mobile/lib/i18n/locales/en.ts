@@ -531,6 +531,7 @@ const en = {
     stop: "Stop",
     sending: "Thinking…",
     sendError: "Ciciro could not reply. Try again.",
+    suggestions: "Suggestions",
     clear: "Clear chat",
     editMode: {
       label: "Chat options",
@@ -795,6 +796,8 @@ const en = {
     title: "Previously on",
     dismiss: "Dismiss",
     loading: "Catching up on the story so far…",
+    more: "Show more",
+    less: "Show less",
   },
   stuck: {
     pill: "I'm stuck",

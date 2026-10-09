@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TapPressable } from "./TapPressable";
 import { StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, LinearTransition } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useRecapQuery } from "../lib/api";
 import { dismissRecap, recapDue } from "../lib/recap";
@@ -9,6 +9,9 @@ import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { fonts } from "../lib/theme";
 import { LoadingBlock } from "./LoadingBlock";
+
+/** The recap reads as a short note, so the card never grows past this many lines until asked. */
+export const RECAP_LINES = 5;
 
 /**
  * A short "Previously on" card for an author coming back after time away.
@@ -21,6 +24,9 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
   const [due, setDue] = useState(() => recapDue(projectId));
   const recap = useRecapQuery(projectId, { enabled: due });
   const reduceMotion = useReduceMotion();
+  const [expanded, setExpanded] = useState(false);
+  // Whether the recap would run past RECAP_LINES, measured on an invisible unclamped copy.
+  const [overflows, setOverflows] = useState(false);
   if (!due) return null;
   // The recap takes a moment to write: hold its place with the same card shape.
   if (recap.isPending) {
@@ -36,28 +42,58 @@ export function PreviouslyOnCard({ projectId }: { projectId: string }) {
   }
   if (!recap.data) return null;
   return (
+    // Entrance and reflow live on a wrapper: the card's own tilt is a transform a layout animation would overwrite.
     <Animated.View
-      testID="previously-on"
       entering={reduceMotion ? undefined : FadeInDown.duration(240)}
-      style={[styles.card, { backgroundColor: colors.butter }]}
+      layout={reduceMotion ? undefined : LinearTransition.duration(200)}
     >
-      <View style={styles.head}>
-        <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
-        <TapPressable
-          feedback="dim"
-          accessibilityRole="button"
-          accessibilityLabel={t("recap.dismiss")}
-          hitSlop={10}
-          onPress={() => {
-            dismissRecap(projectId);
-            setDue(false);
-          }}
+      <View testID="previously-on" style={[styles.card, { backgroundColor: colors.butter }]}>
+        <View style={styles.head}>
+          <Text style={[styles.title, { color: colors.paperInk }]}>{t("recap.title")}</Text>
+          <TapPressable
+            feedback="dim"
+            accessibilityRole="button"
+            accessibilityLabel={t("recap.dismiss")}
+            hitSlop={10}
+            onPress={() => {
+              dismissRecap(projectId);
+              setDue(false);
+            }}
+          >
+            <Text style={[styles.dismiss, { color: colors.paperInk }]}>{t("recap.dismiss")}</Text>
+          </TapPressable>
+        </View>
+        <View style={[styles.rule, { borderColor: colors.paperInk }]} />
+        <Text
+          numberOfLines={expanded ? undefined : RECAP_LINES}
+          style={[styles.body, { color: colors.paperInk }]}
         >
-          <Text style={[styles.dismiss, { color: colors.paperInk }]}>{t("recap.dismiss")}</Text>
-        </TapPressable>
+          {recap.data.text}
+        </Text>
+        <Text
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          onTextLayout={(e) => setOverflows(e.nativeEvent.lines.length > RECAP_LINES)}
+          style={[styles.body, styles.measure]}
+        >
+          {recap.data.text}
+        </Text>
+        {overflows ? (
+          <TapPressable
+            feedback="dim"
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            hitSlop={10}
+            onPress={() => setExpanded((v) => !v)}
+            style={styles.more}
+          >
+            <Text style={[styles.dismiss, { color: colors.paperInk }]}>
+              {expanded ? t("recap.less") : t("recap.more")}
+            </Text>
+          </TapPressable>
+        ) : null}
       </View>
-      <View style={[styles.rule, { borderColor: colors.paperInk }]} />
-      <Text style={[styles.body, { color: colors.paperInk }]}>{recap.data.text}</Text>
     </Animated.View>
   );
 }
@@ -80,4 +116,7 @@ const styles = StyleSheet.create({
   dismiss: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.6, textDecorationLine: "underline" },
   rule: { borderTopWidth: 1, borderStyle: "dashed", opacity: 0.4 },
   body: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 22 },
+  // Same box as the body but off-screen and invisible: it only reports how many lines the recap needs.
+  measure: { position: "absolute", left: 16, right: 16, opacity: 0 },
+  more: { alignSelf: "flex-start" },
 });

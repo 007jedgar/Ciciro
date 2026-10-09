@@ -533,6 +533,7 @@ const es: Translations = {
     stop: "Detener",
     sending: "Pensando…",
     sendError: "Ciciro no pudo responder. Inténtalo de nuevo.",
+    suggestions: "Sugerencias",
     clear: "Borrar chat",
     editMode: {
       label: "Opciones del chat",
@@ -797,6 +798,8 @@ const es: Translations = {
     title: "Anteriormente",
     dismiss: "Descartar",
     loading: "Repasando la historia hasta ahora…",
+    more: "Ver más",
+    less: "Ver menos",
   },
   stuck: {
     pill: "Estoy atascado",

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
@@ -408,6 +408,13 @@ function ManuscriptScreenContent() {
     [liveChapterText, recordReadingPosition]
   );
 
+  // The keyboard has no dismiss key of its own on a phone, so a tap on anything around the page
+  // (the gutters, the chapter title row, the pills) puts it away.
+  const dismissKeyboard = useCallback(() => {
+    editorRef.current?.blur();
+    Keyboard.dismiss();
+  }, []);
+
   const onFocused = useCallback(() => {
     focusedRef.current = true;
     setFocused(true);
@@ -727,7 +734,12 @@ function ManuscriptScreenContent() {
         />
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
-        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
+        <Pressable
+          testID="editor-surround"
+          accessible={false}
+          onPress={dismissKeyboard}
+          style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}
+        >
           {!focusMode ? (
             <ChapterTitleBar
               key={chapter.id}
@@ -756,7 +768,9 @@ function ManuscriptScreenContent() {
               {`${resume.blockId}:${resume.offset}`}
             </Text>
           ) : null}
-          <View style={{ flex: 1 }}>
+          {/* Claims the touch so a tap that lands in the page is never read as a tap around it;
+              the native editor still gets it for the cursor, selection and scrolling. */}
+          <View style={{ flex: 1 }} onStartShouldSetResponder={() => true}>
             <ChapterEditor
               chapterId={chapter.id}
               html={content}
@@ -828,7 +842,7 @@ function ManuscriptScreenContent() {
               ) : null}
             </View>
           </View>
-        </View>
+        </Pressable>
         {barPlacement === "accessory" ? (
           <View style={{ marginBottom: keyboardVisible ? 0 : clearance }}>
             <FormatBar

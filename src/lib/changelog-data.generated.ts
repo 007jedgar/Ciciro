@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "908f14c611b1",
+    "summary": "On the phone, tapping anywhere around the page in the chapter editor (the margins, the chapter title row, the pills) puts the keyboard away.",
+    "text": "On the phone, tapping anywhere around the page in the chapter editor (the margins, the chapter title row, the pills) puts the keyboard away. The selected tab in the manuscript tab bar now fills its whole segment of the bar, rounder at the two ends and flatter in the middle. The Ciciro chat shows its quick-action chips on an empty chat only; once you are talking they sit behind a sparkle button. \"Previously on\" is now two or three sentences (web and phone), and the phone clamps it to five lines with Show more."
+  },
+  {
     "id": "49d59f11259e",
     "summary": "**Who knows what** is now chapter by chapter (web and phone).",
     "text": "**Who knows what** is now chapter by chapter (web and phone). A character can know, suspect, believe wrongly, or not know something, from a chapter until the chapter it changes in; facts saved as \"believes\" read as \"suspects\". The Knowledge screen opens at the chapter you have open, with a chapter scrubber, a timeline per character that shows what ended and what replaced it, and a grid by topic with an optional Reader column from canon.md. Ciciro's editing, the continuity check and What changed now see only what characters know by the chapter in question, never a later one."

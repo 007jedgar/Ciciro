@@ -118,7 +118,9 @@ use whichever chapter is open.
 
 On the phone the same chips sit in a row above the message box in the Ciciro
 tab (all of them but Continuity check, which opens a panel the phone does not
-have yet). They hide while Ciciro is answering or the keyboard is up. A chip that
+have yet). They show on an empty chat; once you are talking they tuck behind the
+sparkle button beside the edit-mode switch, and close again after you use one. They
+hide while Ciciro is answering or the keyboard is up. A chip that
 changes the manuscript, like Fix misplaced passages, asks you to switch to
 **Allow edits** first.
 
@@ -168,10 +170,11 @@ try again if it says so.
 ## Previously on, and "I'm stuck"
 
 Come back to a manuscript after half a day or more and a short **Previously on**
-card tells you where the story stands, written from the chapters you touched
-last. Dismiss it and it stays gone until your next absence. The recap is saved,
+card tells you, in two or three sentences, where the story stands, written from
+the chapters you touched last. Dismiss it and it stays gone until your next absence. The recap is saved,
 so opening the manuscript again without new writing does not regenerate it. On
-the phone it sits at the top of the Chapters tab.
+the phone it sits at the top of the Chapters tab, clamped to five lines with
+**Show more** for the rest.
 
 **I'm stuck** (beside Auto-draft on the web, in the **+** menu of the tab bar on the phone)
 offers a few concrete next steps drawn from the open chapter, your story bible and

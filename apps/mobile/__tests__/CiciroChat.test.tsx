@@ -168,6 +168,45 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("tucks the chips behind a Suggestions button once the conversation has begun", () => {
+    const onQuickAction = jest.fn();
+    const quickActions = [{ id: "loose-ends", label: "Find loose ends" }];
+    const started = [assistant];
+    render(
+      wrap(
+        <CiciroChat
+          {...idle}
+          messages={started}
+          composer=""
+          quickActions={quickActions}
+          onQuickAction={onQuickAction}
+        />
+      )
+    );
+    expect(screen.queryByLabelText("Find loose ends")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Suggestions"));
+    expect(screen.getByLabelText("Suggestions").props.accessibilityState.expanded).toBe(true);
+    fireEvent.press(screen.getByLabelText("Find loose ends"));
+    expect(onQuickAction).toHaveBeenCalledWith("loose-ends");
+    expect(screen.queryByLabelText("Find loose ends")).toBeNull();
+    expect(screen.getByLabelText("Suggestions").props.accessibilityState.expanded).toBe(false);
+  });
+
+  it("offers no Suggestions button on an empty chat, where the chips already show", () => {
+    render(
+      wrap(
+        <CiciroChat
+          {...idle}
+          composer=""
+          quickActions={[{ id: "loose-ends", label: "Find loose ends" }]}
+          onQuickAction={jest.fn()}
+        />
+      )
+    );
+    expect(screen.getByLabelText("Find loose ends")).toBeTruthy();
+    expect(screen.queryByLabelText("Suggestions")).toBeNull();
+  });
+
   it("sends typed copy and inserts a closed draft into the manuscript", () => {
     const onSend = jest.fn();
     const onInsertDraft = jest.fn();

@@ -5,6 +5,14 @@ else stays in commit messages.
 
 ## Unreleased
 
+- On the phone, tapping anywhere around the page in the chapter editor (the
+  margins, the chapter title row, the pills) puts the keyboard away. The
+  selected tab in the manuscript tab bar now fills its whole segment of the bar,
+  rounder at the two ends and flatter in the middle. The Ciciro chat shows its
+  quick-action chips on an empty chat only; once you are talking they sit behind
+  a sparkle button. "Previously on" is now two or three sentences (web and
+  phone), and the phone clamps it to five lines with Show more.
+
 - **Who knows what** is now chapter by chapter (web and phone). A character
   can know, suspect, believe wrongly, or not know something, from a chapter
   until the chapter it changes in; facts saved as "believes" read as

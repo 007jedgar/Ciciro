@@ -522,6 +522,7 @@ const zh: Translations = {
     stop: "停止",
     sending: "思考中…",
     sendError: "Ciciro 未能回复。请再试一次。",
+    suggestions: "建议",
     clear: "清空对话",
     editMode: {
       label: "聊天选项",
@@ -784,6 +785,8 @@ const zh: Translations = {
     title: "前情提要",
     dismiss: "关闭",
     loading: "正在回顾故事至今的内容…",
+    more: "展开",
+    less: "收起",
   },
   stuck: {
     pill: "我卡住了",
