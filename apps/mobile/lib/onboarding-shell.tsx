@@ -68,6 +68,8 @@ export type Flight = {
 export type CarryOptions = {
   /** Resolve when the chip has landed, not as the next screen is due: for the last step before signup, which leaves the shell. */
   settle?: boolean;
+  /** Called as the copies take off (or at once when there is nothing to fly): the screen starts leaving then, not at the tap. */
+  onTakeoff?: () => void;
 };
 
 type Handlers = { onBack: () => void; onSkip: () => void };
@@ -212,6 +214,7 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
       // Reduce motion: no flight, the chips just fade into the row.
       if (reduceMotion || requests.length === 0) {
         setChips((current) => addChips(current, added));
+        options?.onTakeoff?.();
         return;
       }
       const ids = added.map((chip) => chip.id);
@@ -251,6 +254,7 @@ export function OnboardingShellProvider({ children }: { children: ReactNode }) {
         });
       });
       if (grounded.length > 0) unhide(grounded);
+      options?.onTakeoff?.();
       if (built.length === 0) return;
       const settled = options?.settle
         ? Promise.all(built.map((flight) => new Promise<void>((resolve) => landings.set(flight.key, resolve))))
@@ -344,8 +348,14 @@ export function useCarry() {
     async (requests: readonly CarryRequest[], options?: CarryOptions): Promise<boolean> => {
       if (busy.current) return false;
       busy.current = true;
-      if (!reduceMotion) leave.value = withTiming(1, { duration: CARRY_LEAVE_MS });
-      await shellFly(requests, options);
+      await shellFly(requests, {
+        ...options,
+        // The screen fades as the copies take off, so the card is never missing from it
+        // before its copy is there.
+        onTakeoff: () => {
+          if (!reduceMotion) leave.value = withTiming(1, { duration: CARRY_LEAVE_MS });
+        },
+      });
       return true;
     },
     [shellFly, reduceMotion, leave]
