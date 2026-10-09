@@ -1,15 +1,10 @@
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
-import Animated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { interpolate, useAnimatedStyle } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { CheckIcon } from "./icons";
 import * as haptics from "../lib/haptics";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+import { usePressFeedback } from "../lib/use-press-feedback";
 import { useSelectionPop } from "../lib/use-selection-pop";
 import { fonts, THEME_META, THEME_PALETTES, type ThemeId } from "../lib/theme";
 
@@ -33,13 +28,10 @@ export function ThemeCard({
   const palette = THEME_PALETTES[theme];
   const mode = THEME_META.find((meta) => meta.id === theme)?.mode ?? "light";
   const { progress } = useSelectionPop(selected, reduceMotion);
-  // A press dips the card and nothing else. PressableCard's tint would repaint the
-  // card's own desk colour in the current theme and blank its swatch, so this
-  // is the same dip (90ms in, 180ms out) without it.
-  const pressed = useSharedValue(0);
-  const press = useAnimatedStyle(() => ({
-    transform: [{ scale: reduceMotion ? 1 : 1 - 0.03 * pressed.value }],
-  }));
+  // A press dips the card and nothing else: the engine without its tint, since
+  // TapPressable's tint would repaint the card's own desk colour in the current
+  // theme and blank its swatch.
+  const press = usePressFeedback({ feedback: "scale" });
 
   const ring = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
@@ -50,18 +42,11 @@ export function ThemeCard({
   }));
 
   return (
-    <Animated.View style={[{ flex: 1 }, press]}>
+    <Animated.View style={[{ flex: 1 }, press.animatedStyle]}>
     <Pressable
-      onPress={(event) => {
-        onPress(event);
-        haptics.tap();
-      }}
-      onPressIn={() => {
-        pressed.value = withTiming(1, { duration: 90, easing: Easing.out(Easing.quad) });
-      }}
-      onPressOut={() => {
-        pressed.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
-      }}
+      onPress={haptics.withTap(onPress)}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={`${t(`themes.${theme}`)}, ${t(`themes.${mode}`)}`}

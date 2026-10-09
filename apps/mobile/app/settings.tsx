@@ -49,7 +49,7 @@ import {
 import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePurchasesAvailable } from "../lib/purchases";
 import { getAnalytics } from "../lib/analytics-client";
 import * as haptics from "../lib/haptics";
-import { THEME_META, THEME_PALETTES, fonts, type ColorTokens, type ThemeId } from "../lib/theme";
+import { THEME_META, fonts, type ColorTokens } from "../lib/theme";
 import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
 import { SelectCheck, SelectChip, SelectLabel } from "../components/SelectChip";
