@@ -458,7 +458,7 @@ export function CiciroChat({
   onOpenQuestions?: () => void;
   /**
    * Chips above the composer that send a ready-made brief. Shown on an empty chat; once the
-   * conversation has begun they sit behind a Suggestions button and close again when one is
+   * conversation has begun they sit behind a sparkle button and close again when one is
    * used. Always hidden while a reply streams or the keyboard is up.
    */
   quickActions?: { id: string; label: string }[];
@@ -489,8 +489,8 @@ export function CiciroChat({
   const suggestionsShown = hasSuggestions && suggestionsIdle && (messages.length === 0 || suggestionsOpen);
   // Typing, a reply streaming in or an emptied chat each put the chips away for the next time.
   useEffect(() => {
-    if (!suggestionsIdle || composer) setSuggestionsOpen(false);
-  }, [suggestionsIdle, composer]);
+    if (!suggestionsIdle || composer || messages.length === 0) setSuggestionsOpen(false);
+  }, [suggestionsIdle, composer, messages.length]);
   // What the raised dock hides that the resting one did not, so the last reply
   // stays reachable with the keyboard up.
   const keyboardLift = Math.max(0, keyboardHeight + KEYBOARD_GAP - bottomInset);
@@ -1026,12 +1026,10 @@ export function CiciroChat({
                   accessibilityState={{ expanded: suggestionsOpen }}
                   accessibilityLabel={t("ciciroTab.suggestions")}
                   onPress={() => setSuggestionsOpen((open) => !open)}
+                  hitSlop={7}
                   style={styles.suggest}
                 >
-                  <SparkleIcon color={suggestionsOpen ? colors.accent : colors.inkSoft} size={14} />
-                  <Text style={{ color: suggestionsOpen ? colors.accent : colors.inkSoft, fontSize: 13 }}>
-                    {t("ciciroTab.suggestions")}
-                  </Text>
+                  <SparkleIcon color={suggestionsOpen ? colors.accent : colors.inkSoft} size={16} />
                 </TapPressable>
               </Glass>
             ) : null}
@@ -1163,7 +1161,7 @@ const styles = StyleSheet.create({
   },
   clear: { paddingHorizontal: 13, paddingVertical: 7 },
   jump: { paddingHorizontal: 10, paddingVertical: 7 },
-  suggest: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 7 },
+  suggest: { paddingHorizontal: 10, paddingVertical: 7 },
   bubble: {
     minHeight: 52,
   },

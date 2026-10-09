@@ -58,6 +58,7 @@ export function tabBubble(
   midRadius: number
 ): TabBubble {
   "worklet";
+  if (seg <= 0) return { left: 0, width: 0, leftRadius: 0, rightRadius: 0 };
   const lastIndex = count - 1;
   const clamped = Math.min(lastIndex, Math.max(0, position));
   const lower = Math.floor(clamped);

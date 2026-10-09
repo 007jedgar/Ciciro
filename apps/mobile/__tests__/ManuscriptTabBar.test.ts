@@ -71,4 +71,11 @@ describe("tabBubble", () => {
     expect(at(2.1).left).toBeGreaterThan(at(2).left);
     expect(at(-0.1).width).toBeCloseTo(at(0).width);
   });
+
+  it("has no width, never a negative one, before the tab row is measured", () => {
+    for (const p of [0, 1, 2, 0.5]) {
+      const f = tabBubble(p, 3, 0, 10, 60, 4, 6, 20);
+      expect(f.width).toBe(0);
+    }
+  });
 });
