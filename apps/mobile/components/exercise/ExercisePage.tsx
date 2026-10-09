@@ -9,7 +9,7 @@ import * as haptics from "../../lib/haptics";
 import { useAppTheme } from "../../lib/settings";
 import { fonts } from "../../lib/theme";
 import { useExerciseClock } from "../../lib/use-exercise-clock";
-import { PART_MS, type ExercisePart } from "../../lib/writing-exercise";
+import { PART_MS, paragraphs, type ExercisePart } from "../../lib/writing-exercise";
 import { ChapterEditor } from "../ChapterEditor";
 import { PressableCard } from "../PressableCard";
 import { ProgressRing } from "../ProgressRing";
@@ -115,9 +115,20 @@ export function ExercisePage({
           {earlier.map((item) => (
             <View key={item.part} accessible accessibilityLabel={`${item.label}. ${item.text}`}>
               <Text style={[styles.earlierLabel, { color: colors.inkSoft }]}>{item.label.toUpperCase()}</Text>
-              <Text style={{ color: colors.inkSoft, fontFamily: editorStyle.fontFamily, fontSize: 15, lineHeight: 22 }}>
-                {item.text.trim()}
-              </Text>
+              {paragraphs(item.text).map((line, index) => (
+                <Text
+                  key={index}
+                  style={{
+                    color: colors.inkSoft,
+                    fontFamily: editorStyle.fontFamily,
+                    fontSize: 15,
+                    lineHeight: 22,
+                    marginTop: index > 0 ? 6 : 0,
+                  }}
+                >
+                  {line}
+                </Text>
+              ))}
             </View>
           ))}
         </ScrollView>
@@ -167,7 +178,7 @@ export function ExercisePage({
 
 const styles = StyleSheet.create({
   guideBox: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6 },
-  guide: { fontFamily: fonts.displayRegular, fontSize: 22, lineHeight: 30 },
+  guide: { fontFamily: fonts.displayRegular, fontSize: 20, lineHeight: 28 },
   earlier: { marginHorizontal: 20, marginTop: 10, borderWidth: 1, borderRadius: 10, flexGrow: 0 },
   earlierLabel: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, marginBottom: 4 },
 });

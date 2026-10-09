@@ -8,7 +8,7 @@ import * as haptics from "../../lib/haptics";
 import { useAppTheme } from "../../lib/settings";
 import { fonts } from "../../lib/theme";
 import { useReduceMotion } from "../../lib/use-reduce-motion";
-import { EXERCISE_PARTS, totalWords, type ExerciseTexts } from "../../lib/writing-exercise";
+import { EXERCISE_PARTS, paragraphs, totalWords, type ExerciseTexts } from "../../lib/writing-exercise";
 import { AlertText } from "../AlertText";
 import { DrawCheck, useDrawProgress } from "../DrawCheck";
 import { InlineDots } from "../InlineDots";
@@ -88,9 +88,20 @@ export function ExerciseDone({
         {EXERCISE_PARTS.map((part) => (
           <View key={part} accessible accessibilityLabel={`${labels[part]}. ${texts[part].trim()}`}>
             <Text style={[styles.partLabel, { color: colors.inkSoft }]}>{labels[part].toUpperCase()}</Text>
-            <Text style={{ color: colors.ink, fontFamily: bodyFont, fontSize: 16, lineHeight: 24 }}>
-              {texts[part].trim()}
-            </Text>
+            {paragraphs(texts[part]).map((line, index) => (
+              <Text
+                key={index}
+                style={{
+                  color: colors.ink,
+                  fontFamily: bodyFont,
+                  fontSize: 16,
+                  lineHeight: 24,
+                  marginTop: index > 0 ? 8 : 0,
+                }}
+              >
+                {line}
+              </Text>
+            ))}
           </View>
         ))}
       </ScrollView>

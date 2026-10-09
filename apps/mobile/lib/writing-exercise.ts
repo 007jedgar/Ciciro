@@ -65,7 +65,7 @@ function escapeHtml(text: string): string {
 }
 
 /** One paragraph per non-empty line, the editor's own shape for plain text. */
-function paragraphs(text: string): string[] {
+export function paragraphs(text: string): string[] {
   return text
     .split(/\r?\n/)
     .map((line) => line.trim())
