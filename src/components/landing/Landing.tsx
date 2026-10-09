@@ -6,7 +6,8 @@ import CyclingWord from "./CyclingWord";
 import Exhibit from "./Exhibit";
 import Scene from "./Scene";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
-import { CLOSING, HERO, HOW, PRICING, WHY } from "./copy";
+import BetaSignupForm from "./BetaSignupForm";
+import { BETA, CLOSING, HERO, HOW, PRICING, WHY } from "./copy";
 import "./landing.css";
 
 function Arrow() {
@@ -203,6 +204,19 @@ export default function Landing() {
       </section>
 
       {selling ? <Pricing offerOpen={offerOpen} /> : null}
+
+      <section className="landing-wrap landing-block" aria-labelledby="landing-beta">
+        <p className="landing-kicker">{BETA.kicker}</p>
+        <div className="landing-beta">
+          <div>
+            <h2 id="landing-beta" className="landing-h2">
+              {BETA.headingLead} <em>{BETA.headingKey}</em>
+            </h2>
+            <p className="landing-beta-body">{BETA.body}</p>
+          </div>
+          <BetaSignupForm />
+        </div>
+      </section>
 
       <div className="landing-closing">
         <div className="landing-wrap">

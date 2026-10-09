@@ -9,6 +9,10 @@ deleted and exported:
   foreign keys off, so it never leans on cascades production D1 might lack)
 - `EXPORT_TABLES` in `export.ts` (`test/account-export.integration.test.ts`)
 
+A model no account owns (`BetaSignup`, the landing page's iOS beta list; see
+`docs/hosting.md#ios-beta-signups`) goes in `UNOWNED_MODELS` in `delete.ts`
+instead, and both tests skip it.
+
 ## Deletion
 
 `DELETE /api/auth/account` (`src/app/api/auth/account/route.ts`) needs a

@@ -29,7 +29,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/verify-email",
 ];
-const PUBLIC_PREFIXES = ["/api/auth/", "/api/health", "/read/", "/api/read/", "/api/billing/webhooks/"];
+const PUBLIC_PREFIXES = ["/api/auth/", "/api/beta-signup", "/api/health", "/read/", "/api/read/", "/api/billing/webhooks/"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

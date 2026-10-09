@@ -7,6 +7,7 @@ import { SESSION_HEADER } from "@/lib/auth/constants";
 import { hashSessionToken } from "@/lib/auth/tokens";
 import { buildMarkdown } from "@/lib/export/markdown";
 import { DOCX_WORD_BUDGET, EXPORTED_MODELS, accountExportStream } from "@/lib/account/export";
+import { UNOWNED_MODELS } from "@/lib/account/delete";
 import { GET } from "@/app/api/account/export/route";
 import { allModelNames, seedAccount, wipeDatabase } from "./account-fixture";
 
@@ -61,7 +62,7 @@ describe("account data export", () => {
   });
 
   it("covers every model", () => {
-    expect([...EXPORTED_MODELS].sort()).toEqual(allModelNames().sort());
+    expect([...EXPORTED_MODELS, ...UNOWNED_MODELS].sort()).toEqual(allModelNames().sort());
   });
 
   it("requires a session", async () => {

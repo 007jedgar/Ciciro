@@ -68,6 +68,14 @@ export const PRE_DELETE_HOOKS: readonly PreDeleteHook[] = [
 ];
 
 /**
+ * Models no account owns, so neither the purge nor the data export reaches
+ * them: `BetaSignup` is a landing-page visitor's email for the iOS TestFlight
+ * beta, with no user behind it. The account tests expect every other model to
+ * be covered.
+ */
+export const UNOWNED_MODELS = ["BetaSignup"] as const;
+
+/**
  * Every model that holds account data, in the order the purge deletes it
  * (children before parents). The purge never relies on foreign-key cascades,
  * so it is complete even on a database that does not enforce them;

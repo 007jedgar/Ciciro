@@ -195,6 +195,21 @@ export const CLOSING = {
   sub: "Early access is open, and your manuscripts, story bible and exports are free. Bring the sentence you already started.",
 };
 
+/** The iOS TestFlight beta signup. Stores an email only; the invite is sent by hand. */
+export const BETA = {
+  kicker: "iPhone app beta",
+  headingLead: "Try the phone app",
+  headingKey: "before everyone else.",
+  body: "Leave your email and we'll send you an invite to the Ciciro iOS beta on TestFlight. It is only for the iPhone TestFlight beta, nothing else.",
+  label: "Email address",
+  placeholder: "you@example.com",
+  submit: "Join the iOS beta",
+  submitting: "Joining...",
+  success: "You're on the list. We'll email your TestFlight invite.",
+  invalid: "Enter a valid email address.",
+  failure: "Could not sign you up. Try again.",
+};
+
 export const PRICING = {
   kicker: "Pricing",
   headingLead: "Free to write in.",

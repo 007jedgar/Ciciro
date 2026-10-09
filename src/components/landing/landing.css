@@ -1391,3 +1391,91 @@
 :root[data-reduce-motion="true"] .landing-cycle-caret {
   display: none;
 }
+
+/* ---------- iOS beta signup ---------- */
+.landing-beta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
+  gap: 56px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .landing-beta {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+}
+.landing-beta-body {
+  margin: 12px 0 0;
+  max-width: 46ch;
+  color: var(--ink-soft);
+}
+.landing-beta-form {
+  padding: 24px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--panel);
+}
+.landing-beta-label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.landing-beta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.landing-beta-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+.landing-beta-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+.landing-beta-input[aria-invalid="true"] {
+  border-color: var(--del);
+}
+.landing-beta-row .landing-btn {
+  justify-content: center;
+  min-width: 11.5em;
+  cursor: pointer;
+}
+.landing-beta-row .landing-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+.landing-beta-error {
+  margin: 10px 0 0;
+  min-height: 1.5em;
+  font-size: 0.92rem;
+  color: var(--del);
+}
+.landing-beta-error:empty {
+  min-height: 0;
+  margin: 0;
+}
+.landing-beta-success {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+}
+.landing-beta-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.landing-beta .landing-h2 {
+  margin-bottom: 0;
+}
