@@ -64,6 +64,7 @@ function WritingExerciseContent() {
   const [copied, setCopied] = useState(false);
   const startedAt = useRef<number | null>(null);
   const created = useRef<ProjectCreated | null>(null);
+  const kept = useRef(false);
   const completed = useRef(false);
 
   const labels = {
@@ -76,7 +77,7 @@ function WritingExerciseContent() {
 
   // Closing would lose writing that lives nowhere else, so it asks first until it is kept or copied.
   const requestClose = useCallback(() => {
-    const takenAway = step.kind === "done" && (created.current !== null || copied);
+    const takenAway = step.kind === "done" && (kept.current || copied);
     if (takenAway || !hasWriting(texts)) {
       leave();
       return;
@@ -140,6 +141,7 @@ function WritingExerciseContent() {
           getAnalytics().track("project_created", { kind: "journal", isFirstProject: project.isFirstProject });
         },
       });
+      kept.current = true;
       haptics.success();
       markNewManuscriptArrival(project.id, project.isFirstProject);
       router.replace(`/project/${project.id}/chapters`);
