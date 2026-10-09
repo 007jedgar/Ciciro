@@ -152,6 +152,8 @@ property shape.
 | `project_created` (`kind`, `isFirstProject`) | Creating a new (non-imported) manuscript. `isFirstProject` is computed server-side in `createProject` (a count of the account's existing projects taken atomically with the create), never client-side, so neither platform races its own project list | Both |
 | `chat_message_sent` | Sending a typed chat message (not quick actions, not resumed turns) | Both |
 | `quick_action_used` (`action`, `kind`) | Running a quick-action chip. Web's `action` is the shared `src/lib/prompts.ts` action id; mobile's is its own smaller `continue`/`rewrite`/`describe` set - the two are not the same vocabulary | Both |
+| `selection_action_used` (`action`, `target`) | Pressing Comment, Rewrite, Describe, Expand or Fix in the menu over highlighted text. `target` is `word` or `passage`; never the text | Both |
+| `synonym_used` (`more`) | Swapping a synonym in for the highlighted word; `more` when it came from the "N more" list | Both |
 | `autowrite_used` | Starting an Auto-draft run | Web only (no mobile Autowrite UI exists; see AGENTS.md) |
 | `suggestion_accepted` / `suggestion_rejected` | Resolving one or all tracked-change suggestions | Both |
 | `continuity_check_run` | A continuity check completes | Web only (web-only feature) |

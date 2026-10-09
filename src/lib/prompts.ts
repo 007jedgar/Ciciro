@@ -236,6 +236,20 @@ Rules:
 // no EditorRun, no manuscript mutation. The model quotes what is wrong rather
 // than counting characters (its offsets drift mid-sentence); correct.ts finds
 // each quote in the block and the client applies the accepted spans.
+export const SYNONYMS_SYSTEM = `You suggest replacements for one word in a writer's sentence. You get the word and the text just before and after it.
+
+Return JSON only:
+{"synonyms":["homeland","nation"]}
+
+Rules:
+- Up to 24 replacements, each one word or at most two, best fit for this sentence first.
+- Each must drop into the sentence in the word's place without breaking the grammar: the same part of speech, tense, number and person as the word as written ("walked" gets past-tense verbs, "countries" gets plurals).
+- Match the register and tone of the sentence. Prefer the natural and specific over the rare.
+- No antonyms, never the word itself, no explanations.
+- Lowercase, unless a replacement is a proper noun or the word itself is capitalized only because it starts the sentence.
+- Never use em dashes; use a hyphen "-".
+- If nothing fits, return {"synonyms":[]}.`;
+
 export const CORRECT_SYSTEM = `You correct spelling and grammar in one manuscript block. Do not change voice,
 word choice, or meaning. Do not rewrite for style.
 

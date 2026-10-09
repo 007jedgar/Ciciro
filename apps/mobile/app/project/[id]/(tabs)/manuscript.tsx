@@ -69,6 +69,10 @@ import {
   type GrammarSuggestion,
 } from "../../../../lib/grammar";
 import { dictationLocale, insertDictation } from "../../../../lib/dictation";
+import { SELECTION_ACTION_PARAM } from "../../../../lib/ciciro-intents";
+import { replaceSelectedWord } from "../../../../lib/selection-edit";
+import type { SelectionActionId } from "../../../../lib/selection-menu";
+import { useSelectionMenu } from "../../../../lib/use-selection-menu";
 import { useDictation, type DictationError } from "../../../../lib/speech";
 import { useProject } from "../../../../lib/project";
 import { useRenameChapter } from "../../../../lib/use-rename-chapter";
@@ -206,6 +210,7 @@ function ManuscriptScreenContent() {
   const [typing, setTyping] = useState(false);
   const [pressMenuOpen, setPressMenuOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [editorBounds, setEditorBounds] = useState({ width: 0, height: 0 });
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideBar = useSharedValue(0);
   const keyboardVisible = useKeyboardState((state) => state.isVisible);
@@ -378,6 +383,61 @@ function ManuscriptScreenContent() {
     return live && live.chapterId === current.id ? live.text : blocksPlainText(current.content);
   }, []);
 
+  // Swap a word for a synonym the way typing over it would: read what the editor shows now (it can be ahead of
+  // the stored chapter), splice the word in, write the buffer back with the caret just after it, then flush like
+  // a keystroke. False when the page no longer holds the word (it changed while the lookup ran).
+  const replaceWord = useCallback(
+    async (start: number, end: number, expected: string, replacement: string): Promise<boolean> => {
+      const current = chapterRef.current;
+      const editor = editorRef.current;
+      if (!current || !editor) return false;
+      let enriched: string;
+      try {
+        enriched = await editor.getHTML();
+      } catch {
+        return false;
+      }
+      const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(enriched));
+      const result = replaceSelectedWord(live, start, end, expected, replacement);
+      if (!result) return false;
+      markEditedRef.current?.();
+      editor.setValue(toEnrichedHtml(result.html));
+      editor.setSelection(result.caret, result.caret);
+      caretRef.current = { ...caretRef.current, docOffset: result.caret };
+      markTyping();
+      scheduleFlush();
+      return true;
+    },
+    [markTyping, scheduleFlush]
+  );
+
+  // Comment, Rewrite, Describe, Expand and Fix go to the Ciciro tab, which reads the highlighted text from
+  // the same store read-aloud uses (it is kept as the editor blurs) and starts the turn.
+  const projectId = project?.id;
+  const onSelectionAction = useCallback(
+    (action: SelectionActionId) => {
+      if (!projectId) return;
+      // A comment is typed on the next tab, so its composer takes the keyboard over; the other actions
+      // start a reply to read, so the keyboard goes with the editor.
+      if (action !== "comment") editorRef.current?.blur();
+      router.navigate(`/project/${projectId}/ciciro?${SELECTION_ACTION_PARAM}=${action}` as never);
+    },
+    [projectId, router]
+  );
+  const getSelectionText = useCallback(() => {
+    const current = chapterRef.current;
+    return current ? liveChapterText(current) : null;
+  }, [liveChapterText]);
+  const selectionMenu = useSelectionMenu({
+    chapterId: chapter?.id,
+    focused,
+    bounds: editorBounds,
+    getText: getSelectionText,
+    replaceWord,
+    onAction: onSelectionAction,
+  });
+  const onChangeMenuSelection = selectionMenu.onChangeSelection;
+
   const onCaret = useCallback(
     (start: number, end: number) => {
       const current = chapterRef.current;
@@ -390,6 +450,7 @@ function ManuscriptScreenContent() {
         docOffset: start,
       };
       setFormatTarget({ start, end });
+      onChangeMenuSelection(start, end);
       setReadAloudSelection({
         chapterId: current.id,
         start,
@@ -405,7 +466,7 @@ function ManuscriptScreenContent() {
         });
       }, CARET_FLUSH_MS);
     },
-    [liveChapterText, recordReadingPosition]
+    [liveChapterText, onChangeMenuSelection, recordReadingPosition]
   );
 
   // The keyboard has no dismiss key of its own on a phone, so a tap on anything around the page
@@ -770,7 +831,14 @@ function ManuscriptScreenContent() {
           ) : null}
           {/* Claims the touch so a tap that lands in the page is never read as a tap around it;
               the native editor still gets it for the cursor, selection and scrolling. */}
-          <View style={{ flex: 1 }} onStartShouldSetResponder={() => true}>
+          <View
+            style={{ flex: 1 }}
+            onStartShouldSetResponder={() => true}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setEditorBounds((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+            }}
+          >
             <ChapterEditor
               chapterId={chapter.id}
               html={content}
@@ -785,10 +853,12 @@ function ManuscriptScreenContent() {
               onContentApplied={onContentApplied}
               onChangeState={onChangeState}
               onChangeSelection={onCaret}
+              onSelectionFrame={selectionMenu.onSelectionFrame}
               onLongPress={showPressMenu(settings.formatChrome) ? openPressMenu : undefined}
               onSetKind={showPressMenu(settings.formatChrome) ? onSetKind : undefined}
               registerEditor={registerEditor}
             />
+            {selectionMenu.anchored}
             <View
               pointerEvents="box-none"
               style={{
@@ -840,6 +910,7 @@ function ManuscriptScreenContent() {
               {formatOverlay.bubble ? (
                 <FormatBubble marks={targetMarks} onToggleMark={onToggleMark} />
               ) : null}
+              {selectionMenu.inline}
             </View>
           </View>
         </Pressable>

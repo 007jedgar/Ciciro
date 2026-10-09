@@ -1,4 +1,11 @@
 import type { EditorRunInput, EditorScope } from "./api/types";
+import type { ManuscriptKind } from "./manuscript-kind";
+import {
+  SELECTION_TURN,
+  selectionBrief,
+  type SelectionActionId,
+  type SelectionBriefId,
+} from "./selection-menu";
 
 export const CICIRO_INTENTS = ["continue", "rewrite", "describe"] as const;
 export type CiciroIntent = (typeof CICIRO_INTENTS)[number];
@@ -46,18 +53,55 @@ export function chatRequestFromIntent(
   };
 }
 
+/** The route param the selection menu navigates to the Ciciro tab with. */
+export const SELECTION_ACTION_PARAM = "selectionAction";
+
+const SELECTION_ACTIONS: readonly SelectionActionId[] = ["comment", "rewrite", "describe", "expand", "fix"];
+
+export function asSelectionAction(value: string | string[] | undefined): SelectionActionId | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  return SELECTION_ACTIONS.includes(first as SelectionActionId) ? (first as SelectionActionId) : null;
+}
+
+/**
+ * A selection-menu button as a chat turn: the brief for the action, scoped to
+ * the highlighted text, which goes along as the selection. Null with nothing
+ * highlighted (the selection was lost on the way to this tab).
+ */
+export function chatRequestFromSelectionAction(
+  action: SelectionBriefId,
+  ctx: { projectId: string; chapterId: string | null; selection: string; kind: ManuscriptKind }
+): EditorRunInput | null {
+  const selection = ctx.selection.trim();
+  if (!selection) return null;
+  return {
+    projectId: ctx.projectId,
+    message: selectionBrief(action, ctx.kind),
+    kind: SELECTION_TURN.kind,
+    scope: SELECTION_TURN.scope,
+    activeChapterId: ctx.chapterId,
+    selection,
+  };
+}
+
+/**
+ * A typed message. After a Comment from the selection menu the highlighted
+ * text rides along as the selection, so Ciciro reads the comment against it.
+ */
 export function chatRequestFromComposer(
   message: string,
-  ctx: { projectId: string; chapterId: string | null }
+  ctx: { projectId: string; chapterId: string | null; selection?: string }
 ): EditorRunInput | null {
   const trimmed = message.trim();
   if (!trimmed) return null;
+  const selection = ctx.selection?.trim() ?? "";
   return {
     projectId: ctx.projectId,
     message: trimmed,
     kind: "chat",
-    scope: "chapter",
+    scope: selection ? "selection" : "chapter",
     activeChapterId: ctx.chapterId,
+    ...(selection ? { selection } : {}),
   };
 }
 

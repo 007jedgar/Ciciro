@@ -417,6 +417,7 @@ export function CiciroChat({
   phase,
   composer,
   onComposerChange,
+  focusComposerKey = 0,
   onSend,
   onStop,
   onRetry,
@@ -442,6 +443,8 @@ export function CiciroChat({
   phase: EditorRunStatus | null;
   composer: string;
   onComposerChange: (value: string) => void;
+  /** Changes when the composer should take focus (a Comment from the editor starts a message there). */
+  focusComposerKey?: number;
   onSend: () => void;
   /** Abandons the reply in flight, keeping whatever has already arrived. */
   onStop: () => void;
@@ -471,6 +474,10 @@ export function CiciroChat({
   const { layout, colors, dark } = useAppTheme();
   const reduceMotion = useReduceMotion();
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const composerRef = useRef<TextInput>(null);
+  useEffect(() => {
+    if (focusComposerKey > 0) composerRef.current?.focus();
+  }, [focusComposerKey]);
   const canSend = Boolean(composer.trim()) && !streaming;
   const animate = !reduceMotion;
   // The tail of the stream is where new words land; everything above it is read.
@@ -1052,6 +1059,7 @@ export function CiciroChat({
           <Glass dark={dark} colors={colors} radius={24} style={styles.bubble}>
             <View testID="chat-composer" style={styles.composer}>
               <TextInput
+                ref={composerRef}
                 style={[styles.field, { color: colors.ink }]}
                 accessibilityLabel={t("ciciroTab.composer")}
                 placeholder={t("ciciroTab.composer")}

@@ -124,6 +124,35 @@ hide while Ciciro is answering or the keyboard is up. A chip that
 changes the manuscript, like Fix misplaced passages, asks you to switch to
 **Allow edits** first.
 
+## The menu over highlighted text
+
+Highlight two or more words in the page and a small menu floats above them
+(below, when there is no room above): **Comment**, **Rewrite**, **Describe**,
+**Expand** and **Fix**. It waits until you let go of the mouse or stop
+extending the selection with the keyboard, and Escape puts it away until the
+selection changes. Press Cmd+K (Ctrl+K on Windows and Linux) to move into it
+from the keyboard; the arrow keys walk the buttons and Escape returns to the
+page with your selection intact.
+
+- **Rewrite**, **Describe**, **Expand** and **Fix** send Ciciro a brief about
+  the highlighted text, as a chat turn like any quick action. Ciciro answers
+  with a `<draft>` block you insert yourself, so they work in Chat only mode
+  too, and they count against your AI allowance like any chat message. If
+  Ciciro is still answering, the chat says so instead of starting a second
+  turn.
+- **Comment** opens the chat with the highlighted words quoted in the message
+  box, ready for you to write the question or note. The highlighted text goes
+  along when you send it.
+
+Highlight a single word and the menu offers Comment, Describe and Fix, with
+synonyms that fit the sentence beside them: the first three as chips and the
+rest behind "N more...". Choosing one replaces just the word, keeping its
+capital letter, its bold or italic, and any quote mark or full stop beside it,
+and leaves the caret after it. In Suggest mode the swap is tracked like your
+own typing. Synonyms come from a small, fast model and are free of the monthly
+allowance; once the allowance is used up, or when you are offline, the chips
+simply do not appear.
+
 ## Auto insert vs Auto-draft
 
 **Auto on/off** (chat header): when on, finished drafts insert into the open
