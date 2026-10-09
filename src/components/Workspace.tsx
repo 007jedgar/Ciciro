@@ -1334,6 +1334,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
                   onSelectionAction={(action, text) => {
+                    setFocusMode(false);
                     if (action === "comment") {
                       chatRef.current?.compose(commentQuote(text));
                       return true;
