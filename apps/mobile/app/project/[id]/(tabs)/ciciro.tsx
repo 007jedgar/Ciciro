@@ -21,10 +21,13 @@ import { insertDraftOps, insertionKey } from "../../../../lib/chat-insert";
 import { countWords } from "../../../../lib/manuscript";
 import {
   asCiciroIntent,
+  asSelectionAction,
   chatRequestFromAnswer,
   chatRequestFromComposer,
   chatRequestFromIntent,
+  chatRequestFromSelectionAction,
 } from "../../../../lib/ciciro-intents";
+import { commentQuote } from "../../../../lib/selection-menu";
 import { useProject } from "../../../../lib/project";
 import { normalizeKind } from "../../../../lib/manuscript-kind";
 import { quickActionsFor, chatRequestFromAction } from "../../../../lib/quick-actions";
@@ -43,10 +46,16 @@ export default function CiciroScreen() {
 
 function CiciroScreenContent() {
   const { project, loading, error, errorDetail, reload, selectedChapterId, recordChapterOp } = useProject();
-  const { intent, questions: questionsParam, prompt: promptParam } = useLocalSearchParams<{
+  const {
+    intent,
+    questions: questionsParam,
+    prompt: promptParam,
+    selectionAction: selectionActionParam,
+  } = useLocalSearchParams<{
     intent?: string;
     questions?: string;
     prompt?: string;
+    selectionAction?: string;
   }>();
   const router = useRouter();
   const { t } = useTranslation();
@@ -63,6 +72,11 @@ function CiciroScreenContent() {
   const [localInserted, setLocalInserted] = useState<Set<string>>(new Set());
   const [questionsOpen, setQuestionsOpen] = useState(false);
   const lastIntent = useRef<string | null>(null);
+  // The text a Comment from the editor's selection menu is about: it rides along with the typed message.
+  const [commentOn, setCommentOn] = useState("");
+  const [focusComposerKey, setFocusComposerKey] = useState(0);
+  const requestedSelectionAction = asSelectionAction(selectionActionParam);
+  const lastSelectionAction = useRef<string | null>(null);
 
   /** chapterId → its 1-based number, so a question can name where it lands. */
   const chapterNumbers = useMemo(() => {
@@ -86,17 +100,19 @@ function CiciroScreenContent() {
     const input = chatRequestFromComposer(composer, {
       projectId,
       chapterId: selectedChapterId,
+      selection: commentOn,
     });
     if (!input) return;
     getAnalytics().track("chat_message_sent", {});
     const typed = composer;
     setComposer("");
+    setCommentOn("");
     void chat.send(input).then((failure) => {
       // The allowance is used up: the server kept nothing, so give the author
       // their words back rather than make them type it again next month.
       if (failure?.code === "aiLimit") setComposer((current) => current || typed);
     });
-  }, [chat.send, chat.streaming, composer, projectId, selectedChapterId]);
+  }, [chat.send, chat.streaming, commentOn, composer, projectId, selectedChapterId]);
 
   const answerQuestion = useCallback(
     (question: OpenQuestion, answer: string) => {
@@ -213,6 +229,51 @@ function CiciroScreenContent() {
     selectedChapterId,
   ]);
 
+  // A selection-menu button from the editor: Comment starts a message about the highlighted text, the others
+  // send their brief for it right away (the same turn the web's menu sends).
+  useEffect(() => {
+    if (!requestedSelectionAction) {
+      lastSelectionAction.current = null;
+      return;
+    }
+    if (!projectId || chat.loading) return;
+    if ((project?.chapters.length ?? 0) > 0 && !selectedChapterId) return;
+    if (lastSelectionAction.current === requestedSelectionAction) return;
+    const selection = selectedChapterId ? selectedTextFor(selectedChapterId) : "";
+    if (requestedSelectionAction === "comment") {
+      lastSelectionAction.current = requestedSelectionAction;
+      if (selection.trim()) {
+        setComposer(commentQuote(selection));
+        setCommentOn(selection);
+        setFocusComposerKey((key) => key + 1);
+      }
+      router.setParams({ selectionAction: undefined });
+      return;
+    }
+    if (chat.streaming) return;
+    lastSelectionAction.current = requestedSelectionAction;
+    const input = chatRequestFromSelectionAction(requestedSelectionAction, {
+      projectId,
+      chapterId: selectedChapterId,
+      selection,
+      kind,
+    });
+    if (input) void chat.send(input);
+    else Alert.alert(t("quickActions.selectFirstTitle"), t("quickActions.selectFirstBody"));
+    router.setParams({ selectionAction: undefined });
+  }, [
+    chat.loading,
+    chat.send,
+    chat.streaming,
+    kind,
+    project,
+    projectId,
+    requestedSelectionAction,
+    router,
+    selectedChapterId,
+    t,
+  ]);
+
   if (loading && !project) {
     return (
       <View style={[layout.padded, { paddingTop: headerHeight + 8 }]}>
@@ -258,7 +319,11 @@ function CiciroScreenContent() {
         insertError={insertError}
         phase={chat.stream.status}
         composer={composer}
-        onComposerChange={setComposer}
+        onComposerChange={(value) => {
+          setComposer(value);
+          if (!value.trim()) setCommentOn("");
+        }}
+        focusComposerKey={focusComposerKey}
         onSend={sendComposer}
         onStop={chat.stop}
         onRetry={() => void chat.retry()}

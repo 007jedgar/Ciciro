@@ -24,6 +24,64 @@ index 8e7b44c..0c43171 100644
    void setColor(T view, @Nullable Integer value);
    void setFontSize(T view, float value);
    void setLineHeight(T view, float value);
+diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
+index 26fa754..148e748 100644
+--- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
++++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
+@@ -235,6 +235,22 @@ payload.setProperty(runtime, "text", event.text);
+ }
+ 
+ 
++void EnrichedTextInputViewEventEmitter::onSelectionFrame(OnSelectionFrame event) const {
++  dispatchEvent("selectionFrame", [event=std::move(event)](jsi::Runtime &runtime) {
++    auto payload = jsi::Object(runtime);
++    payload.setProperty(runtime, "topX", event.topX);
++payload.setProperty(runtime, "topY", event.topY);
++payload.setProperty(runtime, "topWidth", event.topWidth);
++payload.setProperty(runtime, "topHeight", event.topHeight);
++payload.setProperty(runtime, "bottomX", event.bottomX);
++payload.setProperty(runtime, "bottomY", event.bottomY);
++payload.setProperty(runtime, "bottomWidth", event.bottomWidth);
++payload.setProperty(runtime, "bottomHeight", event.bottomHeight);
++    return payload;
++  });
++}
++
++
+ void EnrichedTextInputViewEventEmitter::onRequestHtmlResult(OnRequestHtmlResult event) const {
+   dispatchEvent("requestHtmlResult", [event=std::move(event)](jsi::Runtime &runtime) {
+     auto payload = jsi::Object(runtime);
+diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
+index 0da8313..c90be70 100644
+--- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
++++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
+@@ -194,6 +194,17 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+     std::string text;
+     };
+ 
++  struct OnSelectionFrame {
++      Float topX;
++    Float topY;
++    Float topWidth;
++    Float topHeight;
++    Float bottomX;
++    Float bottomY;
++    Float bottomWidth;
++    Float bottomHeight;
++    };
++
+   struct OnRequestHtmlResult {
+       int requestId;
+     folly::dynamic html;
+@@ -380,6 +391,8 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+ 
+   void onChangeSelection(OnChangeSelection value) const;
+ 
++  void onSelectionFrame(OnSelectionFrame value) const;
++
+   void onRequestHtmlResult(OnRequestHtmlResult value) const;
+ 
+   void onInputKeyPress(OnInputKeyPress value) const;
 diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
 index 9569683..ab23db5 100644
 --- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
@@ -443,7 +501,7 @@ index 195e706..48a9516 100644
    serializedProps["useHtmlNormalizer"] = props.useHtmlNormalizer;
    serializedProps["htmlStyle"] = toDynamic(props.htmlStyle);
 diff --git a/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm b/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
-index a899aa6..847d443 100644
+index a899aa6..36e7125 100644
 --- a/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
 +++ b/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
 @@ -235,6 +235,11 @@ - (void)updateProps:(Props::Shared const &)props
@@ -474,6 +532,79 @@ index a899aa6..847d443 100644
                  [textView.textStorage addAttribute:NSParagraphStyleAttributeName
                                               value:pStyle
                                               range:range];
+@@ -2021,10 +2028,72 @@ - (void)textViewDidChangeSelection:(UITextView *)textView {
+          .text = [textAtSelection toCppString]});
+   }
+ 
++  if (textView.selectedRange.length > 0) {
++    [self emitSelectionFrame];
++  }
++
+   // manage selection changes
+   [self manageSelectionBasedChanges];
+ }
+ 
++// Where the selected text sits in this view, so the app can float a menu by
++// it. `convertRect:toView:` applies the text view's scroll offset, so the
++// numbers are in the same points the app lays this view out in. The first and
++// last line are each the union of the rects on that line (a line can come
++// back as several runs).
++- (void)emitSelectionFrame {
++  auto emitter = [self getEventEmitter];
++  UITextRange *range = textView.selectedTextRange;
++  if (emitter == nullptr || range == nil || range.isEmpty) {
++    return;
++  }
++
++  NSMutableArray<NSValue *> *rects = [[NSMutableArray alloc] init];
++  CGFloat topEdge = CGFLOAT_MAX;
++  CGFloat bottomEdge = -CGFLOAT_MAX;
++  for (UITextSelectionRect *selectionRect in
++       [textView selectionRectsForRange:range]) {
++    CGRect rect = [textView convertRect:selectionRect.rect toView:self];
++    if (CGRectIsEmpty(rect) || CGRectIsNull(rect)) {
++      continue;
++    }
++    [rects addObject:[NSValue valueWithCGRect:rect]];
++    topEdge = MIN(topEdge, CGRectGetMinY(rect));
++    bottomEdge = MAX(bottomEdge, CGRectGetMinY(rect));
++  }
++  if (rects.count == 0) {
++    return;
++  }
++
++  CGRect top = CGRectNull;
++  CGRect bottom = CGRectNull;
++  for (NSValue *value in rects) {
++    CGRect rect = value.CGRectValue;
++    if (fabs(CGRectGetMinY(rect) - topEdge) < 1) {
++      top = CGRectUnion(top, rect);
++    }
++    if (fabs(CGRectGetMinY(rect) - bottomEdge) < 1) {
++      bottom = CGRectUnion(bottom, rect);
++    }
++  }
++
++  emitter->onSelectionFrame({.topX = top.origin.x,
++                             .topY = top.origin.y,
++                             .topWidth = top.size.width,
++                             .topHeight = top.size.height,
++                             .bottomX = bottom.origin.x,
++                             .bottomY = bottom.origin.y,
++                             .bottomWidth = bottom.size.width,
++                             .bottomHeight = bottom.size.height});
++}
++
++// The text view scrolls under a selection the app is floating a menu by.
++- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
++  if (textView.selectedRange.length > 0) {
++    [self emitSelectionFrame];
++  }
++}
++
+ // this function isn't called always when some text changes (for example setting
+ // link or starting mention with indicator doesn't fire it) so all the logic is
+ // in anyTextMayHaveBeenModified
 diff --git a/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h b/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h
 index d39248b..abc9b8f 100644
 --- a/node_modules/react-native-enriched-html/ios/config/EnrichedConfig.h
@@ -822,6 +953,64 @@ index 72c9620..49394a8 100644
  
                                     CGRect lineRect =
                                         CGRectMake(x, y, width, height);
+diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp
+index 26fa754..148e748 100644
+--- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp
++++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp
+@@ -235,6 +235,22 @@ payload.setProperty(runtime, "text", event.text);
+ }
+ 
+ 
++void EnrichedTextInputViewEventEmitter::onSelectionFrame(OnSelectionFrame event) const {
++  dispatchEvent("selectionFrame", [event=std::move(event)](jsi::Runtime &runtime) {
++    auto payload = jsi::Object(runtime);
++    payload.setProperty(runtime, "topX", event.topX);
++payload.setProperty(runtime, "topY", event.topY);
++payload.setProperty(runtime, "topWidth", event.topWidth);
++payload.setProperty(runtime, "topHeight", event.topHeight);
++payload.setProperty(runtime, "bottomX", event.bottomX);
++payload.setProperty(runtime, "bottomY", event.bottomY);
++payload.setProperty(runtime, "bottomWidth", event.bottomWidth);
++payload.setProperty(runtime, "bottomHeight", event.bottomHeight);
++    return payload;
++  });
++}
++
++
+ void EnrichedTextInputViewEventEmitter::onRequestHtmlResult(OnRequestHtmlResult event) const {
+   dispatchEvent("requestHtmlResult", [event=std::move(event)](jsi::Runtime &runtime) {
+     auto payload = jsi::Object(runtime);
+diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h
+index 0da8313..c90be70 100644
+--- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h
++++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h
+@@ -194,6 +194,17 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+     std::string text;
+     };
+ 
++  struct OnSelectionFrame {
++      Float topX;
++    Float topY;
++    Float topWidth;
++    Float topHeight;
++    Float bottomX;
++    Float bottomY;
++    Float bottomWidth;
++    Float bottomHeight;
++    };
++
+   struct OnRequestHtmlResult {
+       int requestId;
+     folly::dynamic html;
+@@ -380,6 +391,8 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+ 
+   void onChangeSelection(OnChangeSelection value) const;
+ 
++  void onSelectionFrame(OnSelectionFrame value) const;
++
+   void onRequestHtmlResult(OnRequestHtmlResult value) const;
+ 
+   void onInputKeyPress(OnInputKeyPress value) const;
 diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
 index 9569683..ab23db5 100644
 --- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
@@ -858,10 +1047,30 @@ index b8da319..5f133e8 100644
    Float fontSize{0.0};
    Float lineHeight{0.0};
 diff --git a/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts b/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
-index 20e9d12..eb0a334 100644
+index 20e9d12..6d7a6aa 100644
 --- a/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
 +++ b/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
-@@ -377,6 +377,7 @@ export interface NativeProps extends ViewProps {
+@@ -156,6 +156,19 @@ export interface OnChangeSelectionEvent {
+   text: string;
+ }
+ 
++export interface OnSelectionFrameEvent {
++  // The first and last line of the selection in the input's own coordinates
++  // (points, scroll offset already applied), so a menu can float by it.
++  topX: Float;
++  topY: Float;
++  topWidth: Float;
++  topHeight: Float;
++  bottomX: Float;
++  bottomY: Float;
++  bottomWidth: Float;
++  bottomHeight: Float;
++}
++
+ export interface OnRequestHtmlResultEvent {
+   requestId: Int32;
+   html: UnsafeMixed;
+@@ -377,6 +390,7 @@ export interface NativeProps extends ViewProps {
    returnKeyLabel?: string;
    submitBehavior?: string;
    allowFontScaling?: boolean;
@@ -869,11 +1078,48 @@ index 20e9d12..eb0a334 100644
  
    // event callbacks
    onInputFocus?: DirectEventHandler<TargetedEvent>;
+@@ -388,6 +402,7 @@ export interface NativeProps extends ViewProps {
+   onMentionDetected?: DirectEventHandler<OnMentionDetectedInternal>;
+   onMention?: DirectEventHandler<OnMentionEvent>;
+   onChangeSelection?: DirectEventHandler<OnChangeSelectionEvent>;
++  onSelectionFrame?: DirectEventHandler<OnSelectionFrameEvent>;
+   onRequestHtmlResult?: DirectEventHandler<OnRequestHtmlResultEvent>;
+   onInputKeyPress?: DirectEventHandler<OnKeyPressEvent>;
+   onPasteImages?: DirectEventHandler<OnPasteImagesEvent>;
+diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts
+index d99dad8..e76cd59 100644
+--- a/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts
++++ b/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts
+@@ -1,5 +1,5 @@
+ export { EnrichedTextInput } from './native/EnrichedTextInput.js';
+-export type { EnrichedInputStyle, EnrichedTextInputProps, OnChangeTextEvent, OnChangeHtmlEvent, OnChangeStateEvent, OnLinkDetected, OnMentionDetected, OnChangeSelectionEvent, OnKeyPressEvent, OnPasteImagesEvent, OnSubmitEditing, HtmlStyle, MentionStyleProperties, FocusEvent, BlurEvent, EnrichedTextInputInstance, ContextMenuItem, OnChangeMentionEvent, TextShortcut, TextShortcutStyle, } from './types.js';
++export type { EnrichedInputStyle, EnrichedTextInputProps, OnChangeTextEvent, OnChangeHtmlEvent, OnChangeStateEvent, OnLinkDetected, OnMentionDetected, OnChangeSelectionEvent, OnSelectionFrameEvent, OnKeyPressEvent, OnPasteImagesEvent, OnSubmitEditing, HtmlStyle, MentionStyleProperties, FocusEvent, BlurEvent, EnrichedTextInputInstance, ContextMenuItem, OnChangeMentionEvent, TextShortcut, TextShortcutStyle, } from './types.js';
+ export { EnrichedText } from './native/EnrichedText.js';
+ export type { EnrichedTextProps, EnrichedTextInstance, EnrichedTextHtmlStyle, OnMentionPressEvent, OnLinkPressEvent, } from './types.js';
+ //# sourceMappingURL=index.native.d.ts.map
+\ No newline at end of file
 diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
-index 5b2fd66..2d71d31 100644
+index 5b2fd66..643dfe6 100644
 --- a/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
 +++ b/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
-@@ -344,6 +344,7 @@ export interface NativeProps extends ViewProps {
+@@ -137,6 +137,16 @@ export interface OnChangeSelectionEvent {
+     end: Int32;
+     text: string;
+ }
++export interface OnSelectionFrameEvent {
++    topX: Float;
++    topY: Float;
++    topWidth: Float;
++    topHeight: Float;
++    bottomX: Float;
++    bottomY: Float;
++    bottomWidth: Float;
++    bottomHeight: Float;
++}
+ export interface OnRequestHtmlResultEvent {
+     requestId: Int32;
+     html: UnsafeMixed;
+@@ -344,6 +354,7 @@ export interface NativeProps extends ViewProps {
      returnKeyLabel?: string;
      submitBehavior?: string;
      allowFontScaling?: boolean;
@@ -881,11 +1127,38 @@ index 5b2fd66..2d71d31 100644
      onInputFocus?: DirectEventHandler<TargetedEvent>;
      onInputBlur?: DirectEventHandler<TargetedEvent>;
      onChangeText?: DirectEventHandler<OnChangeTextEvent>;
+@@ -353,6 +364,7 @@ export interface NativeProps extends ViewProps {
+     onMentionDetected?: DirectEventHandler<OnMentionDetectedInternal>;
+     onMention?: DirectEventHandler<OnMentionEvent>;
+     onChangeSelection?: DirectEventHandler<OnChangeSelectionEvent>;
++    onSelectionFrame?: DirectEventHandler<OnSelectionFrameEvent>;
+     onRequestHtmlResult?: DirectEventHandler<OnRequestHtmlResultEvent>;
+     onInputKeyPress?: DirectEventHandler<OnKeyPressEvent>;
+     onPasteImages?: DirectEventHandler<OnPasteImagesEvent>;
 diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
-index 9b433e4..e2b24fa 100644
+index 9b433e4..cdb4edf 100644
 --- a/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
 +++ b/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
-@@ -558,6 +558,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -352,6 +352,18 @@ export interface OnChangeSelectionEvent {
+     end: number;
+     text: string;
+ }
++export interface OnSelectionFrameEvent {
++    /** The selection's first line, in the input's own coordinates. */
++    topX: number;
++    topY: number;
++    topWidth: number;
++    topHeight: number;
++    /** The selection's last line; the same as the first for a one-line selection. */
++    bottomX: number;
++    bottomY: number;
++    bottomWidth: number;
++    bottomHeight: number;
++}
+ export interface OnKeyPressEvent {
+     key: string;
+ }
+@@ -558,6 +570,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
       * expands to fit all content. Defaults to `true`.
       */
      scrollEnabled?: boolean;
@@ -899,11 +1172,56 @@ index 9b433e4..e2b24fa 100644
      /**
       * Regular expression used to auto-detect links as the user types. Set to
       * `null` to disable automatic link detection. Defaults to a built-in URL
+@@ -615,6 +634,12 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+     onEndMention?: (indicator: string) => void;
+     /** Called when the text selection range changes. */
+     onChangeSelection?: (e: NativeSyntheticEvent<OnChangeSelectionEvent>) => void;
++    /**
++     * Where the selected text sits in the input, sent when a non-empty
++     * selection changes and while the input scrolls under it. iOS only.
++     * `onChangeSelection` carries the range; this carries the geometry.
++     */
++    onSelectionFrame?: (e: NativeSyntheticEvent<OnSelectionFrameEvent>) => void;
+     /** Called when a key is pressed while the editor is focused. */
+     onKeyPress?: (e: NativeSyntheticEvent<OnKeyPressEvent>) => void;
+     /** Called when the user presses the return key and `submitBehavior` triggers a submit. */
+diff --git a/node_modules/react-native-enriched-html/src/index.native.tsx b/node_modules/react-native-enriched-html/src/index.native.tsx
+index 82d450b..fa6618c 100644
+--- a/node_modules/react-native-enriched-html/src/index.native.tsx
++++ b/node_modules/react-native-enriched-html/src/index.native.tsx
+@@ -9,6 +9,7 @@ export type {
+   OnLinkDetected,
+   OnMentionDetected,
+   OnChangeSelectionEvent,
++  OnSelectionFrameEvent,
+   OnKeyPressEvent,
+   OnPasteImagesEvent,
+   OnSubmitEditing,
 diff --git a/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts b/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
-index 20e9d12..eb0a334 100644
+index 20e9d12..6d7a6aa 100644
 --- a/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
 +++ b/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
-@@ -377,6 +377,7 @@ export interface NativeProps extends ViewProps {
+@@ -156,6 +156,19 @@ export interface OnChangeSelectionEvent {
+   text: string;
+ }
+ 
++export interface OnSelectionFrameEvent {
++  // The first and last line of the selection in the input's own coordinates
++  // (points, scroll offset already applied), so a menu can float by it.
++  topX: Float;
++  topY: Float;
++  topWidth: Float;
++  topHeight: Float;
++  bottomX: Float;
++  bottomY: Float;
++  bottomWidth: Float;
++  bottomHeight: Float;
++}
++
+ export interface OnRequestHtmlResultEvent {
+   requestId: Int32;
+   html: UnsafeMixed;
+@@ -377,6 +390,7 @@ export interface NativeProps extends ViewProps {
    returnKeyLabel?: string;
    submitBehavior?: string;
    allowFontScaling?: boolean;
@@ -911,11 +1229,39 @@ index 20e9d12..eb0a334 100644
  
    // event callbacks
    onInputFocus?: DirectEventHandler<TargetedEvent>;
+@@ -388,6 +402,7 @@ export interface NativeProps extends ViewProps {
+   onMentionDetected?: DirectEventHandler<OnMentionDetectedInternal>;
+   onMention?: DirectEventHandler<OnMentionEvent>;
+   onChangeSelection?: DirectEventHandler<OnChangeSelectionEvent>;
++  onSelectionFrame?: DirectEventHandler<OnSelectionFrameEvent>;
+   onRequestHtmlResult?: DirectEventHandler<OnRequestHtmlResultEvent>;
+   onInputKeyPress?: DirectEventHandler<OnKeyPressEvent>;
+   onPasteImages?: DirectEventHandler<OnPasteImagesEvent>;
 diff --git a/node_modules/react-native-enriched-html/src/types.ts b/node_modules/react-native-enriched-html/src/types.ts
-index d4d0dfd..aefcefb 100644
+index d4d0dfd..e8b8923 100644
 --- a/node_modules/react-native-enriched-html/src/types.ts
 +++ b/node_modules/react-native-enriched-html/src/types.ts
-@@ -663,6 +663,14 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -401,6 +401,19 @@ export interface OnChangeSelectionEvent {
+   text: string;
+ }
+ 
++export interface OnSelectionFrameEvent {
++  /** The selection's first line, in the input's own coordinates. */
++  topX: number;
++  topY: number;
++  topWidth: number;
++  topHeight: number;
++  /** The selection's last line; the same as the first for a one-line selection. */
++  bottomX: number;
++  bottomY: number;
++  bottomWidth: number;
++  bottomHeight: number;
++}
++
+ export interface OnKeyPressEvent {
+   key: string;
+ }
+@@ -663,6 +676,14 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
     */
    scrollEnabled?: boolean;
  
@@ -930,3 +1276,17 @@ index d4d0dfd..aefcefb 100644
    /**
     * Regular expression used to auto-detect links as the user types. Set to
     * `null` to disable automatic link detection. Defaults to a built-in URL
+@@ -735,6 +756,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+   /** Called when the text selection range changes. */
+   onChangeSelection?: (e: NativeSyntheticEvent<OnChangeSelectionEvent>) => void;
+ 
++  /**
++   * Where the selected text sits in the input, sent when a non-empty
++   * selection changes and while the input scrolls under it. iOS only.
++   * `onChangeSelection` carries the range; this carries the geometry.
++   */
++  onSelectionFrame?: (e: NativeSyntheticEvent<OnSelectionFrameEvent>) => void;
++
+   /** Called when a key is pressed while the editor is focused. */
+   onKeyPress?: (e: NativeSyntheticEvent<OnKeyPressEvent>) => void;
+ 

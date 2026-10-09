@@ -1,4 +1,10 @@
-import { asCiciroIntent, chatRequestFromComposer, chatRequestFromIntent } from "../lib/ciciro-intents";
+import {
+  asCiciroIntent,
+  asSelectionAction,
+  chatRequestFromComposer,
+  chatRequestFromIntent,
+  chatRequestFromSelectionAction,
+} from "../lib/ciciro-intents";
 
 describe("asCiciroIntent", () => {
   it("accepts the three writing-tool intents and ignores anything else", () => {
@@ -58,5 +64,51 @@ describe("chatRequestFromComposer", () => {
       scope: "chapter",
       activeChapterId: "c1",
     });
+  });
+});
+
+describe("asSelectionAction", () => {
+  it("accepts the menu's five actions and ignores anything else", () => {
+    expect(asSelectionAction("comment")).toBe("comment");
+    expect(asSelectionAction(["fix"])).toBe("fix");
+    expect(asSelectionAction("continue")).toBeNull();
+    expect(asSelectionAction(undefined)).toBeNull();
+  });
+});
+
+describe("chatRequestFromSelectionAction", () => {
+  const ctx = { projectId: "p1", chapterId: "c1", selection: "  the country  ", kind: "novel" as const };
+
+  it("sends the action's brief as a selection-scoped quick action carrying the text", () => {
+    const input = chatRequestFromSelectionAction("rewrite", ctx);
+    expect(input).toMatchObject({
+      projectId: "p1",
+      kind: "action",
+      scope: "selection",
+      activeChapterId: "c1",
+      selection: "the country",
+    });
+    expect(input?.message).toContain("<draft>");
+  });
+
+  it("sends nothing without a selection", () => {
+    expect(chatRequestFromSelectionAction("fix", { ...ctx, selection: "   " })).toBeNull();
+  });
+});
+
+describe("chatRequestFromComposer with a comment's selection", () => {
+  it("attaches the highlighted text and scopes the turn to it", () => {
+    const input = chatRequestFromComposer("Is this too blunt?", {
+      projectId: "p1",
+      chapterId: "c1",
+      selection: "the country",
+    });
+    expect(input).toMatchObject({ kind: "chat", scope: "selection", selection: "the country" });
+  });
+
+  it("stays a chapter-scoped chat without one", () => {
+    const input = chatRequestFromComposer("Hello", { projectId: "p1", chapterId: "c1" });
+    expect(input).toMatchObject({ scope: "chapter" });
+    expect(input?.selection).toBeUndefined();
   });
 });
