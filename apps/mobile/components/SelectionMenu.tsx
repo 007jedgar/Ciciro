@@ -31,8 +31,8 @@ const ICONS: Record<SelectionActionId, ComponentType<{ color: string; size?: num
   fix: FixIcon,
 };
 
-/** The expanded synonym list scrolls past this height rather than growing the menu off the page. */
-const LIST_MAX_HEIGHT = 132;
+/** The expanded synonym list scrolls past two rows of chips, so the menu still fits under the word with the keyboard up. */
+const LIST_MAX_HEIGHT = 70;
 
 /**
  * The menu that opens over highlighted text. A passage gets Comment, Rewrite,

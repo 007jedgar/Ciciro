@@ -417,6 +417,9 @@ function ManuscriptScreenContent() {
   const onSelectionAction = useCallback(
     (action: SelectionActionId) => {
       if (!projectId) return;
+      // A comment is typed on the next tab, so its composer takes the keyboard over; the other actions
+      // start a reply to read, so the keyboard goes with the editor.
+      if (action !== "comment") editorRef.current?.blur();
       router.navigate(`/project/${projectId}/ciciro?${SELECTION_ACTION_PARAM}=${action}` as never);
     },
     [projectId, router]

@@ -46,10 +46,10 @@ describe("placeSelectionMenu", () => {
     expect(placed.left).toBe(100 + 75 - 100);
   });
 
-  it("flips above when there is no room below", () => {
+  it("flips above the system callout when there is no room below", () => {
     const placed = place(oneLine(450));
     expect(placed.below).toBe(false);
-    expect(placed.top).toBe(450 - 56 - 12);
+    expect(placed.top).toBe(450 - 56 - 12 - 56);
   });
 
   it("sits as low as the page allows when neither side has room", () => {

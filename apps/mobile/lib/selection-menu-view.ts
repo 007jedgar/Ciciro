@@ -33,15 +33,16 @@ export type MenuPlacement = { left: number; top: number; below: boolean };
 
 /**
  * The menu goes under the selection, where the system callout (Cut, Copy,
- * Paste) does not: that one opens above. With no room below it goes above,
- * and with no room at either end it sits as low as the page allows. It is
+ * Paste) does not: that one opens above. With no room below it goes above
+ * that callout, clear of it, and with no room at either end it sits as low as
+ * the page allows. It is
  * centred on the line it hangs from and kept inside the page.
  *
  * A worklet: the menu follows the selection as the page scrolls, on the UI
  * thread, so the numbers it needs are plain arguments and its spacing is
  * written inline: 8 points to the page's edge, 12 above the selection (the
- * system handle hangs off the first line's start) and 20 below it (off the
- * last line's end).
+ * system handle hangs off the first line's start) plus 56 for the callout
+ * that sits there, and 20 below it (off the last line's end).
  */
 export function placeSelectionMenu(
   frame: SelectionFrame,
@@ -53,7 +54,7 @@ export function placeSelectionMenu(
   "worklet";
   const edge = 8;
   const belowTop = frame.bottomY + frame.bottomHeight + 20;
-  const aboveTop = frame.topY - menuHeight - 12;
+  const aboveTop = frame.topY - menuHeight - 12 - 56;
   const fitsBelow = belowTop + menuHeight <= boundsHeight - edge;
   const fitsAbove = aboveTop >= edge;
   const below = fitsBelow || !fitsAbove;

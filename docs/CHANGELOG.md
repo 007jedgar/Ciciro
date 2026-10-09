@@ -5,6 +5,18 @@ else stays in commit messages.
 
 ## Unreleased
 
+- On the iPhone, highlighting words in the chapter editor shows the same menu
+  under the selection (above it, clear of the system Cut and Copy bar, when the
+  keyboard leaves no room). One word offers its synonyms as chips, with the rest
+  behind "more...", and tapping one swaps it in place and keeps your cursor.
+
+- On the website, highlighting words in the chapter shows a small menu over
+  them. Two or more words offer Comment, Rewrite, Describe, Expand and Fix
+  (each sends Ciciro a brief about that text, and Comment starts a chat with it
+  quoted); one word offers Comment, Describe and Fix plus synonyms that fit its
+  sentence, and choosing one swaps it in place. Cmd+K (Ctrl+K) moves into the
+  menu from the keyboard.
+
 - On the phone, tapping anywhere around the page in the chapter editor (the
   margins, the chapter title row, the pills) puts the keyboard away. The
   selected tab in the manuscript tab bar now fills its whole segment of the bar,

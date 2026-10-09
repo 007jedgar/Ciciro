@@ -5,6 +5,16 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "1b6c49b54796",
+    "summary": "On the iPhone, highlighting words in the chapter editor shows the same menu under the selection (above it, clear of the system Cut and Copy bar, when the keybo…",
+    "text": "On the iPhone, highlighting words in the chapter editor shows the same menu under the selection (above it, clear of the system Cut and Copy bar, when the keyboard leaves no room). One word offers its synonyms as chips, with the rest behind \"more...\", and tapping one swaps it in place and keeps your cursor."
+  },
+  {
+    "id": "d89acd470e78",
+    "summary": "On the website, highlighting words in the chapter shows a small menu over them.",
+    "text": "On the website, highlighting words in the chapter shows a small menu over them. Two or more words offer Comment, Rewrite, Describe, Expand and Fix (each sends Ciciro a brief about that text, and Comment starts a chat with it quoted); one word offers Comment, Describe and Fix plus synonyms that fit its sentence, and choosing one swaps it in place. Cmd+K (Ctrl+K) moves into the menu from the keyboard."
+  },
+  {
     "id": "908f14c611b1",
     "summary": "On the phone, tapping anywhere around the page in the chapter editor (the margins, the chapter title row, the pills) puts the keyboard away.",
     "text": "On the phone, tapping anywhere around the page in the chapter editor (the margins, the chapter title row, the pills) puts the keyboard away. The selected tab in the manuscript tab bar now fills its whole segment of the bar, rounder at the two ends and flatter in the middle. The Ciciro chat shows its quick-action chips on an empty chat only; once you are talking they sit behind a sparkle button. \"Previously on\" is now two or three sentences (web and phone), and the phone clamps it to five lines with Show more."
