@@ -2,7 +2,7 @@
 -- Apply with: wrangler d1 execute ciciro --remote --file=prisma/d1-beta-signups.sql
 --
 -- Required before deploy: the landing page's signup form writes to this table,
--- so until it runs the form answers with a 500. Apply it to production D1
+-- so until it runs the form answers 503. Apply it to production D1
 -- before merging to main. New table only; no row is touched.
 
 CREATE TABLE IF NOT EXISTS "BetaSignup" (

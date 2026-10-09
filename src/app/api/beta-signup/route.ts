@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
+import { isMissingRelationError, responseFromAuthError } from "@/lib/auth/http";
 import { BETA_HONEYPOT_FIELD, joinBeta } from "@/lib/beta-signup";
 import { clientAddress } from "@/lib/request-ip";
 
@@ -18,8 +18,13 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const failure = responseFromAuthError(error) ?? responseFromDbError(error);
+    const failure = responseFromAuthError(error);
     if (failure) return failure;
+    // prisma/d1-beta-signups.sql not applied yet: say so kindly, not "Database is missing...".
+    if (isMissingRelationError(error)) {
+      console.error("beta signup table missing: apply prisma/d1-beta-signups.sql", error);
+      return NextResponse.json({ error: "Signups are not open yet. Try again soon." }, { status: 503 });
+    }
     console.error("beta signup failed", error);
     return NextResponse.json({ error: "Could not sign you up. Try again." }, { status: 500 });
   }

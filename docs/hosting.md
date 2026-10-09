@@ -356,7 +356,7 @@ honeypot: a filled one is dropped silently. Nothing is emailed; invites are sent
 by hand. It is outside account deletion and the data export (`UNOWNED_MODELS`
 in `src/lib/account/delete.ts`).
 
-New table: apply before merging, or the form answers 500.
+New table, applied **by hand** (the deploy only checks it: `npm run db:check:d1` fails the `main` build while D1 is behind). Apply before merging. If it is not applied yet, the endpoint logs the error and answers 503 "Signups are not open yet. Try again soon.", which the form shows inline.
 
 ```bash
 wrangler d1 execute ciciro --remote --file=prisma/d1-beta-signups.sql

@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { POST } from "@/app/api/beta-signup/route";
@@ -69,5 +69,17 @@ describe("POST /api/beta-signup", () => {
     expect((await POST(signup({ email: "p0@example.com" }))).status).toBe(200);
     expect((await POST(signup({ email: "other@example.com" }, "7.7.7.7"))).status).toBe(200);
     expect(await prisma.betaSignup.count()).toBe(6);
+  });
+});
+
+describe("POST /api/beta-signup before the D1 upgrade", () => {
+  it("answers 503 with a friendly message when the table is missing", async () => {
+    const spy = vi.spyOn(prisma.betaSignup, "findUnique").mockRejectedValue(new Error("no such table: BetaSignup"));
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await POST(signup({ email: "ada@example.com" }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "Signups are not open yet. Try again soon." });
+    spy.mockRestore();
+    err.mockRestore();
   });
 });
