@@ -615,10 +615,15 @@ export function scriptBlocksFromHtml(html: string): ScriptBlock[] {
   return out;
 }
 
-const LAYOUT_CACHE_MAX = 64;
+const LAYOUT_CACHE_MIN = 64;
+let layoutCacheMax = LAYOUT_CACHE_MIN;
 const layoutCache = new Map<string, LaidOutBlock[]>();
 
-/** `layout(scriptBlocksFromHtml(html))`, remembered for the last chapters asked about. */
+/**
+ * `layout(scriptBlocksFromHtml(html))`, remembered for the last chapters asked
+ * about: at least as many as the longest script scanned, so a scan over every
+ * sequence on each keystroke lays out only the one that changed.
+ */
 export function layoutHtml(html: string): LaidOutBlock[] {
   const hit = layoutCache.get(html);
   if (hit) {
@@ -628,9 +633,10 @@ export function layoutHtml(html: string): LaidOutBlock[] {
   }
   const laid = layout(scriptBlocksFromHtml(html));
   layoutCache.set(html, laid);
-  if (layoutCache.size > LAYOUT_CACHE_MAX) {
+  while (layoutCache.size > layoutCacheMax) {
     const oldest = layoutCache.keys().next().value;
-    if (oldest !== undefined) layoutCache.delete(oldest);
+    if (oldest === undefined) break;
+    layoutCache.delete(oldest);
   }
   return laid;
 }
@@ -640,6 +646,7 @@ export function layoutHtml(html: string): LaidOutBlock[] {
  * ends. Sequences run on from one another with continuous page numbers.
  */
 export function sequenceCursors(chapters: readonly string[]): { starts: PageCursor[]; end: PageCursor } {
+  layoutCacheMax = Math.max(layoutCacheMax, chapters.length + LAYOUT_CACHE_MIN);
   const starts: PageCursor[] = [];
   let cursor: PageCursor = SCRIPT_START;
   for (const html of chapters) {

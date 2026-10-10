@@ -4,7 +4,7 @@
 // Must stay in step with src/lib/manuscript-kind.ts (test/manuscript-kind.test.ts
 // checks the two agree). The assistant prompts live only on the server.
 
-import { withElement, type ScreenplayElement } from "./screenplay";
+import { knownElement, withElement, type ScreenplayElement } from "./screenplay";
 
 export const MANUSCRIPT_KINDS = ["novel", "screenplay", "blog", "journal"] as const;
 export type ManuscriptKind = (typeof MANUSCRIPT_KINDS)[number];
@@ -201,12 +201,14 @@ export function nextChapterTitle(kind: ManuscriptKind, count: number): string {
 const SCENE_HEADING = /^(?:INT|EXT|EST|INT\.?\/EXT|EXT\.?\/INT|I\/E)[.\s]/i;
 const TRANSITION = /^(?:[A-Z][A-Z .'-]*\bTO:|FADE (?:IN|OUT)[.:]?|FADE TO BLACK[.:]?|CUT TO BLACK[.:]?|SMASH CUT:|DISSOLVE TO:|THE END\.?)$/;
 const CHARACTER_CUE = /^[A-Z][A-Z0-9 .'-]{0,38}(?:\s*\((?:V\.O\.|O\.S\.|O\.C\.|CONT'D)\))?$/;
+const SHOT =
+  /^(?:(?:EXTREME )?CLOSE(?:[ -]?UP\b| ON\b)|ECU\b|INSERT\b|ANGLE ON\b|(?:NEW|REVERSE) ANGLE\b|WIDE (?:ON|SHOT)\b|(?:[A-Z][A-Z.'-]* )?POV\b|(?:TRACKING|OVERHEAD|AERIAL|ESTABLISHING|MOVING|MEDIUM|LONG|FULL|TWO) SHOT\b|BACK TO SCENE\b|PUSH IN\b|PULL BACK\b)/;
 
 /**
  * Sort a script written as plain lines (what the assistant returns) into
  * screenplay elements. A line under a character cue is dialogue until a blank
- * line; anything unrecognized is action. A parenthetical comes back without
- * its brackets.
+ * line; a camera direction (CLOSE ON, ANGLE ON, POV, INSERT) is a shot; anything
+ * unrecognized is action. A parenthetical comes back without its brackets.
  */
 export function classifyScreenplayLines(
   text: string,
@@ -223,11 +225,13 @@ export function classifyScreenplayLines(
       previous = undefined;
       continue;
     }
-    const cue = CHARACTER_CUE.test(line) && line === line.toUpperCase();
+    const caps = line === line.toUpperCase();
+    const cue = CHARACTER_CUE.test(line) && caps;
     let element: ScreenplayElement;
     if (SCENE_HEADING.test(line)) element = "scene-heading";
     else if (TRANSITION.test(line)) element = "transition";
     else if (inDialogue && /^\(\s*\S.*\)$/.test(line)) element = "parenthetical";
+    else if (caps && SHOT.test(line) && previous !== "character" && previous !== "parenthetical") element = "shot";
     else if (inDialogue && !(cue && previous === "dialogue")) element = "dialogue";
     else if (cue) element = "character";
     else element = "action";
@@ -240,9 +244,13 @@ export function classifyScreenplayLines(
 }
 
 /**
- * The element to read a replacement on from: a replaced line of speech keeps
- * its speaker open, anything else starts fresh.
+ * How to read a replacement for a block tagged `replaced`: a replaced line of
+ * speech keeps its speaker open (`after`); a replaced shot, or a newer client's
+ * element this build does not know, is kept on the replacement's first line
+ * (`keep`) rather than re-guessed; anything else starts fresh.
  */
-export function replacementContext(replaced: ScreenplayElement | undefined): ScreenplayElement | undefined {
-  return replaced === "dialogue" || replaced === "parenthetical" ? "character" : undefined;
+export function replacementContext(replaced: string | undefined): { after?: ScreenplayElement; keep?: string } {
+  if (replaced === "dialogue" || replaced === "parenthetical") return { after: "character" };
+  if (replaced !== undefined && (replaced === "shot" || !knownElement(replaced))) return { keep: replaced };
+  return {};
 }

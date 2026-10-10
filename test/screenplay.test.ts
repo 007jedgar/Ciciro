@@ -345,6 +345,21 @@ describe("reading a chapter's HTML", () => {
     const html = '<p data-sp="character">mara</p>';
     expect(layoutHtml(html)).toBe(layoutHtml(html));
   });
+
+  it("lays out only the edited sequence when a long script is scanned again", () => {
+    const script = Array.from(
+      { length: 200 },
+      (_, i) => `<p data-sp="scene-heading">int. room ${i} - day</p><p>Scene ${i} begins.</p>`
+    );
+    sequenceCursors(script);
+    const laid = script.map(layoutHtml);
+    const edited = script.map((html, i) => (i === 120 ? html.replace("begins.", "begins again.") : html));
+    for (let keystroke = 0; keystroke < 3; keystroke++) sequenceCursors(edited);
+    edited.forEach((html, i) => {
+      if (i === 120) expect(layoutHtml(html)).not.toBe(laid[i]);
+      else expect(layoutHtml(html)).toBe(laid[i]);
+    });
+  });
 });
 
 describe("a script's structure", () => {

@@ -4,7 +4,7 @@
 // Must stay in step with apps/mobile/lib/manuscript-kind.ts (test/manuscript-kind.test.ts
 // checks the two agree).
 
-import { elementOfHtml, withElement, type ScreenplayElement } from "./screenplay";
+import { elementTagOfHtml, knownElement, normalizeElement, withElement, type ScreenplayElement } from "./screenplay";
 
 export const MANUSCRIPT_KINDS = ["novel", "screenplay", "blog", "journal"] as const;
 export type ManuscriptKind = (typeof MANUSCRIPT_KINDS)[number];
@@ -260,12 +260,14 @@ export function drafterDirective(kind: ManuscriptKind): string {
 const SCENE_HEADING = /^(?:INT|EXT|EST|INT\.?\/EXT|EXT\.?\/INT|I\/E)[.\s]/i;
 const TRANSITION = /^(?:[A-Z][A-Z .'-]*\bTO:|FADE (?:IN|OUT)[.:]?|FADE TO BLACK[.:]?|CUT TO BLACK[.:]?|SMASH CUT:|DISSOLVE TO:|THE END\.?)$/;
 const CHARACTER_CUE = /^[A-Z][A-Z0-9 .'-]{0,38}(?:\s*\((?:V\.O\.|O\.S\.|O\.C\.|CONT'D)\))?$/;
+const SHOT =
+  /^(?:(?:EXTREME )?CLOSE(?:[ -]?UP\b| ON\b)|ECU\b|INSERT\b|ANGLE ON\b|(?:NEW|REVERSE) ANGLE\b|WIDE (?:ON|SHOT)\b|(?:[A-Z][A-Z.'-]* )?POV\b|(?:TRACKING|OVERHEAD|AERIAL|ESTABLISHING|MOVING|MEDIUM|LONG|FULL|TWO) SHOT\b|BACK TO SCENE\b|PUSH IN\b|PULL BACK\b)/;
 
 /**
  * Sort a script written as plain lines (what the assistant returns) into
  * screenplay elements. A line under a character cue is dialogue until a blank
- * line; anything unrecognized is action. A parenthetical comes back without
- * its brackets.
+ * line; a camera direction (CLOSE ON, ANGLE ON, POV, INSERT) is a shot; anything
+ * unrecognized is action. A parenthetical comes back without its brackets.
  */
 export function classifyScreenplayLines(
   text: string,
@@ -282,11 +284,13 @@ export function classifyScreenplayLines(
       previous = undefined;
       continue;
     }
-    const cue = CHARACTER_CUE.test(line) && line === line.toUpperCase();
+    const caps = line === line.toUpperCase();
+    const cue = CHARACTER_CUE.test(line) && caps;
     let element: ScreenplayElement;
     if (SCENE_HEADING.test(line)) element = "scene-heading";
     else if (TRANSITION.test(line)) element = "transition";
     else if (inDialogue && /^\(\s*\S.*\)$/.test(line)) element = "parenthetical";
+    else if (caps && SHOT.test(line) && previous !== "character" && previous !== "parenthetical") element = "shot";
     else if (inDialogue && !(cue && previous === "dialogue")) element = "dialogue";
     else if (cue) element = "character";
     else element = "action";
@@ -303,11 +307,31 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * The element to read a replacement on from: a replaced line of speech keeps
- * its speaker open, anything else starts fresh.
+ * How to read a replacement for a block tagged `replaced`: a replaced line of
+ * speech keeps its speaker open (`after`); a replaced shot, or a newer client's
+ * element this build does not know, is kept on the replacement's first line
+ * (`keep`) rather than re-guessed; anything else starts fresh.
  */
-export function replacementContext(replaced: ScreenplayElement | undefined): ScreenplayElement | undefined {
-  return replaced === "dialogue" || replaced === "parenthetical" ? "character" : undefined;
+export function replacementContext(replaced: string | undefined): { after?: ScreenplayElement; keep?: string } {
+  if (replaced === "dialogue" || replaced === "parenthetical") return { after: "character" };
+  if (replaced !== undefined && (replaced === "shot" || !knownElement(replaced))) return { keep: replaced };
+  return {};
+}
+
+/**
+ * Replacement text for a block tagged `replaced`, sorted into elements. A kept
+ * tag gives way only to a line that is plainly a scene heading or a transition.
+ */
+export function classifyReplacement(text: string, replaced: string | undefined): { element: string; text: string }[] {
+  const { after, keep } = replacementContext(replaced);
+  if (!keep) return classifyScreenplayLines(text, after);
+  const rows = text.split(/\r?\n/);
+  const at = rows.findIndex((row) => row.trim());
+  if (at < 0) return [];
+  const [first] = classifyScreenplayLines(rows[at]);
+  const head = first.element === "scene-heading" || first.element === "transition" ? first : { element: keep, text: first.text };
+  const rest = rows.slice(at + 1).join("\n");
+  return [head, ...classifyScreenplayLines(rest, head === first ? first.element : normalizeElement(keep))];
 }
 
 /**
@@ -319,12 +343,22 @@ export function assistantReplacementSplitter(
 ): ((replace: string, replacing: string | null) => { text: string; mark: (open: string) => string }[]) | undefined {
   if (kind !== "screenplay") return undefined;
   return (replace, replacing) =>
-    classifyScreenplayLines(replace, replacementContext(replacing ? elementOfHtml(replacing) : undefined)).map(
-      ({ element, text }) => ({
-        text,
-        mark: (open: string) => withElement(open, element),
-      })
-    );
+    classifyReplacement(replace, replacing ? elementTagOfHtml(replacing) : undefined).map(({ element, text }) => ({
+      text,
+      mark: (open: string) => withElement(open, element),
+    }));
+}
+
+function screenplayHtml(lines: { element: string; text: string }[]): string {
+  return lines.map(({ element, text }) => withElement(`<p>${escapeHtml(text)}</p>`, element)).join("");
+}
+
+/**
+ * Text from the assistant that replaces a run of blocks starting on one tagged
+ * `replaced`, as editor blocks.
+ */
+export function assistantReplacementToHtml(text: string, kind: ManuscriptKind, replaced: string | undefined): string {
+  return kind === "screenplay" ? screenplayHtml(classifyReplacement(text, replaced)) : assistantTextToHtml(text, kind);
 }
 
 /**
@@ -334,9 +368,7 @@ export function assistantReplacementSplitter(
  */
 export function assistantTextToHtml(text: string, kind: ManuscriptKind, after?: ScreenplayElement): string {
   if (kind === "screenplay") {
-    return classifyScreenplayLines(text, after)
-      .map(({ element, text: line }) => withElement(`<p>${escapeHtml(line)}</p>`, element))
-      .join("");
+    return screenplayHtml(classifyScreenplayLines(text, after));
   }
   return text
     .split(/\n{2,}/)
