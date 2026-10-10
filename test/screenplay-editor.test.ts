@@ -5,12 +5,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import { BlockId } from "@/lib/tiptap-block-id";
 import {
   Screenplay,
+  acceptSuggestion,
   currentElement,
+  currentSuggestions,
   currentTag,
   dualState,
+  moveScene,
   screenplayStarterKit,
   setElement,
+  toggleCueExtension,
   toggleDual,
+  type ScriptContext,
+  type SuggestInfo,
 } from "@/lib/tiptap-screenplay";
 import { ScreenplayPages, refreshPageMarkers, type ScreenplayPageSettings } from "@/lib/tiptap-screenplay-pages";
 import { elementForShortcutDigit, type PageCursor } from "@/lib/screenplay";
@@ -86,7 +92,7 @@ describe("screenplay editor", () => {
   });
 
   it("Tab cycles the element and Shift-Tab goes back", () => {
-    const ed = make("<p>Mara</p>");
+    const ed = make("<p></p>");
     ed.commands.focus("end");
     expect(currentElement(ed)).toBe("action");
     expect(press(ed, "Tab")).toBe(true);
@@ -529,5 +535,326 @@ describe("professional output in the editor", () => {
     paste(ed, "MARA\nHi.\n\nJONAH ^\nHello.\n\n> THE END <");
     expect(lines(ed).map(([el]) => el)).toEqual(["character", "dialogue", "character", "dialogue", "centered"]);
     expect(ed.getHTML()).toContain('data-sp-dual="1"');
+  });
+});
+
+describe("writing speed", () => {
+  let context: ScriptContext | null = null;
+  let shown: (SuggestInfo | null)[] = [];
+
+  function write(content: string, known: ScriptContext | null = null): Editor {
+    context = known;
+    shown = [];
+    editor = new Editor({
+      extensions: [
+        ...screenplayStarterKit(),
+        BlockId,
+        Screenplay.configure({ context: () => context, onSuggest: (info) => shown.push(info) }),
+      ],
+      content,
+    });
+    editor.commands.focus("end");
+    return editor;
+  }
+
+  const labels = (ed: Editor) => currentSuggestions(ed)?.items.map((i) => i.label) ?? [];
+  const text = (ed: Editor) => lines(ed).map(([, t]) => t);
+
+  describe("capitals as they are typed", () => {
+    it("makes what is typed into a heading, a cue, a transition or a shot capitals", () => {
+      for (const el of ["scene-heading", "character", "transition", "shot"]) {
+        const ed = write(`<p data-sp="${el}"></p>`);
+        type(ed, "int. lab - día");
+        expect(text(ed)).toEqual(["INT. LAB - DÍA"]);
+        ed.destroy();
+      }
+    });
+
+    it("leaves action, dialogue and parentheticals as typed", () => {
+      for (const el of ["", ' data-sp="dialogue"', ' data-sp="parenthetical"']) {
+        const ed = write(`<p${el}></p>`);
+        type(ed, "Hello there");
+        expect(text(ed)).toEqual(["Hello there"]);
+        ed.destroy();
+      }
+    });
+
+    it("leaves text that is already there as it was, and capitals only what is added to it", () => {
+      const ed = write('<p data-sp="character">mara</p>');
+      type(ed, "h");
+      expect(text(ed)).toEqual(["maraH"]);
+    });
+
+    it("does not touch a line whose element this build does not know", () => {
+      const ed = write('<p data-sp="centered"></p>');
+      type(ed, "the end");
+      expect(text(ed)).toEqual(["the end"]);
+      expect(elements(ed)).toEqual(["centered"]);
+    });
+
+    it("keeps the element when Tab walks a line through the capitals elements", () => {
+      const ed = write("<p></p>");
+      type(ed, "Mara runs");
+      press(ed, "Tab");
+      press(ed, "Tab", true);
+      expect(text(ed)).toEqual(["Mara runs"]);
+    });
+  });
+
+  describe("Tab through a heading", () => {
+    it("goes from INT. to the location to the time of day to the next element", () => {
+      const ed = write('<p data-sp="scene-heading"></p>');
+      type(ed, "int.");
+      expect(press(ed, "Tab")).toBe(true);
+      expect(text(ed)).toEqual(["INT. "]);
+      type(ed, "lab");
+      press(ed, "Tab");
+      expect(text(ed)).toEqual(["INT. LAB - "]);
+      type(ed, "night");
+      expect(text(ed)).toEqual(["INT. LAB - NIGHT"]);
+      press(ed, "Tab");
+      expect(lines(ed)).toEqual([
+        ["scene-heading", "INT. LAB - NIGHT"],
+        [null, ""],
+      ]);
+    });
+
+    it("adds only the dash when the location already ends in a space", () => {
+      const ed = write('<p data-sp="scene-heading">INT. LAB </p>');
+      press(ed, "Tab");
+      expect(text(ed)).toEqual(["INT. LAB - "]);
+    });
+
+    it("only walks when the caret is at the end of the line", () => {
+      const ed = write('<p data-sp="scene-heading">INT.</p>');
+      ed.commands.setTextSelection(3);
+      press(ed, "Tab");
+      expect(text(ed)).toEqual(["INT."]);
+      expect(elements(ed)).toEqual([null]);
+    });
+  });
+
+  describe("Tab from a cue", () => {
+    it("starts a parenthetical under a cue with a name", () => {
+      const ed = write('<p data-sp="character">MARA</p>');
+      press(ed, "Tab");
+      expect(lines(ed)).toEqual([
+        ["character", "MARA"],
+        ["parenthetical", ""],
+      ]);
+    });
+
+    it("still walks the ring from an empty cue", () => {
+      const ed = write('<p data-sp="character"></p>');
+      press(ed, "Tab");
+      expect(elements(ed)).toEqual(["dialogue"]);
+    });
+  });
+
+  describe("the popup", () => {
+    const known: ScriptContext = { sequences: [[{ element: "scene-heading", text: "INT. LAB - NIGHT" }]], names: ["Mara", "Marcus", "Priya"] };
+
+    it("offers names from the story bible before they are used, once a letter is typed", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      expect(labels(ed)).toEqual([]);
+      type(ed, "p");
+      expect(labels(ed)).toEqual(["PRIYA"]);
+      expect(shown.at(-1)?.items.map((i) => i.label)).toBeUndefined();
+    });
+
+    it("offers names the script already uses, most used first", () => {
+      const ed = write(
+        '<p data-sp="character">MARA</p><p data-sp="dialogue">Hi.</p><p data-sp="character">JONAH</p><p data-sp="dialogue">Hey.</p><p data-sp="character">MARA</p><p data-sp="dialogue">Yes.</p><p data-sp="character"></p>'
+      );
+      type(ed, "m");
+      expect(labels(ed)).toEqual(["MARA"]);
+      type(ed, "ara");
+      expect(labels(ed)).toEqual([]);
+    });
+
+    it("takes the first choice on Tab", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      type(ed, "pr");
+      expect(press(ed, "Tab")).toBe(true);
+      expect(text(ed)).toEqual(["PRIYA"]);
+      expect(labels(ed)).toEqual([]);
+      press(ed, "Tab");
+      expect(lines(ed)).toEqual([
+        ["character", "PRIYA"],
+        ["parenthetical", ""],
+      ]);
+    });
+
+    it("walks the places and the times of day on a heading", () => {
+      const ed = write('<p data-sp="scene-heading"></p>', known);
+      type(ed, "int. ");
+      expect(labels(ed)).toEqual(["LAB"]);
+      press(ed, "Tab");
+      expect(text(ed)).toEqual(["INT. LAB - "]);
+      expect(labels(ed)[0]).toBe("NIGHT");
+      press(ed, "Tab");
+      expect(text(ed)).toEqual(["INT. LAB - NIGHT"]);
+      expect(labels(ed)).toEqual([]);
+    });
+
+    it("moves the highlight with the arrow keys and takes it on Enter", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      type(ed, "m");
+      expect(labels(ed)).toEqual(["MARA", "MARCUS"]);
+      expect(press(ed, "ArrowDown")).toBe(true);
+      expect(currentSuggestions(ed)?.selected).toBe(1);
+      expect(press(ed, "Enter")).toBe(true);
+      expect(lines(ed)).toEqual([["character", "MARCUS"]]);
+      expect(labels(ed)).toEqual([]);
+    });
+
+    it("does not take a choice on Enter that was never walked to", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      type(ed, "m");
+      press(ed, "Enter");
+      expect(lines(ed)).toEqual([
+        ["character", "M"],
+        ["dialogue", ""],
+      ]);
+    });
+
+    it("wraps the highlight around and goes back up", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      type(ed, "m");
+      press(ed, "ArrowUp");
+      expect(currentSuggestions(ed)?.selected).toBe(1);
+      press(ed, "ArrowDown");
+      expect(currentSuggestions(ed)?.selected).toBe(0);
+    });
+
+    it("offers nothing on a plain line, so the arrow keys are the editor's", () => {
+      const ed = write("<p>Plain</p>", known);
+      expect(currentSuggestions(ed)).toBeNull();
+    });
+
+    it("closes on Escape until the line changes", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      type(ed, "m");
+      expect(press(ed, "Escape")).toBe(true);
+      expect(labels(ed)).toEqual([]);
+      type(ed, "a");
+      expect(labels(ed)).toEqual(["MARA", "MARCUS"]);
+    });
+
+    it("is not offered on action or dialogue", () => {
+      const ed = write("<p></p>", known);
+      type(ed, "m");
+      expect(labels(ed)).toEqual([]);
+    });
+
+    it("lets Tab move on when the line already says what the choice would", () => {
+      const ed = write('<p data-sp="character">MARA</p>', {
+        sequences: [[{ element: "character", text: "MARA" }]],
+        names: [],
+      });
+      expect(labels(ed)).toEqual([]);
+      expect(acceptSuggestion(ed)).toBe(false);
+      press(ed, "Tab");
+      expect(elements(ed)).toEqual(["character", "parenthetical"]);
+    });
+
+    it("reports the choices to the page and closes it when they go", () => {
+      const ed = write('<p data-sp="character"></p>', known);
+      ed.view.hasFocus = () => true;
+      type(ed, "pr");
+      expect(shown.at(-1)?.items.map((i) => i.label)).toEqual(["PRIYA"]);
+      expect(shown.at(-1)?.selected).toBe(0);
+      type(ed, "iya");
+      expect(shown.at(-1)).toBeNull();
+    });
+  });
+
+  describe("CONT'D", () => {
+    const speech =
+      '<p data-sp="scene-heading">INT. LAB - NIGHT</p><p data-sp="character">MARA</p><p data-sp="dialogue">Hello.</p><p>She turns away.</p>';
+
+    it("is added to a cue for the same speaker after an action line", () => {
+      const ed = write(`${speech}<p data-sp="character">MARA</p>`);
+      press(ed, "Enter");
+      expect(lines(ed).slice(-2)).toEqual([
+        ["character", "MARA (CONT'D)"],
+        ["dialogue", ""],
+      ]);
+    });
+
+    it("is not added for someone else, or twice", () => {
+      const other = write(`${speech}<p data-sp="character">JONAH</p>`);
+      press(other, "Enter");
+      expect(text(other).slice(-2)).toEqual(["JONAH", ""]);
+      other.destroy();
+      const twice = write(`${speech}<p data-sp="character">MARA (CONT'D)</p>`);
+      press(twice, "Enter");
+      expect(text(twice).slice(-2)).toEqual(["MARA (CONT'D)", ""]);
+    });
+
+    it("is offered by the popup too", () => {
+      const ed = write(`${speech}<p data-sp="character"></p>`);
+      type(ed, "m");
+      expect(labels(ed)).toEqual(["MARA (CONT'D)", "MARA"]);
+    });
+  });
+
+  describe("extensions on a cue", () => {
+    it("toggles V.O., O.S. and CONT'D and keeps the caret at the end", () => {
+      const ed = write('<p data-sp="character">MARA</p>');
+      expect(toggleCueExtension(ed, "V.O.")).toBe(true);
+      expect(text(ed)).toEqual(["MARA (V.O.)"]);
+      expect(toggleCueExtension(ed, "CONT'D")).toBe(true);
+      expect(text(ed)).toEqual(["MARA (V.O.) (CONT'D)"]);
+      expect(toggleCueExtension(ed, "O.S.")).toBe(true);
+      expect(text(ed)).toEqual(["MARA (O.S.) (CONT'D)"]);
+      expect(toggleCueExtension(ed, "O.S.")).toBe(true);
+      expect(text(ed)).toEqual(["MARA (CONT'D)"]);
+      type(ed, "!");
+      expect(text(ed)).toEqual(["MARA (CONT'D)!"]);
+    });
+
+    it("does nothing off a cue, or on a cue with no name", () => {
+      expect(toggleCueExtension(write("<p>Plain</p>"), "V.O.")).toBe(false);
+      expect(toggleCueExtension(write('<p data-sp="character"></p>'), "V.O.")).toBe(false);
+    });
+  });
+
+  describe("scenes", () => {
+    const script =
+      '<p data-sp="scene-heading">INT. A - DAY</p><p>One.</p><p data-sp="scene-heading">INT. B - DAY</p><p>Two.</p><p data-sp="scene-heading">INT. C - DAY</p><p>Three.</p>';
+
+    it("moves a scene to where another is, with its blocks, and keeps the caret in it", () => {
+      const ed = write(script);
+      ed.commands.setTextSelection(ed.state.doc.content.size - 3);
+      expect(moveScene(ed, 2, 1)).toBe(true);
+      expect(text(ed)).toEqual(["INT. A - DAY", "One.", "INT. C - DAY", "Three.", "INT. B - DAY", "Two."]);
+      expect(ed.state.selection.$from.parent.textContent).toBe("Three.");
+    });
+
+    it("moves a scene up", () => {
+      const ed = write(script);
+      expect(moveScene(ed, 0, 1)).toBe(true);
+      expect(text(ed)).toEqual(["INT. B - DAY", "Two.", "INT. A - DAY", "One.", "INT. C - DAY", "Three."]);
+    });
+
+    it("keeps every block's id, and the elements", () => {
+      const ed = write(script);
+      const ids = () => {
+        const out: string[] = [];
+        ed.state.doc.forEach((n) => out.push(n.attrs.blockId ?? n.attrs.id ?? ""));
+        return out;
+      };
+      const before = ids().sort();
+      moveScene(ed, 0, 2);
+      expect(ids().sort()).toEqual(before);
+      expect(elements(ed)).toEqual(["scene-heading", null, "scene-heading", null, "scene-heading", null]);
+    });
+
+    it("refuses a move to where it already is", () => {
+      const ed = write(script);
+      expect(moveScene(ed, 1, 1)).toBe(false);
+      expect(text(ed)[0]).toBe("INT. A - DAY");
+    });
   });
 });

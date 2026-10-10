@@ -16,13 +16,20 @@ import {
 } from "@/lib/tiptap-comment-highlights";
 import {
   Screenplay,
+  acceptSuggestion,
+  currentCueText,
   currentElement,
   currentTag,
   dualState,
+  moveScene,
+  sceneBlocks,
   screenplayStarterKit,
   setElement,
+  toggleCueExtension,
   toggleDual,
   type DualState,
+  type ScriptContext,
+  type SuggestInfo,
 } from "@/lib/tiptap-screenplay";
 import {
   DEFAULT_PAGE_SETTINGS,
@@ -31,16 +38,21 @@ import {
   type ScreenplayPageSettings,
 } from "@/lib/tiptap-screenplay-pages";
 import {
+  CUE_EXTENSIONS,
   SCREENPLAY_ELEMENTS,
   SCREENPLAY_ELEMENT_LABELS,
   SCRIPT_START,
+  hasExtension,
   knownElement,
+  parseCue,
+  scenes,
   type PageCursor,
   type ScreenplayElement,
 } from "@/lib/screenplay";
 import { normalizeElement, parseScriptLines, type ManuscriptKind } from "@/lib/manuscript-kind";
-import { elementShortcutLabel } from "@/lib/screenplay-view";
+import { SCRIPT_LANGUAGE_NOTE, elementShortcutLabel } from "@/lib/screenplay-view";
 import BetaBadge from "@/components/BetaBadge";
+import ScriptSuggest from "@/components/ScriptSuggest";
 import { useSettings } from "@/components/SettingsProvider";
 import { typewriterScrollDelta } from "@/lib/typewriter";
 import { FlashHighlight, flashRanges } from "@/lib/tiptap-flash";
@@ -108,6 +120,10 @@ export type EditorHandle = {
   /** Put the caret at the end of the document (for Auto-mode chapter switches). */
   focusEnd: () => void;
   setReadingPosition: (blockId: string, offset: number) => void;
+  /** Put the caret at the start of scene `scene` (an index into the script's scenes) and bring it into view. */
+  revealScene: (scene: number) => void;
+  /** Move scene `from` to where scene `to` is; false when nothing moved. */
+  moveScene: (from: number, to: number) => boolean;
   /** Accept or reject pending suggestions: the given ids, or all of them. */
   resolveSuggestions: (action: SuggestionAction, ids?: string[]) => void;
   /** Put the caret on a suggestion and scroll it into view. */
@@ -149,6 +165,10 @@ type Props = {
   pageStart?: PageCursor;
   /** A screenplay's own settings for the page: the dialogue-break notes, scene numbers, and where this sequence's numbering begins. */
   pageSettings?: ScreenplayPageSettings;
+  /** The rest of the script and the story bible's names, for the names and places a line offers. */
+  scriptContext?: () => ScriptContext | null;
+  /** Whether the script's language is one script formatting covers; extensions are grayed out when not. */
+  scriptSupported?: boolean;
   /** Hold the page still: nothing can be typed while it is true. */
   readOnly?: boolean;
   /** The page can take writes (the handle's insert calls land). */
@@ -258,6 +278,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     kind = "novel",
     pageStart = SCRIPT_START,
     pageSettings = DEFAULT_PAGE_SETTINGS,
+    scriptContext,
+    scriptSupported = true,
     readOnly = false,
     onReady,
     onSuggestionsAccepted,
@@ -288,6 +310,13 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
   const [element, setCurrentElement] = useState<ScreenplayElement | null>(null);
   const [dual, setDual] = useState<DualState>({ available: false, on: false });
+  // The cue under the caret, for the extension buttons: which are lit, and whether there is a name to extend.
+  const [cue, setCue] = useState<string | null>(null);
+  // The names, places and times offered under the caret, while the page has focus.
+  const [suggest, setSuggest] = useState<SuggestInfo | null>(null);
+  const [languageNoteOpen, setLanguageNoteOpen] = useState(false);
+  const scriptContextRef = useRef(scriptContext);
+  scriptContextRef.current = scriptContext;
   const pageStartRef = useRef(pageStart);
   pageStartRef.current = pageStart;
   const pageSettingsRef = useRef(pageSettings);
@@ -323,7 +352,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       CommentHighlights.configure({ onClick: (id) => onCommentClickRef.current?.(id) }),
       ...(kind === "screenplay"
         ? [
-            Screenplay,
+            Screenplay.configure({
+              context: () => scriptContextRef.current?.() ?? null,
+              onSuggest: setSuggest,
+            }),
             ScreenplayPages.configure({
               start: () => pageStartRef.current,
               settings: () => pageSettingsRef.current,
@@ -336,11 +368,15 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       }),
     ],
     content: content || "",
-    onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
+    onUpdate: ({ editor }) => {
+      if (kind === "screenplay") setCue(currentCueText(editor));
+      onChangeRef.current(editor.getHTML());
+    },
     onSelectionUpdate: ({ editor }) => {
       if (kind === "screenplay") {
         setCurrentElement(knownElement(currentTag(editor)));
         setDual(dualState(editor));
+        setCue(currentCueText(editor));
       }
       const onSel = onSelectionChangeRef.current;
       if (onSel) {
@@ -953,6 +989,22 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       if (target == null) return;
       editor.chain().focus().setTextSelection(target).run();
     },
+    revealScene(scene: number) {
+      if (!editor) return;
+      const range = scenes(sceneBlocks(editor))[scene];
+      if (!range) return;
+      let at: { from: number; to: number } | null = null;
+      editor.state.doc.forEach((node, offset, index) => {
+        if (index === range.start) at = { from: offset + 1, to: offset + 1 + node.content.size };
+      });
+      if (!at) return;
+      const { from, to } = at as { from: number; to: number };
+      editor.chain().focus(undefined, { scrollIntoView: false }).setTextSelection(from).run();
+      revealRange(editor, from, to);
+    },
+    moveScene(from: number, to: number) {
+      return editor ? moveScene(editor, from, to) : false;
+    },
     resolveSuggestions(action: SuggestionAction, ids?: string[]) {
       applyResolved(action, ids);
     },
@@ -1010,10 +1062,60 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
           >
             Dual
           </button>
-          <span className="screenplay-hint">Tab cycles, Enter continues</span>
+          <div className="screenplay-extensions" role="group" aria-label="Cue extensions">
+            {CUE_EXTENSIONS.map((ext) => {
+              const named = cue !== null && parseCue(cue).name !== "";
+              const lit = cue !== null && hasExtension(cue, ext);
+              return (
+                <button
+                  key={ext}
+                  type="button"
+                  className={`btn small ${lit ? "primary" : "ghost"}`}
+                  aria-pressed={lit}
+                  title={`Add or remove (${ext}) on the cue`}
+                  disabled={readOnly || !scriptSupported || !named}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    if (!editor || !editor.isEditable) return;
+                    toggleCueExtension(editor, ext);
+                    setCue(currentCueText(editor));
+                  }}
+                >
+                  {ext}
+                </button>
+              );
+            })}
+            {!scriptSupported ? (
+              <button
+                type="button"
+                className="export-info"
+                aria-label="Why are the cue extensions unavailable?"
+                aria-expanded={languageNoteOpen}
+                aria-controls="script-language-note"
+                onClick={() => setLanguageNoteOpen((open) => !open)}
+              >
+                i
+              </button>
+            ) : null}
+          </div>
+          <span className="screenplay-hint">Tab moves on, Enter continues</span>
+          {!scriptSupported && languageNoteOpen ? (
+            <p id="script-language-note" className="export-language-note" role="note">
+              {SCRIPT_LANGUAGE_NOTE}
+            </p>
+          ) : null}
         </div>
       ) : null}
       <EditorContent editor={editor} />
+      {kind === "screenplay" && suggest ? (
+        <ScriptSuggest
+          info={suggest}
+          shell={shellRef.current}
+          onPick={(index) => {
+            if (editor) acceptSuggestion(editor, index);
+          }}
+        />
+      ) : null}
       <SelectionMenu
         menu={selectionMenu}
         lookup={lookupSynonyms}

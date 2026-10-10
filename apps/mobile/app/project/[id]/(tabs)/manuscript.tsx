@@ -16,7 +16,20 @@ import {
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { ScreenplayBar } from "../../../../components/ScreenplayBar";
-import { knownElement, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
+import { ScriptChips } from "../../../../components/ScriptChips";
+import { cycleElement, knownElement, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
+import {
+  bibleCharacterNames,
+  hasExtension,
+  parseCue,
+  scriptLanguageSupported,
+  setsCaps,
+  smartTab,
+  toggleExtension,
+  type Completion,
+} from "../../../../lib/screenplay";
+import { chipsForLine, lineAtOffset } from "../../../../lib/screenplay-speed";
+import { useBibleIndexQuery } from "../../../../lib/api/hooks";
 import { caretBeyondChapter, elementTagAtCaret, elementTargetId } from "../../../../lib/screenplay-live";
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
@@ -75,7 +88,7 @@ import {
 } from "../../../../lib/grammar";
 import { dictationLocale, insertDictation } from "../../../../lib/dictation";
 import { SELECTION_ACTION_PARAM } from "../../../../lib/ciciro-intents";
-import { replaceSelectedWord } from "../../../../lib/selection-edit";
+import { insertLineAfter, replaceLineTail, replaceSelectedWord } from "../../../../lib/selection-edit";
 import type { SelectionActionId } from "../../../../lib/selection-menu";
 import { useSelectionMenu } from "../../../../lib/use-selection-menu";
 import { useDictation, type DictationError } from "../../../../lib/speech";
@@ -218,6 +231,19 @@ function ManuscriptScreenContent() {
   // The element of the line under the caret, kept right the moment Return is
   // pressed or a chip tapped, not a flush later (see lib/screenplay-live.ts).
   const [caretElement, setCaretElement] = useState("action");
+  // The names, places and times the line under the caret may take, and the cue's text when it is one
+  // (so the extension chips know what is lit).
+  const [chips, setChips] = useState<{ choices: Completion[]; cue: string | null }>({ choices: [], cue: null });
+  // The other sequences and the story bible's characters, for the names and places on offer.
+  const otherSequencesRef = useRef<string[]>([]);
+  otherSequencesRef.current = isScreenplay
+    ? (project?.chapters ?? []).filter((c) => c.id !== chapter?.id).map((c) => c.content)
+    : [];
+  const bibleIndex = useBibleIndexQuery(project?.id ?? "", { enabled: isScreenplay });
+  const bibleNames = useMemo(() => bibleCharacterNames(bibleIndex.data ?? []), [bibleIndex.data]);
+  const bibleNamesRef = useRef<string[]>([]);
+  bibleNamesRef.current = bibleNames;
+  const scriptLanguageOk = scriptLanguageSupported(i18n.resolvedLanguage ?? i18n.language);
   const [formatTarget, setFormatTarget] = useState({ start: 0, end: 0 });
   const [targetMarks, setTargetMarks] = useState(emptyBlockMarks());
   const [targetKind, setTargetKind] = useState<FormatBlockKind>("paragraph");
@@ -385,7 +411,29 @@ function ManuscriptScreenContent() {
       caretRef.current.docOffset
     );
     setCaretElement((previous) => (previous === tag ? previous : tag));
-  }, [isScreenplay, nativeScript]);
+    // Chips for a cue or a heading, from the text the editor shows now.
+    let next: { choices: Completion[]; cue: string | null } = { choices: [], cue: null };
+    if (tag === "character" || tag === "scene-heading") {
+      const text = live && live.chapterId === current.id ? live.text : blocksPlainText(current.content);
+      const line = lineAtOffset(text, caretRef.current.docOffset);
+      next = {
+        choices: chipsForLine(tag, line, text.split("\n"), {
+          others: otherSequencesRef.current,
+          html: current.content,
+          names: bibleNamesRef.current,
+          language: i18n.resolvedLanguage ?? i18n.language,
+        }),
+        cue: tag === "character" && line.atEnd ? line.text : null,
+      };
+    }
+    setChips((previous) =>
+      previous.cue === next.cue &&
+      previous.choices.length === next.choices.length &&
+      previous.choices.every((choice, i) => choice.label === next.choices[i].label && choice.from === next.choices[i].from)
+        ? previous
+        : next
+    );
+  }, [isScreenplay, nativeScript, i18n.resolvedLanguage, i18n.language]);
 
   const onChangeText = useCallback(
     (text: string) => {
@@ -546,7 +594,7 @@ function ManuscriptScreenContent() {
   // sequence opened): read the line again.
   useEffect(() => {
     recomputeElement();
-  }, [content, chapter?.id, recomputeElement]);
+  }, [content, chapter?.id, recomputeElement, bibleNames]);
 
   const formatBlockId = blockAtPlainOffset(content, formatTarget.start)?.blockId ?? "";
   // Dual dialogue is offered on a speech with another right above it, and on one already beside it.
@@ -631,6 +679,87 @@ function ManuscriptScreenContent() {
     if (!target) return;
     commitOps(toggleDualOps(doc, target));
   }, [commitOps, flush]);
+
+  // The line the caret is on, read from what the editor shows now.
+  const caretLine = useCallback(() => {
+    const current = chapterRef.current;
+    if (!current) return null;
+    const live = liveTextRef.current;
+    const text = live && live.chapterId === current.id ? live.text : blocksPlainText(current.content);
+    return { current, line: lineAtOffset(text, caretRef.current.docOffset) };
+  }, []);
+
+  // The editor's text as it would be committed now, for a chip to change: the way a synonym is swapped.
+  const writeLive = useCallback(
+    async (
+      change: (live: string, line: { start: number; text: string }) => { html: string; caret: number } | null
+    ): Promise<boolean> => {
+      const at = caretLine();
+      const editor = editorRef.current;
+      if (!at || !editor) return false;
+      let enriched: string;
+      try {
+        enriched = await editor.getHTML();
+      } catch {
+        return false;
+      }
+      const live = restampCiciroHtml(at.current.content, fromEnrichedHtmlAsShown(enriched));
+      const result = change(live, at.line);
+      if (!result) return false;
+      markEditedRef.current?.();
+      editor.setValue(toEnrichedHtml(result.html));
+      editor.setSelection(result.caret, result.caret);
+      caretRef.current = { ...caretRef.current, docOffset: result.caret };
+      markTyping();
+      scheduleFlush();
+      return true;
+    },
+    [caretLine, markTyping, scheduleFlush]
+  );
+
+  // Type over the rest of the cue or heading from character `from`: a name, a place, a time of day, an extension.
+  const spliceLine = useCallback(
+    (from: number, replacement: string) =>
+      writeLive((live, line) => replaceLineTail(live, line.start, from, line.text.slice(from), replacement)),
+    [writeLive]
+  );
+
+  const onPickChip = useCallback(
+    (choice: Completion) => {
+      haptics.tap();
+      void spliceLine(choice.from, choice.insert);
+    },
+    [spliceLine]
+  );
+
+  const onToggleExtension = useCallback(
+    (extension: string) => {
+      const at = caretLine();
+      if (!at) return;
+      const next = toggleExtension(at.line.text, extension);
+      if (next === at.line.text) return;
+      let same = 0;
+      while (same < at.line.text.length && same < next.length && at.line.text[same] === next[same]) same++;
+      void spliceLine(same, next.slice(same));
+    },
+    [caretLine, spliceLine]
+  );
+
+  // Tab: the next part of a scene heading, a parenthetical under a cue, else the next element.
+  const onTab = useCallback(async () => {
+    const at = caretLine();
+    const flow = at && at.line.atEnd ? smartTab(caretElement, at.line.text, { trailing: false }) : null;
+    if (!at || !flow) {
+      await onSetElement(cycleElement(knownElement(caretElement) ?? "action"));
+      return;
+    }
+    if (flow.kind === "insert") {
+      if (flow.text) await spliceLine(at.line.text.length, flow.text);
+      return;
+    }
+    const added = await writeLive((live, line) => insertLineAfter(live, line.start, flow.element));
+    if (added) await onSetElement(flow.element);
+  }, [caretElement, caretLine, onSetElement, spliceLine, writeLive]);
 
   const openPressMenu = useCallback(() => {
     setPressMenuOpen(true);
@@ -935,6 +1064,7 @@ function ManuscriptScreenContent() {
               bottomInset={editorBottomInset}
               typewriter={settings.typewriterMode}
               scriptLayout={nativeScript}
+              capitals={isScreenplay && setsCaps(caretElement)}
               onFocused={onFocused}
               onBlurred={onBlurred}
               onChangeText={onChangeText}
@@ -1005,12 +1135,21 @@ function ManuscriptScreenContent() {
         {isScreenplay ? (
           // The element controls ride just above the keyboard, where the thumb is.
           <View style={{ marginBottom: keyboardVisible || barPlacement === "accessory" ? 0 : clearance }}>
+            <ScriptChips
+              choices={chips.choices}
+              cue={chips.cue !== null && parseCue(chips.cue).name !== ""}
+              extensionLit={(extension) => chips.cue !== null && hasExtension(chips.cue, extension)}
+              extensionsEnabled={scriptLanguageOk}
+              onPick={onPickChip}
+              onToggleExtension={onToggleExtension}
+            />
             <ScreenplayBar
               element={knownElement(caretElement)}
               dual={dualOfCaret}
               disabled={!focused}
               onSetElement={(el) => void onSetElement(el)}
               onToggleDual={() => void onToggleDual()}
+              onTab={() => void onTab()}
             />
           </View>
         ) : null}

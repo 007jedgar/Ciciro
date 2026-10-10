@@ -9,7 +9,7 @@ import {
 } from "./manuscript";
 import { applyPlainEdit, innerHtmlOf, wrapBlockHtml } from "./inline-html";
 import { elementTagOfHtml, withElement, type ScreenplayElement } from "./manuscript-kind";
-import { dualOfHtml, speechAt, withDual, type SpeechAt } from "./screenplay";
+import { dualOfHtml, moveSceneOrder, speechAt, withDual, type SpeechAt } from "./screenplay";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -237,4 +237,68 @@ export function applyOpsToDoc(doc: ManuscriptDoc, ops: ManuscriptOp[]): Manuscri
     current = result.doc;
   }
   return current;
+}
+
+/** `html` as a block with another id, so a block that moves is one the sync sees as new. */
+function withBlockId(html: string, id: string): string {
+  return /^<[a-z][\w-]*\b[^>]*\bdata-block-id=/i.test(html)
+    ? html.replace(/(^<[a-z][\w-]*\b[^>]*\bdata-block-id=)(?:"[^"]*"|'[^']*')/i, `$1"${id}"`)
+    : html.replace(/^<([a-z][\w-]*)/i, `<$1 data-block-id="${id}"`);
+}
+
+/**
+ * Move scene `from` to where scene `to` is (indexes into the script's scenes),
+ * taking its action and dialogue along. The ops only reach the blocks whose place
+ * changes: they are deleted and set down again in the new order, as one group, so
+ * the move lands whole or not at all. Empty when nothing would move.
+ */
+export function moveSceneOps(
+  doc: ManuscriptDoc,
+  from: number,
+  to: number,
+  opts?: BlockEditorIds
+): ManuscriptOp[] {
+  const order = moveSceneOrder(
+    doc.blocks.map((block) => ({ element: elementTagOfHtml(block.html), text: block.text })),
+    from,
+    to
+  );
+  if (!order) return [];
+  let first = 0;
+  while (order[first] === first) first++;
+  let last = order.length - 1;
+  while (order[last] === last) last--;
+  const ids = idsOf(opts);
+  const ops: ManuscriptOp[] = [];
+  let current = doc;
+  const apply = (op: ManuscriptOp) => {
+    const done = emit(current, op);
+    current = done.doc;
+    ops.push(done.op);
+  };
+  for (let i = first; i <= last; i++) {
+    apply({
+      opId: ids.createOpId(),
+      baseRevision: current.revision,
+      actor: ids.actor,
+      type: "delete_block",
+      blockId: doc.blocks[i].id,
+    });
+  }
+  let after = first === 0 ? null : doc.blocks[first - 1].id;
+  for (let i = first; i <= last; i++) {
+    const source = doc.blocks[order[i]];
+    const blockId = ids.createBlockId();
+    apply({
+      opId: ids.createOpId(),
+      baseRevision: current.revision,
+      actor: ids.actor,
+      type: "insert_block",
+      afterBlockId: after,
+      blockId,
+      html: withBlockId(source.html, blockId),
+    });
+    after = blockId;
+  }
+  return grouped(ops, ids);
 }

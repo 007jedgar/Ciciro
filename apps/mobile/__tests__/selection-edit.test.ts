@@ -1,5 +1,5 @@
 import { htmlToDoc } from "../lib/manuscript";
-import { replaceSelectedWord } from "../lib/selection-edit";
+import { insertLineAfter, replaceLineTail, replaceSelectedWord } from "../lib/selection-edit";
 
 const doc =
   '<p data-block-id="a">The door opened.</p>' +
@@ -54,5 +54,66 @@ describe("replaceSelectedWord", () => {
     expect(result!.html).toContain(
       '<p data-block-id="b">She did not care about the <strong>country</strong>. It was &amp; is mine.</p>',
     );
+  });
+});
+
+describe("replaceLineTail", () => {
+  const script =
+    '<p data-block-id="a" data-sp="scene-heading">INT. LAB</p>' +
+    '<p data-block-id="b" data-sp="character">MARA</p>' +
+    '<p data-block-id="c" data-sp="dialogue">Hello.</p>';
+
+  it("adds to the end of a line and puts the caret there", () => {
+    const result = replaceLineTail(script, 0, "INT. LAB".length, "", " - ");
+    expect(result).not.toBeNull();
+    // A line's trailing space does not survive the chapter's text: the caret is where the text ends.
+    expect(texts(result!.html)).toEqual(["INT. LAB -", "MARA", "Hello."]);
+    expect(result!.caret).toBe("INT. LAB -".length);
+    expect(result!.html).toContain('data-sp="scene-heading"');
+  });
+
+  it("swaps the rest of a line from where the choice begins", () => {
+    const start = "INT. LAB".length + 1;
+    const result = replaceLineTail(script, start, 2, "RA", "RA (V.O.)");
+    expect(texts(result!.html)[1]).toBe("MARA (V.O.)");
+    expect(result!.caret).toBe(start + "MARA (V.O.)".length);
+  });
+
+  it("removes the end of a line when the replacement is empty", () => {
+    const withExt = '<p data-block-id="b" data-sp="character">MARA (V.O.)</p>';
+    expect(texts(replaceLineTail(withExt, 0, 4, " (V.O.)", "")!.html)).toEqual(["MARA"]);
+  });
+
+  it("reads a line the writer ended in a space as the chapter holds it", () => {
+    const result = replaceLineTail(script, 0, 5, "LAB ", "LAB -");
+    expect(texts(result!.html)[0]).toBe("INT. LAB -");
+  });
+
+  it("does nothing when the line is no longer what the writer saw", () => {
+    expect(replaceLineTail(script, "INT. LAB".length + 1, 2, "XX", "RA!")).toBeNull();
+  });
+
+  it("keeps a mark on the text it adds to", () => {
+    const bold = '<p data-block-id="b" data-sp="character">MAR<strong>A</strong></p>';
+    const result = replaceLineTail(bold, 0, 3, "A", "AH");
+    expect(result!.html).toContain("<strong>AH</strong>");
+  });
+});
+
+describe("insertLineAfter", () => {
+  const script =
+    '<p data-block-id="b" data-sp="character">MARA</p><p data-block-id="c" data-sp="dialogue">Hello.</p>';
+
+  it("adds an empty line of the element after the line and puts the caret in it", () => {
+    const result = insertLineAfter(script, 4, "parenthetical");
+    expect(texts(result!.html)).toEqual(["MARA", "", "Hello."]);
+    expect(result!.html).toMatch(/<p[^>]*data-sp="parenthetical"[^>]*><\/p>/);
+    expect(result!.caret).toBe("MARA".length + 1);
+  });
+
+  it("works on the last line", () => {
+    const result = insertLineAfter(script, "MARA".length + 1 + "Hello.".length, "action");
+    expect(texts(result!.html)).toEqual(["MARA", "Hello.", ""]);
+    expect(result!.caret).toBe("MARA".length + 1 + "Hello.".length + 1);
   });
 });

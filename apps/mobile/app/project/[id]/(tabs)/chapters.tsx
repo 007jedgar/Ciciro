@@ -18,6 +18,7 @@ import {
   OutlineIcon,
   PageIcon,
   PencilIcon,
+  ScenesIcon,
   SearchIcon,
   TimerIcon,
 } from "../../../../components/icons";
@@ -289,6 +290,12 @@ function ChaptersScreenContent() {
     },
     ...(kind === "screenplay"
       ? [
+          {
+            key: "scenes",
+            label: t("screenplay.scenes.title"),
+            icon: <ScenesIcon color={colors.accent} />,
+            onPress: () => router.push(`/project/${projectId}/scenes` as never),
+          },
           {
             key: "pages",
             label: t("screenplay.pageView.title"),

@@ -58,6 +58,7 @@ export function ChapterEditor({
   bottomInset = 0,
   typewriter = false,
   scriptLayout = false,
+  capitals = false,
   onFocused,
   onBlurred,
   onChangeText,
@@ -85,6 +86,8 @@ export function ChapterEditor({
    * with it. iOS only, Beta (docs/screenplay.md).
    */
   scriptLayout?: boolean;
+  /** Open the keyboard in capitals (a scene heading, a cue, a transition or a shot is being typed). */
+  capitals?: boolean;
   onFocused: () => void;
   onBlurred: () => void;
   onChangeText: (text: string) => void;
@@ -294,7 +297,7 @@ export function ChapterEditor({
           scrollEnabled
           submitBehavior="newline"
           linkRegex={null}
-          autoCapitalize="sentences"
+          autoCapitalize={capitals ? "characters" : "sentences"}
           contextMenuItems={
             onSetKind
               ? [

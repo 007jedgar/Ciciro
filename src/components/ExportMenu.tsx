@@ -7,7 +7,8 @@ import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import { MOTION_MS, usePresence } from "@/lib/motion";
-import { DEFAULT_SCRIPT_SETTINGS, scriptPdfSupported, type ScriptSettings } from "@/lib/screenplay";
+import { DEFAULT_SCRIPT_SETTINGS, scriptHtmlSupported, scriptPdfSupported, type ScriptSettings } from "@/lib/screenplay";
+import { SCRIPT_LANGUAGE_NOTE } from "@/lib/screenplay-view";
 import { htmlWithoutSuggestions } from "@/lib/suggestions";
 import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
 import type { Chapter } from "@/lib/types";
@@ -35,10 +36,6 @@ export const SCREENPLAY_EXPORT_FORMATS: readonly ExportOption[] = [
   { format: "fdx", label: "FDX export (.fdx)", hint: "Script as XML for other screenwriting tools", short: "FDX", beta: true },
   ...EXPORT_FORMATS.filter((f) => f.format !== "pdf"),
 ];
-
-/** Why the screenplay PDF is grayed out for a script in another language. */
-export const SCRIPT_LANGUAGE_NOTE =
-  "Script formatting is only available in English and Spanish for now. We plan to support more languages.";
 
 export default function ExportMenu({
   projectId,

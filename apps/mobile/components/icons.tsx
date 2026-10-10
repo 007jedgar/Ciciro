@@ -632,6 +632,18 @@ export function OutlineIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** A clapperboard: the scene navigator. */
+export function ScenesIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x="4" y="10" width="16" height="10" rx="1.5" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M4 10 L5.5 5 L20 7.5 L20 10" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Line x1="9" y1="6" x2="7.5" y2="10" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="14" y1="7" x2="12.5" y2="10" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** A sheet with a folded corner and two lines of script: the page view. */
 export function PageIcon({ color, size = 24 }: IconProps) {
   return (

@@ -502,6 +502,13 @@ function ScreenplaySettingsGroup({ manuscript, colors }: { manuscript: OpenManus
           <SettingsNote text={t("screenplay.settings.returnNote")} colors={colors} />
         </View>
         {manuscript ? <ScriptSettingsRows manuscript={manuscript} colors={colors} /> : null}
+        <Hairline colors={colors} />
+        <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
+          <SettingsNote text={t("screenplay.settings.speedNote")} colors={colors} />
+          <SettingsNote text={t("screenplay.settings.tabFlowNote")} colors={colors} />
+          <SettingsNote text={t("screenplay.settings.capsNote")} colors={colors} />
+          <SettingsNote text={t("screenplay.settings.extensionsNote")} colors={colors} />
+        </View>
       </Group>
     </>
   );

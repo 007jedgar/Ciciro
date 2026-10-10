@@ -26,8 +26,9 @@ format (import, export, paste), never the stored one.
 | Shot | `shot` | 6th |
 | Centered | `centered` | 7th |
 
-Tab walks that ring and Shift-Tab walks it back. Enter starts the element that
-usually follows (`nextElementOnEnter`). A shot behaves like a scene heading
+Tab walks that ring and Shift-Tab walks it back, except where Tab means more
+(see Writing speed). Enter starts the element that usually follows
+(`nextElementOnEnter`). A shot behaves like a scene heading
 for layout and for Enter (the next line is action), is set in capitals, and is
 not bold. Centered text (a title card, THE END) is action set across the page:
 Enter after it starts action.
@@ -94,6 +95,9 @@ It owns:
   `sliceRuns`, and `typesetSequences` (every sequence set on pages that run on
   from one another, each row knowing its sequence, block and offset): what the
   PDF draws;
+- writing speed (below): `capsText`, `smartTab`, `parseCue` / `toggleExtension`,
+  `parseSceneHeading`, `buildScriptIndex` / `completionsFor`, `continuesSpeech`,
+  `bibleCharacterNames`, and the scene helpers `sceneOutline` / `moveSceneOrder`;
 - `SCRIPT_LANGUAGES`, `scriptLanguageSupported(code)`,
   `scriptTextSupported(text)`, `scriptHtmlSupported(chapters)` and
   `scriptPdfSupported(chapters, settings, manuscript)`: which languages script
@@ -355,6 +359,125 @@ carries the `screenplay.languageInfo.body` text in its accessibility hint.
 Fountain and FDX export, the element bar, and an existing script stay
 available. The
 strings are `screenplay.languageInfo.*` in all four locales.
+
+## Writing speed
+
+Everything that makes a script faster to write is decided in `screenplay.ts`
+(pure, mirrored, `test/screenplay-speed.test.ts`), so the web popup and the
+phone's chips offer the same words and Tab does the same thing. The editors only
+carry the decision out.
+
+### Capitals as you type
+
+`capsText(element, text)` / `setsCaps(element)` say which elements are set in
+capitals (`ELEMENT_METRICS.caps`: scene heading, character, transition, shot).
+The web's `screenplayCaps` plugin (`tiptap-screenplay.ts`, `handleTextInput`)
+makes what is **typed** into one of them capitals, as Final Draft does; text that
+is already there, pasted, imported or written by the assistant is stored as it
+was and set in capitals at the edges (the page, the PDF, Fountain, the model
+view). The phone cannot intercept a keystroke in the native view, so it opens the
+keyboard in capitals instead (`autoCapitalize="characters"` while the caret line
+is a caps element, a live prop of the patched view that refocuses without
+emitting focus events); a hardware keyboard or predictive text can still type
+lowercase there, which the same edges set in capitals. Tab-cycling a line never
+rewrites its case.
+
+### Names, places and times (autocomplete)
+
+`buildScriptIndex(sequences, { names })` reads every cue (extensions off) and
+every scene heading (`parseSceneHeading`: prefix, location, time of day, split at
+the last dash) of the script, most used first and then most recent, and adds the
+story bible's characters (`bibleCharacterNames`, from the `GET /api/bible` index:
+`characters/<slug>.md` and the first line of the file) after the used names, so a
+name completes before its first use. `completionsFor(element, text, index, opts)`
+returns what the line may take, for the caret at the end of it:
+
+- a **cue**: names that continue what is typed (a name typed in full comes first,
+  so Tab can move on; a name that picks a speech back up is offered as
+  `NAME (CONT'D)` first);
+- a **scene heading**: `INT.` / `EXT.` / `INT./EXT.`, then the places, then the
+  times of day (the script's own, then the defaults for the app's language:
+  `timesOfDay("es")` is Spanish). A bare `INT.` offers nothing on the desk, because
+  Tab adds the space.
+
+On the desk nothing is offered on an empty line (the popup waits for a first
+letter, so Tab keeps its ring), and the line being typed is left out of the index
+(`suggestionsFor` builds it from the other lines). `ScriptSuggest` is the popup
+under the caret (`aria` listbox with a live-region announcement); Tab takes the
+highlighted choice, the arrow keys move it, **Enter takes it only after an arrow
+key** (otherwise Enter ends the line as always), Esc closes it until the line
+changes, and a choice that would change nothing is not taken, so Tab goes on. The
+popup is a ProseMirror plugin (`screenplaySuggest`) whose state is derived from the
+document and selection on every transaction.
+
+On the phone (`lib/screenplay-speed.ts`, `components/ScriptChips.tsx`) the same
+completions are chips just above the element bar, shown for an empty cue or
+heading too (`whenEmpty`) and with `trailing: false`: the chapter's text drops a
+trailing space whenever it is committed, so a phone choice never ends in one
+(`INT.`, `INT. LAB -`, then `INT. LAB - NIGHT`) and the next choice supplies the
+space. A chip splices the rest of the line through the same
+`getHTML` / `setValue` / `setSelection` path as the synonym swap
+(`replaceLineTail` in `selection-edit.ts`).
+
+### Tab
+
+`smartTab(element, text)` (the caret at the end of the line):
+
+| Line | Tab does |
+|---|---|
+| `INT.` | adds the space: on to the location |
+| `INT. LAB` | adds ` - `: on to the time of day |
+| `INT. LAB - NIGHT` | starts an action line under it |
+| a cue with a name | starts a parenthetical on a new line |
+| anything else | the ring of elements |
+
+The popup's choice wins over all of these. The phone's Tab button asks the same
+function (`trailing: false`: a bare `INT.` is a quiet no-op, because the chips
+already show the places) and starts the new line with `insertLineAfter`, then sets
+its element like a chip tap.
+
+### Extensions and CONT'D
+
+`CUE_EXTENSIONS` (`V.O.`, `O.S.`, `CONT'D`) are written in brackets after the
+name, which is also how Fountain and the assistant's `@NAME (V.O.)` carry them.
+`toggleExtension` adds or removes one (V.O. and O.S. replace one another, CONT'D
+goes last, a cue with no name is left alone); the web's bar buttons
+(`toggleCueExtension`) and the phone's chips use it. `continuesSpeech(blocks,
+index, name)` says whether the same character spoke last in the scene with
+non-empty action in between. **Automatic CONT'D** is stored text, not derived: the
+web adds ` (CONT'D)` when Enter ends such a cue, and both clients offer
+`NAME (CONT'D)` first in the choices. It is a plain extension, so removing it with
+the button sticks until Enter is pressed on that cue again. The extension buttons
+are English abbreviations and are grayed out, with an info button, for a script
+in a language script formatting does not cover (web `scriptHtmlSupported` on the
+open sequence, phone `scriptLanguageSupported`). Phase 3's derived
+`(MORE)` / `(CONT'D)` at page breaks must skip a cue that already ends in
+`(CONT'D)`.
+
+### Scenes
+
+`sceneOutline(blocks, start)` lists a run of blocks' scenes (`scenes()`: a
+heading to the next) with the heading as the page sets it and the page it begins
+on (from `paginate`, so it is the page the editor and the PDF count).
+`moveSceneOrder(blocks, from, to)` is the permutation that moves a scene to where
+another is; blocks ahead of the first heading (the lead-in) stay put. Scenes are
+addressed by their index in `scenes()`, never by block index, so the navigator
+(derived from the saved HTML) and the editor (derived from its own document)
+agree even when a block is not a paragraph.
+
+- **Web.** The **Scenes** button (screenplays only) opens `SceneNavigator`: every
+  sequence's scenes with their pages, a click jumps (`Editor.revealScene`, queued
+  through `heldWrites` when it is another sequence), and the arrows move a scene
+  within the open sequence (`moveScene` in `tiptap-screenplay.ts`: one
+  transaction over the span of blocks whose place changes, every node, with its
+  block id, kept).
+- **Phone.** The **Scenes** tile on the chapters screen
+  (`app/project/[id]/scenes.tsx`) lists every sequence's scenes; a tap opens the
+  manuscript at the scene (`recordReadingPosition`, as search does), and the
+  arrows move a scene within its sequence (`moveSceneOps`: the blocks whose place
+  changes are deleted and set down again in the new order, as one op group, so a
+  move lands whole; they get new block ids, so a comment anchored to one of them
+  is orphaned).
 
 ## The web editor
 
@@ -699,9 +822,7 @@ and only shows the settings for that manuscript's kind.
 
 ## Not here yet
 
-Belongs to later phases: autocomplete, smart Tab, typed-input capitals, the
-scene navigator and `(CONT'D)` for a character who speaks again after an action
-line (phase 2). Never planned here: revision colours, A-pages and locked pages,
+Never planned here: revision colours, A-pages and locked pages,
 and any claim of Final Draft compatibility.
 
 Phase 4 follow-ups: the page layout on Android (the Kotlin view manager ignores
@@ -712,5 +833,8 @@ Smaller follow-ups: a find on the capitals elements is case sensitive, since the
 text is stored as typed; the assistant has no page awareness or page target yet
 (only the minute-a-page rule of thumb); the page counts for lists could be
 denormalized; the chat draft card is not an exact page; the page view has no
-analytics events. Known gaps: `(MORE)` and `(CONT'D)` are English strings in
-every language, and FDX loses sequence titles.
+analytics events; the phone has no automatic CONT'D on Return (only through the
+chips); the scene navigator moves scenes only within a sequence, and has no
+drag; the story bible has no places, so only the characters are offered before
+first use. Known gaps: `(MORE)` and `(CONT'D)` are English strings in every
+language, and FDX loses sequence titles.

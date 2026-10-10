@@ -57,6 +57,7 @@ jest.mock("../components/ReaderCommentsPill", () => ({
   useChapterReaderCommentCount: () => 0,
 }));
 jest.mock("../lib/api", () => ({ ciciro: {} }));
+jest.mock("../lib/api/hooks", () => ({ useBibleIndexQuery: () => ({ data: undefined }) }));
 
 describe("Manuscript tab chapter link", () => {
   beforeEach(() => {

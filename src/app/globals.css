@@ -5504,3 +5504,118 @@ input[type="file"]::file-selector-button {
 .canvas-outline-list li {
   margin: 6px 0;
 }
+
+/* Screenplay: the names, places and times of day offered under the caret. */
+.script-suggest {
+  position: absolute;
+  z-index: 5;
+  min-width: 180px;
+  max-width: 320px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--paper-shadow), 0 8px 24px rgba(0, 0, 0, 0.14);
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  transform-origin: top left;
+  animation: pop-in var(--duration-popover-in) var(--ease-out) both;
+}
+.script-suggest-kind,
+.script-suggest-hint {
+  padding: 2px 8px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.script-suggest-kind {
+  text-transform: uppercase;
+}
+.script-suggest ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.script-suggest li {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-family: var(--mono, ui-monospace, monospace);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.script-suggest li.is-selected {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.script-suggest li:hover:not(.is-selected) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.screenplay-extensions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Screenplay: the scene navigator. */
+.scene-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  padding: 2px 0;
+}
+.scene-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.scene-row-main:hover,
+.scene-row-main:focus-visible {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.scene-row-number {
+  flex: none;
+  min-width: 2ch;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: right;
+}
+.scene-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scene-row-title.is-muted {
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-style: italic;
+}
+.scene-row-page {
+  flex: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.scene-row-moves {
+  display: inline-flex;
+  flex: none;
+}

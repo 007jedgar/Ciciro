@@ -1130,6 +1130,31 @@ export function scriptBlocksFromHtml(html: string): ScriptBlock[] {
   }));
 }
 
+const BLOCKS_CACHE_MAX = 256;
+const blocksCache = new Map<string, ScriptBlock[]>();
+
+/**
+ * `scriptBlocksFromHtml`, remembered for the last chapters asked about: the
+ * index of a script's names and places reads every other sequence on each
+ * keystroke, and only the one being typed in has changed.
+ */
+export function scriptBlocksCached(html: string): ScriptBlock[] {
+  const hit = blocksCache.get(html);
+  if (hit) {
+    blocksCache.delete(html);
+    blocksCache.set(html, hit);
+    return hit;
+  }
+  const blocks = scriptBlocksFromHtml(html);
+  blocksCache.set(html, blocks);
+  while (blocksCache.size > BLOCKS_CACHE_MAX) {
+    const oldest = blocksCache.keys().next().value;
+    if (oldest === undefined) break;
+    blocksCache.delete(oldest);
+  }
+  return blocks;
+}
+
 const LAYOUT_CACHE_MIN = 64;
 let layoutCacheMax = LAYOUT_CACHE_MIN;
 const layoutCache = new Map<string, LaidOutBlock[]>();
@@ -1254,6 +1279,441 @@ export function speechAt(blocks: readonly ScriptBlock[], index: number): SpeechA
     pairable: at > 0 && groups[at - 1].end === group.start,
     on: dualPairs(blocks).some((pair) => pair.right.character === group.character),
   };
+}
+
+// --- Writing speed -------------------------------------------------------------
+//
+// Everything the editors do to write a script faster is decided here, once, so
+// the desk's popup and the phone's chip row offer the same words and the same
+// Tab does the same thing: capitals as they are typed, the names and places a
+// script already uses, the scene heading flow, the extensions on a cue, and the
+// scenes of a script (read, and rearranged).
+
+/** `text` as the page sets `element`: in capitals for the elements the page sets in capitals, as written for the rest. */
+export function capsText(element: unknown, text: string): string {
+  return ELEMENT_METRICS[normalizeElement(element)].caps ? upper(text) : text;
+}
+
+/** Whether `element` is set in capitals, so typing into it is made capitals as it goes. */
+export function setsCaps(element: unknown): boolean {
+  return ELEMENT_METRICS[normalizeElement(element)].caps;
+}
+
+/**
+ * What a cue says after the name, in the order a cue carries them: how the
+ * voice reaches us, then that the speech goes on. Written in brackets after the
+ * name (`MARA (V.O.)`), which is also how the assistant's marked lines and
+ * Fountain carry them.
+ */
+export const CUE_EXTENSIONS = ["V.O.", "O.S.", "CONT'D"] as const;
+export type CueExtension = (typeof CUE_EXTENSIONS)[number];
+
+/** The extensions that say how the voice reaches us: a cue has at most one. */
+const VOICE_EXTENSIONS: readonly string[] = ["V.O.", "O.S."];
+
+/** A cue taken apart: the name, and each bracketed extension as written (no brackets). */
+export type Cue = { name: string; extensions: string[] };
+
+/** `V.O.` and `v.o.` and `CONT’D` are one extension. */
+function extensionKey(extension: string): string {
+  return upper(extension.trim().replace(/[’‘`]/g, "'"));
+}
+
+const TRAILING_EXTENSION = /\s*\(([^()]*)\)\s*$/;
+
+/** Split `MARA (V.O.) (CONT'D)` into the name and its extensions. */
+export function parseCue(text: string): Cue {
+  let rest = text;
+  const extensions: string[] = [];
+  for (let m = TRAILING_EXTENSION.exec(rest); m; m = TRAILING_EXTENSION.exec(rest)) {
+    extensions.unshift(m[1].trim());
+    rest = rest.slice(0, m.index);
+  }
+  return { name: rest.trim(), extensions: extensions.filter((e) => e.length > 0) };
+}
+
+function cueText(cue: Cue): string {
+  return [cue.name, ...cue.extensions.map((e) => `(${e})`)].join(" ");
+}
+
+/** Whether the cue already carries the extension. */
+export function hasExtension(text: string, extension: string): boolean {
+  const key = extensionKey(extension);
+  return parseCue(text).extensions.some((e) => extensionKey(e) === key);
+}
+
+/**
+ * The cue with the extension switched: added if it was not there, taken off if
+ * it was. V.O. and O.S. replace one another, and CONT'D goes last. A cue with no
+ * name is left as it is: an extension on nothing is not a cue.
+ */
+export function toggleExtension(text: string, extension: string): string {
+  const cue = parseCue(text);
+  if (cue.name === "") return text;
+  const key = extensionKey(extension);
+  if (cue.extensions.some((e) => extensionKey(e) === key)) {
+    return cueText({ name: cue.name, extensions: cue.extensions.filter((e) => extensionKey(e) !== key) });
+  }
+  let extensions = cue.extensions;
+  if (VOICE_EXTENSIONS.includes(extension)) {
+    extensions = extensions.filter((e) => !VOICE_EXTENSIONS.includes(extensionKey(e)));
+    const contd = extensions.findIndex((e) => extensionKey(e) === extensionKey("CONT'D"));
+    const at = contd === -1 ? extensions.length : contd;
+    extensions = [...extensions.slice(0, at), extension, ...extensions.slice(at)];
+  } else {
+    extensions = [...extensions, extension];
+  }
+  return cueText({ name: cue.name, extensions });
+}
+
+/** How a scene heading breaks into the parts Tab walks through. */
+export type SlugParts = {
+  /** `INT.`, `EXT.`, `INT./EXT.` and the like, as written; "" when there is none. */
+  prefix: string;
+  location: string;
+  /** Whether a dash after the location has been typed. */
+  separator: boolean;
+  /** The time of day (or `CONTINUOUS`, `LATER`); "" when there is none yet. */
+  time: string;
+  /** Where in the heading the location starts (past the prefix and the space after it). */
+  locationAt: number;
+  /** Where in the heading the time of day starts: the end of the text when there is none. */
+  timeAt: number;
+};
+
+const SLUG_PREFIX = /^\s*(INT\.?\s*\/\s*EXT\.?|I\/E\.?|INT\.?|EXT\.?|EST\.?)(?=\s|$)/i;
+const SLUG_TIME = /^([\s\S]*)\s+[-–—]+(?:\s+([\s\S]*))?$/;
+
+/** Read a scene heading: `INT. MARA'S KITCHEN - NIGHT` is INT., MARA'S KITCHEN, NIGHT. The last dash splits the time off. */
+export function parseSceneHeading(text: string): SlugParts {
+  const found = SLUG_PREFIX.exec(text);
+  const prefix = found ? found[1] : "";
+  const rest = found ? text.slice(found[0].length) : text;
+  const body = rest.trimStart();
+  const locationAt = text.length - body.length;
+  const timed = SLUG_TIME.exec(body);
+  if (timed) {
+    const rawTime = timed[2] ?? "";
+    return {
+      prefix,
+      location: timed[1].trim(),
+      separator: true,
+      time: rawTime.trim(),
+      locationAt,
+      timeAt: text.length - rawTime.length,
+    };
+  }
+  return { prefix, location: body.trim(), separator: false, time: "", locationAt, timeAt: text.length };
+}
+
+/** What a scene heading may start with, in the order they are offered. */
+export const SLUG_PREFIXES: readonly string[] = ["INT.", "EXT.", "INT./EXT."];
+
+/** Times of day a heading offers before the script has any of its own. */
+export const TIMES_OF_DAY: Record<"en" | "es", readonly string[]> = {
+  en: ["DAY", "NIGHT", "MORNING", "AFTERNOON", "EVENING", "DAWN", "DUSK", "CONTINUOUS", "LATER", "MOMENTS LATER", "SAME"],
+  es: ["DÍA", "NOCHE", "MAÑANA", "TARDE", "AMANECER", "ATARDECER", "CONTINUO", "MÁS TARDE", "MISMO"],
+};
+
+/** The default times of day for a language code such as "es" or "es-MX". */
+export function timesOfDay(language?: string | null): readonly string[] {
+  return language && language.toLowerCase().split(/[-_]/)[0] === "es" ? TIMES_OF_DAY.es : TIMES_OF_DAY.en;
+}
+
+/**
+ * What Tab does when it means more than the next element, with the caret at the
+ * end of the line (the editors only ask there). Null: no flow, so Tab walks the
+ * ring of elements.
+ *
+ * - A scene heading with only INT. / EXT. on it moves to the location (a space);
+ *   with a location but no dash it moves on to the time of day (` - `); a
+ *   heading that has a time is finished, and Tab starts the action under it.
+ * - A cue with a name goes to a parenthetical on a line of its own.
+ */
+export type TabFlow = { kind: "insert"; text: string } | { kind: "line"; element: ScreenplayElement };
+
+export function smartTab(element: unknown, text: string, opts: { trailing?: boolean } = {}): TabFlow | null {
+  const trailing = opts.trailing !== false;
+  const el = normalizeElement(element);
+  if (el === "scene-heading") {
+    const slug = parseSceneHeading(text);
+    if (slug.prefix === "") return null;
+    // A heading with its time of day is finished: Tab starts the action under it.
+    if (slug.separator) return slug.time === "" ? null : { kind: "line", element: "action" };
+    if (slug.location === "") {
+      if (!trailing) return { kind: "insert", text: "" };
+      return /\s$/.test(text) ? null : { kind: "insert", text: " " };
+    }
+    return { kind: "insert", text: trailing && /\s$/.test(text) ? "- " : trailing ? " - " : " -" };
+  }
+  if (el === "character") {
+    return parseCue(text).name === "" ? null : { kind: "line", element: "parenthetical" };
+  }
+  return null;
+}
+
+/**
+ * Whether a cue for `name`, in block `index`, picks up a speech: the same
+ * character spoke last in this scene, and some action came between. (A speech
+ * that goes straight on after itself is not interrupted.)
+ */
+export function continuesSpeech(blocks: readonly ScriptBlock[], index: number, name: string): boolean {
+  const key = extensionKey(parseCue(name).name);
+  if (key === "") return false;
+  let action = false;
+  for (let i = index - 1; i >= 0; i--) {
+    const el = normalizeElement(blocks[i].element);
+    if (el === "action") {
+      if (blocks[i].text.trim() !== "") action = true;
+      continue;
+    }
+    if (el === "dialogue" || el === "parenthetical") {
+      let j = i;
+      while (j >= 0 && normalizeElement(blocks[j].element) !== "character") {
+        const inner = normalizeElement(blocks[j].element);
+        if (inner !== "dialogue" && inner !== "parenthetical") return false;
+        j--;
+      }
+      return j >= 0 && action && extensionKey(parseCue(blocks[j].text).name) === key;
+    }
+    return false;
+  }
+  return false;
+}
+
+/** The names, places and times of day a script already uses, most used first. */
+export type ScriptIndex = { names: string[]; places: string[]; times: string[] };
+
+type Tally = Map<string, { count: number; last: number }>;
+
+function bump(tally: Tally, text: string, at: number) {
+  const key = upper(text.trim());
+  if (key === "") return;
+  const row = tally.get(key);
+  if (row) {
+    row.count++;
+    row.last = at;
+  } else {
+    tally.set(key, { count: 1, last: at });
+  }
+}
+
+function ranked(tally: Tally): string[] {
+  return [...tally.entries()]
+    .sort((a, b) => b[1].count - a[1].count || b[1].last - a[1].last || a[0].localeCompare(b[0]))
+    .map(([text]) => text);
+}
+
+/**
+ * The index of a script's sequences: the name on every cue (extensions off), the
+ * place and the time of day of every scene heading, each most used first and
+ * then most recent. `known` adds names and places that have not been used yet,
+ * the story bible's characters, after the ones that have.
+ */
+export function buildScriptIndex(
+  sequences: readonly (readonly ScriptBlock[])[],
+  known: { names?: readonly string[]; places?: readonly string[] } = {}
+): ScriptIndex {
+  const names: Tally = new Map();
+  const places: Tally = new Map();
+  const times: Tally = new Map();
+  let at = 0;
+  for (const blocks of sequences) {
+    for (const block of blocks) {
+      at++;
+      const el = normalizeElement(block.element);
+      if (el === "character") bump(names, parseCue(block.text).name, at);
+      else if (el === "scene-heading") {
+        const slug = parseSceneHeading(block.text);
+        if (slug.prefix !== "") {
+          bump(places, slug.location, at);
+          bump(times, slug.time, at);
+        }
+      }
+    }
+  }
+  const withKnown = (tally: Tally, extra: readonly string[] | undefined): string[] => {
+    const used = ranked(tally);
+    const have = new Set(used);
+    const rest: string[] = [];
+    for (const text of extra ?? []) {
+      const key = upper(text.trim());
+      if (key !== "" && !have.has(key)) {
+        have.add(key);
+        rest.push(key);
+      }
+    }
+    return [...used, ...rest];
+  };
+  return { names: withKnown(names, known.names), places: withKnown(places, known.places), times: ranked(times) };
+}
+
+/**
+ * The story bible's characters by name, from its index (`characters/<slug>.md`
+ * and the first line of each file, which is the name when the file was made from
+ * one): so a name is offered before it is first used. A file with no first line
+ * is named by its slug.
+ */
+export function bibleCharacterNames(entries: readonly { path: string; summary: string }[]): string[] {
+  const names: string[] = [];
+  for (const { path, summary } of entries) {
+    const slug = /^characters\/([^/]+)\.md$/i.exec(path)?.[1];
+    if (!slug) continue;
+    const title = summary.trim();
+    const fromSlug = slug.split("-").filter(Boolean).join(" ");
+    names.push(title === "" || title === "(empty)" || title.length > 40 ? fromSlug : title);
+  }
+  return names;
+}
+
+/** One thing the writer may pick: shown as `label`, and typed over the line from `from` as `insert`. */
+export type Completion = {
+  kind: "name" | "place" | "time" | "prefix";
+  label: string;
+  /** Where in the line's text it replaces from, to the end of the line. */
+  from: number;
+  insert: string;
+};
+
+export type CompletionOptions = {
+  /** The app's language, for the times of day offered before the script has its own. */
+  language?: string | null;
+  limit?: number;
+  /** Offer something on a line with nothing on it (the phone's chips); the desk waits for a first letter. */
+  whenEmpty?: boolean;
+  /** Whether a cue for this name picks up a speech, so it is offered with CONT'D. */
+  continues?: (name: string) => boolean;
+  /**
+   * Whether a choice ends in a space where the line goes on (`INT. `, `LAB - `). The
+   * phone's text drops a trailing space whenever it is committed, so its choices end
+   * without one and the next choice supplies the space.
+   */
+  trailing?: boolean;
+};
+
+/** How many choices are offered at once. */
+export const COMPLETION_LIMIT = 6;
+
+function startsWords(candidate: string, typed: string): boolean {
+  if (candidate.startsWith(typed)) return true;
+  return candidate.split(/[\s./'’-]+/).some((word, i) => i > 0 && word !== "" && word.startsWith(typed));
+}
+
+/**
+ * What the writer may pick for the line they are on, with the caret at the end
+ * of `text`. A cue offers the names of the script and the story bible; a scene
+ * heading offers INT. / EXT., then the places, then the times of day, in the
+ * order Tab walks them. Nothing is offered once the line is as complete as a
+ * choice would make it.
+ */
+export function completionsFor(
+  element: unknown,
+  text: string,
+  index: ScriptIndex,
+  opts: CompletionOptions = {}
+): Completion[] {
+  const limit = opts.limit ?? COMPLETION_LIMIT;
+  const el = normalizeElement(element);
+  if (text.trim() === "" && !opts.whenEmpty) return [];
+  const lead = text.length - text.trimStart().length;
+
+  if (el === "character") {
+    if (text.includes("(")) return [];
+    const typed = upper(text.trimStart());
+    const out: Completion[] = [];
+    const names = index.names
+      .filter((n) => n.startsWith(typed))
+      .sort((a, b) => Number(b === typed) - Number(a === typed));
+    for (const name of names) {
+      if (opts.continues?.(name)) {
+        out.push({ kind: "name", label: `${name} (CONT'D)`, from: lead, insert: `${name} (CONT'D)` });
+      }
+      out.push({ kind: "name", label: name, from: lead, insert: name });
+    }
+    return out.slice(0, limit);
+  }
+  if (el !== "scene-heading") return [];
+
+  const trailing = opts.trailing !== false;
+  const slug = parseSceneHeading(text);
+  if (slug.prefix === "") {
+    const typed = upper(text.trim());
+    return SLUG_PREFIXES.filter((p) => p.startsWith(typed) && p !== typed)
+      .map((p) => ({ kind: "prefix" as const, label: p, from: lead, insert: trailing ? `${p} ` : p }))
+      .slice(0, limit);
+  }
+  if (!slug.separator) {
+    // On the desk a bare INT. is Tab's to move on from (it adds the space); the places wait for it.
+    const bare = slug.location === "" && !/\s$/.test(text);
+    if (bare && trailing) return [];
+    const typed = upper(slug.location);
+    return index.places
+      .filter((p) => typed === "" || startsWords(p, typed))
+      .sort((a, b) => Number(b === typed) - Number(a === typed) || Number(b.startsWith(typed)) - Number(a.startsWith(typed)))
+      .slice(0, limit)
+      .map((p) => ({
+        kind: "place" as const,
+        label: p,
+        from: slug.locationAt,
+        insert: `${bare ? " " : ""}${p} -${trailing ? " " : ""}`,
+      }));
+  }
+  const typed = upper(slug.time);
+  const gap = slug.time === "" && !/\s$/.test(text) ? " " : "";
+  const times = [...index.times, ...timesOfDay(opts.language).filter((t) => !index.times.includes(t))];
+  return times
+    .filter((t) => t.startsWith(typed) && t !== typed)
+    .slice(0, limit)
+    .map((t) => ({ kind: "time" as const, label: t, from: slug.timeAt, insert: `${gap}${t}` }));
+}
+
+/** The line with a completion typed over it. */
+export function applyCompletion(text: string, completion: Completion): string {
+  return text.slice(0, completion.from) + completion.insert;
+}
+
+// --- Scenes ----------------------------------------------------------------------
+
+/** A scene of a script as the navigator lists it. */
+export type SceneOutline = SceneRange & {
+  /** The heading as the page sets it (capitals); "" for a heading with nothing on it or for the lead-in. */
+  title: string;
+  /** The page the scene begins on. */
+  page: number;
+};
+
+/**
+ * The scenes of a run of blocks with the page each begins on (counting from
+ * `start`, where the run begins on the page). Blocks ahead of the first heading
+ * are a lead-in with no heading.
+ */
+export function sceneOutline(blocks: readonly ScriptBlock[], start: PageCursor = SCRIPT_START): SceneOutline[] {
+  const pagination = paginate(layout(blocks), { start });
+  return scenes(blocks).map((range) => {
+    const page =
+      (start.page ?? 1) +
+      pagination.breaks.filter((b) => b.block < range.start || (b.block === range.start && b.line === 0)).length;
+    const title = range.heading === null ? "" : upper(blocks[range.heading].text.trim());
+    return { ...range, title, page };
+  });
+}
+
+/**
+ * The order the blocks take when scene `from` moves to where scene `to` is
+ * (both indexes into `scenes(blocks)`): `order[k]` is the old index of the block
+ * that ends up at `k`. Null when nothing would move, or when either is the
+ * lead-in, which stays where it is.
+ */
+export function moveSceneOrder(blocks: readonly ScriptBlock[], from: number, to: number): number[] | null {
+  const ranges = scenes(blocks);
+  const moving = ranges[from];
+  const target = ranges[to];
+  if (!moving || !target || from === to || moving.heading === null || target.heading === null) return null;
+  const rest = ranges.filter((_, i) => i !== from);
+  rest.splice(to, 0, moving);
+  const order: number[] = [];
+  for (const range of rest) for (let i = range.start; i < range.end; i++) order.push(i);
+  return order;
 }
 
 // --- Script languages ----------------------------------------------------------

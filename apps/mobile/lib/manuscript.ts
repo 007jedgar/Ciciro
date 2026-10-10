@@ -492,7 +492,8 @@ export function resumePlainTextIndex(
       return index + clampBlockOffset(block.text, offset);
     }
     index += block.text.length;
-    if (i < doc.blocks.length - 1) index += 2;
+    // The native view's text puts one newline between blocks (see blocksPlainText).
+    if (i < doc.blocks.length - 1) index += 1;
   }
   return null;
 }
