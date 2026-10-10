@@ -249,7 +249,7 @@ export function ChapterEditor({
       style={{ flex: 1 }}
       onLayout={(event) => {
         setShellHeight(event.nativeEvent.layout.height);
-        if (scriptLayout) setShellWidth(event.nativeEvent.layout.width);
+        setShellWidth(event.nativeEvent.layout.width);
       }}
       onTouchStart={
         onLongPress

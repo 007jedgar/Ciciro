@@ -1,11 +1,10 @@
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { PAGE_COLUMNS, PAGE_LINES } from "../lib/screenplay";
+import { ADVANCE, scriptType } from "../lib/script-layout";
 import type { ScriptLine, ScriptPage } from "../lib/script-pages";
 import { fonts, type ColorTokens } from "../lib/theme";
 
-/** JetBrains Mono, like Courier, is 0.6 em wide, so 60 columns are 36 em. */
-const ADVANCE = 0.6;
 /** Air between the sheet's edge and the text, at the sheet's own scale. */
 const EDGE = 0.02;
 /** Columns kept clear on each side of the text for scene numbers: room for three digits and a space. */
@@ -35,9 +34,7 @@ export type SheetMetrics = {
  */
 export function sheetMetrics(width: number, gutterColumns = 0): SheetMetrics {
   const padding = Math.round(width * EDGE * 2);
-  const across = PAGE_COLUMNS + gutterColumns * 2;
-  const fontSize = Math.max(4, Math.floor(((width - padding * 2) / (across * ADVANCE)) * 4) / 4);
-  const lineHeight = Math.round(fontSize * 1.25 * 4) / 4;
+  const { fontSize, lineHeight } = scriptType(width - padding * 2, PAGE_COLUMNS + gutterColumns * 2);
   const paddingTop = padding + lineHeight * 1.5;
   return {
     width,

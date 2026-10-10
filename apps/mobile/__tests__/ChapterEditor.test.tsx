@@ -620,6 +620,17 @@ describe("ChapterEditor", () => {
       expect(second).not.toBe(first);
     });
 
+    it("lays out the page at once when the layout is switched on after the shell has its size", () => {
+      const { rerender } = render(<ChapterEditor {...props} registerEditor={jest.fn()} />);
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      rerender(<ChapterEditor {...props} registerEditor={jest.fn()} scriptLayout />);
+      const input = screen.getByTestId("chapter-editor");
+      const { fontSize, lineHeight } = scriptEditorMetrics(390);
+      expect(input.props.style).toMatchObject({ fontFamily: fonts.mono, fontSize, lineHeight });
+      expect(input.props.paragraphSpacing).toBe(lineHeight);
+      expect(input.props.screenplay).toBe(screenplayLayoutConfig());
+    });
+
     it("does not read its own setValue echo as typing, tags and all", async () => {
       const onChangeText = jest.fn();
       const registerEditor = jest.fn();

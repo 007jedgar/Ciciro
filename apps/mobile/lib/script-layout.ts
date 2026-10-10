@@ -85,18 +85,30 @@ export function screenplayLayoutConfig(): string {
 }
 
 /** JetBrains Mono, like Courier, is 0.6 em wide, so the 60 column page is 36 em. */
-const ADVANCE = 0.6;
+export const ADVANCE = 0.6;
 
-/** A line of a script is a little taller than its type (the page view's ratio), and a blank line is one line. */
+/** A line of a script is a little taller than its type, and a blank line is one line. */
 const LINE_RATIO = 1.25;
 
 /**
- * Type for the editor at `width`: the largest size, to a quarter point, at which
- * the 60 columns of the page fit the width the editor has, so every line breaks
- * where the page breaks it. A hair is held back so rounding never wraps a full
- * line early.
+ * Type for a script whose `columns` (the 60 of the page, by default) get
+ * `textWidth`: the largest size, to a quarter point, at which they fit, and its
+ * line height. The page view's sheet and the editor both size from this, so
+ * their lines break in the same places.
+ */
+export function scriptType(
+  textWidth: number,
+  columns: number = PAGE_COLUMNS,
+): { fontSize: number; lineHeight: number } {
+  const fontSize = Math.max(4, Math.floor((textWidth / (columns * ADVANCE)) * 4) / 4);
+  return { fontSize, lineHeight: Math.round(fontSize * LINE_RATIO * 4) / 4 };
+}
+
+/**
+ * Type for the editor at `width`: the page's type at the width the editor has,
+ * so every line breaks where the page breaks it. A hair is held back so rounding
+ * never wraps a full line early.
  */
 export function scriptEditorMetrics(width: number): { fontSize: number; lineHeight: number } {
-  const fontSize = Math.max(4, Math.floor(((width - 0.5) / (PAGE_COLUMNS * ADVANCE)) * 4) / 4);
-  return { fontSize, lineHeight: Math.round(fontSize * LINE_RATIO * 4) / 4 };
+  return scriptType(width - 0.5);
 }
