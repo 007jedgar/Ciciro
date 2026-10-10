@@ -18,6 +18,15 @@ describe("ScreenplayBar", () => {
     expect(onSetElement).toHaveBeenCalledWith("parenthetical");
   });
 
+  it("hands Tab to the screen when it means more than the next element", () => {
+    const onSetElement = jest.fn();
+    const onTab = jest.fn();
+    render(<ScreenplayBar element="scene-heading" onSetElement={onSetElement} onTab={onTab} />);
+    fireEvent.press(screen.getByLabelText("Next element"));
+    expect(onTab).toHaveBeenCalledTimes(1);
+    expect(onSetElement).not.toHaveBeenCalled();
+  });
+
   it("offers Shot and steps to it from a transition", () => {
     const onSetElement = jest.fn();
     render(<ScreenplayBar element="transition" onSetElement={onSetElement} />);

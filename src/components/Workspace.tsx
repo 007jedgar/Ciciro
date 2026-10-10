@@ -20,6 +20,7 @@ import SearchPanel from "@/components/SearchPanel";
 import RepetitionPanel from "@/components/RepetitionPanel";
 import ContinuityCheckPanel from "@/components/ContinuityCheckPanel";
 import OutlineBoard from "@/components/OutlineBoard";
+import SceneNavigator from "@/components/SceneNavigator";
 import CanvasBoard from "@/components/CanvasBoard";
 import StateReviewPanel from "@/components/StateReviewPanel";
 import Presence from "@/components/Presence";
@@ -43,16 +44,20 @@ import {
   chapterWordCount,
   describeAiInvolvement,
 } from "@/lib/text";
-import { listSuggestions } from "@/lib/suggestions";
+import { htmlWithoutSuggestions, listSuggestions } from "@/lib/suggestions";
 import {
   SCRIPT_START,
+  bibleCharacterNames,
   pageOptionsOf,
   pagesAt,
   parseScriptSettings,
+  scriptBlocksCached,
+  scriptHtmlSupported,
   sequenceCursors,
   serializeScriptSettings,
   type ScriptSettings,
 } from "@/lib/screenplay";
+import type { ScriptContext } from "@/lib/tiptap-screenplay";
 import { commentQuote } from "@/lib/selection-menu";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -145,6 +150,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // Bumped to remount the editor when its chapter was rewritten from outside.
   const [editorNonce, setEditorNonce] = useState(0);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const [scenesOpen, setScenesOpen] = useState(false);
+  // The story bible's characters, so a name is offered before the script first uses it.
+  const [bibleNames, setBibleNames] = useState<string[]>([]);
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [stateReviewOpen, setStateReviewOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
@@ -280,6 +288,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     return {
       pages: pagesAt(end),
       activeStart: at === -1 ? SCRIPT_START : starts[at],
+      starts,
+      shown,
       pageSettings: {
         more: scriptSettings.more,
         contd: scriptSettings.contd,
@@ -321,6 +331,54 @@ export default function Workspace({ initialProject }: { initialProject: Project 
       leave();
     };
   }, [scriptSettingsSaver]);
+
+  // Names, places and times the open line may take come from the rest of the
+  // script (the sequences other than the one being typed in) and the story bible.
+  const scriptContext = useCallback((): ScriptContext | null => {
+    if (kind !== "screenplay") return null;
+    return {
+      sequences: projectRef.current.chapters
+        .filter((c) => c.id !== activeIdRef.current && !c.archivedAt)
+        .map((c) => scriptBlocksCached(c.content)),
+      names: bibleNamesRef.current,
+      extensions: scriptSupportedRef.current,
+    };
+  }, [kind]);
+  const bibleNamesRef = useRef(bibleNames);
+  bibleNamesRef.current = bibleNames;
+  const loadBibleNames = useCallback(() => {
+    if (kind !== "screenplay") return;
+    fetch(`/api/bible?projectId=${encodeURIComponent(projectRef.current.id)}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((entries) => {
+        if (Array.isArray(entries)) setBibleNames(bibleCharacterNames(entries));
+      })
+      .catch(() => {});
+  }, [kind]);
+  useEffect(loadBibleNames, [loadBibleNames, bibleOpen]);
+
+  // The extension buttons (V.O., O.S., CONT'D) are English: grayed out for a script in another language.
+  const activeContent = useDeferredValue(activeChapter?.content ?? "");
+  const scriptSupported = useMemo(
+    () => kind !== "screenplay" || scriptHtmlSupported([htmlWithoutSuggestions(activeContent)]),
+    [kind, activeContent]
+  );
+  const scriptSupportedRef = useRef(scriptSupported);
+  scriptSupportedRef.current = scriptSupported;
+
+  const jumpToScene = useCallback(
+    (chapterId: string, scene: number) => {
+      setScenesOpen(false);
+      setViewMode("prose");
+      setFocusEndOnMount(false);
+      setResumePosition(null);
+      setActiveId(chapterId);
+      heldWrites.write(chapterId, (editor) => editor.revealScene(scene));
+      // Already open: nothing remounts, so the write lands now.
+      if (chapterId === activeIdRef.current) heldWrites.flush();
+    },
+    [heldWrites]
+  );
 
   // Suggest mode is a per-device habit, like a text editor's track-changes switch.
   useEffect(() => {
@@ -1178,6 +1236,15 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         >
           Outline
         </button>
+        {kind === "screenplay" ? (
+          <button
+            className="btn small"
+            title="Every scene heading, with its page. Jump to a scene or move it."
+            onClick={() => setScenesOpen(true)}
+          >
+            Scenes
+          </button>
+        ) : null}
         <button className="btn small" onClick={() => setCanvasOpen(true)}>
           Canvas
         </button>
@@ -1434,6 +1501,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   kind={kind}
                   pageStart={script?.activeStart}
                   pageSettings={script?.pageSettings}
+                  scriptContext={scriptContext}
+                  scriptSupported={scriptSupported}
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
                   onSelectionAction={(action, text) => {
@@ -1541,6 +1610,17 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             patchChapter(id, { status });
           }}
           onClose={() => setOutlineOpen(false)}
+        />
+      </Presence>
+
+      <Presence open={scenesOpen}>
+        <SceneNavigator
+          sequences={(script?.shown ?? []).map((c) => ({ id: c.id, title: c.title, content: c.content }))}
+          starts={script?.starts ?? []}
+          activeId={activeId}
+          onJump={jumpToScene}
+          onMove={(from, to) => editorRef.current?.moveScene(from, to)}
+          onClose={() => setScenesOpen(false)}
         />
       </Presence>
 

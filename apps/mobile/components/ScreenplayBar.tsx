@@ -41,6 +41,7 @@ export function ScreenplayBar({
   disabled = false,
   onSetElement,
   onToggleDual,
+  onTab,
   testID = "screenplay-bar",
 }: {
   /** The element of the line under the caret; null for one this build does not know. */
@@ -54,6 +55,8 @@ export function ScreenplayBar({
   disabled?: boolean;
   onSetElement: (element: ScreenplayElement) => void;
   onToggleDual?: () => void;
+  /** Tab, when it means more than the next element (a scene heading's next part, a cue's parenthetical). */
+  onTab?: () => void;
   testID?: string;
 }) {
   const { t } = useTranslation();
@@ -198,7 +201,7 @@ export function ScreenplayBar({
         accessibilityRole="button"
         accessibilityLabel={t("screenplay.next")}
         disabled={disabled}
-        onPress={() => press(cycleElement(element ?? "action"))}
+        onPress={() => (onTab && !disabled ? onTab() : press(cycleElement(element ?? "action")))}
         style={[
           styles.next,
           { opacity: disabled ? 0.4 : 1 },

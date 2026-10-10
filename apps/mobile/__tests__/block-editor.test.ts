@@ -1,6 +1,8 @@
 import { htmlToDoc } from "../lib/manuscript";
 import {
   appendParagraphsOps,
+  applyOpsToDoc,
+  moveSceneOps,
   newParagraphHtml,
   replaceBlockOps,
   serializeBlockHtml,
@@ -174,5 +176,54 @@ describe("htmlToDoc without a crypto global", () => {
       expect(toggleDualOps(apart, "x")).toEqual([]);
       expect(toggleDualOps(apart, "missing")).toEqual([]);
     });
+  });
+});
+
+describe("moveSceneOps", () => {
+  const html =
+    '<p data-block-id="a">Black.</p>' +
+    '<p data-block-id="h1" data-sp="scene-heading">INT. A - DAY</p><p data-block-id="p1">One.</p>' +
+    '<p data-block-id="h2" data-sp="scene-heading">INT. B - DAY</p><p data-block-id="p2">Two.</p>' +
+    '<p data-block-id="h3" data-sp="scene-heading">INT. C - DAY</p><p data-block-id="p3">Three.</p>';
+
+  function ids() {
+    let n = 0;
+    return {
+      createOpId: () => `op-${++n}`,
+      createBlockId: () => `new-${++n}`,
+      createGroupId: () => "group",
+    };
+  }
+  const texts = (doc: ReturnType<typeof htmlToDoc>["doc"]) => doc.blocks.map((b) => b.text);
+
+  it("moves a scene with its blocks, as one group, leaving the rest alone", () => {
+    const { doc } = htmlToDoc(html, 3);
+    // scenes: 0 is the lead-in, 1..3 the headed scenes.
+    const ops = moveSceneOps(doc, 1, 2, ids());
+    expect(ops.every((op) => op.groupId === "group")).toBe(true);
+    // Only the four blocks whose place changes are touched: the lead-in is not.
+    expect(ops.filter((op) => op.type === "delete_block").map((op) => (op as { blockId: string }).blockId)).toEqual([
+      "h1",
+      "p1",
+      "h2",
+      "p2",
+    ]);
+    const moved = applyOpsToDoc(doc, ops);
+    expect(texts(moved)).toEqual(["Black.", "INT. B - DAY", "Two.", "INT. A - DAY", "One.", "INT. C - DAY", "Three."]);
+    expect(moved.blocks[1].html).toContain('data-sp="scene-heading"');
+    expect(moved.blocks[0].id).toBe("a");
+    expect(moved.blocks.map((b) => b.id).filter((id) => id.startsWith("new-"))).toHaveLength(4);
+  });
+
+  it("moves the last scene to the first place", () => {
+    const { doc } = htmlToDoc(html, 3);
+    const moved = applyOpsToDoc(doc, moveSceneOps(doc, 3, 1, ids()));
+    expect(texts(moved)).toEqual(["Black.", "INT. C - DAY", "Three.", "INT. A - DAY", "One.", "INT. B - DAY", "Two."]);
+  });
+
+  it("does nothing for a move that goes nowhere", () => {
+    const { doc } = htmlToDoc(html, 3);
+    expect(moveSceneOps(doc, 2, 2)).toEqual([]);
+    expect(moveSceneOps(doc, 0, 2)).toEqual([]);
   });
 });

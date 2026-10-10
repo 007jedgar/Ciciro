@@ -1,6 +1,7 @@
-import { escapeHtmlText } from "./block-editor";
-import { locateEditorOffset } from "./enriched-html";
-import { docToHtml, htmlToDoc } from "./manuscript";
+import { escapeHtmlText, newParagraphHtml } from "./block-editor";
+import { editorBlockLength, locateEditorOffset } from "./enriched-html";
+import { docToHtml, htmlToDoc, newBlockId } from "./manuscript";
+import type { ScreenplayElement } from "./screenplay";
 
 /**
  * `html` with the characters `[from, to)` of its text swapped for
@@ -86,4 +87,63 @@ export function replaceSelectedWord(
     html: docToHtml({ ...doc, blocks }),
     caret: blockStart + local + replacement.length,
   };
+}
+
+/**
+ * Swap the rest of a line, from character `from` of it, for `replacement`: what a
+ * chip does to a cue or a scene heading (complete the name, add an extension, type
+ * the time of day). `lineStart` is where the line starts in the editor, and
+ * `expected` what the writer last saw from `from` on; if the page has moved on,
+ * nothing is changed. Unlike `replaceSelectedWord` the range may be empty (the
+ * replacement is added at the end of the line) and so may the replacement (the rest
+ * of the line is removed). The chapter's text has no trailing space, so a line the
+ * writer ended in one is read without it. Returns the new chapter HTML and the caret
+ * at the end of the line.
+ */
+export function replaceLineTail(
+  html: string,
+  lineStart: number,
+  from: number,
+  expected: string,
+  replacement: string,
+): { html: string; caret: number } | null {
+  const { doc } = htmlToDoc(html || "<p></p>", 0);
+  const { index, start } = locateEditorOffset(doc.blocks, lineStart);
+  const block = doc.blocks[index];
+  if (!block || block.kind === "scene_break") return null;
+  const length = block.text.length;
+  const local = Math.min(from, length);
+  if (block.text.slice(local) !== expected.trimEnd()) return null;
+  let next: string | null;
+  if (local < length) {
+    next = replaceTextInBlockHtml(block.html, local, length, replacement);
+  } else {
+    const close = block.html.lastIndexOf("</");
+    next = close < 0 ? null : block.html.slice(0, close) + escapeHtmlText(replacement) + block.html.slice(close);
+  }
+  if (next === null) return null;
+  const blocks = [...doc.blocks];
+  blocks[index] = { ...block, html: next };
+  const out = docToHtml({ ...doc, blocks });
+  const written = htmlToDoc(out, 0).doc.blocks[index];
+  return { html: out, caret: start + (written ? editorBlockLength(written) : local + replacement.length) };
+}
+
+/**
+ * A new empty line of `element` after the line holding editor offset `offset`: what
+ * Tab on a cue does. Returns the new chapter HTML and the caret in the new line.
+ */
+export function insertLineAfter(
+  html: string,
+  offset: number,
+  element: ScreenplayElement,
+): { html: string; caret: number } | null {
+  const { doc } = htmlToDoc(html || "<p></p>", 0);
+  const { index, start } = locateEditorOffset(doc.blocks, offset);
+  const block = doc.blocks[index];
+  if (!block || block.kind === "scene_break") return null;
+  const id = newBlockId();
+  const added = { id, kind: "paragraph" as const, html: newParagraphHtml(id, "", element), text: "" };
+  const blocks = [...doc.blocks.slice(0, index + 1), added, ...doc.blocks.slice(index + 1)];
+  return { html: docToHtml({ ...doc, blocks }), caret: start + editorBlockLength(block) + 1 };
 }

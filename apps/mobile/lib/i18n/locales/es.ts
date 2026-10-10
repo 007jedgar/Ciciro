@@ -1290,6 +1290,25 @@ const es: Translations = {
       empty: "Aún no hay nada en la página. Escribe una escena y aparece aquí, compuesta como se imprime.",
       page: "Página {{number}}",
     },
+    speed: {
+      chips: "Sugerencias",
+      extensions: "Extensiones del personaje",
+      extensionOn: "{{extension}}, activada",
+    },
+    scenes: {
+      title: "Escenas",
+      back: "Volver a las secuencias",
+      hint: "Elige una escena para ir a ella. Si mueves una escena, su acción y sus diálogos van con ella.",
+      empty: "Aún no hay escenas. Empieza una línea con INT. o EXT. y aparece aquí.",
+      count_one: "{{count}} escena",
+      count_other: "{{count}} escenas",
+      lead: "Antes de la primera escena",
+      untitled: "Escena sin título",
+      untitledSequence: "Secuencia sin título",
+      page: "p. {{number}}",
+      moveUp: "Subir {{title}}",
+      moveDown: "Bajar {{title}}",
+    },
     settings: {
       title: "Guion",
       format: "Formato del guion",
@@ -1330,6 +1349,10 @@ const es: Translations = {
       tabOrder: "Tab recorre: {{elements}}.",
       returnNote:
         "Retorno empieza lo que suele seguir: acción tras un encabezado de escena, diálogo tras un personaje, un encabezado de escena tras una transición.",
+      speedNote: "Los nombres, lugares y momentos del día aparecen como botones sobre el teclado, a partir de este guion y de los personajes de tu biblia de la historia. Toca uno para usarlo.",
+      tabFlowNote: "Tras INT. o EXT., Tab pasa al lugar, luego al momento del día y después empieza la acción. Tab en un personaje empieza una acotación.",
+      capsNote: "Los encabezados de escena, los personajes, las transiciones y los planos abren el teclado en mayúsculas. Lo ya escrito se deja como está, y la página lo compone en mayúsculas de todos modos.",
+      extensionsNote: "Los botones V.O., O.S. y CONT'D añaden una extensión al personaje. Un personaje elegido con los botones recibe CONT'D cuando retoma una intervención tras algo de acción.",
     },
   },
   manuscriptTabBar: {

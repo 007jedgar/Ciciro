@@ -37,6 +37,19 @@ else stays in commit messages.
   its lists say "N pages" to match the editor. Script formatting remains English and Spanish for the PDF, and the
   `(MORE)` and `(CONT'D)` notes are English.
 
+- **Screenplays (Beta) are faster to write.** Scene headings, cues, transitions
+  and shots are typed in capitals as you go. A list under the caret on the web
+  (a row of chips above the keyboard on the phone) offers the names, places and
+  times of day the script already uses, and the characters in the story bible
+  before they have spoken. After INT. or EXT., Tab moves to the location, then
+  the time of day, then starts the action, and Tab on a cue starts a
+  parenthetical. V.O., O.S. and CONT'D buttons set a cue's extension, and a cue
+  for a character picking a speech back up after some action gets CONT'D. A new
+  **Scenes** view lists every scene heading with its page, jumps to a scene, and
+  moves a scene (with its action and dialogue) up or down. The extension buttons
+  are grayed out, with an info button, for a script in a language script
+  formatting does not cover yet.
+
 - **Screenplays (Beta) export and import.** Export a script as a **Screenplay
   PDF** (US Letter, 12 pt Courier, page numbers from page 2, the same pages the
   editor's page count counts) or as a **Fountain** file for other writing

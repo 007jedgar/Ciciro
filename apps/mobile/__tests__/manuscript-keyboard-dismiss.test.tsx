@@ -64,6 +64,7 @@ jest.mock("../components/ReaderCommentsPill", () => ({
   useChapterReaderCommentCount: () => 0,
 }));
 jest.mock("../lib/api", () => ({ ciciro: {} }));
+jest.mock("../lib/api/hooks", () => ({ useBibleIndexQuery: () => ({ data: undefined }) }));
 
 describe("Manuscript tab keyboard dismiss", () => {
   it("blurs the editor and dismisses the keyboard on a tap around the page", () => {

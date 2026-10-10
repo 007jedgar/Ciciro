@@ -10,7 +10,7 @@ import {
   type ScriptSettings,
   type TitlePage,
 } from "@/lib/screenplay";
-import { screenplayShortcuts } from "@/lib/screenplay-view";
+import { WRITING_SPEED_TIPS, screenplayShortcuts } from "@/lib/screenplay-view";
 import { isMacPlatform } from "@/lib/selection-menu-view";
 
 /** The open script's own settings: what they are, who it is by, and how to write a change back. */
@@ -186,6 +186,14 @@ function ScreenplaySettings({ script }: { script?: ScriptSettingsControl }) {
           <TitlePageFields script={script} />
         </>
       ) : null}
+      <details className="settings-shortcuts">
+        <summary>Writing speed</summary>
+        {WRITING_SPEED_TIPS.map((tip) => (
+          <p className="settings-hint" key={tip}>
+            {tip}
+          </p>
+        ))}
+      </details>
       <details className="settings-shortcuts">
         <summary>Element shortcuts</summary>
         <dl>

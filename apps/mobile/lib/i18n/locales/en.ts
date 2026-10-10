@@ -1288,6 +1288,25 @@ const en = {
       empty: "Nothing on the page yet. Write a scene and it appears here, set the way it prints.",
       page: "Page {{number}}",
     },
+    speed: {
+      chips: "Suggestions",
+      extensions: "Cue extensions",
+      extensionOn: "{{extension}}, on",
+    },
+    scenes: {
+      title: "Scenes",
+      back: "Back to the sequences",
+      hint: "Choose a scene to go there. Move a scene and its action and dialogue go with it.",
+      empty: "No scenes yet. Start a line with INT. or EXT. and it appears here.",
+      count_one: "{{count}} scene",
+      count_other: "{{count}} scenes",
+      lead: "Before the first scene",
+      untitled: "Untitled scene",
+      untitledSequence: "Untitled sequence",
+      page: "p. {{number}}",
+      moveUp: "Move {{title}} up",
+      moveDown: "Move {{title}} down",
+    },
     settings: {
       title: "Screenplay",
       format: "Script format",
@@ -1328,6 +1347,10 @@ const en = {
       tabOrder: "Tab steps through: {{elements}}.",
       returnNote:
         "Return starts what usually follows: action after a scene heading, dialogue after a character, a scene heading after a transition.",
+      speedNote: "Names, places and times of day show as chips above the keyboard, from this script and the characters in your story bible. Tap one to use it.",
+      tabFlowNote: "After INT. or EXT., Tab moves to the location, then the time of day, then starts the action. Tab on a cue starts a parenthetical.",
+      capsNote: "Scene headings, cues, transitions and shots open the keyboard in capitals. What is already written is left as it is, and the page sets it in capitals anyway.",
+      extensionsNote: "The V.O., O.S. and CONT'D chips add an extension to the cue. A cue picked from the chips gets CONT'D when the character is picking a speech back up after some action.",
     },
   },
   manuscriptTabBar: {
