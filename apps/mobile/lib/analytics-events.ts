@@ -97,7 +97,7 @@ export type EventCatalog = {
   weekly_review_viewed: NoProperties;
   search_performed: NoProperties;
   share_link_created: NoProperties;
-  export_completed: { format: "epub" | "pdf" | "markdown" | "docx" };
+  export_completed: { format: "epub" | "pdf" | "markdown" | "docx" | "fountain" };
   snapshot_restored: NoProperties;
   writing_sprint_completed: { durationMinutes?: number };
   // A manuscript's deadline (mobile). Counts only, never the title or any text: `daysAhead` is whole days from today to the due date.

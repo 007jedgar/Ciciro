@@ -459,11 +459,13 @@ function readParagraph(lines: string[], out: Item[]): void {
 /**
  * Fountain text as a script. Sequences split at the shallowest `#` section
  * depth in the file (one sequence when there are none); text ahead of the first
- * section is a sequence of its own with no title.
+ * section is a sequence of its own with no title. `titlePage: false` reads the
+ * first lines as script even when they look like `Title:` (pasted text).
  */
-export function scriptFromFountain(source: string): FountainScript {
-  const normalized = source.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
-  const { title, author, rest } = takeTitlePage(normalized);
+export function scriptFromFountain(source: string, opts: { titlePage?: boolean } = {}): FountainScript {
+  const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+  const { title, author, rest } =
+    opts.titlePage === false ? { title: "", author: "", rest: normalized } : takeTitlePage(normalized);
   const items: Item[] = [];
   for (const paragraph of splitParagraphs(rest)) readParagraph(paragraph.lines, items);
 

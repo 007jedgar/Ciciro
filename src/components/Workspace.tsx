@@ -1157,7 +1157,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onOpenChange={setWeeklyOpen}
           onDueChange={setWeeklyDue}
         />
-        <ExportMenu projectId={project.id} chapters={project.chapters} />
+        <ExportMenu projectId={project.id} chapters={project.chapters} kind={kind} />
       </div>
 
       <ChapterSidebar
