@@ -72,10 +72,9 @@ export function tabBubble(
   };
   const from = edge(lower);
   const to = edge(upper);
-  // The spring overshoots past the first and last tab; let the frame follow it linearly.
-  const overshoot = (position - clamped) * seg;
-  const left = from.left + (to.left - from.left) * frac + overshoot;
-  const right = from.right + (to.right - from.right) * frac + overshoot;
+  // Clamped to the first and last tab, so the bubble never leaves the pill.
+  const left = from.left + (to.left - from.left) * frac;
+  const right = from.right + (to.right - from.right) * frac;
   const radiusAt = (index: number, side: "left" | "right") =>
     (side === "left" ? index === 0 : index === lastIndex) ? outer : midRadius;
   return {

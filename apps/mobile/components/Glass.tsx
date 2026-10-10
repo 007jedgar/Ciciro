@@ -17,19 +17,22 @@ export function Glass({
   dark,
   colors,
   radius,
+  flat = false,
   style,
   children,
 }: {
   dark: boolean;
   colors: { panel: string; line: string };
   radius: number;
+  /** No drop shadow: for glass inside a scroll view, which would clip the shadow at its edges. */
+  flat?: boolean;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 }) {
   return (
     <View
       style={[
-        styles.shadow,
+        !flat && styles.shadow,
         { borderRadius: radius, backgroundColor: alpha(colors.panel, dark ? 0.6 : 0.72) },
         style,
       ]}

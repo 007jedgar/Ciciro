@@ -59,7 +59,7 @@ describe("tabBubble", () => {
     }
   });
 
-  it("morphs continuously between tabs and follows a spring overshoot", () => {
+  it("morphs continuously between tabs and never leaves the pill", () => {
     let prev = at(0);
     for (let p = 0.05; p <= 2; p += 0.05) {
       const next = at(p);
@@ -67,9 +67,8 @@ describe("tabBubble", () => {
       expect(Math.abs(next.leftRadius - prev.leftRadius)).toBeLessThan(2);
       prev = next;
     }
-    expect(at(-0.1).left).toBeLessThan(at(0).left);
-    expect(at(2.1).left).toBeGreaterThan(at(2).left);
-    expect(at(-0.1).width).toBeCloseTo(at(0).width);
+    expect(at(-0.1)).toEqual(at(0));
+    expect(at(2.1)).toEqual(at(2));
   });
 
   it("has no width, never a negative one, before the tab row is measured", () => {
