@@ -320,7 +320,14 @@ marks.
   no scene heading falls back to the paragraph-based split.
 - `edit_manuscript` replaces a run of blocks with the parsed elements when the
   replacement is multi-line or carries any mark; a replaced shot or unknown tag
-  still survives on the first line (see Forward compatibility).
+  still survives on the first line (see Forward compatibility). A find is
+  matched as written. `scriptEdit` (`src/lib/script-edits.ts`, shared by the
+  direct and the suggestion paths) strips the marks from a replace for part of a
+  line, so a mark is never stored as text, and the brackets from one for a whole
+  parenthetical, which is stored bare. A parenthetical's brackets are for
+  reading only, so the directive, the tool's `find` description and the
+  NOT FOUND note for a bracketed find (`bracketedFindHint`) all say to leave
+  them out.
 
 ### Auto-draft
 
