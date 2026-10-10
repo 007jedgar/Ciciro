@@ -1,4 +1,4 @@
-import { scriptDisplayText, type ManuscriptKind } from "@/lib/manuscript-kind";
+import { elementTagOfHtml, scriptDisplayText, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { findBlockRun, getBlocks, normalizeWhitespace } from "@/lib/passages";
 
 // An edit_manuscript find/replace on a script, squared with how the script is
@@ -9,11 +9,9 @@ import { findBlockRun, getBlocks, normalizeWhitespace } from "@/lib/passages";
 
 const BRACKETED = /^\(\s*(\S.*?)\s*\)$/;
 
-function unbracket(text: string): string {
-  return text
-    .split("\n")
-    .map((line) => line.trim().match(BRACKETED)?.[1] ?? line)
-    .join("\n");
+function parentheticalBlock(html: string, text: string): boolean {
+  const run = findBlockRun(html, text);
+  return run !== null && run.startIdx === run.endIdx && elementTagOfHtml(html.slice(run.start, run.end)) === "parenthetical";
 }
 
 function appears(html: string, find: string): boolean {
@@ -22,26 +20,33 @@ function appears(html: string, find: string): boolean {
   return needle !== "" && getBlocks(html).some((block) => block.text.includes(needle));
 }
 
+export type ScriptEdit = {
+  find: string;
+  replace: string;
+  /** The find is a whole block, to be replaced as one and never as words inside other lines. */
+  wholeBlocks?: true;
+};
+
 /**
  * The find and replace to apply to this chapter. A find copied from the view
- * with a parenthetical's brackets is matched without them, and so is its
- * replace. A replace for part of a line loses its marks: the line keeps its
- * element, and a mark would otherwise be stored as text.
+ * as a bracketed parenthetical is matched against a whole parenthetical block
+ * without its brackets, and replaces that block. A replace for part of a line
+ * loses its marks: the line keeps its element, and a mark would otherwise be
+ * stored as text.
  */
 export function scriptEdit(
   html: string,
   edit: { find: string; replace: string },
   kind: ManuscriptKind
-): { find: string; replace: string } {
+): ScriptEdit {
   if (kind !== "screenplay") return edit;
-  let { find, replace } = edit;
-  if (!appears(html, find)) {
-    const bare = unbracket(find);
-    if (bare !== find && appears(html, bare)) {
-      find = bare;
-      replace = unbracket(replace);
-    }
+  const { find, replace } = edit;
+  const bare = find.trim().match(BRACKETED)?.[1];
+  if (bare !== undefined && !appears(html, find) && parentheticalBlock(html, bare)) {
+    const line = replace.trim();
+    const bracketed = /\n/.test(line) || BRACKETED.test(line) || !line ? replace : `(${line})`;
+    return { find: bare, replace: bracketed, wholeBlocks: true };
   }
-  if (!findBlockRun(html, find)) replace = scriptDisplayText(replace);
+  if (!findBlockRun(html, find)) return { find, replace: scriptDisplayText(replace) };
   return { find, replace };
 }

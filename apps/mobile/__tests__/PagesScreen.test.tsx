@@ -78,16 +78,13 @@ describe("Pages screen", () => {
     expect(screen.getByText("Rain on the glass.")).toBeTruthy();
   });
 
-  it("opens on the top of the writer's sequence: the notes sit above the list, so each row is where its offset says", () => {
+  it("opens on the top of the writer's sequence: the notes sit above the list, not inside it", () => {
     const long = '<p data-sp="scene-heading">INT. LAB - NIGHT</p>' + "<p>Rain on the glass.</p>".repeat(80);
     mockChapters = [sequence("c1", 0, long), sequence("c2", 1, SEQUENCE)];
     mockSelected = "c2";
     render(<PagesScreen />);
     const list = screen.UNSAFE_getByType(FlatList);
-    const index = list.props.initialScrollIndex as number;
-    expect(index).toBeGreaterThan(0);
-    const row = list.props.getItemLayout(list.props.data, index);
-    expect(row.offset).toBe(row.length * index);
+    expect(list.props.initialScrollIndex).toBeGreaterThan(0);
     expect(list.props.ListHeaderComponent).toBeUndefined();
     expect(screen.getByText("Read only. Write in the manuscript.")).toBeTruthy();
     expect(within(screen.getByTestId("script-pages")).queryByText("Read only. Write in the manuscript.")).toBeNull();

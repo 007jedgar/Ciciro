@@ -77,9 +77,16 @@ export async function suggestChapterEdits(
   for (const r of replacements) {
     if (!r.find) continue;
     const edit = scriptEdit(html, { find: r.find, replace: r.replace ?? "" }, kind);
-    const result = suggestReplacements(html, [edit], options);
+    const split = options.splitReplacement;
+    const result = suggestReplacements(
+      html,
+      [{ find: edit.find, replace: edit.replace }],
+      edit.wholeBlocks && split
+        ? { ...options, splitReplacement: (text, replacing) => split(text, replacing).map((p) => ({ ...p, explicit: true })) }
+        : options
+    );
     html = result.html;
-    edits.push(edit);
+    edits.push({ find: edit.find, replace: edit.replace });
     outcomes.push(...result.outcomes);
   }
   const report = edits.map((edit, i) => describeOutcome(edit, outcomes[i]));

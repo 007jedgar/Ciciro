@@ -169,11 +169,11 @@ describe("Ciciro's line edits as tracked suggestions", () => {
       '<p data-sp="parenthetical" data-block-id="b4">quietly</p>' +
       '<p data-sp="dialogue" data-block-id="b5">He never called.</p>';
 
-    async function seedScript(suggestions: boolean) {
+    async function seedScript(suggestions: boolean, content = SCRIPT) {
       const user = await registerUser({ email: "ada@example.com", password: "long-enough-pw", name: "Ada" });
       const project = await createProject(user, { title: "Heist", kind: "screenplay" });
       const chapter = project.chapters[0];
-      const saved = await updateChapter(chapter.id, user, { content: SCRIPT, expectedRevision: chapter.revision });
+      const saved = await updateChapter(chapter.id, user, { content, expectedRevision: chapter.revision });
       if (!suggestions) await updateUserSettings(user.id, { aiSuggestions: false });
       return { projectId: project.id, chapterId: chapter.id, revision: saved.chapter.revision };
     }
@@ -200,6 +200,35 @@ describe("Ciciro's line edits as tracked suggestions", () => {
         expect(result.content).not.toContain("NOT FOUND");
         const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
         expect(blocks(chapter.content)[3]).toEqual(["parenthetical", "softly"]);
+      });
+
+      it(`changes only the parenthetical a bracketed find names, never the word inside another line (${path})`, async () => {
+        const { projectId, chapterId, revision } = await seedScript(
+          suggestions,
+          '<p data-sp="action" data-block-id="b1">Her heartbeat races.</p>' +
+            '<p data-sp="character" data-block-id="b2">MARA</p>' +
+            '<p data-sp="parenthetical" data-block-id="b3">beat</p>' +
+            '<p data-sp="dialogue" data-block-id="b4">Fine.</p>'
+        );
+        await suggestEdit(projectId, revision, "(beat)", "(pause)");
+        const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+        expect(blocks(chapter.content)).toEqual([
+          ["action", "Her heartbeat races."],
+          ["character", "MARA"],
+          ["parenthetical", "pause"],
+          ["dialogue", "Fine."],
+        ]);
+      });
+
+      it(`reports a bracketed find with no such parenthetical as not found (${path})`, async () => {
+        const { projectId, chapterId, revision } = await seedScript(
+          suggestions,
+          '<p data-sp="action" data-block-id="b1">She speaks quietly.</p>'
+        );
+        const result = await suggestEdit(projectId, revision, "(quietly)", "(softly)");
+        expect(result.content).toContain("NOT FOUND");
+        const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+        expect(chapter.revision).toBe(revision);
       });
     }
   });

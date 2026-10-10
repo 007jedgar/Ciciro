@@ -1471,7 +1471,7 @@ export async function executeEditorTool(
         // replacement of several lines, or of one that carries a mark ("!BOOM.").
         const scriptBlocks =
           kind === "screenplay" &&
-          (/\n/.test(r.replace) || markedLine(r.replace) !== null) &&
+          (r.wholeBlocks || /\n/.test(r.replace) || markedLine(r.replace) !== null) &&
           findBlockRun(content, r.find) !== null;
         const literalCount = scriptBlocks ? 0 : content.split(r.find).length - 1;
         if (literalCount > 0) {
