@@ -24,6 +24,7 @@ export const SCREENPLAY_ELEMENTS = [
   "parenthetical",
   "transition",
   "shot",
+  "centered",
 ] as const;
 export type ScreenplayElement = (typeof SCREENPLAY_ELEMENTS)[number];
 
@@ -35,9 +36,17 @@ export const SCREENPLAY_ELEMENT_LABELS: Record<ScreenplayElement, string> = {
   parenthetical: "Parenthetical",
   transition: "Transition",
   shot: "Shot",
+  centered: "Centered",
 };
 
 export const SCREENPLAY_ATTR = "data-sp";
+/**
+ * Set to "1" on the character cue that opens the second speech of a dual
+ * dialogue pair: the speech sits beside the one right above it (Fountain's `^`).
+ * An older client drops it when it rewrites the block; that costs the pairing,
+ * never the words.
+ */
+export const SCREENPLAY_DUAL_ATTR = "data-sp-dual";
 
 export function isScreenplayElement(value: unknown): value is ScreenplayElement {
   return typeof value === "string" && (SCREENPLAY_ELEMENTS as readonly string[]).includes(value);
@@ -79,6 +88,7 @@ const CYCLE: readonly ScreenplayElement[] = [
   "parenthetical",
   "transition",
   "shot",
+  "centered",
   "scene-heading",
 ];
 
@@ -95,6 +105,7 @@ const AFTER_ENTER: Record<ScreenplayElement, ScreenplayElement> = {
   parenthetical: "dialogue",
   transition: "scene-heading",
   shot: "action",
+  centered: "action",
 };
 
 /** The element a new block takes when Enter splits or ends `current`. */
@@ -104,7 +115,7 @@ export function nextElementOnEnter(current: ScreenplayElement): ScreenplayElemen
 
 /**
  * The element shortcuts, in the order of the digits that choose them: Alt+Shift
- * plus 1 to 7. Never Cmd/Ctrl+digit: browsers keep those for switching tabs,
+ * plus 1 to 8. Never Cmd/Ctrl+digit: browsers keep those for switching tabs,
  * and Ctrl+Alt is AltGr on many Windows layouts.
  */
 export const SHORTCUT_ORDER: readonly ScreenplayElement[] = [
@@ -115,9 +126,10 @@ export const SHORTCUT_ORDER: readonly ScreenplayElement[] = [
   "dialogue",
   "shot",
   "transition",
+  "centered",
 ];
 
-/** The digit (1 to 7) that chooses `element` with Alt+Shift. */
+/** The digit (1 to 8) that chooses `element` with Alt+Shift. */
 export function shortcutDigit(element: ScreenplayElement): number {
   return SHORTCUT_ORDER.indexOf(element) + 1;
 }
@@ -151,8 +163,27 @@ export function elementOfHtml(html: string): ScreenplayElement {
 export function withElement(html: string, element: string): string {
   const tag = elementTag(element);
   return html.replace(/^<([a-z][\w-]*)\b([^>]*)>/i, (_full, name: string, attrs: string) => {
-    const bare = attrs.replace(/\s*\bdata-sp\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, "");
+    let bare = attrs.replace(/\s*\bdata-sp\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, "");
+    // Only a cue can open the second speech of a dual pair.
+    if (tag !== "character") bare = bare.replace(DUAL_ATTR_RE, "");
     return tag === "action" ? `<${name}${bare}>` : `<${name}${bare} ${SCREENPLAY_ATTR}="${tag}">`;
+  });
+}
+
+const DUAL_ATTR_RE = /\s*\bdata-sp-dual\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i;
+
+/** Whether a block's opening tag says its speech sits beside the one above it. */
+export function dualOfHtml(html: string): boolean {
+  const m = openingTag(html).match(/\bdata-sp-dual\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+  const value = (m?.[1] ?? m?.[2] ?? m?.[3] ?? "").trim();
+  return value === "1" || value === "true";
+}
+
+/** Set or clear the dual-dialogue flag on a block's opening tag. */
+export function withDual(html: string, dual: boolean): string {
+  return html.replace(/^<([a-z][\w-]*)\b([^>]*)>/i, (_full, name: string, attrs: string) => {
+    const bare = attrs.replace(DUAL_ATTR_RE, "");
+    return dual ? `<${name}${bare} ${SCREENPLAY_DUAL_ATTR}="1">` : `<${name}${bare}>`;
   });
 }
 
@@ -168,7 +199,7 @@ export type ElementMetrics = {
   indent: number;
   /** Columns the element may fill. */
   width: number;
-  align: "left" | "right";
+  align: "left" | "right" | "center";
   /** Set in capitals. */
   caps: boolean;
   bold: boolean;
@@ -189,6 +220,28 @@ export const ELEMENT_METRICS: Record<ScreenplayElement, ElementMetrics> = {
   parenthetical: { indent: 16, width: 25, align: "left", caps: false, bold: false },
   transition: { indent: 30, width: 30, align: "right", caps: true, bold: false },
   shot: { indent: 0, width: 60, align: "left", caps: true, bold: false },
+  centered: { indent: 0, width: 60, align: "center", caps: false, bold: false },
+};
+
+export type DualSide = "left" | "right";
+
+/**
+ * Where a speech sits when it shares the page with another (dual dialogue): two
+ * columns of 28 with a gap of 4, the left one starting at the margin. Only a
+ * cue, a parenthetical and dialogue are ever set this way. Mirrored by the
+ * editor's CSS (test/screenplay-css.test.ts).
+ */
+export const DUAL_METRICS: Record<DualSide, Partial<Record<ScreenplayElement, { indent: number; width: number }>>> = {
+  left: {
+    character: { indent: 8, width: 20 },
+    parenthetical: { indent: 4, width: 20 },
+    dialogue: { indent: 0, width: 28 },
+  },
+  right: {
+    character: { indent: 40, width: 20 },
+    parenthetical: { indent: 36, width: 20 },
+    dialogue: { indent: 32, width: 28 },
+  },
 };
 
 /** Elements that stay on the page with the block after them. */
@@ -200,7 +253,7 @@ const KEEP_WITH_NEXT: ReadonlySet<ScreenplayElement> = new Set([
 ]);
 
 /** Elements a page may break in the middle of, with two lines left on each side. */
-const SPLITTABLE: ReadonlySet<ScreenplayElement> = new Set(["action", "dialogue"]);
+const SPLITTABLE: ReadonlySet<ScreenplayElement> = new Set(["action", "dialogue", "centered"]);
 
 /**
  * Blank lines between a block and the one before it: one, except that a
@@ -221,7 +274,12 @@ export function blankLinesBefore(element: ScreenplayElement, above: ScreenplayEl
 }
 
 /** What the engine lays out: an element tag and the block's plain text (`\n` for a hard break). */
-export type ScriptBlock = { element: string; text: string };
+export type ScriptBlock = {
+  element: string;
+  text: string;
+  /** A cue that opens the second speech of a dual-dialogue pair: it sits beside the speech above. */
+  dual?: boolean;
+};
 
 export type LaidOutLine = {
   /** The line as set on the page: capitals applied, a parenthetical's brackets on. */
@@ -239,8 +297,10 @@ export type LaidOutBlock = {
   lines: LaidOutLine[];
   indent: number;
   width: number;
-  align: "left" | "right";
+  align: "left" | "right" | "center";
   bold: boolean;
+  /** Set when the block is a speech of a dual-dialogue pair: the column it sits in, and which pair. */
+  dual?: { side: DualSide; pair: number };
 };
 
 /** How many 10-pitch columns a character fills: 0 for a combining mark, 2 for a wide one. */
@@ -382,10 +442,21 @@ function wrapRun(text: string, from: number, to: number, width: number, out: Lai
   push(lineStart, to);
 }
 
-/** Set one block on the page: its lines, indent, and the blank lines above it. */
-export function layoutBlock(block: ScriptBlock, above: ScreenplayElement | null, index = 0): LaidOutBlock {
+/**
+ * Set one block on the page: its lines, indent, and the blank lines above it.
+ * `side` sets a speech in one column of a dual-dialogue pair.
+ */
+export function layoutBlock(
+  block: ScriptBlock,
+  above: ScreenplayElement | null,
+  index = 0,
+  side?: DualSide
+): LaidOutBlock {
   const element = normalizeElement(block.element);
   const metrics = ELEMENT_METRICS[element];
+  const column = side ? DUAL_METRICS[side][element] : undefined;
+  const indent = column?.indent ?? metrics.indent;
+  const width = column?.width ?? metrics.width;
   let text = block.text;
   let prefix = 0;
   if (element === "parenthetical") {
@@ -394,7 +465,7 @@ export function layoutBlock(block: ScriptBlock, above: ScreenplayElement | null,
   } else if (metrics.caps) {
     text = upper(text);
   }
-  const lines = wrapText(text, metrics.width).map((line) => ({
+  const lines = wrapText(text, width).map((line) => ({
     text: line.text,
     start: Math.max(0, line.start - prefix),
   }));
@@ -403,20 +474,112 @@ export function layoutBlock(block: ScriptBlock, above: ScreenplayElement | null,
     element,
     before: blankLinesBefore(element, above),
     lines,
-    indent: metrics.indent,
-    width: metrics.width,
+    indent,
+    width,
     align: metrics.align,
     bold: metrics.bold,
   };
 }
 
+/** Lines a column of a dual pair takes: its blocks and the blank lines between them. */
+function columnRows(column: readonly LaidOutBlock[]): number {
+  return column.reduce((sum, b, n) => sum + (n > 0 ? b.before : 0) + b.lines.length, 0);
+}
+
+/** A pair no taller than this is set side by side; a taller one falls back to two speeches in turn. */
+const DUAL_MAX_ROWS = PAGE_LINES - 2;
+
+type DualPlan = { side: DualSide; pair: number; groupStart: number; pairStart: number };
+
+/** Which blocks sit in which column of which pair, for the pairs that fit on a page. */
+function planDual(blocks: readonly ScriptBlock[]): Map<number, DualPlan> {
+  const plan = new Map<number, DualPlan>();
+  dualPairs(blocks).forEach(({ left, right }, pair) => {
+    const set = (group: DialogueGroup, side: DualSide): LaidOutBlock[] => {
+      const out: LaidOutBlock[] = [];
+      for (let i = group.start; i < group.end; i++) {
+        out.push(layoutBlock(blocks[i], i === group.start ? null : out[out.length - 1].element, i, side));
+      }
+      return out;
+    };
+    const rows = Math.max(columnRows(set(left, "left")), columnRows(set(right, "right")));
+    if (rows > DUAL_MAX_ROWS) return;
+    for (const [group, side] of [[left, "left"], [right, "right"]] as const) {
+      for (let i = group.start; i < group.end; i++) {
+        plan.set(i, { side, pair, groupStart: group.start, pairStart: left.start });
+      }
+    }
+  });
+  return plan;
+}
+
 /** Set a run of blocks on the page. */
 export function layout(blocks: readonly ScriptBlock[]): LaidOutBlock[] {
+  const dual = planDual(blocks);
   const out: LaidOutBlock[] = [];
   for (let i = 0; i < blocks.length; i++) {
-    out.push(layoutBlock(blocks[i], i === 0 ? null : out[i - 1].element, i));
+    const plan = dual.get(i);
+    if (!plan) {
+      out.push(layoutBlock(blocks[i], i === 0 ? null : out[i - 1].element, i));
+      continue;
+    }
+    // The first block of each column hangs from whatever is above the pair; the rest answer the block above in their own column.
+    const above =
+      i === plan.groupStart ? (plan.pairStart === 0 ? null : out[plan.pairStart - 1].element) : out[i - 1].element;
+    const laid = layoutBlock(blocks[i], above, i, plan.side);
+    laid.dual = { side: plan.side, pair: plan.pair };
+    out.push(laid);
   }
   return out;
+}
+
+// --- Dual dialogue and speeches --------------------------------------------------
+
+export type DualPair = { left: DialogueGroup; right: DialogueGroup };
+
+/**
+ * The speeches that sit side by side: a cue flagged `dual` pairs its speech
+ * with the one directly above it (the two touch, with nothing between). A
+ * speech joins at most one pair, so a flag on the speech after a pair's second
+ * is ignored, as is one with no speech right above it.
+ */
+export function dualPairs(blocks: readonly ScriptBlock[]): DualPair[] {
+  const groups = dialogueGroups(blocks);
+  const out: DualPair[] = [];
+  for (let g = 1; g < groups.length; g++) {
+    const left = groups[g - 1];
+    const right = groups[g];
+    if (!blocks[right.character].dual || left.end !== right.start) continue;
+    if (out.length > 0 && out[out.length - 1].right === left) continue;
+    out.push({ left, right });
+  }
+  return out;
+}
+
+export const MORE_TEXT = "(MORE)";
+export const CONTD_TEXT = "(CONT'D)";
+
+/** A cue as it is set at the top of the page its speech runs on to: its name with `(CONT'D)` after it. */
+export function contdCue(cue: string): string {
+  const name = cue.trim();
+  return /\(\s*cont(?:['’]d|\.)\s*\)\s*$/i.test(name) ? upper(name) : upper(`${name} ${CONTD_TEXT}`);
+}
+
+const contdCache = new WeakMap<LaidOutBlock, LaidOutLine[]>();
+
+/** The lines of the cue repeated at the top of a page, each with its place in the cue's own text. */
+function contdLines(cue: LaidOutBlock): LaidOutLine[] {
+  let lines = contdCache.get(cue);
+  if (!lines) {
+    lines = wrapText(contdCue(cue.lines.map((l) => l.text).join(" ")), ELEMENT_METRICS.character.width);
+    contdCache.set(cue, lines);
+  }
+  return lines;
+}
+
+/** Whether a scene heading carries a scene number: any with words in it. */
+export function isNumberedScene(element: string, text: string): boolean {
+  return normalizeElement(element) === "scene-heading" && text.trim() !== "";
 }
 
 // --- Pagination --------------------------------------------------------------
@@ -426,6 +589,16 @@ export type PageCursor = { page: number; line: number };
 
 export const SCRIPT_START: PageCursor = { page: 1, line: 0 };
 
+/** What shapes the pages besides the words: the dialogue-break notes. */
+export type PageOptions = {
+  /** `(MORE)` closes a page a speech runs past. Default on. */
+  more?: boolean;
+  /** The cue is set again with `(CONT'D)` at the top of the next page. Default on. */
+  contd?: boolean;
+  /** Scene headings carry numbers in both margins. Default off. */
+  sceneNumbers?: boolean;
+};
+
 /** A page begins here: `line` lines into block `block` (0: just before it). */
 export type PageBreak = {
   /** The page that begins. */
@@ -434,6 +607,12 @@ export type PageBreak = {
   line: number;
   /** The character offset in the block's text of that line. */
   offset: number;
+  /** The cue's block when the break falls inside a speech (it runs on to this page), else null. */
+  speech: number | null;
+  /** `(MORE)` is set on the last line of the page above. */
+  more: boolean;
+  /** The cue is set again, with `(CONT'D)`, on the first line of this page. */
+  contd: boolean;
 };
 
 export type Pagination = {
@@ -449,18 +628,85 @@ export function pagesAt(cursor: PageCursor): number {
   return cursor.page === 1 && cursor.line === 0 ? 0 : cursor.page;
 }
 
-/** Lines of block `i` that must share a page with its start, with the chain of blocks it keeps with. */
-function startNeed(laid: readonly LaidOutBlock[], i: number): number {
+type Speech = { cue: number; last: number };
+
+/** What the paginator places: a block, or both speeches of a dual pair as one. */
+type Item = {
+  first: number;
+  /** Laid-out block indexes: one, or all of a dual pair's. */
+  blocks: number[];
+  before: number;
+  /** Lines it takes, blank lines inside it included. */
+  rows: number;
+  dual: boolean;
+  /** The speech a plain block belongs to, for `(MORE)` and `(CONT'D)`. */
+  speech: Speech | null;
+};
+
+function buildItems(laid: readonly LaidOutBlock[]): Item[] {
+  const speechAt = new Map<number, Speech>();
+  for (let i = 0; i < laid.length; i++) {
+    if (laid[i].dual || laid[i].element !== "character") continue;
+    let end = i + 1;
+    while (
+      end < laid.length &&
+      !laid[end].dual &&
+      (laid[end].element === "parenthetical" || laid[end].element === "dialogue")
+    ) {
+      end++;
+    }
+    const speech = { cue: i, last: end - 1 };
+    for (let k = i; k < end; k++) speechAt.set(k, speech);
+    i = end - 1;
+  }
+  const items: Item[] = [];
+  for (let i = 0; i < laid.length; ) {
+    const b = laid[i];
+    if (b.dual) {
+      const pair = b.dual.pair;
+      let j = i;
+      while (j < laid.length && laid[j].dual?.pair === pair) j++;
+      const blocks = Array.from({ length: j - i }, (_, n) => i + n);
+      const column = (side: DualSide) => blocks.filter((k) => laid[k].dual?.side === side).map((k) => laid[k]);
+      items.push({
+        first: i,
+        blocks,
+        before: b.before,
+        rows: Math.max(columnRows(column("left")), columnRows(column("right"))),
+        dual: true,
+        speech: null,
+      });
+      i = j;
+    } else {
+      items.push({ first: i, blocks: [i], before: b.before, rows: b.lines.length, dual: false, speech: speechAt.get(i) ?? null });
+      i++;
+    }
+  }
+  return items;
+}
+
+/** Lines of an item that must be on a page for it to begin there. */
+function minStart(item: Item, laid: readonly LaidOutBlock[], more: boolean): number {
+  if (item.dual) return item.rows;
+  const b = laid[item.first];
+  const n = item.rows;
+  const inSpeech = more && item.speech !== null;
+  if (SPLITTABLE.has(b.element) && n >= 4) return 2 + (inSpeech ? 1 : 0);
+  // A block that does not split needs room to finish; a speech that goes on after it needs a line for (MORE) too.
+  return n + (inSpeech && item.first < item.speech!.last ? 1 : 0);
+}
+
+/** Lines that must fit on the page to begin item `k`, with the chain of items it keeps with. */
+function startNeed(items: readonly Item[], laid: readonly LaidOutBlock[], k: number, more: boolean): number {
   let need = 0;
-  for (let j = i; j < laid.length; j++) {
-    const b = laid[j];
-    const n = b.lines.length;
-    if (KEEP_WITH_NEXT.has(b.element) && j + 1 < laid.length) {
-      need += b.before + n;
+  for (let j = k; j < items.length; j++) {
+    const item = items[j];
+    if (!item.dual && KEEP_WITH_NEXT.has(laid[item.first].element) && j + 1 < items.length) {
+      need += item.before + item.rows;
       if (need > PAGE_LINES) return need;
       continue;
     }
-    return need + b.before + (SPLITTABLE.has(b.element) ? Math.min(n, 2) : n);
+    return need + item.before + minStart(item, laid, more);
   }
   return need;
 }
@@ -468,72 +714,118 @@ function startNeed(laid: readonly LaidOutBlock[], i: number): number {
 /**
  * Break laid-out blocks into pages. A scene heading, shot, cue, or parenthetical
  * stays with what follows; an action or speech breaks across a page only with
- * two lines on each side; anything else moves whole. An estimate: no (MORE) and
- * (CONT'D), and the real page rule is "roughly, sometimes" a minute.
+ * two lines on each side; anything else moves whole, and so does a dual-dialogue
+ * pair. A speech that runs past a page ends it with `(MORE)` and is begun again
+ * with its cue and `(CONT'D)`; both take a line, and each can be turned off. The
+ * "about a minute a page" rule is still a rule of thumb, not a measurement.
  */
-export function paginate(laid: readonly LaidOutBlock[], opts: { start?: PageCursor } = {}): Pagination {
+export function paginate(laid: readonly LaidOutBlock[], opts: PageOptions & { start?: PageCursor } = {}): Pagination {
+  const more = opts.more !== false;
+  const contd = opts.contd !== false;
+  const items = buildItems(laid);
   const breaks: PageBreak[] = [];
   let page = opts.start?.page ?? 1;
   let line = opts.start?.line ?? 0;
+  // Lines already on a page when it begins: the repeated cue, when there is one.
+  let floor = 0;
+  // The page begins with a repeated cue, so the block under it follows it directly.
+  let bare = false;
 
-  for (let i = 0; i < laid.length; i++) {
-    const b = laid[i];
+  /** A page begins `at` lines into `block`. */
+  const turn = (block: number, at: number, speech: Speech | null) => {
+    const inside = speech !== null && (at > 0 || block > speech.cue);
+    page++;
+    floor = inside && contd ? contdLines(laid[speech.cue]).length : 0;
+    line = floor;
+    bare = floor > 0;
+    breaks.push({
+      page,
+      block,
+      line: at,
+      offset: at === 0 ? 0 : laid[block].lines[at].start,
+      speech: inside ? speech.cue : null,
+      more: inside && more,
+      contd: inside && contd,
+    });
+  };
+
+  for (let k = 0; k < items.length; k++) {
+    const item = items[k];
+    const need = startNeed(items, laid, k, more);
+    if (line > 0 && line + need > PAGE_LINES && need <= PAGE_LINES) turn(item.first, 0, item.speech);
+    if (line > 0 && !bare) line += item.before;
+
+    if (item.dual) {
+      // Both speeches at once, as tall as the taller; never split.
+      const room = PAGE_LINES - line;
+      line += Math.min(item.rows, room);
+      bare = false;
+      continue;
+    }
+
+    const b = laid[item.first];
+    const speech = item.speech;
+    const midMore = more && speech ? 1 : 0;
+    const endMore = more && speech && item.first < speech.last ? 1 : 0;
     const total = b.lines.length;
-    const newPage = (at: number) => {
-      page++;
-      line = 0;
-      breaks.push({ page, block: i, line: at, offset: at === 0 ? 0 : b.lines[at].start });
-    };
-
-    const need = startNeed(laid, i);
-    if (line > 0 && line + need > PAGE_LINES && need <= PAGE_LINES) newPage(0);
-    if (line > 0) line += b.before;
-
     let placed = 0;
     while (placed < total) {
       const room = PAGE_LINES - line;
       const left = total - placed;
-      if (left <= room) {
+      if (left + endMore <= room) {
         line += left;
         break;
       }
       let take = 0;
       if (SPLITTABLE.has(b.element)) {
-        take = Math.min(room, left - 2);
+        take = Math.min(room - midMore, left - 2);
         if (placed === 0 && take < 2) take = 0;
       }
       if (take <= 0) {
-        if (line > 0) {
-          newPage(placed);
+        if (line > floor) {
+          turn(item.first, placed, speech);
           continue;
         }
         take = room; // Taller than a page and not one to split: it has to.
       }
       line += take;
       placed += take;
-      newPage(placed);
+      turn(item.first, placed, speech);
     }
+    bare = false;
   }
 
   const end = { page, line };
   return { breaks, end, pages: pagesAt(end) };
 }
 
-/** One row of a typeset page; null is a blank line. */
-export type PageRow = {
+/** One cell of a typeset row: a stretch of one block's text, and where it sits. */
+export type PageCell = {
   text: string;
   indent: number;
   width: number;
-  align: "left" | "right";
+  align: "left" | "right" | "center";
   bold: boolean;
-  /** The sequence (chapter) the row belongs to: 0 for a single run of blocks. */
-  sequence: number;
   block: number;
-  /** Where the row's text starts in its block's own text. */
+  /** Where the cell's text starts in its block's own text. */
   start: number;
-  /** Characters at the front of the row that are not in the block's text (a parenthetical's bracket). */
+  /** Characters at the front of the cell that are not in the block's text (a parenthetical's bracket). */
   lead: number;
-} | null;
+};
+
+/** One row of a typeset page; null is a blank line. */
+export type PageRow =
+  | (PageCell & {
+      /** The sequence (chapter) the row belongs to: 0 for a single run of blocks. */
+      sequence: number;
+      /** Set on the notes the engine adds itself: `(MORE)` and the repeated cue. Their text is not in any block. */
+      synthetic?: "more" | "contd";
+      /** The scene's number, on the first row of a numbered scene heading. */
+      sceneNumber?: string;
+      /** The right-hand column of a dual-dialogue row; the cell above is the left. */
+      right?: PageCell;
+    })
+  | null;
 
 export type Typeset = {
   /** The pages, line by line. */
@@ -546,42 +838,131 @@ export type Typeset = {
   count: number;
 };
 
+function cellOf(b: LaidOutBlock, line: LaidOutLine, at: number): PageCell {
+  return {
+    text: line.text,
+    indent: b.indent,
+    width: b.width,
+    align: b.align,
+    bold: b.bold,
+    block: b.index,
+    start: line.start,
+    lead: b.element === "parenthetical" && at === 0 ? 1 : 0,
+  };
+}
+
 /**
  * The pages themselves, line by line: what the PDF writer draws and what a
  * golden fixture pins. Starts at a fresh page; each sequence runs on from the
  * one before with continuous page numbers, exactly as `sequenceCursors` counts.
  */
-export function typesetSequences(sequences: readonly (readonly ScriptBlock[])[]): Typeset {
+export function typesetSequences(sequences: readonly (readonly ScriptBlock[])[], opts: PageOptions = {}): Typeset {
   const pages: PageRow[][] = [[]];
   const paginations: Pagination[] = [];
   let cursor = SCRIPT_START;
+  let scenes = 0;
   sequences.forEach((blocks, sequence) => {
     const laid = layout(blocks);
-    const pagination = paginate(laid, { start: cursor });
+    const pagination = paginate(laid, { ...opts, start: cursor });
     paginations.push(pagination);
     cursor = pagination.end;
     let next = 0;
-    for (const b of laid) {
+    let bare = false;
+    /** Begin the page the engine says starts here: close the one above with (MORE), open this one with the cue. */
+    const turn = (block: number, line: number) => {
+      const brk = pagination.breaks[next];
+      if (!brk || brk.block !== block || brk.line !== line) return;
+      next++;
+      const characterAt = ELEMENT_METRICS.character;
+      if (brk.more && brk.speech !== null) {
+        pages[pages.length - 1].push({
+          text: MORE_TEXT,
+          indent: characterAt.indent,
+          width: characterAt.width,
+          align: "left",
+          bold: false,
+          sequence,
+          block: Math.max(0, block - (line === 0 ? 1 : 0)),
+          start: 0,
+          lead: 0,
+          synthetic: "more",
+        });
+      }
+      pages.push([]);
+      if (brk.contd && brk.speech !== null) {
+        for (const l of contdLines(laid[brk.speech])) {
+          pages[pages.length - 1].push({
+            text: l.text,
+            indent: characterAt.indent,
+            width: characterAt.width,
+            align: "left",
+            bold: false,
+            sequence,
+            block: brk.speech,
+            start: 0,
+            lead: 0,
+            synthetic: "contd",
+          });
+        }
+        bare = true;
+      }
+    };
+
+    for (const item of buildItems(laid)) {
+      if (item.dual) {
+        turn(item.first, 0);
+        const page = pages[pages.length - 1];
+        if (page.length > 0 && !bare) for (let n = 0; n < item.before; n++) page.push(null);
+        bare = false;
+        const column = (side: DualSide): (PageCell | null)[] => {
+          const cells: (PageCell | null)[] = [];
+          item.blocks
+            .map((k) => laid[k])
+            .filter((b) => b.dual?.side === side)
+            .forEach((b, n) => {
+              if (n > 0) for (let j = 0; j < b.before; j++) cells.push(null);
+              b.lines.forEach((l, at) => cells.push(cellOf(b, l, at)));
+            });
+          return cells;
+        };
+        const left = column("left");
+        const right = column("right");
+        const lastLeft = item.blocks.filter((k) => laid[k].dual?.side === "left").pop() ?? item.first;
+        for (let r = 0; r < Math.max(left.length, right.length); r++) {
+          const l = left[r] ?? null;
+          const rc = right[r] ?? null;
+          if (!l && !rc) {
+            page.push(null);
+            continue;
+          }
+          const lead: PageCell = l ?? {
+            text: "",
+            indent: 0,
+            width: DUAL_METRICS.left.dialogue!.width,
+            align: "left",
+            bold: false,
+            block: lastLeft,
+            start: 0,
+            lead: 0,
+          };
+          page.push({ ...lead, sequence, ...(rc ? { right: rc } : {}) });
+        }
+        continue;
+      }
+
+      const b = laid[item.first];
+      const numbered = isNumberedScene(b.element, b.lines.map((l) => l.text).join(""));
+      if (numbered) scenes++;
       let lineAt = 0;
       while (lineAt < b.lines.length) {
-        const brk = pagination.breaks[next];
-        if (brk && brk.block === b.index && brk.line === lineAt) {
-          pages.push([]);
-          next++;
-        }
+        turn(b.index, lineAt);
         const page = pages[pages.length - 1];
-        if (lineAt === 0 && page.length > 0) for (let k = 0; k < b.before; k++) page.push(null);
-        const l = b.lines[lineAt];
+        if (lineAt === 0 && page.length > 0 && !bare) for (let n = 0; n < b.before; n++) page.push(null);
+        bare = false;
         page.push({
-          text: l.text,
-          indent: b.indent,
-          width: b.width,
-          align: b.align,
-          bold: b.bold,
+          ...cellOf(b, b.lines[lineAt], lineAt),
           sequence,
-          block: b.index,
-          start: l.start,
-          lead: b.element === "parenthetical" && lineAt === 0 ? 1 : 0,
+          ...(numbered && lineAt === 0 && opts.sceneNumbers ? { sceneNumber: String(scenes) } : {}),
         });
         lineAt++;
       }
@@ -591,19 +972,38 @@ export function typesetSequences(sequences: readonly (readonly ScriptBlock[])[])
 }
 
 /** One run of blocks on a fresh page; see `typesetSequences`. */
-export function typeset(blocks: readonly ScriptBlock[]): { pages: PageRow[][]; pagination: Pagination } {
-  const set = typesetSequences([blocks]);
+export function typeset(
+  blocks: readonly ScriptBlock[],
+  opts: PageOptions = {}
+): { pages: PageRow[][]; pagination: Pagination } {
+  const set = typesetSequences([blocks], opts);
   return { pages: set.pages, pagination: set.paginations[0] };
 }
 
-/** A typeset script as plain text, one string per page, for fixtures and debugging. */
-export function pagesAsText(pages: readonly PageRow[][]): string[] {
+/** Where a cell starts on its line, in columns from the page's left margin. */
+function cellPad(cell: PageCell): number {
+  if (cell.align === "right") return cell.indent + cell.width - cell.text.length;
+  if (cell.align === "center") return cell.indent + Math.floor((cell.width - cell.text.length) / 2);
+  return cell.indent;
+}
+
+/**
+ * A typeset script as plain text, one string per page, for fixtures and
+ * debugging. A dual row has both columns on one line. With `sceneNumbers` the
+ * margins show: a scene's number sits at the left and the right of its heading.
+ */
+export function pagesAsText(pages: readonly PageRow[][], opts: { sceneNumbers?: boolean } = {}): string[] {
+  const gutter = opts.sceneNumbers ? 5 : 0;
   return pages.map((page) =>
     page
       .map((row) => {
         if (!row) return "";
-        const pad = row.align === "right" ? row.indent + row.width - row.text.length : row.indent;
-        return " ".repeat(Math.max(0, pad)) + row.text;
+        let text = " ".repeat(Math.max(0, cellPad(row))) + row.text;
+        if (row.right) text = text.padEnd(Math.max(0, cellPad(row.right))) + row.right.text;
+        if (!opts.sceneNumbers) return text;
+        const left = row.sceneNumber ? `${row.sceneNumber}`.padEnd(gutter) : " ".repeat(gutter);
+        const tail = row.sceneNumber ? text.padEnd(row.indent + row.width) + `  ${row.sceneNumber}` : text;
+        return left + tail;
       })
       .join("\n")
   );
@@ -637,7 +1037,7 @@ function safeCodePoint(n: number): string {
 export type StyledRun = { text: string; bold?: boolean; italic?: boolean; underline?: boolean };
 
 /** A script block with its inline marks: the runs' text, joined, is the block's text. */
-export type StyledBlock = { element: string; runs: StyledRun[] };
+export type StyledBlock = { element: string; runs: StyledRun[]; dual?: boolean };
 
 const INLINE_TOKEN_RE = /<[^>]*>|[^<]+|</g;
 
@@ -692,9 +1092,11 @@ export function styledBlocksFromHtml(html: string): StyledBlock[] {
   BLOCK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = BLOCK_RE.exec(html))) {
+    const element = m[1].toLowerCase() === "p" ? elementTagOfHtml(m[0]) : "action";
     out.push({
-      element: m[1].toLowerCase() === "p" ? elementTagOfHtml(m[0]) : "action",
+      element,
       runs: runsFromInner(m[3]),
+      ...(element === "character" && dualOfHtml(m[0]) ? { dual: true } : {}),
     });
   }
   return out;
@@ -721,7 +1123,11 @@ export function sliceRuns(runs: readonly StyledRun[], from: number, to: number):
 
 /** A chapter's block HTML as script blocks; see `styledBlocksFromHtml`. */
 export function scriptBlocksFromHtml(html: string): ScriptBlock[] {
-  return styledBlocksFromHtml(html).map((block) => ({ element: block.element, text: runsText(block.runs) }));
+  return styledBlocksFromHtml(html).map((block) => ({
+    element: block.element,
+    text: runsText(block.runs),
+    ...(block.dual ? { dual: true } : {}),
+  }));
 }
 
 const LAYOUT_CACHE_MIN = 64;
@@ -754,20 +1160,28 @@ export function layoutHtml(html: string): LaidOutBlock[] {
  * Where each sequence of a script starts on the page, and where the script
  * ends. Sequences run on from one another with continuous page numbers.
  */
-export function sequenceCursors(chapters: readonly string[]): { starts: PageCursor[]; end: PageCursor } {
+export function sequenceCursors(
+  chapters: readonly string[],
+  opts: PageOptions = {}
+): { starts: PageCursor[]; end: PageCursor; scenesBefore: number[]; scenes: number } {
   layoutCacheMax = Math.max(layoutCacheMax, chapters.length + LAYOUT_CACHE_MIN);
   const starts: PageCursor[] = [];
+  const scenesBefore: number[] = [];
   let cursor: PageCursor = SCRIPT_START;
+  let scenes = 0;
   for (const html of chapters) {
+    const laid = layoutHtml(html);
     starts.push(cursor);
-    cursor = paginate(layoutHtml(html), { start: cursor }).end;
+    scenesBefore.push(scenes);
+    cursor = paginate(laid, { ...opts, start: cursor }).end;
+    for (const b of laid) if (isNumberedScene(b.element, b.lines.map((l) => l.text).join(""))) scenes++;
   }
-  return { starts, end: cursor };
+  return { starts, end: cursor, scenesBefore, scenes };
 }
 
-/** About how many pages a script runs, from its sequences' HTML in order. 0 for an empty one. */
-export function estimatePages(chapters: readonly string[]): number {
-  return pagesAt(sequenceCursors(chapters).end);
+/** How many pages a script runs, from its sequences' HTML in order. 0 for an empty one. */
+export function estimatePages(chapters: readonly string[], opts: PageOptions = {}): number {
+  return pagesAt(sequenceCursors(chapters, opts).end);
 }
 
 // --- Structure ---------------------------------------------------------------
@@ -854,13 +1268,162 @@ export function scriptTextSupported(text: string): boolean {
 }
 
 /**
- * Whether a whole script, given as its sequences' chapter HTML, is in text the
- * screenplay PDF can set: `scriptTextSupported` over every sequence's text
- * joined. The server's export, the web menu and the phone all ask this, each
+ * Whether a whole script, given as its sequences' chapter HTML (and, if it is
+ * to be set, the title page's text), is in text the screenplay PDF can set:
+ * `scriptTextSupported` over every sequence's text joined. The server's export, the web menu and the phone all ask this, each
  * with the live sequences and pending suggestions already removed.
  */
-export function scriptHtmlSupported(chapters: readonly string[]): boolean {
+export function scriptHtmlSupported(chapters: readonly string[], extraText = ""): boolean {
   return scriptTextSupported(
-    chapters.map((html) => styledBlocksFromHtml(html).map((b) => runsText(b.runs)).join("\n")).join("\n")
+    [...chapters.map((html) => styledBlocksFromHtml(html).map((b) => runsText(b.runs)).join("\n")), extraText].join("\n")
   );
+}
+
+// --- Script settings -------------------------------------------------------------
+
+/** The words on a title page. Blank fields fall back (see `resolveTitlePage`) or are left out. */
+export type TitlePage = {
+  title: string;
+  credit: string;
+  author: string;
+  source: string;
+  draftDate: string;
+  /** Several lines: name, address, email, phone, agent. */
+  contact: string;
+};
+
+export const TITLE_PAGE_FIELDS: readonly (keyof TitlePage)[] = [
+  "title",
+  "credit",
+  "author",
+  "source",
+  "draftDate",
+  "contact",
+];
+
+/** The longest each field may be. Stored text is cut to this. */
+export const TITLE_PAGE_LIMITS: Record<keyof TitlePage, number> = {
+  title: 200,
+  credit: 100,
+  author: 200,
+  source: 200,
+  draftDate: 60,
+  contact: 600,
+};
+
+/**
+ * The settings that belong to one script, not to the writer: the title page,
+ * the dialogue-break notes, scene numbers. Stored on the manuscript as one JSON
+ * string (`Project.scriptSettings`, empty for all defaults).
+ */
+export type ScriptSettings = {
+  titlePage: TitlePage;
+  /** The PDF opens with a title page. Default on. */
+  showTitlePage: boolean;
+  /** `(MORE)` at the foot of a page a speech runs past. Default on. */
+  more: boolean;
+  /** The cue again, with `(CONT'D)`, at the top of the next page. Default on. */
+  contd: boolean;
+  /** Numbers on scene headings, in both margins of the PDF and as `#n#` in Fountain. Default off. */
+  sceneNumbers: boolean;
+};
+
+export const EMPTY_TITLE_PAGE: TitlePage = { title: "", credit: "", author: "", source: "", draftDate: "", contact: "" };
+
+export const DEFAULT_SCRIPT_SETTINGS: ScriptSettings = {
+  titlePage: EMPTY_TITLE_PAGE,
+  showTitlePage: true,
+  more: true,
+  contd: true,
+  sceneNumbers: false,
+};
+
+function cleanLine(value: unknown, limit: number): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function cleanLines(value: unknown, limit: number): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .slice(0, limit);
+}
+
+/** A title page from anything stored or sent: unknown keys dropped, text cleaned and cut to length. */
+export function normalizeTitlePage(value: unknown): TitlePage {
+  const source = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return {
+    title: cleanLine(source.title, TITLE_PAGE_LIMITS.title),
+    credit: cleanLine(source.credit, TITLE_PAGE_LIMITS.credit),
+    author: cleanLine(source.author, TITLE_PAGE_LIMITS.author),
+    source: cleanLine(source.source, TITLE_PAGE_LIMITS.source),
+    draftDate: cleanLine(source.draftDate, TITLE_PAGE_LIMITS.draftDate),
+    contact: cleanLines(source.contact, TITLE_PAGE_LIMITS.contact),
+  };
+}
+
+/**
+ * Script settings from what the manuscript row holds (a JSON string, or the
+ * object it parses to). Forgiving: anything missing or malformed is its default,
+ * so a newer client's keys are ignored and an empty string is all defaults.
+ */
+export function parseScriptSettings(raw: unknown): ScriptSettings {
+  let value: unknown = raw;
+  if (typeof raw === "string") {
+    if (!raw.trim()) return DEFAULT_SCRIPT_SETTINGS;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return DEFAULT_SCRIPT_SETTINGS;
+    }
+  }
+  if (!value || typeof value !== "object") return DEFAULT_SCRIPT_SETTINGS;
+  const v = value as Record<string, unknown>;
+  const flag = (key: string, fallback: boolean) => (typeof v[key] === "boolean" ? (v[key] as boolean) : fallback);
+  return {
+    titlePage: normalizeTitlePage(v.titlePage),
+    showTitlePage: flag("showTitlePage", DEFAULT_SCRIPT_SETTINGS.showTitlePage),
+    more: flag("more", DEFAULT_SCRIPT_SETTINGS.more),
+    contd: flag("contd", DEFAULT_SCRIPT_SETTINGS.contd),
+    sceneNumbers: flag("sceneNumbers", DEFAULT_SCRIPT_SETTINGS.sceneNumbers),
+  };
+}
+
+/** The string to store: empty when every setting is its default, else the normalized JSON. */
+export function serializeScriptSettings(settings: ScriptSettings): string {
+  const clean = parseScriptSettings(settings);
+  const same =
+    TITLE_PAGE_FIELDS.every((f) => clean.titlePage[f] === "") &&
+    clean.showTitlePage === DEFAULT_SCRIPT_SETTINGS.showTitlePage &&
+    clean.more === DEFAULT_SCRIPT_SETTINGS.more &&
+    clean.contd === DEFAULT_SCRIPT_SETTINGS.contd &&
+    clean.sceneNumbers === DEFAULT_SCRIPT_SETTINGS.sceneNumbers;
+  return same ? "" : JSON.stringify(clean);
+}
+
+/** The page options the engine takes, from the settings. */
+export function pageOptionsOf(settings: Pick<ScriptSettings, "more" | "contd" | "sceneNumbers">): Required<PageOptions> {
+  return { more: settings.more, contd: settings.contd, sceneNumbers: settings.sceneNumbers };
+}
+
+/** The title page as it is set: a blank title is the manuscript's, a blank author is the manuscript's, and "Written by" stands in for an author's credit. */
+export function resolveTitlePage(page: TitlePage, fallback: { title: string; author: string }): TitlePage {
+  const author = page.author.trim() || fallback.author.trim();
+  return {
+    ...page,
+    title: page.title.trim() || fallback.title.trim(),
+    author,
+    credit: page.credit.trim() || (author ? "Written by" : ""),
+  };
+}
+
+/** Everything a title page says, joined, for the language check. */
+export function titlePageText(page: TitlePage): string {
+  return TITLE_PAGE_FIELDS.map((f) => page[f]).join("\n");
 }

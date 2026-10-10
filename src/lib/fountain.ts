@@ -10,18 +10,28 @@
  *
  * Fountain has no shot, no unbroken dialogue across a blank line and no way to
  * say a parenthetical or a line of dialogue has no cue above it; those are
- * written as the nearest thing and read back as such (docs/screenplay.md).
+ * written as the nearest thing and read back as such (docs/screenplay.md). Dual
+ * dialogue is the `^` after the second cue, centered text is `> text <`, and a
+ * scene number is `#n#` after the heading; the title page is the `Key: value`
+ * block at the top.
  * Pure: no DOM, no I/O.
  */
 
 import { isShotLine } from "./manuscript-kind";
 import {
+  EMPTY_TITLE_PAGE,
+  TITLE_PAGE_FIELDS,
+  dualPairs,
+  isNumberedScene,
   normalizeElement,
+  normalizeTitlePage,
   runsText,
+  withDual,
   withElement,
   type ScreenplayElement,
   type StyledBlock,
   type StyledRun,
+  type TitlePage,
 } from "./screenplay";
 
 export type FountainSequence = { title: string; blocks: StyledBlock[] };
@@ -29,7 +39,20 @@ export type FountainSequence = { title: string; blocks: StyledBlock[] };
 export type FountainScript = {
   title: string;
   author: string;
+  /**
+   * The title page as it is to be written, blanks already filled in
+   * (`resolveTitlePage`); on a read, the one the file carried. `title` and
+   * `author` stand in for a title page left out.
+   */
+  titlePage?: TitlePage;
   sequences: FountainSequence[];
+  /** On a read: the file numbered its scenes. */
+  sceneNumbers?: boolean;
+};
+
+export type FountainWriteOptions = {
+  /** Write each scene heading's number as `#n#`, counting on across sequences. */
+  sceneNumbers?: boolean;
 };
 
 // --- Shapes ------------------------------------------------------------------
@@ -131,9 +154,16 @@ function actionChunk(runs: readonly StyledRun[], text: string, caps = false): st
 
 type Chunk = string;
 
-function blocksToChunks(blocks: readonly StyledBlock[]): Chunk[] {
+/** Scene numbers handed out so far in a script: they run on from one sequence to the next. */
+type Numbering = { enabled: boolean; count: number };
+
+function blocksToChunks(blocks: readonly StyledBlock[], numbering: Numbering): Chunk[] {
   const chunks: Chunk[] = [];
   const present = blocks.filter((b) => runsText(b.runs).trim() !== "");
+  // The cues that open the second speech of a pair; a flag with nothing above it is dropped.
+  const seconds = new Set(
+    dualPairs(present.map((b) => ({ element: b.element, text: "", dual: b.dual }))).map((pair) => pair.right.character)
+  );
   for (let i = 0; i < present.length; i++) {
     const block = present[i];
     const text = runsText(block.runs);
@@ -141,7 +171,14 @@ function blocksToChunks(blocks: readonly StyledBlock[]): Chunk[] {
     switch (element) {
       case "scene-heading": {
         const line = oneLine(block.runs, true, false);
-        chunks.push(SCENE_HEADING.test(line) && !SCENE_NUMBER.test(line) ? line : `.${line}`);
+        const forced = SCENE_HEADING.test(line) && !SCENE_NUMBER.test(line) ? line : `.${line}`;
+        numbering.count++;
+        chunks.push(numbering.enabled ? `${forced} #${numbering.count}#` : forced);
+        break;
+      }
+      case "centered": {
+        // Each line is centered on its own.
+        chunks.push(manyLines(block.runs, false).map((line) => `> ${line.trim()} <`).join("\n"));
         break;
       }
       case "transition": {
@@ -171,9 +208,10 @@ function blocksToChunks(blocks: readonly StyledBlock[]): Chunk[] {
           }
           previous = next;
         }
+        const second = seconds.has(i);
         i = j - 1;
         const head = cueIsPlain(cue) && lines.length > 0 ? cue : `@${cue}`;
-        chunks.push([head, ...lines].join("\n"));
+        chunks.push([second ? `${head} ^` : head, ...lines].join("\n"));
         break;
       }
       case "parenthetical":
@@ -194,24 +232,54 @@ function oneLineMeta(value: string): string {
   return value.replace(/\s*\n\s*/g, " ").trim();
 }
 
+/** The title page's keys, in the order a Fountain file writes them. */
+const TITLE_KEYS: readonly [keyof TitlePage, string][] = [
+  ["title", "Title"],
+  ["credit", "Credit"],
+  ["author", "Author"],
+  ["source", "Source"],
+  ["draftDate", "Draft date"],
+  ["contact", "Contact"],
+];
+
+/** The title block: one `Key: value` line a field, a several-line one (the contact) indented under its key. */
+function titleBlock(page: TitlePage): string {
+  const lines: string[] = [];
+  for (const [field, key] of TITLE_KEYS) {
+    const value = page[field];
+    if (!value.trim()) continue;
+    const rows = value
+      .split("\n")
+      .map((row) => row.trim())
+      .filter(Boolean);
+    if (rows.length === 1) lines.push(`${key}: ${rows[0]}`);
+    else lines.push(`${key}:`, ...rows.map((row) => `    ${row}`));
+  }
+  return lines.join("\n");
+}
+
 /**
  * A script as Fountain text. More than one sequence is written as `#` sections
  * (their titles), so reading it back finds the same sequences; one sequence is
- * written bare. Title and author go in the title block.
+ * written bare. The title page leads, in its keys.
  */
-export function fountainFromScript(script: FountainScript): string {
+export function fountainFromScript(script: FountainScript, opts: FountainWriteOptions = {}): string {
   const parts: string[] = [];
-  const title = oneLineMeta(script.title);
-  const author = oneLineMeta(script.author);
-  const head = [title ? `Title: ${title}` : "", author ? `Author: ${author}` : ""].filter(Boolean);
-  if (head.length > 0) parts.push(head.join("\n"));
+  const page = script.titlePage ?? {
+    ...EMPTY_TITLE_PAGE,
+    title: oneLineMeta(script.title),
+    author: oneLineMeta(script.author),
+  };
+  const head = titleBlock(page);
+  if (head) parts.push(head);
+  const numbering: Numbering = { enabled: opts.sceneNumbers === true, count: 0 };
   const sectioned = script.sequences.length > 1;
   script.sequences.forEach((sequence, index) => {
     if (sectioned) {
       const name = oneLineMeta(sequence.title) || `Sequence ${index + 1}`;
       parts.push(`# ${name.replace(/^#+\s*/, "")}`);
     }
-    parts.push(...blocksToChunks(sequence.blocks));
+    parts.push(...blocksToChunks(sequence.blocks, numbering));
   });
   return parts.length > 0 ? `${parts.join("\n\n")}\n` : "";
 }
@@ -331,14 +399,24 @@ function splitParagraphs(text: string): Raw[] {
   return paragraphs;
 }
 
-function takeTitlePage(text: string): { title: string; author: string; rest: string } {
+const TITLE_FIELD_OF_KEY: Record<string, keyof TitlePage> = {
+  title: "title",
+  credit: "credit",
+  author: "author",
+  authors: "author",
+  source: "source",
+  "draft date": "draftDate",
+  draftdate: "draftDate",
+  date: "draftDate",
+  contact: "contact",
+};
+
+function takeTitlePage(text: string): { page: TitlePage; found: boolean; rest: string } {
   const first = text.split("\n", 1)[0];
-  if (!TITLE_KEY.test(first)) return { title: "", author: "", rest: text };
+  if (!TITLE_KEY.test(first)) return { page: EMPTY_TITLE_PAGE, found: false, rest: text };
   const lines = text.split("\n");
   let end = lines.findIndex((l) => l.trim() === "");
   if (end < 0) end = lines.length;
-  let title = "";
-  let author = "";
   let key = "";
   const values: Record<string, string[]> = {};
   for (const line of lines.slice(0, end)) {
@@ -350,9 +428,15 @@ function takeTitlePage(text: string): { title: string; author: string; rest: str
       values[key].push(line.trim());
     }
   }
-  title = plainOf((values.title ?? []).join(" ")).trim();
-  author = plainOf((values.author ?? values.authors ?? []).join(" ")).trim();
-  return { title, author, rest: lines.slice(end).join("\n") };
+  const fields: Partial<Record<keyof TitlePage, string>> = {};
+  for (const [name, rows] of Object.entries(values)) {
+    const field = TITLE_FIELD_OF_KEY[name];
+    // A key given twice (Date after Draft date) keeps the first.
+    if (!field || fields[field]) continue;
+    const plain = rows.map((row) => plainOf(row).trim()).filter(Boolean);
+    fields[field] = field === "contact" ? plain.join("\n") : plain.join(" ");
+  }
+  return { page: normalizeTitlePage(fields), found: true, rest: lines.slice(end).join("\n") };
 }
 
 type Section = { depth: number; title: string };
@@ -360,17 +444,20 @@ type Item = { block: StyledBlock } | { section: Section };
 
 const textBlock = (element: string, source: string): StyledBlock => ({ element, runs: runsFromFountain(source) });
 
-function readParagraph(lines: string[], out: Item[]): void {
+/** What the reader noticed on the way that is not a block: the file numbered its scenes. */
+type Notes = { sceneNumbers: boolean };
+
+function readParagraph(lines: string[], out: Item[], notes: Notes): void {
   const first = lines[0].trim();
 
   const section = first.match(/^(#+)\s*(.*)$/);
   if (section) {
     out.push({ section: { depth: section[1].length, title: plainOf(section[2]).trim() } });
-    if (lines.length > 1) readParagraph(lines.slice(1), out);
+    if (lines.length > 1) readParagraph(lines.slice(1), out, notes);
     return;
   }
   if (/^=(?!=)/.test(first)) {
-    if (lines.length > 1) readParagraph(lines.slice(1), out);
+    if (lines.length > 1) readParagraph(lines.slice(1), out, notes);
     return;
   }
   if (lines.length === 1 && /^={3,}$/.test(first)) return;
@@ -388,14 +475,16 @@ function readParagraph(lines: string[], out: Item[]): void {
     return;
   }
   if (first.startsWith(".") && !first.startsWith("..")) {
-    out.push({ block: textBlock("scene-heading", first.slice(1).trim().replace(SCENE_NUMBER, "")) });
+    const heading = first.slice(1).trim();
+    if (SCENE_NUMBER.test(heading)) notes.sceneNumbers = true;
+    out.push({ block: textBlock("scene-heading", heading.replace(SCENE_NUMBER, "")) });
     rest(1);
     return;
   }
   if (first.startsWith(">")) {
     if (first.endsWith("<")) {
       const centered = lines.map((l) => l.trim().replace(/^>\s*/, "").replace(/\s*<$/, "")).join("\n");
-      out.push({ block: textBlock("action", centered) });
+      out.push({ block: textBlock("centered", centered) });
     } else {
       out.push({ block: textBlock("transition", first.slice(1).trim()) });
       rest(1);
@@ -408,6 +497,7 @@ function readParagraph(lines: string[], out: Item[]): void {
     return;
   }
   if (lines.length === 1 && SCENE_HEADING.test(first)) {
+    if (SCENE_NUMBER.test(first)) notes.sceneNumbers = true;
     out.push({ block: textBlock("scene-heading", first.replace(SCENE_NUMBER, "")) });
     return;
   }
@@ -418,6 +508,7 @@ function readParagraph(lines: string[], out: Item[]): void {
 
   // A cue: forced with @, or a line of capitals with something under it.
   const forcedCue = first.startsWith("@");
+  const dual = /\s*\^$/.test(first);
   const cueText = (forcedCue ? first.slice(1) : first).replace(/\s*\^$/, "").trim();
   const bare = cueText.replace(/\s*\([^()]*\)\s*$/, "");
   const plainCue =
@@ -427,7 +518,7 @@ function readParagraph(lines: string[], out: Item[]): void {
     !/^[\s0-9_*]/.test(first) &&
     !SCENE_HEADING.test(first);
   if (forcedCue || plainCue) {
-    out.push({ block: textBlock("character", cueText) });
+    out.push({ block: { ...textBlock("character", cueText), ...(dual ? { dual: true } : {}) } });
     let dialogue: string[] = [];
     const endDialogue = () => {
       if (dialogue.length > 0) out.push({ block: textBlock("dialogue", dialogue.join("\n")) });
@@ -464,10 +555,14 @@ function readParagraph(lines: string[], out: Item[]): void {
  */
 export function scriptFromFountain(source: string, opts: { titlePage?: boolean } = {}): FountainScript {
   const normalized = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
-  const { title, author, rest } =
-    opts.titlePage === false ? { title: "", author: "", rest: normalized } : takeTitlePage(normalized);
+  const taken =
+    opts.titlePage === false
+      ? { page: EMPTY_TITLE_PAGE, found: false, rest: normalized }
+      : takeTitlePage(normalized);
+  const { page, rest } = taken;
   const items: Item[] = [];
-  for (const paragraph of splitParagraphs(rest)) readParagraph(paragraph.lines, items);
+  const notes: Notes = { sceneNumbers: false };
+  for (const paragraph of splitParagraphs(rest)) readParagraph(paragraph.lines, items, notes);
 
   const depths = items.flatMap((item) => ("section" in item ? [item.section.depth] : []));
   const splitDepth = depths.length > 0 ? Math.min(...depths) : 0;
@@ -487,7 +582,13 @@ export function scriptFromFountain(source: string, opts: { titlePage?: boolean }
     }
   }
   if (sequences.length === 0) sequences.push({ title: "", blocks: [] });
-  return { title, author, sequences };
+  return {
+    title: page.title,
+    author: page.author,
+    ...(taken.found ? { titlePage: page } : {}),
+    sequences,
+    sceneNumbers: notes.sceneNumbers,
+  };
 }
 
 // --- Blocks as HTML ------------------------------------------------------------
@@ -512,7 +613,12 @@ export function runsToHtml(runs: readonly StyledRun[]): string {
 
 /** Styled blocks as chapter HTML, one `<p data-sp>` per block. */
 export function scriptBlocksToHtml(blocks: readonly StyledBlock[]): string {
-  return blocks.map((block) => withElement(`<p>${runsToHtml(block.runs)}</p>`, block.element)).join("");
+  return blocks
+    .map((block) => {
+      const html = withElement(`<p>${runsToHtml(block.runs)}</p>`, block.element);
+      return block.dual && normalizeElement(block.element) === "character" ? withDual(html, true) : html;
+    })
+    .join("");
 }
 
 // --- Detecting ---------------------------------------------------------------

@@ -2,6 +2,8 @@
 // of blocks; `chapterize` decides where chapters begin and renders the HTML the
 // editor stores (p, h2/h3, blockquote, hr for scene breaks).
 
+import type { TitlePage } from "../screenplay";
+
 export type ImportBlock =
   | { kind: "heading"; level: number; html: string; text: string }
   | { kind: "paragraph"; html: string; text: string }
@@ -18,6 +20,8 @@ export type ImportedManuscript = {
   kind?: "screenplay";
   /** An author the file itself carried. */
   author?: string;
+  /** For a script: what its file said about the title page and scene numbers, kept as the new manuscript's script settings. */
+  script?: { titlePage?: TitlePage; sceneNumbers?: boolean };
 };
 
 export function escapeHtml(text: string): string {

@@ -4,6 +4,7 @@ import { planNewChapters, type NewChapterFields } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
 import { importFile, ImportError, type ImportedManuscript } from "@/lib/import";
 import { nextChapterTitle } from "@/lib/manuscript-kind";
+import { DEFAULT_SCRIPT_SETTINGS, serializeScriptSettings } from "@/lib/screenplay";
 import { stampBlockIds } from "@/lib/manuscript";
 import { countWords, htmlToText } from "@/lib/text";
 
@@ -35,8 +36,8 @@ function parse(input: ImportInput): ImportedManuscript {
 }
 
 /**
- * Import a Word, Markdown, HTML, Fountain or Scrivener file as a new manuscript,
- * or as extra chapters at the end of an existing one. A Fountain script becomes a
+ * Import a Word, Markdown, HTML, Fountain, Final Draft (.fdx) or Scrivener file as a new manuscript,
+ * or as extra chapters at the end of an existing one. A Fountain or FDX script becomes a
  * screenplay; added to a manuscript of another kind, its lines lose their
  * elements and read as paragraphs. Chapters are written through
  * the same path as any new chapter: stamped block ids, a word count, revision 0.
@@ -82,6 +83,16 @@ export async function importManuscript(
         title,
         author: input.author?.trim() || parsed.author || user?.name || "",
         kind,
+        // A script keeps the title page and the numbered scenes its file carried.
+        ...(parsed.script
+          ? {
+              scriptSettings: serializeScriptSettings({
+                ...DEFAULT_SCRIPT_SETTINGS,
+                titlePage: parsed.script.titlePage ?? DEFAULT_SCRIPT_SETTINGS.titlePage,
+                sceneNumbers: parsed.script.sceneNumbers === true,
+              }),
+            }
+          : {}),
       },
       select: { id: true },
     });
