@@ -2269,6 +2269,35 @@ input[type="file"]::file-selector-button {
   white-space: nowrap;
 }
 
+.title-page-field {
+  display: grid;
+  gap: 3px;
+  margin: 0 2px 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.title-page-field input,
+.title-page-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+}
+.title-page-field input:focus-visible,
+.title-page-field textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.title-page-settings .settings-row {
+  padding-left: 0;
+}
+
 .settings-hint {
   margin: 0 2px 8px;
   font-size: 11.5px;
@@ -3996,6 +4025,9 @@ input[type="file"]::file-selector-button {
   margin-left: 30ch;
   width: 30ch;
 }
+.ProseMirror.screenplay p[data-sp="centered"] {
+  text-align: center;
+}
 /* A parenthetical or a line of dialogue answering the line above sits right under it. */
 .ProseMirror.screenplay p[data-sp="character"] + p[data-sp="parenthetical"],
 .ProseMirror.screenplay p[data-sp="dialogue"] + p[data-sp="parenthetical"],
@@ -4008,6 +4040,7 @@ input[type="file"]::file-selector-button {
    moves a line; the page after it opens without its blank line (above). */
 .ProseMirror.screenplay .sp-page-break {
   position: relative;
+  clear: both;
   width: 60ch;
   height: 0;
   margin: 0.5lh 0;
@@ -4022,6 +4055,94 @@ input[type="file"]::file-selector-button {
   padding-left: 10px;
   font: 500 11px/1.2 var(--sans);
   color: var(--ink-soft);
+}
+/* What the printed page carries that the text does not: (MORE) at the foot of a
+   page a speech runs past, and the cue again, with (CONT'D), at the top of the
+   next. Set in the cue's column; not text, so never selected or saved. */
+.ProseMirror.screenplay .sp-more,
+.ProseMirror.screenplay .sp-contd {
+  width: 38ch;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  user-select: none;
+  pointer-events: none;
+}
+.ProseMirror.screenplay .sp-more {
+  clear: both;
+}
+.ProseMirror.screenplay .sp-contd + p {
+  margin-top: 0;
+}
+/* Dual dialogue: the two speeches of a pair are two columns, each its own stack.
+   The left speech floats left (each block clearing the one above it, so it
+   stacks); the right one stays in the flow, pushed out to its column, so it
+   opens level with the left and stacks on its own. The block after the pair
+   clears the floats; its blank line is padding, because a cleared margin is
+   swallowed by the clearance. DUAL_METRICS in src/lib/screenplay.ts is the
+   source of these numbers; test/screenplay-css.test.ts fails when they drift. */
+.ProseMirror.screenplay p.sp-dual {
+  width: 28ch;
+}
+.ProseMirror.screenplay p.sp-dual-left {
+  float: left;
+  clear: left;
+  margin-left: 0;
+}
+.ProseMirror.screenplay p.sp-dual-first.sp-dual-left {
+  clear: both;
+}
+.ProseMirror.screenplay p.sp-dual-right {
+  margin-left: 32ch;
+}
+.ProseMirror.screenplay p.sp-dual-flush {
+  margin-top: 0;
+}
+.ProseMirror.screenplay p.sp-dual-left[data-sp="character"] {
+  margin-left: 8ch;
+  width: 20ch;
+}
+.ProseMirror.screenplay p.sp-dual-left[data-sp="parenthetical"] {
+  margin-left: 4ch;
+  width: 20ch;
+}
+.ProseMirror.screenplay p.sp-dual-right[data-sp="character"] {
+  margin-left: 40ch;
+  width: 20ch;
+}
+.ProseMirror.screenplay p.sp-dual-right[data-sp="parenthetical"] {
+  margin-left: 36ch;
+  width: 20ch;
+}
+.ProseMirror.screenplay p.sp-dual-after {
+  clear: both;
+  margin-top: 0;
+  padding-top: 1lh;
+}
+/* Scene numbers sit in both margins, level with the heading. */
+.ProseMirror.screenplay p[data-scene-number] {
+  position: relative;
+}
+.ProseMirror.screenplay p[data-scene-number]::before {
+  content: attr(data-scene-number);
+  position: absolute;
+  top: 0;
+  right: 100%;
+  padding-right: 1ch;
+  font-weight: 700;
+  color: var(--ink-soft);
+  user-select: none;
+  pointer-events: none;
+}
+.ProseMirror.screenplay p[data-scene-number]::after {
+  content: attr(data-scene-number);
+  position: absolute;
+  top: 0;
+  left: 100%;
+  padding-left: 1ch;
+  font-weight: 700;
+  color: var(--ink-soft);
+  user-select: none;
+  pointer-events: none;
 }
 .beta-badge {
   display: inline-flex;

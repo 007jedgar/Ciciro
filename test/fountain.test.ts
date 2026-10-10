@@ -137,7 +137,7 @@ describe("reading Fountain", () => {
       ["scene-heading", "THE HALLWAY"],
       ["transition", "FADE IN:"],
       ["transition", "CUT TO:"],
-      ["action", "THE END"],
+      ["centered", "THE END"],
       ["shot", "CLOSE ON THE DOOR"],
     ]);
   });

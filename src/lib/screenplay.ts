@@ -1423,7 +1423,29 @@ export function resolveTitlePage(page: TitlePage, fallback: { title: string; aut
   };
 }
 
+/** Whether a title page says anything at all. */
+export function hasTitlePageText(page: TitlePage): boolean {
+  return TITLE_PAGE_FIELDS.some((f) => page[f].trim() !== "");
+}
+
 /** Everything a title page says, joined, for the language check. */
 export function titlePageText(page: TitlePage): string {
   return TITLE_PAGE_FIELDS.map((f) => page[f]).join("\n");
+}
+
+/**
+ * Whether the screenplay PDF can set a script and its title page: the sequences
+ * (`scriptHtmlSupported`) and, when the title page is shown, its words as the
+ * PDF sets them (blanks filled from the manuscript's title and author). The
+ * server, the web menu and the phone all ask this one question.
+ */
+export function scriptPdfSupported(
+  chapters: readonly string[],
+  settings: Pick<ScriptSettings, "titlePage" | "showTitlePage">,
+  manuscript: { title: string; author: string }
+): boolean {
+  return scriptHtmlSupported(
+    chapters,
+    settings.showTitlePage ? titlePageText(resolveTitlePage(settings.titlePage, manuscript)) : ""
+  );
 }

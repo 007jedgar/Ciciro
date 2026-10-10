@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<!-- Produced with screenplain 0.12.0 (pip): `screenplain -f fdx screenplain-night.fountain screenplain-night.fdx`. Checked in as it came out. -->
+<FinalDraft DocumentType="Script" Template="No" Version="1">
+
+  <Content>
+    <Paragraph Type="Scene Heading">
+      <Text>INT. MARA'S APARTMENT - NIGHT</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>Rain streaks the window. </Text>
+      <Text Style="Italic">MARA</Text>
+      <Text> (30s) stares at an </Text>
+      <Text Style="Bold">unplugged</Text>
+      <Text> phone, and the </Text>
+      <Text Style="Underline">well-known</Text>
+      <Text> silence presses in.
+</Text>
+      <Text>She does not move.</Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical">
+      <Text>(to herself)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>He is not going to call. He is not going to call, and that is fine.</Text>
+    </Paragraph>
+    <Paragraph>
+      <DualDialogue>
+    <Paragraph Type="Character">
+      <Text>JONAH (V.O.)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Mara, it's me.</Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>MARA</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Don't.</Text>
+    </Paragraph>
+      </DualDialogue>
+    </Paragraph>
+    <Paragraph>
+      <DualDialogue>
+    <Paragraph Type="Character">
+      <Text>BRICK</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Screw retirement.</Text>
+    </Paragraph>
+    <Paragraph Type="Character">
+      <Text>STEEL</Text>
+    </Paragraph>
+    <Paragraph Type="Parenthetical">
+      <Text>(grinning)</Text>
+    </Paragraph>
+    <Paragraph Type="Dialogue">
+      <Text>Screw retirement, too.</Text>
+    </Paragraph>
+      </DualDialogue>
+    </Paragraph>
+    <Paragraph Alignment="Center" Type="Action">
+      <Text>THE END</Text>
+    </Paragraph>
+    <Paragraph Type="Transition">
+      <Text>CUT TO:</Text>
+    </Paragraph>
+    <Paragraph Type="Scene Heading">
+      <Text>EXT. ROOFTOP - CONTINUOUS</Text>
+    </Paragraph>
+    <Paragraph Type="Action">
+      <Text>Wind. A water tower groans.</Text>
+    </Paragraph>
+    <Paragraph Type="Transition">
+      <Text>FADE OUT.</Text>
+    </Paragraph>
+  </Content>
+</FinalDraft>

@@ -21,5 +21,6 @@ export function screenplayShortcuts(mac: boolean, labels: Record<ScreenplayEleme
       keys: elementShortcutLabel(element, mac),
       label: labels[element],
     })),
+    { keys: mac ? "⌥⇧D" : "Alt+Shift+D", label: "Dual dialogue: beside the speech above" },
   ];
 }

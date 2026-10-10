@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import type { Editor, Extensions } from "@tiptap/core";
-import type { Mark, Schema } from "@tiptap/pm/model";
+import type { Mark, Node as PmNode, Schema } from "@tiptap/pm/model";
 import Blockquote from "@tiptap/extension-blockquote";
 import BulletList from "@tiptap/extension-bullet-list";
 import CodeBlock from "@tiptap/extension-code-block";
@@ -12,13 +12,17 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import {
   SCREENPLAY_ATTR,
+  SCREENPLAY_DUAL_ATTR,
   SHORTCUT_ORDER,
   cycleElement,
+  dialogueGroups,
+  dualPairs,
   elementTag,
   nextElementOnEnter,
   normalizeElement,
   shortcutDigit,
   type ScreenplayElement,
+  type ScriptBlock,
   type StyledRun,
 } from "@/lib/screenplay";
 import { looksLikeFountain, scriptFromFountain } from "@/lib/fountain";
@@ -90,12 +94,78 @@ export function setElement(editor: Editor, element: ScreenplayElement): boolean 
   return editor
     .chain()
     .focus()
-    .updateAttributes("paragraph", { screenplay: element === "action" ? null : element })
+    .updateAttributes("paragraph", {
+      screenplay: element === "action" ? null : element,
+      // Only a cue opens the second speech of a dual pair.
+      ...(element === "character" ? {} : { screenplayDual: false }),
+    })
     .run();
 }
 
+/** The script's top-level blocks as the engine reads them (a hard break reads as "\n"). */
+function scriptBlocksOf(doc: PmNode): { blocks: ScriptBlock[]; starts: number[] } {
+  const blocks: ScriptBlock[] = [];
+  const starts: number[] = [];
+  doc.forEach((node, offset) => {
+    const paragraph = node.type.name === "paragraph";
+    blocks.push({
+      element: paragraph ? String(node.attrs.screenplay ?? "action") : "action",
+      text: node.textBetween(0, node.content.size, "\n", "\n"),
+      ...(paragraph && node.attrs.screenplayDual ? { dual: true } : {}),
+    });
+    starts.push(offset);
+  });
+  return { blocks, starts };
+}
+
+export type DualState = {
+  /** The caret is in a speech that can sit beside the one above it, or already does. */
+  available: boolean;
+  /** The speech under the caret sits beside the one above it. */
+  on: boolean;
+};
+
+/** The speech the caret is in: its cue's block index and whether there is a speech right above to pair with. */
+function speechAtCaret(editor: Editor): { cue: number; start: number; pairable: boolean; on: boolean } | null {
+  const { $from } = editor.state.selection;
+  if ($from.depth < 1) return null;
+  const index = $from.index(0);
+  const { blocks, starts } = scriptBlocksOf(editor.state.doc);
+  const groups = dialogueGroups(blocks);
+  const at = groups.findIndex((g) => index >= g.start && index < g.end);
+  if (at === -1) return null;
+  const group = groups[at];
+  const pairable = at > 0 && groups[at - 1].end === group.start;
+  const on = dualPairs(blocks).some((pair) => pair.right.character === group.character);
+  return { cue: group.character, start: starts[group.character], pairable, on };
+}
+
+/** Whether dual dialogue can be switched on or off for the speech under the caret. */
+export function dualState(editor: Editor): DualState {
+  const speech = speechAtCaret(editor);
+  return { available: speech !== null && (speech.pairable || speech.on), on: speech?.on ?? false };
+}
+
+/**
+ * Seat the speech under the caret beside the one right above it, or take it
+ * back out. Nothing happens when the caret is not in a speech, or there is no
+ * speech right above it to pair with.
+ */
+export function toggleDual(editor: Editor): boolean {
+  const speech = speechAtCaret(editor);
+  if (!speech || (!speech.pairable && !speech.on)) return false;
+  const node = editor.state.doc.nodeAt(speech.start);
+  if (!node) return false;
+  const tr = editor.state.tr.setNodeMarkup(speech.start, undefined, {
+    ...node.attrs,
+    screenplayDual: !speech.on,
+  });
+  editor.view.dispatch(tr);
+  return true;
+}
+
 /** A paragraph of the given element holding styled runs: bold and italic as marks, a line break as a hard break. */
-function scriptParagraph(schema: Schema, element: string, runs: readonly StyledRun[]) {
+function scriptParagraph(schema: Schema, element: string, runs: readonly StyledRun[], dual = false) {
   const content = runs.flatMap((run) => {
     const marks: Mark[] = [];
     if (run.bold && schema.marks.bold) marks.push(schema.marks.bold.create());
@@ -105,15 +175,19 @@ function scriptParagraph(schema: Schema, element: string, runs: readonly StyledR
       ...(piece ? [schema.text(piece, marks)] : []),
     ]);
   });
-  return schema.nodes.paragraph.create({ screenplay: element === "action" ? null : element }, content);
+  return schema.nodes.paragraph.create(
+    { screenplay: element === "action" ? null : element, screenplayDual: dual && element === "character" },
+    content
+  );
 }
 
 /**
  * Screenplay elements as an attribute on paragraphs (`data-sp`), so a script is
  * still ordinary block HTML that syncs, diffs and exports like any chapter.
  * Tab and Shift-Tab cycle the element; Enter starts the next one; Alt+Shift
- * with 1 to 7 picks one outright (never Cmd/Ctrl+digit, which browsers keep for
- * switching tabs).
+ * with 1 to 8 picks one outright (never Cmd/Ctrl+digit, which browsers keep for
+ * switching tabs), and Alt+Shift+D seats a speech beside the one above it (dual
+ * dialogue).
  *
  * The attribute holds whatever tag was stored, so an element a newer client
  * wrote (and this build cannot lay out) survives being opened and edited here.
@@ -140,6 +214,19 @@ export const Screenplay = Extension.create({
               return tag === "action" ? {} : { [SCREENPLAY_ATTR]: tag };
             },
           },
+          // A cue that opens the second speech of a dual-dialogue pair: that speech sits beside the one above.
+          screenplayDual: {
+            default: false,
+            keepOnSplit: false,
+            parseHTML: (element) => {
+              const value = element.getAttribute(SCREENPLAY_DUAL_ATTR)?.trim();
+              return (value === "1" || value === "true") && elementTag(element.getAttribute(SCREENPLAY_ATTR)) === "character";
+            },
+            renderHTML: (attributes) =>
+              attributes.screenplayDual && elementTag(attributes.screenplay) === "character"
+                ? { [SCREENPLAY_DUAL_ATTR]: "1" }
+                : {},
+          },
         },
       },
     ];
@@ -163,6 +250,7 @@ export const Screenplay = Extension.create({
     };
     return {
       ...picks,
+      "Alt-Shift-d": ({ editor }) => toggleDual(editor),
       Tab: ({ editor }) => cycle(editor, 1),
       "Shift-Tab": ({ editor }) => cycle(editor, -1),
       Enter: ({ editor }) => {
@@ -222,7 +310,9 @@ export const Screenplay = Extension.create({
                   ({ element, text: line }) => ({ element, runs: [{ text: line }] })
                 );
             if (lines.length === 0) return false;
-            const nodes = lines.map(({ element, runs }) => scriptParagraph(state.schema, element, runs));
+            const nodes = lines.map((line) =>
+              scriptParagraph(state.schema, line.element, line.runs, "dual" in line && line.dual === true)
+            );
             const size = nodes.reduce((total, node) => total + node.nodeSize, 0);
             let start: number;
             if (at.parent.content.size === 0) {

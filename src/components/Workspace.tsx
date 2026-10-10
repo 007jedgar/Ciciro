@@ -44,7 +44,15 @@ import {
   describeAiInvolvement,
 } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
-import { SCRIPT_START, pagesAt, sequenceCursors } from "@/lib/screenplay";
+import {
+  SCRIPT_START,
+  pageOptionsOf,
+  pagesAt,
+  parseScriptSettings,
+  sequenceCursors,
+  serializeScriptSettings,
+  type ScriptSettings,
+} from "@/lib/screenplay";
 import { commentQuote } from "@/lib/selection-menu";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -255,13 +263,49 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   // A screenplay's sequences run on from one another, so where the open one
   // starts on the page (for its page markers) and about how many pages the
   // whole script runs both come from setting every sequence in order.
+  const scriptSettings = useMemo(() => parseScriptSettings(project.scriptSettings), [project.scriptSettings]);
+  const manuscriptNames = useMemo(
+    () => ({ title: project.title, author: project.author }),
+    [project.title, project.author]
+  );
   const script = useMemo(() => {
     if (kind !== "screenplay") return null;
     const shown = project.chapters.filter((c) => !chapterRows.hidden.has(c.id));
-    const { starts, end } = sequenceCursors(shown.map((c) => c.content));
+    const { starts, end, scenesBefore } = sequenceCursors(
+      shown.map((c) => c.content),
+      pageOptionsOf(scriptSettings)
+    );
     const at = shown.findIndex((c) => c.id === activeId);
-    return { pages: pagesAt(end), activeStart: at === -1 ? SCRIPT_START : starts[at] };
-  }, [kind, project.chapters, chapterRows.hidden, activeId]);
+    return {
+      pages: pagesAt(end),
+      activeStart: at === -1 ? SCRIPT_START : starts[at],
+      pageSettings: {
+        more: scriptSettings.more,
+        contd: scriptSettings.contd,
+        sceneNumbers: scriptSettings.sceneNumbers,
+        scenesBefore: at === -1 ? 0 : scenesBefore[at],
+      },
+    };
+  }, [kind, project.chapters, chapterRows.hidden, activeId, scriptSettings]);
+
+  // The title page, the dialogue-break notes and scene numbers are the script's, so every device and every export reads
+  // them from the manuscript: written back a moment after the last change.
+  const scriptSettingsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onScriptSettingsChange = useCallback(
+    (next: ScriptSettings) => {
+      const stored = serializeScriptSettings(next);
+      setProject((p) => ({ ...p, scriptSettings: stored }));
+      if (scriptSettingsTimer.current) clearTimeout(scriptSettingsTimer.current);
+      scriptSettingsTimer.current = setTimeout(() => {
+        void fetch(`/api/projects/${project.id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ scriptSettings: next }),
+        });
+      }, 700);
+    },
+    [project.id]
+  );
 
   // Suggest mode is a per-device habit, like a text editor's track-changes switch.
   useEffect(() => {
@@ -1063,7 +1107,19 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   ? "Couldn't save — retrying"
                   : "All changes saved"}
         </span>
-        <ThemePicker compact kind={kind} />
+        <ThemePicker
+          compact
+          kind={kind}
+          script={
+            kind === "screenplay"
+              ? {
+                  settings: scriptSettings,
+                  manuscript: manuscriptNames,
+                  onChange: onScriptSettingsChange,
+                }
+              : undefined
+          }
+        />
         <button
           className={`btn small${settings.typewriterMode ? " primary" : ""}`}
           aria-pressed={settings.typewriterMode}
@@ -1157,7 +1213,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onOpenChange={setWeeklyOpen}
           onDueChange={setWeeklyDue}
         />
-        <ExportMenu projectId={project.id} chapters={project.chapters} kind={kind} />
+        <ExportMenu
+          projectId={project.id}
+          chapters={project.chapters}
+          kind={kind}
+          script={scriptSettings}
+          manuscript={manuscriptNames}
+        />
       </div>
 
       <ChapterSidebar
@@ -1224,9 +1286,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                     <span>-</span>
                     <span
                       className="script-pages"
-                      title="Set in 12pt Courier on a 60 column page, about a minute of screen time a page. An estimate: the soft rules in the script show where each page is likely to end."
+                      title="Set in 12pt Courier on a 60 column page, the way the PDF prints it, about a minute of screen time a page. The dashed rules in the script show where each page ends; the title page is not counted."
                     >
-                      about {script.pages.toLocaleString()} {script.pages === 1 ? "page" : "pages"}
+                      {script.pages.toLocaleString()} {script.pages === 1 ? "page" : "pages"}
                     </span>
                   </>
                 ) : null}
@@ -1355,6 +1417,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   onCommentClick={openReaderComment}
                   kind={kind}
                   pageStart={script?.activeStart}
+                  pageSettings={script?.pageSettings}
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
                   onSelectionAction={(action, text) => {

@@ -336,18 +336,18 @@ describe("screenplay elements added for the page engine", () => {
   });
 
   it("keeps an element a newer client wrote, through a round trip and an edit", () => {
-    const ed = make('<p data-sp="centered">THE END</p><p data-sp="dialogue">Hi.</p>');
-    expect(elements(ed)).toEqual(["centered", "dialogue"]);
-    expect(ed.getHTML()).toContain('data-sp="centered"');
+    const ed = make('<p data-sp="lyric">THE END</p><p data-sp="dialogue">Hi.</p>');
+    expect(elements(ed)).toEqual(["lyric", "dialogue"]);
+    expect(ed.getHTML()).toContain('data-sp="lyric"');
     ed.commands.focus(1);
-    expect(currentTag(ed)).toBe("centered");
+    expect(currentTag(ed)).toBe("lyric");
     expect(currentElement(ed)).toBe("action");
     ed.commands.insertContent("!");
-    expect(ed.getHTML()).toContain('data-sp="centered"');
+    expect(ed.getHTML()).toContain('data-sp="lyric"');
     // Enter keeps the first half and starts the next line as the engine says.
     ed.commands.focus(1);
     press(ed, "Enter");
-    expect(elements(ed)[0]).toBe("centered");
+    expect(elements(ed)[0]).toBe("lyric");
   });
 
   it("does not let a hostile tag out of its attribute", () => {

@@ -7,7 +7,7 @@ import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import { MOTION_MS, usePresence } from "@/lib/motion";
-import { scriptHtmlSupported } from "@/lib/screenplay";
+import { DEFAULT_SCRIPT_SETTINGS, scriptPdfSupported, type ScriptSettings } from "@/lib/screenplay";
 import { htmlWithoutSuggestions } from "@/lib/suggestions";
 import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
 import type { Chapter } from "@/lib/types";
@@ -28,10 +28,11 @@ export const EXPORT_FORMATS: readonly ExportOption[] = [
   { format: "pdf", label: "PDF (.pdf)", hint: "Book layout with contents", short: "PDF" },
 ];
 
-/** A script's own formats first: its pages as a PDF and as Fountain, then the book formats. */
+/** A script's own formats first: its pages as a PDF, then Fountain and FDX for other tools, then the book formats. */
 export const SCREENPLAY_EXPORT_FORMATS: readonly ExportOption[] = [
   { format: "pdf", label: "Screenplay PDF (.pdf)", hint: "Courier 12 pt script pages", short: "PDF", beta: true },
   { format: "fountain", label: "Fountain (.fountain)", hint: "Plain-text script for other tools", short: "Fountain", beta: true },
+  { format: "fdx", label: "FDX export (.fdx)", hint: "Script as XML for other screenwriting tools", short: "FDX", beta: true },
   ...EXPORT_FORMATS.filter((f) => f.format !== "pdf"),
 ];
 
@@ -43,10 +44,16 @@ export default function ExportMenu({
   projectId,
   chapters,
   kind = "novel",
+  script = DEFAULT_SCRIPT_SETTINGS,
+  manuscript = { title: "", author: "" },
 }: {
   projectId: string;
   chapters: Chapter[];
   kind?: ManuscriptKind;
+  /** A script's own settings: its title page counts toward whether the PDF can be set. */
+  script?: ScriptSettings;
+  /** The manuscript's own title and author, which a blank title page falls back on. */
+  manuscript?: { title: string; author: string };
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -58,13 +65,17 @@ export default function ExportMenu({
   const [noteOpen, setNoteOpen] = useState(false);
   const screenplay = kind === "screenplay";
   const formats = screenplay ? SCREENPLAY_EXPORT_FORMATS : EXPORT_FORMATS;
-  // The screenplay PDF sets Courier, so it needs a script in a Latin-script language (English, Spanish).
+  // The screenplay PDF sets Courier, so it needs a script (and a title page) in a Latin-script language (English, Spanish).
   const pdfAvailable = useMemo(
     () =>
       !screenplay ||
       !open ||
-      scriptHtmlSupported(chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content))),
-    [screenplay, open, chapters]
+      scriptPdfSupported(
+        chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content)),
+        script,
+        manuscript
+      ),
+    [screenplay, open, chapters, script, manuscript]
   );
 
   useEffect(() => {
