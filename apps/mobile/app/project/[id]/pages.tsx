@@ -57,33 +57,33 @@ function PagesContent({ projectId }: { projectId: string }) {
     const initialIndex = Math.max(0, script.pages.findIndex((page) => page.number === firstPage));
     const rowHeight = metrics.height + GUTTER;
     body = (
-      <FlatList
-        testID="script-pages"
-        data={script.pages}
-        keyExtractor={(page) => String(page.number)}
-        initialScrollIndex={initialIndex}
-        getItemLayout={(_, index) => ({ length: rowHeight, offset: rowHeight * index, index })}
-        initialNumToRender={2}
-        windowSize={5}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 4, paddingBottom: 48 }}
-        ListHeaderComponent={
-          <View style={styles.notes}>
-            <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.readOnly")}</Text>
-            <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.note")}</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View style={{ height: rowHeight }}>
-            <ScriptSheet
-              page={item}
-              metrics={metrics}
-              colors={colors}
-              label={t("screenplay.pageView.page", { number: item.number })}
-            />
-          </View>
-        )}
-      />
+      <>
+        <View style={styles.notes}>
+          <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.readOnly")}</Text>
+          <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.note")}</Text>
+        </View>
+        <FlatList
+          testID="script-pages"
+          data={script.pages}
+          keyExtractor={(page) => String(page.number)}
+          initialScrollIndex={initialIndex}
+          getItemLayout={(_, index) => ({ length: rowHeight, offset: rowHeight * index, index })}
+          initialNumToRender={2}
+          windowSize={5}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: GUTTER, paddingBottom: 48 }}
+          renderItem={({ item }) => (
+            <View style={{ height: rowHeight }}>
+              <ScriptSheet
+                page={item}
+                metrics={metrics}
+                colors={colors}
+                label={t("screenplay.pageView.page", { number: item.number })}
+              />
+            </View>
+          )}
+        />
+      </>
     );
   }
 
@@ -124,7 +124,7 @@ export default function PagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  notes: { gap: 4, marginBottom: 12 },
+  notes: { gap: 4, paddingHorizontal: GUTTER, paddingTop: 4, paddingBottom: 12 },
   note: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19 },
   accessory: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingBottom: 8 },
   count: { fontFamily: fonts.ui, fontSize: 13 },

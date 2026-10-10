@@ -57,6 +57,7 @@ import {
   suggestChapterEdits,
 } from "@/lib/suggestion-edits";
 import { runRanker } from "@/lib/fast-lane";
+import { scriptEdit } from "@/lib/script-edits";
 import type { ClientUiEvent } from "@/lib/types";
 import { isManuscriptWriteTool } from "@/lib/edit-mode";
 import { executeKnowledgeTool, KNOWLEDGE_TOOLS } from "@/lib/knowledge-tools";
@@ -1463,22 +1464,23 @@ export async function executeEditorTool(
       let content = ch.content;
       const report: string[] = [];
       const applied: { find: string; replace: string }[] = [];
-      for (const r of replacements) {
-        if (!r.find) continue;
+      for (const raw of replacements) {
+        if (!raw.find) continue;
+        const r = scriptEdit(content, { find: raw.find, replace: raw.replace ?? "" }, kind);
         // Script lines are replaced as blocks, so each one lands as its element: a
         // replacement of several lines, or of one that carries a mark ("!BOOM.").
         const scriptBlocks =
           kind === "screenplay" &&
-          (/\n/.test(r.replace ?? "") || markedLine(r.replace ?? "") !== null) &&
+          (/\n/.test(r.replace) || markedLine(r.replace) !== null) &&
           findBlockRun(content, r.find) !== null;
         const literalCount = scriptBlocks ? 0 : content.split(r.find).length - 1;
         if (literalCount > 0) {
-          content = content.split(r.find).join(r.replace ?? "");
+          content = content.split(r.find).join(r.replace);
           report.push(`replaced "${r.find}" -> "${r.replace}" (${literalCount}x)`);
-          applied.push({ find: r.find, replace: r.replace ?? "" });
+          applied.push({ find: r.find, replace: r.replace });
           continue;
         }
-        const { html: next, count } = blockReplace(content, r.find, r.replace ?? "", kind);
+        const { html: next, count } = blockReplace(content, r.find, r.replace, kind);
         if (count > 0) {
           content = next;
           report.push(
@@ -1486,7 +1488,7 @@ export async function executeEditorTool(
               r.find.length > 60 ? "..." : ""
             }"`
           );
-          applied.push({ find: r.find, replace: r.replace ?? "" });
+          applied.push({ find: r.find, replace: r.replace });
         } else {
           report.push(
             `"${r.find}" NOT FOUND - no change made. Tell the author this correction did not apply.`

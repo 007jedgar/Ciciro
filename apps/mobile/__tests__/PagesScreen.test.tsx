@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react-native";
+import { FlatList } from "react-native";
+import { render, screen, within } from "@testing-library/react-native";
 import PagesScreen from "../app/project/[id]/pages";
 
 type MockChapter = { id: string; title: string; order: number; content: string };
@@ -29,7 +30,7 @@ jest.mock("../lib/project", () => ({
     project: mockChapters ? { id: "p1", kind: "screenplay", chapters: mockChapters } : null,
     loading: mockLoading,
     error: mockError,
-    errorDetail: null,
+    errorDetail: mockError ? "HTTP 500" : null,
     reload: jest.fn(),
     selectedChapterId: mockSelected,
   }),
@@ -45,6 +46,7 @@ jest.mock("../components/AppHeader", () => {
       </View>
     ),
     useMeasuredAppHeaderHeight: () => [0, () => {}],
+    useAppHeaderHeight: () => 0,
   };
 });
 
@@ -74,6 +76,21 @@ describe("Pages screen", () => {
     expect(screen.getByTestId("script-page-1")).toBeTruthy();
     expect(screen.getByText("INT. LAB - NIGHT")).toBeTruthy();
     expect(screen.getByText("Rain on the glass.")).toBeTruthy();
+  });
+
+  it("opens on the top of the writer's sequence: the notes sit above the list, so each row is where its offset says", () => {
+    const long = '<p data-sp="scene-heading">INT. LAB - NIGHT</p>' + "<p>Rain on the glass.</p>".repeat(80);
+    mockChapters = [sequence("c1", 0, long), sequence("c2", 1, SEQUENCE)];
+    mockSelected = "c2";
+    render(<PagesScreen />);
+    const list = screen.UNSAFE_getByType(FlatList);
+    const index = list.props.initialScrollIndex as number;
+    expect(index).toBeGreaterThan(0);
+    const row = list.props.getItemLayout(list.props.data, index);
+    expect(row.offset).toBe(row.length * index);
+    expect(list.props.ListHeaderComponent).toBeUndefined();
+    expect(screen.getByText("Read only. Write in the manuscript.")).toBeTruthy();
+    expect(within(screen.getByTestId("script-pages")).queryByText("Read only. Write in the manuscript.")).toBeNull();
   });
 
   it("says so, instead of drawing a blank page, when nothing is written", () => {

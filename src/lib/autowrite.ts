@@ -20,6 +20,7 @@ import {
   type ManuscriptKind,
 } from "@/lib/manuscript-kind";
 import { lastScriptElement, scriptTail } from "@/lib/script-view";
+import { htmlWithoutSuggestions } from "@/lib/suggestions";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
 
@@ -271,6 +272,7 @@ export async function runAutoWrite(opts: {
 
   const script = kind === "screenplay";
   const existingText = chapterPlainText(chapter.content);
+  const settledHtml = htmlWithoutSuggestions(chapter.content);
   let running = existingText; // accumulated plain text for continuity
   let newHtml = ""; // html to append to the chapter
   let accepted = 0;
@@ -284,7 +286,7 @@ export async function runAutoWrite(opts: {
     const isOpening = i === 0 && !existingText.trim();
     // A script continues from its last few elements as marked script lines, so
     // the drafter sees the format and who is speaking; prose from its last words.
-    const tail = script ? scriptTail(chapter.content + newHtml) : tailWords(running);
+    const tail = script ? scriptTail(settledHtml + newHtml) : tailWords(running);
 
     emit({ type: "beat", i: i + 1, n: beats.length, status: "drafting", goal: beat.goal });
     let prose: string;
@@ -322,7 +324,7 @@ export async function runAutoWrite(opts: {
     const shown = script ? scriptDisplayText(prose) : prose;
     running = `${running}\n\n${shown}`.trim();
     // A beat that opens on dialogue continues the speech the last element left open.
-    newHtml += assistantTextToHtml(prose, kind, script ? lastScriptElement(chapter.content + newHtml) : undefined);
+    newHtml += assistantTextToHtml(prose, kind, script ? lastScriptElement(settledHtml + newHtml) : undefined);
     accepted++;
     emit({
       type: "beat",

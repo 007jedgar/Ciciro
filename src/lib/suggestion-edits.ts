@@ -11,6 +11,7 @@ import {
   type SuggestEdit,
   type SuggestOutcome,
 } from "@/lib/suggestions";
+import { scriptEdit } from "@/lib/script-edits";
 import { chapterWordCount } from "@/lib/text";
 import type { ToolResult } from "@/lib/tools";
 
@@ -65,14 +66,22 @@ export async function suggestChapterEdits(
   kind: ManuscriptKind,
   runId?: string
 ): Promise<ToolResult> {
-  const edits: SuggestEdit[] = replacements
-    .filter((r) => r.find)
-    .map((r) => ({ find: r.find, replace: r.replace ?? "" }));
-  const { html, outcomes } = suggestReplacements(chapter.content, edits, {
+  const options = {
     author: CICIRO_AUTHOR,
     newBlockId: () => crypto.randomUUID(),
     splitReplacement: assistantReplacementSplitter(kind),
-  });
+  };
+  const edits: SuggestEdit[] = [];
+  const outcomes: SuggestOutcome[] = [];
+  let html = chapter.content;
+  for (const r of replacements) {
+    if (!r.find) continue;
+    const edit = scriptEdit(html, { find: r.find, replace: r.replace ?? "" }, kind);
+    const result = suggestReplacements(html, [edit], options);
+    html = result.html;
+    edits.push(edit);
+    outcomes.push(...result.outcomes);
+  }
   const report = edits.map((edit, i) => describeOutcome(edit, outcomes[i]));
   const heading = `Chapter ${chapterNumber} (${chapter.title})`;
   if (!outcomes.some((o) => o.status === "suggested")) {

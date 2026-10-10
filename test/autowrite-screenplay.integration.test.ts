@@ -11,7 +11,8 @@ vi.mock("@/lib/anthropic", async (importOriginal) => ({
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { runAutoWrite } from "@/lib/autowrite";
-import { elementTagOfHtml } from "@/lib/manuscript-kind";
+import { assistantReplacementSplitter, elementTagOfHtml } from "@/lib/manuscript-kind";
+import { CICIRO_AUTHOR, suggestReplacements } from "@/lib/suggestions";
 
 type Request = Anthropic.MessageCreateParamsNonStreaming;
 
@@ -47,14 +48,16 @@ describe("auto-draft writes a script as elements", () => {
     await prisma.$disconnect();
   });
 
-  async function run() {
+  async function run(
+    content = '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="character">MARA</p>'
+  ) {
     const project = await prisma.project.create({ data: { title: "Heist", kind: "screenplay" } });
     const chapter = await prisma.chapter.create({
       data: {
         projectId: project.id,
         title: "Sequence 1",
         order: 0,
-        content: '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="character">MARA</p>',
+        content,
       },
     });
     let beat = 0;
@@ -109,6 +112,21 @@ describe("auto-draft writes a script as elements", () => {
     expect(String(drafts[1].messages[0].content)).toContain("!The lamp swings.\n\n@JONAH\nHere.\n</continuity>");
     const edits = calls.filter(isEdit);
     expect(String(edits[0].messages[0].content)).toContain("<before>\n.INT. LAB - DAY\n\n@MARA\n</before>");
+  });
+
+  it("continues from the script as it stands, not from a pending suggestion", async () => {
+    const { html } = suggestReplacements(
+      '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="action">The lamp swings.</p>',
+      [{ find: "The lamp swings.", replace: "!The lamp swings.\n@JONAH" }],
+      { author: CICIRO_AUTHOR, splitReplacement: assistantReplacementSplitter("screenplay") }
+    );
+    const { calls, saved } = await run(html);
+    const drafts = calls.filter((r) => !Array.isArray(r.system) && !String(r.system).startsWith("You check"));
+    expect(String(drafts[0].messages[0].content)).toContain(
+      "<continuity>\n.INT. LAB - DAY\n\n!The lamp swings.\n</continuity>"
+    );
+    // The pending cue is not the author's, so the first bare line is action, not its dialogue.
+    expect(tagged(saved.content).find(([, text]) => text === "Where is he?")?.[0]).toBe("action");
   });
 
   it("shows the author the pages without the marks", async () => {

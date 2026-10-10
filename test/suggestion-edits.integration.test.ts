@@ -161,4 +161,46 @@ describe("Ciciro's line edits as tracked suggestions", () => {
     expect(xml).toContain("She walked home.");
     expect(xml).not.toContain("sprinted");
   });
+  describe("on a script", () => {
+    const SCRIPT =
+      '<p data-sp="scene-heading" data-block-id="b1">INT. LAB - NIGHT</p>' +
+      '<p data-sp="action" data-block-id="b2">Mara stares at the phone.</p>' +
+      '<p data-sp="character" data-block-id="b3">MARA</p>' +
+      '<p data-sp="parenthetical" data-block-id="b4">quietly</p>' +
+      '<p data-sp="dialogue" data-block-id="b5">He never called.</p>';
+
+    async function seedScript(suggestions: boolean) {
+      const user = await registerUser({ email: "ada@example.com", password: "long-enough-pw", name: "Ada" });
+      const project = await createProject(user, { title: "Heist", kind: "screenplay" });
+      const chapter = project.chapters[0];
+      const saved = await updateChapter(chapter.id, user, { content: SCRIPT, expectedRevision: chapter.revision });
+      if (!suggestions) await updateUserSettings(user.id, { aiSuggestions: false });
+      return { projectId: project.id, chapterId: chapter.id, revision: saved.chapter.revision };
+    }
+
+    const blocks = (html: string) =>
+      (resolveSuggestions(html, "accept").match(/<p\b[^>]*>.*?<\/p>/g) ?? []).map((b) => [
+        b.match(/data-sp="([^"]*)"/)?.[1],
+        b.replace(/<[^>]+>/g, ""),
+      ]);
+
+    for (const suggestions of [false, true]) {
+      const path = suggestions ? "as a suggestion" : "directly";
+
+      it(`never stores a line mark as text when the find is part of a line (${path})`, async () => {
+        const { projectId, chapterId, revision } = await seedScript(suggestions);
+        await suggestEdit(projectId, revision, "Mara stares", "!Mara glares");
+        const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+        expect(blocks(chapter.content)[1]).toEqual(["action", "Mara glares at the phone."]);
+      });
+
+      it(`matches a parenthetical copied with its brackets, and stores the new one bare (${path})`, async () => {
+        const { projectId, chapterId, revision } = await seedScript(suggestions);
+        const result = await suggestEdit(projectId, revision, "(quietly)", "(softly)");
+        expect(result.content).not.toContain("NOT FOUND");
+        const chapter = await prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+        expect(blocks(chapter.content)[3]).toEqual(["parenthetical", "softly"]);
+      });
+    }
+  });
 });
