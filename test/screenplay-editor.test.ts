@@ -209,9 +209,10 @@ describe("screenplay editor", () => {
     it("reads on from the cue above an empty line", () => {
       const ed = make('<p data-sp="character">MARA</p><p></p>');
       ed.commands.focus("end");
-      paste(ed, "Hello.\nAre you there?");
+      paste(ed, "(low)\nHello.\nAre you there?");
       expect(lines(ed)).toEqual([
         ["character", "MARA"],
+        ["parenthetical", "low"],
         ["dialogue", "Hello."],
         ["dialogue", "Are you there?"],
       ]);

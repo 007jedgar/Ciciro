@@ -247,7 +247,8 @@ const CHARACTER_CUE = /^[A-Z][A-Z0-9 .'-]{0,38}(?:\s*\((?:V\.O\.|O\.S\.|O\.C\.|C
 /**
  * Sort a script written as plain lines (what the assistant returns) into
  * screenplay elements. A line under a character cue is dialogue until a blank
- * line; anything unrecognized is action.
+ * line; anything unrecognized is action. A parenthetical comes back without
+ * its brackets.
  */
 export function classifyScreenplayLines(
   text: string,
@@ -268,13 +269,14 @@ export function classifyScreenplayLines(
     let element: ScreenplayElement;
     if (SCENE_HEADING.test(line)) element = "scene-heading";
     else if (TRANSITION.test(line)) element = "transition";
-    else if (inDialogue && /^\(.*\)$/.test(line)) element = "parenthetical";
+    else if (inDialogue && /^\(\s*\S.*\)$/.test(line)) element = "parenthetical";
     else if (inDialogue && !(cue && previous === "dialogue")) element = "dialogue";
     else if (cue) element = "character";
     else element = "action";
     inDialogue = speaking(element);
     previous = element;
-    out.push({ element, text: line });
+    // The page draws a parenthetical's brackets, so the stored text has none.
+    out.push({ element, text: element === "parenthetical" ? line.slice(1, -1).trim() : line });
   }
   return out;
 }

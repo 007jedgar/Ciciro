@@ -83,6 +83,19 @@ describe("manuscript kind", () => {
     ]);
   });
 
+  it("returns a parenthetical without the brackets the page draws", () => {
+    expect(classifyScreenplayLines("MARA\n(to herself)\nHi.").map((l) => l.text)).toEqual(["MARA", "to herself", "Hi."]);
+  });
+
+  it("never returns an empty parenthetical", () => {
+    expect(classifyScreenplayLines("MARA\n()\n( )\nHi.").map((l) => [l.element, l.text])).toEqual([
+      ["character", "MARA"],
+      ["dialogue", "()"],
+      ["dialogue", "( )"],
+      ["dialogue", "Hi."],
+    ]);
+  });
+
   it("reads assistant script lines on from the element before them", () => {
     expect(classifyScreenplayLines("Hi there.\nJON\nHey.", "character").map((l) => l.element)).toEqual([
       "dialogue",

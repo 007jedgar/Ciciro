@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "978d4d29e349",
+    "summary": "**Screenplays** are tidier to write.",
+    "text": "**Screenplays** are tidier to write. Typing `# `, `- `, `1. ` or `> ` at the start of a line no longer turns it into a heading, list or quote, and pasting several lines sorts them into scene headings, cues, dialogue and transitions. Tab and Shift-Tab change every selected line at once and no longer move focus off the page, Enter on an empty scene heading turns it into action, and Enter in the middle of a speech keeps both halves dialogue. The script uses Courier Prime on every machine. On the phone, a draft you insert from Ciciro arrives as script lines instead of plain paragraphs. Scene headings, character cues and transitions are skipped by spell check and the grammar pass."
+  },
+  {
     "id": "0f81ed3e0362",
     "summary": "On the phone, a manuscript can have a **deadline**: a due date and a word target for the whole manuscript, set from the new Deadline tool on its chapters scree…",
     "text": "On the phone, a manuscript can have a **deadline**: a due date and a word target for the whole manuscript, set from the new Deadline tool on its chapters screen (and changed or removed there). A ring fills as the words arrive and closes with a tick when the target is met. Ciciro reads your last two weeks of writing against the words a day the deadline still needs and says plainly whether you are comfortably ahead, on track, or would do well to pick up the pace, with the daily words it takes. Deadlines are optional and independent of the daily word goal."
