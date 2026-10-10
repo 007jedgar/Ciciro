@@ -3977,12 +3977,16 @@ input[type="file"]::file-selector-button {
    gap is a `lh` (one line), so the browser breaks lines where
    src/lib/screenplay.ts does, at any size (Editor.tsx scales --screenplay-size
    down together on a narrow column). ELEMENT_METRICS and SPEECH_RUNS there are
-   the source of these numbers; test/screenplay-css.test.ts fails when they drift. */
+   the source of these numbers; test/screenplay-css.test.ts fails when they drift.
+   Every width carries --sp-slack, half a pixel: a line of exactly N characters
+   measures exactly N ch, and the browser breaks it a word early unless the box
+   is a hair wider. A further character needs a whole ch, so none ever fits. */
 .ProseMirror.screenplay {
+  --sp-slack: 0.5px;
   font-family: "Courier Prime", "Courier New", Courier, monospace;
   font-size: var(--screenplay-size, 12pt);
   line-height: 1.2;
-  width: 60ch;
+  width: calc(60ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p {
   margin: 1lh 0 0;
@@ -4001,16 +4005,16 @@ input[type="file"]::file-selector-button {
 .ProseMirror.screenplay p[data-sp="character"] {
   text-transform: uppercase;
   margin-left: 22ch;
-  width: 38ch;
+  width: calc(38ch + var(--sp-slack));
   break-after: avoid;
 }
 .ProseMirror.screenplay p[data-sp="dialogue"] {
   margin-left: 10ch;
-  width: 35ch;
+  width: calc(35ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p[data-sp="parenthetical"] {
   margin-left: 16ch;
-  width: 25ch;
+  width: calc(25ch + var(--sp-slack));
   break-after: avoid;
 }
 .ProseMirror.screenplay p[data-sp="parenthetical"]::before {
@@ -4023,7 +4027,7 @@ input[type="file"]::file-selector-button {
   text-transform: uppercase;
   text-align: right;
   margin-left: 30ch;
-  width: 30ch;
+  width: calc(30ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p[data-sp="centered"] {
   text-align: center;
@@ -4041,7 +4045,7 @@ input[type="file"]::file-selector-button {
 .ProseMirror.screenplay .sp-page-break {
   position: relative;
   clear: both;
-  width: 60ch;
+  width: calc(60ch + var(--sp-slack));
   height: 0;
   margin: 0.5lh 0;
   border-top: 1px dashed color-mix(in srgb, var(--ink-soft) 60%, transparent);
@@ -4061,7 +4065,7 @@ input[type="file"]::file-selector-button {
    next. Set in the cue's column; not text, so never selected or saved. */
 .ProseMirror.screenplay .sp-more,
 .ProseMirror.screenplay .sp-contd {
-  width: 38ch;
+  width: calc(38ch + var(--sp-slack));
   color: var(--ink-soft);
   text-transform: uppercase;
   user-select: none;
@@ -4081,7 +4085,7 @@ input[type="file"]::file-selector-button {
    swallowed by the clearance. DUAL_METRICS in src/lib/screenplay.ts is the
    source of these numbers; test/screenplay-css.test.ts fails when they drift. */
 .ProseMirror.screenplay p.sp-dual {
-  width: 28ch;
+  width: calc(28ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p.sp-dual-left {
   float: left;
@@ -4099,19 +4103,19 @@ input[type="file"]::file-selector-button {
 }
 .ProseMirror.screenplay p.sp-dual-left[data-sp="character"] {
   margin-left: 8ch;
-  width: 20ch;
+  width: calc(20ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p.sp-dual-left[data-sp="parenthetical"] {
   margin-left: 4ch;
-  width: 20ch;
+  width: calc(20ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p.sp-dual-right[data-sp="character"] {
   margin-left: 40ch;
-  width: 20ch;
+  width: calc(20ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p.sp-dual-right[data-sp="parenthetical"] {
   margin-left: 36ch;
-  width: 20ch;
+  width: calc(20ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p.sp-dual-after {
   clear: both;
