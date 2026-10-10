@@ -124,5 +124,8 @@ describe("NewManuscriptForm in an unsupported language", () => {
     view.rerender(<NewManuscriptForm onCreated={jest.fn()} />);
     expect(screen.getByTestId("kind-language-info")).toBeTruthy();
     expect(screen.getAllByRole("radio").some((r) => r.props.accessibilityState?.disabled === true)).toBe(true);
+    // VoiceOver reads the card as one element, so the reason is in its hint too.
+    const screenplay = screen.getByLabelText(i18n.t("kinds.screenplay.label"));
+    expect(screenplay.props.accessibilityHint).toContain(i18n.t("screenplay.languageInfo.body"));
   });
 });

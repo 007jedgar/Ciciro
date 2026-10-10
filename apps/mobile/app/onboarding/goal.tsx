@@ -69,7 +69,11 @@ export default function OnboardingGoalScreen() {
                 accessibilityRole="radio"
                 accessibilityState={{ disabled: unavailable }}
                 accessibilityLabel={t(`kinds.${option}.label`)}
-                accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
+                accessibilityHint={
+                  option === "screenplay"
+                    ? `${t("screenplay.beta")}. ${unavailable ? t("screenplay.languageInfo.body") : t("screenplay.betaInfo")}`
+                    : undefined
+                }
                 style={[layout.card, unavailable ? { opacity: 0.5 } : null]}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

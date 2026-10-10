@@ -76,8 +76,9 @@ It owns:
   `sliceRuns`, and `typesetSequences` (every sequence set on pages that run on
   from one another, each row knowing its sequence, block and offset): what the
   PDF draws;
-- `SCRIPT_LANGUAGES`, `scriptLanguageSupported(code)` and
-  `scriptTextSupported(text)`: which languages script formatting covers.
+- `SCRIPT_LANGUAGES`, `scriptLanguageSupported(code)`,
+  `scriptTextSupported(text)` and `scriptHtmlSupported(chapters)`: which
+  languages script formatting covers.
 
 `manuscript-kind.ts` (also mirrored) re-exports the element model, so older
 imports keep working.
@@ -158,7 +159,7 @@ width.
 `GET /api/export/:id?format=pdf` returns this for a screenplay and the book PDF
 for everything else; `format=fountain` is screenplays only. Courier is WinAnsi:
 Latin text, which covers English and Spanish. A script mostly in another writing
-system (`scriptTextSupported`) is refused with a 422 that says script formatting
+system, taken whole (`scriptHtmlSupported`), is refused with a 422 that says script formatting
 is only available in English and Spanish for now.
 
 Cost: a 124 page script (about 60 000 words) builds in 0.12 to 0.19 s end to end
@@ -220,11 +221,18 @@ Where a control cannot work in another language it is grayed out with an info
 button (web `ExportMenu`'s `.export-info`, phone `ScriptLanguageInfo` on the
 `InfoBubble`) saying so and that more languages are planned:
 
-- the screenplay PDF, on the phone when the app language is Chinese or Hindi
-  (`useScriptLanguageSupported`), on the web when the script's own text is in
-  another writing system (the web has no language setting);
+- the screenplay PDF, when the script's own text is in another writing
+  system, whatever the app's language. The server, the web `ExportMenu` and the
+  phone `ExportCard` all ask one function, `scriptHtmlSupported` (the script
+  taken whole: its live sequences joined, archived ones and pending
+  suggestions left out, the way the export reads it), so a button that is
+  enabled never meets the server's 422;
 - choosing Screenplay when creating a manuscript or in the onboarding quiz, on
-  the phone, in those languages.
+  the phone, when the app language is Chinese or Hindi
+  (`useScriptLanguageSupported`).
+
+VoiceOver reads a phone card as one element, so a grayed-out control also
+carries the `screenplay.languageInfo.body` text in its accessibility hint.
 
 Fountain export, the element bar, and an existing script stay available. The
 strings are `screenplay.languageInfo.*` in all four locales.

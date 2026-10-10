@@ -98,6 +98,13 @@ describe("wrapping", () => {
     expect(wrapText("one two three four", 9).map((l) => l.text)).toEqual(["one two", "three", "four"]);
   });
 
+  it("starts a new line at \\n and at the line and paragraph separators", () => {
+    const text = "one\ntwo\u2028three\u2029four";
+    const lines = wrapText(text, 40);
+    expect(lines.map((l) => l.text)).toEqual(["one", "two", "three", "four"]);
+    expect(lines.map((l) => text.slice(l.start, l.start + l.text.length))).toEqual(["one", "two", "three", "four"]);
+  });
+
   it("lets a line be exactly as wide as the measure", () => {
     const line = words(12, "abcd").slice(0, 58); // 58 columns
     expect(wrapText(`${line} x`, 60).map((l) => l.text)).toEqual([`${line} x`]);

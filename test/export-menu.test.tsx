@@ -217,6 +217,30 @@ describe("ExportMenu for a screenplay", () => {
     await close();
   });
 
+  it("measures the live script as the server exports it, not archived sequences or pending suggestions", async () => {
+    const chinese = "他看着窗外的雨，什么也没说。";
+    const { items, close } = await renderScript([
+      chapter({ id: "c1", content: "<p>She waits by the window.</p>" }),
+      chapter({ id: "c2", order: 1, content: `<p>${chinese}</p>`, archivedAt: "2026-01-01T00:00:00.000Z" }),
+      chapter({
+        id: "c3",
+        order: 2,
+        content: `<p>Rain.<ins data-suggestion-id="sg-1" data-author-id="ciciro">${chinese}${chinese}</ins></p>`,
+      }),
+    ]);
+    expect(items()[0].disabled).toBe(false);
+    await close();
+  });
+
+  it("takes the script whole: one short line in another language does not gray out an English script", async () => {
+    const { items, close } = await renderScript([
+      chapter({ id: "c1", content: `<p>${"The rain keeps falling on the empty street. ".repeat(10)}</p>` }),
+      chapter({ id: "c2", order: 1, content: "<p>你好</p>" }),
+    ]);
+    expect(items()[0].disabled).toBe(false);
+    await close();
+  });
+
   it("asks the server for Fountain", async () => {
     const { items, close } = await renderScript([chapter({ content: "<p>Hi.</p>" })]);
     await act(async () => items()[1].click());

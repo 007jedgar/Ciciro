@@ -126,4 +126,20 @@ describe("screenplay PDF", () => {
     await expect(buildScreenplayPdf(chinese)).rejects.toBeInstanceOf(UnsupportedScriptError);
     expect(screenplayPdfSupported(book(html([{ element: "action", text: "Quoth the raven: 123, ¡nunca más!" }])))).toBe(true);
   });
+
+  it("judges the script whole, not sequence by sequence", async () => {
+    const english = html([{ element: "action", text: "The rain keeps falling on the empty street. ".repeat(10) }]);
+    const hello = html([{ element: "dialogue", text: "你好" }]);
+    expect(screenplayPdfSupported(book(english, hello))).toBe(true);
+    await expect(buildScreenplayPdf(book(english, hello))).resolves.toBeInstanceOf(Uint8Array);
+  });
+
+  it("breaks a row at a pasted line or paragraph separator, as the editor's page count does", async () => {
+    const blocks: ScriptBlock[] = [{ element: "action", text: "First line.\u2028Second line.\u2029Third line." }];
+    const bytes = await buildScreenplayPdf(book(html(blocks)));
+    const [page] = (await drawn(bytes)).map(asText);
+    expect(page.text).toBe(pagesAsText(typesetSequences([blocks]).pages)[0]);
+    expect(page.text.split("\n").slice(0, 3)).toEqual(["First line.", "Second line.", "Third line."]);
+    expect(estimatePages([html(blocks)])).toBe(1);
+  });
 });

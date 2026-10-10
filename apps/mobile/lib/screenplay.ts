@@ -296,13 +296,17 @@ function upper(text: string): string {
  * Greedy word wrap the way a browser sets `white-space: pre-wrap` in a
  * monospace face: break after spaces and after a hyphen inside a word, let
  * spaces hang off the end of a line, keep leading spaces, and break a word
- * longer than the measure where it overflows. `\n` starts a new line.
+ * longer than the measure where it overflows. `\n` starts a new line, and so
+ * do the line and paragraph separators (U+2028, U+2029) that pasted text can
+ * carry, as they do in a browser.
  */
 export function wrapText(text: string, width: number): LaidOutLine[] {
   const out: LaidOutLine[] = [];
+  const hardBreak = /[\n\u2028\u2029]/g;
   let hardStart = 0;
   for (;;) {
-    const hardEnd = text.indexOf("\n", hardStart);
+    hardBreak.lastIndex = hardStart;
+    const hardEnd = hardBreak.exec(text)?.index ?? -1;
     const end = hardEnd === -1 ? text.length : hardEnd;
     wrapRun(text, hardStart, end, width, out);
     if (hardEnd === -1) break;
@@ -847,4 +851,16 @@ export function scriptTextSupported(text: string): boolean {
     }
   }
   return other <= (latin + other) / 3;
+}
+
+/**
+ * Whether a whole script, given as its sequences' chapter HTML, is in text the
+ * screenplay PDF can set: `scriptTextSupported` over every sequence's text
+ * joined. The server's export, the web menu and the phone all ask this, each
+ * with the live sequences and pending suggestions already removed.
+ */
+export function scriptHtmlSupported(chapters: readonly string[]): boolean {
+  return scriptTextSupported(
+    chapters.map((html) => styledBlocksFromHtml(html).map((b) => runsText(b.runs)).join("\n")).join("\n")
+  );
 }

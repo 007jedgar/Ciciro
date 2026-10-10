@@ -7,7 +7,8 @@ import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import { MOTION_MS, usePresence } from "@/lib/motion";
-import { runsText, scriptTextSupported, styledBlocksFromHtml } from "@/lib/screenplay";
+import { scriptHtmlSupported } from "@/lib/screenplay";
+import { htmlWithoutSuggestions } from "@/lib/suggestions";
 import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
 import type { Chapter } from "@/lib/types";
 
@@ -62,9 +63,7 @@ export default function ExportMenu({
     () =>
       !screenplay ||
       !open ||
-      scriptTextSupported(
-        chapters.map((c) => styledBlocksFromHtml(c.content).map((b) => runsText(b.runs)).join("\n")).join("\n")
-      ),
+      scriptHtmlSupported(chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content))),
     [screenplay, open, chapters]
   );
 

@@ -88,7 +88,11 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
               accessibilityRole="radio"
               accessibilityState={{ selected, disabled: unavailable }}
               accessibilityLabel={t(`kinds.${option}.label`)}
-              accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
+              accessibilityHint={
+                  option === "screenplay"
+                    ? `${t("screenplay.beta")}. ${unavailable ? t("screenplay.languageInfo.body") : t("screenplay.betaInfo")}`
+                    : undefined
+                }
               style={[
                 layout.card,
                 {

@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import {
   runsText,
-  scriptTextSupported,
+  scriptHtmlSupported,
   styledBlocksFromHtml,
   typesetSequences,
   type StyledBlock,
@@ -81,9 +81,9 @@ function segments(text: string, flags: Uint8Array, start: number, lead: number, 
   return out;
 }
 
-/** Whether every sequence of a script is in text the screenplay PDF can set. */
+/** Whether a script, taken whole, is in text the screenplay PDF can set. */
 export function screenplayPdfSupported(book: BookProject): boolean {
-  return sortedChapters(book).every((c) => scriptTextSupported(styledBlocksFromHtml(c.content).map((b) => runsText(b.runs)).join("\n")));
+  return scriptHtmlSupported(sortedChapters(book).map((c) => c.content));
 }
 
 /** A script as a screenplay-format PDF. Throws `UnsupportedScriptError` for a script this font cannot set. */

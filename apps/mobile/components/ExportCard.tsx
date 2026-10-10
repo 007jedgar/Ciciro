@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import * as haptics from "../lib/haptics";
@@ -16,7 +16,9 @@ import {
 } from "../lib/export";
 import { ApiError } from "../lib/api/client";
 import type { ManuscriptKind } from "../lib/manuscript-kind";
-import { useScriptLanguageSupported } from "../lib/script-language";
+import type { Chapter } from "../lib/api/types";
+import { scriptHtmlSupported } from "../lib/screenplay";
+import { htmlWithoutSuggestions } from "../lib/suggestions";
 import { AlertText } from "./AlertText";
 import { BetaBadge } from "./BetaBadge";
 import { ScriptLanguageInfo } from "./ScriptLanguageInfo";
@@ -32,21 +34,29 @@ function ReadyTick({ color }: { color: string }) {
 /**
  * Export the manuscript as EPUB, PDF or Word through the share sheet. A script
  * also gets its own screenplay PDF and a Fountain file, both Beta; the PDF is
- * grayed out, with an info button, in a language script formatting does not
- * support yet.
+ * grayed out, with an info button, for a script written in a language script
+ * formatting does not support yet (its live sequences, as the server exports
+ * them, measured by `scriptHtmlSupported`).
  */
 export function ExportCard({
   projectId,
   flushEdits,
   kind = "novel",
+  chapters = [],
 }: {
   projectId: string;
   flushEdits?: () => Promise<boolean>;
   kind?: ManuscriptKind;
+  chapters?: readonly Pick<Chapter, "content" | "archivedAt">[];
 }) {
   const { t } = useTranslation();
   const screenplay = kind === "screenplay";
-  const scriptLanguage = useScriptLanguageSupported();
+  const scriptLanguage = useMemo(
+    () =>
+      !screenplay ||
+      scriptHtmlSupported(chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content))),
+    [screenplay, chapters]
+  );
   const { layout, colors } = useAppTheme();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   // The format whose file is ready: its spinner becomes a tick for a beat before the share sheet opens.
@@ -109,6 +119,7 @@ export function ExportCard({
               onPress={() => void run(format)}
               accessibilityRole="button"
               accessibilityLabel={t("export.a11y", { format: label })}
+              accessibilityHint={unavailable ? t("screenplay.languageInfo.body") : undefined}
               accessibilityState={{ disabled: busy !== null || unavailable, busy: busy === format }}
               style={[
                 styles.pill,
