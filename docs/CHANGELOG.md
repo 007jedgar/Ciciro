@@ -20,13 +20,15 @@ else stays in commit messages.
   Ciciro does not claim Final Draft opens them unchanged. Fountain carries the
   title page, `^` dual dialogue, `> centered <` text and `#1#` scene numbers both
   ways. The phone shows and keeps all of it, exports FDX from its Export card,
-  and edits the title page in Settings; it still does not lay out the page.
-  Script formatting remains English and Spanish for the PDF, and the `(MORE)`
-  and `(CONT'D)` notes are English.
+  and edits the title page in Settings; its Pages view sets the same pages, with
+  the dual columns, the `(MORE)` and `(CONT'D)` notes and the scene numbers, and
+  its lists say "N pages" to match the editor (typing in a page layout is still
+  to come). Script formatting remains English and Spanish for the PDF, and the
+  `(MORE)` and `(CONT'D)` notes are English.
 
 - **Screenplays (Beta) export and import.** Export a script as a **Screenplay
   PDF** (US Letter, 12 pt Courier, page numbers from page 2, the same pages the
-  editor's "about N pages" counts) or as a **Fountain** file for other writing
+  editor's page count counts) or as a **Fountain** file for other writing
   apps, on the web and from the phone's Export card. Import a `.fountain` file
   as a new screenplay (one sequence for each `#` section, or one sequence), and
   paste Fountain text into a script on the web to have it sorted into elements.

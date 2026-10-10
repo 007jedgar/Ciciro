@@ -25,11 +25,11 @@ describe("manuscript count", () => {
   });
 
   it("gives a screenplay's length in pages, and no other kind", () => {
-    expect(manuscriptPagesLabel(1, t)).toBe("about 1 page");
-    expect(manuscriptPagesLabel(97, t)).toBe("about 97 pages");
+    expect(manuscriptPagesLabel(1, t)).toBe("1 page");
+    expect(manuscriptPagesLabel(97, t)).toBe("97 pages");
     expect(manuscriptMetaParts({ kind: "screenplay", genre: "Heist", pages: 97, _count: { chapters: 4 } }, t)).toEqual({
       kindLabel: "Screenplay",
-      text: "Heist · 4 sequences · about 97 pages",
+      text: "Heist · 4 sequences · 97 pages",
     });
     // A script with nothing typed has no pages to speak of, and a novel never shows them.
     expect(manuscriptMetaParts({ kind: "screenplay", _count: { chapters: 1 } }, t).text).toBe("1 sequence");

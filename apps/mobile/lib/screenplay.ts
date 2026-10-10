@@ -981,7 +981,7 @@ export function typeset(
 }
 
 /** Where a cell starts on its line, in columns from the page's left margin. */
-function cellPad(cell: PageCell): number {
+export function cellPad(cell: PageCell): number {
   if (cell.align === "right") return cell.indent + cell.width - cell.text.length;
   if (cell.align === "center") return cell.indent + Math.floor((cell.width - cell.text.length) / 2);
   return cell.indent;

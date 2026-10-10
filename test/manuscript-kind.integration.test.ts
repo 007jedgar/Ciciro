@@ -623,6 +623,27 @@ describe("a screenplay's page count in the manuscript lists", () => {
     expect(byTitle.get(novel.title)).not.toHaveProperty("pages");
   });
 
+  it("counts each script's pages under its own (MORE) and (CONT'D) settings, so a list says what the editor does", async () => {
+    const speech = Array.from({ length: 16 }, (_, i) => `line${String(i).padStart(2, "0")}`.padEnd(35, "a")).join(" ");
+    const unit = `<p>Filler.</p><p data-sp="character">MARA</p><p data-sp="dialogue">${speech}</p>`;
+    const long = unit.repeat(8);
+    const off = { more: false, contd: false };
+    // The notes take lines of the page, so this script runs a page longer with them than without.
+    expect(estimatePages([long])).toBeGreaterThan(estimatePages([long], off));
+
+    const plain = await createProject(null, { title: "With notes", kind: "screenplay" });
+    const bare = await createProject(null, { title: "Without notes", kind: "screenplay" });
+    await prisma.chapter.update({ where: { id: plain.chapters[0].id }, data: { content: long } });
+    await prisma.chapter.update({ where: { id: bare.chapters[0].id }, data: { content: long } });
+    await prisma.project.update({ where: { id: bare.id }, data: { scriptSettings: JSON.stringify(off) } });
+
+    const rows = new Map((await listProjects(null)).map((row) => [row.title, row]));
+    expect(rows.get("With notes")?.pages).toBe(estimatePages([long]));
+    expect(rows.get("Without notes")?.pages).toBe(estimatePages([long], off));
+    const folder = await createFolder(null, { name: "Scripts", projectIds: [bare.id] });
+    expect(folder.projects[0].pages).toBe(estimatePages([long], off));
+  });
+
   it("carries the count into a folder's manuscripts", async () => {
     const script = await createProject(null, { title: "Heist", kind: "screenplay" });
     await prisma.chapter.update({ where: { id: script.chapters[0].id }, data: { content: html } });

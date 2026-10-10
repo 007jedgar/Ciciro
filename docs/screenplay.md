@@ -469,7 +469,9 @@ system prompt asks for marked lines, and the editing pass sees the same view.
 
 `pages` on a project in the library and in folders is derived on read for
 screenplays only (`src/lib/script-pages.ts`, chunked by 50 for D1's parameter
-limit), from the same `estimatePages` as the editor. It is never stored, so
+limit), from the same `estimatePages` as the editor, under that project's own
+`scriptSettings` (`(MORE)` and `(CONT'D)` take lines of the page, so a list says
+the number the editor does). It is never stored, so
 there is no schema change; a script with nothing typed has none. Reading every
 sequence's HTML for a list is the cost. If it ever shows up, denormalize onto
 `Project` (a D1 upgrade, see `docs/hosting.md`).
@@ -510,17 +512,25 @@ flag through every flush, and carries the Beta mark.
 - **Page view.** The Pages tile on the chapters screen opens
   `app/project/[id]/pages.tsx`: the script as read-only sheets, 54 lines of 60
   columns in JetBrains Mono (0.6 em wide, like Courier), page numbers from
-  page 2, "about N pages" and the Beta mark in the header. It opens on the first
-  page of the sequence you were in. The lines and the page breaks come from the
-  mirrored engine (`lib/script-pages.ts` stitches `layoutHtml` + `paginate`
-  across sequences; there is no second layout function), and a sheet scales to
-  the screen (`sheetMetrics`), which is exact because every glyph is the same
-  width. This is the report's option M4; typing in a native script layout is
-  phase 4.
+  page 2, "N pages" and the Beta mark in the header. It opens on the first
+  page of the sequence you were in. The rows come from the mirrored engine's
+  `typesetSequences`, the same typeset the PDF draws (`lib/script-pages.ts` sets
+  each row as one monospace line and gives the sequences' starts; there is no
+  second layout function), under the script's own settings
+  (`pageOptionsOf(parseScriptSettings(project.scriptSettings))`). So a sheet
+  shows what the PDF does: a dual-dialogue row has both columns on its line (the
+  right at its own column, via the engine's `cellPad`), a speech that runs past
+  the page closes it with `(MORE)` and opens the next with the cue and
+  `(CONT'D)`, centered text is centered, and with scene numbers on a heading
+  carries its number in both margins (`sheetMetrics(width, NUMBER_GUTTER)` keeps
+  four columns on each side, so the type is a little smaller then). A sheet
+  scales to the screen (`sheetMetrics`), which is exact because every glyph is
+  the same width. This is the report's option M4; typing in a native script
+  layout is phase 4.
 - **Page counts.** The manuscripts list row and the manuscript meta line say
-  "about N pages" (from the server's `pages`), and the chapters screen counts
-  them from the loaded sequences, in place of the word count in its kicker (a
-  script is measured in pages; each card keeps its words).
+  "N pages" (from the server's `pages`), and the chapters screen counts them
+  from the loaded sequences and the same settings, in place of the word count in
+  its kicker (a script is measured in pages; each card keeps its words).
 - **Chat.** A script draft in the chat card is set as a script
   (`components/ScriptDraft.tsx`: element indents as fractions of the card, caps,
   blank-line spacing; the card is not 60 columns wide, so it wraps and the page

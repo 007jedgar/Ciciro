@@ -6,11 +6,12 @@ import { AppHeader } from "../../../components/AppHeader";
 import { BetaBadge } from "../../../components/BetaBadge";
 import { ProjectLoadError } from "../../../components/ProjectLoadError";
 import { ScreenErrorBoundary } from "../../../components/ScreenErrorBoundary";
-import { ScriptSheet, sheetMetrics } from "../../../components/ScriptSheet";
+import { NUMBER_GUTTER, ScriptSheet, sheetMetrics } from "../../../components/ScriptSheet";
 import { SkeletonList } from "../../../components/Skeleton";
 import { manuscriptPagesLabel } from "../../../lib/manuscript-count";
 import { useProject } from "../../../lib/project";
 import { scriptPages } from "../../../lib/script-pages";
+import { pageOptionsOf, parseScriptSettings } from "../../../lib/screenplay";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
 import { fonts } from "../../../lib/theme";
@@ -21,9 +22,9 @@ const GUTTER = 20;
 
 /**
  * The script as it prints, page by page: a read-only view for checking that it
- * looks like a script and how long it runs. It is drawn from the same layout and
- * page breaks as the editor's soft rules and the "about N pages" count, so the
- * pages here are the pages there. Writing stays in the manuscript.
+ * looks like a script and how long it runs. It is drawn from the same typeset as
+ * the editor's soft rules, the page count and the PDF, under the script's own
+ * settings, so the pages here are the pages there. Writing stays in the manuscript.
  */
 function PagesContent({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
@@ -32,8 +33,21 @@ function PagesContent({ projectId }: { projectId: string }) {
   const { width } = useWindowDimensions();
   const { project, loading, error, errorDetail, reload, selectedChapterId } = useProject();
   const chapters = project?.chapters;
-  const script = useMemo(() => scriptPages((chapters ?? []).map((chapter) => chapter.content)), [chapters]);
-  const metrics = useMemo(() => sheetMetrics(width - GUTTER * 2), [width]);
+  // The script's own page settings (`(MORE)`, `(CONT'D)`, scene numbers) move its page breaks.
+  const stored = project?.scriptSettings;
+  const pageOptions = useMemo(() => pageOptionsOf(parseScriptSettings(stored)), [stored]);
+  const script = useMemo(
+    () =>
+      scriptPages(
+        (chapters ?? []).map((chapter) => chapter.content),
+        pageOptions
+      ),
+    [chapters, pageOptions]
+  );
+  const metrics = useMemo(
+    () => sheetMetrics(width - GUTTER * 2, pageOptions.sceneNumbers ? NUMBER_GUTTER : 0),
+    [width, pageOptions.sceneNumbers]
+  );
 
   let body;
   if (loading && !project) {

@@ -30,7 +30,9 @@ function withProjectCount<
 }
 
 /** Folders with each screenplay in them carrying the pages it runs, for the lists. */
-async function withScriptPagesIn<F extends { projects: Array<{ id: string; kind?: string | null }> }>(
+async function withScriptPagesIn<
+  F extends { projects: Array<{ id: string; kind?: string | null; scriptSettings?: string | null }> },
+>(
   folders: F[]
 ): Promise<Array<Omit<F, "projects"> & { projects: Array<F["projects"][number] & { pages?: number }> }>> {
   const counts = await scriptPageCounts(folders.flatMap((folder) => folder.projects));

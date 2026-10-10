@@ -56,6 +56,7 @@ import { openTodayEntry } from "../../../../lib/journal";
 import { normalizeKind } from "../../../../lib/manuscript-kind";
 import { manuscriptPagesLabel } from "../../../../lib/manuscript-count";
 import { scriptPageCount } from "../../../../lib/script-pages";
+import { pageOptionsOf, parseScriptSettings } from "../../../../lib/screenplay";
 import { weeklyReviewHref } from "../../../../lib/weekly-review";
 import { useAppTheme } from "../../../../lib/settings";
 import {
@@ -149,15 +150,22 @@ function ChaptersScreenContent() {
   );
   const freshKey = [...freshIds].join(",");
 
-  // About how many pages a screenplay runs, from the sequences as they are now. The
-  // revision stands for the content, so typing in another tab moves the count without
-  // hashing every sequence on each render.
+  // How many pages a screenplay runs, from the sequences as they are now and under the
+  // script's own page settings. The revision stands for the content, so typing in another
+  // tab moves the count without hashing every sequence on each render.
   const scriptKind = normalizeKind(project?.kind) === "screenplay";
   const pagesKey = chapters.map((c) => `${c.id}:${c.revision}`).join(",");
+  const storedScriptSettings = project?.scriptSettings;
   const pages = useMemo(
-    () => (scriptKind ? scriptPageCount(chapters.map((c) => c.content)) : 0),
+    () =>
+      scriptKind
+        ? scriptPageCount(
+            chapters.map((c) => c.content),
+            pageOptionsOf(parseScriptSettings(storedScriptSettings))
+          )
+        : 0,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scriptKind, pagesKey]
+    [scriptKind, pagesKey, storedScriptSettings]
   );
 
   useEffect(() => {
