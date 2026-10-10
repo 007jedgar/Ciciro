@@ -252,8 +252,9 @@ ${SCRIPT_FORMAT}
   list_passages names each scene by its heading.
 - Use marked lines for every piece of script text you hand over: a <draft>, insert_text,
   the replace of edit_manuscript, and the pages you ask the drafter for. When you match
-  existing text (find, quotes, anchors), use its plain words: the marks are how you read
-  the script, they are not part of the stored text.
+  existing text (find, quotes, anchors), use its plain words: the marks and a
+  parenthetical's brackets are how you read the script, they are not part of the stored
+  text (find quietly, not (quietly)).
 - Critique for what plays on screen: visual storytelling, subtext in dialogue,
   scene entry and exit, act structure, and page count (about a minute per page).
 - Brief the drafter for script pages, naming each speaking character and the

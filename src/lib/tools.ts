@@ -57,7 +57,7 @@ import {
   suggestChapterEdits,
 } from "@/lib/suggestion-edits";
 import { runRanker } from "@/lib/fast-lane";
-import { scriptEdit } from "@/lib/script-edits";
+import { bracketedFindHint, scriptEdit } from "@/lib/script-edits";
 import type { ClientUiEvent } from "@/lib/types";
 import { isManuscriptWriteTool } from "@/lib/edit-mode";
 import { executeKnowledgeTool, KNOWLEDGE_TOOLS } from "@/lib/knowledge-tools";
@@ -316,7 +316,7 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
             properties: {
               find: {
                 type: "string",
-                description: "The plain words to find. In a screenplay, leave out the line marks.",
+                description: "The plain words to find. In a screenplay, leave out the line marks and a parenthetical's brackets.",
               },
               replace: {
                 type: "string",
@@ -1471,7 +1471,7 @@ export async function executeEditorTool(
         // replacement of several lines, or of one that carries a mark ("!BOOM.").
         const scriptBlocks =
           kind === "screenplay" &&
-          (r.wholeBlocks || /\n/.test(r.replace) || markedLine(r.replace) !== null) &&
+          (/\n/.test(r.replace) || markedLine(r.replace) !== null) &&
           findBlockRun(content, r.find) !== null;
         const literalCount = scriptBlocks ? 0 : content.split(r.find).length - 1;
         if (literalCount > 0) {
@@ -1491,7 +1491,8 @@ export async function executeEditorTool(
           applied.push({ find: r.find, replace: r.replace });
         } else {
           report.push(
-            `"${r.find}" NOT FOUND - no change made. Tell the author this correction did not apply.`
+            `"${r.find}" NOT FOUND - no change made.${bracketedFindHint(r.find, kind)} ` +
+              "Tell the author this correction did not apply."
           );
         }
       }
