@@ -464,7 +464,16 @@ function ChaptersScreenContent() {
               </View>
             ) : null
           }
-          ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} kind={kind} chapters={project.chapters} /> : null}
+          ListFooterComponent={project ? (
+            <ExportCard
+              projectId={projectId}
+              flushEdits={flushEdits}
+              kind={kind}
+              chapters={project.chapters}
+              scriptSettings={project.scriptSettings}
+              manuscript={{ title: project.title, author: project.author }}
+            />
+          ) : null}
           ListEmptyComponent={
             error && !project ? (
               <ScreenErrorState

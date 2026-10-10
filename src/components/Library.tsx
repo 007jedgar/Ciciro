@@ -446,7 +446,7 @@ export default function Library() {
         <strong className="new-form-tab">Import a manuscript</strong>
         <p className="folder-notes">
           Word (.docx, including Google Docs downloaded as Word), Markdown, a Fountain script
-          (.fountain), or a zipped Scrivener project. Chapters split on headings (a script, on its
+          (.fountain), an FDX script (.fdx), or a zipped Scrivener project. Chapters split on headings (a script, on its
           # sections); bold, italic and scene breaks carry over.
         </p>
         <input

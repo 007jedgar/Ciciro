@@ -8,8 +8,8 @@ export type { ExportFormat };
 
 export const EXPORT_FORMATS: readonly ExportFormat[] = ["docx", "markdown", "epub", "pdf"];
 
-/** A script leads with its own pages (a screenplay PDF) and a Fountain file. */
-export const SCREENPLAY_EXPORT_FORMATS: readonly ExportFormat[] = ["pdf", "fountain", "docx", "markdown", "epub"];
+/** A script leads with its own pages (a screenplay PDF), a Fountain file and an FDX file. */
+export const SCREENPLAY_EXPORT_FORMATS: readonly ExportFormat[] = ["pdf", "fountain", "fdx", "docx", "markdown", "epub"];
 
 export function exportFormatsFor(kind: ManuscriptKind): readonly ExportFormat[] {
   return kind === "screenplay" ? SCREENPLAY_EXPORT_FORMATS : EXPORT_FORMATS;
@@ -24,6 +24,7 @@ const SHARE_TYPES: Record<ExportFormat, { mimeType: string; UTI: string }> = {
   },
   markdown: { mimeType: "text/markdown", UTI: "net.daringfireball.markdown" },
   fountain: { mimeType: "text/plain", UTI: "public.plain-text" },
+  fdx: { mimeType: "application/xml", UTI: "public.xml" },
 };
 
 export class ExportUnavailableError extends Error {

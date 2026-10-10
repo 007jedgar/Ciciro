@@ -27,6 +27,7 @@ export const ELEMENT_LABEL_KEYS: Record<ScreenplayElement, string> = {
   parenthetical: "screenplay.parenthetical",
   transition: "screenplay.transition",
   shot: "screenplay.shot",
+  centered: "screenplay.centered",
 };
 
 /**
@@ -36,14 +37,23 @@ export const ELEMENT_LABEL_KEYS: Record<ScreenplayElement, string> = {
  */
 export function ScreenplayBar({
   element,
+  dual = null,
   disabled = false,
   onSetElement,
+  onToggleDual,
   testID = "screenplay-bar",
 }: {
   /** The element of the line under the caret; null for one this build does not know. */
   element: ScreenplayElement | null;
+  /**
+   * The caret's speech and dual dialogue: null when there is nothing to
+   * toggle (not in a speech, or none right above to sit beside), else whether
+   * it already sits beside the one above.
+   */
+  dual?: { on: boolean } | null;
   disabled?: boolean;
   onSetElement: (element: ScreenplayElement) => void;
+  onToggleDual?: () => void;
   testID?: string;
 }) {
   const { t } = useTranslation();
@@ -148,6 +158,31 @@ export function ScreenplayBar({
               </View>
             );
           })}
+          {onToggleDual ? (
+            <SelectChip
+              selected={dual?.on ?? false}
+              tokens={{
+                restFill: "transparent",
+                activeFill: colors.accent,
+                restBorder: colors.line,
+                activeBorder: colors.accent,
+                restText: colors.ink,
+                activeText: colors.bg,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t("screenplay.dual")}
+              accessibilityHint={t("screenplay.dualHint")}
+              accessibilityState={{ selected: dual?.on ?? false, disabled: disabled || !dual }}
+              disabled={disabled || !dual}
+              onPress={() => onToggleDual()}
+              style={{ opacity: disabled || !dual ? 0.4 : 1 }}
+              surfaceStyle={styles.chip}
+            >
+              <SelectLabel style={{ fontFamily: fonts.sans, fontSize: 13, fontWeight: "600" }}>
+                {t("screenplay.dual")}
+              </SelectLabel>
+            </SelectChip>
+          ) : null}
         </ScrollView>
         {/* Chips run on past the edge; the fade says there are more. */}
         <LinearGradient

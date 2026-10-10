@@ -38,6 +38,8 @@ import {
   replaceBlockOps,
   appendEmptyBlockOps,
   setBlockElementOps,
+  speechOfBlock,
+  toggleDualOps,
   emptyBlockMarks,
   type BlockMark,
 } from "../../../../lib/block-editor";
@@ -530,6 +532,12 @@ function ManuscriptScreenContent() {
   }, [content, chapter?.id, recomputeElement]);
 
   const formatBlockId = blockAtPlainOffset(content, formatTarget.start)?.blockId ?? "";
+  // Dual dialogue is offered on a speech with another right above it, and on one already beside it.
+  const dualOfCaret = useMemo(() => {
+    if (!isScreenplay) return null;
+    const speech = speechOfBlock(blocks, formatBlockId);
+    return speech && (speech.pairable || speech.on) ? { on: speech.on } : null;
+  }, [blocks, formatBlockId, isScreenplay]);
   const barPlacement = formatBarPlacement(settings.formatChrome);
   const barHidden = hideFormatBarWhileTyping(settings.formatChrome, typing);
 
@@ -588,6 +596,16 @@ function ManuscriptScreenContent() {
     },
     [commitOps, flush]
   );
+
+  const onToggleDual = useCallback(async () => {
+    await flush();
+    const current = chapterRef.current;
+    if (!current) return;
+    const doc = htmlToDoc(current.content, current.revision).doc;
+    const target = caretRef.current.blockId || doc.blocks[doc.blocks.length - 1]?.id;
+    if (!target) return;
+    commitOps(toggleDualOps(doc, target));
+  }, [commitOps, flush]);
 
   const openPressMenu = useCallback(() => {
     setPressMenuOpen(true);
@@ -954,8 +972,10 @@ function ManuscriptScreenContent() {
           <View style={{ marginBottom: keyboardVisible || barPlacement === "accessory" ? 0 : clearance }}>
             <ScreenplayBar
               element={knownElement(caretElement)}
+              dual={dualOfCaret}
               disabled={!focused}
               onSetElement={(el) => void onSetElement(el)}
+              onToggleDual={() => void onToggleDual()}
             />
           </View>
         ) : null}

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import SettingsScreen from "../app/settings";
 import { defaultSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
@@ -7,6 +7,7 @@ import { makeLayout, THEME_PALETTES } from "../lib/theme";
 
 const mockParams: { project?: string } = {};
 const mockProject = jest.fn();
+const mockPatchProject = jest.fn();
 
 jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("expo-haptics", () => ({
@@ -40,6 +41,7 @@ jest.mock("../lib/writing-reminder-notifications", () => ({
 jest.mock("../lib/writing-reminder-store", () => ({ useWritingReminderList: () => [] }));
 jest.mock("../lib/api/hooks", () => ({
   useProjectQuery: (...args: unknown[]) => mockProject(...args),
+  usePatchProjectMutation: () => ({ mutate: mockPatchProject, isPending: false }),
   useModelsQuery: () => ({ data: undefined }),
   useEntitlementQuery: () => ({ data: undefined }),
   useEmailPreferencesQuery: () => ({ data: undefined }),
@@ -65,6 +67,7 @@ describe("Settings: the open manuscript's own settings", () => {
   beforeEach(() => {
     delete mockParams.project;
     mockProject.mockReset();
+    mockPatchProject.mockReset();
     mockProject.mockReturnValue({ data: undefined });
   });
 
@@ -84,8 +87,97 @@ describe("Settings: the open manuscript's own settings", () => {
     expect(screen.getByText("Script format")).toBeTruthy();
     expect(screen.getByText("Courier Prime 12 pt")).toBeTruthy();
     expect(screen.getByText("Locked")).toBeTruthy();
-    expect(screen.getByText(/Tab steps through: Action, Character, Dialogue, Parenthetical, Transition, Shot, Scene heading\./)).toBeTruthy();
+    expect(screen.getByText(/Tab steps through: Action, Character, Dialogue, Parenthetical, Transition, Shot, Centered, Scene heading\./)).toBeTruthy();
     expect(mockProject).toHaveBeenCalledWith("p1", { enabled: true });
+  });
+
+  describe("the script's own settings", () => {
+    const stored = JSON.stringify({
+      titlePage: { title: "NIGHT SHIFT", credit: "", author: "", source: "", draftDate: "", contact: "" },
+      showTitlePage: true,
+      more: true,
+      contd: false,
+      sceneNumbers: true,
+    });
+
+    function open(scriptSettings?: string) {
+      mockParams.project = "p1";
+      mockProject.mockReturnValue({
+        data: { id: "p1", kind: "screenplay", title: "Night Shift", author: "Mara Quill", scriptSettings },
+      });
+    }
+
+    it("shows each switch as stored, every one on by default except scene numbers", async () => {
+      open(stored);
+      await renderSettings();
+      expect(screen.getByLabelText("(MORE)").props.value).toBe(true);
+      expect(screen.getByLabelText("(CONT'D)").props.value).toBe(false);
+      expect(screen.getByLabelText("Scene numbers").props.value).toBe(true);
+      expect(screen.getByLabelText("Title page in the PDF").props.value).toBe(true);
+    });
+
+    it("starts a script that never saved any from the defaults", async () => {
+      open(undefined);
+      await renderSettings();
+      expect(screen.getByLabelText("(MORE)").props.value).toBe(true);
+      expect(screen.getByLabelText("(CONT'D)").props.value).toBe(true);
+      expect(screen.getByLabelText("Scene numbers").props.value).toBe(false);
+    });
+
+    it("saves a switch with a project PATCH and shows it at once", async () => {
+      open(stored);
+      await renderSettings();
+      fireEvent(screen.getByLabelText("(CONT'D)"), "valueChange", true);
+      expect(mockPatchProject).toHaveBeenCalledTimes(1);
+      const [vars] = mockPatchProject.mock.calls[0];
+      expect(vars.id).toBe("p1");
+      expect(vars.body.scriptSettings).toMatchObject({ more: true, contd: true, sceneNumbers: true, showTitlePage: true });
+      expect(vars.body.scriptSettings.titlePage.title).toBe("NIGHT SHIFT");
+      expect(screen.getByLabelText("(CONT'D)").props.value).toBe(true);
+    });
+
+    it("puts a switch back and says so when the server refuses it", async () => {
+      open(stored);
+      await renderSettings();
+      fireEvent(screen.getByLabelText("Scene numbers"), "valueChange", false);
+      expect(screen.getByLabelText("Scene numbers").props.value).toBe(false);
+      await act(async () => {
+        mockPatchProject.mock.calls[0][1].onError(new Error("offline"));
+      });
+      expect(screen.getByLabelText("Scene numbers").props.value).toBe(true);
+      expect(screen.getByText("Couldn't save the script settings.")).toBeTruthy();
+    });
+
+    it("edits the title page, falling back to the manuscript's own title and author", async () => {
+      open(stored);
+      await renderSettings();
+      expect(screen.getByLabelText("Title").props.value).toBe("NIGHT SHIFT");
+      // A blank author shows the manuscript's, as the PDF sets it.
+      expect(screen.getByLabelText("Author").props.placeholder).toBe("Mara Quill");
+      const save = screen.getByLabelText("Save title page");
+      expect(save.props.accessibilityState.disabled).toBe(true);
+      fireEvent.changeText(screen.getByLabelText("Credit"), "Written by");
+      fireEvent.changeText(screen.getByLabelText("Contact"), "Mara Quill\nmara@example.com");
+      fireEvent.press(screen.getByLabelText("Save title page"));
+      expect(mockPatchProject).toHaveBeenCalledTimes(1);
+      const { titlePage } = mockPatchProject.mock.calls[0][0].body.scriptSettings;
+      expect(titlePage).toMatchObject({ title: "NIGHT SHIFT", credit: "Written by", contact: "Mara Quill\nmara@example.com" });
+    });
+
+    it("keeps what is typed on the title page when a switch changes", async () => {
+      open(stored);
+      await renderSettings();
+      fireEvent.changeText(screen.getByLabelText("Source"), "Based on a true story");
+      fireEvent(screen.getByLabelText("(MORE)"), "valueChange", false);
+      expect(screen.getByLabelText("Source").props.value).toBe("Based on a true story");
+    });
+
+    it("shows no switches until the manuscript has loaded", async () => {
+      mockParams.project = "p1";
+      mockProject.mockReturnValue({ data: undefined });
+      await renderSettings();
+      expect(screen.queryByLabelText("(MORE)")).toBeNull();
+    });
   });
 
   it.each(["novel", "blog", "journal"])("shows no manuscript section for a %s", async (kind) => {

@@ -20,9 +20,7 @@
 import { isShotLine } from "./manuscript-kind";
 import {
   EMPTY_TITLE_PAGE,
-  TITLE_PAGE_FIELDS,
   dualPairs,
-  isNumberedScene,
   normalizeElement,
   normalizeTitlePage,
   runsText,

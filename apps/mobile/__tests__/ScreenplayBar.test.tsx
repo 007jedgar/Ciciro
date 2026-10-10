@@ -36,7 +36,7 @@ describe("ScreenplayBar", () => {
   it("marks no element for a line a newer client styled, and Tab steps from action", () => {
     const onSetElement = jest.fn();
     render(<ScreenplayBar element={null} onSetElement={onSetElement} />);
-    for (const label of ["Scene heading", "Action", "Character", "Dialogue", "Parenthetical", "Transition", "Shot"]) {
+    for (const label of ["Scene heading", "Action", "Character", "Dialogue", "Parenthetical", "Transition", "Shot", "Centered"]) {
       expect(screen.getByLabelText(label).props.accessibilityState.selected).toBe(false);
     }
     fireEvent.press(screen.getByLabelText("Next element"));
@@ -48,6 +48,42 @@ describe("ScreenplayBar", () => {
     render(<ScreenplayBar element="action" disabled onSetElement={onSetElement} />);
     fireEvent.press(screen.getByLabelText("Character"));
     expect(onSetElement).not.toHaveBeenCalled();
+  });
+
+  it("offers centered text", () => {
+    const onSetElement = jest.fn();
+    render(<ScreenplayBar element="action" onSetElement={onSetElement} />);
+    fireEvent.press(screen.getByLabelText("Centered"));
+    expect(onSetElement).toHaveBeenCalledWith("centered");
+  });
+
+  describe("dual dialogue", () => {
+    it("is not offered by a bar that has no way to set it", () => {
+      render(<ScreenplayBar element="character" onSetElement={jest.fn()} />);
+      expect(screen.queryByLabelText("Dual")).toBeNull();
+    });
+
+    it("is grayed out away from a speech that can pair", () => {
+      const onToggleDual = jest.fn();
+      render(<ScreenplayBar element="action" dual={null} onSetElement={jest.fn()} onToggleDual={onToggleDual} />);
+      expect(screen.getByLabelText("Dual").props.accessibilityState).toMatchObject({ disabled: true, selected: false });
+      fireEvent.press(screen.getByLabelText("Dual"));
+      expect(onToggleDual).not.toHaveBeenCalled();
+    });
+
+    it("toggles for a speech beside another, and shows when it is already on", () => {
+      const onToggleDual = jest.fn();
+      const { rerender } = render(
+        <ScreenplayBar element="dialogue" dual={{ on: false }} onSetElement={jest.fn()} onToggleDual={onToggleDual} />
+      );
+      expect(screen.getByLabelText("Dual").props.accessibilityState).toMatchObject({ disabled: false, selected: false });
+      fireEvent.press(screen.getByLabelText("Dual"));
+      expect(onToggleDual).toHaveBeenCalledTimes(1);
+      rerender(
+        <ScreenplayBar element="dialogue" dual={{ on: true }} onSetElement={jest.fn()} onToggleDual={onToggleDual} />
+      );
+      expect(screen.getByLabelText("Dual").props.accessibilityState.selected).toBe(true);
+    });
   });
 });
 

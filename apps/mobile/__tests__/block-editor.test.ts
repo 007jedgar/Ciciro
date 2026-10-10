@@ -5,7 +5,9 @@ import {
   replaceBlockOps,
   serializeBlockHtml,
   setBlockElementOps,
+  speechOfBlock,
   tagOfHtml,
+  toggleDualOps,
 } from "../lib/block-editor";
 
 function seqIds(prefix: string) {
@@ -125,5 +127,52 @@ describe("htmlToDoc without a crypto global", () => {
     const { doc: cue } = htmlToDoc('<p data-block-id="a" data-sp="character">MARA</p>', 3);
     const edit = replaceBlockOps(cue, "a", "MARA (V.O.)", seqIds("t"));
     expect(edit[0]).toMatchObject({ html: '<p data-block-id="a" data-sp="character">MARA (V.O.)</p>' });
+  });
+
+  describe("dual dialogue", () => {
+    const speeches =
+      '<p data-block-id="a" data-sp="character">ANNA</p><p data-block-id="b" data-sp="dialogue">Go.</p>' +
+      '<p data-block-id="c" data-sp="character">BEN</p><p data-block-id="d" data-sp="dialogue">No.</p>';
+
+    it("flags the cue of the speech the caret is in, from any of its lines", () => {
+      const { doc } = htmlToDoc(speeches, 5);
+      for (const blockId of ["c", "d"]) {
+        expect(toggleDualOps(doc, blockId, seqIds("d"))).toEqual([
+          {
+            opId: "d-op-1",
+            baseRevision: 5,
+            actor: "user",
+            type: "replace_block",
+            blockId: "c",
+            html: '<p data-block-id="c" data-sp="character" data-sp-dual="1">BEN</p>',
+          },
+        ]);
+      }
+    });
+
+    it("takes the speech back out of the pair again", () => {
+      const { doc } = htmlToDoc(speeches.replace('data-block-id="c" data-sp="character"', 'data-block-id="c" data-sp="character" data-sp-dual="1"'), 5);
+      expect(speechOfBlock(doc.blocks, "d")).toMatchObject({ cue: 2, pairable: true, on: true });
+      expect(toggleDualOps(doc, "d", seqIds("u"))[0]).toMatchObject({
+        blockId: "c",
+        html: '<p data-block-id="c" data-sp="character">BEN</p>',
+      });
+    });
+
+    it("does nothing for the first speech, a line that is not in a speech, or two speeches with a line between", () => {
+      const { doc } = htmlToDoc(speeches, 5);
+      expect(toggleDualOps(doc, "a")).toEqual([]);
+      expect(toggleDualOps(doc, "b")).toEqual([]);
+      const apart = htmlToDoc(
+        '<p data-block-id="a" data-sp="character">ANNA</p><p data-block-id="b" data-sp="dialogue">Go.</p>' +
+          '<p data-block-id="x">Rain falls.</p>' +
+          '<p data-block-id="c" data-sp="character">BEN</p><p data-block-id="d" data-sp="dialogue">No.</p>',
+        1
+      ).doc;
+      expect(speechOfBlock(apart.blocks, "d")).toMatchObject({ pairable: false, on: false });
+      expect(toggleDualOps(apart, "d")).toEqual([]);
+      expect(toggleDualOps(apart, "x")).toEqual([]);
+      expect(toggleDualOps(apart, "missing")).toEqual([]);
+    });
   });
 });

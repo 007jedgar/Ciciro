@@ -644,7 +644,7 @@ type Item = {
 };
 
 function buildItems(laid: readonly LaidOutBlock[]): Item[] {
-  const speechAt = new Map<number, Speech>();
+  const speechByBlock = new Map<number, Speech>();
   for (let i = 0; i < laid.length; i++) {
     if (laid[i].dual || laid[i].element !== "character") continue;
     let end = i + 1;
@@ -656,7 +656,7 @@ function buildItems(laid: readonly LaidOutBlock[]): Item[] {
       end++;
     }
     const speech = { cue: i, last: end - 1 };
-    for (let k = i; k < end; k++) speechAt.set(k, speech);
+    for (let k = i; k < end; k++) speechByBlock.set(k, speech);
     i = end - 1;
   }
   const items: Item[] = [];
@@ -678,7 +678,7 @@ function buildItems(laid: readonly LaidOutBlock[]): Item[] {
       });
       i = j;
     } else {
-      items.push({ first: i, blocks: [i], before: b.before, rows: b.lines.length, dual: false, speech: speechAt.get(i) ?? null });
+      items.push({ first: i, blocks: [i], before: b.before, rows: b.lines.length, dual: false, speech: speechByBlock.get(i) ?? null });
       i++;
     }
   }
@@ -1231,6 +1231,29 @@ export function dialogueGroups(blocks: readonly ScriptBlock[]): DialogueGroup[] 
     i = end - 1;
   }
   return out;
+}
+
+/** The speech a block belongs to, for the dual-dialogue control. */
+export type SpeechAt = {
+  /** The speech's cue: the block that carries the dual flag. */
+  cue: number;
+  /** There is a speech right above it to sit beside. */
+  pairable: boolean;
+  /** It already sits beside the one above. */
+  on: boolean;
+};
+
+/** The speech block `index` is in (its cue, parentheticals or dialogue), or null for any other block. */
+export function speechAt(blocks: readonly ScriptBlock[], index: number): SpeechAt | null {
+  const groups = dialogueGroups(blocks);
+  const at = groups.findIndex((g) => index >= g.start && index < g.end);
+  if (at === -1) return null;
+  const group = groups[at];
+  return {
+    cue: group.character,
+    pairable: at > 0 && groups[at - 1].end === group.start,
+    on: dualPairs(blocks).some((pair) => pair.right.character === group.character),
+  };
 }
 
 // --- Script languages ----------------------------------------------------------

@@ -17,7 +17,7 @@ import {
 import { ApiError } from "../lib/api/client";
 import type { ManuscriptKind } from "../lib/manuscript-kind";
 import type { Chapter } from "../lib/api/types";
-import { scriptHtmlSupported } from "../lib/screenplay";
+import { parseScriptSettings, scriptPdfSupported } from "../lib/screenplay";
 import { htmlWithoutSuggestions } from "../lib/suggestions";
 import { AlertText } from "./AlertText";
 import { BetaBadge } from "./BetaBadge";
@@ -33,29 +33,39 @@ function ReadyTick({ color }: { color: string }) {
 
 /**
  * Export the manuscript as EPUB, PDF or Word through the share sheet. A script
- * also gets its own screenplay PDF and a Fountain file, both Beta; the PDF is
- * grayed out, with an info button, for a script written in a language script
- * formatting does not support yet (its live sequences, as the server exports
- * them, measured by `scriptHtmlSupported`).
+ * also gets its own screenplay PDF, a Fountain file and an FDX file, all Beta;
+ * the PDF is grayed out, with an info button, for a script written in a
+ * language script formatting does not support yet (its live sequences and title
+ * page, as the server exports them, measured by `scriptPdfSupported`).
  */
 export function ExportCard({
   projectId,
   flushEdits,
   kind = "novel",
   chapters = [],
+  scriptSettings = "",
+  manuscript = { title: "", author: "" },
 }: {
   projectId: string;
   flushEdits?: () => Promise<boolean>;
   kind?: ManuscriptKind;
   chapters?: readonly Pick<Chapter, "content" | "archivedAt">[];
+  /** A script's stored settings, whose title page is part of what the PDF sets. */
+  scriptSettings?: string;
+  /** The manuscript's own title and author, which a blank title page falls back on. */
+  manuscript?: { title: string; author: string };
 }) {
   const { t } = useTranslation();
   const screenplay = kind === "screenplay";
   const scriptLanguage = useMemo(
     () =>
       !screenplay ||
-      scriptHtmlSupported(chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content))),
-    [screenplay, chapters]
+      scriptPdfSupported(
+        chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content)),
+        parseScriptSettings(scriptSettings),
+        manuscript
+      ),
+    [screenplay, chapters, scriptSettings, manuscript.title, manuscript.author] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const { layout, colors } = useAppTheme();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -109,8 +119,8 @@ export function ExportCard({
       <View style={styles.row}>
         {exportFormatsFor(kind).map((format) => {
           const label = formatLabel(format);
-          const script = screenplay && (format === "pdf" || format === "fountain");
-          // Fountain is plain text in any language; only the PDF's Courier needs one it can set.
+          const script = screenplay && (format === "pdf" || format === "fountain" || format === "fdx");
+          // Fountain and FDX are text in any language; only the PDF's Courier needs one it can set.
           const unavailable = screenplay && format === "pdf" && !scriptLanguage;
           return (
             <PressableCard
@@ -118,7 +128,8 @@ export function ExportCard({
               disabled={busy !== null || unavailable}
               onPress={() => void run(format)}
               accessibilityRole="button"
-              accessibilityLabel={t("export.a11y", { format: label })}
+              // "FDX export" already says it is an export.
+              accessibilityLabel={format === "fdx" ? label : t("export.a11y", { format: label })}
               accessibilityHint={unavailable ? t("screenplay.languageInfo.body") : undefined}
               accessibilityState={{ disabled: busy !== null || unavailable, busy: busy === format }}
               style={[

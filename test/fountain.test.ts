@@ -308,3 +308,131 @@ describe("html round trip", () => {
     expect(back).toEqual(blocks.map((b) => ({ element: b.element === "action" ? "action" : b.element, runs: b.runs })));
   });
 });
+
+describe("professional output", () => {
+  const cue = (text: string, dual = false): StyledBlock => ({ element: "character", runs: [{ text }], ...(dual ? { dual: true } : {}) });
+  const script: StyledBlock[] = [
+    block("scene-heading", "int. bar - night"),
+    cue("mara"),
+    block("dialogue", "I told you."),
+    cue("jonah (v.o.)", true),
+    { element: "parenthetical", runs: [{ text: "quietly" }] },
+    block("dialogue", "You did."),
+    block("centered", "THE END"),
+    block("scene-heading", "ext. street - day"),
+    block("action", "Rain."),
+  ];
+  const titlePage = {
+    title: "Night Shift",
+    credit: "Written by",
+    author: "A. Writer",
+    source: "Based on a true story",
+    draftDate: "Oct 2026",
+    contact: "A. Writer\n12 Main St\nwriter@example.com",
+  };
+  const written = (opts?: { sceneNumbers?: boolean }) =>
+    fountainFromScript({ title: "Night Shift", author: "A. Writer", titlePage, sequences: [{ title: "", blocks: script }] }, opts);
+
+  it("writes the title page as keys, the contact indented under its key", () => {
+    expect(written().split("\n\n")[0]).toBe(
+      [
+        "Title: Night Shift",
+        "Credit: Written by",
+        "Author: A. Writer",
+        "Source: Based on a true story",
+        "Draft date: Oct 2026",
+        "Contact:",
+        "    A. Writer",
+        "    12 Main St",
+        "    writer@example.com",
+      ].join("\n")
+    );
+  });
+
+  it("writes the caret after the second cue, and centered text between > and <", () => {
+    const text = written();
+    expect(text).toContain("MARA\nI told you.\n\nJONAH (V.O.) ^\n(quietly)\nYou did.");
+    expect(text).toContain("> THE END <");
+  });
+
+  it("writes a scene number after each heading only when asked", () => {
+    expect(written()).not.toMatch(/#\d+#/);
+    const numbered = written({ sceneNumbers: true });
+    expect(numbered).toContain("INT. BAR - NIGHT #1#");
+    expect(numbered).toContain("EXT. STREET - DAY #2#");
+  });
+
+  it("counts scene numbers on across sequences, and skips an empty heading", () => {
+    const text = fountainFromScript(
+      {
+        title: "",
+        author: "",
+        sequences: [
+          { title: "One", blocks: [block("scene-heading", "int. a - day"), block("scene-heading", "")] },
+          { title: "Two", blocks: [block("scene-heading", "int. b - day")] },
+        ],
+      },
+      { sceneNumbers: true }
+    );
+    expect(text).toContain("INT. A - DAY #1#");
+    expect(text).toContain("INT. B - DAY #2#");
+  });
+
+  it("drops a flag with no speech above it, and one on a block that is not a cue", () => {
+    const text = fountainFromScript({
+      title: "",
+      author: "",
+      sequences: [{ title: "", blocks: [cue("mara", true), block("dialogue", "Hi."), { element: "action", runs: [{ text: "x" }], dual: true }] }],
+    });
+    expect(text).not.toContain("^");
+  });
+
+  it("reads all of it back: title page, dual flag, centered text, numbered scenes", () => {
+    const back = scriptFromFountain(written({ sceneNumbers: true }));
+    expect(back.titlePage).toEqual(titlePage);
+    expect(back.title).toBe("Night Shift");
+    expect(back.author).toBe("A. Writer");
+    expect(back.sceneNumbers).toBe(true);
+    const blocks = back.sequences[0].blocks;
+    expect(shape(blocks)).toEqual([
+      ["scene-heading", "INT. BAR - NIGHT"],
+      ["character", "MARA"],
+      ["dialogue", "I told you."],
+      ["character", "JONAH (V.O.)"],
+      ["parenthetical", "quietly"],
+      ["dialogue", "You did."],
+      ["centered", "THE END"],
+      ["scene-heading", "EXT. STREET - DAY"],
+      ["action", "Rain."],
+    ]);
+    expect(blocks.map((b) => !!b.dual)).toEqual([false, false, false, true, false, false, false, false, false]);
+  });
+
+  it("has no title page or scene numbers when the file has none", () => {
+    const back = scriptFromFountain("INT. A - DAY\n\nHi.");
+    expect(back.titlePage).toBeUndefined();
+    expect(back.sceneNumbers).toBe(false);
+  });
+
+  it("reads a Date key as the draft date, and keeps the first of two", () => {
+    const back = scriptFromFountain("Title: T\nDraft date: 1 May\nDate: 2 June\n\nHi.");
+    expect(back.titlePage?.draftDate).toBe("1 May");
+    expect(scriptFromFountain("Title: T\nDate: 2 June\n\nHi.").titlePage?.draftDate).toBe("2 June");
+  });
+
+  it("keeps the dual flag on the chapter HTML, so the pages come back the same", () => {
+    const back = scriptFromFountain(written());
+    const html = scriptBlocksToHtml(back.sequences[0].blocks);
+    expect(html).toContain('<p data-sp="character" data-sp-dual="1">JONAH (V.O.)</p>');
+    expect(styledBlocksFromHtml(html).map((b) => !!b.dual)).toEqual(back.sequences[0].blocks.map((b) => !!b.dual));
+    expect(estimatePages([html])).toBe(estimatePages([scriptBlocksToHtml(script)]));
+  });
+
+  it("reads the same elements as the reference parser, a dual pair and centered text included", () => {
+    const tokens = new Fountain().parse(written(), true).tokens;
+    const types = tokens.map((t) => t.type);
+    expect(types).toContain("dual_dialogue_begin");
+    expect(types).toContain("dual_dialogue_end");
+    expect(types).toContain("centered");
+  });
+});

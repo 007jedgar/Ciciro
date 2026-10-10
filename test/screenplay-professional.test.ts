@@ -22,7 +22,6 @@ import {
   typesetSequences,
   withDual,
   withElement,
-  type PageRow,
   type ScriptBlock,
 } from "@/lib/screenplay";
 
@@ -36,10 +35,6 @@ const words = (n: number, word = "word") => Array.from({ length: n }, () => word
 const dialogueLines = (lines: number) =>
   Array.from({ length: lines }, (_, i) => `line${String(i).padStart(2, "0")}`.padEnd(35, "a")).join(" ");
 const filler = (count: number) => Array.from({ length: count }, (_, i) => block("action", `Filler ${i}.`));
-
-function textOf(rows: readonly PageRow[]): string[] {
-  return rows.map((row) => (row ? row.text : ""));
-}
 
 describe("centered text", () => {
   it("is an element with its own slot, set across the whole page", () => {

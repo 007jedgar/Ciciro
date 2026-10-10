@@ -32,6 +32,8 @@ import {
   type ScriptBlock,
 } from "@/lib/screenplay";
 import { NIGHT_SHIFT } from "./fixtures/screenplay/night-shift";
+import { PROFESSIONAL } from "./fixtures/screenplay/professional";
+import { typesetSequences } from "@/lib/screenplay";
 
 const block = (element: string, text: string): ScriptBlock => ({ element, text });
 const words = (n: number, word = "word") => Array.from({ length: n }, () => word).join(" ");
@@ -429,5 +431,31 @@ describe("golden pages", () => {
   it("fills the first page to exactly 54 lines", () => {
     const first = typeset(NIGHT_SHIFT).pages[0];
     expect(first).toHaveLength(PAGE_LINES);
+  });
+});
+
+describe("golden pages, professional layout", () => {
+  const file = join(__dirname, "fixtures/screenplay/professional.pages.txt");
+  const rendered = () =>
+    pagesAsText(typesetSequences([PROFESSIONAL], { sceneNumbers: true }).pages, { sceneNumbers: true })
+      .map((page, i) => `---- page ${i + 1} ----\n${page}`)
+      .join("\n");
+
+  it("sets the fixture script, notes and numbers and a dual pair included, on the same pages as the golden file", () => {
+    if (process.env.UPDATE_GOLDEN) writeFileSync(file, `${rendered()}\n`);
+    expect(`${rendered()}\n`).toBe(readFileSync(file, "utf8"));
+  });
+
+  it("carries (MORE) and the repeated cue across each break inside a speech", () => {
+    const set = typesetSequences([PROFESSIONAL]);
+    const text = pagesAsText(set.pages);
+    const speechBreaks = set.paginations[0].breaks.filter((b) => b.speech !== null);
+    expect(speechBreaks.length).toBeGreaterThanOrEqual(2);
+    expect(text.filter((page) => page.includes("(MORE)")).length).toBe(speechBreaks.length);
+    expect(text.filter((page) => page.includes("MARA (CONT'D)")).length).toBe(speechBreaks.length);
+  });
+
+  it("is the page count the editor reads from the same blocks", () => {
+    expect(typesetSequences([PROFESSIONAL]).count).toBe(paginate(layout(PROFESSIONAL)).pages);
   });
 });

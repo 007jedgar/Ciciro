@@ -15,12 +15,11 @@ import {
   SCREENPLAY_DUAL_ATTR,
   SHORTCUT_ORDER,
   cycleElement,
-  dialogueGroups,
-  dualPairs,
   elementTag,
   nextElementOnEnter,
   normalizeElement,
   shortcutDigit,
+  speechAt,
   type ScreenplayElement,
   type ScriptBlock,
   type StyledRun,
@@ -125,19 +124,13 @@ export type DualState = {
   on: boolean;
 };
 
-/** The speech the caret is in: its cue's block index and whether there is a speech right above to pair with. */
-function speechAtCaret(editor: Editor): { cue: number; start: number; pairable: boolean; on: boolean } | null {
+/** The speech the caret is in: its cue's position, and whether it can pair with the speech above. */
+function speechAtCaret(editor: Editor): { start: number; pairable: boolean; on: boolean } | null {
   const { $from } = editor.state.selection;
   if ($from.depth < 1) return null;
-  const index = $from.index(0);
   const { blocks, starts } = scriptBlocksOf(editor.state.doc);
-  const groups = dialogueGroups(blocks);
-  const at = groups.findIndex((g) => index >= g.start && index < g.end);
-  if (at === -1) return null;
-  const group = groups[at];
-  const pairable = at > 0 && groups[at - 1].end === group.start;
-  const on = dualPairs(blocks).some((pair) => pair.right.character === group.character);
-  return { cue: group.character, start: starts[group.character], pairable, on };
+  const speech = speechAt(blocks, $from.index(0));
+  return speech ? { start: starts[speech.cue], pairable: speech.pairable, on: speech.on } : null;
 }
 
 /** Whether dual dialogue can be switched on or off for the speech under the caret. */

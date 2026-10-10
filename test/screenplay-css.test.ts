@@ -2,7 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss, { type Rule } from "postcss";
 import { describe, expect, it } from "vitest";
-import { ELEMENT_METRICS, PAGE_COLUMNS, SCREENPLAY_ELEMENTS, SPEECH_RUNS, type ScreenplayElement } from "@/lib/screenplay";
+import {
+  DUAL_METRICS,
+  ELEMENT_METRICS,
+  PAGE_COLUMNS,
+  SCREENPLAY_ELEMENTS,
+  SPEECH_RUNS,
+  type DualSide,
+  type ScreenplayElement,
+} from "@/lib/screenplay";
 
 /**
  * The editor sets the page in CSS (`ch` columns) and src/lib/screenplay.ts sets
@@ -79,6 +87,7 @@ describe("the editor's CSS agrees with the page engine", () => {
       expect(set("text-transform") === "uppercase").toBe(m.caps);
       expect(set("font-weight") === "700").toBe(m.bold);
       expect(set("text-align") === "right").toBe(m.align === "right");
+      expect(set("text-align") === "center").toBe(m.align === "center");
     });
   }
 
@@ -90,5 +99,28 @@ describe("the editor's CSS agrees with the page engine", () => {
         expect(marginTop === "0", `${above} then ${below}`).toBe(inSpeech);
       }
     }
+  });
+
+  // Dual dialogue sets a speech in a column: the left floats, the right stays in the flow, both from the margin.
+  for (const side of ["left", "right"] as DualSide[]) {
+    for (const [element, m] of Object.entries(DUAL_METRICS[side]) as [ScreenplayElement, { indent: number; width: number }][]) {
+      it(`sets ${element} in the ${side} column of a dual pair as the engine does`, () => {
+        const selectors = [
+          `${PAGE} p.sp-dual`,
+          `${PAGE} p.sp-dual-${side}`,
+          `${PAGE} p.sp-dual-${side}[data-sp="${element}"]`,
+        ];
+        expect(resolved(selectors, "margin-left") ?? "0").toBe(m.indent === 0 ? "0" : `${m.indent}ch`);
+        expect(resolved(selectors, "width")).toBe(`${m.width}ch`);
+        expect(resolved(selectors, "float") === "left").toBe(side === "left");
+      });
+    }
+  }
+
+  it("keeps the two dual columns inside the page and apart", () => {
+    const left = DUAL_METRICS.left.dialogue!;
+    const right = DUAL_METRICS.right.dialogue!;
+    expect(left.indent + left.width).toBeLessThan(right.indent);
+    expect(right.indent + right.width).toBeLessThanOrEqual(PAGE_COLUMNS);
   });
 });

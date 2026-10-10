@@ -3,8 +3,8 @@ import { ciciro, queryClient, queryKeys } from "./api";
 import type { ImportResult } from "./api/types";
 import { getAnalytics } from "./analytics-client";
 
-/** Extensions the server reads: Word, Markdown, saved HTML, Fountain, zipped Scrivener. */
-export const IMPORT_EXTENSIONS = ["docx", "md", "markdown", "txt", "html", "htm", "fountain", "spmd", "zip", "scriv"] as const;
+/** Extensions the server reads: Word, Markdown, saved HTML, Fountain, FDX, zipped Scrivener. */
+export const IMPORT_EXTENSIONS = ["docx", "md", "markdown", "txt", "html", "htm", "fountain", "fdx", "spmd", "zip", "scriv"] as const;
 
 export const IMPORT_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -12,6 +12,8 @@ export const IMPORT_MIME_TYPES = [
   "text/x-markdown",
   "text/plain",
   "text/html",
+  "text/xml",
+  "application/xml",
   "application/zip",
   "application/x-zip-compressed",
   "application/octet-stream",
