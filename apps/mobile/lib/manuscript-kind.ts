@@ -20,6 +20,17 @@ export function normalizeKind(value: unknown): ManuscriptKind {
   return isManuscriptKind(value) ? value : DEFAULT_KIND;
 }
 
+/**
+ * The kinds that have settings of their own, shown in a section at the top of
+ * Settings while that manuscript is open (and nowhere else). A new kind-specific
+ * setting goes in that kind's section component, web and phone.
+ */
+const KINDS_WITH_SETTINGS: readonly ManuscriptKind[] = ["screenplay"];
+
+export function hasKindSettings(kind: ManuscriptKind): boolean {
+  return KINDS_WITH_SETTINGS.includes(kind);
+}
+
 export type KindInfo = {
   label: string;
   description: string;

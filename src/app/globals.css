@@ -1062,7 +1062,8 @@ input[type="file"]::file-selector-button {
 .editor-meta .btn {
   white-space: nowrap;
 }
-.ai-involvement-badge {
+.ai-involvement-badge,
+.script-pages {
   cursor: help;
   border-bottom: 1px dotted var(--ink-soft);
 }
@@ -2195,6 +2196,10 @@ input[type="file"]::file-selector-button {
 .settings-seg button.active {
   background: var(--accent-soft);
 }
+.settings-seg.locked {
+  opacity: 0.45;
+  pointer-events: none;
+}
 .settings-size {
   min-width: 1.6em;
   text-align: center;
@@ -2213,6 +2218,55 @@ input[type="file"]::file-selector-button {
 .settings-switch.on {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+/* The settings of the open manuscript's kind, at the top of the menu. */
+.kind-settings {
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-locked {
+  padding: 2px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+.settings-shortcuts {
+  margin: 0 2px 8px;
+  font-size: 12px;
+}
+.settings-shortcuts summary {
+  cursor: pointer;
+  padding: 4px 0;
+  color: var(--ink);
+}
+.settings-shortcuts dl {
+  margin: 4px 0 0;
+}
+.settings-shortcuts dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+}
+.settings-shortcuts dt,
+.settings-shortcuts dd {
+  margin: 0;
+}
+.settings-shortcuts dd {
+  color: var(--ink-soft);
+  text-align: right;
+}
+.settings-shortcuts kbd {
+  font: 500 11px/1.4 var(--mono);
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  white-space: nowrap;
 }
 
 .settings-hint {
@@ -3850,31 +3904,45 @@ input[type="file"]::file-selector-button {
   src: url("/fonts/courier-prime/courier-prime-latin-700-italic.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
 }
-/* Standard script layout, measured against a 6in text column:
-   character at 3.7in, dialogue at 2.5in and 3.5in wide, parenthetical at 3.1in. */
+/* A script is 12pt Courier Prime on a 60 column page, whatever the editor font
+   settings say: the page count depends on it. Every width is in `ch` and every
+   gap is a `lh` (one line), so the browser breaks lines where
+   src/lib/screenplay.ts does, at any size (Editor.tsx scales --screenplay-size
+   down together on a narrow column). ELEMENT_METRICS and SPEECH_RUNS there are
+   the source of these numbers; test/screenplay-css.test.ts fails when they drift. */
 .ProseMirror.screenplay {
-  font-family: "Courier Prime", "Courier New", Courier, monospace;
-  font-size: var(--editor-size, 19px);
-  line-height: 1.5;
+  font-family: var(--font-script), "Courier Prime", "Courier New", Courier, monospace;
+  font-size: var(--screenplay-size, 12pt);
+  line-height: 1.2;
+  width: 60ch;
 }
 .ProseMirror.screenplay p {
-  margin: 0 0 1em;
+  margin: 1lh 0 0;
+}
+.ProseMirror.screenplay > p:first-child,
+.ProseMirror.screenplay .sp-page-break + p {
+  margin-top: 0;
 }
 .ProseMirror.screenplay p[data-sp="scene-heading"] {
   text-transform: uppercase;
   font-weight: 700;
-  margin-top: 1.6em;
+}
+.ProseMirror.screenplay p[data-sp="shot"] {
+  text-transform: uppercase;
 }
 .ProseMirror.screenplay p[data-sp="character"] {
   text-transform: uppercase;
-  margin: 0 0 0 37%;
+  margin-left: 22ch;
+  width: 38ch;
   break-after: avoid;
 }
 .ProseMirror.screenplay p[data-sp="dialogue"] {
-  margin: 0 12% 1em 17%;
+  margin-left: 10ch;
+  width: 35ch;
 }
 .ProseMirror.screenplay p[data-sp="parenthetical"] {
-  margin: 0 20% 0 27%;
+  margin-left: 16ch;
+  width: 25ch;
   break-after: avoid;
 }
 .ProseMirror.screenplay p[data-sp="parenthetical"]::before {
@@ -3886,6 +3954,48 @@ input[type="file"]::file-selector-button {
 .ProseMirror.screenplay p[data-sp="transition"] {
   text-transform: uppercase;
   text-align: right;
+  margin-left: 30ch;
+  width: 30ch;
+}
+/* A parenthetical or a line of dialogue answering the line above sits right under it. */
+.ProseMirror.screenplay p[data-sp="character"] + p[data-sp="parenthetical"],
+.ProseMirror.screenplay p[data-sp="dialogue"] + p[data-sp="parenthetical"],
+.ProseMirror.screenplay p[data-sp="character"] + p[data-sp="dialogue"],
+.ProseMirror.screenplay p[data-sp="parenthetical"] + p[data-sp="dialogue"] {
+  margin-top: 0;
+}
+/* Where the printed page ends: a rule in the middle of the blank line, and the
+   next page's number outside the column. Takes no height of its own, so it never
+   moves a line; the page after it opens without its blank line (above). */
+.ProseMirror.screenplay .sp-page-break {
+  position: relative;
+  width: 60ch;
+  height: 0;
+  margin: 0.5lh 0;
+  border-top: 1px dashed color-mix(in srgb, var(--ink-soft) 60%, transparent);
+  user-select: none;
+  pointer-events: none;
+}
+.ProseMirror.screenplay .sp-page-break span {
+  position: absolute;
+  top: -0.6em;
+  left: 100%;
+  padding-left: 10px;
+  font: 500 11px/1.2 var(--sans);
+  color: var(--ink-soft);
+}
+.beta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 999px;
+  color: var(--accent);
+  font: 600 10px/1.6 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  cursor: help;
 }
 .screenplay-bar {
   display: flex;
@@ -3933,6 +4043,12 @@ input[type="file"]::file-selector-button {
   font-size: 12px;
   color: var(--ink-soft);
   margin-top: 2px;
+}
+.kind-option .beta-badge {
+  display: inline-flex;
+  margin: 0 0 0 8px;
+  font-size: 10px;
+  color: var(--accent);
 }
 .kind-option[aria-pressed="true"] {
   border-color: var(--accent, var(--ink));

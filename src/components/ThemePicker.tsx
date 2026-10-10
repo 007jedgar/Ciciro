@@ -11,6 +11,8 @@ import { resendVerificationEmail } from "@/lib/verify-email-client";
 import SettingsBilling from "@/components/SettingsBilling";
 import SettingsEmailPreferences from "@/components/SettingsEmailPreferences";
 import type { Entitlement } from "@/lib/billing-client";
+import ManuscriptSettings from "@/components/ManuscriptSettings";
+import { type ManuscriptKind } from "@/lib/manuscript-kind";
 
 type Account = {
   email: string;
@@ -19,7 +21,14 @@ type Account = {
   entitlement: Entitlement | null;
 };
 
-export default function ThemePicker({ compact = false }: { compact?: boolean }) {
+export default function ThemePicker({
+  compact = false,
+  kind,
+}: {
+  compact?: boolean;
+  /** The kind of the manuscript that is open, for its own settings at the top. Absent in the library. */
+  kind?: ManuscriptKind;
+}) {
   const { settings, patch } = useSettings();
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ModelSummary | null>(null);
@@ -120,6 +129,8 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
 
   const current = THEMES.find((t) => t.id === theme) ?? THEMES[0];
   const sizeIndex = EDITOR_FONT_SIZES.indexOf(settings.editorFontSize);
+  // A script's type is fixed (see ManuscriptSettings), so these two do not apply to it.
+  const typeLocked = kind === "screenplay";
 
   return (
     <div className={`theme-picker ${compact ? "compact" : ""}`} ref={rootRef}>
@@ -141,6 +152,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
       </button>
       {open && (
         <div className="theme-menu" role="dialog" aria-label="App settings">
+          <ManuscriptSettings kind={kind} />
           <div className="theme-menu-label">Light</div>
           <div className="theme-grid">
             {THEMES.filter((t) => t.mode === "light").map((t) => (
@@ -184,13 +196,14 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
             ))}
           </div>
 
-          <div className="theme-menu-label">Manuscript</div>
+          <div className="theme-menu-label">Writing</div>
           <div className="settings-row">
             <span>Type</span>
-            <div className="settings-seg">
+            <div className={`settings-seg${typeLocked ? " locked" : ""}`} title={typeLocked ? "Locked for a script" : undefined}>
               <button
                 type="button"
                 className={settings.editorFont === "serif" ? "active" : ""}
+                disabled={typeLocked}
                 onClick={() => patch({ editorFont: "serif" })}
               >
                 Serif
@@ -198,6 +211,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               <button
                 type="button"
                 className={settings.editorFont === "sans" ? "active" : ""}
+                disabled={typeLocked}
                 onClick={() => patch({ editorFont: "sans" })}
               >
                 Sans
@@ -206,11 +220,11 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
           </div>
           <div className="settings-row">
             <span>Size</span>
-            <div className="settings-seg">
+            <div className={`settings-seg${typeLocked ? " locked" : ""}`} title={typeLocked ? "Locked for a script" : undefined}>
               <button
                 type="button"
                 aria-label="Smaller type"
-                disabled={sizeIndex <= 0}
+                disabled={typeLocked || sizeIndex <= 0}
                 onClick={() =>
                   patch({ editorFontSize: EDITOR_FONT_SIZES[Math.max(0, sizeIndex - 1)] })
                 }
@@ -221,7 +235,7 @@ export default function ThemePicker({ compact = false }: { compact?: boolean }) 
               <button
                 type="button"
                 aria-label="Larger type"
-                disabled={sizeIndex >= EDITOR_FONT_SIZES.length - 1}
+                disabled={typeLocked || sizeIndex >= EDITOR_FONT_SIZES.length - 1}
                 onClick={() =>
                   patch({
                     editorFontSize:

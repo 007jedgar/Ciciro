@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import BetaBadge from "@/components/BetaBadge";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
 import BrandMark from "@/components/BrandMark";
@@ -390,7 +391,10 @@ export default function Library() {
               aria-pressed={kind === option}
               onClick={() => setKind(option)}
             >
-              <strong>{KIND_INFO[option].label}</strong>
+              <strong>
+                {KIND_INFO[option].label}
+                {option === "screenplay" ? <BetaBadge /> : null}
+              </strong>
               <span>{KIND_INFO[option].description}</span>
             </button>
           ))}

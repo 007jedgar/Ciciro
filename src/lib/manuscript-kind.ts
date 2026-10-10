@@ -4,7 +4,7 @@
 // Must stay in step with apps/mobile/lib/manuscript-kind.ts (test/manuscript-kind.test.ts
 // checks the two agree).
 
-import { withElement, type ScreenplayElement } from "./screenplay";
+import { elementOfHtml, withElement, type ScreenplayElement } from "./screenplay";
 
 export const MANUSCRIPT_KINDS = ["novel", "screenplay", "blog", "journal"] as const;
 export type ManuscriptKind = (typeof MANUSCRIPT_KINDS)[number];
@@ -18,6 +18,17 @@ export function isManuscriptKind(value: unknown): value is ManuscriptKind {
 /** Anything unrecognized (old rows, hand-edited requests) reads as a novel. */
 export function normalizeKind(value: unknown): ManuscriptKind {
   return isManuscriptKind(value) ? value : DEFAULT_KIND;
+}
+
+/**
+ * The kinds that have settings of their own, shown in a section at the top of
+ * Settings while that manuscript is open (and nowhere else). A new kind-specific
+ * setting goes in that kind's section component, web and phone.
+ */
+const KINDS_WITH_SETTINGS: readonly ManuscriptKind[] = ["screenplay"];
+
+export function hasKindSettings(kind: ManuscriptKind): boolean {
+  return KINDS_WITH_SETTINGS.includes(kind);
 }
 
 export type KindInfo = {
