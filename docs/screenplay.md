@@ -47,6 +47,12 @@ rule: **the tag is stored as written, the element is only for laying out.**
   the phone's `restampCiciroHtml` / `serializeBlockHtml` store the tag.
 - A line with an unknown element lights no chip, lays out as action, and Tab
   steps on from action.
+- When Ciciro rewrites a run of blocks (`blockReplace` in `src/lib/tools.ts`),
+  a replaced shot or unknown tag stays on the replacement's first line
+  (`classifyReplacement` in `manuscript-kind.ts`) instead of being re-guessed;
+  only a plain scene heading or transition replaces it. The classifier for the
+  assistant's plain lines (`classifyScreenplayLines`) reads camera directions
+  (CLOSE ON, ANGLE ON, POV, INSERT and the like) as shots.
 
 Ship readers before writers: a new element value must be understood by the
 normalizer in both clients before anything writes it. Mobile JS goes out over

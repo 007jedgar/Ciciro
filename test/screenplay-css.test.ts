@@ -14,10 +14,10 @@ const sheet = postcss.parse(readFileSync(join(__dirname, "../src/app/globals.css
 
 type Declarations = Map<string, { value: string; important: boolean }>;
 
-const SIDES = ["top", "right", "bottom", "left"] as const;
+type Side = "top" | "right" | "bottom" | "left";
 
 /** A `margin` shorthand's four sides, as the browser expands it. */
-function expandMargin(value: string): Record<(typeof SIDES)[number], string> {
+function expandMargin(value: string): Record<Side, string> {
   const [top, right = top, bottom = top, left = right] = value.split(/\s+/);
   return { top, right, bottom, left };
 }
