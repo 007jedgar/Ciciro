@@ -3950,7 +3950,7 @@ input[type="file"]::file-selector-button {
    down together on a narrow column). ELEMENT_METRICS and SPEECH_RUNS there are
    the source of these numbers; test/screenplay-css.test.ts fails when they drift. */
 .ProseMirror.screenplay {
-  font-family: var(--font-script), "Courier Prime", "Courier New", Courier, monospace;
+  font-family: "Courier Prime", "Courier New", Courier, monospace;
   font-size: var(--screenplay-size, 12pt);
   line-height: 1.2;
   width: 60ch;
