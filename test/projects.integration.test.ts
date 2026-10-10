@@ -297,4 +297,73 @@ describe("manuscript and story APIs", () => {
     await expect(createPlotPoint(null, { projectId: "x" })).rejects.toMatchObject({ status: 400 });
     await expect(createQuestion(null, { projectId: "x" })).rejects.toMatchObject({ status: 400 });
   });
+
+  describe("a screenplay's own settings", () => {
+    const signUp = () => registerUser({ email: "ada@example.com", password: "long-enough-pw", name: "Ada" });
+
+    it("starts a script with every default and stores a change as tidied JSON", async () => {
+      const ada = await signUp();
+      const script = await createProject(ada, { kind: "screenplay" });
+      expect(script.scriptSettings).toBe("");
+      const updated = await updateProject(script.id, ada, {
+        scriptSettings: {
+          titlePage: { title: "  Night Shift  ", contact: "A. Writer\n\n\nwriter@example.com" },
+          showTitlePage: true,
+          more: false,
+          contd: true,
+          sceneNumbers: true,
+          unknown: "dropped",
+        },
+      });
+      const stored = JSON.parse(updated.scriptSettings);
+      expect(stored).toEqual({
+        titlePage: {
+          title: "Night Shift",
+          credit: "",
+          author: "",
+          source: "",
+          draftDate: "",
+          // A run of blank lines is one blank line.
+          contact: "A. Writer\n\nwriter@example.com",
+        },
+        showTitlePage: true,
+        more: false,
+        contd: true,
+        sceneNumbers: true,
+      });
+    });
+
+    it("stores nothing once every setting is back at its default", async () => {
+      const ada = await signUp();
+      const script = await createProject(ada, { kind: "screenplay" });
+      await updateProject(script.id, ada, { scriptSettings: { sceneNumbers: true } });
+      const reset = await updateProject(script.id, ada, { scriptSettings: { sceneNumbers: false } });
+      expect(reset.scriptSettings).toBe("");
+    });
+
+    it("bounds a title page field, and ignores junk", async () => {
+      const ada = await signUp();
+      const script = await createProject(ada, { kind: "screenplay" });
+      const long = await updateProject(script.id, ada, { scriptSettings: { titlePage: { title: "x".repeat(5000) } } });
+      expect(JSON.parse(long.scriptSettings).titlePage.title.length).toBeLessThan(500);
+      const junk = await updateProject(script.id, ada, { scriptSettings: "not json at all" });
+      expect(junk.scriptSettings).toBe("");
+    });
+
+    it("has no settings for any other kind, and leaves them alone", async () => {
+      const ada = await signUp();
+      const novel = await createProject(ada, {});
+      const updated = await updateProject(novel.id, ada, { scriptSettings: { sceneNumbers: true } });
+      expect(updated.scriptSettings).toBe("");
+    });
+
+    it("is the owner's to change", async () => {
+      const ada = await signUp();
+      const bob = await registerUser({ email: "bob@example.com", password: "long-enough-pw", name: "Bob" });
+      const script = await createProject(ada, { kind: "screenplay" });
+      await expect(updateProject(script.id, bob, { scriptSettings: { sceneNumbers: true } })).rejects.toMatchObject({
+        status: 403,
+      });
+    });
+  });
 });

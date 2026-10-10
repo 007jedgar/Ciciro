@@ -222,14 +222,22 @@ describe("screenplay PDF title page", () => {
     expect(off[0].map((p) => p.text)).not.toContain("NIGHT SHIFT");
   });
 
-  it("is judged with the script when it is set", async () => {
+  it("judges the script and its title page each on their own", async () => {
     const chinese = withSettings({ titlePage: titlePage({ title: "夜班", author: "李明", source: "根据一个故事改编" }) });
     const english = book(html([{ element: "action", text: "The rain keeps falling on the empty street. ".repeat(10) }]));
-    // A little CJK in an English script's title page is "?", not a refusal.
-    expect(screenplayPdfSupported(english, chinese)).toBe(true);
-    const mostly = book(html([{ element: "action", text: "Hi." }]));
-    expect(screenplayPdfSupported(mostly, chinese)).toBe(false);
-    expect(screenplayPdfSupported(mostly, withSettings({ ...chinese, showTitlePage: false }))).toBe(true);
+    // A title page set wholly in Chinese is refused, not printed as "??", even over an English script.
+    expect(screenplayPdfSupported(english, chinese)).toBe(false);
+    expect(screenplayPdfSupported(english, withSettings({ ...chinese, showTitlePage: false }))).toBe(true);
+    // A little CJK among English words (an author's name) is "?", not a refusal.
+    const named = withSettings({ titlePage: titlePage({ title: "Night Shift", author: "李明", source: "Based on a true story" }) });
+    expect(screenplayPdfSupported(english, named)).toBe(true);
+    // The PDF's own "Written by" and English title page words never rescue a script in another language.
+    const mostly = book(html([{ element: "action", text: "他看着窗外的雨，什么也没说。" }]));
+    expect(screenplayPdfSupported(mostly, DEFAULT_SCRIPT_SETTINGS)).toBe(false);
+    expect(screenplayPdfSupported(mostly, withSettings({ showTitlePage: false }))).toBe(false);
+    // A blank credit is the PDF's own: it does not make a Chinese title page look half English.
+    const credit = withSettings({ titlePage: titlePage({ title: "夜班", author: "李明" }) });
+    expect(screenplayPdfSupported(english, credit)).toBe(false);
   });
 });
 

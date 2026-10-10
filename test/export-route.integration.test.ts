@@ -81,12 +81,13 @@ describe("GET /api/export/:id for a screenplay", () => {
     await prisma.project.deleteMany();
   });
 
-  async function seed(kind: string, content = script) {
+  async function seed(kind: string, content = script, scriptSettings = "") {
     return prisma.project.create({
       data: {
         title: "Night Shift",
         author: "A. Writer",
         kind,
+        scriptSettings,
         chapters: { create: [{ title: "", order: 0, content }, { title: "Act two", order: 1, content: "<p>More.</p>" }] },
       },
     });
@@ -99,7 +100,7 @@ describe("GET /api/export/:id for a screenplay", () => {
     expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
     expect(res.headers.get("content-disposition")).toBe('attachment; filename="night_shift.fountain"');
     expect(await res.text()).toBe(
-      "Title: Night Shift\nAuthor: A. Writer\n\n# Sequence 1\n\nINT. LAB - DAY\n\nMARA\nHello.\n\nCUT TO:\n\n# Act two\n\nMore.\n"
+      "Title: Night Shift\nCredit: Written by\nAuthor: A. Writer\n\n# Sequence 1\n\nINT. LAB - DAY\n\nMARA\nHello.\n\nCUT TO:\n\n# Act two\n\nMore.\n"
     );
   });
 
@@ -119,6 +120,73 @@ describe("GET /api/export/:id for a screenplay", () => {
     expect((await res.json()).error).toMatch(/English and Spanish/);
     // The text itself is not the problem: Fountain is plain UTF-8.
     expect((await exportRequest(project.id, "format=fountain")).status).toBe(200);
+  });
+
+  const professional = JSON.stringify({
+    titlePage: {
+      title: "Night Shift",
+      credit: "Written by",
+      author: "A. Writer",
+      source: "Based on a true story",
+      draftDate: "June 2026",
+      contact: "A. Writer\nwriter@example.com",
+    },
+    showTitlePage: true,
+    more: true,
+    contd: true,
+    sceneNumbers: true,
+  });
+
+  it("puts the stored title page and scene numbers into Fountain", async () => {
+    const project = await seed("screenplay", script, professional);
+    const text = await (await exportRequest(project.id, "format=fountain")).text();
+    expect(text.split("\n\n# Sequence 1")[0]).toBe(
+      "Title: Night Shift\nCredit: Written by\nAuthor: A. Writer\nSource: Based on a true story\nDraft date: June 2026\nContact:\n    A. Writer\n    writer@example.com"
+    );
+    expect(text).toContain("INT. LAB - DAY #1#");
+  });
+
+  it("exports FDX as XML with the title page, scene numbers and a UTF-8 declaration", async () => {
+    const project = await seed("screenplay", script, professional);
+    const res = await exportRequest(project.id, "format=fdx");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/xml; charset=utf-8");
+    expect(res.headers.get("content-disposition")).toBe('attachment; filename="night_shift.fdx"');
+    const xml = await res.text();
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"')).toBe(true);
+    expect(xml).toContain("<FinalDraft");
+    expect(xml).toContain('Type="Scene Heading"');
+    expect(xml).toContain('Number="1"');
+    expect(xml).toContain("<TitlePage>");
+    expect(xml).toContain("Based on a true story");
+  });
+
+  it("exports FDX for a script in any language, since it is plain UTF-8", async () => {
+    const project = await seed("screenplay", '<p>他看着窗外的雨，什么也没说。</p>');
+    const res = await exportRequest(project.id, "format=fdx");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("他看着窗外的雨");
+  });
+
+  it("starts the PDF with the title page, which is not one of the script's pages", async () => {
+    const plain = await seed("screenplay", script, JSON.stringify({ showTitlePage: false }));
+    const titled = await seed("screenplay", script, professional);
+    const countOf = async (id: string) =>
+      (await PDFDocument.load(new Uint8Array(await (await exportRequest(id, "format=pdf")).arrayBuffer()))).getPageCount();
+    expect(await countOf(titled.id)).toBe((await countOf(plain.id)) + 1);
+  });
+
+  it("refuses the PDF, but not FDX or Fountain, for a title page in a script Courier cannot set", async () => {
+    const settings = JSON.stringify({ titlePage: { title: "夜班的雨和那些没有说出口的话", author: "玛拉·奎尔" }, showTitlePage: true });
+    const project = await seed("screenplay", script, settings);
+    expect((await exportRequest(project.id, "format=pdf")).status).toBe(422);
+    expect((await exportRequest(project.id, "format=fdx")).status).toBe(200);
+    expect((await exportRequest(project.id, "format=fountain")).status).toBe(200);
+  });
+
+  it("refuses FDX for a novel", async () => {
+    const project = await seed("novel", "<p>One.</p>");
+    expect((await exportRequest(project.id, "format=fdx")).status).toBe(400);
   });
 
   it("keeps the book PDF for a novel, and refuses Fountain for it", async () => {

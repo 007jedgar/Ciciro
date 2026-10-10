@@ -106,6 +106,8 @@ describe("account data export", () => {
       blockId: "b1",
       html: "<p>x</p>",
     });
+    // A screenplay's title page and page settings are a column of the manuscript, so they leave with it.
+    expect(JSON.parse(files["data/manuscripts.json"])[0].scriptSettings).toContain("mine script title");
     expect(JSON.parse(files["data/writing-days.json"])[0]).toMatchObject({ words: 500 });
     expect(JSON.parse(files["data/sign-in-sessions.json"])[0]).toMatchObject({ userAgent: "vitest" });
     expect(JSON.parse(files["data/push-notification-devices.json"])[0]).toMatchObject({

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ExportMenu from "@/components/ExportMenu";
 import { SnackbarProvider } from "@/components/Snackbar";
 import { attachmentName } from "@/lib/export-client";
+import { DEFAULT_SCRIPT_SETTINGS } from "@/lib/screenplay";
 import type { Chapter } from "@/lib/types";
 
 function chapter(overrides: Partial<Chapter>): Chapter {
@@ -187,13 +188,14 @@ describe("ExportMenu for a screenplay", () => {
     return { localHost, items, close };
   }
 
-  it("offers the screenplay PDF and Fountain first, both marked Beta", async () => {
+  it("offers the screenplay PDF, Fountain and FDX first, all marked Beta", async () => {
     const { items, localHost, close } = await renderScript([
       chapter({ content: '<p data-sp="scene-heading">INT. LAB - DAY</p>' }),
     ]);
     expect(items().map((b) => b.querySelector(".export-option-label")?.textContent)).toEqual([
       "Screenplay PDF (.pdf)Beta",
       "Fountain (.fountain)Beta",
+      "FDX export (.fdx)Beta",
       "Word (.docx)",
       "Markdown (.md)",
       "EPUB (.epub)",
@@ -246,5 +248,48 @@ describe("ExportMenu for a screenplay", () => {
     await act(async () => items()[1].click());
     expect(fetch).toHaveBeenCalledWith("/api/export/p1?format=fountain");
     await close();
+  });
+
+  it("asks the server for FDX", async () => {
+    const { items, close } = await renderScript([chapter({ content: "<p>Hi.</p>" })]);
+    await act(async () => items()[2].click());
+    expect(fetch).toHaveBeenCalledWith("/api/export/p1?format=fdx");
+    await close();
+  });
+
+  it("never calls FDX Final Draft compatible", async () => {
+    const { localHost, close } = await renderScript([chapter({ content: "<p>Hi.</p>" })]);
+    expect(localHost.textContent ?? "").not.toMatch(/Final Draft/i);
+    await close();
+  });
+
+  it("grays out only the PDF for a title page in a script Courier cannot set", async () => {
+    const localHost = document.createElement("div");
+    document.body.appendChild(localHost);
+    const localRoot = createRoot(localHost);
+    const script = {
+      ...DEFAULT_SCRIPT_SETTINGS,
+      titlePage: { ...DEFAULT_SCRIPT_SETTINGS.titlePage, title: "夜班的雨和那些没有说出口的话", author: "玛拉·奎尔" },
+    };
+    await act(async () =>
+      localRoot.render(
+        <SnackbarProvider>
+          <ExportMenu
+            projectId="p1"
+            chapters={[chapter({ content: "<p>Rain.</p>" })]}
+            kind="screenplay"
+            script={script}
+            manuscript={{ title: "Night Shift", author: "Mara" }}
+          />
+        </SnackbarProvider>
+      )
+    );
+    await act(async () => localHost.querySelector<HTMLButtonElement>(".export-menu-root > button")!.click());
+    const items = Array.from(localHost.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    expect(items[0].disabled).toBe(true);
+    expect(items[1].disabled).toBe(false);
+    expect(items[2].disabled).toBe(false);
+    await act(async () => localRoot.unmount());
+    localHost.remove();
   });
 });

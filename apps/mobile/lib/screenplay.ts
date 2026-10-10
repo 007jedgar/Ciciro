@@ -1291,15 +1291,13 @@ export function scriptTextSupported(text: string): boolean {
 }
 
 /**
- * Whether a whole script, given as its sequences' chapter HTML (and, if it is
- * to be set, the title page's text), is in text the screenplay PDF can set:
- * `scriptTextSupported` over every sequence's text joined. The server's export, the web menu and the phone all ask this, each
+ * Whether a whole script, given as its sequences' chapter HTML, is in text the
+ * screenplay PDF can set: `scriptTextSupported` over every sequence's text
+ * joined. The server's export, the web menu and the phone all ask this, each
  * with the live sequences and pending suggestions already removed.
  */
-export function scriptHtmlSupported(chapters: readonly string[], extraText = ""): boolean {
-  return scriptTextSupported(
-    [...chapters.map((html) => styledBlocksFromHtml(html).map((b) => runsText(b.runs)).join("\n")), extraText].join("\n")
-  );
+export function scriptHtmlSupported(chapters: readonly string[]): boolean {
+  return scriptTextSupported(chapters.map((html) => styledBlocksFromHtml(html).map((b) => runsText(b.runs)).join("\n")).join("\n"));
 }
 
 // --- Script settings -------------------------------------------------------------
@@ -1459,16 +1457,21 @@ export function titlePageText(page: TitlePage): string {
 /**
  * Whether the screenplay PDF can set a script and its title page: the sequences
  * (`scriptHtmlSupported`) and, when the title page is shown, its words as the
- * PDF sets them (blanks filled from the manuscript's title and author). The
- * server, the web menu and the phone all ask this one question.
+ * PDF sets them (blanks filled from the manuscript's title and author), each
+ * judged on its own so a few English words on a title page never rescue a
+ * script in another language, nor the PDF's own "Written by" a title page in
+ * one. The server, the web menu and the phone all ask this one question.
  */
 export function scriptPdfSupported(
   chapters: readonly string[],
   settings: Pick<ScriptSettings, "titlePage" | "showTitlePage">,
   manuscript: { title: string; author: string }
 ): boolean {
-  return scriptHtmlSupported(
-    chapters,
-    settings.showTitlePage ? titlePageText(resolveTitlePage(settings.titlePage, manuscript)) : ""
-  );
+  if (!scriptHtmlSupported(chapters)) return false;
+  if (!settings.showTitlePage) return true;
+  const resolved = resolveTitlePage(settings.titlePage, manuscript);
+  // A blank credit is the PDF's own "Written by", which says nothing of the author's language.
+  const own = settings.titlePage.credit.trim() ? resolved : { ...resolved, credit: "" };
+  const text = titlePageText(own);
+  return text.trim() === "" || scriptTextSupported(text);
 }

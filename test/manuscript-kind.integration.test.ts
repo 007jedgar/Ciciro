@@ -343,7 +343,7 @@ describe("assistant tools respect the manuscript kind", () => {
     ]);
   });
 
-  it("keeps a newer client's element when an edit rewrites whole blocks", async () => {
+  it("keeps a replaced centered line centered when an edit rewrites whole blocks", async () => {
     expect(
       await replaceBlocks(
         '<p data-sp="centered">THE END</p><p>Credits roll.</p>',
@@ -352,6 +352,20 @@ describe("assistant tools respect the manuscript kind", () => {
       )
     ).toEqual([
       ["centered", "FIN"],
+      ["character", "MARA"],
+      ["dialogue", "Goodbye."],
+    ]);
+  });
+
+  it("keeps a newer client's element when an edit rewrites whole blocks", async () => {
+    expect(
+      await replaceBlocks(
+        '<p data-sp="lyric">La la la.</p><p>Credits roll.</p>',
+        "La la la.\n\nCredits roll.",
+        "FIN\nMARA\nGoodbye."
+      )
+    ).toEqual([
+      ["lyric", "FIN"],
       ["character", "MARA"],
       ["dialogue", "Goodbye."],
     ]);

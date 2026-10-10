@@ -6,6 +6,7 @@ import { AuthError, registerUser } from "@/lib/auth/session";
 import { createProject } from "@/lib/projects";
 import { archiveChapter, listChapters, SINGLE_PIECE_ERROR } from "@/lib/chapters";
 import { importManuscript } from "@/lib/import-manuscript";
+import { parseScriptSettings } from "@/lib/screenplay";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(join(__dirname, "fixtures/import", name)));
 
@@ -146,6 +147,78 @@ describe("importManuscript", () => {
       const novelChapters = await listChapters(novel.id, ada);
       expect(novelChapters.at(-1)!.content).not.toContain("data-sp");
       expect(novelChapters.at(-1)!.content).toContain("EXT. ROOF - NIGHT");
+    });
+  });
+
+  describe("what a script's file carries beyond its lines", () => {
+    const withTitlePage = new TextEncoder().encode(
+      "Title: Night Shift\nCredit: Written by\nAuthor: Jo Writer\nSource: A true story\nDraft date: June 2026\nContact:\n    Jo Writer\n    jo@example.com\n\nINT. LAB - DAY #1#\n\nMARA\nHello.\n\nEXT. ROOF - NIGHT #2#\n"
+    );
+
+    it("keeps a Fountain title page and numbered scenes as the script's own settings", async () => {
+      const ada = await signUp("ada@example.com");
+      const result = await importManuscript(ada, { filename: "night.fountain", data: withTitlePage });
+      const project = await prisma.project.findUniqueOrThrow({ where: { id: result.projectId } });
+      const settings = parseScriptSettings(project.scriptSettings);
+      expect(settings.titlePage).toEqual({
+        title: "Night Shift",
+        credit: "Written by",
+        author: "Jo Writer",
+        source: "A true story",
+        draftDate: "June 2026",
+        contact: "Jo Writer\njo@example.com",
+      });
+      expect(settings.sceneNumbers).toBe(true);
+      // The numbers are the page engine's to count, so none stay in the lines.
+      const chapters = await listChapters(result.projectId, ada);
+      expect(chapters[0].content).not.toContain("#1#");
+    });
+
+    it("leaves a script with neither on the defaults", async () => {
+      const ada = await signUp("ada@example.com");
+      const result = await importManuscript(ada, {
+        filename: "plain.fountain",
+        data: new TextEncoder().encode("INT. A - DAY\n\nHi."),
+      });
+      const project = await prisma.project.findUniqueOrThrow({ where: { id: result.projectId } });
+      expect(project.scriptSettings).toBe("");
+    });
+
+    it("does not touch the settings of a script it is appended to", async () => {
+      const ada = await signUp("ada@example.com");
+      const play = await createProject(ada, { title: "Play", kind: "screenplay" });
+      await importManuscript(ada, { filename: "n.fountain", data: withTitlePage, projectId: play.id });
+      const project = await prisma.project.findUniqueOrThrow({ where: { id: play.id } });
+      expect(project.scriptSettings).toBe("");
+      expect(project.title).toBe("Play");
+    });
+  });
+
+  describe("an FDX script", () => {
+    const fdx = new Uint8Array(readFileSync(join(__dirname, "fixtures/fdx/night-shift.fdx")));
+
+    it("becomes a new screenplay, with its elements, dual dialogue, title page and scene numbers", async () => {
+      const ada = await signUp("ada@example.com");
+      const result = await importManuscript(ada, { filename: "night-shift.fdx", data: fdx });
+      // The title page of the file is typed in capitals, as Final Draft title pages usually are.
+      expect(result.title).toBe("NIGHT SHIFT");
+      const project = await prisma.project.findUniqueOrThrow({ where: { id: result.projectId } });
+      expect(project.kind).toBe("screenplay");
+      const settings = parseScriptSettings(project.scriptSettings);
+      expect(settings.titlePage.author).toBe("Jo Writer");
+      expect(settings.sceneNumbers).toBe(true);
+      const html = (await listChapters(result.projectId, ada)).map((c) => c.content).join("");
+      expect(html).toContain('data-sp="scene-heading"');
+      expect(html).toContain('data-sp="character" data-sp-dual="1"');
+      expect(html).toContain('data-sp="centered"');
+      expect(html).toContain("data-block-id");
+    });
+
+    it("says plainly when the file is not a script", async () => {
+      const ada = await signUp("ada@example.com");
+      await expect(
+        importManuscript(ada, { filename: "broken.fdx", data: new TextEncoder().encode("<not-fdx/>") })
+      ).rejects.toThrow(/Final Draft|FDX|script/i);
     });
   });
 });

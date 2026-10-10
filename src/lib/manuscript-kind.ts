@@ -446,13 +446,13 @@ function escapeHtml(s: string): string {
 
 /**
  * How to read a replacement for a block tagged `replaced`: a replaced line of
- * speech keeps its speaker open (`after`); a replaced shot, or a newer client's
- * element this build does not know, is kept on the replacement's first line
+ * speech keeps its speaker open (`after`); a replaced shot or centered line, or a
+ * newer client's element this build does not know, is kept on the replacement's first line
  * (`keep`) rather than re-guessed; anything else starts fresh.
  */
 export function replacementContext(replaced: string | undefined): { after?: ScreenplayElement; keep?: string } {
   if (replaced === "dialogue" || replaced === "parenthetical") return { after: "character" };
-  if (replaced !== undefined && (replaced === "shot" || !knownElement(replaced))) return { keep: replaced };
+  if (replaced !== undefined && (replaced === "shot" || replaced === "centered" || !knownElement(replaced))) return { keep: replaced };
   return {};
 }
 
