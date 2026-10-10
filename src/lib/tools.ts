@@ -15,7 +15,9 @@ import {
   assistantTextToHtml,
   elementOfHtml,
   elementTagOfHtml,
+  markedLine,
   normalizeKind,
+  scriptDisplayText,
   type ManuscriptKind,
   type ScreenplayElement,
 } from "@/lib/manuscript-kind";
@@ -55,6 +57,7 @@ import {
   suggestChapterEdits,
 } from "@/lib/suggestion-edits";
 import { runRanker } from "@/lib/fast-lane";
+import { bracketedFindHint, scriptEdit } from "@/lib/script-edits";
 import type { ClientUiEvent } from "@/lib/types";
 import { isManuscriptWriteTool } from "@/lib/edit-mode";
 import { executeKnowledgeTool, KNOWLEDGE_TOOLS } from "@/lib/knowledge-tools";
@@ -86,7 +89,7 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
   {
     name: "read_chapter",
     description:
-      "Read a chapter by its 1-based number. Returns scene-annotated plain text ([chN.sK] markers) so you can address passages without quoting them. Use to check continuity; use list_passages when you only need the index.",
+      "Read a chapter by its 1-based number. Returns scene-annotated plain text ([chN.sK] markers; a screenplay comes back as marked script lines) so you can address passages without quoting them. Use to check continuity; use list_passages when you only need the index.",
     input_schema: {
       type: "object",
       properties: {
@@ -311,8 +314,15 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
           items: {
             type: "object",
             properties: {
-              find: { type: "string" },
-              replace: { type: "string" },
+              find: {
+                type: "string",
+                description: "The plain words to find. In a screenplay, leave out the line marks and a parenthetical's brackets.",
+              },
+              replace: {
+                type: "string",
+                description:
+                  "The replacement. In a screenplay, marked script lines, one element per line.",
+              },
             },
             required: ["find", "replace"],
           },
@@ -390,7 +400,8 @@ export const EDITOR_TOOLS: Anthropic.Tool[] = [
         },
         text: {
           type: "string",
-          description: "Prose to insert, plain text. Separate paragraphs with a blank line.",
+          description:
+            "Prose to insert, plain text. Separate paragraphs with a blank line. In a screenplay, marked script lines, one element per line.",
         },
         after: {
           type: "string",
@@ -779,7 +790,9 @@ export async function executeEditorTool(
         content:
           `Chapter revision: ${ch.revision}\n\n` +
           pendingSuggestionsNote(ch.content) +
-          renderAnnotatedChapter(chapterHtmlForModel(ch.content), n, ch.title),
+          renderAnnotatedChapter(chapterHtmlForModel(ch.content), n, ch.title, {
+            kind: await projectKind(projectId),
+          }),
       };
     }
 
@@ -1451,18 +1464,23 @@ export async function executeEditorTool(
       let content = ch.content;
       const report: string[] = [];
       const applied: { find: string; replace: string }[] = [];
-      for (const r of replacements) {
-        if (!r.find) continue;
+      for (const raw of replacements) {
+        if (!raw.find) continue;
+        const r = scriptEdit(content, { find: raw.find, replace: raw.replace ?? "" }, kind);
+        // Script lines are replaced as blocks, so each one lands as its element: a
+        // replacement of several lines, or of one that carries a mark ("!BOOM.").
         const scriptBlocks =
-          kind === "screenplay" && /\n/.test(r.replace ?? "") && findBlockRun(content, r.find) !== null;
+          kind === "screenplay" &&
+          (/\n/.test(r.replace) || markedLine(r.replace) !== null) &&
+          findBlockRun(content, r.find) !== null;
         const literalCount = scriptBlocks ? 0 : content.split(r.find).length - 1;
         if (literalCount > 0) {
-          content = content.split(r.find).join(r.replace ?? "");
+          content = content.split(r.find).join(r.replace);
           report.push(`replaced "${r.find}" -> "${r.replace}" (${literalCount}x)`);
-          applied.push({ find: r.find, replace: r.replace ?? "" });
+          applied.push({ find: r.find, replace: r.replace });
           continue;
         }
-        const { html: next, count } = blockReplace(content, r.find, r.replace ?? "", kind);
+        const { html: next, count } = blockReplace(content, r.find, r.replace, kind);
         if (count > 0) {
           content = next;
           report.push(
@@ -1470,10 +1488,11 @@ export async function executeEditorTool(
               r.find.length > 60 ? "..." : ""
             }"`
           );
-          applied.push({ find: r.find, replace: r.replace ?? "" });
+          applied.push({ find: r.find, replace: r.replace });
         } else {
           report.push(
-            `"${r.find}" NOT FOUND - no change made. Tell the author this correction did not apply.`
+            `"${r.find}" NOT FOUND - no change made.${bracketedFindHint(r.find, kind)} ` +
+              "Tell the author this correction did not apply."
           );
         }
       }
@@ -2045,7 +2064,14 @@ export async function executeEditorTool(
         // Craft defaults are opt-in ("Experimental writing prompt"). The fast
         // drafter is for rough bulk text; it gets the free mechanical checks only.
         const craftCheck = craft
-          ? formatCraftCheck(await checkDraft(prose, { kind, emDashes, brief, model: mode === "quality" }))
+          ? formatCraftCheck(
+              await checkDraft(kind === "screenplay" ? scriptDisplayText(prose) : prose, {
+                kind,
+                emDashes,
+                brief,
+                model: mode === "quality",
+              })
+            )
           : "";
         return {
           status: backstageLine("dispatch_draft"),

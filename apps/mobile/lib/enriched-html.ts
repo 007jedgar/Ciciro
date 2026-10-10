@@ -149,7 +149,8 @@ function sameBlock(a: ManuscriptBlock, b: ManuscriptBlock): boolean {
   return a.kind === b.kind && a.text === b.text;
 }
 
-function assignIds(oldBlocks: ManuscriptBlock[], nextBlocks: ManuscriptBlock[]): string[] {
+/** Which committed block each of the editor's blocks is (a fresh id for a new one). The one rule the flush and the element bar both use. */
+export function assignIds(oldBlocks: ManuscriptBlock[], nextBlocks: ManuscriptBlock[]): string[] {
   if (oldBlocks.length === nextBlocks.length) {
     return oldBlocks.map((block) => block.id);
   }

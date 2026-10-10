@@ -8,6 +8,7 @@ import {
   type PublicUser,
 } from "@/lib/auth/session";
 import { visibleChapterIdInclude, withVisibleChapterCount } from "@/lib/chapters";
+import { scriptPageCounts } from "@/lib/script-pages";
 
 const NAME_MAX = 200;
 const NOTES_MAX = 8000;
@@ -26,6 +27,17 @@ function withProjectCount<
 >(folder: T) {
   const projects = folder.projects.map(withVisibleChapterCount);
   return { ...folder, projects, _count: { projects: projects.length } };
+}
+
+/** Folders with each screenplay in them carrying the pages it runs, for the lists. */
+async function withScriptPagesIn<F extends { projects: Array<{ id: string; kind?: string | null }> }>(
+  folders: F[]
+): Promise<Array<Omit<F, "projects"> & { projects: Array<F["projects"][number] & { pages?: number }> }>> {
+  const counts = await scriptPageCounts(folders.flatMap((folder) => folder.projects));
+  return folders.map((folder) => ({
+    ...folder,
+    projects: folder.projects.map((p) => (counts.has(p.id) ? { ...p, pages: counts.get(p.id) } : p)),
+  }));
 }
 
 function readTrimmed(value: unknown): string {
@@ -96,7 +108,7 @@ async function loadFolder(id: string) {
     include: FOLDER_INCLUDE,
   });
   if (!folder) throw new AuthError("Not found.", 404);
-  return withProjectCount(folder);
+  return (await withScriptPagesIn([withProjectCount(folder)]))[0];
 }
 
 /** List folders. Signed-in users only see their own; local-first lists all. */
@@ -107,7 +119,7 @@ export async function listFolders(user: PublicUser | null) {
     orderBy: { updatedAt: "desc" },
     include: FOLDER_INCLUDE,
   });
-  return folders.map(withProjectCount);
+  return withScriptPagesIn(folders.map(withProjectCount));
 }
 
 export async function getFolder(id: string, user: PublicUser | null) {

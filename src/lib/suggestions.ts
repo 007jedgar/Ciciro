@@ -965,8 +965,13 @@ export type SuggestOutcome =
   | { status: "not_found" }
   | { status: "conflict"; authorName: string };
 
-/** One paragraph of a replacement, and how to mark its block's opening tag. */
-export type ReplacementParagraph = { text: string; mark?: (open: string) => string };
+/**
+ * One paragraph of a replacement, and how to mark its block's opening tag.
+ * `explicit` says the replacement named its own block structure (a script's
+ * marked lines), so even a single paragraph replaces whole blocks rather than
+ * editing words inside one.
+ */
+export type ReplacementParagraph = { text: string; mark?: (open: string) => string; explicit?: boolean };
 
 export type SuggestOptions = {
   author: SuggestionAuthor;
@@ -1177,7 +1182,8 @@ function suggestWholeBlocks(
   edit: SuggestEdit,
   opts: Required<SuggestOptions>
 ): { html: string; outcome: SuggestOutcome } | null {
-  if (opts.splitReplacement(edit.replace, null).filter((p) => p.text).length < 2) return null;
+  const probe = opts.splitReplacement(edit.replace, null).filter((p) => p.text);
+  if (probe.length < 2 && !probe.some((p) => p.explicit)) return null;
   const needle = normalizeNeedle(edit.find).trim();
   const matches = scanBlocks(html).flatMap((block, i) =>
     block.items && project(block.items, BASE).text.trim() === needle ? [i] : []

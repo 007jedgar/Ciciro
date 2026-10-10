@@ -53,7 +53,7 @@ const BRIEFS: Record<SelectionBriefId, string> = {
   fix: "Fix the selected text: spelling, grammar, punctuation and any clear slip such as a repeated word or a wrong tense. Change as little as possible and keep my voice and my wording. Return the corrected text in a <draft> block, then list each fix on its own line. If nothing needs fixing, say so and return no <draft> block.",
 };
 
-const SCREENPLAY_NOTE = " Write it as script lines, one element per line.";
+const SCREENPLAY_NOTE = " Write it as marked script lines, one element per line.";
 const JOURNAL_NOTE = " This is my journal: keep every fact as I wrote it and do not invent anything that did not happen.";
 
 /** What an action asks Ciciro to do with the selection. Model instructions, so they stay in English. */

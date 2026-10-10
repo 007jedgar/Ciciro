@@ -16,7 +16,8 @@ import {
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { ScreenplayBar } from "../../../../components/ScreenplayBar";
-import { elementTagOfHtml, knownElement, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
+import { knownElement, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
+import { caretBeyondChapter, elementTagAtCaret, elementTargetId } from "../../../../lib/screenplay-live";
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
@@ -35,6 +36,7 @@ import {
   CARET_FLUSH_MS,
   REPLACE_FLUSH_MS,
   replaceBlockOps,
+  appendEmptyBlockOps,
   setBlockElementOps,
   emptyBlockMarks,
   type BlockMark,
@@ -204,6 +206,9 @@ function ManuscriptScreenContent() {
   const acceptGrammarRef = useRef<() => void>(() => {});
   const caretRef = useRef({ blockId: "", offset: 0, end: 0, docOffset: 0 });
   const liveTextRef = useRef<{ chapterId: string; text: string } | null>(null);
+  // The element of the line under the caret, kept right the moment Return is
+  // pressed or a chip tapped, not a flush later (see lib/screenplay-live.ts).
+  const [caretElement, setCaretElement] = useState("action");
   const [formatTarget, setFormatTarget] = useState({ start: 0, end: 0 });
   const [targetMarks, setTargetMarks] = useState(emptyBlockMarks());
   const [targetKind, setTargetKind] = useState<FormatBlockKind>("paragraph");
@@ -352,6 +357,19 @@ function ManuscriptScreenContent() {
     grammarRef.current?.setSuggestion(null);
   }, [chapter?.id]);
 
+  const recomputeElement = useCallback(() => {
+    if (!isScreenplay) return;
+    const current = chapterRef.current;
+    if (!current) return;
+    const live = liveTextRef.current;
+    const tag = elementTagAtCaret(
+      current.content,
+      live && live.chapterId === current.id ? live.text : null,
+      caretRef.current.docOffset
+    );
+    setCaretElement((previous) => (previous === tag ? previous : tag));
+  }, [isScreenplay]);
+
   const onChangeText = useCallback(
     (text: string) => {
       setPressMenuOpen(false);
@@ -359,6 +377,7 @@ function ManuscriptScreenContent() {
       const current = chapterRef.current;
       if (!current) return;
       liveTextRef.current = { chapterId: current.id, text };
+      recomputeElement();
       const at = blockAtPlainOffset(current.content, caretRef.current.docOffset);
       if (
         at &&
@@ -377,7 +396,7 @@ function ManuscriptScreenContent() {
       }
       scheduleFlush();
     },
-    [isScreenplay, markTyping, scheduleFlush, settings.autoCorrect]
+    [isScreenplay, markTyping, recomputeElement, scheduleFlush, settings.autoCorrect]
   );
 
   const onContentApplied = useCallback(() => {
@@ -456,6 +475,7 @@ function ManuscriptScreenContent() {
         docOffset: start,
       };
       setFormatTarget({ start, end });
+      recomputeElement();
       onChangeMenuSelection(start, end);
       setReadAloudSelection({
         chapterId: current.id,
@@ -472,7 +492,7 @@ function ManuscriptScreenContent() {
         });
       }, CARET_FLUSH_MS);
     },
-    [liveChapterText, onChangeMenuSelection, recordReadingPosition]
+    [liveChapterText, onChangeMenuSelection, recomputeElement, recordReadingPosition]
   );
 
   // The keyboard has no dismiss key of its own on a phone, so a tap on anything around the page
@@ -502,6 +522,12 @@ function ManuscriptScreenContent() {
     if (!focused) return;
     setEditingBlockIds(blocks.map((block) => block.id));
   }, [blocks, focused, setEditingBlockIds]);
+
+  // The chapter changed under the caret (a flush landed, a chip was applied, another
+  // sequence opened): read the line again.
+  useEffect(() => {
+    recomputeElement();
+  }, [content, chapter?.id, recomputeElement]);
 
   const formatBlockId = blockAtPlainOffset(content, formatTarget.start)?.blockId ?? "";
   const barPlacement = formatBarPlacement(settings.formatChrome);
@@ -542,11 +568,21 @@ function ManuscriptScreenContent() {
 
   const onSetElement = useCallback(
     async (element: ScreenplayElement) => {
+      // Lit now; the commit below only confirms it.
+      setCaretElement(element);
       await flush();
       const current = chapterRef.current;
       if (!current) return;
       const doc = htmlToDoc(current.content, current.revision).doc;
-      const target = caretRef.current.blockId || doc.blocks[doc.blocks.length - 1]?.id;
+      // The caret can be on a blank line the chapter does not hold (the native view does not always
+      // report one Return added): give it a block of its own, rather than retagging the line above.
+      if (caretBeyondChapter(current.content, caretRef.current.docOffset)) {
+        commitOps(appendEmptyBlockOps(doc, element));
+        return;
+      }
+      // Otherwise found from the caret in what the flush just committed: the block id taken at the
+      // last caret move is stale when the flush added the line since.
+      const target = elementTargetId(current.content, caretRef.current.docOffset, caretRef.current.blockId) || doc.blocks[doc.blocks.length - 1]?.id;
       if (!target) return;
       commitOps(setBlockElementOps(doc, target, element));
     },
@@ -736,7 +772,7 @@ function ManuscriptScreenContent() {
   });
   const editorBottomInset = keyboardVisible
     ? 16
-    : barPlacement === "accessory"
+    : barPlacement === "accessory" || isScreenplay
       ? 8
       : focusMode
         ? 16
@@ -792,13 +828,6 @@ function ManuscriptScreenContent() {
             />
           </Animated.View>
         </View>
-      ) : null}
-      {isScreenplay ? (
-        <ScreenplayBar
-          element={knownElement(elementTagOfHtml(blocks.find((b) => b.id === formatBlockId)?.html ?? ""))}
-          disabled={!focused}
-          onSetElement={(el) => void onSetElement(el)}
-        />
       ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" automaticOffset>
         <Pressable
@@ -920,6 +949,16 @@ function ManuscriptScreenContent() {
             </View>
           </View>
         </Pressable>
+        {isScreenplay ? (
+          // The element controls ride just above the keyboard, where the thumb is.
+          <View style={{ marginBottom: keyboardVisible || barPlacement === "accessory" ? 0 : clearance }}>
+            <ScreenplayBar
+              element={knownElement(caretElement)}
+              disabled={!focused}
+              onSetElement={(el) => void onSetElement(el)}
+            />
+          </View>
+        ) : null}
         {barPlacement === "accessory" ? (
           <View style={{ marginBottom: keyboardVisible ? 0 : clearance }}>
             <FormatBar

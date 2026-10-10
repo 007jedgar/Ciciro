@@ -47,6 +47,7 @@ import {
   promptAnchorGap,
 } from "../lib/chat-scroll";
 import { closeOpenDrafts, parseChatSegments } from "../lib/chat-segments";
+import { scriptDisplayText } from "../lib/manuscript-kind";
 import type { ChatMessage, EditorRunStatus } from "../lib/api/types";
 import type { ChatStreamState } from "../lib/ciciro-stream";
 import { DEFAULT_EDIT_MODE, type EditMode } from "../lib/edit-mode";
@@ -61,6 +62,7 @@ import { CiciroThinking } from "./CiciroThinking";
 import { alpha, Glass } from "./Glass";
 import { ArrowDownIcon, ArrowUpIcon, QuestionIcon, SparkleIcon, StopIcon } from "./icons";
 import { Markdown } from "./Markdown";
+import { ScriptDraft } from "./ScriptDraft";
 import { Snackbar } from "./Snackbar";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
@@ -90,6 +92,7 @@ function MessageBody({
   onInsert,
   onShare,
   animate,
+  screenplay,
 }: {
   content: string;
   turnId?: string | null;
@@ -98,6 +101,8 @@ function MessageBody({
   onInsert: (text: string, index: number) => void;
   onShare: (text: string) => void;
   animate: boolean;
+  /** A script's draft is marked lines: shown set as a script, shared without the marks. */
+  screenplay: boolean;
 }) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -130,7 +135,11 @@ function MessageBody({
         const draftStyle = [styles.draft, { borderColor: colors.line, backgroundColor: colors.panel2 }];
         const draftBody = (
           <>
-            <Markdown source={draft || (writing ? "…" : "")} colors={colors} animate={animate} />
+            {screenplay && draft ? (
+              <ScriptDraft text={draft} colors={colors} />
+            ) : (
+              <Markdown source={draft || (writing ? "…" : "")} colors={colors} animate={animate} />
+            )}
             {writing ? (
               <Text style={[styles.writing, { color: colors.inkSoft }]}>
                 {t("ciciroTab.writing")}
@@ -152,7 +161,7 @@ function MessageBody({
                   feedback="dim"
                   accessibilityRole="button"
                   accessibilityLabel={t("ciciroTab.share")}
-                  onPress={() => onShare(draft)}
+                  onPress={() => onShare(screenplay ? scriptDisplayText(draft) : draft)}
                 >
                   <Text style={{ color: colors.accent }}>{t("ciciroTab.share")}</Text>
                 </TapPressable>
@@ -192,6 +201,7 @@ function AssistantTurn({
   onShare,
   onRetry,
   animate,
+  screenplay,
 }: {
   content: string;
   turnId?: string | null;
@@ -201,6 +211,7 @@ function AssistantTurn({
   onShare: (text: string) => void;
   onRetry?: () => void;
   animate: boolean;
+  screenplay: boolean;
 }) {
   const { colors } = useAppTheme();
   const { body, failure } = splitErrorFooter(content);
@@ -214,6 +225,7 @@ function AssistantTurn({
         onInsert={onInsert}
         onShare={onShare}
         animate={animate}
+        screenplay={screenplay}
       />
       {failure ? (
         <ChatErrorNotice failure={failure} colors={colors} onRetry={onRetry} />
@@ -344,10 +356,12 @@ const ChatTurn = memo(function ChatTurn({
   onRetry,
   onPromptHeight,
   onReplyHeight,
+  screenplay,
 }: {
   message: ChatMessage;
   anchored: boolean;
   measureReply: boolean;
+  screenplay: boolean;
   /** Fade in a user bubble that arrived after the transcript was already open. */
   enter: boolean;
   inserted: Set<string>;
@@ -403,6 +417,7 @@ const ChatTurn = memo(function ChatTurn({
         onShare={(text) => void Share.share({ message: text })}
         onRetry={onRetry}
         animate={false}
+        screenplay={screenplay}
       />
     </View>
   );
@@ -433,6 +448,7 @@ export function CiciroChat({
   onQuickAction,
   bottomInset,
   topInset = 0,
+  screenplay = false,
 }: {
   messages: ChatMessage[];
   stream: ChatStreamState;
@@ -467,6 +483,8 @@ export function CiciroChat({
   quickActions?: { id: string; label: string }[];
   onQuickAction?: (id: string) => void;
   bottomInset: number;
+  /** The manuscript is a screenplay: its drafts are marked script lines, shown set as a script. */
+  screenplay?: boolean;
   /** Height of a floating header the thread scrolls underneath. */
   topInset?: number;
 }) {
@@ -783,6 +801,7 @@ export function CiciroChat({
         onRetry={onRetry}
         onPromptHeight={onPromptHeight}
         onReplyHeight={onReplyHeight}
+        screenplay={screenplay}
       />
     ),
     [
@@ -793,6 +812,7 @@ export function CiciroChat({
       onPromptHeight,
       onReplyHeight,
       onRetry,
+      screenplay,
       settledReply?.id,
     ]
   );
@@ -896,6 +916,7 @@ export function CiciroChat({
                       onShare={(text) => void Share.share({ message: text })}
                       onRetry={onRetry}
                       animate={liveAnimate}
+                      screenplay={screenplay}
                     />
                   ) : (
                     <CiciroThinking colors={colors} label={toolLabel} reduceMotion={reduceMotion} />

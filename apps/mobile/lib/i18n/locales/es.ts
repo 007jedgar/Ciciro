@@ -200,6 +200,8 @@ const es: Translations = {
     chapterCount_other: "{{count}} capítulos",
     sequenceCount_one: "{{count}} secuencia",
     sequenceCount_other: "{{count}} secuencias",
+    pageCount_one: "aprox. {{count}} página",
+    pageCount_other: "aprox. {{count}} páginas",
     postCount_one: "{{count}} entrada",
     postCount_other: "{{count}} entradas",
     entryCount_one: "{{count}} entrada",
@@ -1277,6 +1279,13 @@ const es: Translations = {
       title: "Aún no disponible en tu idioma",
       body: "El formato de guion solo está disponible en inglés y español por ahora. Planeamos admitir más idiomas.",
     },
+    pageView: {
+      title: "Páginas",
+      note: "Courier de 12 pt en una página de 60 columnas, cerca de un minuto de pantalla por página. Una estimación.",
+      readOnly: "Solo lectura. Escribe en el manuscrito.",
+      empty: "Aún no hay nada en la página. Escribe una escena y aparece aquí, compuesta como se imprime.",
+      page: "Página {{number}}",
+    },
     settings: {
       title: "Guion",
       format: "Formato del guion",
@@ -1284,7 +1293,7 @@ const es: Translations = {
       locked: "Bloqueado",
       formatNote:
         "Un guion se compone en Courier Prime de 12 pt sobre una página de 60 columnas, así que una página aquí es una página en papel. Tu fuente y tamaño de lectura nunca lo cambian.",
-      layoutNote: "El diseño de página y el recuento de páginas se ven por ahora en la web. El teléfono edita líneas simples.",
+      layoutNote: "Páginas muestra el guion como se imprime, con números de página. El teléfono edita líneas simples y el diseño las sigue.",
       elementsNote: "Toca un elemento sobre el teclado para fijar la línea en la que estás.",
       tabOrder: "Tab recorre: {{elements}}.",
       returnNote:

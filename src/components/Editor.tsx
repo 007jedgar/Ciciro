@@ -24,7 +24,7 @@ import {
   type PageCursor,
   type ScreenplayElement,
 } from "@/lib/screenplay";
-import { classifyScreenplayLines, type ManuscriptKind } from "@/lib/manuscript-kind";
+import { normalizeElement, parseScriptLines, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { elementShortcutLabel } from "@/lib/screenplay-view";
 import BetaBadge from "@/components/BetaBadge";
 import { useSettings } from "@/components/SettingsProvider";
@@ -785,11 +785,26 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     insertDraft(text: string, key = "default") {
       if (!editor) return;
       if (kind === "screenplay") {
-        const lines = classifyScreenplayLines(text);
-        if (lines.length === 0) return;
         const map = insertPositions.current;
         const docSize = editor.state.doc.content.size;
         const pos = Math.max(0, Math.min(map.get(key) ?? editor.state.selection.to, docSize));
+        // Read on from the line the draft lands under, so one that opens with
+        // dialogue under a cue is dialogue.
+        const { doc } = editor.state;
+        const $pos = doc.resolve(pos);
+        const above =
+          $pos.depth === 0
+            ? $pos.nodeBefore
+            : $pos.parentOffset > 0
+              ? $pos.parent
+              : $pos.index(0) > 0
+                ? doc.child($pos.index(0) - 1)
+                : null;
+        const lines = parseScriptLines(
+          text,
+          above?.type.name === "paragraph" ? normalizeElement(above.attrs.screenplay) : undefined
+        );
+        if (lines.length === 0) return;
         editor
           .chain()
           .focus()

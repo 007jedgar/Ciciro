@@ -13,9 +13,18 @@ export function manuscriptCountLabel(kind: unknown, count: number, t: TFunction)
   return t(COUNT_KEY[normalizeKind(kind)], { count });
 }
 
-/** The parts of a manuscript row's meta line: a kind label for anything but a novel, then the genre and the count in the kind's unit. */
+/** "about 97 pages": a screenplay's length, an estimate from the shared page layout. */
+export function manuscriptPagesLabel(pages: number, t: TFunction): string {
+  return t("manuscripts.pageCount", { count: pages });
+}
+
+/**
+ * The parts of a manuscript row's meta line: a kind label for anything but a
+ * novel, then the genre, the count in the kind's unit and, for a screenplay that
+ * has pages, about how many.
+ */
 export function manuscriptMetaParts(
-  project: { kind?: string | null; genre?: string | null; _count?: { chapters: number } },
+  project: { kind?: string | null; genre?: string | null; pages?: number; _count?: { chapters: number } },
   t: TFunction
 ): { kindLabel: string | null; text: string } {
   const kind = normalizeKind(project.kind);
@@ -23,6 +32,7 @@ export function manuscriptMetaParts(
   const text = [
     project.genre,
     project._count ? manuscriptCountLabel(kind, project._count.chapters, t) : null,
+    kind === "screenplay" && project.pages ? manuscriptPagesLabel(project.pages, t) : null,
   ]
     .filter(Boolean)
     .join(" · ");

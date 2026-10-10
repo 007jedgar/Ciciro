@@ -196,6 +196,44 @@ export function nextChapterTitle(kind: ManuscriptKind, count: number): string {
   return `${KIND_INFO[kind].unit} ${count + 1}`;
 }
 
+// --- Marked script lines ------------------------------------------------------
+
+/**
+ * The marks that force a line's element: Fountain's forced-element markers, plus
+ * `^` for a shot, which Fountain has no word for. A dialogue or parenthetical
+ * line carries no mark: it sits under its cue, the way it does in Fountain.
+ */
+const MARK_ELEMENT: Readonly<Record<string, ScreenplayElement>> = {
+  ".": "scene-heading",
+  "!": "action",
+  "@": "character",
+  ">": "transition",
+  "^": "shot",
+};
+
+/** The mark an element's line starts with, for the elements that have one. */
+export const ELEMENT_MARK: Readonly<Partial<Record<ScreenplayElement, string>>> = {
+  "scene-heading": ".",
+  action: "!",
+  character: "@",
+  transition: ">",
+  shot: "^",
+};
+
+/**
+ * The output contract for script text, in the assistant's prompts: how it reads
+ * the script and how it writes one back. `parseScriptLines` is the other half.
+ */
+const SCRIPT_FORMAT = `  .INT. KITCHEN - NIGHT       scene heading
+  !Mara stares at the phone.  action (also an ALL-CAPS action line: !BOOM. !SHE RUNS OUT.)
+  @MARA                       character cue, in caps (@MARA (V.O.), @MARA (CONT'D))
+  (quietly)                   parenthetical, in brackets, directly under a cue
+  He never called.            dialogue, directly under a cue or a parenthetical, no mark
+  >CUT TO:                    transition
+  ^CLOSE ON THE KNIFE         shot: a camera direction (ANGLE ON, POV, INSERT)
+  A blank line ends a speech; a cue, its parentheticals and its dialogue have none between
+  them. Dialogue never begins with a mark character.`;
+
 // --- AI assistant ------------------------------------------------------------
 
 const DIRECTIVES: Record<ManuscriptKind, string> = {
@@ -205,11 +243,18 @@ Treat every "chapter" as a sequence of scenes and every "draft" as script pages.
 - Write in standard screenplay form: SCENE HEADINGS (INT./EXT. LOCATION - TIME),
   action in present tense and lean, CHARACTER cues in caps, dialogue beneath them,
   parentheticals only when the delivery would otherwise be unclear, transitions
-  (CUT TO:, FADE OUT.) sparingly.
-- Format prose you place with one block per line and lead with the element, e.g.
-  a scene heading line, then an action line, then the character name, then the
-  dialogue. Never write novel-style narration, interiority, or camera-free
-  description that cannot be filmed.
+  (CUT TO:, FADE OUT.) sparingly. Never write novel-style narration, interiority,
+  or camera-free description that cannot be filmed.
+- The script is stored as typed elements, one block per line, and you read and write
+  it as marked script lines.
+${SCRIPT_FORMAT}
+- A passage id (chN.sK) is a scene: it runs from a scene heading to the next one, and
+  list_passages names each scene by its heading.
+- Use marked lines for every piece of script text you hand over: a <draft>, insert_text,
+  the replace of edit_manuscript, and the pages you ask the drafter for. When you match
+  existing text (find, quotes, anchors), use its plain words: the marks and a
+  parenthetical's brackets are how you read the script, they are not part of the stored
+  text (find quietly, not (quietly)).
 - Critique for what plays on screen: visual storytelling, subtext in dialogue,
   scene entry and exit, act structure, and page count (about a minute per page).
 - Brief the drafter for script pages, naming each speaking character and the
@@ -241,10 +286,11 @@ export function kindDirective(kind: ManuscriptKind): string {
 
 export const DRAFTER_DIRECTIVES: Record<ManuscriptKind, string> = {
   novel: "",
-  screenplay: `The piece is a screenplay. Return script pages in standard format, one element per
-line: scene headings (INT./EXT. LOCATION - TIME), lean present-tense action, CHARACTER
-names in caps above their dialogue, and parentheticals only where needed. No novel
-narration.`,
+  screenplay: `The piece is a screenplay. Return script pages as marked lines, one element per
+line, and nothing else (no headings, notes or commentary).
+${SCRIPT_FORMAT}
+Standard form: lean present-tense action, CHARACTER names in caps above their dialogue,
+parentheticals only where needed. No novel narration.`,
   blog: `The piece is a blog post or newsletter. Write clear, skimmable prose with short
 paragraphs and a direct voice.`,
   journal: `The piece is a private journal entry. Write in the author's first person, plainly,
@@ -307,6 +353,93 @@ export function classifyScreenplayLines(
   return out;
 }
 
+/** The element a mark forces and the line without it, or null for a line that carries no mark. */
+export function markedLine(raw: string): { element: ScreenplayElement; text: string } | null {
+  const line = raw.trim();
+  const element = MARK_ELEMENT[line.charAt(0)];
+  if (!element) return null;
+  let rest = line.slice(1);
+  if (line.charAt(0) === ".") {
+    // A forced heading starts with a letter: "..." is an ellipsis, ".5 seconds" is prose.
+    if (!/^\p{L}/u.test(rest)) return null;
+    return { element, text: rest.trim() };
+  }
+  rest = rest.trim();
+  // Fountain's centered line, "> THE END <", is just a line of action here.
+  const centered = line.charAt(0) === ">" && rest.endsWith("<");
+  if (centered) rest = rest.slice(0, -1).trim();
+  // "!!" and "@ " are not elements.
+  if (!/[\p{L}\p{N}]/u.test(rest)) return null;
+  return { element: centered ? "action" : element, text: rest };
+}
+
+const isSpeech = (el?: ScreenplayElement) => el === "character" || el === "parenthetical" || el === "dialogue";
+
+/**
+ * Script text from the assistant, sorted into elements. The assistant writes
+ * marked lines (`.` heading, `!` action, `@` cue, `>` transition, `^` shot;
+ * see SCRIPT_FORMAT), and a mark is believed: it is how an ALL-CAPS action line
+ * stays action and an unusual cue stays a cue. Under a marked script, a line
+ * after a cue, parenthetical or dialogue is a parenthetical or dialogue, never
+ * a new cue guessed from its capitals. A line with no mark outside a speech, and
+ * all of a text with no marks at all, falls back to `classifyScreenplayLines`.
+ */
+export function parseScriptLines(
+  text: string,
+  after?: ScreenplayElement
+): { element: ScreenplayElement; text: string }[] {
+  const lines = text.split(/\r?\n/);
+  if (!lines.some((line) => markedLine(line))) return classifyScreenplayLines(text, after);
+  const out: { element: ScreenplayElement; text: string }[] = [];
+  let previous: ScreenplayElement | undefined = after;
+  // Unmarked lines outside a speech, classified together so a guessed cue still gets its dialogue.
+  let run: string[] = [];
+  let runAfter: ScreenplayElement | undefined;
+  const settle = () => {
+    if (run.length === 0) return;
+    const rows = classifyScreenplayLines(run.join("\n"), runAfter);
+    out.push(...rows);
+    previous = rows[rows.length - 1]?.element;
+    run = [];
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      settle();
+      previous = undefined;
+      continue;
+    }
+    const marked = markedLine(line);
+    if (marked) {
+      settle();
+      out.push(marked);
+      previous = marked.element;
+    } else if (run.length === 0 && isSpeech(previous)) {
+      const parenthetical = /^\(\s*\S.*\)$/.test(line);
+      previous = parenthetical ? "parenthetical" : "dialogue";
+      // The page draws a parenthetical's brackets, so the stored text has none.
+      out.push({ element: previous, text: parenthetical ? line.slice(1, -1).trim() : line });
+    } else {
+      if (run.length === 0) runAfter = previous;
+      run.push(line);
+    }
+  }
+  settle();
+  return out;
+}
+
+/** A draft as the author reads it: the marks that drive `parseScriptLines` taken off, the text kept. */
+export function scriptDisplayText(text: string): string {
+  const lines = text.split(/\r?\n/);
+  if (!lines.some((line) => markedLine(line))) return text;
+  return lines
+    .map((line) => {
+      const marked = markedLine(line);
+      return marked ? marked.text : line;
+    })
+    .join("\n");
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -329,14 +462,16 @@ export function replacementContext(replaced: string | undefined): { after?: Scre
  */
 export function classifyReplacement(text: string, replaced: string | undefined): { element: string; text: string }[] {
   const { after, keep } = replacementContext(replaced);
-  if (!keep) return classifyScreenplayLines(text, after);
+  if (!keep) return parseScriptLines(text, after);
   const rows = text.split(/\r?\n/);
   const at = rows.findIndex((row) => row.trim());
   if (at < 0) return [];
+  // A mark on the first line says what it is; only a plain line inherits the kept element.
+  if (markedLine(rows[at])) return parseScriptLines(text);
   const [first] = classifyScreenplayLines(rows[at]);
   const head = first.element === "scene-heading" || first.element === "transition" ? first : { element: keep, text: first.text };
   const rest = rows.slice(at + 1).join("\n");
-  return [head, ...classifyScreenplayLines(rest, head === first ? first.element : normalizeElement(keep))];
+  return [head, ...parseScriptLines(rest, head === first ? first.element : normalizeElement(keep))];
 }
 
 /**
@@ -347,11 +482,17 @@ export function assistantReplacementSplitter(
   kind: ManuscriptKind
 ): ((replace: string, replacing: string | null) => { text: string; mark: (open: string) => string }[]) | undefined {
   if (kind !== "screenplay") return undefined;
-  return (replace, replacing) =>
-    classifyReplacement(replace, replacing ? elementTagOfHtml(replacing) : undefined).map(({ element, text }) => ({
-      text,
-      mark: (open: string) => withElement(open, element),
-    }));
+  return (replace, replacing) => {
+    // Marked lines say which blocks they are, so one line replaces its block rather than words in it.
+    const explicit = replace.split(/\r?\n/).some((line) => markedLine(line) !== null);
+    return classifyReplacement(replace, replacing ? elementTagOfHtml(replacing) : undefined).map(
+      ({ element, text }) => ({
+        text,
+        mark: (open: string) => withElement(open, element),
+        ...(explicit ? { explicit } : null),
+      })
+    );
+  };
 }
 
 function screenplayHtml(lines: { element: string; text: string }[]): string {
@@ -373,7 +514,7 @@ export function assistantReplacementToHtml(text: string, kind: ManuscriptKind, r
  */
 export function assistantTextToHtml(text: string, kind: ManuscriptKind, after?: ScreenplayElement): string {
   if (kind === "screenplay") {
-    return screenplayHtml(classifyScreenplayLines(text, after));
+    return screenplayHtml(parseScriptLines(text, after));
   }
   return text
     .split(/\n{2,}/)

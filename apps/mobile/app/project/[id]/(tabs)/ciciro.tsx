@@ -341,6 +341,7 @@ function CiciroScreenContent() {
         quickActions={quickActions}
         onQuickAction={runQuickAction}
         bottomInset={clearance}
+        screenplay={kind === "screenplay"}
         // The requested-intent card already clears the header.
         topInset={requested ? 0 : headerHeight}
       />

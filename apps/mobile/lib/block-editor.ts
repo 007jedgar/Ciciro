@@ -139,6 +139,26 @@ export function setBlockElementOps(
   return [op];
 }
 
+/**
+ * An empty paragraph of `element` after the last block: the blank line Return
+ * added, when an element is chosen for it before anything is typed (the native
+ * view does not always report that line, so the chapter may not hold it yet).
+ */
+export function appendEmptyBlockOps(doc: ManuscriptDoc, element: ScreenplayElement, opts?: BlockEditorIds): ManuscriptOp[] {
+  const ids = idsOf(opts);
+  const blockId = ids.createBlockId();
+  const { op } = emit(doc, {
+    opId: ids.createOpId(),
+    baseRevision: doc.revision,
+    actor: ids.actor,
+    type: "insert_block",
+    afterBlockId: doc.blocks.length === 0 ? null : doc.blocks[doc.blocks.length - 1].id,
+    blockId,
+    html: newParagraphHtml(blockId, "", element),
+  });
+  return [op];
+}
+
 /** Append one or more paragraphs after the last block (Ciciro draft insert). */
 export function appendParagraphsOps(
   doc: ManuscriptDoc,

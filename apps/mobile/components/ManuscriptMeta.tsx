@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next";
 import { manuscriptMetaParts } from "../lib/manuscript-count";
 import { useAppTheme } from "../lib/settings";
 
-/** A manuscript row's meta line: a kind chip (journal, screenplay, blog), then genre and count in the kind's unit. */
+/** A manuscript row's meta line: a kind chip (journal, screenplay, blog), then genre, count in the kind's unit and, for a script, its pages. */
 export function ManuscriptMeta({
   project,
 }: {
-  project: { kind?: string | null; genre?: string | null; _count?: { chapters: number } };
+  project: { kind?: string | null; genre?: string | null; pages?: number; _count?: { chapters: number } };
 }) {
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();

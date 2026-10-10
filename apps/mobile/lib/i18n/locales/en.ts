@@ -198,6 +198,8 @@ const en = {
     chapterCount_other: "{{count}} chapters",
     sequenceCount_one: "{{count}} sequence",
     sequenceCount_other: "{{count}} sequences",
+    pageCount_one: "about {{count}} page",
+    pageCount_other: "about {{count}} pages",
     postCount_one: "{{count}} post",
     postCount_other: "{{count}} posts",
     entryCount_one: "{{count}} entry",
@@ -1275,6 +1277,13 @@ const en = {
       title: "Not available in your language yet",
       body: "Script formatting is only available in English and Spanish for now. We plan to support more languages.",
     },
+    pageView: {
+      title: "Pages",
+      note: "12 pt Courier on a 60 column page, about a minute of screen time a page. An estimate.",
+      readOnly: "Read only. Write in the manuscript.",
+      empty: "Nothing on the page yet. Write a scene and it appears here, set the way it prints.",
+      page: "Page {{number}}",
+    },
     settings: {
       title: "Screenplay",
       format: "Script format",
@@ -1282,7 +1291,7 @@ const en = {
       locked: "Locked",
       formatNote:
         "A script is set in 12 pt Courier Prime on a 60 column page, so a page here is a page on paper. Your reading font and size never change it.",
-      layoutNote: "The page layout and page count show on the web for now. The phone edits plain lines.",
+      layoutNote: "Pages shows the script as it prints, with page numbers. The phone edits plain lines and the layout follows.",
       elementsNote: "Tap an element above the keyboard to set the line you are on.",
       tabOrder: "Tab steps through: {{elements}}.",
       returnNote:

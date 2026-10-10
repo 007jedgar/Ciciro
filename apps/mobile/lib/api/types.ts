@@ -37,6 +37,8 @@ export type ProjectRecord = {
 
 export type ProjectListItem = ProjectRecord & {
   _count: { chapters: number };
+  /** About how many pages a screenplay runs. Absent for other kinds, an empty script, and an older server. */
+  pages?: number;
 };
 
 export type Chapter = {
