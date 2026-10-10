@@ -460,12 +460,12 @@ a heading, `>` for a transition); a shot is written as an all-caps action line
 and read back as a shot. Fountain cannot say that a line of dialogue or a
 parenthetical has no cue above it, so one is written as an action line.
 
-The screenplay PDF sets English and Spanish. In a language script formatting
-does not support yet (Chinese and Hindi on the phone, or a script written in
-another alphabet), it is grayed out with an info button that says script
-formatting is only available in English and Spanish for now and that more
-languages are planned; Fountain still exports. On the phone the same applies to
-choosing Screenplay when you create a manuscript.
+The screenplay PDF sets English and Spanish. For a script written mostly in
+another alphabet, whatever the app's language, it is grayed out with an info
+button that says script formatting is only available in English and Spanish for
+now and that more languages are planned; Fountain still exports. On the phone,
+when the app is in Chinese or Hindi, the same applies to choosing Screenplay
+when you create a manuscript.
 
 On the web, the Export menu also notes how much of the words added since
 tracking began came from Ciciro, split into accepted suggestions and prose

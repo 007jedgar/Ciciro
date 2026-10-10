@@ -11,11 +11,11 @@ else stays in commit messages.
   apps, on the web and from the phone's Export card. Import a `.fountain` file
   as a new screenplay (one sequence for each `#` section, or one sequence), and
   paste Fountain text into a script on the web to have it sorted into elements.
-  Script formatting is only available in English and Spanish for now: in a
-  language it does not support yet (Chinese and Hindi on the phone) the
-  screenplay PDF and the Screenplay choice are grayed out with an info button
-  that says so, and support for more languages is planned. The web no longer
-  loads Courier Prime twice.
+  Script formatting is only available in English and Spanish for now: the
+  screenplay PDF of a script written in another alphabet, and the phone's
+  Screenplay choice when the app is in Chinese or Hindi, are grayed out with an
+  info button that says so, and support for more languages is planned. The web
+  no longer loads Courier Prime twice.
 
 - **Screenplays** are tidier to write. Typing `# `, `- `, `1. ` or `> ` at the
   start of a line no longer turns it into a heading, list or quote, and
