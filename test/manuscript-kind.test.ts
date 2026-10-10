@@ -53,7 +53,7 @@ describe("manuscript kind", () => {
     expect(cycleElement("character")).toBe("dialogue");
     expect(cycleElement("action", -1)).toBe("scene-heading");
     let el = cycleElement("action");
-    for (let i = 0; i < 5; i++) el = cycleElement(el);
+    for (let i = 0; i < 6; i++) el = cycleElement(el);
     expect(el).toBe("action");
     expect(nextElementOnEnter("character")).toBe("dialogue");
     expect(nextElementOnEnter("scene-heading")).toBe("action");
