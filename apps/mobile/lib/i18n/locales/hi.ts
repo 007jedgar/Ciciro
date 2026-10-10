@@ -1236,6 +1236,9 @@ const hi: Translations = {
     markdown: "Markdown",
     epub: "EPUB",
     pdf: "PDF",
+    fountain: "Fountain",
+    screenplayPdf: "पटकथा PDF",
+    screenplayMeta: "तैयार पटकथा को पटकथा-पन्नों वाली PDF, दूसरे लेखन ऐप्स के लिए Fountain फ़ाइल, ईबुक या Word फ़ाइल के रूप में साझा करें।",
   },
   kinds: {
     question: "आप क्या लिख रहे हैं?",
@@ -1268,6 +1271,11 @@ const hi: Translations = {
     shot: "शॉट",
     beta: "बीटा",
     betaInfo: "पटकथा फ़ॉर्मेट अभी बीटा में है। पेज लेआउट, पेज गिनती और एक्सपोर्ट पर अभी काम चल रहा है।",
+    languageInfo: {
+      label: "पटकथा फ़ॉर्मेट उपलब्ध क्यों नहीं है?",
+      title: "आपकी भाषा में अभी उपलब्ध नहीं",
+      body: "पटकथा फ़ॉर्मेट अभी केवल अंग्रेज़ी और स्पैनिश में उपलब्ध है। हम और भाषाओं के लिए समर्थन जोड़ने की योजना बना रहे हैं।",
+    },
     settings: {
       title: "पटकथा",
       format: "स्क्रिप्ट फ़ॉर्मेट",

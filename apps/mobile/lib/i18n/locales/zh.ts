@@ -1212,6 +1212,9 @@ const zh: Translations = {
     markdown: "Markdown",
     epub: "EPUB",
     pdf: "PDF",
+    fountain: "Fountain",
+    screenplayPdf: "剧本 PDF",
+    screenplayMeta: "将完成的剧本分享为剧本版式的 PDF、可用于其他写作应用的 Fountain 文件、电子书或 Word 文件。",
   },
   kinds: {
     question: "你在写什么？",
@@ -1244,6 +1247,11 @@ const zh: Translations = {
     shot: "镜头",
     beta: "测试版",
     betaInfo: "剧本格式目前处于测试阶段。页面排版、页数统计和导出仍在完善中。",
+    languageInfo: {
+      label: "为什么剧本格式不可用？",
+      title: "你的语言暂不支持",
+      body: "剧本格式目前仅支持英语和西班牙语，我们计划日后支持更多语言。",
+    },
     settings: {
       title: "剧本",
       format: "剧本格式",

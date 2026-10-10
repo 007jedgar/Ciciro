@@ -435,7 +435,7 @@ function ChaptersScreenContent() {
               </View>
             ) : null
           }
-          ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} /> : null}
+          ListFooterComponent={project ? <ExportCard projectId={projectId} flushEdits={flushEdits} kind={kind} /> : null}
           ListEmptyComponent={
             error && !project ? (
               <ScreenErrorState

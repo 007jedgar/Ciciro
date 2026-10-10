@@ -8,13 +8,18 @@ import { ExportIcon } from "./icons";
 import { useAppTheme } from "../lib/settings";
 import { fonts } from "../lib/theme";
 import {
-  EXPORT_FORMATS,
   ExportUnavailableError,
   ExportUnsyncedError,
+  exportFormatsFor,
   exportManuscript,
   type ExportFormat,
 } from "../lib/export";
+import { ApiError } from "../lib/api/client";
+import type { ManuscriptKind } from "../lib/manuscript-kind";
+import { useScriptLanguageSupported } from "../lib/script-language";
 import { AlertText } from "./AlertText";
+import { BetaBadge } from "./BetaBadge";
+import { ScriptLanguageInfo } from "./ScriptLanguageInfo";
 
 /** How long the finished tick shows before the share sheet opens. */
 const EXPORT_READY_MS = 400;
@@ -24,20 +29,32 @@ function ReadyTick({ color }: { color: string }) {
   return <DrawCheck progress={progress} color={color} size={16} />;
 }
 
-/** Export the manuscript as EPUB, PDF or Word through the share sheet. */
+/**
+ * Export the manuscript as EPUB, PDF or Word through the share sheet. A script
+ * also gets its own screenplay PDF and a Fountain file, both Beta; the PDF is
+ * grayed out, with an info button, in a language script formatting does not
+ * support yet.
+ */
 export function ExportCard({
   projectId,
   flushEdits,
+  kind = "novel",
 }: {
   projectId: string;
   flushEdits?: () => Promise<boolean>;
+  kind?: ManuscriptKind;
 }) {
   const { t } = useTranslation();
+  const screenplay = kind === "screenplay";
+  const scriptLanguage = useScriptLanguageSupported();
   const { layout, colors } = useAppTheme();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   // The format whose file is ready: its spinner becomes a tick for a beat before the share sheet opens.
   const [ready, setReady] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const formatLabel = (format: ExportFormat) =>
+    screenplay && format === "pdf" ? t("export.screenplayPdf") : t(`export.${format}`);
 
   async function run(format: ExportFormat) {
     if (busy) return;
@@ -58,7 +75,10 @@ export function ExportCard({
           ? t("export.unavailable")
           : err instanceof ExportUnsyncedError
             ? t("export.unsynced")
-            : t("export.error")
+            : // The server refuses a screenplay PDF for a script in a writing system Courier cannot set.
+              err instanceof ApiError && err.status === 422
+              ? t("screenplay.languageInfo.body")
+              : t("export.error")
       );
     } finally {
       setBusy(null);
@@ -70,22 +90,33 @@ export function ExportCard({
     <View style={[styles.card, { backgroundColor: colors.panel, borderColor: colors.line }]}>
       <Text style={[styles.title, { color: colors.ink }]}>{t("export.title")}</Text>
       <Text style={[styles.meta, { color: colors.inkSoft }]}>
-        {busy ? t("export.preparing", { format: t(`export.${busy}`) }) : t("export.meta")}
+        {busy
+          ? t("export.preparing", { format: formatLabel(busy) })
+          : screenplay
+            ? t("export.screenplayMeta")
+            : t("export.meta")}
       </Text>
       <View style={styles.row}>
-        {EXPORT_FORMATS.map((format) => {
-          const label = t(`export.${format}`);
+        {exportFormatsFor(kind).map((format) => {
+          const label = formatLabel(format);
+          const script = screenplay && (format === "pdf" || format === "fountain");
+          // Fountain is plain text in any language; only the PDF's Courier needs one it can set.
+          const unavailable = screenplay && format === "pdf" && !scriptLanguage;
           return (
             <PressableCard
               key={format}
-              disabled={busy !== null}
+              disabled={busy !== null || unavailable}
               onPress={() => void run(format)}
               accessibilityRole="button"
               accessibilityLabel={t("export.a11y", { format: label })}
-              accessibilityState={{ disabled: busy !== null, busy: busy === format }}
+              accessibilityState={{ disabled: busy !== null || unavailable, busy: busy === format }}
               style={[
                 styles.pill,
-                { borderColor: colors.ink, backgroundColor: "transparent", opacity: busy && busy !== format ? 0.5 : 1 },
+                {
+                  borderColor: colors.ink,
+                  backgroundColor: "transparent",
+                  opacity: unavailable || (busy && busy !== format) ? 0.5 : 1,
+                },
               ]}
             >
               {ready === format ? (
@@ -96,6 +127,8 @@ export function ExportCard({
                 <ExportIcon color={colors.ink} size={16} />
               )}
               <Text numberOfLines={1} style={[styles.pillText, { color: colors.ink }]}>{label}</Text>
+              {script ? <BetaBadge testID={`export-beta-${format}`} /> : null}
+              {unavailable ? <ScriptLanguageInfo testID="export-language-info" /> : null}
             </PressableCard>
           );
         })}

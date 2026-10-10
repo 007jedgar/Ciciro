@@ -3,6 +3,8 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MANUSCRIPT_KINDS, type ManuscriptKind } from "../../lib/manuscript-kind";
 import { BetaBadge } from "../../components/BetaBadge";
+import { ScriptLanguageInfo } from "../../components/ScriptLanguageInfo";
+import { useScriptLanguageSupported } from "../../lib/script-language";
 import { PressableCard } from "../../components/PressableCard";
 import { OnboardingFrame, Rise } from "../../components/onboarding/OnboardingFrame";
 import { useCarryLooks } from "../../components/onboarding/carry-looks";
@@ -17,6 +19,7 @@ export default function OnboardingGoalScreen() {
   const router = useRouter();
   const { backOr } = useStackBack();
   const { t } = useTranslation();
+  const scriptLanguage = useScriptLanguageSupported();
   const { layout } = useAppTheme();
   const carry = useCarry();
   const nodes = useCarryNodes();
@@ -54,26 +57,33 @@ export default function OnboardingGoalScreen() {
       leave={carry.fadeStyle}
     >
       <View accessibilityRole="radiogroup" style={{ gap: 10 }}>
-        {MANUSCRIPT_KINDS.map((option, i) => (
-          <Rise key={option} index={i + 1}>
-            <PressableCard
-              ref={nodes.cardRef(option)}
-              onPress={() => void choose(option)}
-              accessibilityRole="radio"
-              accessibilityLabel={t(`kinds.${option}.label`)}
-              accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
-              style={layout.card}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text ref={nodes.titleRef(option)} style={layout.cardTitle}>
-                  {t(`kinds.${option}.label`)}
-                </Text>
-                {option === "screenplay" ? <BetaBadge testID="goal-beta-badge" /> : null}
-              </View>
-              <Text style={layout.cardMeta}>{t(`kinds.${option}.description`)}</Text>
-            </PressableCard>
-          </Rise>
-        ))}
+        {MANUSCRIPT_KINDS.map((option, i) => {
+          // A script is set in Courier for English and Spanish; other languages are planned.
+          const unavailable = option === "screenplay" && !scriptLanguage;
+          return (
+            <Rise key={option} index={i + 1}>
+              <PressableCard
+                ref={nodes.cardRef(option)}
+                onPress={() => void choose(option)}
+                disabled={unavailable}
+                accessibilityRole="radio"
+                accessibilityState={{ disabled: unavailable }}
+                accessibilityLabel={t(`kinds.${option}.label`)}
+                accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
+                style={[layout.card, unavailable ? { opacity: 0.5 } : null]}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text ref={nodes.titleRef(option)} style={layout.cardTitle}>
+                    {t(`kinds.${option}.label`)}
+                  </Text>
+                  {option === "screenplay" ? <BetaBadge testID="goal-beta-badge" /> : null}
+                  {unavailable ? <ScriptLanguageInfo testID="goal-language-info" /> : null}
+                </View>
+                <Text style={layout.cardMeta}>{t(`kinds.${option}.description`)}</Text>
+              </PressableCard>
+            </Rise>
+          );
+        })}
       </View>
     </OnboardingFrame>
   );

@@ -3,6 +3,7 @@ import { NewManuscriptForm } from "../components/NewManuscriptForm";
 import { ApiError } from "../lib/api";
 import { createManuscript } from "../lib/manuscripts";
 import * as haptics from "../lib/haptics";
+import i18n from "../lib/i18n";
 
 jest.mock("../lib/manuscripts", () => ({
   createManuscript: jest.fn(),
@@ -105,5 +106,23 @@ describe("NewManuscriptForm", () => {
     fireEvent.press(screen.getByLabelText("Journal"));
     expect(screen.queryByLabelText("Genre")).toBeNull();
     expect(screen.getByLabelText("Create journal")).toBeTruthy();
+  });
+});
+
+describe("NewManuscriptForm in an unsupported language", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  it("grays out Screenplay with an info button in Hindi, and not in English or Spanish", async () => {
+    const view = render(<NewManuscriptForm onCreated={jest.fn()} />);
+    expect(screen.queryByTestId("kind-language-info")).toBeNull();
+    await i18n.changeLanguage("es");
+    view.rerender(<NewManuscriptForm onCreated={jest.fn()} />);
+    expect(screen.queryByTestId("kind-language-info")).toBeNull();
+    await i18n.changeLanguage("hi");
+    view.rerender(<NewManuscriptForm onCreated={jest.fn()} />);
+    expect(screen.getByTestId("kind-language-info")).toBeTruthy();
+    expect(screen.getAllByRole("radio").some((r) => r.props.accessibilityState?.disabled === true)).toBe(true);
   });
 });
