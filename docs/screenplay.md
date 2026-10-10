@@ -417,10 +417,11 @@ both carry; `ELEMENT_MARK` maps an element to its mark):
 | `He never called.` | dialogue: unmarked, directly under a cue or a parenthetical |
 | `>CUT TO:` | transition |
 | `^CLOSE ON THE KNIFE` | shot |
+| `>THE END<` | centered text |
 
 A blank line ends a speech. `markedLine(raw)` reads one line (a `.` needs a
 letter after it, so an ellipsis is not a scene heading; `> text <` is centered
-text and reads as action); `parseScriptLines(text, after?)` reads a whole reply.
+text); `parseScriptLines(text, after?)` reads a whole reply.
 
 **Strict mode.** Once any line in the reply carries a mark, an unmarked line
 inside a speech is dialogue or a parenthetical, never a guessed cue, and runs of
