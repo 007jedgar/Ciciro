@@ -7,7 +7,7 @@ import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { getAnalytics } from "@/lib/analytics-client";
 import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import { MOTION_MS, usePresence } from "@/lib/motion";
-import { DEFAULT_SCRIPT_SETTINGS, scriptHtmlSupported, scriptPdfSupported, type ScriptSettings } from "@/lib/screenplay";
+import { DEFAULT_SCRIPT_SETTINGS, scriptPdfSupported, type ScriptSettings } from "@/lib/screenplay";
 import { SCRIPT_LANGUAGE_NOTE } from "@/lib/screenplay-view";
 import { htmlWithoutSuggestions } from "@/lib/suggestions";
 import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
