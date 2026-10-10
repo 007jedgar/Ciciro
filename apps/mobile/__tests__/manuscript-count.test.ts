@@ -1,5 +1,5 @@
 import i18n from "../lib/i18n";
-import { manuscriptCountLabel, manuscriptMetaParts } from "../lib/manuscript-count";
+import { manuscriptCountLabel, manuscriptMetaParts, manuscriptPagesLabel } from "../lib/manuscript-count";
 
 const t = i18n.t.bind(i18n);
 
@@ -22,5 +22,17 @@ describe("manuscript count", () => {
       text: "Fantasy · 4 chapters",
     });
     expect(manuscriptMetaParts({ kind: "novel" }, t).text).toBe("Manuscript");
+  });
+
+  it("gives a screenplay's length in pages, and no other kind", () => {
+    expect(manuscriptPagesLabel(1, t)).toBe("about 1 page");
+    expect(manuscriptPagesLabel(97, t)).toBe("about 97 pages");
+    expect(manuscriptMetaParts({ kind: "screenplay", genre: "Heist", pages: 97, _count: { chapters: 4 } }, t)).toEqual({
+      kindLabel: "Screenplay",
+      text: "Heist · 4 sequences · about 97 pages",
+    });
+    // A script with nothing typed has no pages to speak of, and a novel never shows them.
+    expect(manuscriptMetaParts({ kind: "screenplay", _count: { chapters: 1 } }, t).text).toBe("1 sequence");
+    expect(manuscriptMetaParts({ kind: "novel", pages: 12, _count: { chapters: 2 } }, t).text).toBe("2 chapters");
   });
 });

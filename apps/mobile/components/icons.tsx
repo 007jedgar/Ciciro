@@ -632,6 +632,24 @@ export function OutlineIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** A sheet with a folded corner and two lines of script: the page view. */
+export function PageIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M6.5 3.5 H14 L18.5 8 V20.5 H6.5 Z"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      <Path d="M14 3.5 V8 H18.5" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Line x1="9.5" y1="13" x2="15.5" y2="13" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="9.5" y1="16.5" x2="13.5" y2="16.5" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** A stopwatch: the writing sprint. */
 export function TimerIcon({ color, size = 24 }: IconProps) {
   return (

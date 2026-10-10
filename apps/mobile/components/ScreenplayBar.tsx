@@ -26,7 +26,8 @@ export const ELEMENT_LABEL_KEYS: Record<ScreenplayElement, string> = {
 
 /**
  * The phone's Tab key: pick the screenplay element of the block under the
- * caret, or step to the next one. Return starts the element that follows.
+ * caret, or step to the next one. Return starts the element that follows. It
+ * sits just above the keyboard, where the thumb is.
  */
 export function ScreenplayBar({
   element,
@@ -57,7 +58,7 @@ export function ScreenplayBar({
       style={[
         styles.row,
         {
-          borderBottomColor: colors.line,
+          borderTopColor: colors.line,
           backgroundColor: alpha(colors.bg, 0.92),
         },
       ]}
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingLeft: 12,
     paddingRight: 4,
     minHeight: 44,

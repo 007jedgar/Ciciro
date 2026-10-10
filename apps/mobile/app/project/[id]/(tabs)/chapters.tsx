@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, RefreshControl, Text, View } from "react-native";
 import Animated, { FadeIn, LinearTransition, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,6 +16,7 @@ import {
   ImportIcon,
   InfoIcon,
   OutlineIcon,
+  PageIcon,
   PencilIcon,
   SearchIcon,
   TimerIcon,
@@ -53,6 +54,8 @@ import { scratchListHref } from "../../../../lib/scratch";
 import { betaReadersHref } from "../../../../lib/shares";
 import { openTodayEntry } from "../../../../lib/journal";
 import { normalizeKind } from "../../../../lib/manuscript-kind";
+import { manuscriptPagesLabel } from "../../../../lib/manuscript-count";
+import { scriptPageCount } from "../../../../lib/script-pages";
 import { weeklyReviewHref } from "../../../../lib/weekly-review";
 import { useAppTheme } from "../../../../lib/settings";
 import {
@@ -145,6 +148,17 @@ function ChaptersScreenContent() {
     chapters.filter((c) => seenIds.current !== null && !seenIds.current.has(c.id)).map((c) => c.id)
   );
   const freshKey = [...freshIds].join(",");
+
+  // About how many pages a screenplay runs, from the sequences as they are now. The
+  // revision stands for the content, so typing in another tab moves the count without
+  // hashing every sequence on each render.
+  const scriptKind = normalizeKind(project?.kind) === "screenplay";
+  const pagesKey = chapters.map((c) => `${c.id}:${c.revision}`).join(",");
+  const pages = useMemo(
+    () => (scriptKind ? scriptPageCount(chapters.map((c) => c.content)) : 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scriptKind, pagesKey]
+  );
 
   useEffect(() => {
     if (!freshKey || !seenIds.current) return;
@@ -265,6 +279,16 @@ function ChaptersScreenContent() {
       icon: <OutlineIcon color={colors.accent} />,
       onPress: () => router.push(outlineHref(projectId) as never),
     },
+    ...(kind === "screenplay"
+      ? [
+          {
+            key: "pages",
+            label: t("screenplay.pageView.title"),
+            icon: <PageIcon color={colors.accent} />,
+            onPress: () => router.push(`/project/${projectId}/pages` as never),
+          },
+        ]
+      : []),
     {
       key: "search",
       label: t("search.title"),
@@ -428,9 +452,13 @@ function ChaptersScreenContent() {
                 />
                 <Kicker
                   label={t("chapters.kicker")}
-                  count={`${t("chapters.entries", { count: chapters.length })} / ${t("chapters.wordCount", {
-                    count: chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0),
-                  })}`}
+                  count={[
+                    t("chapters.entries", { count: chapters.length }),
+                    t("chapters.wordCount", { count: chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0) }),
+                    pages > 0 ? manuscriptPagesLabel(pages, t) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" / ")}
                 />
               </View>
             ) : null

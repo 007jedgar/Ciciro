@@ -228,6 +228,34 @@ describe("CiciroChat", () => {
     unmount();
   });
 
+  it("sets a screenplay draft as a script and inserts the marked lines as sent", () => {
+    const script: ChatMessage = {
+      ...assistant,
+      content: "A pass.\n<draft>.INT. LAB - NIGHT\n\n@MARA\n(low)\nStay quiet.</draft>",
+    };
+    const onInsertDraft = jest.fn();
+    const { unmount } = render(
+      wrap(<CiciroChat {...idle} screenplay messages={[script]} composer="" onInsertDraft={onInsertDraft} />)
+    );
+    // The card shows the pages, not the marks.
+    expect(screen.getByTestId("script-draft")).toBeTruthy();
+    expect(screen.getByText("INT. LAB - NIGHT")).toBeTruthy();
+    expect(screen.getByText("MARA")).toBeTruthy();
+    expect(screen.getByText("(low)")).toBeTruthy();
+    expect(screen.queryByText(/@MARA/)).toBeNull();
+    // The editor reads the marks back, so what goes in is the draft as written.
+    fireEvent.press(screen.getByLabelText("Insert into manuscript"));
+    expect(onInsertDraft).toHaveBeenCalledWith(".INT. LAB - NIGHT\n\n@MARA\n(low)\nStay quiet.", "t1", 1);
+    unmount();
+  });
+
+  it("leaves a draft in any other kind as plain prose", () => {
+    const { unmount } = render(wrap(<CiciroChat {...idle} messages={[assistant]} composer="" />));
+    expect(screen.queryByTestId("script-draft")).toBeNull();
+    expect(screen.getByText("The night was long.")).toBeTruthy();
+    unmount();
+  });
+
   it("swaps send for stop while a reply is streaming, and keeps typing alive", () => {
     const onStop = jest.fn();
     const onComposerChange = jest.fn();
