@@ -8,12 +8,13 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   useEmailPreferencesQuery,
   useModelsQuery,
   usePatchEmailPreferencesMutation,
   usePatchPushPreferencesMutation,
+  useProjectQuery,
   usePushPreferencesQuery,
 } from "../lib/api/hooks";
 import type { EmailTopic, Entitlement, ModelRole, PushCategory } from "../lib/api/types";
@@ -50,9 +51,12 @@ import {
 import { billingPreview, openStoreSubscriptions, restoreStorePurchases, storePurchasesAvailable } from "../lib/purchases";
 import { getAnalytics } from "../lib/analytics-client";
 import * as haptics from "../lib/haptics";
+import { cycleElement, hasKindSettings, normalizeKind, type ManuscriptKind, type ScreenplayElement } from "../lib/manuscript-kind";
 import { THEME_META, fonts, type ColorTokens } from "../lib/theme";
 import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
+import { BetaBadge } from "../components/BetaBadge";
+import { ELEMENT_LABEL_KEYS } from "../components/ScreenplayBar";
 import { SelectCheck, SelectChip, SelectLabel } from "../components/SelectChip";
 import { TapPressable } from "../components/TapPressable";
 
@@ -310,15 +314,24 @@ function OptionRow({
   );
 }
 
-function SectionHeader({ label, colors }: { label: string; colors: ColorTokens }) {
+function SectionHeader({
+  label,
+  colors,
+  trailing,
+}: {
+  label: string;
+  colors: ColorTokens;
+  /** Sits right after the label, such as a Beta badge. */
+  trailing?: ReactNode;
+}) {
   const reduceMotion = useReduceMotion();
-  return (
+  const text = (
     <Animated.Text
       layout={reduceMotion ? undefined : LinearTransition.duration(200)}
       accessibilityRole="header"
       style={{
-        marginHorizontal: 16,
-        marginBottom: 8,
+        marginHorizontal: trailing ? 0 : 16,
+        marginBottom: trailing ? 0 : 8,
         fontSize: 12,
         fontWeight: "600",
         letterSpacing: 0.6,
@@ -328,6 +341,13 @@ function SectionHeader({ label, colors }: { label: string; colors: ColorTokens }
     >
       {label}
     </Animated.Text>
+  );
+  if (!trailing) return text;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginBottom: 8 }}>
+      {text}
+      {trailing}
+    </View>
   );
 }
 
@@ -376,6 +396,73 @@ function ActionRow({
         ) : null}
       </TapPressable>
       {last ? null : <Hairline colors={colors} />}
+    </>
+  );
+}
+
+function SettingsNote({ text, colors }: { text: string; colors: ColorTokens }) {
+  return <Text style={{ fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{text}</Text>;
+}
+
+/** Tab walks the elements in this order, starting from action. */
+function tabOrder(): ScreenplayElement[] {
+  const order: ScreenplayElement[] = [];
+  let el: ScreenplayElement = "action";
+  do {
+    order.push(el);
+    el = cycleElement(el);
+  } while (el !== "action");
+  return order;
+}
+
+/**
+ * The settings of the manuscript that is open, for its kind: shown at the top
+ * of Settings only when it was opened from inside one, and only for a kind that
+ * has some. A new kind-specific setting is a new row in that kind's group.
+ */
+function KindSettingsGroup({ kind, colors }: { kind: ManuscriptKind; colors: ColorTokens }) {
+  if (!hasKindSettings(kind)) return null;
+  switch (kind) {
+    case "screenplay":
+      return <ScreenplaySettingsGroup colors={colors} />;
+    default:
+      return null;
+  }
+}
+
+function ScreenplaySettingsGroup({ colors }: { colors: ColorTokens }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <SectionHeader label={t("screenplay.settings.title")} colors={colors} trailing={<BetaBadge testID="settings-beta-badge" />} />
+      <Group colors={colors}>
+        <InfoRow
+          label={t("screenplay.settings.format")}
+          value={t("screenplay.settings.formatValue")}
+          detail={t("screenplay.settings.locked")}
+          colors={colors}
+          last
+        />
+        <Hairline colors={colors} />
+        <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
+          <SettingsNote text={t("screenplay.settings.formatNote")} colors={colors} />
+          <SettingsNote text={t("screenplay.settings.layoutNote")} colors={colors} />
+        </View>
+        <Hairline colors={colors} />
+        <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
+          <SettingsNote text={t("screenplay.settings.elementsNote")} colors={colors} />
+          <SettingsNote
+            text={t("screenplay.settings.tabOrder", {
+              elements: tabOrder()
+                .map((el) => t(ELEMENT_LABEL_KEYS[el]))
+                .join(", "),
+            })}
+            colors={colors}
+          />
+          <SettingsNote text={t("screenplay.settings.returnNote")} colors={colors} />
+        </View>
+        {/* Later: the (MORE) and (CONT'D) switches, scene numbers and the title page join this group. */}
+      </Group>
     </>
   );
 }
@@ -675,6 +762,11 @@ export default function SettingsScreen() {
   const reduceMotion = useReduceMotion();
   const { data: models } = useModelsQuery({ enabled: Boolean(user) });
   const { data: entitlement } = useEntitlement(Boolean(user));
+  // Opened from inside a manuscript (its writing tools), Settings carries that
+  // manuscript's id so its kind's own settings can show at the top.
+  const { project: projectId } = useLocalSearchParams<{ project?: string }>();
+  const { data: openProject } = useProjectQuery(projectId ?? "", { enabled: Boolean(user && projectId) });
+  const openKind = projectId && openProject ? normalizeKind(openProject.kind) : null;
   const focusMode = useFocusMode();
   const hapticsEnabled = haptics.useHapticsEnabled();
   const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
@@ -750,6 +842,8 @@ export default function SettingsScreen() {
         scrollIndicatorInsets={{ top: headerHeight }}
       >
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
+
+        {openKind ? <KindSettingsGroup kind={openKind} colors={colors} /> : null}
 
         <SectionHeader label={t("settings.sectionAppearance")} colors={colors} />
         <Group colors={colors}>

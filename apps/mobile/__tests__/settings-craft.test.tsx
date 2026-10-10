@@ -20,6 +20,7 @@ jest.mock("expo-blur", () => {
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
   Redirect: () => null,
+  useLocalSearchParams: () => ({}),
   useFocusEffect: () => {},
 }));
 
@@ -50,6 +51,7 @@ jest.mock("../lib/writing-reminder-store", () => ({
 }));
 
 jest.mock("../lib/api/hooks", () => ({
+  useProjectQuery: () => ({ data: undefined }),
   useModelsQuery: () => ({ data: undefined }),
   useEntitlementQuery: () => ({ data: undefined }),
   useEmailPreferencesQuery: () => ({ data: undefined }),

@@ -1264,6 +1264,22 @@ const en = {
     dialogue: "Dialogue",
     parenthetical: "Parenthetical",
     transition: "Transition",
+    shot: "Shot",
+    beta: "Beta",
+    betaInfo: "Screenplay formatting is in beta. The page layout, page count and exports are still being refined.",
+    settings: {
+      title: "Screenplay",
+      format: "Script format",
+      formatValue: "Courier Prime 12 pt",
+      locked: "Locked",
+      formatNote:
+        "A script is set in 12 pt Courier Prime on a 60 column page, so a page here is a page on paper. Your reading font and size never change it.",
+      layoutNote: "The page layout and page count show on the web for now. The phone edits plain lines.",
+      elementsNote: "Tap an element above the keyboard to set the line you are on.",
+      tabOrder: "Tab steps through: {{elements}}.",
+      returnNote:
+        "Return starts what usually follows: action after a scene heading, dialogue after a character, a scene heading after a transition.",
+    },
   },
   manuscriptTabBar: {
     open: "Writing tools",

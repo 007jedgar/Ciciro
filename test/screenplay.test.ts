@@ -25,8 +25,7 @@ import {
   scriptBlocksFromHtml,
   sequenceCursors,
   shortcutDigit,
-  supportsScreenplay,
-  tagOfHtml,
+  elementTagOfHtml,
   typeset,
   withElement,
   wrapText,
@@ -52,10 +51,10 @@ describe("screenplay elements", () => {
     expect(knownElement("shot")).toBe("shot");
 
     const html = '<p data-block-id="b1" data-sp="centered">THE END</p>';
-    expect(tagOfHtml(html)).toBe("centered");
+    expect(elementTagOfHtml(html)).toBe("centered");
     expect(elementOfHtml(html)).toBe("action");
     // Restamping a block (what both clients do on every edit) must not strip it.
-    expect(withElement(html, tagOfHtml(html))).toBe(html);
+    expect(withElement(html, elementTagOfHtml(html))).toBe(html);
     expect(withElement(html, "dialogue")).toBe('<p data-block-id="b1" data-sp="dialogue">THE END</p>');
     expect(withElement(html, "action")).toBe('<p data-block-id="b1">THE END</p>');
   });
@@ -91,15 +90,6 @@ describe("screenplay elements", () => {
     expect(elementForShortcutDigit(8)).toBeNull();
     expect(elementForShortcutDigit("6")).toBe("shot");
     expect(elementForShortcutDigit("x")).toBeNull();
-  });
-
-  it("supports script writing in English and Spanish only", () => {
-    expect(supportsScreenplay("en")).toBe(true);
-    expect(supportsScreenplay("es-MX")).toBe(true);
-    expect(supportsScreenplay("en_US")).toBe(true);
-    expect(supportsScreenplay(undefined)).toBe(true);
-    expect(supportsScreenplay("zh")).toBe(false);
-    expect(supportsScreenplay("hi")).toBe(false);
   });
 });
 

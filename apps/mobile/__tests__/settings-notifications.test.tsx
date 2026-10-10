@@ -22,6 +22,7 @@ jest.mock("expo-blur", () => {
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
   Redirect: () => null,
+  useLocalSearchParams: () => ({}),
   useFocusEffect: () => {},
 }));
 
@@ -55,6 +56,7 @@ const mockPatchMutate = jest.fn();
 let mockPrefs: Record<string, boolean> | undefined = { shareComments: true, writingNudge: true, chatFinished: false };
 
 jest.mock("../lib/api/hooks", () => ({
+  useProjectQuery: () => ({ data: undefined }),
   useModelsQuery: () => ({ data: undefined }),
   useEntitlementQuery: () => ({ data: undefined }),
   useEmailPreferencesQuery: () => ({ data: undefined }),

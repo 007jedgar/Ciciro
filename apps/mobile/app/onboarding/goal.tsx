@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MANUSCRIPT_KINDS, type ManuscriptKind } from "../../lib/manuscript-kind";
+import { BetaBadge } from "../../components/BetaBadge";
 import { PressableCard } from "../../components/PressableCard";
 import { OnboardingFrame, Rise } from "../../components/onboarding/OnboardingFrame";
 import { useCarryLooks } from "../../components/onboarding/carry-looks";
@@ -60,11 +61,15 @@ export default function OnboardingGoalScreen() {
               onPress={() => void choose(option)}
               accessibilityRole="radio"
               accessibilityLabel={t(`kinds.${option}.label`)}
+              accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
               style={layout.card}
             >
-              <Text ref={nodes.titleRef(option)} style={layout.cardTitle}>
-                {t(`kinds.${option}.label`)}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text ref={nodes.titleRef(option)} style={layout.cardTitle}>
+                  {t(`kinds.${option}.label`)}
+                </Text>
+                {option === "screenplay" ? <BetaBadge testID="goal-beta-badge" /> : null}
+              </View>
               <Text style={layout.cardMeta}>{t(`kinds.${option}.description`)}</Text>
             </PressableCard>
           </Rise>

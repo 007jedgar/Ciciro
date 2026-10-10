@@ -134,14 +134,14 @@ function openingTag(html: string): string {
 }
 
 /** Read the element tag off a block's opening tag, unknown tags kept. */
-export function tagOfHtml(html: string): string {
+export function elementTagOfHtml(html: string): string {
   const m = openingTag(html).match(/\bdata-sp\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
   return elementTag(m?.[1] ?? m?.[2] ?? m?.[3]);
 }
 
 /** Read the element off a block's opening tag. An element this build does not know reads as action. */
 export function elementOfHtml(html: string): ScreenplayElement {
-  return normalizeElement(tagOfHtml(html));
+  return normalizeElement(elementTagOfHtml(html));
 }
 
 /**
@@ -154,21 +154,6 @@ export function withElement(html: string, element: string): string {
     const bare = attrs.replace(/\s*\bdata-sp\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i, "");
     return tag === "action" ? `<${name}${bare}>` : `<${name}${bare} ${SCREENPLAY_ATTR}="${tag}">`;
   });
-}
-
-// --- Languages ---------------------------------------------------------------
-
-/**
- * The languages script writing is built for. The page is Courier, which covers
- * English and Spanish; the rest wait on fonts and layout for their scripts, so
- * the pickers gray the option out for them and say so.
- */
-export const SCREENPLAY_LANGUAGES = ["en", "es"] as const;
-
-/** Whether script writing is available in this language ("es", "es-MX", "en_US"). */
-export function supportsScreenplay(locale: string | null | undefined): boolean {
-  const code = (locale ?? "en").split(/[-_]/)[0].toLowerCase();
-  return (SCREENPLAY_LANGUAGES as readonly string[]).includes(code);
 }
 
 // --- The page ----------------------------------------------------------------
@@ -623,7 +608,7 @@ export function scriptBlocksFromHtml(html: string): ScriptBlock[] {
   while ((m = BLOCK_RE.exec(html))) {
     const inner = m[3].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "");
     out.push({
-      element: m[1].toLowerCase() === "p" ? tagOfHtml(m[0]) : "action",
+      element: m[1].toLowerCase() === "p" ? elementTagOfHtml(m[0]) : "action",
       text: decodeEntities(inner),
     });
   }

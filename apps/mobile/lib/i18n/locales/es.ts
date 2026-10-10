@@ -1266,6 +1266,22 @@ const es: Translations = {
     dialogue: "Diálogo",
     parenthetical: "Acotación",
     transition: "Transición",
+    shot: "Plano",
+    beta: "Beta",
+    betaInfo: "El formato de guion está en beta. El diseño de página, el recuento de páginas y las exportaciones aún se están puliendo.",
+    settings: {
+      title: "Guion",
+      format: "Formato del guion",
+      formatValue: "Courier Prime 12 pt",
+      locked: "Bloqueado",
+      formatNote:
+        "Un guion se compone en Courier Prime de 12 pt sobre una página de 60 columnas, así que una página aquí es una página en papel. Tu fuente y tamaño de lectura nunca lo cambian.",
+      layoutNote: "El diseño de página y el recuento de páginas se ven por ahora en la web. El teléfono edita líneas simples.",
+      elementsNote: "Toca un elemento sobre el teclado para fijar la línea en la que estás.",
+      tabOrder: "Tab recorre: {{elements}}.",
+      returnNote:
+        "Retorno empieza lo que suele seguir: acción tras un encabezado de escena, diálogo tras un personaje, un encabezado de escena tras una transición.",
+    },
   },
   manuscriptTabBar: {
     open: "Herramientas de escritura",

@@ -8,7 +8,7 @@ import {
 } from "./manuscript";
 import { carrySuggestions, suggestionsAsDisplayMarks } from "./suggestions";
 
-import { elementOfHtml, isProofread, nextElementOnEnter, withElement } from "./manuscript-kind";
+import { elementOfHtml, elementTagOfHtml, isProofread, nextElementOnEnter, normalizeElement, withElement } from "./manuscript-kind";
 
 export const SCENE_BREAK_TEXT = "***";
 
@@ -238,16 +238,18 @@ export function restampCiciroHtml(
   if (nextBlocks.length === 0) return previous;
   const ids = assignIds(oldBlocks, nextBlocks);
   const oldById = new Map(oldBlocks.map((block) => [block.id, block]));
-  let above: ReturnType<typeof elementOfHtml> = "action";
+  let above = normalizeElement("action");
   return nextBlocks
     .map((block, index) => {
       const old = oldById.get(ids[index]);
-      const element = old
-        ? elementOfHtml(old.html)
+      // The tag, not the element: one a newer client wrote and this build cannot
+      // lay out is carried over as it is, never collapsed to action.
+      const element: string = old
+        ? elementTagOfHtml(old.html)
         : opts.screenplay && index > 0
           ? nextElementOnEnter(above)
           : "action";
-      above = element;
+      above = normalizeElement(element);
       return withElement(stampId(stripBlockIds(block.html), ids[index]), element);
     })
     .join("");

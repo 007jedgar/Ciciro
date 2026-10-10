@@ -283,7 +283,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
       tone: "tool",
       run: openReminder,
     },
-    { key: "settings", Icon: SlidersIcon, labelKey: "manuscriptTabBar.settings", tone: "tool", run: () => router.push("/settings") },
+    { key: "settings", Icon: SlidersIcon, labelKey: "manuscriptTabBar.settings", tone: "tool", run: () => router.push({ pathname: "/settings", params: { project: projectId } } as never) },
   ];
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: interpolate(progress.value, [0, 1], [0, 0.45]) }));

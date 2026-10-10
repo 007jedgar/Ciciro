@@ -58,6 +58,13 @@ describe("NewManuscriptForm", () => {
     expect(screen.getByLabelText("Create manuscript")).toHaveTextContent("Create manuscript");
   });
 
+  it("marks only the screenplay option Beta", () => {
+    render(<NewManuscriptForm defaultAuthor="Ada" onCreated={jest.fn()} />);
+    expect(screen.getAllByTestId("kind-beta-badge")).toHaveLength(1);
+    expect(screen.getByLabelText("Screenplay").props.accessibilityHint).toContain("beta");
+    expect(screen.getByLabelText("Novel").props.accessibilityHint).toBeUndefined();
+  });
+
   it("creates a screenplay, and a blog post with a subtitle", async () => {
     createManuscriptMock.mockResolvedValue({ id: "p2" } as never);
     const onCreated = jest.fn();

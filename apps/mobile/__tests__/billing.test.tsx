@@ -37,6 +37,7 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn() }),
   router: { push: (...args: unknown[]) => mockPush(...args) },
   Redirect: () => null,
+  useLocalSearchParams: () => ({}),
   useFocusEffect: () => {},
 }));
 jest.mock("../lib/use-stack-back", () => ({ useStackBack: () => ({ backOr: jest.fn() }) }));
@@ -59,6 +60,7 @@ jest.mock("../lib/use-export-account-data", () => ({
   useExportAccountData: () => ({ busy: false, run: jest.fn() }),
 }));
 jest.mock("../lib/api/hooks", () => ({
+  useProjectQuery: () => ({ data: undefined }),
   useModelsQuery: () => ({ data: undefined }),
   useEntitlementQuery: (...args: unknown[]) => mockEntitlementQuery(...args),
   useEmailPreferencesQuery: () => ({ data: undefined }),

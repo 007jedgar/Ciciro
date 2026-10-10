@@ -100,7 +100,7 @@ export {
   knownElement,
   nextElementOnEnter,
   normalizeElement,
-  tagOfHtml,
+  elementTagOfHtml,
   withElement,
   type ScreenplayElement,
 } from "./screenplay";

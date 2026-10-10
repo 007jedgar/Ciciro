@@ -170,6 +170,23 @@ describe("enriched html adapter", () => {
       ]);
     });
 
+    it("keeps an element a newer client wrote, and sets Shot like any other", () => {
+      const newer =
+        '<p data-block-id="a" data-sp="centered">THE END</p><p data-block-id="b" data-sp="shot">WIDE ON THE CITY</p>';
+      expect(toEnrichedHtml(newer)).toBe("<p>THE END</p><p>WIDE ON THE CITY</p>");
+      const stamped = restampCiciroHtml(newer, "<p>THE END.</p><p>WIDE ON THE CITY</p>", { screenplay: true });
+      expect(stamped).toBe(
+        '<p data-block-id="a" data-sp="centered">THE END.</p><p data-block-id="b" data-sp="shot">WIDE ON THE CITY</p>'
+      );
+      // A new line under a shot is action, as on the web.
+      const afterShot = restampCiciroHtml(
+        '<p data-block-id="b" data-sp="shot">WIDE ON THE CITY</p>',
+        "<p>WIDE ON THE CITY</p><p></p>",
+        { screenplay: true }
+      );
+      expect(afterShot).toBe('<p data-block-id="b" data-sp="shot">WIDE ON THE CITY</p><p data-block-id="' + htmlToDoc(afterShot, 0).doc.blocks[1].id + '"></p>');
+    });
+
     it("does not invent elements in a novel", () => {
       const stamped = restampCiciroHtml('<p data-block-id="a">One.</p>', "<p>One.</p><p></p>");
       expect(stamped).not.toContain("data-sp");
