@@ -53,7 +53,7 @@ describe("manuscript kind", () => {
     expect(cycleElement("character")).toBe("dialogue");
     expect(cycleElement("action", -1)).toBe("scene-heading");
     let el = cycleElement("action");
-    for (let i = 0; i < 5; i++) el = cycleElement(el);
+    for (let i = 0; i < 6; i++) el = cycleElement(el);
     expect(el).toBe("action");
     expect(nextElementOnEnter("character")).toBe("dialogue");
     expect(nextElementOnEnter("scene-heading")).toBe("action");
@@ -106,6 +106,23 @@ describe("manuscript kind", () => {
     expect(classifyScreenplayLines("She leaves.", "dialogue").map((l) => l.element)).toEqual(["action"]);
   });
 
+  it("reads a camera direction as a shot, not a character cue", () => {
+    const lines = classifyScreenplayLines(
+      "CLOSE ON THE KNIFE\n\nANGLE ON MARA\n\nMARA'S POV\n\nINSERT - THE LETTER\n\nWIDE ON THE HARBOUR\n\nMARA\nPOV of a liar.\n\nClose on her hands."
+    );
+    expect(lines.map((l) => [l.element, l.text])).toEqual([
+      ["shot", "CLOSE ON THE KNIFE"],
+      ["shot", "ANGLE ON MARA"],
+      ["shot", "MARA'S POV"],
+      ["shot", "INSERT - THE LETTER"],
+      ["shot", "WIDE ON THE HARBOUR"],
+      ["character", "MARA"],
+      ["dialogue", "POV of a liar."],
+      ["action", "Close on her hands."],
+    ]);
+    expect(classifyScreenplayLines("MARA\nCLOSE ON ME!").map((l) => l.element)).toEqual(["character", "dialogue"]);
+  });
+
   it("gives the assistant kind-specific prompts and actions", () => {
     expect(kindDirective("novel")).toBe("");
     expect(editorSystemFor("novel", "", { craft: false })[0].text).toBe(EDITOR_SYSTEM);
@@ -138,15 +155,16 @@ describe("manuscript kind", () => {
       "INT. LAB - DAY\n\nMARA\nWhere is he?\n\nCUT TO:",
       "BOOM.\nShe flinches and ducks.",
       "MARA (CONT'D)\n(whispering)\nHe left.\nJONAH\nWhat?",
+      "CLOSE ON the door.\nANGLE ON MARA\nMARA\nCLOSE ON ME!",
     ];
     for (const script of scripts) {
       for (const after of [undefined, "character", "dialogue"] as const) {
         expect(mobileKind.classifyScreenplayLines(script, after)).toEqual(classifyScreenplayLines(script, after));
       }
     }
-    for (const el of ["scene-heading", "action", "character", "dialogue", "parenthetical", "transition"] as const) {
+    for (const el of ["scene-heading", "action", "character", "dialogue", "parenthetical", "transition", "shot"] as const) {
       expect(mobileKind.isProofread(el)).toBe(isProofread(el));
-      expect(mobileKind.replacementContext(el)).toBe(replacementContext(el));
+      expect(mobileKind.replacementContext(el)).toEqual(replacementContext(el));
     }
   });
 
@@ -154,6 +172,7 @@ describe("manuscript kind", () => {
     expect(isProofread("scene-heading")).toBe(false);
     expect(isProofread("character")).toBe(false);
     expect(isProofread("transition")).toBe(false);
+    expect(isProofread("shot")).toBe(false);
     expect(isProofread("action")).toBe(true);
     expect(isProofread("dialogue")).toBe(true);
     expect(isProofread("parenthetical")).toBe(true);

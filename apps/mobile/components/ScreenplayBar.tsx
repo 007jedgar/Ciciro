@@ -9,16 +9,19 @@ import {
   cycleElement,
   type ScreenplayElement,
 } from "../lib/manuscript-kind";
+import { BetaBadge } from "./BetaBadge";
 import { SelectChip, SelectLabel } from "./SelectChip";
 import { TapPressable } from "./TapPressable";
 
-const LABEL_KEYS: Record<ScreenplayElement, string> = {
+/** The i18n key of each element's label. */
+export const ELEMENT_LABEL_KEYS: Record<ScreenplayElement, string> = {
   "scene-heading": "screenplay.sceneHeading",
   action: "screenplay.action",
   character: "screenplay.character",
   dialogue: "screenplay.dialogue",
   parenthetical: "screenplay.parenthetical",
   transition: "screenplay.transition",
+  shot: "screenplay.shot",
 };
 
 /**
@@ -31,7 +34,8 @@ export function ScreenplayBar({
   onSetElement,
   testID = "screenplay-bar",
 }: {
-  element: ScreenplayElement;
+  /** The element of the line under the caret; null for one this build does not know. */
+  element: ScreenplayElement | null;
   disabled?: boolean;
   onSetElement: (element: ScreenplayElement) => void;
   testID?: string;
@@ -58,6 +62,7 @@ export function ScreenplayBar({
         },
       ]}
     >
+      <BetaBadge />
       <View style={styles.scroller}>
         <ScrollView
           horizontal
@@ -80,7 +85,7 @@ export function ScreenplayBar({
                   activeText: colors.bg,
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={t(LABEL_KEYS[el])}
+                accessibilityLabel={t(ELEMENT_LABEL_KEYS[el])}
                 accessibilityState={{ selected: active, disabled }}
                 disabled={disabled}
                 onPress={() => press(el)}
@@ -88,7 +93,7 @@ export function ScreenplayBar({
                 surfaceStyle={styles.chip}
               >
                 <SelectLabel style={{ fontFamily: fonts.sans, fontSize: 13, fontWeight: "600" }}>
-                  {t(LABEL_KEYS[el])}
+                  {t(ELEMENT_LABEL_KEYS[el])}
                 </SelectLabel>
               </SelectChip>
             );
@@ -108,7 +113,7 @@ export function ScreenplayBar({
         accessibilityRole="button"
         accessibilityLabel={t("screenplay.next")}
         disabled={disabled}
-        onPress={() => press(cycleElement(element))}
+        onPress={() => press(cycleElement(element ?? "action"))}
         style={[
           styles.next,
           { opacity: disabled ? 0.4 : 1 },
@@ -138,7 +143,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
     minHeight: 44,
   },
-  scroller: { flex: 1, alignSelf: "stretch", justifyContent: "center" },
+  scroller: { flex: 1, alignSelf: "stretch", justifyContent: "center", marginLeft: 8 },
   fade: { position: "absolute", top: 0, bottom: 0, right: 0, width: 28 },
   chips: { alignItems: "center", gap: 4, paddingVertical: 4 },
   chip: {

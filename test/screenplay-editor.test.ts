@@ -3,7 +3,9 @@
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { BlockId } from "@/lib/tiptap-block-id";
-import { Screenplay, currentElement, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
+import { Screenplay, currentElement, currentTag, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
+import { ScreenplayPages, refreshPageMarkers } from "@/lib/tiptap-screenplay-pages";
+import { elementForShortcutDigit, type PageCursor } from "@/lib/screenplay";
 
 let editor: Editor | null = null;
 
@@ -38,6 +40,20 @@ function lines(ed: Editor): [string | null, string][] {
   const out: [string | null, string][] = [];
   ed.state.doc.forEach((node) => out.push([node.attrs.screenplay ?? null, node.textContent]));
   return out;
+}
+
+/** Alt+Shift+digit as a US keyboard sends it: the shifted character, with the digit's key code. */
+function pressChoose(ed: Editor, digit: number) {
+  const shifted = ")!@#$%^&*(".charAt(digit);
+  const event = new KeyboardEvent("keydown", {
+    key: shifted,
+    keyCode: 48 + digit,
+    shiftKey: true,
+    altKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  return ed.view.someProp("handleKeyDown", (f) => f(ed.view, event)) === true;
 }
 
 function elements(ed: Editor): (string | null)[] {
@@ -266,5 +282,108 @@ describe("screenplay editor", () => {
     const flags = Array.from(ed.view.dom.children).map((el) => el.getAttribute("spellcheck"));
     expect(flags).toEqual(["false", "false", null, "false", null]);
     expect(ed.getHTML()).not.toContain("spellcheck");
+  });
+});
+
+describe("screenplay elements added for the page engine", () => {
+  it("Tab reaches Shot and Enter after a shot is action", () => {
+    const ed = make('<p data-sp="transition">CUT TO:</p>');
+    ed.commands.focus("end");
+    press(ed, "Tab");
+    expect(currentElement(ed)).toBe("shot");
+    expect(ed.getHTML()).toContain('data-sp="shot"');
+    ed.commands.insertContent("ANGLE ON THE DOOR");
+    press(ed, "Enter");
+    expect(elements(ed)).toEqual(["shot", null]);
+  });
+
+  it("an empty shot falls back to action on Enter, like a transition", () => {
+    const ed = make('<p data-sp="shot"></p>');
+    ed.commands.focus("end");
+    press(ed, "Enter");
+    expect(elements(ed)).toEqual([null]);
+  });
+
+  it("Alt+Shift+digit chooses an element outright, never Cmd/Ctrl+digit", () => {
+    const ed = make("<p>Mara</p>");
+    ed.commands.focus("end");
+    for (const digit of [1, 2, 3, 4, 5, 6, 7]) {
+      expect(pressChoose(ed, digit)).toBe(true);
+      expect(currentElement(ed)).toBe(elementForShortcutDigit(digit));
+    }
+    expect(currentElement(ed)).toBe("transition");
+    expect(pressChoose(ed, 6)).toBe(true);
+    expect(currentElement(ed)).toBe("shot");
+    const ctrl = new KeyboardEvent("keydown", { key: "3", ctrlKey: true, bubbles: true, cancelable: true });
+    expect(ed.view.someProp("handleKeyDown", (f) => f(ed.view, ctrl)) === true).toBe(false);
+    expect(currentElement(ed)).toBe("shot");
+  });
+
+  it("keeps an element a newer client wrote, through a round trip and an edit", () => {
+    const ed = make('<p data-sp="centered">THE END</p><p data-sp="dialogue">Hi.</p>');
+    expect(elements(ed)).toEqual(["centered", "dialogue"]);
+    expect(ed.getHTML()).toContain('data-sp="centered"');
+    ed.commands.focus(1);
+    expect(currentTag(ed)).toBe("centered");
+    expect(currentElement(ed)).toBe("action");
+    ed.commands.insertContent("!");
+    expect(ed.getHTML()).toContain('data-sp="centered"');
+    // Enter keeps the first half and starts the next line as the engine says.
+    ed.commands.focus(1);
+    press(ed, "Enter");
+    expect(elements(ed)[0]).toBe("centered");
+  });
+
+  it("does not let a hostile tag out of its attribute", () => {
+    const ed = make('<p data-sp="x&quot; onclick=&quot;y">Hi.</p>');
+    expect(ed.getHTML()).not.toContain("onclick");
+    expect(elements(ed)).toEqual([null]);
+  });
+});
+
+describe("soft page markers", () => {
+  function paged(html: string, start: () => PageCursor = () => ({ page: 1, line: 0 })): Editor {
+    editor = new Editor({
+      extensions: [...screenplayStarterKit(), BlockId, Screenplay, ScreenplayPages.configure({ start })],
+      content: html,
+    });
+    return editor;
+  }
+  const markers = (ed: Editor) =>
+    [...ed.view.dom.querySelectorAll<HTMLElement>(".sp-page-break")].map((el) => el.textContent);
+
+  const filler = (n: number) => Array.from({ length: n }, (_, i) => `<p>Line ${i}.</p>`).join("");
+
+  it("draws none for a script that fits a page", () => {
+    expect(markers(paged(filler(10)))).toEqual([]);
+  });
+
+  it("draws a rule and the next page's number where the engine says a page ends", () => {
+    const ed = paged(filler(60));
+    expect(markers(ed)).toEqual(["2.", "3."]);
+    // The first rule sits between blocks: just before block 27, whose position is the sum of the 27 before it.
+    const first = ed.view.dom.querySelector(".sp-page-break");
+    expect(first?.nextElementSibling?.textContent).toBe("Line 27.");
+  });
+
+  it("puts a marker inside a long paragraph at the line where the page turns", () => {
+    const long = `<p>${Array.from({ length: 120 }, () => "word").join(" ")}</p>`;
+    const ed = paged(`${filler(24)}${long}`);
+    const inside = ed.view.dom.querySelector("p:last-of-type .sp-page-break");
+    expect(inside).not.toBeNull();
+  });
+
+  it("follows the page a sequence starts on, and can be redrawn when it moves", () => {
+    let start: PageCursor = { page: 1, line: 0 };
+    const ed = paged(filler(10), () => start);
+    expect(markers(ed)).toEqual([]);
+    start = { page: 5, line: 40 };
+    refreshPageMarkers(ed);
+    expect(markers(ed)).toEqual(["6."]);
+  });
+
+  it("is never part of the saved HTML", () => {
+    const ed = paged(filler(60));
+    expect(ed.getHTML()).not.toContain("sp-page-break");
   });
 });

@@ -8,7 +8,7 @@ import {
   type ManuscriptOp,
 } from "./manuscript";
 import { applyPlainEdit, innerHtmlOf, wrapBlockHtml } from "./inline-html";
-import { elementOfHtml, withElement, type ScreenplayElement } from "./manuscript-kind";
+import { elementTagOfHtml, withElement, type ScreenplayElement } from "./manuscript-kind";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -56,7 +56,7 @@ export function serializeBlockHtml(
   // The screenplay element lives on the opening tag; an edit to the text keeps it.
   return withElement(
     wrapBlockHtml(block.id, tag, applyPlainEdit(innerHtmlOf(block.html), text)),
-    elementOfHtml(block.html)
+    elementTagOfHtml(block.html)
   );
 }
 

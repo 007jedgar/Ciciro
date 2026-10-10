@@ -27,6 +27,7 @@ jest.mock("expo-blur", () => {
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn() }),
   Redirect: () => null,
+  useLocalSearchParams: () => ({}),
   useFocusEffect: () => {},
 }));
 jest.mock("../lib/use-stack-back", () => ({
@@ -51,6 +52,7 @@ jest.mock("../lib/writing-reminder-notifications", () => ({
 }));
 jest.mock("../lib/writing-reminder-store", () => ({ useWritingReminderList: () => [] }));
 jest.mock("../lib/api/hooks", () => ({
+  useProjectQuery: () => ({ data: undefined }),
   useModelsQuery: () => ({ data: undefined }),
   useEmailPreferencesQuery: () => ({ data: undefined }),
   usePatchEmailPreferencesMutation: () => ({ mutate: jest.fn() }),

@@ -9,6 +9,7 @@ import { MANUSCRIPT_KINDS, type ManuscriptKind } from "../lib/manuscript-kind";
 import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { ProjectCreated } from "../lib/api/types";
+import { BetaBadge } from "./BetaBadge";
 import { PressableCard } from "./PressableCard";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
@@ -81,6 +82,7 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
               accessibilityRole="radio"
               accessibilityState={{ selected }}
               accessibilityLabel={t(`kinds.${option}.label`)}
+              accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
               style={[
                 layout.card,
                 {
@@ -92,7 +94,10 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
                 },
               ]}
             >
-              <Text style={layout.cardTitle}>{t(`kinds.${option}.label`)}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={layout.cardTitle}>{t(`kinds.${option}.label`)}</Text>
+                {option === "screenplay" ? <BetaBadge testID="kind-beta-badge" /> : null}
+              </View>
               <Text style={layout.cardMeta}>{t(`kinds.${option}.description`)}</Text>
             </PressableCard>
           );

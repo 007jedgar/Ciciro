@@ -16,7 +16,7 @@ import {
 import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { ScreenplayBar } from "../../../../components/ScreenplayBar";
-import { elementOfHtml, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
+import { elementTagOfHtml, knownElement, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
@@ -795,7 +795,7 @@ function ManuscriptScreenContent() {
       ) : null}
       {isScreenplay ? (
         <ScreenplayBar
-          element={elementOfHtml(blocks.find((b) => b.id === formatBlockId)?.html ?? "")}
+          element={knownElement(elementTagOfHtml(blocks.find((b) => b.id === formatBlockId)?.html ?? ""))}
           disabled={!focused}
           onSetElement={(el) => void onSetElement(el)}
         />

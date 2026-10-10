@@ -14,14 +14,19 @@ import {
   setCommentHighlights,
   type CommentHighlight,
 } from "@/lib/tiptap-comment-highlights";
-import { Screenplay, currentElement, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
+import { Screenplay, currentElement, currentTag, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
+import { ScreenplayPages, refreshPageMarkers } from "@/lib/tiptap-screenplay-pages";
 import {
   SCREENPLAY_ELEMENTS,
   SCREENPLAY_ELEMENT_LABELS,
-  classifyScreenplayLines,
-  type ManuscriptKind,
+  SCRIPT_START,
+  knownElement,
+  type PageCursor,
   type ScreenplayElement,
-} from "@/lib/manuscript-kind";
+} from "@/lib/screenplay";
+import { classifyScreenplayLines, type ManuscriptKind } from "@/lib/manuscript-kind";
+import { elementShortcutLabel } from "@/lib/screenplay-view";
+import BetaBadge from "@/components/BetaBadge";
 import { useSettings } from "@/components/SettingsProvider";
 import { typewriterScrollDelta } from "@/lib/typewriter";
 import { FlashHighlight, flashRanges } from "@/lib/tiptap-flash";
@@ -126,6 +131,8 @@ type Props = {
   onCommentClick?: (id: string) => void;
   /** What is being written. Screenplays get elements; a novel is the default. */
   kind?: ManuscriptKind;
+  /** A screenplay's page when this sequence begins, for the soft page-break markers. */
+  pageStart?: PageCursor;
   /** Hold the page still: nothing can be typed while it is true. */
   readOnly?: boolean;
   /** The page can take writes (the handle's insert calls land). */
@@ -165,6 +172,11 @@ function revealRange(editor: TiptapEditor, from: number, to: number) {
 }
 
 const CARD_WIDTH = 320;
+
+/** 12pt, in CSS pixels. */
+const SCRIPT_FONT_PX = 16;
+/** Courier is 0.6em a column, so the 60 column page is this many ems wide. */
+const SCRIPT_COLUMN_EMS = 36;
 
 /** How long a selection must hold still before the menu over it shows. */
 const MENU_SETTLE_MS = 150;
@@ -228,6 +240,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     commentHighlights,
     onCommentClick,
     kind = "novel",
+    pageStart = SCRIPT_START,
     readOnly = false,
     onReady,
     onSuggestionsAccepted,
@@ -257,6 +270,8 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   commentHighlightsRef.current = commentHighlights;
 
   const [element, setCurrentElement] = useState<ScreenplayElement | null>(null);
+  const pageStartRef = useRef(pageStart);
+  pageStartRef.current = pageStart;
 
   // The menu over highlighted text. `dragging` holds it back while the writer
   // is still pulling out a selection, and `dismissedMenu` (the selection it was
@@ -286,7 +301,9 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       FlashHighlight,
       ReadAloudHighlight,
       CommentHighlights.configure({ onClick: (id) => onCommentClickRef.current?.(id) }),
-      ...(kind === "screenplay" ? [Screenplay] : []),
+      ...(kind === "screenplay"
+        ? [Screenplay, ScreenplayPages.configure({ start: () => pageStartRef.current })]
+        : []),
       CharacterCount,
       Placeholder.configure({
         placeholder: PLACEHOLDERS[kind],
@@ -295,7 +312,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     content: content || "",
     onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
     onSelectionUpdate: ({ editor }) => {
-      if (kind === "screenplay") setCurrentElement(currentElement(editor));
+      if (kind === "screenplay") setCurrentElement(knownElement(currentTag(editor)));
       const onSel = onSelectionChangeRef.current;
       if (onSel) {
         const { from, to } = editor.state.selection;
@@ -644,6 +661,29 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     });
   }, [editor, kind, settings.autoCorrect]);
 
+  // The markers follow the page this sequence starts on, which moves when an
+  // earlier sequence grows or shrinks.
+  useEffect(() => {
+    if (editor && kind === "screenplay") refreshPageMarkers(editor);
+  }, [editor, kind, pageStart.page, pageStart.line]);
+
+  // A script is always 12pt Courier on a 60 column page, whatever the editor
+  // font settings say. A column narrower than the page scales the whole page
+  // down together (every width is in `ch`), so lines still break where the
+  // printed page breaks them.
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (kind !== "screenplay" || !shell || typeof ResizeObserver === "undefined") return;
+    const fit = () => {
+      const width = shell.clientWidth;
+      if (width > 0) shell.style.setProperty("--screenplay-size", `${Math.min(SCRIPT_FONT_PX, width / SCRIPT_COLUMN_EMS)}px`);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [kind]);
+
   // Typewriter mode: keep the caret line vertically centered in the scroll pane.
   useEffect(() => {
     if (!editor || !settings.typewriterMode) return;
@@ -879,12 +919,15 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     >
       {kind === "screenplay" ? (
         <div className="screenplay-bar" role="toolbar" aria-label="Screenplay element">
+          <BetaBadge />
           {SCREENPLAY_ELEMENTS.map((el) => (
             <button
               key={el}
               type="button"
               className={`btn small ${element === el ? "primary" : "ghost"}`}
               aria-pressed={element === el}
+              aria-keyshortcuts={elementShortcutLabel(el, mac, "aria")}
+              title={`${SCREENPLAY_ELEMENT_LABELS[el]} (${elementShortcutLabel(el, mac)})`}
               disabled={readOnly}
               // Keep the caret in the page while picking an element.
               onMouseDown={(event) => event.preventDefault()}

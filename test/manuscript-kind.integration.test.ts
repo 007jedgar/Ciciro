@@ -7,7 +7,7 @@ import { CICIRO_AUTHOR, resolveSuggestions, suggestReplacements } from "@/lib/su
 import { executeEditorTool } from "@/lib/tools";
 import { updateUserSettings } from "@/lib/user-settings";
 import { buildEditorContext } from "@/lib/context";
-import { assistantReplacementSplitter, elementOfHtml } from "@/lib/manuscript-kind";
+import { assistantReplacementSplitter, elementOfHtml, elementTagOfHtml } from "@/lib/manuscript-kind";
 
 const scanIds = (html: string) => [...html.matchAll(/<p\b[^>]*data-block-id="([^"]+)"/g)].map((m) => m[1]);
 
@@ -306,6 +306,76 @@ describe("assistant tools respect the manuscript kind", () => {
     expect(blocks(resolveSuggestions(html, "accept"))).toEqual([
       ["character", "MARA"],
       ["dialogue", "Hello there."],
+    ]);
+  });
+
+  const tagged = (html: string) =>
+    (html.match(/<p\b[^>]*>.*?<\/p>/g) ?? []).map((b) => [elementTagOfHtml(b), b.replace(/<[^>]+>/g, "")]);
+
+  async function replaceBlocks(content: string, find: string, replace: string) {
+    const owner = await registerUser({ email: "sp@example.com", password: "long-enough-pw", name: "Sam" });
+    await updateUserSettings(owner.id, { aiSuggestions: false });
+    const script = await createProject(owner, { title: "Heist", kind: "screenplay" });
+    const [chapter] = script.chapters;
+    const seeded = await prisma.chapter.update({ where: { id: chapter.id }, data: { content } });
+    const result = await executeEditorTool(
+      "edit_manuscript",
+      { chapterNumber: 1, expectedRevision: seeded.revision, replacements: [{ find, replace }] },
+      { projectId: script.id }
+    );
+    expect(result.mutationCount).toBe(1);
+    return tagged((await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } })).content);
+  }
+
+  it("keeps a replaced shot a shot when an edit rewrites whole blocks", async () => {
+    expect(
+      await replaceBlocks(
+        '<p data-sp="shot">CLOSE ON THE DOOR</p><p>It opens.</p>',
+        "CLOSE ON THE DOOR\n\nIt opens.",
+        "THE KNIFE\nIt glints."
+      )
+    ).toEqual([
+      ["shot", "THE KNIFE"],
+      ["action", "It glints."],
+    ]);
+  });
+
+  it("keeps a newer client's element when an edit rewrites whole blocks", async () => {
+    expect(
+      await replaceBlocks(
+        '<p data-sp="centered">THE END</p><p>Credits roll.</p>',
+        "THE END\n\nCredits roll.",
+        "FIN\nMARA\nGoodbye."
+      )
+    ).toEqual([
+      ["centered", "FIN"],
+      ["character", "MARA"],
+      ["dialogue", "Goodbye."],
+    ]);
+  });
+
+  it("places a drafted camera direction as a shot when an edit rewrites whole blocks", async () => {
+    expect(
+      await replaceBlocks("<p>Old action.</p><p>More action.</p>", "Old action.\n\nMore action.", "CLOSE ON THE KNIFE\nIt glints.")
+    ).toEqual([
+      ["shot", "CLOSE ON THE KNIFE"],
+      ["action", "It glints."],
+    ]);
+  });
+
+  it("keeps a replaced shot a shot in a suggested replacement", () => {
+    const { html } = suggestReplacements(
+      '<p data-sp="shot" data-block-id="a">CLOSE ON THE DOOR</p><p data-block-id="b">It opens.</p>',
+      [{ find: "CLOSE ON THE DOOR\n\nIt opens.", replace: "THE KNIFE\nIt glints." }],
+      {
+        author: CICIRO_AUTHOR,
+        newBlockId: () => "nb",
+        splitReplacement: assistantReplacementSplitter("screenplay"),
+      }
+    );
+    expect(tagged(resolveSuggestions(html, "accept"))).toEqual([
+      ["shot", "THE KNIFE"],
+      ["action", "It glints."],
     ]);
   });
 

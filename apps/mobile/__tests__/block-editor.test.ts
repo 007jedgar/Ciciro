@@ -101,6 +101,12 @@ describe("htmlToDoc without a crypto global", () => {
     expect(new Set(doc.blocks.map((b) => b.id)).size).toBe(3);
   });
 
+  it("keeps an element a newer client wrote across a text edit", () => {
+    const { doc } = htmlToDoc('<p data-block-id="a" data-sp="centered">THE END</p>', 3);
+    const [op] = replaceBlockOps(doc, "a", "THE END.", seqIds("t"));
+    expect(op).toMatchObject({ html: '<p data-block-id="a" data-sp="centered">THE END.</p>' });
+  });
+
   it("sets a screenplay element with one replace_block, and keeps it across a text edit", () => {
     const { doc } = htmlToDoc('<p data-block-id="a">MARA</p>', 2);
     const ops = setBlockElementOps(doc, "a", "character", seqIds("e"));

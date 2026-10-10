@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
+import { Courier_Prime, Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/app/providers";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme-boot";
@@ -27,6 +27,19 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// A screenplay is always 12pt Courier Prime, whatever the editor font settings
+// say: the page count depends on every glyph being the same width as Courier's
+// (SIL OFL 1.1, self-hosted by next/font).
+const courierPrime = Courier_Prime({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-script",
+  display: "swap",
+  // Fetched when a script is on the page, not preloaded on every other page.
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "Ciciro",
   description: "An AI book-writing assistant and manuscript editor.",
@@ -40,7 +53,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${instrumentSans.variable} ${jetbrainsMono.variable}`}
+      className={`${newsreader.variable} ${instrumentSans.variable} ${jetbrainsMono.variable} ${courierPrime.variable}`}
       suppressHydrationWarning
     >
       <head>

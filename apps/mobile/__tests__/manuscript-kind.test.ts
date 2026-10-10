@@ -2,7 +2,9 @@ import {
   cycleElement,
   defaultTitle,
   elementOfHtml,
+  elementTag,
   findEntryForDate,
+  hasKindSettings,
   journalEntryTitle,
   localYmd,
   nextChapterTitle,
@@ -55,6 +57,24 @@ describe("manuscript kind", () => {
     expect(withElement('<p data-block-id="a" data-sp="dialogue">x</p>', "action")).toBe(
       '<p data-block-id="a">x</p>'
     );
+  });
+
+  it("reaches Shot between a transition and a scene heading", () => {
+    expect(cycleElement("transition")).toBe("shot");
+    expect(cycleElement("shot")).toBe("scene-heading");
+    expect(nextElementOnEnter("shot")).toBe("action");
+  });
+
+  it("keeps an element it does not know, as the web does", () => {
+    const html = '<p data-block-id="a" data-sp="centered">THE END</p>';
+    expect(elementOfHtml(html)).toBe("action");
+    expect(elementTag("centered")).toBe("centered");
+    expect(withElement(html, elementTag("centered"))).toBe(html);
+  });
+
+  it("has manuscript settings for a screenplay and for no other kind yet", () => {
+    expect(hasKindSettings("screenplay")).toBe(true);
+    for (const kind of ["novel", "blog", "journal"] as const) expect(hasKindSettings(kind)).toBe(false);
   });
 });
 

@@ -11,14 +11,15 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import {
   SCREENPLAY_ATTR,
-  classifyScreenplayLines,
+  SHORTCUT_ORDER,
   cycleElement,
-  isProofread,
-  isScreenplayElement,
+  elementTag,
   nextElementOnEnter,
   normalizeElement,
+  shortcutDigit,
   type ScreenplayElement,
-} from "@/lib/manuscript-kind";
+} from "@/lib/screenplay";
+import { classifyScreenplayLines, isProofread } from "@/lib/manuscript-kind";
 
 /**
  * StarterKit for a script. A line that starts `# `, `- `, `1. `, `> `, three
@@ -47,12 +48,22 @@ export function screenplayStarterKit(): Extensions {
   ];
 }
 
-/** The screenplay element of the paragraph holding the caret, or null outside one. */
-export function currentElement(editor: Editor): ScreenplayElement | null {
+/**
+ * The element tag stored on the paragraph holding the caret, or null outside
+ * one. Unlike `currentElement`, an element this build does not know comes back
+ * as written.
+ */
+export function currentTag(editor: Editor): string | null {
   const { $from } = editor.state.selection;
   const node = $from.parent;
   if (node.type.name !== "paragraph") return null;
-  return normalizeElement(node.attrs.screenplay);
+  return elementTag(node.attrs.screenplay);
+}
+
+/** The screenplay element of the paragraph holding the caret, or null outside one. */
+export function currentElement(editor: Editor): ScreenplayElement | null {
+  const tag = currentTag(editor);
+  return tag === null ? null : normalizeElement(tag);
 }
 
 /** The element of the first paragraph the selection touches, null if it touches none. */
@@ -83,7 +94,12 @@ export function setElement(editor: Editor, element: ScreenplayElement): boolean 
 /**
  * Screenplay elements as an attribute on paragraphs (`data-sp`), so a script is
  * still ordinary block HTML that syncs, diffs and exports like any chapter.
- * Tab and Shift-Tab cycle the element; Enter starts the next one.
+ * Tab and Shift-Tab cycle the element; Enter starts the next one; Alt+Shift
+ * with 1 to 7 picks one outright (never Cmd/Ctrl+digit, which browsers keep for
+ * switching tabs).
+ *
+ * The attribute holds whatever tag was stored, so an element a newer client
+ * wrote (and this build cannot lay out) survives being opened and edited here.
  */
 export const Screenplay = Extension.create({
   name: "screenplay",
@@ -99,13 +115,13 @@ export const Screenplay = Extension.create({
             // A new line is decided by Enter, never inherited from the split.
             keepOnSplit: false,
             parseHTML: (element) => {
-              const value = element.getAttribute(SCREENPLAY_ATTR);
-              return isScreenplayElement(value) && value !== "action" ? value : null;
+              const tag = elementTag(element.getAttribute(SCREENPLAY_ATTR));
+              return tag === "action" ? null : tag;
             },
-            renderHTML: (attributes) =>
-              isScreenplayElement(attributes.screenplay) && attributes.screenplay !== "action"
-                ? { [SCREENPLAY_ATTR]: attributes.screenplay }
-                : {},
+            renderHTML: (attributes) => {
+              const tag = elementTag(attributes.screenplay);
+              return tag === "action" ? {} : { [SCREENPLAY_ATTR]: tag };
+            },
           },
         },
       },
@@ -113,6 +129,14 @@ export const Screenplay = Extension.create({
   },
 
   addKeyboardShortcuts() {
+    const choose = (element: ScreenplayElement) => (editor: Editor) =>
+      currentElement(editor) === null ? false : setElement(editor, element);
+    const picks = Object.fromEntries(
+      SHORTCUT_ORDER.map((element) => [
+        `Alt-Shift-${shortcutDigit(element)}`,
+        ({ editor }: { editor: Editor }) => choose(element)(editor),
+      ])
+    );
     // Tab always belongs to the script: even with nothing to cycle it must not
     // hand focus to the next control on the page.
     const cycle = (editor: Editor, direction: 1 | -1) => {
@@ -121,6 +145,7 @@ export const Screenplay = Extension.create({
       return true;
     };
     return {
+      ...picks,
       Tab: ({ editor }) => cycle(editor, 1),
       "Shift-Tab": ({ editor }) => cycle(editor, -1),
       Enter: ({ editor }) => {

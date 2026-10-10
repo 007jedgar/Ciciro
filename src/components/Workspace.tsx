@@ -44,6 +44,7 @@ import {
   describeAiInvolvement,
 } from "@/lib/text";
 import { listSuggestions } from "@/lib/suggestions";
+import { SCRIPT_START, pagesAt, sequenceCursors } from "@/lib/screenplay";
 import { commentQuote } from "@/lib/selection-menu";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
@@ -250,6 +251,17 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     () => project.chapters.find((c) => c.id === activeId) ?? null,
     [project.chapters, activeId]
   );
+
+  // A screenplay's sequences run on from one another, so where the open one
+  // starts on the page (for its page markers) and about how many pages the
+  // whole script runs both come from setting every sequence in order.
+  const script = useMemo(() => {
+    if (kind !== "screenplay") return null;
+    const shown = project.chapters.filter((c) => !chapterRows.hidden.has(c.id));
+    const { starts, end } = sequenceCursors(shown.map((c) => c.content));
+    const at = shown.findIndex((c) => c.id === activeId);
+    return { pages: pagesAt(end), activeStart: at === -1 ? SCRIPT_START : starts[at] };
+  }, [kind, project.chapters, chapterRows.hidden, activeId]);
 
   // Suggest mode is a per-device habit, like a text editor's track-changes switch.
   useEffect(() => {
@@ -1051,7 +1063,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   ? "Couldn't save — retrying"
                   : "All changes saved"}
         </span>
-        <ThemePicker compact />
+        <ThemePicker compact kind={kind} />
         <button
           className={`btn small${settings.typewriterMode ? " primary" : ""}`}
           aria-pressed={settings.typewriterMode}
@@ -1207,6 +1219,17 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               ) : null}
               <div className="editor-meta">
                 <span>{activeChapter.wordCount.toLocaleString()} words</span>
+                {script && script.pages > 0 ? (
+                  <>
+                    <span>-</span>
+                    <span
+                      className="script-pages"
+                      title="Set in 12pt Courier on a 60 column page, about a minute of screen time a page. An estimate: the soft rules in the script show where each page is likely to end."
+                    >
+                      about {script.pages.toLocaleString()} {script.pages === 1 ? "page" : "pages"}
+                    </span>
+                  </>
+                ) : null}
                 {(() => {
                   const involvement = aiInvolvement(activeChapter);
                   if (involvement.ciciroWords === 0) return null;
@@ -1331,6 +1354,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                   commentHighlights={commentHighlights}
                   onCommentClick={openReaderComment}
                   kind={kind}
+                  pageStart={script?.activeStart}
                   readOnly={restoring.has(activeChapter.id)}
                   onReady={flushHeldWrites}
                   onSelectionAction={(action, text) => {
