@@ -398,7 +398,9 @@ returns what the line may take, for the caret at the end of it:
 - a **scene heading**: `INT.` / `EXT.` / `INT./EXT.`, then the places, then the
   times of day (the script's own, then the defaults for the app's language:
   `timesOfDay("es")` is Spanish). A bare `INT.` offers nothing on the desk, because
-  Tab adds the space.
+  Tab adds the space. A prefix typed without its dot (`INT`, `int/ext`) still
+  offers the dotted prefixes, and past it every choice writes the dot in
+  (`dottedPrefix`).
 
 On the desk nothing is offered on an empty line (the popup waits for a first
 letter, so Tab keeps its ring), and the line being typed is left out of the index
@@ -431,6 +433,10 @@ space. A chip splices the rest of the line through the same
 | a cue with a name | starts a parenthetical on a new line |
 | anything else | the ring of elements |
 
+A heading whose prefix lacks its dot (`INT LAB`) gets it on the way: the flow is
+`replace`, the whole line rewritten with the dot plus what Tab would add. A
+finished dotless heading (`INT LAB - NIGHT`) is left as typed.
+
 The popup's choice wins over all of these. The phone's Tab button asks the same
 function (`trailing: false`: a bare `INT.` is a quiet no-op, because the chips
 already show the places) and starts the new line with `insertLineAfter`, then sets
@@ -450,7 +456,9 @@ web adds ` (CONT'D)` when Enter ends such a cue, and both clients offer
 the button sticks until Enter is pressed on that cue again. The extension buttons
 are English abbreviations and are grayed out, with an info button, for a script
 in a language script formatting does not cover (web `scriptHtmlSupported` on the
-open sequence, phone `scriptLanguageSupported`). It is independent of the
+open sequence, phone `scriptLanguageSupported`); the same check skips the
+automatic CONT'D on Enter and leaves `NAME (CONT'D)` out of the choices (web
+`ScriptContext.extensions`, phone `chipsForLine`). It is independent of the
 page-break `(CONT'D)` setting (which only governs the derived repeat of a cue at
 the top of the next page): a cue that already ends in `(CONT'D)` is not given a
 second one there (`contdCue`), so the two never double up.
