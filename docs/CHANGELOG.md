@@ -17,6 +17,16 @@ else stays in commit messages.
   info button that says so, and support for more languages is planned. The web
   no longer loads Courier Prime twice.
 
+- **Ciciro understands screenplays.** It reads a script by its elements (scene
+  headings, cues, dialogue, parentheticals, transitions, shots) and by its
+  scenes, so it can name, find and rewrite a scene by its heading, and what it
+  writes, rewrites or auto-drafts lands as the right elements and continues from
+  the element the script reached. The manuscripts list and a script's meta line
+  say about how many pages it runs. On the phone, a new **Pages** tool shows a
+  screenplay as printed pages (read only, Beta), the element bar sits above the
+  keyboard and lights the right element the moment you press Return, and a
+  script draft in the chat is set as a script.
+
 - **Screenplays** are tidier to write. Typing `# `, `- `, `1. ` or `> ` at the
   start of a line no longer turns it into a heading, list or quote, and
   pasting several lines sorts them into scene headings, cues, dialogue and

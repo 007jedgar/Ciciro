@@ -138,6 +138,10 @@ sets them the same way (`typesetSequences`), so its page count is the editor's.
 - `test/screenplay-css.test.ts`: the editor's `ch` numbers equal
   `ELEMENT_METRICS`, and the speech-run selectors equal `SPEECH_RUNS`.
 - `test/screenplay-editor.test.ts`: the TipTap extension and the page markers.
+- `test/script-lines.test.ts`: the marked-line contract (below), its phone
+  mirror, and a round trip of the golden script through the model view.
+- `test/script-pages.test.ts`: the phone's page view built from the engine
+  equals `pagesAsText(typeset(...))`.
 
 ## Export, import and paste
 
@@ -263,13 +267,113 @@ strings are `screenplay.languageInfo.*` in all four locales.
   `SHORTCUT_ORDER` in `screenplay.ts` is the source; the Settings reference reads
   from it.
 
+## The assistant
+
+The assistant reads and writes a script as **marked lines**, not as HTML and not
+as bare text. Everything is in `src/lib/manuscript-kind.ts` (the contract and
+its parser), `src/lib/script-view.ts` (the model view) and `src/lib/passages.ts`
+(the scene index).
+
+### The marks
+
+The format is Fountain's forced-element markers, plus `^` for a shot
+(`SCRIPT_FORMAT`, which the screenplay directives and the drafter's system prompt
+both carry; `ELEMENT_MARK` maps an element to its mark):
+
+| Line | Element |
+|---|---|
+| `.INT. KITCHEN - NIGHT` | scene heading |
+| `!BOOM.` | action (the mark keeps an ALL-CAPS action line from reading as a cue) |
+| `@MARA`, `@MARA (V.O.)` | character |
+| `(quietly)` | parenthetical, in brackets |
+| `He never called.` | dialogue: unmarked, directly under a cue or a parenthetical |
+| `>CUT TO:` | transition |
+| `^CLOSE ON THE KNIFE` | shot |
+
+A blank line ends a speech. `markedLine(raw)` reads one line (a `.` needs a
+letter after it, so an ellipsis is not a scene heading; `> text <` is centered
+text and reads as action); `parseScriptLines(text, after?)` reads a whole reply.
+
+**Strict mode.** Once any line in the reply carries a mark, an unmarked line
+inside a speech is dialogue or a parenthetical, never a guessed cue, and runs of
+unmarked lines outside a speech go through the old classifier. With no marks at
+all, `parseScriptLines` is `classifyScreenplayLines(text, after)`, so a model that
+ignores the contract still lands sorted into elements. `after` is the element the
+text lands under (the editor's block above the caret, the last block of the
+chapter), so a bare line after a cue is that cue's dialogue.
+
+`scriptDisplayText(text)` strips the marks again for anything the author reads
+(the chat draft card, Copy and Share, the auto-draft's streamed prose and word
+counts). The editor's insert still takes the raw draft, because it needs the
+marks.
+
+### What the model sees
+
+- `scriptTextOfHtml(html)` writes a chapter as marked lines, as stored (no
+  upper-casing: capitals are applied when a page is drawn, so the model's finds
+  match the stored words), a blank line between blocks and none inside a speech.
+  `read_chapter` and the editor's chapter context use it for a screenplay;
+  every other kind is unchanged.
+- **Scenes are the passages.** `indexChapter` starts a passage at each scene
+  heading when the chapter has any, so `chN.sK` is a scene and `list_passages`
+  names it by its heading (`(untitled scene)` for an empty one). A chapter with
+  no scene heading falls back to the paragraph-based split.
+- `edit_manuscript` replaces a run of blocks with the parsed elements when the
+  replacement is multi-line or carries any mark; a replaced shot or unknown tag
+  still survives on the first line (see Forward compatibility).
+
+### Auto-draft
+
+`runAutoWrite` gives the drafter the last ten elements as marked lines
+(`scriptTail`) and parses each beat with `after = lastScriptElement(chapter so
+far)`, so beat two continues from the element beat one ended on. The drafter's
+system prompt asks for marked lines, and the editing pass sees the same view.
+
+### Page counts in lists
+
+`pages` on a project in the library and in folders is derived on read for
+screenplays only (`src/lib/script-pages.ts`, chunked by 50 for D1's parameter
+limit), from the same `estimatePages` as the editor. It is never stored, so
+there is no schema change; a script with nothing typed has none. Reading every
+sequence's HTML for a list is the cost. If it ever shows up, denormalize onto
+`Project` (a D1 upgrade, see `docs/hosting.md`).
+
 ## The phone
 
 The phone edits plain lines in the native view (see `AGENTS.md`, "Patched
-native editor"). It mirrors the engine, offers Shot in the element bar (its
-Tab button follows the same ring), keeps an unknown element through every
-flush, and carries the Beta mark. It does **not** lay out the page or count
-pages yet; the planned read-only page view will call the same engine.
+native editor"). It mirrors the engine, keeps an unknown element through every
+flush, and carries the Beta mark.
+
+- **Element bar.** One chip per element, Shot included, and a Tab button that
+  follows the same ring. The bar sits just above the keyboard (it used to hang
+  under the header), where the thumb is, and above the format bar when that is
+  also an accessory. The native view cannot carry `data-sp`, so the tag is
+  re-stamped on flush (`restampCiciroHtml`); a new line takes
+  `nextElementOnEnter` of the line above.
+- **The chip is never a flush behind.** The committed blocks lag the native text
+  by up to a second (`REPLACE_FLUSH_MS`), so the lit chip is computed from the
+  live text and the caret (`elementTagAtCaret` in `lib/screenplay-live.ts`, the
+  same rule `restampCiciroHtml` applies), kept in `manuscript.tsx` as
+  `caretElement`, recomputed on every text change, caret move and committed
+  change, and set straight away when a chip is tapped.
+- **Page view.** The Pages tile on the chapters screen opens
+  `app/project/[id]/pages.tsx`: the script as read-only sheets, 54 lines of 60
+  columns in JetBrains Mono (0.6 em wide, like Courier), page numbers from
+  page 2, "about N pages" and the Beta mark in the header. It opens on the first
+  page of the sequence you were in. The lines and the page breaks come from the
+  mirrored engine (`lib/script-pages.ts` stitches `layoutHtml` + `paginate`
+  across sequences; there is no second layout function), and a sheet scales to
+  the screen (`sheetMetrics`), which is exact because every glyph is the same
+  width. This is the report's option M4; typing in a native script layout is
+  phase 4.
+- **Page counts.** The manuscripts list row and the manuscript meta line say
+  "about N pages" (from the server's `pages`), and the chapters screen counts
+  them from the loaded sequences.
+- **Chat.** A script draft in the chat card is set as a script
+  (`components/ScriptDraft.tsx`: element indents as fractions of the card, caps,
+  blank-line spacing; the card is not 60 columns wide, so it wraps and the page
+  view is where a script is exact). Insert parses the marked lines (and the
+  element above the caret) into elements; Share sends the text without marks.
 
 ## Beta
 
@@ -310,9 +414,13 @@ and only shows the settings for that manuscript's kind.
 
 ## Not here yet
 
-Belongs to later phases: element-aware AI paths and the
-element-aware phone chat insert (phase 1, AI and phone); autocomplete,
-typed-input capitals and the scene navigator (phase 2); the title page,
-`(MORE)`/`(CONT'D)`, dual dialogue, centered text and FDX import and export
-(phase 3);
-a native phone writing surface (phase 4).
+Belongs to later phases: autocomplete, smart Tab, typed-input capitals and the
+scene navigator (phase 2); the title page, `(MORE)`/`(CONT'D)`, dual dialogue,
+centered text and FDX import and export (phase 3); a native phone writing
+surface that lays the page out while you type (phase 4).
+
+Smaller follow-ups: a find on the capitals elements is case sensitive, since the
+text is stored as typed; the assistant has no page awareness or page target yet
+(only the minute-a-page rule of thumb); the page counts for lists could be
+denormalized; the chat draft card is not an exact page; the page view has no
+analytics events.
