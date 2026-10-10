@@ -1409,6 +1409,29 @@ export function parseSceneHeading(text: string): SlugParts {
 /** What a scene heading may start with, in the order they are offered. */
 export const SLUG_PREFIXES: readonly string[] = ["INT.", "EXT.", "INT./EXT."];
 
+function dotless(text: string): string {
+  return text.replace(/[\s.]/g, "");
+}
+
+/** A heading's prefix as it is written with its dots: `INT` is INT., `int/ext` is INT./EXT. */
+export function dottedPrefix(prefix: string): string {
+  const bare = upper(dotless(prefix));
+  if (bare === "") return "";
+  return bare === "I/E" ? "I/E." : bare.split("/").map((part) => `${part}.`).join("/");
+}
+
+/**
+ * A heading whose prefix was typed without its dot (`INT LAB`), written with it
+ * (`INT. LAB`); null when the prefix is missing or already has its dots.
+ */
+function withDottedPrefix(text: string, slug: SlugParts): string | null {
+  if (slug.prefix === "") return null;
+  const dotted = dottedPrefix(slug.prefix);
+  if (dotted === upper(slug.prefix.replace(/\s+/g, ""))) return null;
+  const lead = text.length - text.trimStart().length;
+  return text.slice(0, lead) + dotted + text.slice(lead + slug.prefix.length);
+}
+
 /** Times of day a heading offers before the script has any of its own. */
 export const TIMES_OF_DAY: Record<"en" | "es", readonly string[]> = {
   en: ["DAY", "NIGHT", "MORNING", "AFTERNOON", "EVENING", "DAWN", "DUSK", "CONTINUOUS", "LATER", "MOMENTS LATER", "SAME"],
@@ -1430,7 +1453,11 @@ export function timesOfDay(language?: string | null): readonly string[] {
  *   heading that has a time is finished, and Tab starts the action under it.
  * - A cue with a name goes to a parenthetical on a line of its own.
  */
-export type TabFlow = { kind: "insert"; text: string } | { kind: "line"; element: ScreenplayElement };
+export type TabFlow =
+  | { kind: "insert"; text: string }
+  | { kind: "line"; element: ScreenplayElement }
+  /** The whole line is rewritten as `text`: a prefix typed without its dot gets it on the way. */
+  | { kind: "replace"; text: string };
 
 export function smartTab(element: unknown, text: string, opts: { trailing?: boolean } = {}): TabFlow | null {
   const trailing = opts.trailing !== false;
@@ -1438,6 +1465,11 @@ export function smartTab(element: unknown, text: string, opts: { trailing?: bool
   if (el === "scene-heading") {
     const slug = parseSceneHeading(text);
     if (slug.prefix === "") return null;
+    const fixed = withDottedPrefix(text, slug);
+    if (fixed !== null) {
+      const flow = smartTab(el, fixed, opts);
+      return flow?.kind === "insert" ? { kind: "replace", text: fixed + flow.text } : flow;
+    }
     // A heading with its time of day is finished: Tab starts the action under it.
     if (slug.separator) return slug.time === "" ? null : { kind: "line", element: "action" };
     if (slug.location === "") {
@@ -1459,7 +1491,7 @@ export function smartTab(element: unknown, text: string, opts: { trailing?: bool
  */
 export function continuesSpeech(blocks: readonly ScriptBlock[], index: number, name: string): boolean {
   const key = extensionKey(parseCue(name).name);
-  if (key === "") return false;
+  if (key === "" || index > blocks.length) return false;
   let action = false;
   for (let i = index - 1; i >= 0; i--) {
     const el = normalizeElement(blocks[i].element);
@@ -1636,11 +1668,17 @@ export function completionsFor(
 
   const trailing = opts.trailing !== false;
   const slug = parseSceneHeading(text);
-  if (slug.prefix === "") {
+  // A prefix typed without its dot is still being written: INT offers INT. and INT./EXT.
+  const fixed = withDottedPrefix(text, slug);
+  if (slug.prefix === "" || (fixed !== null && slug.location === "" && !/\s$/.test(text))) {
     const typed = upper(text.trim());
-    return SLUG_PREFIXES.filter((p) => p.startsWith(typed) && p !== typed)
+    return SLUG_PREFIXES.filter((p) => dotless(p).startsWith(dotless(typed)) && p !== typed)
       .map((p) => ({ kind: "prefix" as const, label: p, from: lead, insert: trailing ? `${p} ` : p }))
       .slice(0, limit);
+  }
+  if (fixed !== null) {
+    // Past the prefix, a choice also gives the prefix its dot.
+    return completionsFor(el, fixed, index, opts).map((c) => ({ ...c, from: lead, insert: fixed.slice(lead, c.from) + c.insert }));
   }
   if (!slug.separator) {
     // On the desk a bare INT. is Tab's to move on from (it adds the space); the places wait for it.

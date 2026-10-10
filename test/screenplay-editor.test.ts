@@ -625,6 +625,25 @@ describe("writing speed", () => {
       expect(text(ed)).toEqual(["INT. LAB - "]);
     });
 
+    it("gives a prefix typed without its dot the dot", () => {
+      const ed = write('<p data-sp="scene-heading"></p>');
+      type(ed, "int");
+      expect(labels(ed)).toEqual(["INT.", "INT./EXT."]);
+      press(ed, "Tab");
+      expect(text(ed)).toEqual(["INT. "]);
+      ed.destroy();
+      const dismissed = write('<p data-sp="scene-heading"></p>');
+      type(dismissed, "ext");
+      press(dismissed, "Escape");
+      press(dismissed, "Tab");
+      expect(text(dismissed)).toEqual(["EXT. "]);
+      dismissed.destroy();
+      const located = write('<p data-sp="scene-heading">INT LAB</p>');
+      press(located, "Escape");
+      press(located, "Tab");
+      expect(text(located)).toEqual(["INT. LAB - "]);
+    });
+
     it("only walks when the caret is at the end of the line", () => {
       const ed = write('<p data-sp="scene-heading">INT.</p>');
       ed.commands.setTextSelection(3);
@@ -796,6 +815,17 @@ describe("writing speed", () => {
       const ed = write(`${speech}<p data-sp="character"></p>`);
       type(ed, "m");
       expect(labels(ed)).toEqual(["MARA (CONT'D)", "MARA"]);
+    });
+
+    it("is neither added nor offered in a language the extensions do not cover", () => {
+      const unsupported: ScriptContext = { sequences: [], names: [], extensions: false };
+      const ed = write(`${speech}<p data-sp="character">MARA</p>`, unsupported);
+      press(ed, "Enter");
+      expect(text(ed).slice(-2)).toEqual(["MARA", ""]);
+      ed.destroy();
+      const popup = write(`${speech}<p data-sp="character"></p>`, unsupported);
+      type(popup, "m");
+      expect(labels(popup)).toEqual(["MARA"]);
     });
   });
 

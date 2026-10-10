@@ -422,6 +422,7 @@ function ManuscriptScreenContent() {
           html: current.content,
           names: bibleNamesRef.current,
           language: i18n.resolvedLanguage ?? i18n.language,
+          extensions: scriptLanguageSupported(i18n.resolvedLanguage ?? i18n.language),
         }),
         cue: tag === "character" && line.atEnd ? line.text : null,
       };
@@ -755,6 +756,12 @@ function ManuscriptScreenContent() {
     }
     if (flow.kind === "insert") {
       if (flow.text) await spliceLine(at.line.text.length, flow.text);
+      return;
+    }
+    if (flow.kind === "replace") {
+      let same = 0;
+      while (same < at.line.text.length && same < flow.text.length && at.line.text[same] === flow.text[same]) same++;
+      await spliceLine(same, flow.text.slice(same));
       return;
     }
     const added = await writeLive((live, line) => insertLineAfter(live, line.start, flow.element));

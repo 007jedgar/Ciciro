@@ -179,6 +179,8 @@ export type ScriptContext = {
   sequences: readonly (readonly ScriptBlock[])[];
   names: readonly string[];
   language?: string | null;
+  /** Whether the extensions (V.O., O.S., CONT'D) can be written in this script's language; false keeps CONT'D out. */
+  extensions?: boolean;
 };
 
 /** The popup's content and where to put it, handed to the page whenever it changes; null when it closes. */
@@ -231,7 +233,7 @@ function suggestionsFor(state: EditorState, context: ScriptContext | null): { it
   const index = buildScriptIndex([...(context?.sequences ?? []), mine], { names: context?.names });
   const items = completionsFor(line.element, line.text, index, {
     language: context?.language,
-    continues: (name) => continuesSpeech(blocks, line.index, name),
+    continues: context?.extensions === false ? undefined : (name) => continuesSpeech(blocks, line.index, name),
   });
   // A line that already says every choice has nothing left to offer.
   if (items.every((item) => applyCompletion(line.text, item) === line.text)) return { items: [], line };
@@ -411,6 +413,7 @@ export const Screenplay = Extension.create<ScreenplayOptions>({
   },
 
   addKeyboardShortcuts() {
+    const options = this.options;
     const choose = (element: ScreenplayElement) => (editor: Editor) =>
       currentElement(editor) === null ? false : setElement(editor, element);
     const picks = Object.fromEntries(
@@ -433,9 +436,13 @@ export const Screenplay = Extension.create<ScreenplayOptions>({
       if (acceptSuggestion(editor)) return true;
       const line = lineAtEnd(editor.state);
       const flow = line ? smartTab(line.element, line.text) : null;
-      if (!flow) return cycle(editor, 1);
+      if (!line || !flow) return cycle(editor, 1);
       if (flow.kind === "insert") {
         editor.view.dispatch(editor.state.tr.insertText(flow.text));
+        return true;
+      }
+      if (flow.kind === "replace") {
+        editor.view.dispatch(editor.state.tr.insertText(flow.text, line.start, line.start + line.text.length));
         return true;
       }
       return editor
@@ -455,7 +462,7 @@ export const Screenplay = Extension.create<ScreenplayOptions>({
         // The choice the writer walked to with the arrow keys is taken; one they did not is not.
         if (suggestKey.getState(editor.state)?.touched && acceptSuggestion(editor)) return true;
         // A cue for the character who was speaking before the action in between picks the speech up.
-        if (current === "character") {
+        if (current === "character" && options.context()?.extensions !== false) {
           const line = lineAtEnd(editor.state);
           if (line && line.text.trim() !== "" && !hasExtension(line.text, "CONT'D")) {
             const blocks = scriptBlocksOfDoc(editor.state.doc);

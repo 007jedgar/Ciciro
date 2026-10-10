@@ -341,6 +341,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         .filter((c) => c.id !== activeIdRef.current && !c.archivedAt)
         .map((c) => scriptBlocksCached(c.content)),
       names: bibleNamesRef.current,
+      extensions: scriptSupportedRef.current,
     };
   }, [kind]);
   const bibleNamesRef = useRef(bibleNames);
@@ -362,6 +363,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     () => kind !== "screenplay" || scriptHtmlSupported([htmlWithoutSuggestions(activeContent)]),
     [kind, activeContent]
   );
+  const scriptSupportedRef = useRef(scriptSupported);
+  scriptSupportedRef.current = scriptSupported;
 
   const jumpToScene = useCallback(
     (chapterId: string, scene: number) => {

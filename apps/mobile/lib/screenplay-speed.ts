@@ -57,6 +57,8 @@ export type LineContext = {
   /** The names in the story bible. */
   names: readonly string[];
   language?: string | null;
+  /** Whether the extensions (V.O., O.S., CONT'D) can be written in the app's language; false keeps CONT'D out. */
+  extensions?: boolean;
 };
 
 /**
@@ -84,7 +86,11 @@ export function chipsForLine(
     whenEmpty: true,
     trailing: false,
     limit: 12,
-    continues: (name) => continuesSpeech(mine, line.index, name),
+    // The committed blocks lag the live lines; CONT'D is only judged when they line up.
+    continues:
+      context.extensions === false || mine.length !== liveLines.length
+        ? undefined
+        : (name) => continuesSpeech(mine, line.index, name),
   });
   // A chip that would change nothing is not worth a tap.
   return items.filter((item) => line.text.slice(0, item.from) + item.insert !== line.text);

@@ -29,6 +29,21 @@ describe("chipsForLine", () => {
     expect(chips.map((c) => c.label)).toEqual(["MARA (CONT'D)", "MARA", "MARCUS"]);
   });
 
+  it("leaves CONT'D out in a language the extensions do not cover", () => {
+    const chips = chipsForLine("character", live(4, "MA"), lines, { ...context, extensions: false });
+    expect(chips.map((c) => c.label)).toEqual(["MARA", "MARCUS"]);
+  });
+
+  it("does not judge CONT'D while the committed lines lag the live ones", () => {
+    const ahead = [...lines, "Later.", "MA"];
+    expect(() => chipsForLine("character", live(6, "MA"), ahead, context)).not.toThrow();
+    expect(chipsForLine("character", live(6, "MA"), ahead, context).map((c) => c.label)).toEqual(["MARA", "MARCUS"]);
+  });
+
+  it("offers the dotted prefix when the dot was left off", () => {
+    expect(chipsForLine("scene-heading", live(0, "INT"), lines, context).map((c) => c.label)).toEqual(["INT.", "INT./EXT."]);
+  });
+
   it("offers the names on an empty cue", () => {
     const chips = chipsForLine("character", live(4, ""), [...lines.slice(0, 4), ""], context);
     expect(chips.map((c) => c.label)).toContain("PRIYA");

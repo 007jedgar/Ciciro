@@ -126,6 +126,15 @@ describe("Tab flow", () => {
     expect(smartTab("scene-heading", "INT. LAB - BASEMENT - NIGHT")).toEqual({ kind: "line", element: "action" });
   });
 
+  it("gives a prefix typed without its dot the dot on the way", () => {
+    expect(smartTab("scene-heading", "INT")).toEqual({ kind: "replace", text: "INT. " });
+    expect(smartTab("scene-heading", "int/ext")).toEqual({ kind: "replace", text: "INT./EXT. " });
+    expect(smartTab("scene-heading", "I/E")).toEqual({ kind: "replace", text: "I/E. " });
+    expect(smartTab("scene-heading", "EXT LAB")).toEqual({ kind: "replace", text: "EXT. LAB - " });
+    expect(smartTab("scene-heading", "INT", { trailing: false })).toEqual({ kind: "replace", text: "INT." });
+    expect(smartTab("scene-heading", "INT LAB - NIGHT")).toEqual({ kind: "line", element: "action" });
+  });
+
   it("lets an unfinished or empty heading fall to the ring", () => {
     expect(smartTab("scene-heading", "")).toBeNull();
     expect(smartTab("scene-heading", "INT. ")).toBeNull();
@@ -182,6 +191,12 @@ describe("CONT'D", () => {
     ];
     expect(continuesSpeech(withParen, 5, "MARA")).toBe(true);
     expect(continuesSpeech(withParen.filter((x) => x.text !== "A door."), 4, "MARA")).toBe(false);
+  });
+
+  it("reads nothing past the end of the blocks it was given", () => {
+    const lead = script.slice(0, 4);
+    expect(continuesSpeech(lead, 4, "MARA")).toBe(true);
+    expect(continuesSpeech(lead, 6, "MARA")).toBe(false);
   });
 
   it("needs a name", () => {
@@ -277,6 +292,21 @@ describe("what a line offers", () => {
     expect(labels(completionsFor("scene-heading", "i", index))).toEqual(["INT.", "INT./EXT."]);
     expect(labels(completionsFor("scene-heading", "EX", index))).toEqual(["EXT."]);
     expect(applyCompletion("EX", completionsFor("scene-heading", "EX", index)[0])).toBe("EXT. ");
+  });
+
+  it("still offers the dotted prefix when the dot was left off", () => {
+    expect(labels(completionsFor("scene-heading", "INT", index))).toEqual(["INT.", "INT./EXT."]);
+    expect(applyCompletion("INT", completionsFor("scene-heading", "INT", index)[0])).toBe("INT. ");
+    expect(labels(completionsFor("scene-heading", "ext", index))).toEqual(["EXT."]);
+    expect(labels(completionsFor("scene-heading", "INT/EXT", index))).toEqual(["INT./EXT."]);
+  });
+
+  it("gives the prefix its dot when a place or time is chosen after it", () => {
+    const places = completionsFor("scene-heading", "INT ", index);
+    expect(labels(places)).toEqual(["LAB", "LAB BASEMENT"]);
+    expect(applyCompletion("INT ", places[0])).toBe("INT. LAB - ");
+    expect(applyCompletion("INT LA", completionsFor("scene-heading", "INT LA", index)[0])).toBe("INT. LAB - ");
+    expect(applyCompletion("EXT LAB - ", completionsFor("scene-heading", "EXT LAB - ", index)[0])).toBe("EXT. LAB - NIGHT");
   });
 
   it("leaves a bare INT. for Tab, then offers the places", () => {
@@ -408,6 +438,11 @@ describe("choices that end without a space (the phone)", () => {
     expect(apply("INT.")).toBe("INT. LAB -");
     expect(apply("INT. L")).toBe("INT. LAB -");
     expect(apply("INT. LAB -")).toBe("INT. LAB - NIGHT");
+  });
+
+  it("offers the dotted prefix, then places that keep the dot, when the dot was left off", () => {
+    expect(apply("INT")).toBe("INT.");
+    expect(apply("INT L")).toBe("INT. LAB -");
   });
 
   it("makes Tab a quiet no-op on a bare INT. and adds the dash after a location", () => {
