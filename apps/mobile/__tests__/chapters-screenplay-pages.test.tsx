@@ -79,12 +79,12 @@ beforeEach(() => {
 });
 
 describe("Chapters screen, screenplay pages", () => {
-  it("opens the page view from its tile and counts the pages next to the words", () => {
+  it("opens the page view from its tile and counts the pages instead of the words", () => {
     mockProject = { id: "p1", kind: "screenplay", genre: null, chapters: [sequence("c1", 0, PAGE)] };
     render(<ChaptersScreen />);
     fireEvent.press(screen.getByLabelText("Pages"));
     expect(mockPush).toHaveBeenCalledWith("/project/p1/pages");
-    expect(screen.getByLabelText("Chapters, 1 entry / 9 words / about 1 page")).toBeTruthy();
+    expect(screen.getByLabelText("Chapters, 1 entry / about 1 page")).toBeTruthy();
   });
 
   it("leaves pages out of the count until something is typed", () => {

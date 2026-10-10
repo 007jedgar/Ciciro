@@ -17,7 +17,7 @@ import { fonts } from "../../../lib/theme";
 import { useStackBack } from "../../../lib/use-stack-back";
 
 /** Air between the screen edge and a sheet, and between two sheets. */
-const GUTTER = 16;
+const GUTTER = 20;
 
 /**
  * The script as it prints, page by page: a read-only view for checking that it
@@ -68,7 +68,10 @@ function PagesContent({ projectId }: { projectId: string }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 4, paddingBottom: 48 }}
         ListHeaderComponent={
-          <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.note")}</Text>
+          <View style={styles.notes}>
+            <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.readOnly")}</Text>
+            <Text style={[styles.note, { color: colors.inkSoft }]}>{t("screenplay.pageView.note")}</Text>
+          </View>
         }
         renderItem={({ item }) => (
           <View style={{ height: rowHeight }}>
@@ -96,7 +99,6 @@ function PagesContent({ projectId }: { projectId: string }) {
             {script.total > 0 ? (
               <Text style={[styles.count, { color: colors.inkSoft }]}>{manuscriptPagesLabel(script.total, t)}</Text>
             ) : null}
-            <Text style={[styles.count, { color: colors.inkSoft }]}>{t("screenplay.pageView.readOnly")}</Text>
           </View>
         }
       />
@@ -122,7 +124,8 @@ export default function PagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  note: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19, marginBottom: 12 },
+  notes: { gap: 4, marginBottom: 12 },
+  note: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19 },
   accessory: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingBottom: 8 },
   count: { fontFamily: fonts.ui, fontSize: 13 },
 });

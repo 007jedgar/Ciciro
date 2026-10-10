@@ -452,13 +452,14 @@ function ChaptersScreenContent() {
                 />
                 <Kicker
                   label={t("chapters.kicker")}
+                  // A script's length is its pages (each card keeps its own words), which also keeps the
+                  // line from wrapping on a phone.
                   count={[
                     t("chapters.entries", { count: chapters.length }),
-                    t("chapters.wordCount", { count: chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0) }),
-                    pages > 0 ? manuscriptPagesLabel(pages, t) : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" / ")}
+                    pages > 0
+                      ? manuscriptPagesLabel(pages, t)
+                      : t("chapters.wordCount", { count: chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0) }),
+                  ].join(" / ")}
                 />
               </View>
             ) : null

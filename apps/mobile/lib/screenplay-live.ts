@@ -1,5 +1,5 @@
-import { htmlToDoc } from "./manuscript";
-import { SCENE_BREAK_TEXT } from "./enriched-html";
+import { htmlToDoc, type ManuscriptBlock } from "./manuscript";
+import { SCENE_BREAK_TEXT, assignIds, blockAtPlainOffset } from "./enriched-html";
 import { elementTagOfHtml, nextElementOnEnter, normalizeElement } from "./screenplay";
 
 // The element under the caret, before the editor has flushed. The native view
@@ -9,11 +9,13 @@ import { elementTagOfHtml, nextElementOnEnter, normalizeElement } from "./screen
 // the text the editor is showing, with the rule the flush will apply, so the
 // chip is right the moment Return is pressed and the flush only confirms it.
 
-type Committed = { text: string; tag: string };
+type Committed = { text: string; tag: string; id?: string; kind?: ManuscriptBlock["kind"] };
 
 /** What the committed chapter holds, block by block, as the editor would show it. */
 function committedBlocks(html: string): Committed[] {
   return htmlToDoc(html || "<p></p>", 0).doc.blocks.map((block) => ({
+    id: block.id,
+    kind: block.kind,
     text: /^<hr\b/i.test(block.html) ? SCENE_BREAK_TEXT : block.text,
     tag: elementTagOfHtml(block.html),
   }));
@@ -21,30 +23,34 @@ function committedBlocks(html: string): Committed[] {
 
 /**
  * The element tag of each paragraph the editor shows (`live`), given the
- * committed blocks. The paragraphs both agree on at the start and the end keep
- * their tag; in between, the first one keeps the tag of the block it replaced
- * and any paragraph beyond that is a new line, which takes the element that
- * follows the one above it, as Enter does. A line with nothing above it is action.
+ * committed blocks, by the rule the flush will apply (restampCiciroHtml, which
+ * matches blocks with assignIds): a paragraph that is a committed block keeps
+ * its tag, and a new one takes the element that follows the one above it, as
+ * Enter does. A line with nothing above it is action.
  */
 export function predictElementTags(committed: readonly Committed[], live: readonly string[]): string[] {
-  const n = committed.length;
-  const m = live.length;
-  let head = 0;
-  while (head < n && head < m && committed[head].text === live[head]) head++;
-  let tail = 0;
-  while (tail < n - head && tail < m - head && committed[n - 1 - tail].text === live[m - 1 - tail]) tail++;
-
+  const old: ManuscriptBlock[] = committed.map((block, index) => ({
+    id: block.id ?? `old-${index}`,
+    kind: block.kind ?? "paragraph",
+    html: "",
+    text: block.text,
+  }));
+  const next: ManuscriptBlock[] = live.map((text, index) => ({
+    id: `new-${index}`,
+    kind: text === SCENE_BREAK_TEXT ? "scene_break" : "paragraph",
+    html: "",
+    text,
+  }));
+  const byId = new Map(old.map((block, index) => [block.id, committed[index].tag]));
   const tags: string[] = [];
-  for (let i = 0; i < head; i++) tags.push(committed[i].tag);
-  const replaced = n - head - tail;
-  for (let k = 0; k < m - head - tail; k++) {
-    if (k === 0 && replaced > 0) tags.push(committed[head].tag);
+  assignIds(old, next).forEach((id, index) => {
+    const kept = byId.get(id);
+    if (kept !== undefined) tags.push(kept);
     else {
-      const above = tags.length > 0 ? normalizeElement(tags[tags.length - 1]) : null;
+      const above = index > 0 ? normalizeElement(tags[index - 1]) : null;
       tags.push(above ? nextElementOnEnter(above) : "action");
     }
-  }
-  for (let i = tail; i > 0; i--) tags.push(committed[n - i].tag);
+  });
   return tags;
 }
 
@@ -52,26 +58,51 @@ export function predictElementTags(committed: readonly Committed[], live: readon
  * The element tag of the line under the caret. `liveText` is what the editor
  * shows right now (paragraphs separated by newlines), or null when it is what
  * the chapter holds; `offset` is the caret's place in it.
+ *
+ * The editor's HTML leaves out one trailing blank line (`X\n` reads back as
+ * just `X`), so the blank line Return adds at the end is not in the chapter
+ * until something is typed into it. The flush sees the paragraphs without it,
+ * and so does this: the blank takes the element the chapter's own empty last
+ * block was given (the author picked one for it), else the one that follows
+ * the last line.
  */
 export function elementTagAtCaret(html: string, liveText: string | null, offset: number): string {
   const blocks = committedBlocks(html);
-  const paragraphs = liveText === null ? null : liveText.split("\n");
-  const upTo = (text: string) => text.slice(0, Math.max(0, offset)).split("\n").length - 1;
-  if (paragraphs === null || paragraphs.length === blocks.length) {
-    // No line was added or removed: the element of the line the caret is on, found in the chapter.
-    const at = Math.min(blocks.length - 1, paragraphs === null ? lineAt(blocks, offset) : upTo(liveText!));
-    return blocks[Math.max(0, at)]?.tag ?? "action";
+  if (blocks.length === 0) return "action";
+  const last = blocks[blocks.length - 1];
+  const lineOf = (text: string) => text.slice(0, Math.max(0, offset)).split("\n").length - 1;
+
+  if (liveText === null) {
+    const text = blocks.map((block) => block.text).join("\n");
+    if (offset > text.length) return nextElementOnEnter(normalizeElement(last.tag));
+    return blocks[Math.min(blocks.length - 1, lineOf(text))].tag;
   }
-  const tags = predictElementTags(blocks, paragraphs);
-  return tags[Math.min(tags.length - 1, upTo(liveText!))] ?? "action";
+
+  const paragraphs = liveText.split("\n");
+  const body = paragraphs.length > 1 && paragraphs[paragraphs.length - 1] === "" ? paragraphs.slice(0, -1) : paragraphs;
+  const tags = predictElementTags(blocks, body);
+  if (offset > body.join("\n").length) {
+    if (last.text === "" && body.length === blocks.length - 1) return last.tag;
+    return nextElementOnEnter(normalizeElement(tags[tags.length - 1]));
+  }
+  return tags[Math.min(tags.length - 1, lineOf(liveText))];
 }
 
-/** The index of the committed block the offset falls in (paragraphs newline-separated). */
-function lineAt(blocks: readonly Committed[], offset: number): number {
-  let remaining = Math.max(0, offset);
-  for (let i = 0; i < blocks.length; i++) {
-    if (remaining <= blocks[i].text.length) return i;
-    remaining -= blocks[i].text.length + 1;
-  }
-  return blocks.length - 1;
+/**
+ * The block an element chip should change: the one the caret is in, found in
+ * `html` (the chapter after a flush). `fallback` is the block id from the last
+ * caret move, which is stale when Return has added a line since: it names the
+ * line above, and a chip tapped on the new empty line would retag that one.
+ */
+export function elementTargetId(html: string, docOffset: number, fallback: string): string {
+  return blockAtPlainOffset(html, docOffset)?.blockId || fallback;
+}
+
+/**
+ * Whether the caret is past the end of everything the chapter holds: on a blank
+ * line the editor shows and the chapter does not have (yet).
+ */
+export function caretBeyondChapter(html: string, docOffset: number): boolean {
+  const blocks = committedBlocks(html);
+  return docOffset > blocks.map((block) => block.text).join("\n").length;
 }

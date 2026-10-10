@@ -352,10 +352,20 @@ flush, and carries the Beta mark.
   `nextElementOnEnter` of the line above.
 - **The chip is never a flush behind.** The committed blocks lag the native text
   by up to a second (`REPLACE_FLUSH_MS`), so the lit chip is computed from the
-  live text and the caret (`elementTagAtCaret` in `lib/screenplay-live.ts`, the
-  same rule `restampCiciroHtml` applies), kept in `manuscript.tsx` as
-  `caretElement`, recomputed on every text change, caret move and committed
-  change, and set straight away when a chip is tapped.
+  live text and the caret (`elementTagAtCaret` in `lib/screenplay-live.ts`),
+  kept in `manuscript.tsx` as `caretElement`, recomputed on every text change,
+  caret move and committed change, and set straight away when a chip is tapped.
+  It applies the flush's own rule (`predictElementTags` calls `assignIds`, the
+  matcher `restampCiciroHtml` uses, and `test/screenplay-live.test.ts` compares
+  the two), so the flush only confirms it. One quirk of the native view is
+  modelled: its HTML leaves out one trailing blank line (`X\n` reads back as
+  `X`), so the blank Return adds at the end is not in the chapter until
+  something is typed into it. Choosing an element for that line therefore gives
+  it a block of its own (`appendEmptyBlockOps`), and any other time the target
+  is found from the caret in the chapter as just flushed (`elementTargetId`),
+  never from the block id of the last caret move, which names the line above.
+  The bar scrolls the lit chip to the middle when it is out of view, and leaves
+  the row still otherwise, so a chip does not move under a thumb.
 - **Page view.** The Pages tile on the chapters screen opens
   `app/project/[id]/pages.tsx`: the script as read-only sheets, 54 lines of 60
   columns in JetBrains Mono (0.6 em wide, like Courier), page numbers from
@@ -368,7 +378,8 @@ flush, and carries the Beta mark.
   phase 4.
 - **Page counts.** The manuscripts list row and the manuscript meta line say
   "about N pages" (from the server's `pages`), and the chapters screen counts
-  them from the loaded sequences.
+  them from the loaded sequences, in place of the word count in its kicker (a
+  script is measured in pages; each card keeps its words).
 - **Chat.** A script draft in the chat card is set as a script
   (`components/ScriptDraft.tsx`: element indents as fractions of the card, caps,
   blank-line spacing; the card is not 60 columns wide, so it wraps and the page

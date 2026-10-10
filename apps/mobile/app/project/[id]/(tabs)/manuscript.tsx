@@ -17,7 +17,7 @@ import { useAppHeaderHeight } from "../../../../components/AppHeader";
 import { FormatBar, type FormatBlockKind } from "../../../../components/FormatBar";
 import { ScreenplayBar } from "../../../../components/ScreenplayBar";
 import { knownElement, normalizeKind, type ScreenplayElement } from "../../../../lib/manuscript-kind";
-import { elementTagAtCaret } from "../../../../lib/screenplay-live";
+import { caretBeyondChapter, elementTagAtCaret, elementTargetId } from "../../../../lib/screenplay-live";
 import { FormatBubble } from "../../../../components/FormatBubble";
 import { FormatPressMenu } from "../../../../components/FormatPressMenu";
 import { GrammarPopup } from "../../../../components/GrammarPopup";
@@ -36,6 +36,7 @@ import {
   CARET_FLUSH_MS,
   REPLACE_FLUSH_MS,
   replaceBlockOps,
+  appendEmptyBlockOps,
   setBlockElementOps,
   emptyBlockMarks,
   type BlockMark,
@@ -573,7 +574,15 @@ function ManuscriptScreenContent() {
       const current = chapterRef.current;
       if (!current) return;
       const doc = htmlToDoc(current.content, current.revision).doc;
-      const target = caretRef.current.blockId || doc.blocks[doc.blocks.length - 1]?.id;
+      // The caret can be on a blank line the chapter does not hold (the native view does not always
+      // report one Return added): give it a block of its own, rather than retagging the line above.
+      if (caretBeyondChapter(current.content, caretRef.current.docOffset)) {
+        commitOps(appendEmptyBlockOps(doc, element));
+        return;
+      }
+      // Otherwise found from the caret in what the flush just committed: the block id taken at the
+      // last caret move is stale when the flush added the line since.
+      const target = elementTargetId(current.content, caretRef.current.docOffset, caretRef.current.blockId) || doc.blocks[doc.blocks.length - 1]?.id;
       if (!target) return;
       commitOps(setBlockElementOps(doc, target, element));
     },
