@@ -159,7 +159,7 @@ function CiciroScreenContent() {
         setInsertError(t("ciciroTab.insertError"));
         return;
       }
-      const ops = insertDraftOps(chapter, text);
+      const ops = insertDraftOps(chapter, text, kind);
       if (ops.length === 0) return;
       setInsertError(null);
       void recordChapterOp(ops);
@@ -182,7 +182,7 @@ function CiciroScreenContent() {
           .catch(() => {});
       }
     },
-    [project, recordChapterOp, selectedChapterId, t]
+    [kind, project, recordChapterOp, selectedChapterId, t]
   );
 
   // Arriving from the tab bar's Questions action opens the sheet once.

@@ -103,6 +103,13 @@ export function normalizeElement(value: unknown): ScreenplayElement {
   return isScreenplayElement(value) ? value : "action";
 }
 
+/** Elements the spell checker and the grammar pass leave alone: names, slugs and cues are not prose. */
+const UNCHECKED_ELEMENTS: readonly ScreenplayElement[] = ["scene-heading", "character", "transition"];
+
+export function isProofread(element: ScreenplayElement): boolean {
+  return !UNCHECKED_ELEMENTS.includes(element);
+}
+
 /** Tab walks this ring; Shift-Tab walks it backwards. */
 const CYCLE: readonly ScreenplayElement[] = [
   "action",

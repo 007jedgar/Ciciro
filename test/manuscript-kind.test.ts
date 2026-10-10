@@ -5,6 +5,7 @@ import {
   cycleElement,
   elementOfHtml,
   findEntryForDate,
+  isProofread,
   journalEntryTitle,
   kindDirective,
   nextChapterTitle,
@@ -12,6 +13,7 @@ import {
   normalizeKind,
   openingChapter,
   parseYmd,
+  replacementContext,
   withElement,
 } from "@/lib/manuscript-kind";
 import { DRAFTER_SYSTEM, EDITOR_SYSTEM, drafterSystemFor, editorSystemFor, quickActionsFor, QUICK_ACTIONS } from "@/lib/prompts";
@@ -116,5 +118,31 @@ describe("manuscript kind", () => {
     }
     expect(mobileKind.openingChapter("screenplay")).toEqual(openingChapter("screenplay"));
     expect(mobileKind.nextChapterTitle("journal", 0)).toBe(nextChapterTitle("journal", 0));
+  });
+
+  it("classifies script lines the same on the phone", () => {
+    const scripts = [
+      "INT. LAB - DAY\n\nMARA\nWhere is he?\n\nCUT TO:",
+      "BOOM.\nShe flinches and ducks.",
+      "MARA (CONT'D)\n(whispering)\nHe left.\nJONAH\nWhat?",
+    ];
+    for (const script of scripts) {
+      for (const after of [undefined, "character", "dialogue"] as const) {
+        expect(mobileKind.classifyScreenplayLines(script, after)).toEqual(classifyScreenplayLines(script, after));
+      }
+    }
+    for (const el of ["scene-heading", "action", "character", "dialogue", "parenthetical", "transition"] as const) {
+      expect(mobileKind.isProofread(el)).toBe(isProofread(el));
+      expect(mobileKind.replacementContext(el)).toBe(replacementContext(el));
+    }
+  });
+
+  it("leaves names, slugs and transitions out of spelling and grammar", () => {
+    expect(isProofread("scene-heading")).toBe(false);
+    expect(isProofread("character")).toBe(false);
+    expect(isProofread("transition")).toBe(false);
+    expect(isProofread("action")).toBe(true);
+    expect(isProofread("dialogue")).toBe(true);
+    expect(isProofread("parenthetical")).toBe(true);
   });
 });

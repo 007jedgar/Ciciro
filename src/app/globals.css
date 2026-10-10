@@ -3815,6 +3815,41 @@ input[type="file"]::file-selector-button {
   gap: 6px;
 }
 /* ---------- Screenplay ---------- */
+/* Courier Prime (SIL Open Font License, public/fonts/courier-prime/OFL.txt) is
+   served from here so a script lays out in the same monospace face on every
+   machine; Courier New stays the fallback for glyphs outside Latin. */
+@font-face {
+  font-family: "Courier Prime";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/courier-prime/courier-prime-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
+}
+@font-face {
+  font-family: "Courier Prime";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/courier-prime/courier-prime-latin-400-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
+}
+@font-face {
+  font-family: "Courier Prime";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/courier-prime/courier-prime-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
+}
+@font-face {
+  font-family: "Courier Prime";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/courier-prime/courier-prime-latin-700-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212;
+}
 /* Standard script layout, measured against a 6in text column:
    character at 3.7in, dialogue at 2.5in and 3.5in wide, parenthetical at 3.1in. */
 .ProseMirror.screenplay {

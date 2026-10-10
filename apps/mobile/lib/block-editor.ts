@@ -60,8 +60,12 @@ export function serializeBlockHtml(
   );
 }
 
-export function newParagraphHtml(blockId: string, text: string): string {
-  return `<p data-block-id="${blockId}">${escapeHtmlText(text)}</p>`;
+/** A paragraph to append: bare text, or text with the screenplay element it takes. */
+export type NewParagraph = string | { text: string; element: ScreenplayElement };
+
+export function newParagraphHtml(blockId: string, text: string, element?: ScreenplayElement): string {
+  const html = `<p data-block-id="${blockId}">${escapeHtmlText(text)}</p>`;
+  return element ? withElement(html, element) : html;
 }
 
 function idsOf(opts?: BlockEditorIds) {
@@ -138,15 +142,16 @@ export function setBlockElementOps(
 /** Append one or more paragraphs after the last block (Ciciro draft insert). */
 export function appendParagraphsOps(
   doc: ManuscriptDoc,
-  paragraphs: string[],
+  paragraphs: NewParagraph[],
   opts?: BlockEditorIds
 ): ManuscriptOp[] {
   const ids = idsOf(opts);
   const ops: ManuscriptOp[] = [];
   let current = doc;
   for (const paragraph of paragraphs) {
-    const text = paragraph.trim();
+    const text = (typeof paragraph === "string" ? paragraph : paragraph.text).trim();
     if (!text) continue;
+    const element = typeof paragraph === "string" ? undefined : paragraph.element;
     const blockId = ids.createBlockId();
     const afterBlockId =
       current.blocks.length === 0 ? null : current.blocks[current.blocks.length - 1].id;
@@ -157,7 +162,7 @@ export function appendParagraphsOps(
       type: "insert_block",
       afterBlockId,
       blockId,
-      html: newParagraphHtml(blockId, text),
+      html: newParagraphHtml(blockId, text, element),
     });
     ops.push(inserted.op);
     current = inserted.doc;

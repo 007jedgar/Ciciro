@@ -47,6 +47,7 @@ import {
 import {
   blockAtPlainOffset,
   blockIsAbovePlainOffset,
+  blockSkipsProofreading,
   fromEnrichedHtmlAsShown,
   opsFromEnrichedHtml,
   restampCiciroHtml,
@@ -359,7 +360,12 @@ function ManuscriptScreenContent() {
       if (!current) return;
       liveTextRef.current = { chapterId: current.id, text };
       const at = blockAtPlainOffset(current.content, caretRef.current.docOffset);
-      if (at && settings.autoCorrect && !blockHasSuggestions(current.content, at.blockId)) {
+      if (
+        at &&
+        settings.autoCorrect &&
+        !blockHasSuggestions(current.content, at.blockId) &&
+        !(isScreenplay && blockSkipsProofreading(current.content, at.blockId))
+      ) {
         const live = paragraphAtOffset(text, caretRef.current.docOffset);
         grammarRef.current?.onKeystroke({
           chapterId: current.id,
@@ -371,7 +377,7 @@ function ManuscriptScreenContent() {
       }
       scheduleFlush();
     },
-    [markTyping, scheduleFlush, settings.autoCorrect]
+    [isScreenplay, markTyping, scheduleFlush, settings.autoCorrect]
   );
 
   const onContentApplied = useCallback(() => {

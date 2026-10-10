@@ -1,5 +1,6 @@
 import {
   blockAtPlainOffset,
+  blockSkipsProofreading,
   blockIsAbovePlainOffset,
   fromEnrichedHtml,
   opsFromEnrichedHtml,
@@ -173,5 +174,22 @@ describe("enriched html adapter", () => {
       const stamped = restampCiciroHtml('<p data-block-id="a">One.</p>', "<p>One.</p><p></p>");
       expect(stamped).not.toContain("data-sp");
     });
+  });
+});
+
+describe("blockSkipsProofreading", () => {
+  const html =
+    '<p data-block-id="h" data-sp="scene-heading">INT. LAB - DAY</p>' +
+    '<p data-block-id="c" data-sp="character">MARA</p>' +
+    '<p data-block-id="d" data-sp="dialogue">Hello.</p>' +
+    '<p data-block-id="t" data-sp="transition">CUT TO:</p>' +
+    '<p data-block-id="a">She waits.</p>';
+
+  it("skips scene headings, character cues and transitions", () => {
+    expect(["h", "c", "t"].map((id) => blockSkipsProofreading(html, id))).toEqual([true, true, true]);
+  });
+
+  it("checks dialogue and action, and a block it cannot find", () => {
+    expect(["d", "a", "missing"].map((id) => blockSkipsProofreading(html, id))).toEqual([false, false, false]);
   });
 });
