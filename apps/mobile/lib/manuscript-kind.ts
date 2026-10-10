@@ -248,6 +248,117 @@ export function classifyScreenplayLines(
   return out;
 }
 
+// --- Marked script lines -----------------------------------------------------
+
+/**
+ * The marks that force a line's element: Fountain's forced-element markers, plus
+ * `^` for a shot, which Fountain has no word for. A dialogue or parenthetical
+ * line carries no mark: it sits under its cue, the way it does in Fountain.
+ */
+const MARK_ELEMENT: Readonly<Record<string, ScreenplayElement>> = {
+  ".": "scene-heading",
+  "!": "action",
+  "@": "character",
+  ">": "transition",
+  "^": "shot",
+};
+
+/** The mark an element's line starts with, for the elements that have one. */
+export const ELEMENT_MARK: Readonly<Partial<Record<ScreenplayElement, string>>> = {
+  "scene-heading": ".",
+  action: "!",
+  character: "@",
+  transition: ">",
+  shot: "^",
+};
+
+/** The element a mark forces and the line without it, or null for a line that carries no mark. */
+export function markedLine(raw: string): { element: ScreenplayElement; text: string } | null {
+  const line = raw.trim();
+  const element = MARK_ELEMENT[line.charAt(0)];
+  if (!element) return null;
+  let rest = line.slice(1);
+  if (line.charAt(0) === ".") {
+    // A forced heading starts with a letter: "..." is an ellipsis, ".5 seconds" is prose.
+    if (!/^\p{L}/u.test(rest)) return null;
+    return { element, text: rest.trim() };
+  }
+  rest = rest.trim();
+  // Fountain's centered line, "> THE END <", is just a line of action here.
+  const centered = line.charAt(0) === ">" && rest.endsWith("<");
+  if (centered) rest = rest.slice(0, -1).trim();
+  // "!!" and "@ " are not elements.
+  if (!/[\p{L}\p{N}]/u.test(rest)) return null;
+  return { element: centered ? "action" : element, text: rest };
+}
+
+const isSpeech = (el?: ScreenplayElement) => el === "character" || el === "parenthetical" || el === "dialogue";
+
+/**
+ * Script text from the assistant, sorted into elements. The assistant writes
+ * marked lines (`.` heading, `!` action, `@` cue, `>` transition, `^` shot;
+ * see SCRIPT_FORMAT), and a mark is believed: it is how an ALL-CAPS action line
+ * stays action and an unusual cue stays a cue. Under a marked script, a line
+ * after a cue, parenthetical or dialogue is a parenthetical or dialogue, never
+ * a new cue guessed from its capitals. A line with no mark outside a speech, and
+ * all of a text with no marks at all, falls back to `classifyScreenplayLines`.
+ */
+export function parseScriptLines(
+  text: string,
+  after?: ScreenplayElement
+): { element: ScreenplayElement; text: string }[] {
+  const lines = text.split(/\r?\n/);
+  if (!lines.some((line) => markedLine(line))) return classifyScreenplayLines(text, after);
+  const out: { element: ScreenplayElement; text: string }[] = [];
+  let previous: ScreenplayElement | undefined = after;
+  // Unmarked lines outside a speech, classified together so a guessed cue still gets its dialogue.
+  let run: string[] = [];
+  let runAfter: ScreenplayElement | undefined;
+  const settle = () => {
+    if (run.length === 0) return;
+    const rows = classifyScreenplayLines(run.join("\n"), runAfter);
+    out.push(...rows);
+    previous = rows[rows.length - 1]?.element;
+    run = [];
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      settle();
+      previous = undefined;
+      continue;
+    }
+    const marked = markedLine(line);
+    if (marked) {
+      settle();
+      out.push(marked);
+      previous = marked.element;
+    } else if (run.length === 0 && isSpeech(previous)) {
+      const parenthetical = /^\(\s*\S.*\)$/.test(line);
+      previous = parenthetical ? "parenthetical" : "dialogue";
+      // The page draws a parenthetical's brackets, so the stored text has none.
+      out.push({ element: previous, text: parenthetical ? line.slice(1, -1).trim() : line });
+    } else {
+      if (run.length === 0) runAfter = previous;
+      run.push(line);
+    }
+  }
+  settle();
+  return out;
+}
+
+/** A draft as the author reads it: the marks that drive `parseScriptLines` taken off, the text kept. */
+export function scriptDisplayText(text: string): string {
+  const lines = text.split(/\r?\n/);
+  if (!lines.some((line) => markedLine(line))) return text;
+  return lines
+    .map((line) => {
+      const marked = markedLine(line);
+      return marked ? marked.text : line;
+    })
+    .join("\n");
+}
+
 /**
  * How to read a replacement for a block tagged `replaced`: a replaced line of
  * speech keeps its speaker open (`after`); a replaced shot, or a newer client's

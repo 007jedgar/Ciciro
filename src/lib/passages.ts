@@ -1,11 +1,16 @@
 import { countWords, htmlToText } from "@/lib/text";
+import type { ManuscriptKind } from "@/lib/manuscript-kind";
+import { scriptTextOfHtml } from "@/lib/script-view";
+import { elementOfHtml } from "@/lib/screenplay";
 
 // Addressable units for the manuscript. The editor points at ids
 // (ch3.s2, ch3.p12-p18); tools copy HTML bytes. Quote matching is fallback.
 //
 // IDs are valid for the current chapter snapshot and shift after a structural
 // edit - list_passages (or the index returned by move_text) refreshes them.
-// Scene breaks match export: a lone # or * line (see docx.ts).
+// Scene breaks match export: a lone # or * line (see docx.ts). In a script a
+// scene runs from one scene heading to the next, so a passage id names a scene
+// by its heading (ch2.s5 is "INT. ROOFTOP - NIGHT").
 
 export type HtmlBlock = {
   start: number;
@@ -278,9 +283,22 @@ export function indexChapter(
   }
 
   const scenes: Passage[] = [];
+  // A chapter with a scene heading in it is a script: its scenes start at the
+  // headings. Read off the chapter itself, so every id resolves the same way
+  // whichever tool made it and whatever the manuscript's kind says.
+  const headingIdxs: number[] = [];
+  if (html.includes("data-sp")) {
+    for (let i = 0; i < blocks.length; i++) {
+      if (elementOfHtml(html.slice(blocks[i].start, blocks[i].end)) === "scene-heading") headingIdxs.push(i);
+    }
+  }
+  const script = headingIdxs.length > 0;
   const breakIdxs: number[] = [];
-  for (let i = 0; i < blocks.length; i++) {
-    if (isSceneBreak(blocks[i].text)) breakIdxs.push(i);
+  if (script) breakIdxs.push(...headingIdxs);
+  else {
+    for (let i = 0; i < blocks.length; i++) {
+      if (isSceneBreak(blocks[i].text)) breakIdxs.push(i);
+    }
   }
 
   const ranges: { startIdx: number; endIdx: number }[] = [];
@@ -314,7 +332,9 @@ export function indexChapter(
     scenes.push({
       id: `ch${chapterNumber}.s${s + 1}`,
       kind: "scene",
-      gist: gist(prose[0]?.text || "(scene break)"),
+      gist: headingIdxs.includes(startIdx)
+        ? gist(blocks[startIdx].text.toUpperCase() || "(untitled scene)")
+        : gist(prose[0]?.text || "(scene break)"),
       wordCount: words,
       startIdx,
       endIdx,
@@ -594,20 +614,27 @@ export function formatSceneIndex(
   return lines.join("\n");
 }
 
-/** Scene-boundary annotations so the model can address without quoting. */
+/**
+ * Scene-boundary annotations so the model can address without quoting. A
+ * screenplay's scenes are shown as marked script lines (see script-view.ts), so
+ * the model sees which line is a cue, dialogue or action, not bare text.
+ */
 export function renderAnnotatedChapter(
   html: string,
   chapterNumber: number,
-  title?: string
+  title?: string,
+  opts: { kind?: ManuscriptKind } = {}
 ): string {
   const indexed = indexChapter(html, chapterNumber);
   const head = title ? `# ${title}\n\n` : "";
   if (!indexed.scenes.length) {
     return `${head}(empty)`;
   }
+  const script = opts.kind === "screenplay";
   const parts: string[] = [];
   for (const s of indexed.scenes) {
-    const body = htmlToText(html.slice(s.start, s.end)) || "(empty)";
+    const slice = html.slice(s.start, s.end);
+    const body = (script ? scriptTextOfHtml(slice) : htmlToText(slice)) || "(empty)";
     parts.push(`[${s.id} · ${s.wordCount}w]\n${body}`);
   }
   return head + parts.join("\n\n");

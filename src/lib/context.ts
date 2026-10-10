@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { chapterPlainText, htmlToText } from "@/lib/text";
 import { chapterHtmlForModel, pendingSuggestionsNote } from "@/lib/suggestion-edits";
+import { scriptTextOfHtml } from "@/lib/script-view";
 import { KIND_INFO, normalizeKind } from "@/lib/manuscript-kind";
 import { listBible, readBibleFile, ensureBible } from "@/lib/bible";
 import { relevantCharacterPaths } from "@/lib/continuity-view";
@@ -150,7 +151,10 @@ export async function buildEditorContext(
   if (active) {
     const activeContent = contentById.get(active.id) ?? "";
     const chapterNumber = project.chapters.indexOf(active) + 1;
-    const fullText = htmlToText(chapterHtmlForModel(activeContent)) || "(empty)";
+    // A script reaches the model as marked script lines, so it can tell a cue
+    // from action; everything else as plain text.
+    const modelHtml = chapterHtmlForModel(activeContent);
+    const fullText = (kind === "screenplay" ? scriptTextOfHtml(modelHtml) : htmlToText(modelHtml)) || "(empty)";
     const passageIndex = compactOpenChapterIndex(activeContent, chapterNumber);
     // Most tasks don't need the whole chapter. Always send the passage index
     // so the editor can move by id after compact without re-quoting prose.
@@ -161,7 +165,7 @@ export async function buildEditorContext(
         passageIndex,
         "",
         pendingSuggestionsNote(activeContent) +
-          renderAnnotatedChapter(chapterHtmlForModel(activeContent), chapterNumber)
+          renderAnnotatedChapter(modelHtml, chapterNumber, undefined, { kind })
       );
     } else {
       const openPlotPoints = await prisma.plotPoint.findMany({

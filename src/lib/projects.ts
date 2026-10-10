@@ -8,6 +8,7 @@ import {
 } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
 import { defaultTitle, normalizeKind, openingChapter, parseYmd } from "@/lib/manuscript-kind";
+import { withScriptPages } from "@/lib/script-pages";
 
 function readTrimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -57,7 +58,8 @@ export async function listProjects(user: PublicUser | null) {
     orderBy: { updatedAt: "desc" },
     include: PROJECT_LIST_INCLUDE,
   });
-  return projects.map(withVisibleChapterCount);
+  // A screenplay's row also says how many pages it runs, for the lists.
+  return withScriptPages(projects.map(withVisibleChapterCount));
 }
 
 /** Create a manuscript with an opening chapter. Owned when a user is present. */

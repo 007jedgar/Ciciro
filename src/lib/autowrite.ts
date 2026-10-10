@@ -13,7 +13,13 @@ import {
 } from "@/lib/prompts";
 import { proseOptions, type ProseOptions } from "@/lib/craft-options";
 import { checkDraft, formatCraftCheck } from "@/lib/prose-tells";
-import { assistantTextToHtml, normalizeKind, type ManuscriptKind } from "@/lib/manuscript-kind";
+import {
+  assistantTextToHtml,
+  normalizeKind,
+  scriptDisplayText,
+  type ManuscriptKind,
+} from "@/lib/manuscript-kind";
+import { lastScriptElement, scriptTail } from "@/lib/script-view";
 import { chapterPlainText, chapterWordCount, countWords } from "@/lib/text";
 import { writeChapterHtml } from "@/lib/chapter-writes";
 
@@ -263,6 +269,7 @@ export async function runAutoWrite(opts: {
     emit({ type: "note", v: `Open question: ${q.question} (went with: ${q.provisional || "n/a"})` });
   }
 
+  const script = kind === "screenplay";
   const existingText = chapterPlainText(chapter.content);
   let running = existingText; // accumulated plain text for continuity
   let newHtml = ""; // html to append to the chapter
@@ -275,7 +282,9 @@ export async function runAutoWrite(opts: {
     }
     const beat = beats[i];
     const isOpening = i === 0 && !existingText.trim();
-    const tail = tailWords(running);
+    // A script continues from its last few elements as marked script lines, so
+    // the drafter sees the format and who is speaking; prose from its last words.
+    const tail = script ? scriptTail(chapter.content + newHtml) : tailWords(running);
 
     emit({ type: "beat", i: i + 1, n: beats.length, status: "drafting", goal: beat.goal });
     let prose: string;
@@ -294,7 +303,11 @@ export async function runAutoWrite(opts: {
         ? {
             brief: beat.brief,
             check: formatCraftCheck(
-              await checkDraft(prose, { kind, emDashes: options.emDashes, brief: beat.brief })
+              await checkDraft(script ? scriptDisplayText(prose) : prose, {
+                kind,
+                emDashes: options.emDashes,
+                brief: beat.brief,
+              })
             ),
           }
         : undefined;
@@ -305,8 +318,11 @@ export async function runAutoWrite(opts: {
     }
 
     if (!prose.trim()) continue;
-    running = `${running}\n\n${prose}`.trim();
-    newHtml += assistantTextToHtml(prose, kind);
+    // What the author reads is the script without its line marks.
+    const shown = script ? scriptDisplayText(prose) : prose;
+    running = `${running}\n\n${shown}`.trim();
+    // A beat that opens on dialogue continues the speech the last element left open.
+    newHtml += assistantTextToHtml(prose, kind, script ? lastScriptElement(chapter.content + newHtml) : undefined);
     accepted++;
     emit({
       type: "beat",
@@ -314,9 +330,9 @@ export async function runAutoWrite(opts: {
       n: beats.length,
       status: "accepted",
       goal: beat.goal,
-      words: countWords(prose),
+      words: countWords(shown),
     });
-    emit({ type: "prose", v: prose });
+    emit({ type: "prose", v: shown });
   }
 
   // Save the accumulated prose to the chapter. The beat events above are

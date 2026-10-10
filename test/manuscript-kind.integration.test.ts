@@ -1,6 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
-import { createProject, getProject, updateProject } from "@/lib/projects";
+import { createProject, getProject, listProjects, updateProject } from "@/lib/projects";
+import { createFolder, listFolders } from "@/lib/folders";
+import { estimatePages } from "@/lib/screenplay";
+import { NIGHT_SHIFT } from "./fixtures/screenplay/night-shift";
 import { createChapter, archiveChapter, SINGLE_PIECE_ERROR } from "@/lib/chapters";
 import { registerUser } from "@/lib/auth/session";
 import { CICIRO_AUTHOR, resolveSuggestions, suggestReplacements } from "@/lib/suggestions";
@@ -410,5 +413,208 @@ describe("assistant tools respect the manuscript kind", () => {
       ["character", "MARA"],
       ["dialogue", "Hello."],
     ]);
+  });
+});
+
+describe("the assistant reads and writes a script as marked lines", () => {
+  const SCRIPT =
+    '<p data-block-id="a" data-sp="scene-heading">int. lab - day</p>' +
+    '<p data-block-id="b">BOOM.</p>' +
+    '<p data-block-id="c" data-sp="character">MARA</p>' +
+    '<p data-block-id="d" data-sp="dialogue">Hi.</p>' +
+    '<p data-block-id="e" data-sp="scene-heading">EXT. ROOF - NIGHT</p>' +
+    '<p data-block-id="f">Wind.</p>';
+
+  beforeEach(async () => {
+    await prisma.session.deleteMany();
+    await prisma.project.deleteMany();
+    await prisma.user.deleteMany();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  const tagged = (html: string) =>
+    (html.match(/<p\b[^>]*>.*?<\/p>/g) ?? []).map((b) => [elementTagOfHtml(b), b.replace(/<[^>]+>/g, "")]);
+
+  async function seeded(opts: { aiSuggestions?: boolean } = {}) {
+    const owner = await registerUser({ email: "sp@example.com", password: "long-enough-pw", name: "Sam" });
+    await updateUserSettings(owner.id, { aiSuggestions: opts.aiSuggestions ?? false });
+    const script = await createProject(owner, { title: "Heist", kind: "screenplay" });
+    const [chapter] = script.chapters;
+    const row = await prisma.chapter.update({ where: { id: chapter.id }, data: { content: SCRIPT } });
+    return { owner, script, chapter: row };
+  }
+
+  async function content(id: string) {
+    return (await prisma.chapter.findUniqueOrThrow({ where: { id } })).content;
+  }
+
+  it("shows a script with each line's element and each scene by its heading", async () => {
+    const { script } = await seeded();
+    const read = await executeEditorTool("read_chapter", { number: 1 }, { projectId: script.id });
+    expect(read.content).toContain("[ch1.s1 · 7w]\n.int. lab - day\n\n!BOOM.\n\n@MARA\nHi.");
+    expect(read.content).toContain("[ch1.s2 · 5w]\n.EXT. ROOF - NIGHT\n\n!Wind.");
+    const list = await executeEditorTool("list_passages", { chapterNumber: 1 }, { projectId: script.id });
+    expect(list.content).toContain("- ch1.s1 (7w, p1-p4) INT. LAB - DAY");
+    expect(list.content).toContain("- ch1.s2 (5w, p5-p6) EXT. ROOF - NIGHT");
+    // A novel's chapter still reads as plain text.
+    const novel = await createProject(null, { title: "Book" });
+    await prisma.chapter.update({ where: { id: novel.chapters[0].id }, data: { content: "<p>One.</p><p>Two.</p>" } });
+    const plain = await executeEditorTool("read_chapter", { number: 1 }, { projectId: novel.id });
+    expect(plain.content).toContain("[ch1.s1 · 2w]\nOne.\n\nTwo.");
+  });
+
+  it("gives the editor's context the script lines and the scene index", async () => {
+    const { script, chapter } = await seeded();
+    const whole = await buildEditorContext(script.id, chapter.id, "chapter");
+    expect(whole).toContain("- ch1.s2 (5w, p5-p6) EXT. ROOF - NIGHT");
+    expect(whole).toContain("[ch1.s1 · 7w]\n.int. lab - day\n\n!BOOM.\n\n@MARA\nHi.");
+    const brief = await buildEditorContext(script.id, chapter.id);
+    expect(brief).toContain("@MARA\nHi.\n\n.EXT. ROOF - NIGHT\n\n!Wind.");
+    expect(brief).not.toContain("</p>");
+  });
+
+  it("deletes a scene by its heading and leaves the rest of the script", async () => {
+    const { script, chapter } = await seeded();
+    const result = await executeEditorTool(
+      "delete_passages",
+      { passageId: "ch1.s1", expectedRevision: chapter.revision },
+      { projectId: script.id }
+    );
+    expect(result.mutationCount).toBe(1);
+    expect(tagged(await content(chapter.id))).toEqual([
+      ["scene-heading", "EXT. ROOF - NIGHT"],
+      ["action", "Wind."],
+    ]);
+  });
+
+  it("places marked lines as the elements they name, ALL-CAPS action included", async () => {
+    const { script, chapter } = await seeded();
+    await executeEditorTool(
+      "insert_text",
+      {
+        chapterNumber: 1,
+        expectedRevision: chapter.revision,
+        position: "end",
+        text: "!SHE RUNS OUT.\n\n@MARA\n(panting)\nWait.\nSTOP.\n\n>CUT TO:\n\n^CLOSE ON THE DOOR",
+      },
+      { projectId: script.id }
+    );
+    expect(tagged(await content(chapter.id)).slice(-7)).toEqual([
+      ["action", "SHE RUNS OUT."],
+      ["character", "MARA"],
+      ["parenthetical", "panting"],
+      ["dialogue", "Wait."],
+      ["dialogue", "STOP."],
+      ["transition", "CUT TO:"],
+      ["shot", "CLOSE ON THE DOOR"],
+    ]);
+  });
+
+  it("continues a speech: a line inserted under a cue is dialogue", async () => {
+    const { script, chapter } = await seeded();
+    await executeEditorTool(
+      "insert_text",
+      { chapterNumber: 1, expectedRevision: chapter.revision, after: "ch1.p3", text: "Hello there." },
+      { projectId: script.id }
+    );
+    expect(tagged(await content(chapter.id)).slice(2, 5)).toEqual([
+      ["character", "MARA"],
+      ["dialogue", "Hello there."],
+      ["dialogue", "Hi."],
+    ]);
+  });
+
+  it.each([true, false])(
+    "replaces a whole line with a marked line, as that element (suggestions %s)",
+    async (aiSuggestions) => {
+      const { script, chapter } = await seeded({ aiSuggestions });
+      await executeEditorTool(
+        "edit_manuscript",
+        {
+          chapterNumber: 1,
+          expectedRevision: chapter.revision,
+          replacements: [{ find: "Hi.", replace: "!She waves." }],
+        },
+        { projectId: script.id }
+      );
+      const after = await content(chapter.id);
+      expect(tagged(resolveSuggestions(after, "accept"))).toEqual([
+        ["scene-heading", "int. lab - day"],
+        ["action", "BOOM."],
+        ["character", "MARA"],
+        ["action", "She waves."],
+        ["scene-heading", "EXT. ROOF - NIGHT"],
+        ["action", "Wind."],
+      ]);
+      // The author can still turn it down and have the dialogue back.
+      if (aiSuggestions) expect(tagged(resolveSuggestions(after, "reject"))[3]).toEqual(["dialogue", "Hi."]);
+    }
+  );
+
+  it.each([true, false])(
+    "edits the words inside a line in place and keeps its element (suggestions %s)",
+    async (aiSuggestions) => {
+      const { script, chapter } = await seeded({ aiSuggestions });
+      await executeEditorTool(
+        "edit_manuscript",
+        {
+          chapterNumber: 1,
+          expectedRevision: chapter.revision,
+          replacements: [{ find: "Wind.", replace: "Wind rises." }],
+        },
+        { projectId: script.id }
+      );
+      expect(tagged(resolveSuggestions(await content(chapter.id), "accept")).at(-1)).toEqual([
+        "action",
+        "Wind rises.",
+      ]);
+    }
+  );
+});
+
+describe("a screenplay's page count in the manuscript lists", () => {
+  beforeEach(async () => {
+    await prisma.project.deleteMany();
+    await prisma.folder.deleteMany();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  const html = NIGHT_SHIFT.map((b) => `<p${b.element === "action" ? "" : ` data-sp="${b.element}"`}>${b.text}</p>`).join("");
+
+  it("lists how many pages each screenplay runs, across its sequences, and nothing for other kinds", async () => {
+    const script = await createProject(null, { title: "Heist", kind: "screenplay" });
+    const second = await createChapter(null, { projectId: script.id });
+    await prisma.chapter.update({ where: { id: script.chapters[0].id }, data: { content: html } });
+    await prisma.chapter.update({ where: { id: second.id }, data: { content: html } });
+    const archived = await createChapter(null, { projectId: script.id });
+    await archiveChapter(archived.id, null);
+    await prisma.chapter.update({ where: { id: archived.id }, data: { content: html } });
+    const novel = await createProject(null, { title: "Book" });
+    await createProject(null, { title: "Blank", kind: "screenplay" });
+
+    const rows = await listProjects(null);
+    const byTitle = new Map(rows.map((row) => [row.title, row]));
+    // Sequences run on from one another, and an archived one is not in the script.
+    expect(byTitle.get("Heist")?.pages).toBe(estimatePages([html, html]));
+    expect(byTitle.get("Heist")?.pages).toBeGreaterThan(estimatePages([html]));
+    expect(byTitle.get("Heist")?._count.chapters).toBe(2);
+    // An empty script has no pages to count, and a novel never carries the field.
+    expect(byTitle.get("Blank")).not.toHaveProperty("pages");
+    expect(byTitle.get(novel.title)).not.toHaveProperty("pages");
+  });
+
+  it("carries the count into a folder's manuscripts", async () => {
+    const script = await createProject(null, { title: "Heist", kind: "screenplay" });
+    await prisma.chapter.update({ where: { id: script.chapters[0].id }, data: { content: html } });
+    const folder = await createFolder(null, { name: "Scripts", projectIds: [script.id] });
+    expect(folder.projects[0].pages).toBe(estimatePages([html]));
+    const [listed] = await listFolders(null);
+    expect(listed.projects[0].pages).toBe(estimatePages([html]));
   });
 });

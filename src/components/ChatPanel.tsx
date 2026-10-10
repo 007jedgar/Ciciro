@@ -21,7 +21,7 @@ import {
 import EditModeToggle from "@/components/EditModeToggle";
 import { countWords } from "@/lib/text";
 import { getAnalytics } from "@/lib/analytics-client";
-import type { ManuscriptKind } from "@/lib/manuscript-kind";
+import { scriptDisplayText, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { SELECTION_TURN, selectionBrief, type SelectionBriefId } from "@/lib/selection-menu";
 import type {
   ChatMessage,
@@ -205,7 +205,8 @@ function renderBody(
   onInsert: (text: string, key: string) => void,
   markInserted: (draftKey: string) => void,
   onDurableInsert: (segmentIndex: number, wordCount: number) => void,
-  live: boolean
+  live: boolean,
+  kind: ManuscriptKind
 ) {
   const display = !live && hasOpenDraft(content) ? closeOpenDrafts(content) : content;
   return parseSegments(display).map((seg, idx) => {
@@ -218,6 +219,8 @@ function renderBody(
       );
     }
     const draft = seg.text.trim();
+    // A script draft is written as marked lines; the author reads it without the marks.
+    const shown = kind === "screenplay" ? scriptDisplayText(draft) : draft;
     const draftKey = turnId
       ? insertionKey(turnId, idx)
       : `${insertGroupKey}:${idx}`;
@@ -225,7 +228,7 @@ function renderBody(
     const stillWriting = seg.open && live;
     return (
       <div className="draft-block" key={idx}>
-        {draft || "..."}
+        {shown || "..."}
         {stillWriting ? (
           <div className="draft-actions">
             <span style={{ fontSize: 11, color: "var(--ink-soft)", fontStyle: "italic" }}>
@@ -247,7 +250,7 @@ function renderBody(
             </button>
             <button
               className="btn ghost small"
-              onClick={() => navigator.clipboard?.writeText(draft)}
+              onClick={() => navigator.clipboard?.writeText(shown)}
             >
               Copy
             </button>
@@ -1247,7 +1250,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                           onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
                         });
                       },
-                      false
+                      false,
+                      kind
                     )
                   : m.kind === "compact"
                     ? (
@@ -1317,7 +1321,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
                         onTallied: (id, words) => onDraftTalliedRef.current?.(id, words),
                       });
                     },
-                    true
+                    true,
+                    kind
                   )
                 : (
                     <WritingLoader
