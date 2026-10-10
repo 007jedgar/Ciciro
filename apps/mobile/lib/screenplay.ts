@@ -296,13 +296,17 @@ function upper(text: string): string {
  * Greedy word wrap the way a browser sets `white-space: pre-wrap` in a
  * monospace face: break after spaces and after a hyphen inside a word, let
  * spaces hang off the end of a line, keep leading spaces, and break a word
- * longer than the measure where it overflows. `\n` starts a new line.
+ * longer than the measure where it overflows. `\n` starts a new line, and so
+ * do the line and paragraph separators (U+2028, U+2029) that pasted text can
+ * carry, as they do in a browser.
  */
 export function wrapText(text: string, width: number): LaidOutLine[] {
   const out: LaidOutLine[] = [];
+  const hardBreak = /[\n\u2028\u2029]/g;
   let hardStart = 0;
   for (;;) {
-    const hardEnd = text.indexOf("\n", hardStart);
+    hardBreak.lastIndex = hardStart;
+    const hardEnd = hardBreak.exec(text)?.index ?? -1;
     const end = hardEnd === -1 ? text.length : hardEnd;
     wrapRun(text, hardStart, end, width, out);
     if (hardEnd === -1) break;
@@ -522,41 +526,74 @@ export type PageRow = {
   width: number;
   align: "left" | "right";
   bold: boolean;
+  /** The sequence (chapter) the row belongs to: 0 for a single run of blocks. */
+  sequence: number;
   block: number;
+  /** Where the row's text starts in its block's own text. */
+  start: number;
+  /** Characters at the front of the row that are not in the block's text (a parenthetical's bracket). */
+  lead: number;
 } | null;
+
+export type Typeset = {
+  /** The pages, line by line. */
+  pages: PageRow[][];
+  /** One pagination per sequence, each started where the one before ended. */
+  paginations: Pagination[];
+  /** Where the next line would go. */
+  end: PageCursor;
+  /** How many pages the script runs, counting a part page; 0 for nothing on it. */
+  count: number;
+};
 
 /**
  * The pages themselves, line by line: what the PDF writer draws and what a
- * golden fixture pins. Starts at a fresh page.
+ * golden fixture pins. Starts at a fresh page; each sequence runs on from the
+ * one before with continuous page numbers, exactly as `sequenceCursors` counts.
  */
-export function typeset(blocks: readonly ScriptBlock[]): { pages: PageRow[][]; pagination: Pagination } {
-  const laid = layout(blocks);
-  const pagination = paginate(laid);
+export function typesetSequences(sequences: readonly (readonly ScriptBlock[])[]): Typeset {
   const pages: PageRow[][] = [[]];
-  let next = 0;
-  for (const b of laid) {
-    let lineAt = 0;
-    while (lineAt < b.lines.length) {
-      const brk = pagination.breaks[next];
-      if (brk && brk.block === b.index && brk.line === lineAt) {
-        pages.push([]);
-        next++;
+  const paginations: Pagination[] = [];
+  let cursor = SCRIPT_START;
+  sequences.forEach((blocks, sequence) => {
+    const laid = layout(blocks);
+    const pagination = paginate(laid, { start: cursor });
+    paginations.push(pagination);
+    cursor = pagination.end;
+    let next = 0;
+    for (const b of laid) {
+      let lineAt = 0;
+      while (lineAt < b.lines.length) {
+        const brk = pagination.breaks[next];
+        if (brk && brk.block === b.index && brk.line === lineAt) {
+          pages.push([]);
+          next++;
+        }
+        const page = pages[pages.length - 1];
+        if (lineAt === 0 && page.length > 0) for (let k = 0; k < b.before; k++) page.push(null);
+        const l = b.lines[lineAt];
+        page.push({
+          text: l.text,
+          indent: b.indent,
+          width: b.width,
+          align: b.align,
+          bold: b.bold,
+          sequence,
+          block: b.index,
+          start: l.start,
+          lead: b.element === "parenthetical" && lineAt === 0 ? 1 : 0,
+        });
+        lineAt++;
       }
-      const page = pages[pages.length - 1];
-      if (lineAt === 0 && page.length > 0) for (let k = 0; k < b.before; k++) page.push(null);
-      const l = b.lines[lineAt];
-      page.push({
-        text: l.text,
-        indent: b.indent,
-        width: b.width,
-        align: b.align,
-        bold: b.bold,
-        block: b.index,
-      });
-      lineAt++;
     }
-  }
-  return { pages: pages.filter((p) => p.length > 0), pagination };
+  });
+  return { pages: pages.filter((p) => p.length > 0), paginations, end: cursor, count: pagesAt(cursor) };
+}
+
+/** One run of blocks on a fresh page; see `typesetSequences`. */
+export function typeset(blocks: readonly ScriptBlock[]): { pages: PageRow[][]; pagination: Pagination } {
+  const set = typesetSequences([blocks]);
+  return { pages: set.pages, pagination: set.paginations[0] };
 }
 
 /** A typeset script as plain text, one string per page, for fixtures and debugging. */
@@ -596,23 +633,95 @@ function safeCodePoint(n: number): string {
   }
 }
 
+/** A stretch of a block's text with one set of inline marks. */
+export type StyledRun = { text: string; bold?: boolean; italic?: boolean; underline?: boolean };
+
+/** A script block with its inline marks: the runs' text, joined, is the block's text. */
+export type StyledBlock = { element: string; runs: StyledRun[] };
+
+const INLINE_TOKEN_RE = /<[^>]*>|[^<]+|</g;
+
+/** The runs inside one block's HTML: `<br>` a line break, bold, italic and underline kept, other tags dropped. */
+function runsFromInner(inner: string): StyledRun[] {
+  const runs: StyledRun[] = [];
+  let bold = 0;
+  let italic = 0;
+  let underline = 0;
+  const add = (text: string) => {
+    if (!text) return;
+    const last = runs[runs.length - 1];
+    if (last && !!last.bold === bold > 0 && !!last.italic === italic > 0 && !!last.underline === underline > 0) {
+      last.text += text;
+      return;
+    }
+    const run: StyledRun = { text };
+    if (bold > 0) run.bold = true;
+    if (italic > 0) run.italic = true;
+    if (underline > 0) run.underline = true;
+    runs.push(run);
+  };
+  for (const token of inner.match(INLINE_TOKEN_RE) ?? []) {
+    if (token.length > 1 && token[0] === "<" && token.endsWith(">")) {
+      const m = token.match(/^<(\/?)([a-z][\w-]*)/i);
+      if (!m) continue;
+      const name = m[2].toLowerCase();
+      if (name === "br") {
+        if (!m[1]) add("\n");
+      } else if (name === "strong" || name === "b") {
+        bold = Math.max(0, bold + (m[1] ? -1 : 1));
+      } else if (name === "em" || name === "i") {
+        italic = Math.max(0, italic + (m[1] ? -1 : 1));
+      } else if (name === "u") {
+        underline = Math.max(0, underline + (m[1] ? -1 : 1));
+      }
+    } else {
+      add(decodeEntities(token));
+    }
+  }
+  return runs;
+}
+
 /**
- * A chapter's block HTML as script blocks: the element off each paragraph,
- * `<br>` as a line break, tags dropped, entities decoded. A heading, quote, or
- * list item (what StarterKit's input rules can still make) sets as action.
+ * A chapter's block HTML as styled script blocks: the element off each
+ * paragraph, `<br>` as a line break, bold / italic / underline kept as runs,
+ * other tags dropped, entities decoded. A heading, quote, or list item (what
+ * StarterKit's input rules can still make) sets as action.
  */
-export function scriptBlocksFromHtml(html: string): ScriptBlock[] {
-  const out: ScriptBlock[] = [];
+export function styledBlocksFromHtml(html: string): StyledBlock[] {
+  const out: StyledBlock[] = [];
   BLOCK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = BLOCK_RE.exec(html))) {
-    const inner = m[3].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "");
     out.push({
       element: m[1].toLowerCase() === "p" ? elementTagOfHtml(m[0]) : "action",
-      text: decodeEntities(inner),
+      runs: runsFromInner(m[3]),
     });
   }
   return out;
+}
+
+/** The text of a run of styled runs. */
+export function runsText(runs: readonly StyledRun[]): string {
+  return runs.map((r) => r.text).join("");
+}
+
+/** The part of `runs` between two character offsets in their joined text. */
+export function sliceRuns(runs: readonly StyledRun[], from: number, to: number): StyledRun[] {
+  const out: StyledRun[] = [];
+  let at = 0;
+  for (const run of runs) {
+    const start = Math.max(from, at);
+    const stop = Math.min(to, at + run.text.length);
+    if (stop > start) out.push({ ...run, text: run.text.slice(start - at, stop - at) });
+    at += run.text.length;
+    if (at >= to) break;
+  }
+  return out;
+}
+
+/** A chapter's block HTML as script blocks; see `styledBlocksFromHtml`. */
+export function scriptBlocksFromHtml(html: string): ScriptBlock[] {
+  return styledBlocksFromHtml(html).map((block) => ({ element: block.element, text: runsText(block.runs) }));
 }
 
 const LAYOUT_CACHE_MIN = 64;
@@ -708,4 +817,50 @@ export function dialogueGroups(blocks: readonly ScriptBlock[]): DialogueGroup[] 
     i = end - 1;
   }
   return out;
+}
+
+// --- Script languages ----------------------------------------------------------
+
+/**
+ * The languages script formatting is built for: the Courier page, capitals and
+ * the PDF's WinAnsi text cover English and Spanish. Other languages are planned.
+ */
+export const SCRIPT_LANGUAGES: readonly string[] = ["en", "es"];
+
+/** Whether script formatting (the screenplay PDF, creating a script) is available in a language code such as "en" or "es-MX". */
+export function scriptLanguageSupported(language: string | null | undefined): boolean {
+  if (!language) return true;
+  return SCRIPT_LANGUAGES.includes(language.toLowerCase().split(/[-_]/)[0]);
+}
+
+/**
+ * Whether a script's own text is in a writing system the screenplay PDF can
+ * set (Latin, which covers English and Spanish): false when more than a third
+ * of its characters are Han, Devanagari, Cyrillic, Arabic and the like. Digits,
+ * punctuation, symbols, emoji and spaces say nothing either way.
+ */
+export function scriptTextSupported(text: string): boolean {
+  let latin = 0;
+  let other = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (cp < 0x250 || (cp >= 0x1e00 && cp <= 0x1eff)) {
+      if (isLetter(ch)) latin++;
+    } else if (!((cp >= 0x2000 && cp <= 0x2bff) || (cp >= 0xfe00 && cp <= 0xfe0f) || cp >= 0x1f000 && cp <= 0x1faff)) {
+      other++;
+    }
+  }
+  return other <= (latin + other) / 3;
+}
+
+/**
+ * Whether a whole script, given as its sequences' chapter HTML, is in text the
+ * screenplay PDF can set: `scriptTextSupported` over every sequence's text
+ * joined. The server's export, the web menu and the phone all ask this, each
+ * with the live sequences and pending suggestions already removed.
+ */
+export function scriptHtmlSupported(chapters: readonly string[]): boolean {
+  return scriptTextSupported(
+    chapters.map((html) => styledBlocksFromHtml(html).map((b) => runsText(b.runs)).join("\n")).join("\n")
+  );
 }

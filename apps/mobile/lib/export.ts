@@ -2,10 +2,18 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { ciciro, type ExportFormat } from "./api";
 import { getAnalytics } from "./analytics-client";
+import type { ManuscriptKind } from "./manuscript-kind";
 
 export type { ExportFormat };
 
 export const EXPORT_FORMATS: readonly ExportFormat[] = ["docx", "markdown", "epub", "pdf"];
+
+/** A script leads with its own pages (a screenplay PDF) and a Fountain file. */
+export const SCREENPLAY_EXPORT_FORMATS: readonly ExportFormat[] = ["pdf", "fountain", "docx", "markdown", "epub"];
+
+export function exportFormatsFor(kind: ManuscriptKind): readonly ExportFormat[] {
+  return kind === "screenplay" ? SCREENPLAY_EXPORT_FORMATS : EXPORT_FORMATS;
+}
 
 const SHARE_TYPES: Record<ExportFormat, { mimeType: string; UTI: string }> = {
   epub: { mimeType: "application/epub+zip", UTI: "org.idpf.epub-container" },
@@ -15,6 +23,7 @@ const SHARE_TYPES: Record<ExportFormat, { mimeType: string; UTI: string }> = {
     UTI: "org.openxmlformats.wordprocessingml.document",
   },
   markdown: { mimeType: "text/markdown", UTI: "net.daringfireball.markdown" },
+  fountain: { mimeType: "text/plain", UTI: "public.plain-text" },
 };
 
 export class ExportUnavailableError extends Error {

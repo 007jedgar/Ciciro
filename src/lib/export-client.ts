@@ -1,10 +1,11 @@
-export type ExportFormat = "docx" | "markdown" | "epub" | "pdf";
+export type ExportFormat = "docx" | "markdown" | "epub" | "pdf" | "fountain";
 
 const FALLBACK_NAMES: Record<ExportFormat, string> = {
   docx: "manuscript.docx",
   markdown: "manuscript.md",
   epub: "manuscript.epub",
   pdf: "manuscript.pdf",
+  fountain: "manuscript.fountain",
 };
 
 /** The file name the server chose in Content-Disposition, if it sent one. */

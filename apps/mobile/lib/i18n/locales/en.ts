@@ -757,7 +757,7 @@ const en = {
     chaptersMeta: "From Word, Google Docs, Markdown or Scrivener",
     importing: "Importing…",
     error: "Could not import that file.",
-    unsupported: "Choose a .docx, .md, .html or zipped .scriv file.",
+    unsupported: "Choose a .docx, .md, .html, .fountain or zipped .scriv file.",
   },
   wordGoal: {
     blurb: "A daily goal is optional. Set one and a thin bar fills as you write today. With no goal, nothing counts your words against you.",
@@ -1235,6 +1235,9 @@ const en = {
     markdown: "Markdown",
     epub: "EPUB",
     pdf: "PDF",
+    fountain: "Fountain",
+    screenplayPdf: "Screenplay PDF",
+    screenplayMeta: "Share a finished script as screenplay pages (PDF), a Fountain file for other writing apps, an ebook, or a Word file.",
   },
   kinds: {
     question: "What are you writing?",
@@ -1267,6 +1270,11 @@ const en = {
     shot: "Shot",
     beta: "Beta",
     betaInfo: "Screenplay formatting is in beta. The page layout, page count and exports are still being refined.",
+    languageInfo: {
+      label: "Why is script formatting unavailable?",
+      title: "Not available in your language yet",
+      body: "Script formatting is only available in English and Spanish for now. We plan to support more languages.",
+    },
     settings: {
       title: "Screenplay",
       format: "Script format",

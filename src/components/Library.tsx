@@ -445,8 +445,9 @@ export default function Library() {
       <form className="new-form" onSubmit={importManuscript}>
         <strong className="new-form-tab">Import a manuscript</strong>
         <p className="folder-notes">
-          Word (.docx, including Google Docs downloaded as Word), Markdown, or a zipped Scrivener
-          project. Chapters split on headings; bold, italic and scene breaks carry over.
+          Word (.docx, including Google Docs downloaded as Word), Markdown, a Fountain script
+          (.fountain), or a zipped Scrivener project. Chapters split on headings (a script, on its
+          # sections); bold, italic and scene breaks carry over.
         </p>
         <input
           type="file"

@@ -5,6 +5,11 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "c3c9bceead83",
+    "summary": "**Screenplays (Beta) export and import.** Export a script as a **Screenplay PDF** (US Letter, 12 pt Courier, page numbers from page 2, the same pages the edito…",
+    "text": "**Screenplays (Beta) export and import.** Export a script as a **Screenplay PDF** (US Letter, 12 pt Courier, page numbers from page 2, the same pages the editor's \"about N pages\" counts) or as a **Fountain** file for other writing apps, on the web and from the phone's Export card. Import a `.fountain` file as a new screenplay (one sequence for each `#` section, or one sequence), and paste Fountain text into a script on the web to have it sorted into elements. Script formatting is only available in English and Spanish for now: the screenplay PDF of a script written in another alphabet, and the phone's Screenplay choice when the app is in Chinese or Hindi, are grayed out with an info button that says so, and support for more languages is planned. The web no longer loads Courier Prime twice."
+  },
+  {
     "id": "978d4d29e349",
     "summary": "**Screenplays** are tidier to write.",
     "text": "**Screenplays** are tidier to write. Typing `# `, `- `, `1. ` or `> ` at the start of a line no longer turns it into a heading, list or quote, and pasting several lines sorts them into scene headings, cues, dialogue and transitions. Tab and Shift-Tab change every selected line at once and no longer move focus off the page, Enter on an empty scene heading turns it into action, and Enter in the middle of a speech keeps both halves dialogue. The script uses Courier Prime on every machine. On the phone, a draft you insert from Ciciro arrives as script lines instead of plain paragraphs. Scene headings, character cues and transitions are skipped by spell check and the grammar pass."

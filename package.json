@@ -89,6 +89,7 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
+    "fountain-js": "^1.2.4",
     "jsdom": "^30.0.1",
     "prisma": "^6.1.0",
     "sharp": "^0.34.5",

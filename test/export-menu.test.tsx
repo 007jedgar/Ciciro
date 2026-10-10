@@ -163,3 +163,88 @@ describe("attachmentName", () => {
     expect(attachmentName(null)).toBeNull();
   });
 });
+
+describe("ExportMenu for a screenplay", () => {
+  async function renderScript(chapters: Chapter[]) {
+    const localHost = document.createElement("div");
+    document.body.appendChild(localHost);
+    const localRoot = createRoot(localHost);
+    await act(async () =>
+      localRoot.render(
+        <SnackbarProvider>
+          <ExportMenu projectId="p1" chapters={chapters} kind="screenplay" />
+        </SnackbarProvider>
+      )
+    );
+    await act(async () =>
+      localHost.querySelector<HTMLButtonElement>(".export-menu-root > button")!.click()
+    );
+    const items = () => Array.from(localHost.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    const close = async () => {
+      await act(async () => localRoot.unmount());
+      localHost.remove();
+    };
+    return { localHost, items, close };
+  }
+
+  it("offers the screenplay PDF and Fountain first, both marked Beta", async () => {
+    const { items, localHost, close } = await renderScript([
+      chapter({ content: '<p data-sp="scene-heading">INT. LAB - DAY</p>' }),
+    ]);
+    expect(items().map((b) => b.querySelector(".export-option-label")?.textContent)).toEqual([
+      "Screenplay PDF (.pdf)Beta",
+      "Fountain (.fountain)Beta",
+      "Word (.docx)",
+      "Markdown (.md)",
+      "EPUB (.epub)",
+    ]);
+    expect(items()[0].disabled).toBe(false);
+    expect(localHost.querySelector(".export-info")).toBeNull();
+    await close();
+  });
+
+  it("grays out the screenplay PDF for a script in another language, with an info button that says why", async () => {
+    const { items, localHost, close } = await renderScript([chapter({ content: "<p>他看着窗外的雨，什么也没说。</p>" })]);
+    expect(items()[0].disabled).toBe(true);
+    // Fountain is plain text in any language.
+    expect(items()[1].disabled).toBe(false);
+    const info = localHost.querySelector<HTMLButtonElement>(".export-info")!;
+    expect(info.getAttribute("aria-expanded")).toBe("false");
+    expect(localHost.querySelector(".export-language-note")).toBeNull();
+    await act(async () => info.click());
+    expect(info.getAttribute("aria-expanded")).toBe("true");
+    expect(localHost.querySelector(".export-language-note")?.textContent).toMatch(/English and Spanish/);
+    await close();
+  });
+
+  it("measures the live script as the server exports it, not archived sequences or pending suggestions", async () => {
+    const chinese = "他看着窗外的雨，什么也没说。";
+    const { items, close } = await renderScript([
+      chapter({ id: "c1", content: "<p>She waits by the window.</p>" }),
+      chapter({ id: "c2", order: 1, content: `<p>${chinese}</p>`, archivedAt: "2026-01-01T00:00:00.000Z" }),
+      chapter({
+        id: "c3",
+        order: 2,
+        content: `<p>Rain.<ins data-suggestion-id="sg-1" data-author-id="ciciro">${chinese}${chinese}</ins></p>`,
+      }),
+    ]);
+    expect(items()[0].disabled).toBe(false);
+    await close();
+  });
+
+  it("takes the script whole: one short line in another language does not gray out an English script", async () => {
+    const { items, close } = await renderScript([
+      chapter({ id: "c1", content: `<p>${"The rain keeps falling on the empty street. ".repeat(10)}</p>` }),
+      chapter({ id: "c2", order: 1, content: "<p>你好</p>" }),
+    ]);
+    expect(items()[0].disabled).toBe(false);
+    await close();
+  });
+
+  it("asks the server for Fountain", async () => {
+    const { items, close } = await renderScript([chapter({ content: "<p>Hi.</p>" })]);
+    await act(async () => items()[1].click());
+    expect(fetch).toHaveBeenCalledWith("/api/export/p1?format=fountain");
+    await close();
+  });
+});

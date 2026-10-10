@@ -857,7 +857,7 @@ export type AutowriteStreamEvent =
 
 export type NdjsonEvent = ChatStreamEvent | AutowriteStreamEvent | SyncStreamEvent;
 
-export type ExportFormat = "epub" | "pdf" | "docx" | "markdown";
+export type ExportFormat = "epub" | "pdf" | "docx" | "markdown" | "fountain";
 
 export type ExportFile = {
   bytes: ArrayBuffer;

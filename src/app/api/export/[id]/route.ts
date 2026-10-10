@@ -6,6 +6,10 @@ import { responseFromAuthError } from "@/lib/auth/http";
 import { buildManuscriptDocx } from "@/lib/docx";
 import { buildEpub } from "@/lib/export/epub";
 import { buildPdf } from "@/lib/export/pdf";
+import { UnsupportedScriptError, buildScreenplayPdf } from "@/lib/export/screenplay-pdf";
+import { fountainFromScript } from "@/lib/fountain";
+import { normalizeKind } from "@/lib/manuscript-kind";
+import { styledBlocksFromHtml } from "@/lib/screenplay";
 import { buildMarkdown, buildChapterMarkdown } from "@/lib/export/markdown";
 import { bookFilename, chapterTitle } from "@/lib/export/types";
 import { htmlWithoutSuggestions } from "@/lib/suggestions";
@@ -14,11 +18,17 @@ export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-const EXTENSIONS = { docx: "docx", epub: "epub", pdf: "pdf", markdown: "md" } as const;
+const EXTENSIONS = { docx: "docx", epub: "epub", pdf: "pdf", markdown: "md", fountain: "fountain" } as const;
 const MARKDOWN_TYPE = "text/markdown; charset=utf-8";
+const FOUNTAIN_TYPE = "text/plain; charset=utf-8";
 
-// GET /api/export/:id?format=docx|epub|pdf|markdown[&chapter=<id>] — download the manuscript or chapter.
+function failure(error: string, status: number) {
+  return new Response(JSON.stringify({ error }), { status, headers: { "content-type": "application/json" } });
+}
+
+// GET /api/export/:id?format=docx|epub|pdf|markdown|fountain[&chapter=<id>] — download the manuscript or chapter.
 // Defaults to the standard-format .docx.
+// A screenplay's pdf is the script on Courier pages (US Letter, 12pt), not a book; fountain is for screenplays only.
 // If chapter=<id> is specified, exports just that chapter (markdown and docx only).
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -45,11 +55,12 @@ export async function GET(req: NextRequest, { params }: Params) {
   const chapters = project.chapters.map((c) => ({ ...c, content: htmlWithoutSuggestions(c.content) }));
 
   const format = req.nextUrl.searchParams.get("format") ?? "docx";
-  if (format !== "docx" && format !== "epub" && format !== "pdf" && format !== "markdown") {
-    return new Response(JSON.stringify({ error: "Unsupported export format" }), {
-      status: 400,
-      headers: { "content-type": "application/json" },
-    });
+  if (format !== "docx" && format !== "epub" && format !== "pdf" && format !== "markdown" && format !== "fountain") {
+    return failure("Unsupported export format", 400);
+  }
+  const screenplay = normalizeKind(project.kind) === "screenplay";
+  if (format === "fountain" && !screenplay) {
+    return failure("Fountain export is only for screenplays", 400);
   }
 
   const chapterId = req.nextUrl.searchParams.get("chapter");
@@ -112,8 +123,25 @@ export async function GET(req: NextRequest, { params }: Params) {
       bytes = await buildEpub(book);
       contentType = "application/epub+zip";
     } else if (format === "pdf") {
-      bytes = await buildPdf(book);
+      try {
+        bytes = screenplay ? await buildScreenplayPdf(book) : await buildPdf(book);
+      } catch (error) {
+        if (error instanceof UnsupportedScriptError) return failure(error.message, 422);
+        throw error;
+      }
       contentType = "application/pdf";
+    } else if (format === "fountain") {
+      bytes = new TextEncoder().encode(
+        fountainFromScript({
+          title: project.title,
+          author: project.author,
+          sequences: book.chapters.map((c) => ({
+            title: c.title,
+            blocks: styledBlocksFromHtml(c.content),
+          })),
+        })
+      );
+      contentType = FOUNTAIN_TYPE;
     } else if (format === "markdown") {
       const markdown = buildMarkdown(book);
       bytes = new TextEncoder().encode(markdown);

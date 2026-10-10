@@ -1,21 +1,53 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import BetaBadge from "@/components/BetaBadge";
 import { useSnackbar } from "@/components/Snackbar";
 import { downloadExport, type ExportFormat } from "@/lib/export-client";
 import { getAnalytics } from "@/lib/analytics-client";
+import type { ManuscriptKind } from "@/lib/manuscript-kind";
 import { MOTION_MS, usePresence } from "@/lib/motion";
+import { scriptHtmlSupported } from "@/lib/screenplay";
+import { htmlWithoutSuggestions } from "@/lib/suggestions";
 import { describeAiInvolvement, manuscriptAiInvolvement } from "@/lib/text";
 import type { Chapter } from "@/lib/types";
 
-export const EXPORT_FORMATS = [
+type ExportOption = {
+  format: ExportFormat;
+  label: string;
+  hint: string;
+  short: string;
+  /** Still in beta: marked as such. */
+  beta?: boolean;
+};
+
+export const EXPORT_FORMATS: readonly ExportOption[] = [
   { format: "docx", label: "Word (.docx)", hint: "Standard manuscript format", short: "Word" },
   { format: "markdown", label: "Markdown (.md)", hint: "Plain text with formatting", short: "Markdown" },
   { format: "epub", label: "EPUB (.epub)", hint: "For e-readers and Apple Books", short: "EPUB" },
   { format: "pdf", label: "PDF (.pdf)", hint: "Book layout with contents", short: "PDF" },
-] as const;
+];
 
-export default function ExportMenu({ projectId, chapters }: { projectId: string; chapters: Chapter[] }) {
+/** A script's own formats first: its pages as a PDF and as Fountain, then the book formats. */
+export const SCREENPLAY_EXPORT_FORMATS: readonly ExportOption[] = [
+  { format: "pdf", label: "Screenplay PDF (.pdf)", hint: "Courier 12 pt script pages", short: "PDF", beta: true },
+  { format: "fountain", label: "Fountain (.fountain)", hint: "Plain-text script for other tools", short: "Fountain", beta: true },
+  ...EXPORT_FORMATS.filter((f) => f.format !== "pdf"),
+];
+
+/** Why the screenplay PDF is grayed out for a script in another language. */
+export const SCRIPT_LANGUAGE_NOTE =
+  "Script formatting is only available in English and Spanish for now. We plan to support more languages.";
+
+export default function ExportMenu({
+  projectId,
+  chapters,
+  kind = "novel",
+}: {
+  projectId: string;
+  chapters: Chapter[];
+  kind?: ManuscriptKind;
+}) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   const [error, setError] = useState("");
@@ -23,6 +55,17 @@ export default function ExportMenu({ projectId, chapters }: { projectId: string;
   const busyRef = useRef(false);
   const notify = useSnackbar();
   const { mounted, state } = usePresence(open, MOTION_MS.popoverOut);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const screenplay = kind === "screenplay";
+  const formats = screenplay ? SCREENPLAY_EXPORT_FORMATS : EXPORT_FORMATS;
+  // The screenplay PDF sets Courier, so it needs a script in a Latin-script language (English, Spanish).
+  const pdfAvailable = useMemo(
+    () =>
+      !screenplay ||
+      !open ||
+      scriptHtmlSupported(chapters.filter((c) => !c.archivedAt).map((c) => htmlWithoutSuggestions(c.content))),
+    [screenplay, open, chapters]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -78,24 +121,48 @@ export default function ExportMenu({ projectId, chapters }: { projectId: string;
       </button>
       {mounted && (
         <div className="export-menu" role="menu" aria-label="Export manuscript" data-state={state}>
-          {EXPORT_FORMATS.map((f) => {
+          {formats.map((f) => {
             const working = busy === f.format;
-            return (
+            const unavailable = screenplay && f.format === "pdf" && !pdfAvailable;
+            const option = (
               <button
                 key={f.format}
                 type="button"
                 role="menuitem"
                 className="export-option"
                 aria-busy={working}
-                disabled={busy !== null}
+                aria-describedby={unavailable && noteOpen ? "export-language-note" : undefined}
+                disabled={busy !== null || unavailable}
                 onClick={() => void run(f.format)}
               >
                 <span className="export-option-label">
                   {working ? <span className="spinner" aria-hidden="true" /> : null}
                   {working ? `Preparing ${f.short}…` : f.label}
+                  {f.beta && !working ? <BetaBadge /> : null}
                 </span>
                 {!working && <span className="export-option-hint">{f.hint}</span>}
               </button>
+            );
+            if (!unavailable) return option;
+            return (
+              <div key={f.format} className="export-option-row">
+                {option}
+                <button
+                  type="button"
+                  className="export-info"
+                  aria-label="Why is the screenplay PDF unavailable?"
+                  aria-expanded={noteOpen}
+                  aria-controls="export-language-note"
+                  onClick={() => setNoteOpen((v) => !v)}
+                >
+                  i
+                </button>
+                {noteOpen ? (
+                  <p id="export-language-note" className="export-language-note" role="note">
+                    {SCRIPT_LANGUAGE_NOTE}
+                  </p>
+                ) : null}
+              </div>
             );
           })}
           {error ? (

@@ -386,9 +386,9 @@ change chapters.
 ## Import
 
 Bring an existing manuscript in from Word (`.docx`, including Google Docs
-downloaded as Word or as a web page `.html`), Markdown (`.md`, `.txt`), or a
-Scrivener project (zip the whole `.scriv` folder first). Files are limited to
-20 MB.
+downloaded as Word or as a web page `.html`), Markdown (`.md`, `.txt`), a
+Fountain script (`.fountain`), or a Scrivener project (zip the whole `.scriv`
+folder first). Files are limited to 20 MB.
 
 - **New manuscript**: use **Import a manuscript** on the manuscript list (on
   mobile, **Import manuscript** in the menu). The title defaults to the file's.
@@ -399,6 +399,18 @@ Chapters split on headings. Without heading styles, lines such as "Chapter 3"
 start a new chapter. In Scrivener's Draft, a folder of documents becomes one
 chapter with each document as a scene, and a standalone document is its own
 chapter. Bold, italic, and scene breaks carry over; images do not.
+
+A **Fountain** file (`.fountain`) becomes a screenplay (Beta), with every line
+set as the element Fountain says it is: scene headings, action, character
+cues, parentheticals, dialogue and transitions, including lines forced with
+`!`, `@`, `.` or `>`, and bold, italic and underline. It splits into sequences
+at its `#` sections (the shallowest level in the file), or comes in as one
+sequence when it has none. The title block's title and author come with it.
+Notes (`[[ ]]`), the boneyard (`/* */`), synopses (`=`) and page breaks (`===`)
+are dropped, and so is the rest of the title page. Added to a manuscript that is
+not a screenplay, its lines come in as plain paragraphs. Pasting Fountain text
+(paragraphs split by blank lines) into a screenplay on the web sorts it into
+elements the same way.
 
 ## Suggestions (tracked changes)
 
@@ -433,6 +445,28 @@ headings and bold, italic, lists, quotes, and scene breaks preserved.
 **Export > PDF** a book-layout PDF with a contents page and page numbers. On the
 phone, the foot of the Chapters tab has an Export card that hands the file to the share sheet.
 
+A **screenplay** (Beta) exports differently. **Screenplay PDF** is the script on
+US Letter pages in 12 pt Courier, on the same page the editor's "about N pages"
+counts, so the PDF has that many pages: page numbers top right from page 2, a
+scene heading and a character cue kept with the line after them, and a lone line
+of dialogue moved to the next page rather than stranded. Capitals are applied to
+scene headings, cues, transitions and shots, and bold, italic and underline
+carry over. There is no title page or `(MORE)` / `(CONT'D)` yet, and the page
+count is an estimate. **Fountain (.fountain)** is a plain-text script other
+writing apps open, with a title block and a `#` section for each sequence when
+there is more than one. Lines that would be read as another element are marked
+(`!` for an all-caps action line, `@` for a cue that is not in capitals, `.` for
+a heading, `>` for a transition); a shot is written as an all-caps action line
+and read back as a shot. Fountain cannot say that a line of dialogue or a
+parenthetical has no cue above it, so one is written as an action line.
+
+The screenplay PDF sets English and Spanish. For a script written mostly in
+another alphabet, whatever the app's language, it is grayed out with an info
+button that says script formatting is only available in English and Spanish for
+now and that more languages are planned; Fountain still exports. On the phone,
+when the app is in Chinese or Hindi, the same applies to choosing Screenplay
+when you create a manuscript.
+
 On the web, the Export menu also notes how much of the words added since
 tracking began came from Ciciro, split into accepted suggestions and prose
 Ciciro inserted directly, with the rest counted as yours. Once a chapter has
@@ -462,7 +496,7 @@ same steps for anyone who is not signed in.
 
 When you start a manuscript, on the web or the phone, choose what you are writing. The default is a novel, exactly as before.
 
-- **Screenplay (Beta).** Chapters become sequences and every line has an element: scene heading, action, character, dialogue, parenthetical, transition or shot. On the web, Tab and Shift-Tab cycle the element of the line you are on, Enter starts the next one (character to dialogue, scene heading or shot to action, transition to scene heading), and Enter on an empty line drops back to action. Select several lines and Tab changes them all, and pasting several lines sorts them into elements. Alt+Shift with 1 to 7 picks an element outright (scene heading, action, character, parenthetical, dialogue, shot, transition); the Settings menu lists them. Markdown shortcuts such as `# ` or `- ` do nothing in a script, and scene headings, cues, transitions and shots are not spell checked. A script is always set in 12 pt Courier Prime on a 60 column page, whatever your editor font and size say, so a page on screen is a page on paper: the header shows "about N pages", and a dashed rule with the next page's number marks where each page is likely to end (an estimate, not an exact count). Open Settings inside a screenplay and its own section is at the top: the locked type and the shortcut reference. On the phone, the bar above the page sets the element and its Tab button steps to the next one; Return starts the element that follows, a draft inserted from Ciciro arrives sorted into elements, and Settings, opened from inside the manuscript, explains the same. The phone editor does not indent lines or count pages yet, so open the script on the web to see the layout.
+- **Screenplay (Beta).** Chapters become sequences and every line has an element: scene heading, action, character, dialogue, parenthetical, transition or shot. On the web, Tab and Shift-Tab cycle the element of the line you are on, Enter starts the next one (character to dialogue, scene heading or shot to action, transition to scene heading), and Enter on an empty line drops back to action. Select several lines and Tab changes them all, and pasting several lines sorts them into elements. Alt+Shift with 1 to 7 picks an element outright (scene heading, action, character, parenthetical, dialogue, shot, transition); the Settings menu lists them. Markdown shortcuts such as `# ` or `- ` do nothing in a script, and scene headings, cues, transitions and shots are not spell checked. A script is always set in 12 pt Courier Prime on a 60 column page, whatever your editor font and size say, so a page on screen is a page on paper: the header shows "about N pages", and a dashed rule with the next page's number marks where each page is likely to end (an estimate, not an exact count). Open Settings inside a screenplay and its own section is at the top: the locked type and the shortcut reference. On the phone, the bar above the page sets the element and its Tab button steps to the next one; Return starts the element that follows, a draft inserted from Ciciro arrives sorted into elements, and Settings, opened from inside the manuscript, explains the same. The phone editor does not indent lines or count pages yet, so open the script on the web to see the layout. Export it as a screenplay PDF or a Fountain file, or import a Fountain file (see Import and Export below).
 - **Blog post or newsletter.** One piece with a title and a subtitle, and no chapter list. The subtitle is the manuscript's logline.
 - **Journal.** Each chapter is a dated entry. **+ Today** on the web, and **Today's entry** on the phone, opens today's entry, or starts it if it is not there yet, so it never makes two entries for one day.
 

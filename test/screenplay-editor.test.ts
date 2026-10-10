@@ -268,6 +268,22 @@ describe("screenplay editor", () => {
       ]);
     });
 
+    it("reads text laid out as Fountain: forced markers, emphasis, dialogue under a cue", () => {
+      const ed = make("<p></p>");
+      const script = "INT. LAB - DAY\n\n!BOOM.\n\nMARA\n(softly)\nHello *there*.\n\n>FADE OUT.\n\n# Act two\n\nTitle: not a title page";
+      expect(paste(ed, script)).toBe(true);
+      expect(lines(ed)).toEqual([
+        ["scene-heading", "INT. LAB - DAY"],
+        [null, "BOOM."],
+        ["character", "MARA"],
+        ["parenthetical", "softly"],
+        ["dialogue", "Hello there."],
+        ["transition", "FADE OUT."],
+        [null, "Title: not a title page"],
+      ]);
+      expect(ed.getHTML()).toContain("Hello <em>there</em>.");
+    });
+
     it("leaves a single line, and pasted scripts that carry elements, to the editor", () => {
       const ed = make("<p></p>");
       expect(paste(ed, "just a line")).toBe(false);

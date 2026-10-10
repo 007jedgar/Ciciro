@@ -1,5 +1,6 @@
 import { Extension } from "@tiptap/core";
 import type { Editor, Extensions } from "@tiptap/core";
+import type { Mark, Schema } from "@tiptap/pm/model";
 import Blockquote from "@tiptap/extension-blockquote";
 import BulletList from "@tiptap/extension-bullet-list";
 import CodeBlock from "@tiptap/extension-code-block";
@@ -18,7 +19,9 @@ import {
   normalizeElement,
   shortcutDigit,
   type ScreenplayElement,
+  type StyledRun,
 } from "@/lib/screenplay";
+import { looksLikeFountain, scriptFromFountain } from "@/lib/fountain";
 import { classifyScreenplayLines, isProofread } from "@/lib/manuscript-kind";
 
 /**
@@ -89,6 +92,20 @@ export function setElement(editor: Editor, element: ScreenplayElement): boolean 
     .focus()
     .updateAttributes("paragraph", { screenplay: element === "action" ? null : element })
     .run();
+}
+
+/** A paragraph of the given element holding styled runs: bold and italic as marks, a line break as a hard break. */
+function scriptParagraph(schema: Schema, element: string, runs: readonly StyledRun[]) {
+  const content = runs.flatMap((run) => {
+    const marks: Mark[] = [];
+    if (run.bold && schema.marks.bold) marks.push(schema.marks.bold.create());
+    if (run.italic && schema.marks.italic) marks.push(schema.marks.italic.create());
+    return run.text.split("\n").flatMap((piece, i) => [
+      ...(i > 0 && schema.nodes.hardBreak ? [schema.nodes.hardBreak.create()] : []),
+      ...(piece ? [schema.text(piece, marks)] : []),
+    ]);
+  });
+  return schema.nodes.paragraph.create({ screenplay: element === "action" ? null : element }, content);
 }
 
 /**
@@ -180,7 +197,9 @@ export const Screenplay = Extension.create({
       new Plugin({
         key: new PluginKey("screenplayPaste"),
         props: {
-          // Pasted lines become elements, the way the assistant's do. A paste
+          // Pasted lines become elements. Text laid out as a script (Fountain,
+          // paragraphs split by blank lines) is read as one, forced markers and
+          // all; plain lines are sorted the way the assistant's are. A paste
           // that already carries elements (copied from a script) or is a
           // single line is left to the editor.
           handlePaste: (view, event) => {
@@ -197,15 +216,13 @@ export const Screenplay = Extension.create({
             const index = at.index(0);
             const before = at.parent.content.size === 0 || at.parentOffset === 0;
             const above = before ? (index > 0 ? tr.doc.child(index - 1) : null) : at.parent;
-            const lines = classifyScreenplayLines(
-              text,
-              above ? normalizeElement(above.attrs.screenplay) : undefined
-            );
+            const lines = looksLikeFountain(text)
+              ? scriptFromFountain(text, { titlePage: false }).sequences.flatMap((s) => s.blocks)
+              : classifyScreenplayLines(text, above ? normalizeElement(above.attrs.screenplay) : undefined).map(
+                  ({ element, text: line }) => ({ element, runs: [{ text: line }] })
+                );
             if (lines.length === 0) return false;
-            const { paragraph: type } = state.schema.nodes;
-            const nodes = lines.map(({ element, text: line }) =>
-              type.create({ screenplay: element === "action" ? null : element }, state.schema.text(line))
-            );
+            const nodes = lines.map(({ element, runs }) => scriptParagraph(state.schema, element, runs));
             const size = nodes.reduce((total, node) => total + node.nodeSize, 0);
             let start: number;
             if (at.parent.content.size === 0) {

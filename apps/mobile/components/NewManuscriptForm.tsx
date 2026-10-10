@@ -10,6 +10,8 @@ import { useOptionalAppTheme } from "../lib/settings";
 import { colors as parchmentColors, layout as parchmentLayout } from "../lib/theme";
 import type { ProjectCreated } from "../lib/api/types";
 import { BetaBadge } from "./BetaBadge";
+import { ScriptLanguageInfo } from "./ScriptLanguageInfo";
+import { useScriptLanguageSupported } from "../lib/script-language";
 import { PressableCard } from "./PressableCard";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
@@ -22,6 +24,7 @@ type Props = {
 
 export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: Props) {
   const { t } = useTranslation();
+  const scriptLanguage = useScriptLanguageSupported();
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
   const colors = themed?.colors ?? parchmentColors;
@@ -75,14 +78,21 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
       >
         {MANUSCRIPT_KINDS.map((option) => {
           const selected = kind === option;
+          // A script is set in Courier for English and Spanish; other languages are planned.
+          const unavailable = option === "screenplay" && !scriptLanguage;
           return (
             <PressableCard
               key={option}
               onPress={() => setKind(option)}
+              disabled={unavailable}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ selected, disabled: unavailable }}
               accessibilityLabel={t(`kinds.${option}.label`)}
-              accessibilityHint={option === "screenplay" ? `${t("screenplay.beta")}. ${t("screenplay.betaInfo")}` : undefined}
+              accessibilityHint={
+                  option === "screenplay"
+                    ? `${t("screenplay.beta")}. ${unavailable ? t("screenplay.languageInfo.body") : t("screenplay.betaInfo")}`
+                    : undefined
+                }
               style={[
                 layout.card,
                 {
@@ -91,12 +101,14 @@ export function NewManuscriptForm({ defaultAuthor = "", folderId, onCreated }: P
                   marginBottom: 0,
                   borderColor: selected ? colors.accent : colors.line,
                   backgroundColor: selected ? colors.accentSoft : undefined,
+                  opacity: unavailable ? 0.5 : 1,
                 },
               ]}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={layout.cardTitle}>{t(`kinds.${option}.label`)}</Text>
                 {option === "screenplay" ? <BetaBadge testID="kind-beta-badge" /> : null}
+                {unavailable ? <ScriptLanguageInfo testID="kind-language-info" /> : null}
               </View>
               <Text style={layout.cardMeta}>{t(`kinds.${option}.description`)}</Text>
             </PressableCard>

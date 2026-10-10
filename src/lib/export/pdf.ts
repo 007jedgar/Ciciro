@@ -43,7 +43,7 @@ const REPLACEMENTS: Record<string, string> = {
   " ": "\n",
 };
 
-function sanitize(text: string, supported: Set<number>): string {
+export function sanitize(text: string, supported: Set<number>): string {
   let out = "";
   for (const ch of text) {
     const mapped = REPLACEMENTS[ch] ?? ch;

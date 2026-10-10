@@ -13,7 +13,7 @@ paragraph (`<p data-sp="dialogue">`); "action" is the absence of the attribute.
 Nothing about it touches the schema, the op log, sync, snapshots, tracked
 changes or comments, because the server treats a block's `html` as opaque. Flat
 element-tagged blocks are the source of truth. Fountain is an interchange
-format for later phases, never the stored one.
+format (import, export, paste), never the stored one.
 
 | Element | Value | Tab slot |
 |---|---|---|
@@ -71,7 +71,14 @@ It owns:
 - `paginate`, `typeset`, `pagesAsText`: break laid-out blocks into pages;
 - `scriptBlocksFromHtml`, `layoutHtml`, `sequenceCursors`, `estimatePages`:
   from chapter HTML to a page count;
-- `scenes` and `dialogueGroups`: structure derived from the flat blocks.
+- `scenes` and `dialogueGroups`: structure derived from the flat blocks;
+- `styledBlocksFromHtml` (blocks with their bold / italic / underline runs),
+  `sliceRuns`, and `typesetSequences` (every sequence set on pages that run on
+  from one another, each row knowing its sequence, block and offset): what the
+  PDF draws;
+- `SCRIPT_LANGUAGES`, `scriptLanguageSupported(code)`,
+  `scriptTextSupported(text)` and `scriptHtmlSupported(chapters)`: which
+  languages script formatting covers.
 
 `manuscript-kind.ts` (also mirrored) re-exports the element model, so older
 imports keep working.
@@ -116,8 +123,8 @@ Pagination (`paginate`) is an **estimate**, labelled "about N pages":
   a rule of thumb, not a measurement.
 
 Sequences (chapters) run on from one another with continuous page numbers:
-`sequenceCursors` gives where each starts, `estimatePages` the total. Export
-will concatenate the same way.
+`sequenceCursors` gives where each starts, `estimatePages` the total. The PDF
+sets them the same way (`typesetSequences`), so its page count is the editor's.
 
 ### Tests
 
@@ -132,10 +139,109 @@ will concatenate the same way.
   `ELEMENT_METRICS`, and the speech-run selectors equal `SPEECH_RUNS`.
 - `test/screenplay-editor.test.ts`: the TipTap extension and the page markers.
 
+## Export, import and paste
+
+### Screenplay PDF
+
+`src/lib/export/screenplay-pdf.ts` (`buildScreenplayPdf`) draws
+`typesetSequences` with pdf-lib's standard Courier fonts: US Letter, 1.5in left
+margin, 1.0in top, 12pt on a 12pt leading, so a column is 7.2pt and the 54-line
+page fits the 9in text area. Page numbers (`2.`) sit top right, 0.5in from the
+top, from page 2. There is no layout code in the PDF writer: where a line goes
+is the engine's answer, and `test/screenplay-pdf.test.ts` reads the drawn
+operators back and compares them with the engine's pages, and checks the PDF's
+page count against `estimatePages`. Inline marks come from
+`styledBlocksFromHtml`: each row is cut where its marks change and drawn in
+Courier, Courier-Bold, Courier-Oblique or Courier-BoldOblique, with a rule under
+underlined runs. Right-aligned rows (transitions) are placed by their drawn
+width.
+
+`GET /api/export/:id?format=pdf` returns this for a screenplay and the book PDF
+for everything else; `format=fountain` is screenplays only. Courier is WinAnsi:
+Latin text, which covers English and Spanish. A script mostly in another writing
+system, taken whole (`scriptHtmlSupported`), is refused with a 422 that says script formatting
+is only available in English and Spanish for now.
+
+Cost: a 124 page script (about 60 000 words) builds in 0.12 to 0.19 s end to end
+(request, building the script, laying it out, drawing, serialising) in local
+workerd, and the file is 170 KB, against 0.4 to 0.5 s for the book PDF of the
+same length. That is wall time in `wrangler dev`: workerd's clock does not advance
+inside synchronous work, so there is no in-isolate CPU reading; measure the
+deployed Worker before relying on a number.
+
+### Fountain
+
+`src/lib/fountain.ts` is pure and web / server only (the phone sends the file
+through the server, so it has no mirror). Writing (`fountainFromScript`):
+
+- capitals are derived at the edge for scene headings, cues, transitions and
+  shots; stored text is not changed;
+- a forced marker is added where the plain line would be read as another
+  element: `.` for a heading with no INT./EXT., `@` for a cue that is not plain
+  capitals (or has no dialogue under it), `>` for a transition that does not end
+  in `TO:`, and `!` for an action line that looks like a heading, a transition,
+  a marker, or (when it is in capitals with another line under it) a cue;
+- a shot has no Fountain element: it is `!` plus an all-caps line, and the
+  reader makes an all-caps action that begins with a camera direction
+  (`isShotLine`) a shot;
+- two blocks of dialogue in one speech are separated by a line of two spaces,
+  which Fountain keeps; a parenthetical or dialogue with no cue above it is
+  written as an action line, because Fountain cannot say otherwise;
+- bold is `**`, italic `*`, both `***`, underline `_`, with the delimiters hugging
+  the words and `*` / `_` escaped;
+- more than one sequence is written as `# ` sections; one sequence is written
+  bare; a title block carries the title and author.
+
+Reading (`scriptFromFountain`) honours the forced markers, strips scene numbers
+(`#1A#`) and the `^` of dual dialogue (which Ciciro has no element for yet),
+drops notes, the boneyard, synopses, page breaks and the title page past its
+title and author, reads centered text as action, and splits sequences at the
+shallowest `#` depth in the file (one sequence when there are none; text ahead
+of the first section is a sequence of its own). `titlePage: false` is for pasted
+text, where a first line such as `Notes: ...` is a line, not a title block.
+Heading and transition detection follow the spec (a single-line paragraph),
+which is also what fountain-js does; `fountain-js` is a devDependency used only
+as a test oracle (`test/fountain.test.ts` compares the elements it sees in a
+generated 30 page script with the ones written).
+
+`src/lib/import/fountain.ts` turns it into an import (`.fountain`, `.spmd`):
+the manuscript is created as a screenplay (`ImportedManuscript.kind`), untitled
+sequences are called Sequence N, and appended to a manuscript that is not a
+screenplay the `data-sp` attributes are dropped. In the web editor, the
+`screenplayPaste` plugin reads pasted text with a blank line in it as Fountain
+(`looksLikeFountain`) and other pasted lines with `classifyScreenplayLines`.
+
+The web editor has no underline mark, so underlined text from an import or the
+phone is kept in the saved HTML but not shown underlined on the web.
+
+### Script languages
+
+Script formatting is built for English and Spanish (`SCRIPT_LANGUAGES`).
+Where a control cannot work in another language it is grayed out with an info
+button (web `ExportMenu`'s `.export-info`, phone `ScriptLanguageInfo` on the
+`InfoBubble`) saying so and that more languages are planned:
+
+- the screenplay PDF, when the script's own text is in another writing
+  system, whatever the app's language. The server, the web `ExportMenu` and the
+  phone `ExportCard` all ask one function, `scriptHtmlSupported` (the script
+  taken whole: its live sequences joined, archived ones and pending
+  suggestions left out, the way the export reads it), so a button that is
+  enabled never meets the server's 422;
+- choosing Screenplay when creating a manuscript or in the onboarding quiz, on
+  the phone, when the app language is Chinese or Hindi
+  (`useScriptLanguageSupported`).
+
+VoiceOver reads a phone card as one element, so a grayed-out control also
+carries the `screenplay.languageInfo.body` text in its accessibility hint.
+
+Fountain export, the element bar, and an existing script stay available. The
+strings are `screenplay.languageInfo.*` in all four locales.
+
 ## The web editor
 
 - **Locked type.** `.ProseMirror.screenplay` is 12pt Courier Prime
-  (`next/font`, self-hosted, loaded only when a script is on the page), a
+  (the self-hosted `@font-face` in `globals.css`, which the browser fetches only
+  when a script is on the page; there is no `next/font` copy), a
   `60ch` column, line height 1.2, and every indent and width in `ch`, every gap
   in `lh`. The editor font and size settings do not apply to a script. A column
   narrower than the page scales the whole page down together
@@ -172,8 +278,7 @@ picker (web `Library.tsx`, phone `NewManuscriptForm` and the onboarding goal
 screen), the element bar (web and phone) and the Settings section. Web uses
 `BetaBadge` (`src/components/BetaBadge.tsx`, English only: the web has no
 locales); the phone uses `components/BetaBadge.tsx` with `screenplay.beta` and
-`screenplay.betaInfo` in all four locales. The export entry gets the same mark
-when it exists. When screenplay leaves Beta, remove the badges and the
+`screenplay.betaInfo` in all four locales. The export entries (Screenplay PDF and Fountain) carry it too. When screenplay leaves Beta, remove the badges and the
 `betaInfo` string.
 
 ## Manuscript settings
@@ -205,10 +310,9 @@ and only shows the settings for that manuscript's kind.
 
 ## Not here yet
 
-Belongs to later phases, and is not in the first one: language gating for
-languages without script support (phase 1b); the screenplay PDF, Fountain
-export and import (phase 1, export); element-aware AI paths and the
+Belongs to later phases: element-aware AI paths and the
 element-aware phone chat insert (phase 1, AI and phone); autocomplete,
 typed-input capitals and the scene navigator (phase 2); the title page,
-`(MORE)`/`(CONT'D)`, dual dialogue, centered text and FDX export (phase 3);
+`(MORE)`/`(CONT'D)`, dual dialogue, centered text and FDX import and export
+(phase 3);
 a native phone writing surface (phase 4).

@@ -759,7 +759,7 @@ const es: Translations = {
     chaptersMeta: "Desde Word, Google Docs, Markdown o Scrivener",
     importing: "Importando…",
     error: "No se pudo importar ese archivo.",
-    unsupported: "Elige un archivo .docx, .md, .html o .scriv comprimido en zip.",
+    unsupported: "Elige un archivo .docx, .md, .html, .fountain o .scriv comprimido en zip.",
   },
   wordGoal: {
     blurb: "Una meta diaria es opcional. Si la fijas, una barra fina se llena mientras escribes hoy. Sin meta, nada cuenta tus palabras en tu contra.",
@@ -1237,6 +1237,9 @@ const es: Translations = {
     markdown: "Markdown",
     epub: "EPUB",
     pdf: "PDF",
+    fountain: "Fountain",
+    screenplayPdf: "PDF de guion",
+    screenplayMeta: "Comparte un guion terminado como páginas de guion (PDF), un archivo Fountain para otras apps de escritura, un libro electrónico o un archivo de Word.",
   },
   kinds: {
     question: "¿Qué estás escribiendo?",
@@ -1269,6 +1272,11 @@ const es: Translations = {
     shot: "Plano",
     beta: "Beta",
     betaInfo: "El formato de guion está en beta. El diseño de página, el recuento de páginas y las exportaciones aún se están puliendo.",
+    languageInfo: {
+      label: "¿Por qué no está disponible el formato de guion?",
+      title: "Aún no disponible en tu idioma",
+      body: "El formato de guion solo está disponible en inglés y español por ahora. Planeamos admitir más idiomas.",
+    },
     settings: {
       title: "Guion",
       format: "Formato del guion",
