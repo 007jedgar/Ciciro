@@ -174,9 +174,9 @@ the header's page count, the PDF and the golden all call it:
 
 `(MORE)` and the repeated cue are rows the engine adds (`PageRow.synthetic`),
 never part of the saved text. "A page is a minute" is still a rule of thumb.
-Not done yet: the character's `(CONT'D)` when the same character speaks again
-after an action line (phase 2), and `(MORE)` / `(CONT'D)` in languages other than
-English.
+Not done yet: `(MORE)` / `(CONT'D)` in languages other than English. (The
+character's `(CONT'D)` when the same character speaks again after an action line
+is typed text, see Extensions and CONT'D below.)
 
 Sequences (chapters) run on from one another with continuous page numbers:
 `sequenceCursors` gives where each starts, `estimatePages` the total. The PDF
@@ -450,9 +450,10 @@ web adds ` (CONT'D)` when Enter ends such a cue, and both clients offer
 the button sticks until Enter is pressed on that cue again. The extension buttons
 are English abbreviations and are grayed out, with an info button, for a script
 in a language script formatting does not cover (web `scriptHtmlSupported` on the
-open sequence, phone `scriptLanguageSupported`). Phase 3's derived
-`(MORE)` / `(CONT'D)` at page breaks must skip a cue that already ends in
-`(CONT'D)`.
+open sequence, phone `scriptLanguageSupported`). It is independent of the
+page-break `(CONT'D)` setting (which only governs the derived repeat of a cue at
+the top of the next page): a cue that already ends in `(CONT'D)` is not given a
+second one there (`contdCue`), so the two never double up.
 
 ### Scenes
 
