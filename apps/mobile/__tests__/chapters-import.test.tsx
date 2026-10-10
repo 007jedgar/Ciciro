@@ -45,6 +45,7 @@ jest.mock("../lib/settings", () => ({
 jest.mock("../components/AppHeader", () => ({ useAppHeaderHeight: () => 0, useMeasuredAppHeaderHeight: () => [0, () => {}] }));
 jest.mock("../components/ManuscriptTabBar", () => ({ useTabBarClearance: () => 0 }));
 jest.mock("../components/PreviouslyOnCard", () => ({ PreviouslyOnCard: () => null }));
+jest.mock("../components/DeadlineCard", () => ({ DeadlineCard: () => null }));
 jest.mock("../components/ManuscriptTag", () => ({ ManuscriptTag: () => null }));
 jest.mock("../components/ExportCard", () => ({ ExportCard: () => null }));
 jest.mock("../components/ChapterListCard", () => ({ ChapterListCard: () => null }));

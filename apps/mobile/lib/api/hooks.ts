@@ -22,6 +22,8 @@ import type {
   KnowledgeFactCreateRequest,
   KnowledgeFactPatchRequest,
   LoginRequest,
+  ManuscriptTargetPutRequest,
+  ManuscriptTargetResponse,
   PlotPoint,
   PlotPointCreateRequest,
   PushPreferencesPatch,
@@ -1238,6 +1240,32 @@ export function useWeeklyReviewsQuery(projectId: string, options?: Enabled) {
     queryKey: queryKeys.weeklyReviews(projectId),
     queryFn: () => ciciro.projects.weeklyReviews.list(projectId),
     enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+/** The manuscript's deadline (a word target and a due date), or `target: null` when it has none. */
+export function useManuscriptTargetQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.manuscriptTarget(projectId),
+    queryFn: () => ciciro.projects.target.get(projectId),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+export function useSaveManuscriptTargetMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, body }: { projectId: string; body: ManuscriptTargetPutRequest }) =>
+      ciciro.projects.target.put(projectId, body),
+    onSuccess: (response, vars) =>
+      queryClient.setQueryData<ManuscriptTargetResponse>(queryKeys.manuscriptTarget(vars.projectId), response),
+  });
+}
+
+export function useDeleteManuscriptTargetMutation() {
+  return useMutation({
+    mutationFn: (projectId: string) => ciciro.projects.target.delete(projectId),
+    onSuccess: (_data, projectId) =>
+      queryClient.setQueryData<ManuscriptTargetResponse>(queryKeys.manuscriptTarget(projectId), { target: null }),
   });
 }
 

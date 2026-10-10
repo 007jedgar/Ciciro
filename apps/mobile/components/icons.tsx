@@ -643,6 +643,23 @@ export function TimerIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** A flag on a pole: a due date to reach. */
+export function FlagIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Line x1="5.5" y1="3" x2="5.5" y2="21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M5.5 4.5 H18.5 L15.5 9 L18.5 13.5 H5.5"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 /** An arrow into a tray: bring a file in. */
 export function ImportIcon({ color, size = 24 }: IconProps) {
   return (
