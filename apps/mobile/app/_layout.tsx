@@ -1,6 +1,7 @@
 import "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -16,6 +17,7 @@ import { AnalyticsSync } from "../components/AnalyticsSync";
 import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
+import { SplashOverlay } from "../components/SplashOverlay";
 import { ThemeWashScope } from "../components/ThemeWashScope";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { arrivesSettled } from "../lib/stack-arrival";
@@ -24,6 +26,10 @@ import { UpdateSync } from "../components/UpdateSync";
 import { entersWithStackPush, POP_OVER_STACK_SCREEN_OPTIONS } from "../lib/stack-pop";
 import { WritingDayProvider } from "../lib/writing-day-session";
 import { useReduceMotion } from "../lib/use-reduce-motion";
+
+// Keep the native splash up until SplashOverlay (below) has drawn the same mark over it,
+// so the hand-off never shows a jump. The overlay hides it; a failure here must not block the app.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function ThemedStack() {
   const theme = useOptionalAppTheme();
@@ -173,6 +179,7 @@ export default function RootLayout() {
                       <ThemedStack />
                     </ThemeWashScope>
                   </SharedTitleMorphProvider>
+                  <SplashOverlay />
                 </WritingDayProvider>
               </SettingsProvider>
             </SessionProvider>

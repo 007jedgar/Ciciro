@@ -28,6 +28,12 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
+/** `#rgb` or `#rrggbb` as `[r, g, b]` in 0..255, the scale a CSS `rgb()` string (an animated colour) takes. */
+export function hexToRgb255(hex: string): [number, number, number] {
+  const { r, g, b } = hexToRgb(hex);
+  return [r * 255, g * 255, b * 255];
+}
+
 export function rgbToHex({ r, g, b }: { r: number; g: number; b: number }): string {
   const channel = (value: number) =>
     Math.round(clamp01(value) * 255)

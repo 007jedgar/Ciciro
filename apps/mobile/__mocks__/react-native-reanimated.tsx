@@ -96,6 +96,9 @@ export function useSharedValue<T>(initial: T) {
   return ref.current;
 }
 
+/** A shared value outside any component (module scope), as a plain box. */
+export const makeMutable = <T,>(initial: T) => ({ value: initial, modify: undefined as unknown });
+
 export function useDerivedValue<T>(fn: () => T) {
   return { value: fn() };
 }

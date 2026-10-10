@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { LivingPage } from "../components/LivingPage";
+import { WelcomeScreen } from "../components/WelcomeScreen";
 import { restoreLastPlace } from "../lib/last-place";
 import { useAppTheme } from "../lib/settings";
 import { useSession } from "../lib/session";
@@ -54,7 +54,7 @@ function RestoreLastPlace({ userId }: { userId: string }) {
   return null;
 }
 
-export default function WelcomeScreen() {
+export default function IndexScreen() {
   const router = useRouter();
   const { user, ready } = useSession();
   const { colors } = useAppTheme();
@@ -78,7 +78,7 @@ export default function WelcomeScreen() {
   if (user) return <RestoreLastPlace userId={user.id} />;
 
   return (
-    <LivingPage
+    <WelcomeScreen
       onCreate={() => router.push("/onboarding/goal")}
       onSignIn={() => router.push("/login")}
     />
