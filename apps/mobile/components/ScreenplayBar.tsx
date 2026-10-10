@@ -230,7 +230,8 @@ const styles = StyleSheet.create({
   },
   scroller: { flex: 1, alignSelf: "stretch", justifyContent: "center", marginLeft: 8 },
   fade: { position: "absolute", top: 0, bottom: 0, right: 0, width: 28 },
-  chips: { alignItems: "center", gap: 4, paddingVertical: 4 },
+  // The right padding is the fade's width, so the last chip can scroll clear of it.
+  chips: { alignItems: "center", gap: 4, paddingVertical: 4, paddingRight: 28 },
   chip: {
     paddingHorizontal: 10,
     height: 32,

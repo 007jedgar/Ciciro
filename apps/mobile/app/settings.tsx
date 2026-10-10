@@ -907,6 +907,9 @@ export default function SettingsScreen() {
         onHeightChange={onHeaderHeight}
       />
       <ScrollView
+        // A script's title page has text fields: a tap on Save must press it, not just put the keyboard away.
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 20, paddingBottom: 48 }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >
