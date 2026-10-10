@@ -24,6 +24,16 @@ jest.mock("expo-haptics", () => ({
 
 // The page is a demonstration a screen reader skips, so it is hidden from the default queries.
 const HIDDEN = { includeHiddenElements: true };
+
+/** The page text on show: the card also holds an unseen copy of every kind, only to size itself. */
+function onPage(text: string | RegExp) {
+  return screen.queryAllByText(text, HIDDEN).filter((node) => {
+    for (let n: { parent?: unknown; props?: { testID?: string } } | null = node as never; n; n = (n.parent as never) ?? null) {
+      if (n.props?.testID === "welcome-measure") return false;
+    }
+    return true;
+  });
+}
 const FINAL = "Keep writing the book you’ve been meaning to.";
 
 function themed(ui: ReactNode, reduceMotion = false) {
@@ -57,7 +67,8 @@ function headlineText(): string {
     const children = (node as { children?: unknown[] }).children ?? [];
     return children.map(flat).join("");
   };
-  return flat(header.children[0] as unknown);
+  // The closing space is a no-break one so the last word never wraps alone.
+  return flat(header.children[0] as unknown).replace(/\u00a0/g, " ");
 }
 
 describe("WelcomeScreen", () => {
@@ -96,7 +107,7 @@ describe("WelcomeScreen", () => {
     render(themed(<WelcomeScreen onCreate={jest.fn()} onSignIn={jest.fn()} />));
     expect(headlineText()).toBe("Write the book you keep meaning to.");
     await advance(2500);
-    expect(screen.getByText(/^The lighthouse had been dark/, HIDDEN)).toBeTruthy();
+    expect(onPage(/^The lighthouse had been dark/)).toHaveLength(1);
     let rewritten = false;
     for (let t = 0; t < 12000 && !rewritten; t += 100) {
       await advance(100);
@@ -110,17 +121,17 @@ describe("WelcomeScreen", () => {
     }
     expect(journal).toBe(true);
     await advance(4000);
-    expect(screen.getByText("Thursday, 9 October", HIDDEN)).toBeTruthy();
+    expect(onPage("Thursday, 9 October")).toHaveLength(1);
   });
 
   it("does not start until the hand-off from the splash is done", async () => {
     resetHandoff(false);
     render(themed(<WelcomeScreen onCreate={jest.fn()} onSignIn={jest.fn()} />));
     await advance(3000);
-    expect(screen.queryByText(/^The lighthouse/, HIDDEN)).toBeNull();
+    expect(onPage(/^The lighthouse/)).toHaveLength(0);
     act(() => resetHandoff(true));
     await advance(2500);
-    expect(screen.getByText(/^The lighthouse had been dark/, HIDDEN)).toBeTruthy();
+    expect(onPage(/^The lighthouse had been dark/)).toHaveLength(1);
   });
 
   it("pauses while the screen is not focused and picks up where it stopped", async () => {
@@ -152,10 +163,10 @@ describe("WelcomeScreen", () => {
   it("shows finished pages under Reduce motion and swaps them without typing", async () => {
     render(themed(<WelcomeScreen onCreate={jest.fn()} onSignIn={jest.fn()} />, true));
     expect(headlineText()).toBe(FINAL);
-    expect(screen.getByText(/Someone had been keeping it for her\.$/, HIDDEN)).toBeTruthy();
+    expect(onPage(/Someone had been keeping it for her\.$/)).toHaveLength(1);
     expect(screen.queryByTestId("welcome-caret")).toBeNull();
     await advance(4200);
     expect(headlineText()).toContain("journal");
-    expect(screen.getByText("Thursday, 9 October", HIDDEN)).toBeTruthy();
+    expect(onPage("Thursday, 9 October")).toHaveLength(1);
   });
 });

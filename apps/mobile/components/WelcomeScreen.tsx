@@ -34,6 +34,8 @@ const HEAD_SIZE = 38;
 const HEAD_LINE = 42;
 /** The card's first line: the dots land on three lines this far apart and the first becomes the caret. */
 const FIRST_LINE = 24;
+const COPY_TOP = 66;
+const COPY_BOTTOM = 30;
 const BAR_SPACING = 32;
 const BAR_WIDTHS = [1, 0.88, 0.59] as const;
 
@@ -101,7 +103,8 @@ function headlinePart(
   tint: string,
   caret: ReactNode
 ): ReactNode {
-  const text = h[part];
+  // The last space is a no-break one (same length, so the script's offsets hold): the closing word never wraps alone.
+  const text = part === "after" ? h.after.replace(/ (?=[^ ]*$)/, "\u00a0") : h[part];
   if (h.selection?.part === part) {
     return [
       text.slice(0, h.selection.from),
@@ -182,6 +185,9 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
   const h = frame.headline;
   const caret = <TypingCaret key="caret" color={colors.accent} height={HEAD_SIZE * 0.82} blink={h.blink} />;
   const kind = frame.card.kind;
+  // The card holds the height of its tallest kind, so swapping kinds never moves the buttons.
+  const [copyHeights, setCopyHeights] = useState<Partial<Record<string, number>>>({});
+  const copyHeight = Math.max(0, ...Object.values(copyHeights).map((v) => v ?? 0));
   const roles = CARD_ROLES[kind];
 
   return (
@@ -222,6 +228,7 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
       <Animated.View
         style={[
           styles.card,
+          copyHeight > 0 ? { height: COPY_TOP + copyHeight + COPY_BOTTOM } : null,
           { backgroundColor: colors.panel, borderColor: colors.line, shadowColor: colors.ink },
           cardStyle,
         ]}
@@ -232,6 +239,25 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
       >
         <View style={[styles.margin, { backgroundColor: mixColors(colors.panel, colors.vermilion, 0.45) }]} />
         <Animated.Text style={[styles.cardLabel, { color: colors.inkSoft }, swapStyle]}>{frame.card.label}</Animated.Text>
+        {/* Unseen copy of every kind, only to measure the tallest. */}
+        <View testID="welcome-measure" pointerEvents="none" style={[styles.copy, styles.ghost2]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {(Object.keys(CARD_ROLES) as (keyof typeof CARD_ROLES)[]).map((k) => (
+            <View
+              key={k}
+              style={styles.ghostKind}
+              onLayout={(e) => {
+                const height = Math.ceil(e.nativeEvent.layout.height);
+                setCopyHeights((prev) => (prev[k] === height ? prev : { ...prev, [k]: height }));
+              }}
+            >
+              {CARD_ROLES[k].map((role, i) => (
+                <Text key={i} style={[roleStyle(role, colors), i > 0 ? styles.blockGap : null]}>
+                  {copy.cards[k].blocks[i]}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
         <View ref={copyRef} collapsable={false} onLayout={measure} style={styles.copy}>
           <Animated.View style={swapStyle}>
             {roles.map((role, i) => {
@@ -279,10 +305,8 @@ const styles = StyleSheet.create({
   word: { fontFamily: fonts.displayItalic, ...(Platform.OS === "ios" ? { fontStyle: "italic" as const } : {}) },
   sub: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 22, marginTop: 14, marginBottom: 22, maxWidth: 330 },
   card: {
-    flexGrow: 1,
     flexShrink: 1,
     minHeight: 170,
-    maxHeight: 300,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
@@ -293,7 +317,9 @@ const styles = StyleSheet.create({
   },
   margin: { position: "absolute", left: 31, top: 0, bottom: 0, width: StyleSheet.hairlineWidth },
   cardLabel: { position: "absolute", left: 50, top: 22, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase" },
-  copy: { position: "absolute", left: 50, top: 66, right: 14 },
+  copy: { position: "absolute", left: 50, top: COPY_TOP, right: 14 },
+  ghost2: { opacity: 0 },
+  ghostKind: { position: "absolute", left: 0, right: 0, top: 0 },
   blockGap: { marginTop: 6 },
   topSpacer: { flexGrow: 1, flexShrink: 1, minHeight: 24 },
   spacer: { flexGrow: 1.2, flexShrink: 1, minHeight: 22 },
