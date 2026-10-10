@@ -59,17 +59,19 @@ describe("manuscript kind", () => {
     );
   });
 
-  it("reaches Shot between a transition and a scene heading", () => {
+  it("reaches Shot after a transition and Centered after a shot, then a scene heading", () => {
     expect(cycleElement("transition")).toBe("shot");
-    expect(cycleElement("shot")).toBe("scene-heading");
+    expect(cycleElement("shot")).toBe("centered");
+    expect(cycleElement("centered")).toBe("scene-heading");
     expect(nextElementOnEnter("shot")).toBe("action");
+    expect(nextElementOnEnter("centered")).toBe("action");
   });
 
   it("keeps an element it does not know, as the web does", () => {
-    const html = '<p data-block-id="a" data-sp="centered">THE END</p>';
+    const html = '<p data-block-id="a" data-sp="lyric">La la.</p>';
     expect(elementOfHtml(html)).toBe("action");
-    expect(elementTag("centered")).toBe("centered");
-    expect(withElement(html, elementTag("centered"))).toBe(html);
+    expect(elementTag("lyric")).toBe("lyric");
+    expect(withElement(html, elementTag("lyric"))).toBe(html);
   });
 
   it("has manuscript settings for a screenplay and for no other kind yet", () => {

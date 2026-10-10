@@ -11,7 +11,7 @@ import { resendVerificationEmail } from "@/lib/verify-email-client";
 import SettingsBilling from "@/components/SettingsBilling";
 import SettingsEmailPreferences from "@/components/SettingsEmailPreferences";
 import type { Entitlement } from "@/lib/billing-client";
-import ManuscriptSettings from "@/components/ManuscriptSettings";
+import ManuscriptSettings, { type ScriptSettingsControl } from "@/components/ManuscriptSettings";
 import { type ManuscriptKind } from "@/lib/manuscript-kind";
 
 type Account = {
@@ -24,10 +24,13 @@ type Account = {
 export default function ThemePicker({
   compact = false,
   kind,
+  script,
 }: {
   compact?: boolean;
   /** The kind of the manuscript that is open, for its own settings at the top. Absent in the library. */
   kind?: ManuscriptKind;
+  /** The open script's own settings (title page, dialogue breaks, scene numbers). */
+  script?: ScriptSettingsControl;
 }) {
   const { settings, patch } = useSettings();
   const [open, setOpen] = useState(false);
@@ -152,7 +155,7 @@ export default function ThemePicker({
       </button>
       {open && (
         <div className="theme-menu" role="dialog" aria-label="App settings">
-          <ManuscriptSettings kind={kind} />
+          <ManuscriptSettings kind={kind} script={script} />
           <div className="theme-menu-label">Light</div>
           <div className="theme-grid">
             {THEMES.filter((t) => t.mode === "light").map((t) => (

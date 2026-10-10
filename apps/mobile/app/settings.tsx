@@ -57,6 +57,8 @@ import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
 import { BetaBadge } from "../components/BetaBadge";
 import { ELEMENT_LABEL_KEYS } from "../components/ScreenplayBar";
+import { TitlePageFields } from "../components/TitlePageFields";
+import { useScriptSettings } from "../lib/use-script-settings";
 import { SelectCheck, SelectChip, SelectLabel } from "../components/SelectChip";
 import { TapPressable } from "../components/TapPressable";
 
@@ -415,22 +417,33 @@ function tabOrder(): ScreenplayElement[] {
   return order;
 }
 
+/** The manuscript the settings belong to: what its own settings read and write. */
+type OpenManuscript = { id: string; title: string; author: string; scriptSettings?: string };
+
 /**
  * The settings of the manuscript that is open, for its kind: shown at the top
  * of Settings only when it was opened from inside one, and only for a kind that
  * has some. A new kind-specific setting is a new row in that kind's group.
  */
-function KindSettingsGroup({ kind, colors }: { kind: ManuscriptKind; colors: ColorTokens }) {
+function KindSettingsGroup({
+  kind,
+  manuscript,
+  colors,
+}: {
+  kind: ManuscriptKind;
+  manuscript: OpenManuscript | null;
+  colors: ColorTokens;
+}) {
   if (!hasKindSettings(kind)) return null;
   switch (kind) {
     case "screenplay":
-      return <ScreenplaySettingsGroup colors={colors} />;
+      return <ScreenplaySettingsGroup manuscript={manuscript} colors={colors} />;
     default:
       return null;
   }
 }
 
-function ScreenplaySettingsGroup({ colors }: { colors: ColorTokens }) {
+function ScreenplaySettingsGroup({ manuscript, colors }: { manuscript: OpenManuscript | null; colors: ColorTokens }) {
   const { t } = useTranslation();
   return (
     <>
@@ -451,6 +464,7 @@ function ScreenplaySettingsGroup({ colors }: { colors: ColorTokens }) {
         <Hairline colors={colors} />
         <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
           <SettingsNote text={t("screenplay.settings.elementsNote")} colors={colors} />
+          <SettingsNote text={t("screenplay.settings.dualNote")} colors={colors} />
           <SettingsNote
             text={t("screenplay.settings.tabOrder", {
               elements: tabOrder()
@@ -461,8 +475,63 @@ function ScreenplaySettingsGroup({ colors }: { colors: ColorTokens }) {
           />
           <SettingsNote text={t("screenplay.settings.returnNote")} colors={colors} />
         </View>
-        {/* Later: the (MORE) and (CONT'D) switches, scene numbers and the title page join this group. */}
+        {manuscript ? <ScriptSettingsRows manuscript={manuscript} colors={colors} /> : null}
       </Group>
+    </>
+  );
+}
+
+/** The switches and the title page, which are the open script's own (the same ones the web shows). */
+function ScriptSettingsRows({ manuscript, colors }: { manuscript: OpenManuscript; colors: ColorTokens }) {
+  const { t } = useTranslation();
+  const { settings, update, saving, error } = useScriptSettings(manuscript, t("screenplay.settings.titlePage.saveError"));
+  return (
+    <>
+      <Hairline colors={colors} />
+      <ToggleRow
+        label={t("screenplay.settings.more.label")}
+        hint={t("screenplay.settings.more.hint")}
+        value={settings.more}
+        onValueChange={(more) => update({ ...settings, more })}
+        colors={colors}
+      />
+      <ToggleRow
+        label={t("screenplay.settings.contd.label")}
+        hint={t("screenplay.settings.contd.hint")}
+        value={settings.contd}
+        onValueChange={(contd) => update({ ...settings, contd })}
+        colors={colors}
+      />
+      <ToggleRow
+        label={t("screenplay.settings.sceneNumbers.label")}
+        hint={t("screenplay.settings.sceneNumbers.hint")}
+        value={settings.sceneNumbers}
+        onValueChange={(sceneNumbers) => update({ ...settings, sceneNumbers })}
+        colors={colors}
+      />
+      <ToggleRow
+        label={t("screenplay.settings.showTitlePage.label")}
+        hint={t("screenplay.settings.showTitlePage.hint")}
+        value={settings.showTitlePage}
+        onValueChange={(showTitlePage) => update({ ...settings, showTitlePage })}
+        colors={colors}
+        last
+      />
+      <Hairline colors={colors} />
+      <TitlePageFields
+        // A save the server tidied (trimmed lines) comes back as new text: start the fields from it, but never
+        // because a switch above changed.
+        key={JSON.stringify(settings.titlePage)}
+        settings={settings}
+        manuscript={manuscript}
+        saving={saving}
+        onSave={update}
+      />
+      {error ? (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+          <AlertText style={{ fontSize: 13, color: colors.danger }}>{error}</AlertText>
+        </View>
+      ) : null}
     </>
   );
 }
@@ -838,12 +907,30 @@ export default function SettingsScreen() {
         onHeightChange={onHeaderHeight}
       />
       <ScrollView
+        // A script's title page has text fields: a tap on Save must press it, not just put the keyboard away.
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ padding: 20, paddingTop: headerHeight + 20, paddingBottom: 48 }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >
         <Text style={[layout.body, { marginBottom: 16 }]}>{t("settings.intro")}</Text>
 
-        {openKind ? <KindSettingsGroup kind={openKind} colors={colors} /> : null}
+        {openKind ? (
+          <KindSettingsGroup
+            kind={openKind}
+            manuscript={
+              openProject
+                ? {
+                    id: openProject.id,
+                    title: openProject.title ?? "",
+                    author: openProject.author ?? "",
+                    scriptSettings: openProject.scriptSettings,
+                  }
+                : null
+            }
+            colors={colors}
+          />
+        ) : null}
 
         <SectionHeader label={t("settings.sectionAppearance")} colors={colors} />
         <Group colors={colors}>

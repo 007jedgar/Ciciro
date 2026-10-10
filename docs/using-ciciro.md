@@ -387,8 +387,8 @@ change chapters.
 
 Bring an existing manuscript in from Word (`.docx`, including Google Docs
 downloaded as Word or as a web page `.html`), Markdown (`.md`, `.txt`), a
-Fountain script (`.fountain`), or a Scrivener project (zip the whole `.scriv`
-folder first). Files are limited to 20 MB.
+Fountain script (`.fountain`), a Final Draft script (`.fdx`), or a Scrivener
+project (zip the whole `.scriv` folder first). Files are limited to 20 MB.
 
 - **New manuscript**: use **Import a manuscript** on the manuscript list (on
   mobile, **Import manuscript** in the menu). The title defaults to the file's.
@@ -405,12 +405,24 @@ set as the element Fountain says it is: scene headings, action, character
 cues, parentheticals, dialogue and transitions, including lines forced with
 `!`, `@`, `.` or `>`, and bold, italic and underline. It splits into sequences
 at its `#` sections (the shallowest level in the file), or comes in as one
-sequence when it has none. The title block's title and author come with it.
-Notes (`[[ ]]`), the boneyard (`/* */`), synopses (`=`) and page breaks (`===`)
-are dropped, and so is the rest of the title page. Added to a manuscript that is
-not a screenplay, its lines come in as plain paragraphs. Pasting Fountain text
-(paragraphs split by blank lines) into a screenplay on the web sorts it into
-elements the same way.
+sequence when it has none. The title block comes with it (title, credit, author,
+source, draft date and contact become the script's title page), dual dialogue
+(`^`) and centered text (`> text <`) become their own formatting, and a script
+whose scenes carry numbers (`#1#`) comes in with scene numbers on. Notes
+(`[[ ]]`), the boneyard (`/* */`), synopses (`=`) and page breaks (`===`) are
+dropped. Added to a manuscript that is not a screenplay, its lines come in as
+plain paragraphs, and a script added to an existing screenplay keeps that
+screenplay's own title page and settings. Pasting Fountain text (paragraphs
+split by blank lines) into a screenplay on the web sorts it into elements the
+same way.
+
+An **FDX** file (`.fdx`) is read the same way: it becomes a screenplay (Beta)
+with its scene headings, action, cues, parentheticals, dialogue, transitions and
+shots, dual dialogue, centered text, bold, italic and underline, scene numbers
+and title page. FDX has no sections, so it comes in as one sequence. Ciciro
+reads what open-source script tools agree on and has no way to try your file
+against Final Draft itself, so a feature of a particular Final Draft version
+(revision colours, locked pages, A-pages) is not carried.
 
 ## Suggestions (tracked changes)
 
@@ -446,26 +458,44 @@ headings and bold, italic, lists, quotes, and scene breaks preserved.
 phone, the foot of the Chapters tab has an Export card that hands the file to the share sheet.
 
 A **screenplay** (Beta) exports differently. **Screenplay PDF** is the script on
-US Letter pages in 12 pt Courier, on the same page the editor's "about N pages"
-counts, so the PDF has that many pages: page numbers top right from page 2, a
-scene heading and a character cue kept with the line after them, and a lone line
-of dialogue moved to the next page rather than stranded. Capitals are applied to
-scene headings, cues, transitions and shots, and bold, italic and underline
-carry over. There is no title page or `(MORE)` / `(CONT'D)` yet, and the page
-count is an estimate. **Fountain (.fountain)** is a plain-text script other
-writing apps open, with a title block and a `#` section for each sequence when
+US Letter pages in 12 pt Courier, with exactly the pages the editor shows: the
+header's page count is the PDF's page count (the title page is not counted).
+Page numbers sit top right from page 2. A scene heading and a character cue are
+kept with the line after them, a lone line of dialogue is moved to the next page
+rather than stranded, and a speech that runs past the end of a page ends it with
+`(MORE)` and starts the next with the cue and `(CONT'D)`. Dual dialogue is set
+as two columns, centered text is centered, capitals are applied to scene
+headings, cues, transitions and shots, and bold, italic and underline carry
+over. With **Scene numbers** on in the script's settings, each scene heading is
+numbered in both margins. The PDF starts with a **title page** (title, credit,
+author, source, draft date and contact) unless you turn it off; a blank title or
+author is the manuscript's own.
+
+**Fountain (.fountain)** is a plain-text script other writing apps open, with a
+title block (the title page above) and a `#` section for each sequence when
 there is more than one. Lines that would be read as another element are marked
 (`!` for an all-caps action line, `@` for a cue that is not in capitals, `.` for
 a heading, `>` for a transition); a shot is written as an all-caps action line
-and read back as a shot. Fountain cannot say that a line of dialogue or a
-parenthetical has no cue above it, so one is written as an action line.
+and read back as a shot, dual dialogue is `^` after the second cue, centered
+text is `> text <`, and scene numbers are `#1#` after the heading. Fountain
+cannot say that a line of dialogue or a parenthetical has no cue above it, so
+one is written as an action line.
+
+**FDX export (.fdx)** (Beta) writes the same script as the XML file Final Draft
+and several other script writers read: element types, bold, italic and
+underline, dual dialogue, centered text, scene numbers and a title page. It is
+written to the structure open-source readers agree on and tested against them.
+Ciciro makes no claim that Final Draft opens it unchanged, so open it in the
+tool you will use and look it over. Sequence titles have nowhere to go in FDX, so
+a script with several sequences comes out as one run of scenes.
 
 The screenplay PDF sets English and Spanish. For a script written mostly in
-another alphabet, whatever the app's language, it is grayed out with an info
-button that says script formatting is only available in English and Spanish for
-now and that more languages are planned; Fountain still exports. On the phone,
-when the app is in Chinese or Hindi, the same applies to choosing Screenplay
-when you create a manuscript.
+another alphabet, or a title page in one, whatever the app's language, it is
+grayed out with an info button that says script formatting is only available in
+English and Spanish for now and that more languages are planned; Fountain and
+FDX still export. On the phone, when the app is in Chinese or Hindi, the same
+applies to choosing Screenplay when you create a manuscript. The `(MORE)` and
+`(CONT'D)` notes are English for now.
 
 On the web, the Export menu also notes how much of the words added since
 tracking began came from Ciciro, split into accepted suggestions and prose
@@ -496,7 +526,7 @@ same steps for anyone who is not signed in.
 
 When you start a manuscript, on the web or the phone, choose what you are writing. The default is a novel, exactly as before.
 
-- **Screenplay (Beta).** Chapters become sequences and every line has an element: scene heading, action, character, dialogue, parenthetical, transition or shot. On the web, Tab and Shift-Tab cycle the element of the line you are on, Enter starts the next one (character to dialogue, scene heading or shot to action, transition to scene heading), and Enter on an empty line drops back to action. Select several lines and Tab changes them all, and pasting several lines sorts them into elements. Alt+Shift with 1 to 7 picks an element outright (scene heading, action, character, parenthetical, dialogue, shot, transition); the Settings menu lists them. Markdown shortcuts such as `# ` or `- ` do nothing in a script, and scene headings, cues, transitions and shots are not spell checked. A script is always set in 12 pt Courier Prime on a 60 column page, whatever your editor font and size say, so a page on screen is a page on paper: the header shows "about N pages", and a dashed rule with the next page's number marks where each page is likely to end (an estimate, not an exact count). Open Settings inside a screenplay and its own section is at the top: the locked type and the shortcut reference. Ciciro reads a script by its elements and its scenes (each scene heading starts a scene it can name and edit), and writes in the same form, so what it drafts or rewrites lands as scene headings, cues, dialogue and the rest. On the phone, the bar just above the keyboard sets the element and its Tab button steps to the next one, and the chip lights the moment you press Return; a draft inserted from Ciciro arrives sorted into elements and shows in the chat set as a script. The Pages tool on a screenplay's chapters screen shows the script as printed pages, read only, and the manuscripts list says about how many pages each script runs. The phone editor itself does not indent lines while you type, so Pages is where to see the layout. Export it as a screenplay PDF or a Fountain file, or import a Fountain file (see Import and Export below).
+- **Screenplay (Beta).** Chapters become sequences and every line has an element: scene heading, action, character, dialogue, parenthetical, transition, shot or centered text. On the web, Tab and Shift-Tab cycle the element of the line you are on, Enter starts the next one (character to dialogue, scene heading or shot to action, transition to scene heading), and Enter on an empty line drops back to action. Select several lines and Tab changes them all, and pasting several lines sorts them into elements. Alt+Shift with 1 to 8 picks an element outright (scene heading, action, character, parenthetical, dialogue, shot, transition, centered); the Settings menu lists them. Alt+Shift+D seats the speech you are in beside the one right above it as **dual dialogue**, two columns on the same lines, and takes it back out again. Markdown shortcuts such as `# ` or `- ` do nothing in a script, and scene headings, cues, transitions and shots are not spell checked. A script is always set in 12 pt Courier Prime on a 60 column page, whatever your editor font and size say, so a page on screen is a page on paper: the header shows the exact page count ("N pages"), and a dashed rule with the next page's number marks where each page ends. A speech that runs past a page's foot ends it with `(MORE)` and the next page opens with the cue and `(CONT'D)`. Open Settings inside a screenplay and its own section is at the top: the locked type, switches for `(MORE)` and `(CONT'D)` (each takes a line of the page, so turning one off can move where pages end), scene numbers for a locked draft (the numbers show in both margins of the editor and the PDF), the title page, and the shortcut reference. Ciciro reads a script by its elements and its scenes (each scene heading starts a scene it can name and edit), and writes in the same form, so what it drafts or rewrites lands as scene headings, cues, dialogue and the rest. On the phone, the bar just above the keyboard sets the element and its Tab button steps to the next one, and a **Dual** button toggles dual dialogue for the speech you are in; Return starts the element that follows, a draft inserted from Ciciro arrives sorted into elements and shows in the chat set as a script, and Settings, opened from inside the manuscript, has the same switches and the title page. The Pages tool on a screenplay's chapters screen shows the script as printed pages, read only, and the manuscripts list says about how many pages each script runs. The phone editor itself does not indent lines while you type, so Pages is where to see the layout. Export it as a screenplay PDF, a Fountain file or an FDX file, or import a Fountain or FDX file (see Import and Export below).
 - **Blog post or newsletter.** One piece with a title and a subtitle, and no chapter list. The subtitle is the manuscript's logline.
 - **Journal.** Each chapter is a dated entry. **+ Today** on the web, and **Today's entry** on the phone, opens today's entry, or starts it if it is not there yet, so it never makes two entries for one day.
 

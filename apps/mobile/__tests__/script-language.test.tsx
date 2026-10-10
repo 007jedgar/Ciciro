@@ -1,10 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import i18n from "../lib/i18n";
 import { ExportCard } from "../components/ExportCard";
 import { exportManuscript } from "../lib/export";
 import { ApiError } from "../lib/api/client";
 
 const ENGLISH = [{ content: "<p>She waits by the window, and the rain keeps falling.</p>", archivedAt: null }];
+const SHORT_ENGLISH = [{ content: "<p>Rain.</p>", archivedAt: null }];
+const CHINESE_TITLE = "夜班的雨和那些没有说出口的话";
+const CHINESE_AUTHOR = "玛拉·奎尔";
 const CHINESE = [{ content: "<p>他看着窗外的雨，什么也没说。</p>", archivedAt: null }];
 
 jest.mock("../lib/export", () => ({
@@ -35,12 +38,14 @@ afterEach(async () => {
 });
 
 describe("ExportCard for a screenplay", () => {
-  it("leads with the screenplay PDF and Fountain, both marked Beta", () => {
+  it("leads with the screenplay PDF, Fountain and FDX, all marked Beta", () => {
     render(<ExportCard projectId="p1" kind="screenplay" chapters={ENGLISH} />);
     expect(screen.getByLabelText("Export as Screenplay PDF")).toBeTruthy();
     expect(screen.getByLabelText("Export as Fountain")).toBeTruthy();
+    expect(screen.getByLabelText("FDX export")).toBeTruthy();
     expect(screen.getByTestId("export-beta-pdf")).toBeTruthy();
     expect(screen.getByTestId("export-beta-fountain")).toBeTruthy();
+    expect(screen.getByTestId("export-beta-fdx")).toBeTruthy();
     expect(screen.queryByTestId("export-language-info")).toBeNull();
     expect(screen.queryByLabelText("Export as PDF")).toBeNull();
   });
@@ -48,8 +53,49 @@ describe("ExportCard for a screenplay", () => {
   it("asks for the PDF and for Fountain by name", async () => {
     (exportManuscript as jest.Mock).mockResolvedValue(undefined);
     render(<ExportCard projectId="p1" kind="screenplay" chapters={ENGLISH} />);
-    fireEvent.press(screen.getByLabelText("Export as Fountain"));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Export as Fountain"));
+    });
     expect(exportManuscript).toHaveBeenCalledWith("p1", "fountain", expect.anything());
+  });
+
+  it("asks for FDX by name, and never calls it Final Draft", async () => {
+    (exportManuscript as jest.Mock).mockResolvedValue(undefined);
+    render(<ExportCard projectId="p1" kind="screenplay" chapters={ENGLISH} />);
+    expect(screen.queryByText(/Final Draft/i)).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("FDX export"));
+    });
+    expect(exportManuscript).toHaveBeenCalledWith("p1", "fdx", expect.anything());
+  });
+
+  it("grays out the PDF, and only the PDF, when the title page is in a script Courier cannot set", () => {
+    const settings = JSON.stringify({ titlePage: { title: CHINESE_TITLE, author: CHINESE_AUTHOR }, showTitlePage: true });
+    render(
+      <ExportCard
+        projectId="p1"
+        kind="screenplay"
+        chapters={SHORT_ENGLISH}
+        scriptSettings={settings}
+        manuscript={{ title: "Night Shift", author: "Mara" }}
+      />
+    );
+    expect(screen.getByLabelText("Export as Screenplay PDF").props.accessibilityState).toMatchObject({ disabled: true });
+    expect(screen.getByLabelText("FDX export").props.accessibilityState).toMatchObject({ disabled: false });
+  });
+
+  it("sets the PDF when the title page that would not fit is switched off", () => {
+    const settings = JSON.stringify({ titlePage: { title: CHINESE_TITLE, author: CHINESE_AUTHOR }, showTitlePage: false });
+    render(
+      <ExportCard
+        projectId="p1"
+        kind="screenplay"
+        chapters={SHORT_ENGLISH}
+        scriptSettings={settings}
+        manuscript={{ title: "Night Shift", author: "Mara" }}
+      />
+    );
+    expect(screen.getByLabelText("Export as Screenplay PDF").props.accessibilityState).toMatchObject({ disabled: false });
   });
 
   it("says why when the server cannot set the script", async () => {

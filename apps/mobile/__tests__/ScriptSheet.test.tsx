@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react-native";
-import { ScriptSheet, sheetMetrics } from "../components/ScriptSheet";
+import { NUMBER_GUTTER, ScriptSheet, sheetMetrics } from "../components/ScriptSheet";
 import { PAGE_COLUMNS, PAGE_LINES } from "../lib/screenplay";
 import { scriptPages } from "../lib/script-pages";
 import { colors } from "../lib/theme";
@@ -15,6 +15,17 @@ describe("sheetMetrics", () => {
       expect(m.lineHeight).toBeGreaterThan(m.fontSize);
       // Every page is the same height: 54 lines between the edges.
       expect(m.height).toBeCloseTo(m.paddingTop + m.lineHeight * PAGE_LINES + m.padding, 5);
+    }
+  });
+
+  it("keeps room for scene numbers inside the sheet without letting the 60 columns overflow", () => {
+    for (const width of [280, 343, 390, 430, 768]) {
+      const plain = sheetMetrics(width);
+      const numbered = sheetMetrics(width, NUMBER_GUTTER);
+      expect(plain.gutter).toBe(0);
+      expect(numbered.gutter).toBeCloseTo(NUMBER_GUTTER * numbered.fontSize * 0.6, 5);
+      expect(numbered.fontSize).toBeLessThanOrEqual(plain.fontSize);
+      expect(numbered.columns + numbered.gutter * 2 + numbered.padding * 2).toBeLessThanOrEqual(width);
     }
   });
 
@@ -44,5 +55,17 @@ describe("ScriptSheet", () => {
   it("numbers a later page top right", () => {
     render(<ScriptSheet page={{ number: 2, lines: pages[0].lines }} {...props} label="Page 2" />);
     expect(screen.getByText("2.")).toBeTruthy();
+  });
+});
+
+describe("ScriptSheet scene numbers", () => {
+  it("puts a scene's number in both margins of its heading, and nowhere else", () => {
+    const { pages } = scriptPages([SCRIPT], { sceneNumbers: true });
+    render(
+      <ScriptSheet page={pages[0]} metrics={sheetMetrics(360, NUMBER_GUTTER)} colors={colors} label="Page 1" />
+    );
+    expect(screen.getAllByText("1")).toHaveLength(2);
+    expect(screen.getAllByTestId("script-scene-number")).toHaveLength(1);
+    expect(screen.getByText("INT. LAB - NIGHT")).toBeTruthy();
   });
 });

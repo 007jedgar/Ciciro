@@ -187,6 +187,29 @@ describe("enriched html adapter", () => {
       expect(afterShot).toBe('<p data-block-id="b" data-sp="shot">WIDE ON THE CITY</p><p data-block-id="' + htmlToDoc(afterShot, 0).doc.blocks[1].id + '"></p>');
     });
 
+    it("keeps the dual flag on the second cue through an edit, and hides it from the native view", () => {
+      const dual =
+        '<p data-block-id="a" data-sp="character">ANNA</p><p data-block-id="b" data-sp="dialogue">Go.</p>' +
+        '<p data-block-id="c" data-sp="character" data-sp-dual="1">BEN</p><p data-block-id="d" data-sp="dialogue">No.</p>';
+      expect(toEnrichedHtml(dual)).toBe("<p>ANNA</p><p>Go.</p><p>BEN</p><p>No.</p>");
+      const stamped = restampCiciroHtml(dual, "<p>ANNA</p><p>Go.</p><p>BEN</p><p>No way.</p>", { screenplay: true });
+      expect(stamped).toContain('<p data-block-id="c" data-sp="character" data-sp-dual="1">BEN</p>');
+      expect(stamped).not.toMatch(/data-block-id="a"[^>]*data-sp-dual/);
+      expect(opsFromEnrichedHtml(dual, "<p>ANNA</p><p>Go.</p><p>BEN</p><p>No.</p>", 3, undefined, { screenplay: true })).toEqual([]);
+    });
+
+    it("does not give a new line a dual flag, and drops it from a cue turned into something else", () => {
+      const dual =
+        '<p data-block-id="a" data-sp="character">ANNA</p><p data-block-id="b" data-sp="dialogue">Go.</p>' +
+        '<p data-block-id="c" data-sp="character" data-sp-dual="1">BEN</p>';
+      const split = restampCiciroHtml(dual, "<p>ANNA</p><p>Go.</p><p>BEN</p><p></p>", { screenplay: true });
+      expect(split.match(/data-sp-dual/g)).toHaveLength(1);
+      const retagged = restampCiciroHtml(dual.replace(' data-sp-dual="1"', ""), "<p>ANNA</p><p>Go.</p><p>BEN</p>", {
+        screenplay: true,
+      });
+      expect(retagged).not.toContain("data-sp-dual");
+    });
+
     it("does not invent elements in a novel", () => {
       const stamped = restampCiciroHtml('<p data-block-id="a">One.</p>', "<p>One.</p><p></p>");
       expect(stamped).not.toContain("data-sp");

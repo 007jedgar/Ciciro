@@ -32,26 +32,30 @@ import {
   type ScriptBlock,
 } from "@/lib/screenplay";
 import { NIGHT_SHIFT } from "./fixtures/screenplay/night-shift";
+import { PROFESSIONAL } from "./fixtures/screenplay/professional";
+import { typesetSequences } from "@/lib/screenplay";
 
 const block = (element: string, text: string): ScriptBlock => ({ element, text });
 const words = (n: number, word = "word") => Array.from({ length: n }, () => word).join(" ");
 
 describe("screenplay elements", () => {
-  it("knows seven elements, Shot among them", () => {
+  it("knows eight elements, Shot and Centered among them", () => {
     expect(SCREENPLAY_ELEMENTS).toContain("shot");
-    expect(SCREENPLAY_ELEMENTS).toHaveLength(7);
+    expect(SCREENPLAY_ELEMENTS).toContain("centered");
+    expect(SCREENPLAY_ELEMENTS).toHaveLength(8);
     expect(Object.keys(ELEMENT_METRICS).sort()).toEqual([...SCREENPLAY_ELEMENTS].sort());
   });
 
   it("keeps an element it does not know instead of collapsing it to action", () => {
-    expect(elementTag("centered")).toBe("centered");
+    expect(elementTag("lyric")).toBe("lyric");
     expect(elementTag("dual-1")).toBe("dual-1");
-    expect(normalizeElement("centered")).toBe("action");
-    expect(knownElement("centered")).toBeNull();
+    expect(normalizeElement("lyric")).toBe("action");
+    expect(knownElement("lyric")).toBeNull();
     expect(knownElement("shot")).toBe("shot");
+    expect(knownElement("centered")).toBe("centered");
 
-    const html = '<p data-block-id="b1" data-sp="centered">THE END</p>';
-    expect(elementTagOfHtml(html)).toBe("centered");
+    const html = '<p data-block-id="b1" data-sp="lyric">THE END</p>';
+    expect(elementTagOfHtml(html)).toBe("lyric");
     expect(elementOfHtml(html)).toBe("action");
     // Restamping a block (what both clients do on every edit) must not strip it.
     expect(withElement(html, elementTagOfHtml(html))).toBe(html);
@@ -71,10 +75,19 @@ describe("screenplay elements", () => {
   it("walks the Tab ring through Shot and back around", () => {
     let el = cycleElement("action");
     const seen = [el];
-    for (let i = 0; i < 6; i++) seen.push((el = cycleElement(el)));
-    expect(seen).toEqual(["character", "dialogue", "parenthetical", "transition", "shot", "scene-heading", "action"]);
+    for (let i = 0; i < 7; i++) seen.push((el = cycleElement(el)));
+    expect(seen).toEqual([
+      "character",
+      "dialogue",
+      "parenthetical",
+      "transition",
+      "shot",
+      "centered",
+      "scene-heading",
+      "action",
+    ]);
     expect(cycleElement("action", -1)).toBe("scene-heading");
-    expect(cycleElement("scene-heading", -1)).toBe("shot");
+    expect(cycleElement("scene-heading", -1)).toBe("centered");
   });
 
   it("treats a shot like a scene heading on Enter", () => {
@@ -87,8 +100,9 @@ describe("screenplay elements", () => {
     expect(new Set(SHORTCUT_ORDER)).toEqual(new Set(SCREENPLAY_ELEMENTS));
     for (const el of SCREENPLAY_ELEMENTS) expect(elementForShortcutDigit(shortcutDigit(el))).toBe(el);
     expect(elementForShortcutDigit(0)).toBeNull();
-    expect(elementForShortcutDigit(8)).toBeNull();
+    expect(elementForShortcutDigit(9)).toBeNull();
     expect(elementForShortcutDigit("6")).toBe("shot");
+    expect(elementForShortcutDigit(8)).toBe("centered");
     expect(elementForShortcutDigit("x")).toBeNull();
   });
 });
@@ -192,7 +206,7 @@ describe("laying out an element", () => {
   });
 
   it("sets an element it does not know as action", () => {
-    const [b] = layout([block("centered", "the end")]);
+    const [b] = layout([block("lyric", "the end")]);
     expect(b.element).toBe("action");
     expect(b.lines[0].text).toBe("the end");
   });
@@ -228,7 +242,9 @@ describe("pagination", () => {
     // 27 one-line actions take 27 + 26 blank lines = 53 lines; the next needs 2 more.
     const blocks = Array.from({ length: 28 }, (_, i) => block("action", `Line ${i}.`));
     const { pages, pagination } = typeset(blocks);
-    expect(pagination.breaks).toEqual([{ page: 2, block: 27, line: 0, offset: 0 }]);
+    expect(pagination.breaks).toEqual([
+      { page: 2, block: 27, line: 0, offset: 0, speech: null, more: false, contd: false },
+    ]);
     expect(pages[0]).toHaveLength(53);
     expect(pages[1][0]?.text).toBe("Line 27.");
   });
@@ -415,5 +431,31 @@ describe("golden pages", () => {
   it("fills the first page to exactly 54 lines", () => {
     const first = typeset(NIGHT_SHIFT).pages[0];
     expect(first).toHaveLength(PAGE_LINES);
+  });
+});
+
+describe("golden pages, professional layout", () => {
+  const file = join(__dirname, "fixtures/screenplay/professional.pages.txt");
+  const rendered = () =>
+    pagesAsText(typesetSequences([PROFESSIONAL], { sceneNumbers: true }).pages, { sceneNumbers: true })
+      .map((page, i) => `---- page ${i + 1} ----\n${page}`)
+      .join("\n");
+
+  it("sets the fixture script, notes and numbers and a dual pair included, on the same pages as the golden file", () => {
+    if (process.env.UPDATE_GOLDEN) writeFileSync(file, `${rendered()}\n`);
+    expect(`${rendered()}\n`).toBe(readFileSync(file, "utf8"));
+  });
+
+  it("carries (MORE) and the repeated cue across each break inside a speech", () => {
+    const set = typesetSequences([PROFESSIONAL]);
+    const text = pagesAsText(set.pages);
+    const speechBreaks = set.paginations[0].breaks.filter((b) => b.speech !== null);
+    expect(speechBreaks.length).toBeGreaterThanOrEqual(2);
+    expect(text.filter((page) => page.includes("(MORE)")).length).toBe(speechBreaks.length);
+    expect(text.filter((page) => page.includes("MARA (CONT'D)")).length).toBe(speechBreaks.length);
+  });
+
+  it("is the page count the editor reads from the same blocks", () => {
+    expect(typesetSequences([PROFESSIONAL]).count).toBe(paginate(layout(PROFESSIONAL)).pages);
   });
 });

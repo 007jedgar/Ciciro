@@ -3,8 +3,16 @@
 import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { BlockId } from "@/lib/tiptap-block-id";
-import { Screenplay, currentElement, currentTag, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
-import { ScreenplayPages, refreshPageMarkers } from "@/lib/tiptap-screenplay-pages";
+import {
+  Screenplay,
+  currentElement,
+  currentTag,
+  dualState,
+  screenplayStarterKit,
+  setElement,
+  toggleDual,
+} from "@/lib/tiptap-screenplay";
+import { ScreenplayPages, refreshPageMarkers, type ScreenplayPageSettings } from "@/lib/tiptap-screenplay-pages";
 import { elementForShortcutDigit, type PageCursor } from "@/lib/screenplay";
 
 let editor: Editor | null = null;
@@ -336,18 +344,18 @@ describe("screenplay elements added for the page engine", () => {
   });
 
   it("keeps an element a newer client wrote, through a round trip and an edit", () => {
-    const ed = make('<p data-sp="centered">THE END</p><p data-sp="dialogue">Hi.</p>');
-    expect(elements(ed)).toEqual(["centered", "dialogue"]);
-    expect(ed.getHTML()).toContain('data-sp="centered"');
+    const ed = make('<p data-sp="lyric">THE END</p><p data-sp="dialogue">Hi.</p>');
+    expect(elements(ed)).toEqual(["lyric", "dialogue"]);
+    expect(ed.getHTML()).toContain('data-sp="lyric"');
     ed.commands.focus(1);
-    expect(currentTag(ed)).toBe("centered");
+    expect(currentTag(ed)).toBe("lyric");
     expect(currentElement(ed)).toBe("action");
     ed.commands.insertContent("!");
-    expect(ed.getHTML()).toContain('data-sp="centered"');
+    expect(ed.getHTML()).toContain('data-sp="lyric"');
     // Enter keeps the first half and starts the next line as the engine says.
     ed.commands.focus(1);
     press(ed, "Enter");
-    expect(elements(ed)[0]).toBe("centered");
+    expect(elements(ed)[0]).toBe("lyric");
   });
 
   it("does not let a hostile tag out of its attribute", () => {
@@ -401,5 +409,125 @@ describe("soft page markers", () => {
   it("is never part of the saved HTML", () => {
     const ed = paged(filler(60));
     expect(ed.getHTML()).not.toContain("sp-page-break");
+  });
+});
+
+describe("professional output in the editor", () => {
+  const speech = (cue: string, text: string, attrs = "") => `<p data-sp="character"${attrs}>${cue}</p><p data-sp="dialogue">${text}</p>`;
+  const wordsOf = (n: number) =>
+    Array.from({ length: n }, (_, i) => `line${String(i).padStart(2, "0")}`.padEnd(35, "a")).join(" ");
+  const filler = (n: number) => Array.from({ length: n }, (_, i) => `<p>Filler ${i}.</p>`).join("");
+  function paged(html: string, settings: Partial<ScreenplayPageSettings> = {}): Editor {
+    const merged = { more: true, contd: true, sceneNumbers: false, scenesBefore: 0, ...settings };
+    editor = new Editor({
+      extensions: [
+        ...screenplayStarterKit(),
+        BlockId,
+        Screenplay,
+        ScreenplayPages.configure({ start: () => ({ page: 1, line: 0 }), settings: () => merged }),
+      ],
+      content: html,
+    });
+    return editor;
+  }
+  const notes = (ed: Editor, cls: string) =>
+    [...ed.view.dom.querySelectorAll<HTMLElement>(`.${cls}`)].map((el) => el.textContent);
+
+  it("keeps the dual flag through the HTML, on a cue only", () => {
+    const html = `${speech("MARA", "Hi.")}${speech("JONAH", "Hello.", ' data-sp-dual="1"')}<p data-sp="dialogue" data-sp-dual="1">x</p>`;
+    const ed = make(html);
+    expect(ed.getHTML()).toMatch(/<p data-sp="character" data-sp-dual="1"[^>]*>JONAH<\/p>/);
+    // A flag on anything but a cue is dropped, not carried.
+    expect(ed.getHTML().match(/data-sp-dual/g)).toHaveLength(1);
+  });
+
+  it("seats a speech beside the one above it, and takes it back out", () => {
+    const ed = make(`${speech("MARA", "Hi.")}${speech("JONAH", "Hello.")}`);
+    ed.commands.focus(1);
+    expect(dualState(ed)).toEqual({ available: false, on: false });
+    expect(toggleDual(ed)).toBe(false);
+    ed.commands.setTextSelection(ed.state.doc.child(0).nodeSize + ed.state.doc.child(1).nodeSize + 3);
+    expect(dualState(ed)).toEqual({ available: true, on: false });
+    expect(toggleDual(ed)).toBe(true);
+    expect(ed.getHTML()).toContain('data-sp-dual="1"');
+    expect(dualState(ed)).toEqual({ available: true, on: true });
+    expect(toggleDual(ed)).toBe(true);
+    expect(ed.getHTML()).not.toContain("data-sp-dual");
+  });
+
+  it("does not offer dual dialogue for a speech with no speech right above it", () => {
+    const ed = make(`${speech("MARA", "Hi.")}<p>A beat.</p>${speech("JONAH", "Hello.")}`);
+    ed.commands.setTextSelection(ed.state.doc.content.size - 3);
+    expect(dualState(ed).available).toBe(false);
+  });
+
+  it("clears the flag when the cue becomes something else, and does not bring it back", () => {
+    const ed = make(`${speech("MARA", "Hi.")}${speech("JONAH", "Hello.", ' data-sp-dual="1"')}`);
+    const at = ed.state.doc.child(0).nodeSize + ed.state.doc.child(1).nodeSize + 2;
+    ed.commands.setTextSelection(at);
+    setElement(ed, "action");
+    expect(ed.getHTML()).not.toContain("data-sp-dual");
+    setElement(ed, "character");
+    expect(ed.getHTML()).not.toContain("data-sp-dual");
+  });
+
+  it("gives both speeches of a pair their column, and the block after it the clearing class", () => {
+    const ed = paged(`<p>Opening.</p>${speech("MARA", "Hi.")}${speech("JONAH", "Hello.", ' data-sp-dual="1"')}<p>After.</p>`);
+    const cls = [...ed.view.dom.querySelectorAll("p")].map((p) => p.className);
+    expect(cls[0]).toBe("");
+    expect(cls[1]).toContain("sp-dual-left sp-dual-first");
+    expect(cls[2]).toContain("sp-dual-left sp-dual-last");
+    expect(cls[3]).toContain("sp-dual-right sp-dual-first");
+    expect(cls[4]).toContain("sp-dual-right sp-dual-last");
+    expect(cls[5]).toBe("sp-dual-after");
+    expect(ed.getHTML()).not.toContain("class=");
+  });
+
+  it("closes a page with (MORE) and opens the next with the cue and (CONT'D)", () => {
+    const ed = paged(`${filler(20)}${speech("MARA", wordsOf(20))}`);
+    expect(notes(ed, "sp-more")).toEqual(["(MORE)"]);
+    expect(notes(ed, "sp-contd")).toEqual(["MARA (CONT'D)"]);
+    const more = ed.view.dom.querySelector(".sp-more")!;
+    expect(more.nextElementSibling?.className).toContain("sp-page-break");
+    expect(more.nextElementSibling?.nextElementSibling?.className).toContain("sp-contd");
+    // Set in the cue's column from inside the dialogue's own indent.
+    expect((more as HTMLElement).style.marginLeft).toBe("12ch");
+    expect(ed.getHTML()).not.toContain("(MORE)");
+    expect(ed.getHTML()).not.toContain("CONT");
+  });
+
+  it("draws neither when the switches are off", () => {
+    const ed = paged(`${filler(20)}${speech("MARA", wordsOf(20))}`, { more: false, contd: false });
+    expect(notes(ed, "sp-more")).toEqual([]);
+    expect(notes(ed, "sp-contd")).toEqual([]);
+    expect(ed.view.dom.querySelectorAll(".sp-page-break").length).toBe(1);
+  });
+
+  it("numbers scene headings, counting on from the sequences before", () => {
+    const ed = paged(
+      '<p data-sp="scene-heading">int. a - day</p><p data-sp="scene-heading"></p><p data-sp="scene-heading">ext. b - day</p>',
+      { sceneNumbers: true, scenesBefore: 4 }
+    );
+    expect([...ed.view.dom.querySelectorAll("[data-scene-number]")].map((el) => el.getAttribute("data-scene-number"))).toEqual(["5", "6"]);
+    expect(ed.getHTML()).not.toContain("data-scene-number");
+    expect(paged('<p data-sp="scene-heading">int. a - day</p>').view.dom.querySelector("[data-scene-number]")).toBeNull();
+  });
+
+  it("chooses Centered with Alt+Shift+8, and Enter after it is action", () => {
+    const ed = make("<p>THE END</p>");
+    ed.commands.focus(1);
+    expect(pressChoose(ed, 8)).toBe(true);
+    expect(elements(ed)).toEqual(["centered"]);
+    ed.commands.focus("end");
+    press(ed, "Enter");
+    expect(elements(ed)).toEqual(["centered", null]);
+  });
+
+  it("pastes Fountain with a dual pair and centered text as elements", () => {
+    const ed = make("<p></p>");
+    ed.commands.focus(1);
+    paste(ed, "MARA\nHi.\n\nJONAH ^\nHello.\n\n> THE END <");
+    expect(lines(ed).map(([el]) => el)).toEqual(["character", "dialogue", "character", "dialogue", "centered"]);
+    expect(ed.getHTML()).toContain('data-sp-dual="1"');
   });
 });

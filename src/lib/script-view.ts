@@ -13,6 +13,7 @@ const SPEECH: ReadonlySet<ScreenplayElement> = new Set(["character", "parentheti
 
 function lineOf(element: ScreenplayElement, text: string): string {
   if (element === "parenthetical") return /^\(.*\)$/.test(text) ? text : `(${text})`;
+  if (element === "centered") return `>${text}<`;
   return `${ELEMENT_MARK[element] ?? ""}${text}`;
 }
 

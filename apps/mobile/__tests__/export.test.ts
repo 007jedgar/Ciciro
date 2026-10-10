@@ -1,7 +1,13 @@
 import { File } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { ciciro } from "../lib/api";
-import { ExportUnavailableError, ExportUnsyncedError, exportManuscript, exportChapter } from "../lib/export";
+import {
+  ExportUnavailableError,
+  ExportUnsyncedError,
+  exportChapter,
+  exportFormatsFor,
+  exportManuscript,
+} from "../lib/export";
 
 jest.mock("expo-file-system", () => {
   const create = jest.fn();
@@ -55,6 +61,25 @@ describe("exportManuscript", () => {
       "file:///cache/my_book.md",
       expect.objectContaining({ mimeType: "text/markdown", UTI: "net.daringfireball.markdown" })
     );
+  });
+
+  it("shares an FDX file as XML", async () => {
+    (ciciro.export.download as jest.Mock).mockResolvedValue({
+      bytes: new Uint8Array([1]).buffer,
+      filename: "my_script.fdx",
+      contentType: "application/xml",
+    });
+    await exportManuscript("p 1", "fdx");
+    expect(ciciro.export.download).toHaveBeenCalledWith("p 1", "fdx");
+    expect(Sharing.shareAsync).toHaveBeenCalledWith(
+      "file:///cache/my_script.fdx",
+      expect.objectContaining({ mimeType: "application/xml", UTI: "public.xml" })
+    );
+  });
+
+  it("lists FDX for a script only", () => {
+    expect(exportFormatsFor("screenplay")).toContain("fdx");
+    for (const kind of ["novel", "blog", "journal"] as const) expect(exportFormatsFor(kind)).not.toContain("fdx");
   });
 
   it("fails before downloading when sharing is unavailable", async () => {

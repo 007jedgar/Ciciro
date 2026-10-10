@@ -14,8 +14,22 @@ import {
   setCommentHighlights,
   type CommentHighlight,
 } from "@/lib/tiptap-comment-highlights";
-import { Screenplay, currentElement, currentTag, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
-import { ScreenplayPages, refreshPageMarkers } from "@/lib/tiptap-screenplay-pages";
+import {
+  Screenplay,
+  currentElement,
+  currentTag,
+  dualState,
+  screenplayStarterKit,
+  setElement,
+  toggleDual,
+  type DualState,
+} from "@/lib/tiptap-screenplay";
+import {
+  DEFAULT_PAGE_SETTINGS,
+  ScreenplayPages,
+  refreshPageMarkers,
+  type ScreenplayPageSettings,
+} from "@/lib/tiptap-screenplay-pages";
 import {
   SCREENPLAY_ELEMENTS,
   SCREENPLAY_ELEMENT_LABELS,
@@ -133,6 +147,8 @@ type Props = {
   kind?: ManuscriptKind;
   /** A screenplay's page when this sequence begins, for the soft page-break markers. */
   pageStart?: PageCursor;
+  /** A screenplay's own settings for the page: the dialogue-break notes, scene numbers, and where this sequence's numbering begins. */
+  pageSettings?: ScreenplayPageSettings;
   /** Hold the page still: nothing can be typed while it is true. */
   readOnly?: boolean;
   /** The page can take writes (the handle's insert calls land). */
@@ -241,6 +257,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     onCommentClick,
     kind = "novel",
     pageStart = SCRIPT_START,
+    pageSettings = DEFAULT_PAGE_SETTINGS,
     readOnly = false,
     onReady,
     onSuggestionsAccepted,
@@ -270,8 +287,11 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   commentHighlightsRef.current = commentHighlights;
 
   const [element, setCurrentElement] = useState<ScreenplayElement | null>(null);
+  const [dual, setDual] = useState<DualState>({ available: false, on: false });
   const pageStartRef = useRef(pageStart);
   pageStartRef.current = pageStart;
+  const pageSettingsRef = useRef(pageSettings);
+  pageSettingsRef.current = pageSettings;
 
   // The menu over highlighted text. `dragging` holds it back while the writer
   // is still pulling out a selection, and `dismissedMenu` (the selection it was
@@ -302,7 +322,13 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
       ReadAloudHighlight,
       CommentHighlights.configure({ onClick: (id) => onCommentClickRef.current?.(id) }),
       ...(kind === "screenplay"
-        ? [Screenplay, ScreenplayPages.configure({ start: () => pageStartRef.current })]
+        ? [
+            Screenplay,
+            ScreenplayPages.configure({
+              start: () => pageStartRef.current,
+              settings: () => pageSettingsRef.current,
+            }),
+          ]
         : []),
       CharacterCount,
       Placeholder.configure({
@@ -312,7 +338,10 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     content: content || "",
     onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
     onSelectionUpdate: ({ editor }) => {
-      if (kind === "screenplay") setCurrentElement(knownElement(currentTag(editor)));
+      if (kind === "screenplay") {
+        setCurrentElement(knownElement(currentTag(editor)));
+        setDual(dualState(editor));
+      }
       const onSel = onSelectionChangeRef.current;
       if (onSel) {
         const { from, to } = editor.state.selection;
@@ -665,7 +694,16 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   // earlier sequence grows or shrinks.
   useEffect(() => {
     if (editor && kind === "screenplay") refreshPageMarkers(editor);
-  }, [editor, kind, pageStart.page, pageStart.line]);
+  }, [
+    editor,
+    kind,
+    pageStart.page,
+    pageStart.line,
+    pageSettings.more,
+    pageSettings.contd,
+    pageSettings.sceneNumbers,
+    pageSettings.scenesBefore,
+  ]);
 
   // A script is always 12pt Courier on a 60 column page, whatever the editor
   // font settings say. A column narrower than the page scales the whole page
@@ -955,6 +993,23 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
               {SCREENPLAY_ELEMENT_LABELS[el]}
             </button>
           ))}
+          <button
+            type="button"
+            className={`btn small ${dual.on ? "primary" : "ghost"}`}
+            aria-pressed={dual.on}
+            aria-keyshortcuts={mac ? "Alt+Shift+D" : "Alt+Shift+D"}
+            title={`Dual dialogue: set this speech beside the one above it (${mac ? "⌥⇧D" : "Alt+Shift+D"})`}
+            disabled={readOnly || !dual.available}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (!editor || !editor.isEditable) return;
+              toggleDual(editor);
+              setDual(dualState(editor));
+              editor.commands.focus();
+            }}
+          >
+            Dual
+          </button>
           <span className="screenplay-hint">Tab cycles, Enter continues</span>
         </div>
       ) : null}

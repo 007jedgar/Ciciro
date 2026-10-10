@@ -13,7 +13,7 @@ export function manuscriptCountLabel(kind: unknown, count: number, t: TFunction)
   return t(COUNT_KEY[normalizeKind(kind)], { count });
 }
 
-/** "about 97 pages": a screenplay's length, an estimate from the shared page layout. */
+/** "97 pages": a screenplay's length, counted from the shared page layout. */
 export function manuscriptPagesLabel(pages: number, t: TFunction): string {
   return t("manuscripts.pageCount", { count: pages });
 }
@@ -21,7 +21,7 @@ export function manuscriptPagesLabel(pages: number, t: TFunction): string {
 /**
  * The parts of a manuscript row's meta line: a kind label for anything but a
  * novel, then the genre, the count in the kind's unit and, for a screenplay that
- * has pages, about how many.
+ * has pages, how many.
  */
 export function manuscriptMetaParts(
   project: { kind?: string | null; genre?: string | null; pages?: number; _count?: { chapters: number } },

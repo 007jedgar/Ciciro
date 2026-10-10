@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="5">
+  <Content>
+    <Paragraph Type="Scene Heading" Number="1"><Text>INT. MARA'S APARTMENT - NIGHT</Text></Paragraph>
+    <Paragraph Type="Action"><Text>Rain streaks the window. </Text><Text Style="Bold">MARA</Text><Text> (30s) stares at an </Text><Text Style="Italic">unplugged</Text><Text> phone, and the </Text><Text Style="Underline">well-known</Text><Text> silence of the room, </Text><Text Style="Bold+Italic">all of it</Text><Text>, presses in.
+She does not move.</Text></Paragraph>
+    <Paragraph Type="Character"><Text>MARA</Text></Paragraph>
+    <Paragraph Type="Parenthetical"><Text>(to herself)</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>He is not going to call. He is not going to call, and that is fine.</Text></Paragraph>
+    <Paragraph Type="Character"><Text>JONAH (V.O.)</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Mara, it's me. I know it's late &amp; I know you said not to.</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Pick up.</Text></Paragraph>
+    <Paragraph>
+      <DualDialogue>
+        <Paragraph Type="Character"><Text>BRICK</Text></Paragraph>
+        <Paragraph Type="Dialogue"><Text>Screw retirement.</Text></Paragraph>
+        <Paragraph Type="Character"><Text>STEEL</Text></Paragraph>
+        <Paragraph Type="Parenthetical"><Text>(grinning)</Text></Paragraph>
+        <Paragraph Type="Dialogue"><Text>Screw retirement, too.</Text></Paragraph>
+      </DualDialogue>
+    </Paragraph>
+    <Paragraph Type="Shot"><Text>CLOSE ON THE PHONE</Text></Paragraph>
+    <Paragraph Type="Transition"><Text>CUT TO:</Text></Paragraph>
+    <Paragraph Type="Scene Heading" Number="2"><Text>EXT. ROOFTOP - CONTINUOUS</Text></Paragraph>
+    <Paragraph Type="Action"><Text>Wind. A water tower groans.</Text></Paragraph>
+    <Paragraph Alignment="Center" Type="Action"><Text>THE END</Text></Paragraph>
+  </Content>
+  <TitlePage>
+    <Content>
+      <Paragraph Alignment="Center" Type="Action"><Text>NIGHT SHIFT</Text></Paragraph>
+      <Paragraph Alignment="Center" Type="Action"><Text></Text></Paragraph>
+      <Paragraph Alignment="Center" Type="Action"><Text>Written by</Text></Paragraph>
+      <Paragraph Alignment="Center" Type="Action"><Text></Text></Paragraph>
+      <Paragraph Alignment="Center" Type="Action"><Text>Jo Writer</Text></Paragraph>
+      <Paragraph Alignment="Center" Type="Action"><Text></Text></Paragraph>
+      <Paragraph Alignment="Center" Type="Action"><Text>Based on a true story</Text></Paragraph>
+      <Paragraph Alignment="Left" Type="Action"><Text></Text></Paragraph>
+      <Paragraph Alignment="Left" Type="Action"><Text>Jo Writer</Text></Paragraph>
+      <Paragraph Alignment="Left" Type="Action"><Text>12 Main St</Text></Paragraph>
+      <Paragraph Alignment="Left" Type="Action"><Text>jo@example.com</Text></Paragraph>
+      <Paragraph Alignment="Left" Type="Action"><Text></Text></Paragraph>
+      <Paragraph Alignment="Right" Type="Action"><Text>Oct 2026</Text></Paragraph>
+    </Content>
+  </TitlePage>
+</FinalDraft>

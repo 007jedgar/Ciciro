@@ -345,6 +345,22 @@ check, What changed, account deletion and the data export fail with
 `no such column: supersededAtChapterId`. The script only adds columns and an
 index, and rewrites the old stance value.
 
+A screenplay's own settings (the title page, the `(MORE)` and `(CONT'D)`
+switches, scene numbers, and whether the PDF carries the title page) are one
+JSON string in `Project.scriptSettings`, `""` meaning every default:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-script-settings.sql
+```
+
+**Apply before merging.** `scriptSettings` is a required column and every
+project query selects it, so until it exists the shelf, opening a manuscript
+and the assistant fail with `no such column: scriptSettings`, and `npm run
+db:check:d1` fails the `main` build. The script only adds a column with a
+default; existing manuscripts keep reading as every setting at its default. The
+account export writes the column with the rest of `Project`, and account
+deletion removes it with the row (`docs/account-data.md`).
+
 ## iOS beta signups
 
 The landing page's "Join the iOS beta" form posts to `POST /api/beta-signup`

@@ -24,11 +24,21 @@ format (import, export, paste), never the stored one.
 | Parenthetical | `parenthetical` | 4th |
 | Transition | `transition` | 5th |
 | Shot | `shot` | 6th |
+| Centered | `centered` | 7th |
 
 Tab walks that ring and Shift-Tab walks it back. Enter starts the element that
 usually follows (`nextElementOnEnter`). A shot behaves like a scene heading
 for layout and for Enter (the next line is action), is set in capitals, and is
-not bold.
+not bold. Centered text (a title card, THE END) is action set across the page:
+Enter after it starts action.
+
+One more flag lives on a block besides its element: `data-sp-dual="1"` on a
+character cue means that cue's speech sits **beside** the speech right above it
+(dual dialogue). It is stored like the element, read with `dualOfHtml` and
+written with `withDual`, and `withElement` drops it when a block stops being a
+cue. Both clients carry it through every rewrite: the web's `screenplayDual`
+attribute, and the phone's `restampCiciroHtml` (which strips it from the HTML
+the native view sees and puts it back from the matching old block).
 
 ### Forward compatibility
 
@@ -48,7 +58,7 @@ rule: **the tag is stored as written, the element is only for laying out.**
 - A line with an unknown element lights no chip, lays out as action, and Tab
   steps on from action.
 - When Ciciro rewrites a run of blocks (`blockReplace` in `src/lib/tools.ts`),
-  a replaced shot or unknown tag stays on the replacement's first line
+  a replaced shot, centered line or unknown tag stays on the replacement's first line
   (`classifyReplacement` in `manuscript-kind.ts`) instead of being re-guessed;
   only a plain scene heading or transition replaces it. The classifier for the
   assistant's plain lines (`classifyScreenplayLines`) reads camera directions
@@ -67,18 +77,27 @@ It owns:
 - the element model above, the Alt+Shift shortcut order, and the tag helpers;
 - the page: `PAGE_COLUMNS = 60`, `PAGE_LINES = 54`, `ELEMENT_METRICS`
   (indent, width, alignment, caps, bold per element), `blankLinesBefore`;
-- `wrapText`, `layoutBlock`, `layout`: set blocks on the page, line by line;
-- `paginate`, `typeset`, `pagesAsText`: break laid-out blocks into pages;
+- `wrapText`, `layoutBlock`, `layout`: set blocks on the page, line by line,
+  with dual-dialogue pairs (`dualPairs`, `DUAL_METRICS`) set as two columns;
+- `paginate`, `typeset`, `pagesAsText`: break laid-out blocks into pages, with
+  `(MORE)` and the repeated `NAME (CONT'D)` cue as rows of their own
+  (`PageOptions`: `more`, `contd`, `sceneNumbers`);
 - `scriptBlocksFromHtml`, `layoutHtml`, `sequenceCursors`, `estimatePages`:
-  from chapter HTML to a page count;
-- `scenes` and `dialogueGroups`: structure derived from the flat blocks;
+  from chapter HTML to a page count, and where each sequence's scene numbers
+  start;
+- `scenes`, `dialogueGroups` and `speechAt`: structure derived from the flat
+  blocks (`speechAt` is what the dual-dialogue control asks, on both clients);
+- the script settings: `ScriptSettings`, `TitlePage`, `parseScriptSettings`,
+  `serializeScriptSettings`, `resolveTitlePage`, `pageOptionsOf` and the
+  limits on each field;
 - `styledBlocksFromHtml` (blocks with their bold / italic / underline runs),
   `sliceRuns`, and `typesetSequences` (every sequence set on pages that run on
   from one another, each row knowing its sequence, block and offset): what the
   PDF draws;
 - `SCRIPT_LANGUAGES`, `scriptLanguageSupported(code)`,
-  `scriptTextSupported(text)` and `scriptHtmlSupported(chapters)`: which
-  languages script formatting covers.
+  `scriptTextSupported(text)`, `scriptHtmlSupported(chapters)` and
+  `scriptPdfSupported(chapters, settings, manuscript)`: which languages script
+  formatting covers.
 
 `manuscript-kind.ts` (also mirrored) re-exports the element model, so older
 imports keep working.
@@ -99,6 +118,7 @@ which line. Columns count from the 1.5 inch left margin:
 | Parenthetical | 16 | 25 | set in brackets |
 | Transition | 30 | 30 | capitals, flush right |
 | Shot | 0 | 60 | capitals |
+| Centered | 0 | 60 | centered across the 60 columns |
 
 Spacing is one blank line between blocks, none inside a speech (a
 parenthetical or dialogue answering the line above sits directly under it, see
@@ -112,15 +132,47 @@ end of a line, keep leading spaces, break a word longer than the measure where
 it overflows, `\n` is a hard line break. A combining mark takes no column and a
 wide (CJK) character takes two.
 
-Pagination (`paginate`) is an **estimate**, labelled "about N pages":
+#### Dual dialogue
+
+A cue flagged `data-sp-dual` pairs its speech with the speech directly above it
+(the two touch, with nothing between), through `dualPairs`. A speech joins at
+most one pair, so a flag on the speech after a pair's second is ignored, and so
+is a flag with nothing right above it. The pair is set as two columns of 28 with
+a gap of 4 (`DUAL_METRICS`: the left cue at column 8 and 20 wide, its
+parenthetical at 4 and dialogue at 0; the right at 40, 36 and 32), and takes as
+many lines as the taller column. A pair is one unit on the page: it never
+splits, and a pair taller than a page (52 lines) falls back to two speeches one
+after the other.
+
+#### Pagination
+
+`paginate` is exact for a given set of `PageOptions`, and the editor's markers,
+the header's page count, the PDF and the golden all call it:
 
 - a scene heading, shot, cue or parenthetical stays on the page with what
   follows it;
 - an action or a speech may break across a page only with two lines on each
-  side; anything else moves whole;
+  side (widow and orphan rule); anything else moves whole;
 - a break drops the blank line at the top of the page;
-- there is no `(MORE)` and `(CONT'D)` yet (phase 3), and "a page is a minute" is
-  a rule of thumb, not a measurement.
+- when a break falls **inside a speech**, the page above ends with `(MORE)`
+  (one line, at the cue's column) and the next page opens with the cue again,
+  `NAME (CONT'D)`, wrapped at the cue's width, with the rest of the speech
+  directly under it. Each takes a line of the page, and each is a setting
+  (`more`, `contd`, default on), so turning one off moves where pages end. A
+  speech that does not break gets neither, and a cue that already ends in
+  `(CONT'D)` is not given a second one (`contdCue`). A dialogue block that is
+  not the speech's last never fills a page exactly, so `(MORE)` always has its
+  line;
+- a speech never leaves a lone cue or a lone parenthetical at the foot of a page
+  (the old estimate could; this was a bug in it);
+- the numbered scenes (`isNumberedScene`: a scene heading with words in it) are
+  counted across sequences, so scene numbers run on.
+
+`(MORE)` and the repeated cue are rows the engine adds (`PageRow.synthetic`),
+never part of the saved text. "A page is a minute" is still a rule of thumb.
+Not done yet: the character's `(CONT'D)` when the same character speaks again
+after an action line (phase 2), and `(MORE)` / `(CONT'D)` in languages other than
+English.
 
 Sequences (chapters) run on from one another with continuous page numbers:
 `sequenceCursors` gives where each starts, `estimatePages` the total. The PDF
@@ -134,9 +186,16 @@ sets them the same way (`typesetSequences`), so its page count is the editor's.
   `night-shift.pages.txt`, which is the pages themselves, so a layout change
   shows as a diff of what the author would print. `UPDATE_GOLDEN=1` rewrites it;
   read the diff before committing it.
+- `test/screenplay-professional.test.ts`: centered text, dual dialogue, the
+  `(MORE)` / `(CONT'D)` rules and scene numbers, with a second golden:
+  `test/fixtures/screenplay/professional.ts` set on the page must equal
+  `professional.pages.txt` (`UPDATE_GOLDEN=1`, read the diff).
 - `test/screenplay-parity.test.ts`: the two copies are identical.
 - `test/screenplay-css.test.ts`: the editor's `ch` numbers equal
-  `ELEMENT_METRICS`, and the speech-run selectors equal `SPEECH_RUNS`.
+  `ELEMENT_METRICS` and `DUAL_METRICS`, each width carries the sub-character
+  `--sp-slack` (so a line of exactly that many characters does not wrap early),
+  the editor wraps with `pre-wrap` like `wrapText`, and the speech-run selectors
+  equal `SPEECH_RUNS`.
 - `test/screenplay-editor.test.ts`: the TipTap extension and the page markers.
 - `test/script-lines.test.ts`: the marked-line contract (below), its phone
   mirror, and a round trip of the golden script through the model view.
@@ -151,20 +210,34 @@ sets them the same way (`typesetSequences`), so its page count is the editor's.
 `typesetSequences` with pdf-lib's standard Courier fonts: US Letter, 1.5in left
 margin, 1.0in top, 12pt on a 12pt leading, so a column is 7.2pt and the 54-line
 page fits the 9in text area. Page numbers (`2.`) sit top right, 0.5in from the
-top, from page 2. There is no layout code in the PDF writer: where a line goes
-is the engine's answer, and `test/screenplay-pdf.test.ts` reads the drawn
+top, from page 2 of the script. There is no layout code in the PDF writer: where a
+line goes is the engine's answer, and `test/screenplay-pdf.test.ts` reads the drawn
 operators back and compares them with the engine's pages, and checks the PDF's
 page count against `estimatePages`. Inline marks come from
 `styledBlocksFromHtml`: each row is cut where its marks change and drawn in
 Courier, Courier-Bold, Courier-Oblique or Courier-BoldOblique, with a rule under
 underlined runs. Right-aligned rows (transitions) are placed by their drawn
-width.
+width, centered rows by theirs, a dual-dialogue row draws both of its cells, the
+synthetic `(MORE)` and `(CONT'D)` rows are drawn without marks, and with scene
+numbers on the number is drawn in both margins of the heading (bold).
+
+**Title page.** When the script's settings ask for it (`showTitlePage`, on by
+default) and it has any text (`hasTitlePageText`), the first PDF page is the
+title page, not counted in the script's pages and not numbered: the title in
+bold capitals 16 lines below the top margin, then credit, author and source
+centered, a blank line between them; the contact block lower left (wrapped at
+30 columns) and the draft date lower right. A blank title or author is the
+manuscript's own and a blank credit is "Written by" once there is an author
+(`resolveTitlePage`). The same resolved page is what Fountain and FDX write.
 
 `GET /api/export/:id?format=pdf` returns this for a screenplay and the book PDF
-for everything else; `format=fountain` is screenplays only. Courier is WinAnsi:
-Latin text, which covers English and Spanish. A script mostly in another writing
-system, taken whole (`scriptHtmlSupported`), is refused with a 422 that says script formatting
-is only available in English and Spanish for now.
+for everything else; `format=fountain` and `format=fdx` are screenplays only.
+The route reads the manuscript's `scriptSettings`. Courier is WinAnsi: Latin
+text, which covers English and Spanish. A script mostly in another writing
+system, or a title page in one (`scriptPdfSupported`, which judges the script and
+the title page each on their own, and ignores the PDF's own "Written by"), is
+refused with a 422 that says script formatting is only available in English and
+Spanish for now. Fountain and FDX are UTF-8 and always export.
 
 Cost: a 124 page script (about 60 000 words) builds in 0.12 to 0.19 s end to end
 (request, building the script, laying it out, drawing, serialising) in local
@@ -193,13 +266,18 @@ through the server, so it has no mirror). Writing (`fountainFromScript`):
   written as an action line, because Fountain cannot say otherwise;
 - bold is `**`, italic `*`, both `***`, underline `_`, with the delimiters hugging
   the words and `*` / `_` escaped;
+- dual dialogue is a `^` after the second cue (only for pairs `dualPairs`
+  accepts on every block, empty ones included, as the editor and PDF pair them), centered text is `> text <`, and with scene numbers on each heading
+  carries `#n#` (counted across sequences);
 - more than one sequence is written as `# ` sections; one sequence is written
-  bare; a title block carries the title and author.
+  bare; a title block carries the title page: `Title`, `Credit`, `Author`,
+  `Source`, `Draft date` and `Contact` (its lines indented four spaces).
 
-Reading (`scriptFromFountain`) honours the forced markers, strips scene numbers
-(`#1A#`) and the `^` of dual dialogue (which Ciciro has no element for yet),
-drops notes, the boneyard, synopses, page breaks and the title page past its
-title and author, reads centered text as action, and splits sequences at the
+Reading (`scriptFromFountain`) honours the forced markers, reads the title page
+keys above (and `Date` as the draft date) into a `TitlePage`, strips scene
+numbers (`#1A#`) and notes that the script had them (so an import can switch
+scene numbers on), reads `^` as dual dialogue and `> text <` as centered text,
+drops notes, the boneyard, synopses and page breaks, and splits sequences at the
 shallowest `#` depth in the file (one sequence when there are none; text ahead
 of the first section is a sequence of its own). `titlePage: false` is for pasted
 text, where a first line such as `Notes: ...` is a line, not a title block.
@@ -209,14 +287,49 @@ as a test oracle (`test/fountain.test.ts` compares the elements it sees in a
 generated 30 page script with the ones written).
 
 `src/lib/import/fountain.ts` turns it into an import (`.fountain`, `.spmd`):
-the manuscript is created as a screenplay (`ImportedManuscript.kind`), untitled
-sequences are called Sequence N, and appended to a manuscript that is not a
-screenplay the `data-sp` attributes are dropped. In the web editor, the
+the manuscript is created as a screenplay (`ImportedManuscript.kind`) with the
+file's title page and scene numbers as its `scriptSettings`
+(`ImportedManuscript.script`), untitled sequences are called Sequence N, and
+appended to a manuscript the settings are left alone and, for one that is not a
+screenplay, the `data-sp` attributes are dropped. In the web editor, the
 `screenplayPaste` plugin reads pasted text with a blank line in it as Fountain
 (`looksLikeFountain`) and other pasted lines with `classifyScreenplayLines`.
 
 The web editor has no underline mark, so underlined text from an import or the
 phone is kept in the saved HTML but not shown underlined on the web.
+
+### FDX
+
+`src/lib/fdx.ts` (pure, web / server only, like Fountain) reads and writes the
+XML file Final Draft and several other script writers use. The UI calls it
+**FDX export** and says Beta, and nothing in the product or the docs claims
+Final Draft compatibility: there is no copy of Final Draft to try a file
+against. What stands in for one is open source: the structure follows what
+afterwriting's FDX converter, screenplain's exporter and `@draftfirst/core`
+agree on, and `test/fdx.test.ts` runs the golden (`test/fixtures/fdx/night-shift.fdx`)
+through each of them as an oracle (`@draftfirst/core`, MIT, is a devDependency
+for that only; the others are checked-in outputs).
+
+- A `Paragraph` per block, its `Type` the element ("Scene Heading", "Action",
+  "Character", "Parenthetical", "Dialogue", "Transition", "Shot"); centered text
+  is an Action with `Alignment="Center"`; a parenthetical's text carries its
+  brackets; scene numbers are `Number` on the heading.
+- `Text` runs with `Style="Bold+Italic+Underline"`.
+- Dual dialogue is `<Paragraph><DualDialogue>…</DualDialogue></Paragraph>`
+  around the two speeches' paragraphs, paired like Fountain's `^` (an empty
+  block between two speeches separates them).
+- A `TitlePage` of free paragraphs. FDX has no fields for it, so the reader
+  sorts them by alignment and shape (centered groups: title, credit, author,
+  source; left: contact; right: date) and the writer emits them in that order.
+- It reads with its own small XML parser: iterative with a depth cap of 64, no
+  DTD and no entity expansion beyond the five named and numeric ones, so a
+  hostile file cannot loop or blow up.
+
+FDX has no sections: a file is one sequence on the way in, and several sequences
+are written one after another on the way out (their titles are lost). A script's
+FDX export works in any language (it is UTF-8). `.fdx` is wired into import
+(`src/lib/import/fdx.ts`, `detectFormat`), the web Library and phone pickers, and
+the export route, menu and phone Export card.
 
 ### Script languages
 
@@ -226,11 +339,12 @@ button (web `ExportMenu`'s `.export-info`, phone `ScriptLanguageInfo` on the
 `InfoBubble`) saying so and that more languages are planned:
 
 - the screenplay PDF, when the script's own text is in another writing
-  system, whatever the app's language. The server, the web `ExportMenu` and the
-  phone `ExportCard` all ask one function, `scriptHtmlSupported` (the script
-  taken whole: its live sequences joined, archived ones and pending
-  suggestions left out, the way the export reads it), so a button that is
-  enabled never meets the server's 422;
+  system, or when the title page it would carry is, whatever the app's language.
+  The server, the web `ExportMenu` and the phone `ExportCard` all ask one
+  function, `scriptPdfSupported` (the script taken whole: its live sequences
+  joined, archived ones and pending suggestions left out, the way the export
+  reads it, plus the title page when it is on), so a button that is enabled
+  never meets the server's 422;
 - choosing Screenplay when creating a manuscript or in the onboarding quiz, on
   the phone, when the app language is Chinese or Hindi
   (`useScriptLanguageSupported`).
@@ -238,7 +352,8 @@ button (web `ExportMenu`'s `.export-info`, phone `ScriptLanguageInfo` on the
 VoiceOver reads a phone card as one element, so a grayed-out control also
 carries the `screenplay.languageInfo.body` text in its accessibility hint.
 
-Fountain export, the element bar, and an existing script stay available. The
+Fountain and FDX export, the element bar, and an existing script stay
+available. The
 strings are `screenplay.languageInfo.*` in all four locales.
 
 ## The web editor
@@ -251,21 +366,34 @@ strings are `screenplay.languageInfo.*` in all four locales.
   narrower than the page scales the whole page down together
   (`--screenplay-size`, set by a `ResizeObserver` in `Editor.tsx`), so the lines
   still break where the page breaks them.
-- **Soft page breaks.** `ScreenplayPages` (`src/lib/tiptap-screenplay-pages.ts`)
-  is a ProseMirror decoration plugin: a dashed rule and the next page's number
-  (outside the column) where `paginate()` says a page begins, inside a block at
-  the right line when a long action or speech breaks. It takes no height, is never
-  saved, and starts from the page the sequence begins on (`pageStart`, from
-  `sequenceCursors`).
-- **About N pages.** The header meta line shows it from the whole script's
-  sequences, so it moves with every keystroke.
-- **Element bar and shortcuts.** One button per element (Shot included), with
-  its shortcut in the tooltip. **Alt+Shift+1 to 7** choose Scene heading,
-  Action, Character, Parenthetical, Dialogue, Shot and Transition (the order
-  Arc Studio uses for Cmd+1 to 7). Not Cmd/Ctrl+1 to 9: browsers keep those for
-  switching tabs. Not Ctrl+Alt: that is AltGr on many Windows layouts.
-  `SHORTCUT_ORDER` in `screenplay.ts` is the source; the Settings reference reads
-  from it.
+- **Page markers and dialogue breaks.** `ScreenplayPages`
+  (`src/lib/tiptap-screenplay-pages.ts`) is a ProseMirror decoration plugin: a
+  dashed rule and the next page's number (outside the column) where `paginate()`
+  says a page begins, inside a block at the right line when a long action or
+  speech breaks, and, when the break is inside a speech, `(MORE)` above the rule
+  and the cue with `(CONT'D)` below it, set in the columns they print in. Nothing
+  takes height, nothing is saved, and the plugin starts from the page the
+  sequence begins on (`start`, from `sequenceCursors`). Its `settings` option
+  (`more`, `contd`, `sceneNumbers`, `scenesBefore`) comes from the manuscript's
+  script settings.
+- **Dual dialogue and scene numbers.** The same plugin adds classes to the two
+  speeches of a pair (`sp-dual sp-dual-left` / `sp-dual-right`, with first / last
+  and a flush class at the top of a page), which `globals.css` turns into two
+  columns (the left floats, the right is normal flow beside it, the block after
+  the pair clears both), and a `data-scene-number` on each numbered heading that
+  the CSS draws in both margins. `test/screenplay-css.test.ts` keeps the `ch`
+  numbers equal to `DUAL_METRICS` and the element metrics.
+- **N pages.** The header meta line shows the exact count of the whole script's
+  sequences (the title page is not counted), so it moves with every keystroke.
+- **Element bar and shortcuts.** One button per element (Shot and Centered
+  included), with its shortcut in the tooltip, and a Dual button that seats the
+  speech under the caret beside the one above (or takes it back). **Alt+Shift+1
+  to 8** choose Scene heading, Action, Character, Parenthetical, Dialogue, Shot,
+  Transition and Centered (the order Arc Studio uses for Cmd+1 to 7, with
+  Centered added); **Alt+Shift+D** toggles dual dialogue (`toggleDual`, over
+  `speechAt`). Not Cmd/Ctrl+1 to 9: browsers keep those for switching tabs. Not
+  Ctrl+Alt: that is AltGr on many Windows layouts. `SHORTCUT_ORDER` in
+  `screenplay.ts` is the source; the Settings reference reads from it.
 
 ## The assistant
 
@@ -289,10 +417,11 @@ both carry; `ELEMENT_MARK` maps an element to its mark):
 | `He never called.` | dialogue: unmarked, directly under a cue or a parenthetical |
 | `>CUT TO:` | transition |
 | `^CLOSE ON THE KNIFE` | shot |
+| `>THE END<` | centered text |
 
 A blank line ends a speech. `markedLine(raw)` reads one line (a `.` needs a
 letter after it, so an ellipsis is not a scene heading; `> text <` is centered
-text and reads as action); `parseScriptLines(text, after?)` reads a whole reply.
+text); `parseScriptLines(text, after?)` reads a whole reply.
 
 **Strict mode.** Once any line in the reply carries a mark, an unmarked line
 inside a speech is dialogue or a parenthetical, never a guessed cue, and runs of
@@ -340,7 +469,9 @@ system prompt asks for marked lines, and the editing pass sees the same view.
 
 `pages` on a project in the library and in folders is derived on read for
 screenplays only (`src/lib/script-pages.ts`, chunked by 50 for D1's parameter
-limit), from the same `estimatePages` as the editor. It is never stored, so
+limit), from the same `estimatePages` as the editor, under that project's own
+`scriptSettings` (`(MORE)` and `(CONT'D)` take lines of the page, so a list says
+the number the editor does). It is never stored, so
 there is no schema change; a script with nothing typed has none. Reading every
 sequence's HTML for a list is the cost. If it ever shows up, denormalize onto
 `Project` (a D1 upgrade, see `docs/hosting.md`).
@@ -348,10 +479,10 @@ sequence's HTML for a list is the cost. If it ever shows up, denormalize onto
 ## The phone
 
 The phone edits plain lines in the native view (see `AGENTS.md`, "Patched
-native editor"). It mirrors the engine, keeps an unknown element through every
-flush, and carries the Beta mark.
+native editor"). It mirrors the engine, keeps an unknown element and the dual
+flag through every flush, and carries the Beta mark.
 
-- **Element bar.** One chip per element, Shot included, and a Tab button that
+- **Element bar.** One chip per element, Shot and Centered included, and a Tab button that
   follows the same ring. The bar sits just above the keyboard (it used to hang
   under the header), where the thumb is, and above the format bar when that is
   also an accessory. The native view cannot carry `data-sp`, so the tag is
@@ -373,20 +504,33 @@ flush, and carries the Beta mark.
   never from the block id of the last caret move, which names the line above.
   The bar scrolls the lit chip to the middle when it is out of view, and leaves
   the row still otherwise, so a chip does not move under a thumb.
+- **Dual.** The bar has a Dual chip that is grayed out unless the caret is in a
+  speech with another right above it, or already beside one; it writes the flag
+  on the speech's cue with `toggleDualOps` (`apps/mobile/lib/block-editor.ts`).
+  The settings, the title page and every export come from the server, which
+  sets them with the same engine.
 - **Page view.** The Pages tile on the chapters screen opens
   `app/project/[id]/pages.tsx`: the script as read-only sheets, 54 lines of 60
   columns in JetBrains Mono (0.6 em wide, like Courier), page numbers from
-  page 2, "about N pages" and the Beta mark in the header. It opens on the first
-  page of the sequence you were in. The lines and the page breaks come from the
-  mirrored engine (`lib/script-pages.ts` stitches `layoutHtml` + `paginate`
-  across sequences; there is no second layout function), and a sheet scales to
-  the screen (`sheetMetrics`), which is exact because every glyph is the same
-  width. This is the report's option M4; typing in a native script layout is
-  phase 4.
+  page 2, "N pages" and the Beta mark in the header. It opens on the first
+  page of the sequence you were in. The rows come from the mirrored engine's
+  `typesetSequences`, the same typeset the PDF draws (`lib/script-pages.ts` sets
+  each row as one monospace line and gives the sequences' starts; there is no
+  second layout function), under the script's own settings
+  (`pageOptionsOf(parseScriptSettings(project.scriptSettings))`). So a sheet
+  shows what the PDF does: a dual-dialogue row has both columns on its line (the
+  right at its own column, via the engine's `cellPad`), a speech that runs past
+  the page closes it with `(MORE)` and opens the next with the cue and
+  `(CONT'D)`, centered text is centered, and with scene numbers on a heading
+  carries its number in both margins (`sheetMetrics(width, NUMBER_GUTTER)` keeps
+  four columns on each side, so the type is a little smaller then). A sheet
+  scales to the screen (`sheetMetrics`), which is exact because every glyph is
+  the same width. This is the report's option M4; typing in a native script
+  layout is phase 4.
 - **Page counts.** The manuscripts list row and the manuscript meta line say
-  "about N pages" (from the server's `pages`), and the chapters screen counts
-  them from the loaded sequences, in place of the word count in its kicker (a
-  script is measured in pages; each card keeps its words).
+  "N pages" (from the server's `pages`), and the chapters screen counts them
+  from the loaded sequences and the same settings, in place of the word count in
+  its kicker (a script is measured in pages; each card keeps its words).
 - **Chat.** A script draft in the chat card is set as a script
   (`components/ScriptDraft.tsx`: element indents as fractions of the card, caps,
   blank-line spacing; the card is not 60 columns wide, so it wraps and the page
@@ -400,7 +544,7 @@ picker (web `Library.tsx`, phone `NewManuscriptForm` and the onboarding goal
 screen), the element bar (web and phone) and the Settings section. Web uses
 `BetaBadge` (`src/components/BetaBadge.tsx`, English only: the web has no
 locales); the phone uses `components/BetaBadge.tsx` with `screenplay.beta` and
-`screenplay.betaInfo` in all four locales. The export entries (Screenplay PDF and Fountain) carry it too. When screenplay leaves Beta, remove the badges and the
+`screenplay.betaInfo` in all four locales. The export entries (Screenplay PDF, Fountain and FDX export) carry it too. When screenplay leaves Beta, remove the badges and the
 `betaInfo` string.
 
 ## Manuscript settings
@@ -410,35 +554,54 @@ and only shows the settings for that manuscript's kind.
 
 - `hasKindSettings(kind)` in `manuscript-kind.ts` (mirrored) says which kinds
   have a section. Only `screenplay` does.
-- **Web.** `ThemePicker` takes the open manuscript's `kind` (the workspace
-  passes it; the library does not). `ManuscriptSettings` renders the section
-  first, ahead of the themes. For a screenplay it is the locked type (12 pt
-  Courier Prime, and the generic Type and Size rows below are disabled with a
-  note) and a collapsible reference of every element shortcut.
+- **Web.** `ThemePicker` takes the open manuscript's `kind` and its script
+  settings (the workspace passes them; the library does not). `ManuscriptSettings`
+  renders the section first, ahead of the themes. For a screenplay it is the
+  locked type (12 pt Courier Prime, and the generic Type and Size rows below are
+  disabled with a note), switches for `(MORE)`, `(CONT'D)` and scene numbers, the
+  **Title page** (title, credit, author, source, draft date, contact, and
+  whether the PDF carries it), and a collapsible reference of every element
+  shortcut. A change shows at once (the page markers redraw) and is saved
+  after a short pause with a project PATCH (`createScriptSettingsSaver` in
+  `src/lib/script-settings-save.ts`). A refused save puts the editor back to
+  the stored settings and says so in a snackbar; a waiting save is sent before
+  an export (`ExportMenu`'s `beforeExport`) and, with `keepalive`, when the page
+  goes away.
 - **Phone.** The manuscript tab bar's Settings action opens `/settings` with
-  the manuscript's id (`?project=`), and `app/settings.tsx` reads the kind from
-  the project query. For a screenplay it shows the locked format, a note that
-  the page layout shows on the web for now, and how the element bar, Tab and
-  Return behave (the phone has no hardware shortcuts). Opened from the library,
-  there is no section.
+  the manuscript's id (`?project=`), and `app/settings.tsx` reads the kind and
+  settings from the project query. For a screenplay it shows the locked format,
+  the same three switches and "Title page in the PDF" (`useScriptSettings`, a
+  project PATCH with the change shown at once and put back on failure), the six
+  title page fields behind a Save button (`TitlePageFields`), and how the
+  element bar, Dual, Tab and Return behave. Opened from the library, there is no
+  section.
+- **Storage.** One column, `Project.scriptSettings`: a JSON string, `""` meaning
+  every default (`prisma/d1-script-settings.sql`, see `docs/hosting.md`). The
+  engine owns the shape (`ScriptSettings`: `titlePage`, `showTitlePage`, `more`,
+  `contd`, `sceneNumbers`) and tidies it (`parseScriptSettings`, which is
+  forgiving of anything missing or newer, and `serializeScriptSettings`, which
+  writes `""` when everything is at its default). `PATCH /api/projects/:id`
+  accepts `scriptSettings` for a screenplay only, normalizes it and so bounds
+  every field (`TITLE_PAGE_LIMITS`). A screenplay import sets it from the
+  file; the data export includes the column and deleting the account removes it
+  with the manuscript. The next setting needs no migration: add a key to
+  `ScriptSettings` and its default.
 - **Adding a setting.** Add a row to that kind's component (`ScreenplaySettings`
-  on the web, `ScreenplaySettingsGroup` on the phone). Phase 3's `(MORE)` and
-  `(CONT'D)` switches, scene numbers and the title page go there.
-- **Storage.** Nothing is persisted yet. No per-manuscript settings store
-  exists today (`Project` has no settings column and `ManuscriptTarget` is the
-  deadline). A phase-3 toggle must not need a D1 change; the options without one
-  are a `BibleFile` (the `style.md` em-dash switch is the precedent) or a
-  per-user setting keyed by project in the existing settings JSON. Decide there.
+  on the web, `ScriptSettingsRows` on the phone) and a key in `ScriptSettings`;
+  if it shapes pages, add it to `PageOptions` so the editor, count, PDF and
+  golden all see it.
 
 ## Not here yet
 
-Belongs to later phases: autocomplete, smart Tab, typed-input capitals and the
-scene navigator (phase 2); the title page, `(MORE)`/`(CONT'D)`, dual dialogue,
-centered text and FDX import and export (phase 3); a native phone writing
-surface that lays the page out while you type (phase 4).
+Belongs to later phases: autocomplete, smart Tab, typed-input capitals, the
+scene navigator and `(CONT'D)` for a character who speaks again after an action
+line (phase 2); a native phone writing surface that lays the page out while you
+type (phase 4). Never planned here: revision colours, A-pages and locked pages,
+and any claim of Final Draft compatibility.
 
 Smaller follow-ups: a find on the capitals elements is case sensitive, since the
 text is stored as typed; the assistant has no page awareness or page target yet
 (only the minute-a-page rule of thumb); the page counts for lists could be
 denormalized; the chat draft card is not an exact page; the page view has no
-analytics events.
+analytics events. Known gaps: `(MORE)` and `(CONT'D)` are English strings in
+every language, and FDX loses sequence titles.

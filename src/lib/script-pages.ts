@@ -1,21 +1,24 @@
 import { prisma } from "@/lib/db";
 import { visibleChapterWhere } from "@/lib/chapters";
 import { normalizeKind } from "@/lib/manuscript-kind";
-import { estimatePages, scriptBlocksFromHtml } from "@/lib/screenplay";
+import { estimatePages, pageOptionsOf, parseScriptSettings, scriptBlocksFromHtml } from "@/lib/screenplay";
 
 // How many pages a screenplay runs, for the manuscript lists. The count is
-// derived from the script itself (the same layout the editor and the phone's
-// page view use), never stored, so it is read here for the screenplays in a
-// list and for no other kind.
+// derived from the script itself (the same typeset the editor, the phone's page
+// view and the PDF use, under the script's own `(MORE)` / `(CONT'D)` settings),
+// never stored, so it is read here for the screenplays in a list and for no
+// other kind.
 
 /** Ids per query: D1 binds at most 100 parameters to one statement. */
 const CHUNK = 50;
 
-/** About how many pages each screenplay among `projects` runs, by project id. Empty scripts are left out. */
+/** How many pages each screenplay among `projects` runs, by project id. Empty scripts are left out. */
 export async function scriptPageCounts(
-  projects: readonly { id: string; kind?: string | null }[]
+  projects: readonly { id: string; kind?: string | null; scriptSettings?: string | null }[]
 ): Promise<Map<string, number>> {
-  const ids = projects.filter((p) => normalizeKind(p.kind) === "screenplay").map((p) => p.id);
+  const scripts = projects.filter((p) => normalizeKind(p.kind) === "screenplay");
+  const ids = scripts.map((p) => p.id);
+  const options = new Map(scripts.map((p) => [p.id, pageOptionsOf(parseScriptSettings(p.scriptSettings ?? ""))]));
   const counts = new Map<string, number>();
   for (let i = 0; i < ids.length; i += CHUNK) {
     const rows = await prisma.chapter.findMany({
@@ -28,7 +31,7 @@ export async function scriptPageCounts(
     for (const [projectId, chapters] of byProject) {
       // A script with nothing typed yet (the opening scene heading) has no pages to speak of.
       if (!chapters.some((html) => scriptBlocksFromHtml(html).some((b) => b.text.trim()))) continue;
-      const pages = estimatePages(chapters);
+      const pages = estimatePages(chapters, options.get(projectId));
       if (pages > 0) counts.set(projectId, pages);
     }
   }
@@ -36,7 +39,7 @@ export async function scriptPageCounts(
 }
 
 /** `projects`, each screenplay carrying its `pages`. Other kinds come back as they were. */
-export async function withScriptPages<T extends { id: string; kind?: string | null }>(
+export async function withScriptPages<T extends { id: string; kind?: string | null; scriptSettings?: string | null }>(
   projects: readonly T[]
 ): Promise<(T & { pages?: number })[]> {
   const counts = await scriptPageCounts(projects);

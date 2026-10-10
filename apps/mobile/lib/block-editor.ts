@@ -9,6 +9,7 @@ import {
 } from "./manuscript";
 import { applyPlainEdit, innerHtmlOf, wrapBlockHtml } from "./inline-html";
 import { elementTagOfHtml, withElement, type ScreenplayElement } from "./manuscript-kind";
+import { dualOfHtml, speechAt, withDual, type SpeechAt } from "./screenplay";
 
 export const REPLACE_FLUSH_MS = 1000;
 export const CARET_FLUSH_MS = 600;
@@ -155,6 +156,44 @@ export function appendEmptyBlockOps(doc: ManuscriptDoc, element: ScreenplayEleme
     afterBlockId: doc.blocks.length === 0 ? null : doc.blocks[doc.blocks.length - 1].id,
     blockId,
     html: newParagraphHtml(blockId, "", element),
+  });
+  return [op];
+}
+
+/** The speech a block is in, as the dual-dialogue control reads it (null for any other block). */
+export function speechOfBlock(blocks: readonly ManuscriptBlock[], blockId: string): SpeechAt | null {
+  const index = blocks.findIndex((block) => block.id === blockId);
+  if (index === -1) return null;
+  return speechAt(
+    blocks.map((block) => ({
+      element: elementTagOfHtml(block.html),
+      text: "",
+      ...(dualOfHtml(block.html) ? { dual: true } : {}),
+    })),
+    index
+  );
+}
+
+/**
+ * Seat the speech a block is in beside the one right above it, or take it back
+ * out: the flag lives on the speech's cue. Nothing when the block is not in a
+ * speech, or there is no speech right above to pair with.
+ */
+export function toggleDualOps(doc: ManuscriptDoc, blockId: string, opts?: BlockEditorIds): ManuscriptOp[] {
+  const speech = speechOfBlock(doc.blocks, blockId);
+  if (!speech || (!speech.pairable && !speech.on)) return [];
+  const cueBlock = doc.blocks[speech.cue];
+  if (!cueBlock || cueBlock.kind !== "paragraph") return [];
+  const html = withDual(cueBlock.html, !speech.on);
+  if (html === cueBlock.html) return [];
+  const ids = idsOf(opts);
+  const { op } = emit(doc, {
+    opId: ids.createOpId(),
+    baseRevision: doc.revision,
+    actor: ids.actor,
+    type: "replace_block",
+    blockId: cueBlock.id,
+    html,
   });
   return [op];
 }

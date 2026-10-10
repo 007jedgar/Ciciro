@@ -46,6 +46,8 @@ export type Project = {
   genre: string;
   /** novel | screenplay | blog | journal; see src/lib/manuscript-kind.ts. */
   kind?: string;
+  /** A screenplay's own settings as JSON (title page, dialogue-break notes, scene numbers); see ScriptSettings in src/lib/screenplay.ts. */
+  scriptSettings?: string;
   logline: string;
   synopsis: string;
   theme: string;

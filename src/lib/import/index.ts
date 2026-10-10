@@ -1,4 +1,5 @@
 import { parseDocx } from "./docx";
+import { decodeFdx, parseFdx } from "./fdx";
 import { parseFountain } from "./fountain";
 import { parseHtml } from "./html";
 import { parseMarkdown } from "./markdown";
@@ -7,7 +8,7 @@ import type { ImportedManuscript } from "./blocks";
 
 export type { ImportedChapter, ImportedManuscript } from "./blocks";
 
-export const IMPORT_FORMATS = ["docx", "markdown", "scrivener", "html", "fountain"] as const;
+export const IMPORT_FORMATS = ["docx", "markdown", "scrivener", "html", "fountain", "fdx"] as const;
 export type ImportFormat = (typeof IMPORT_FORMATS)[number];
 
 export const IMPORT_MAX_BYTES = 20 * 1024 * 1024;
@@ -33,6 +34,8 @@ export function detectFormat(filename: string): ImportFormat | null {
     case "fountain":
     case "spmd":
       return "fountain";
+    case "fdx":
+      return "fdx";
     default:
       return null;
   }
@@ -46,7 +49,7 @@ function stemOf(filename: string): string {
 export function importFile(filename: string, data: Uint8Array): ImportedManuscript {
   const format = detectFormat(filename);
   if (!format) {
-    throw new ImportError("Unsupported file type. Import a .docx, .md, .html, .fountain or zipped .scriv file.");
+    throw new ImportError("Unsupported file type. Import a .docx, .md, .html, .fountain, .fdx or zipped .scriv file.");
   }
   if (data.byteLength > IMPORT_MAX_BYTES) {
     throw new ImportError("That file is too large to import (20 MB limit).");
@@ -64,7 +67,9 @@ export function importFile(filename: string, data: Uint8Array): ImportedManuscri
             ? parseHtml(text(), fallback)
             : format === "fountain"
               ? parseFountain(text(), fallback)
-              : parseMarkdown(text(), fallback);
+              : format === "fdx"
+                ? parseFdx(decodeFdx(data), fallback)
+                : parseMarkdown(text(), fallback);
   } catch (error) {
     throw new ImportError(error instanceof Error ? error.message : "Could not read that file.");
   }

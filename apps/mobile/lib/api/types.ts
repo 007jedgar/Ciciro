@@ -1,4 +1,5 @@
 import type { AppSettings, SettingsPatch } from "../app-settings";
+import type { ScriptSettings } from "../screenplay";
 
 export type { AppSettings, SettingsPatch };
 
@@ -26,6 +27,8 @@ export type ProjectRecord = {
   genre: string;
   /** novel | screenplay | blog | journal. Absent on responses from an older server. */
   kind?: string;
+  /** A screenplay's own settings as stored JSON ("" is every default); read with `parseScriptSettings`. Absent from an older server. */
+  scriptSettings?: string;
   logline: string;
   synopsis: string;
   theme: string;
@@ -372,6 +375,8 @@ export type ProjectPatchRequest = {
   pov?: string;
   notes?: string;
   folderId?: string | null;
+  /** A screenplay's settings; the server tidies them and ignores them for any other kind. */
+  scriptSettings?: ScriptSettings;
 };
 
 export type FolderCreateRequest = {
@@ -859,7 +864,7 @@ export type AutowriteStreamEvent =
 
 export type NdjsonEvent = ChatStreamEvent | AutowriteStreamEvent | SyncStreamEvent;
 
-export type ExportFormat = "epub" | "pdf" | "docx" | "markdown" | "fountain";
+export type ExportFormat = "epub" | "pdf" | "docx" | "markdown" | "fountain" | "fdx";
 
 export type ExportFile = {
   bytes: ArrayBuffer;

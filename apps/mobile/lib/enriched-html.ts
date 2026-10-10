@@ -9,6 +9,7 @@ import {
 import { carrySuggestions, suggestionsAsDisplayMarks } from "./suggestions";
 
 import { elementOfHtml, elementTagOfHtml, isProofread, nextElementOnEnter, normalizeElement, withElement } from "./manuscript-kind";
+import { dualOfHtml, withDual } from "./screenplay";
 
 export const SCENE_BREAK_TEXT = "***";
 
@@ -110,9 +111,9 @@ function ensureEnrichedParses(html: string): string {
   return `<html>${html}</html>`;
 }
 
-/** Screenplay elements are Ciciro's own attribute; the native view has no use for it. */
+/** Screenplay elements and the dual-dialogue flag are Ciciro's own attributes; the native view has no use for them. */
 function stripElements(html: string): string {
-  return html.replace(/\s*data-sp\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  return html.replace(/\s*data-sp(?:-dual)?\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
 }
 
 /**
@@ -251,7 +252,9 @@ export function restampCiciroHtml(
           ? nextElementOnEnter(above)
           : "action";
       above = normalizeElement(element);
-      return withElement(stampId(stripBlockIds(block.html), ids[index]), element);
+      const stamped = withElement(stampId(stripBlockIds(block.html), ids[index]), element);
+      // The second cue of a dual pair keeps its flag (withElement drops it from anything but a cue).
+      return old && dualOfHtml(old.html) ? withDual(stamped, normalizeElement(element) === "character") : stamped;
     })
     .join("");
 }

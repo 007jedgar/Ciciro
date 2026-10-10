@@ -231,6 +231,7 @@ const SCRIPT_FORMAT = `  .INT. KITCHEN - NIGHT       scene heading
   He never called.            dialogue, directly under a cue or a parenthetical, no mark
   >CUT TO:                    transition
   ^CLOSE ON THE KNIFE         shot: a camera direction (ANGLE ON, POV, INSERT)
+  >THE END<                   centered text, between > and <
   A blank line ends a speech; a cue, its parentheticals and its dialogue have none between
   them. Dialogue never begins with a mark character.`;
 
@@ -365,19 +366,20 @@ export function markedLine(raw: string): { element: ScreenplayElement; text: str
     return { element, text: rest.trim() };
   }
   rest = rest.trim();
-  // Fountain's centered line, "> THE END <", is just a line of action here.
+  // Fountain's centered line, "> THE END <".
   const centered = line.charAt(0) === ">" && rest.endsWith("<");
   if (centered) rest = rest.slice(0, -1).trim();
   // "!!" and "@ " are not elements.
   if (!/[\p{L}\p{N}]/u.test(rest)) return null;
-  return { element: centered ? "action" : element, text: rest };
+  return { element: centered ? "centered" : element, text: rest };
 }
 
 const isSpeech = (el?: ScreenplayElement) => el === "character" || el === "parenthetical" || el === "dialogue";
 
 /**
  * Script text from the assistant, sorted into elements. The assistant writes
- * marked lines (`.` heading, `!` action, `@` cue, `>` transition, `^` shot;
+ * marked lines (`.` heading, `!` action, `@` cue, `>` transition, `^` shot,
+ * `>text<` centered;
  * see SCRIPT_FORMAT), and a mark is believed: it is how an ALL-CAPS action line
  * stays action and an unusual cue stays a cue. Under a marked script, a line
  * after a cue, parenthetical or dialogue is a parenthetical or dialogue, never
@@ -446,13 +448,13 @@ function escapeHtml(s: string): string {
 
 /**
  * How to read a replacement for a block tagged `replaced`: a replaced line of
- * speech keeps its speaker open (`after`); a replaced shot, or a newer client's
- * element this build does not know, is kept on the replacement's first line
+ * speech keeps its speaker open (`after`); a replaced shot or centered line, or a
+ * newer client's element this build does not know, is kept on the replacement's first line
  * (`keep`) rather than re-guessed; anything else starts fresh.
  */
 export function replacementContext(replaced: string | undefined): { after?: ScreenplayElement; keep?: string } {
   if (replaced === "dialogue" || replaced === "parenthetical") return { after: "character" };
-  if (replaced !== undefined && (replaced === "shot" || !knownElement(replaced))) return { keep: replaced };
+  if (replaced !== undefined && (replaced === "shot" || replaced === "centered" || !knownElement(replaced))) return { keep: replaced };
   return {};
 }
 

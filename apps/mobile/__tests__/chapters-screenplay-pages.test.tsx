@@ -84,7 +84,7 @@ describe("Chapters screen, screenplay pages", () => {
     render(<ChaptersScreen />);
     fireEvent.press(screen.getByLabelText("Pages"));
     expect(mockPush).toHaveBeenCalledWith("/project/p1/pages");
-    expect(screen.getByLabelText("Chapters, 1 entry / about 1 page")).toBeTruthy();
+    expect(screen.getByLabelText("Chapters, 1 entry / 1 page")).toBeTruthy();
   });
 
   it("leaves pages out of the count until something is typed", () => {
@@ -102,6 +102,6 @@ describe("Chapters screen, screenplay pages", () => {
     mockProject = { id: "p1", kind: "novel", genre: null, chapters: [sequence("c1", 0, "<p>Plain prose.</p>")] };
     render(<ChaptersScreen />);
     expect(screen.queryByLabelText("Pages")).toBeNull();
-    expect(screen.queryByText(/about \d+ page/)).toBeNull();
+    expect(screen.queryByText(/\d+ pages?\b/)).toBeNull();
   });
 });

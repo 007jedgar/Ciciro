@@ -112,6 +112,7 @@ export async function seedAccount(label: string): Promise<SeededAccount> {
       title: `The ${label} Book`,
       author: `Author ${label}`,
       notes: "World notes",
+      scriptSettings: JSON.stringify({ titlePage: { title: `${label} script title` }, sceneNumbers: true }),
       manuscriptTarget: { create: { wordGoal: 80000, deadline: "2027-01-01" } },
       recap: { create: { content: "Previously...", fingerprint: "fp" } },
     },

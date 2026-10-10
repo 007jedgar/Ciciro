@@ -9,6 +9,7 @@ import {
 import { resolveFolderId } from "@/lib/folders";
 import { defaultTitle, normalizeKind, openingChapter, parseYmd } from "@/lib/manuscript-kind";
 import { withScriptPages } from "@/lib/script-pages";
+import { parseScriptSettings, serializeScriptSettings } from "@/lib/screenplay";
 
 function readTrimmed(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -117,12 +118,17 @@ export async function updateProject(
   await authorizeProjectId(id, user);
   const existing = await prisma.project.findUnique({
     where: { id },
-    select: { id: true },
+    select: { id: true, kind: true },
   });
   if (!existing) throw new AuthError("Not found.", 404);
   const data: { [key: string]: string | null } = {};
   for (const key of PROJECT_EDITABLE) {
     if (typeof body[key] === "string") data[key] = body[key];
+  }
+  // A script's settings (title page, dialogue-break notes, scene numbers) are stored as normalized JSON, so a client
+  // can neither store junk nor outgrow a field's limit; only a screenplay has any.
+  if (normalizeKind(existing.kind) === "screenplay" && body.scriptSettings !== undefined) {
+    data.scriptSettings = serializeScriptSettings(parseScriptSettings(body.scriptSettings));
   }
   if ("folderId" in body) {
     const folderId = await resolveFolderId(user, body.folderId);

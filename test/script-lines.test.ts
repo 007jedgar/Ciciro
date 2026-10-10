@@ -138,8 +138,8 @@ describe("marked script lines", () => {
     expect(markedLine("MARA")).toBeNull();
     expect(markedLine(".INT. LAB")).toEqual({ element: "scene-heading", text: "INT. LAB" });
     expect(markedLine("  ! Mara enters.  ")).toEqual({ element: "action", text: "Mara enters." });
-    // Fountain's centered line is only a line of action here.
-    expect(markedLine("> THE END <")).toEqual({ element: "action", text: "THE END" });
+    // Fountain's centered line.
+    expect(markedLine("> THE END <")).toEqual({ element: "centered", text: "THE END" });
     expect(rows("...and then nothing")).toEqual([["action", "...and then nothing"]]);
   });
 
@@ -226,7 +226,7 @@ describe("a script as the assistant reads it", () => {
     expect(
       scriptTextOfBlocks([
         { element: "scene-heading", text: "" },
-        { element: "centered", text: "THE END" },
+        { element: "montage", text: "THE END" },
         { element: "action", text: "One\nTwo" },
       ])
     ).toBe("!THE END\n\n!One Two");
