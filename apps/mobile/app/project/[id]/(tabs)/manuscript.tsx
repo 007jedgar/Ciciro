@@ -80,6 +80,8 @@ import type { SelectionActionId } from "../../../../lib/selection-menu";
 import { useSelectionMenu } from "../../../../lib/use-selection-menu";
 import { useDictation, type DictationError } from "../../../../lib/speech";
 import { useProject } from "../../../../lib/project";
+import { useScriptLayout } from "../../../../lib/script-layout";
+import { useScriptLanguageSupported } from "../../../../lib/script-language";
 import { useRenameChapter } from "../../../../lib/use-rename-chapter";
 import { FOCUS_TRANSITION_MS, useFocusMode } from "../../../../lib/focus-mode";
 import { blockHasSuggestions } from "../../../../lib/suggestion-review";
@@ -190,6 +192,11 @@ function ManuscriptScreenContent() {
   const screenStyle = useAnimatedStyle(() => ({ paddingTop: screenPaddingTop.value }));
   const chapter = project?.chapters.find((c) => c.id === selectedChapterId) ?? project?.chapters[0];
   const isScreenplay = normalizeKind(project?.kind) === "screenplay";
+  // The native editor lays a script out and carries each line's element itself (Beta, iOS, off until
+  // switched on in Settings): the editor's own tags are then the truth, not the blocks it loaded.
+  const scriptLayoutOn = useScriptLayout();
+  const scriptLanguage = useScriptLanguageSupported();
+  const nativeScript = isScreenplay && scriptLayoutOn && scriptLanguage;
   const chapterRef = useRef<Chapter | null>(null);
   const previousBlocksRef = useRef<ManuscriptBlock[]>([]);
   const replaceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -321,10 +328,17 @@ function ManuscriptScreenContent() {
     commitOps(
       opsFromEnrichedHtml(current.content, enriched, current.revision, undefined, {
         screenplay: isScreenplay,
+        nativeElements: nativeScript,
       })
     );
     return true;
-  }, [commitOps, isScreenplay]);
+  }, [commitOps, isScreenplay, nativeScript]);
+
+  // What the editor is given, with the elements in it when it carries them.
+  const toEditorHtml = useCallback(
+    (html: string) => toEnrichedHtml(html, { elements: nativeScript }),
+    [nativeScript]
+  );
 
   const scheduleFlush = useCallback(() => {
     if (replaceTimer.current) clearTimeout(replaceTimer.current);
@@ -360,7 +374,8 @@ function ManuscriptScreenContent() {
   }, [chapter?.id]);
 
   const recomputeElement = useCallback(() => {
-    if (!isScreenplay) return;
+    // The native editor reports the element under the caret itself (onChangeState).
+    if (!isScreenplay || nativeScript) return;
     const current = chapterRef.current;
     if (!current) return;
     const live = liveTextRef.current;
@@ -370,7 +385,7 @@ function ManuscriptScreenContent() {
       caretRef.current.docOffset
     );
     setCaretElement((previous) => (previous === tag ? previous : tag));
-  }, [isScreenplay]);
+  }, [isScreenplay, nativeScript]);
 
   const onChangeText = useCallback(
     (text: string) => {
@@ -424,18 +439,20 @@ function ManuscriptScreenContent() {
       } catch {
         return false;
       }
-      const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(enriched));
+      const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(enriched), {
+        nativeElements: nativeScript,
+      });
       const result = replaceSelectedWord(live, start, end, expected, replacement);
       if (!result) return false;
       markEditedRef.current?.();
-      editor.setValue(toEnrichedHtml(result.html));
+      editor.setValue(toEditorHtml(result.html));
       editor.setSelection(result.caret, result.caret);
       caretRef.current = { ...caretRef.current, docOffset: result.caret };
       markTyping();
       scheduleFlush();
       return true;
     },
-    [markTyping, scheduleFlush]
+    [markTyping, nativeScript, scheduleFlush, toEditorHtml]
   );
 
   // Comment, Rewrite, Describe, Expand and Fix go to the Ciciro tab, which reads the highlighted text from
@@ -578,6 +595,14 @@ function ManuscriptScreenContent() {
     async (element: ScreenplayElement) => {
       // Lit now; the commit below only confirms it.
       setCaretElement(element);
+      if (nativeScript) {
+        // The editor retags the line under the caret (and its keyboard follows); the flush
+        // reads the new tag back out of its HTML like any other edit.
+        editorRef.current?.setScreenplayElement(element);
+        markTyping();
+        await flush();
+        return;
+      }
       await flush();
       const current = chapterRef.current;
       if (!current) return;
@@ -594,7 +619,7 @@ function ManuscriptScreenContent() {
       if (!target) return;
       commitOps(setBlockElementOps(doc, target, element));
     },
-    [commitOps, flush]
+    [commitOps, flush, markTyping, nativeScript]
   );
 
   const onToggleDual = useCallback(async () => {
@@ -612,10 +637,17 @@ function ManuscriptScreenContent() {
     haptics.tap();
   }, []);
 
-  const onChangeState = useCallback((state: OnChangeStateEvent) => {
-    setTargetMarks(marksFromEnrichedState(state));
-    setTargetKind(kindFromEnrichedState(state));
-  }, []);
+  const onChangeState = useCallback(
+    (state: OnChangeStateEvent) => {
+      setTargetMarks(marksFromEnrichedState(state));
+      setTargetKind(kindFromEnrichedState(state));
+      if (nativeScript) {
+        const tag = state.screenplay || "action";
+        setCaretElement((previous) => (previous === tag ? previous : tag));
+      }
+    },
+    [nativeScript]
+  );
 
   useEffect(() => {
     hideBar.value = withTiming(barHidden ? 1 : 0, { duration: reduceMotion ? 1 : 220 });
@@ -669,11 +701,11 @@ function ManuscriptScreenContent() {
     commitOps(replaceBlockOps(doc, accepted.blockId, accepted.nextText, { actor: "correction" }));
     const next = chapterRef.current;
     if (next) {
-      editorRef.current?.setValue(toEnrichedHtml(next.content));
+      editorRef.current?.setValue(toEditorHtml(next.content));
       editorRef.current?.setSelection(caret, caret);
     }
     loop.setSuggestion(null);
-  }, [commitOps, flush, grammarSuggestion, liveChapterText]);
+  }, [commitOps, flush, grammarSuggestion, liveChapterText, toEditorHtml]);
   acceptGrammarRef.current = acceptGrammar;
 
   // Accepting or rejecting is an ordinary edit: flush what was typed, apply the
@@ -697,10 +729,10 @@ function ManuscriptScreenContent() {
           .catch(() => {});
       }
       const updated = chapterRef.current;
-      if (updated) editorRef.current?.setValue(toEnrichedHtml(updated.content));
+      if (updated) editorRef.current?.setValue(toEditorHtml(updated.content));
       haptics.select();
     },
-    [commitOps, flush]
+    [commitOps, flush, toEditorHtml]
   );
   const closeReview = useCallback(() => setReviewOpen(false), []);
 
@@ -741,18 +773,20 @@ function ManuscriptScreenContent() {
         const current = chapterRef.current;
         const editor = editorRef.current;
         if (!current || !editor) return;
-        const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(await editor.getHTML()));
+        const live = restampCiciroHtml(current.content, fromEnrichedHtmlAsShown(await editor.getHTML()), {
+          nativeElements: nativeScript,
+        });
         const result = insertDictation(live, caretRef.current.docOffset, text, lang);
         if (!result) return;
         markEditedRef.current?.();
-        editor.setValue(toEnrichedHtml(result.html));
+        editor.setValue(toEditorHtml(result.html));
         editor.setSelection(result.caret, result.caret);
         caretRef.current = { ...caretRef.current, docOffset: result.caret };
         markTyping();
         scheduleFlush();
       });
     },
-    [i18n.language, markTyping, scheduleFlush]
+    [i18n.language, markTyping, nativeScript, scheduleFlush, toEditorHtml]
   );
   const dictation = useDictation({
     lang: dictationLocale(i18n.language),
@@ -900,6 +934,7 @@ function ManuscriptScreenContent() {
               resumeOffset={resume?.index ?? null}
               bottomInset={editorBottomInset}
               typewriter={settings.typewriterMode}
+              scriptLayout={nativeScript}
               onFocused={onFocused}
               onBlurred={onBlurred}
               onChangeText={onChangeText}

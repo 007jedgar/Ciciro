@@ -116,13 +116,24 @@ function stripElements(html: string): string {
   return html.replace(/\s*data-sp(?:-dual)?\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
 }
 
+export type EnrichedOptions = {
+  /**
+   * The native editor carries the screenplay element itself (the patched view's
+   * `screenplay` layout): `data-sp` goes in with the HTML and comes back out of
+   * `getHTML()`, and is what the editor shows. Without it the native view never
+   * sees an element and `restampCiciroHtml` puts it back from the blocks.
+   */
+  elements?: boolean;
+};
+
 /**
  * Ciciro stamped HTML → what EnrichedTextInput will parse. The native editor
  * has no tracked-change marks, so pending suggestions show as underline
  * (inserted) and strikethrough (deleted); opsFromEnrichedHtml puts them back.
  */
-export function toEnrichedHtml(html: string): string {
-  const stripped = stripElements(stripBlockIds(suggestionsAsDisplayMarks(html.trim())));
+export function toEnrichedHtml(html: string, opts: EnrichedOptions = {}): string {
+  const cleaned = stripBlockIds(suggestionsAsDisplayMarks(html.trim()));
+  const stripped = opts.elements ? cleaned : stripElements(cleaned);
   const body = !stripped
     ? "<p></p>"
     : wrapBareListItems(hrToParagraph(canonicalizeInline(stripped)));
@@ -224,6 +235,13 @@ export type RestampOptions = {
    * takes the element that follows the block above it, as Enter does on the web.
    */
   screenplay?: boolean;
+  /**
+   * The native editor carries the elements itself (see EnrichedOptions): each
+   * block's element is the `data-sp` it reported, new blocks included, because
+   * what the author sees is what is stored. Nothing is looked up in the blocks
+   * the editor was loaded from.
+   */
+  nativeElements?: boolean;
 };
 
 /**
@@ -246,11 +264,13 @@ export function restampCiciroHtml(
       const old = oldById.get(ids[index]);
       // The tag, not the element: one a newer client wrote and this build cannot
       // lay out is carried over as it is, never collapsed to action.
-      const element: string = old
-        ? elementTagOfHtml(old.html)
-        : opts.screenplay && index > 0
-          ? nextElementOnEnter(above)
-          : "action";
+      const element: string = opts.nativeElements
+        ? elementTagOfHtml(block.html)
+        : old
+          ? elementTagOfHtml(old.html)
+          : opts.screenplay && index > 0
+            ? nextElementOnEnter(above)
+            : "action";
       above = normalizeElement(element);
       const stamped = withElement(stampId(stripBlockIds(block.html), ids[index]), element);
       // The second cue of a dual pair keeps its flag (withElement drops it from anything but a cue).

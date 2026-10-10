@@ -478,17 +478,23 @@ sequence's HTML for a list is the cost. If it ever shows up, denormalize onto
 
 ## The phone
 
-The phone edits plain lines in the native view (see `AGENTS.md`, "Patched
-native editor"). It mirrors the engine, keeps an unknown element and the dual
-flag through every flush, and carries the Beta mark.
+The phone edits in the native view (see `AGENTS.md`, "Patched native editor"). By
+default it edits plain lines and the layout is the Pages tile's; on iOS an
+author can switch on the page layout, which sets the lines in the editor as they
+are typed ([Writing in the page layout](#writing-in-the-page-layout-ios-beta)).
+Either way it mirrors the engine, keeps an unknown element and the dual
+flag through every flush,
+and carries the Beta mark.
 
 - **Element bar.** One chip per element, Shot and Centered included, and a Tab button that
   follows the same ring. The bar sits just above the keyboard (it used to hang
   under the header), where the thumb is, and above the format bar when that is
-  also an accessory. The native view cannot carry `data-sp`, so the tag is
-  re-stamped on flush (`restampCiciroHtml`); a new line takes
-  `nextElementOnEnter` of the line above.
-- **The chip is never a flush behind.** The committed blocks lag the native text
+  also an accessory. Without the page layout the native view cannot carry
+  `data-sp`, so the tag is re-stamped on flush (`restampCiciroHtml`); a new line
+  takes `nextElementOnEnter` of the line above. With it, the native view carries
+  the tag and the chip drives it (below).
+- **The chip is never a flush behind** (page layout off; with it on the editor
+  reports the element under the caret itself). The committed blocks lag the native text
   by up to a second (`REPLACE_FLUSH_MS`), so the lit chip is computed from the
   live text and the caret (`elementTagAtCaret` in `lib/screenplay-live.ts`),
   kept in `manuscript.tsx` as `caretElement`, recomputed on every text change,
@@ -525,8 +531,8 @@ flag through every flush, and carries the Beta mark.
   carries its number in both margins (`sheetMetrics(width, NUMBER_GUTTER)` keeps
   four columns on each side, so the type is a little smaller then). A sheet
   scales to the screen (`sheetMetrics`), which is exact because every glyph is
-  the same width. This is the report's option M4; typing in a native script
-  layout is phase 4.
+  the same width. This is the report's option M4; the editor's own page layout
+  is below.
 - **Page counts.** The manuscripts list row and the manuscript meta line say
   "N pages" (from the server's `pages`), and the chapters screen counts them
   from the loaded sequences and the same settings, in place of the word count in
@@ -537,11 +543,111 @@ flag through every flush, and carries the Beta mark.
   view is where a script is exact). Insert parses the marked lines (and the
   element above the caret) into elements; Share sends the text without marks.
 
+### Writing in the page layout (iOS, Beta)
+
+Phase 4. A switch in the screenplay's Settings section, **Page layout while
+typing**, sets the script in the editor as it is typed: the type is the page's
+(a monospace face sized so 60 columns fill the screen, `scriptEditorMetrics`),
+each element sits at its indent and width (a cue, parenthetical and dialogue as
+a run with no blank lines between, a transition against the right edge), a Return
+starts what the engine says follows, and the keyboard types capitals where the
+element is capitals (scene heading, cue, transition). Off by default and on
+this phone only: it is a local pref (`lib/script-layout.ts`, key `script-layout`,
+like focus mode), so it never syncs and is not stored on the manuscript. It is
+iOS only (`scriptLayoutSupported()`; the row is not shown on Android), grayed
+with the info button in a language script formatting does not cover, and under
+the section's Beta mark. `manuscript.tsx` turns it into `nativeScript` (a
+screenplay, the switch on, a supported language) and `ChapterEditor` takes it as
+`scriptLayout`.
+
+**The native side** is a patch to `react-native-enriched-html`
+(`apps/mobile/patches/`, see `AGENTS.md`): a screenplay paragraph style,
+`ios/styles/ScreenplayStyle.mm`, next to `AlignmentStyle` and carried the same
+way, as a marker (`EnrichedScreenplay:<tag>`) in the paragraph's
+`NSParagraphStyle.textLists`. It is inert until the app sends the `screenplay`
+prop, a JSON page (`screenplayLayoutConfig()`): `PAGE_COLUMNS`, each element's
+`ELEMENT_METRICS` (indent, width, alignment, capitals), `nextElementOnEnter` and
+`SPEECH_RUNS`. Every number comes from the shared engine, so the editor holds no
+page rules of its own (`__tests__/script-layout.test.ts` compares them). A
+paragraph's indents, alignment and the space after it are written into its
+paragraph style (`firstLineHeadIndent`, `headIndent`, a negative `tailIndent`
+from the trailing edge, a blank line as `paragraphSpacing`, none inside a speech
+run); a column is the advance of "0" in the typing font. Left alignment stays
+natural, so the HTML never grows a `text-align` it did not have.
+
+- **The HTML round trip keeps `data-sp` exactly.** `<p data-sp="tag">` parses to
+  the marker and serializes back (action, the default, writes none), so
+  `toEnrichedHtml(html, { elements: true })` hands the tags in and `getHTML()`
+  returns them; `restampCiciroHtml(..., { nativeElements: true })` takes each
+  block's tag from what the editor reported, new blocks included (the editor has
+  already applied Return), and `opsFromEnrichedHtml` diffs on that. The library's
+  Gumbo normalizer drops attributes it does not know, so
+  `cpp/parser/GumboNormalizer.c` lets `data-sp` through on a `<p>` (slug
+  `[A-Za-z0-9][A-Za-z0-9_-]{0,31}`). A tag a newer client wrote and this build
+  cannot lay out (`dual-future`) is laid out as action and written back as it was
+  read, never rewritten; so is an empty line's tag (`<p data-sp="character"></p>`).
+  The same rule as everywhere: store the tag, not the collapsed element.
+- **Return follows the web editor** (`tiptap-screenplay.ts`): Return on an empty
+  line that is not action drops back to action (no new line, and the app is told,
+  so it saves), a Return that splits dialogue leaves dialogue on both sides, and
+  any other Return starts `nextElementOnEnter` of the line it ends or splits.
+- **The keyboard follows the element** without a remount: the native view sets
+  `autocapitalizationType` to all characters on a capitals element and back to
+  what the app asked for elsewhere, then reloads the input views. The chip
+  (`setScreenplayElement`) retags the paragraph(s) under the caret or selection,
+  and `onChangeState.screenplay` reports the element under the caret, which is
+  what lights the chip in this mode (`recomputeElement` is only for the plain
+  editor).
+- **Capitals are typed, not derived.** The editor never uppercases text already
+  on the page: a script written lowercase (the assistant's older output, a
+  Fountain import) shows as it is stored, and the page view, the PDF and Fountain
+  set the capitals elements in capitals at the edges, as they always have.
+- **A layout change in flight remounts the view.** `ChapterEditor` waits to mount
+  until it has a width (so the first layout is the page's) and keys the native
+  view on the chapter and the mode, so switching the layout in Settings gives a
+  fresh view with the right HTML; `registerEditor` re-registers.
+
+**Needs a new native build.** The native module changed, so none of this reaches
+a phone through an over-the-air update: `patches/` is part of the Expo
+fingerprint, so a JS update that depends on it only goes to builds that contain
+it, and until a build ships the row in Settings does not exist. Android is not
+done: the Kotlin view manager accepts the `screenplay` prop and the
+`setScreenplayElement` command and ignores them (the codegen interface needs
+both, and the checked-in generated files mirror them), and the app never sends
+them there. It is a follow-up, with the same shape as the iOS style.
+
+**Spike findings** (iPhone 17e simulator, against a local server): the round trip
+is exact for the seven elements, an unknown tag, inline marks (`<strong>` inside
+dialogue came back identical, block ids unchanged), empty lines mid-document and a
+new empty script; a typed line commits as a block with the editor's tag;
+retagging by chip, Return at the end and in the middle of a line (a cue split
+mid-word, dialogue split mid-sentence), and Return on an empty line all commit
+what the web would; the keyboard went to
+capitals on a scene heading, a cue, and a line chosen as a cue, and back after
+Return. A 1,200-block (90 KB) script laid out about 1.5 seconds after opening and
+typed no slower than the plain editor. Known limits: the monospace face has no
+bold, so inline bold in a script is stored but does not show (the native view logs
+"Couldn't apply bold trait"); no brackets are drawn round a parenthetical, as the
+text is stored with them; `getHTML()` still leaves out one trailing blank line (as
+in the plain editor); and the face is JetBrains Mono, the same 0.6 em advance as
+Courier Prime that the page view uses, not Courier Prime itself.
+
+**Tests.** `__tests__/enriched-html.test.ts` (tags in and out, ids, unknown tags,
+retagging, empty lines), `__tests__/script-layout.test.ts` (the page config
+against the engine, the type metrics, the switch), `__tests__/ChapterEditor.test.tsx`
+(waits for width, passes the page, remounts on a switch, the echo check) and
+`__tests__/settings-manuscript.test.tsx` (the switch, Android, a language it
+cannot serve). The native half has no automated test; the checks above were run
+by hand on a simulator. To check the normalizer passthrough without a device,
+compile `cpp/parser/GumboNormalizer.c` with a small driver and feed it
+`<p data-sp="character">MARA</p>`.
+
 ## Beta
 
 Mark screenplay formatting Beta wherever the author meets it. Today: the kind
 picker (web `Library.tsx`, phone `NewManuscriptForm` and the onboarding goal
-screen), the element bar (web and phone) and the Settings section. Web uses
+screen), the element bar (web and phone) and the Settings section (the page
+layout switch sits under its mark). Web uses
 `BetaBadge` (`src/components/BetaBadge.tsx`, English only: the web has no
 locales); the phone uses `components/BetaBadge.tsx` with `screenplay.beta` and
 `screenplay.betaInfo` in all four locales. The export entries (Screenplay PDF, Fountain and FDX export) carry it too. When screenplay leaves Beta, remove the badges and the
@@ -570,7 +676,7 @@ and only shows the settings for that manuscript's kind.
 - **Phone.** The manuscript tab bar's Settings action opens `/settings` with
   the manuscript's id (`?project=`), and `app/settings.tsx` reads the kind and
   settings from the project query. For a screenplay it shows the locked format,
-  the same three switches and "Title page in the PDF" (`useScriptSettings`, a
+  the iOS-only **Page layout while typing** switch, the same three switches and "Title page in the PDF" (`useScriptSettings`, a
   project PATCH with the change shown at once and put back on failure), the six
   title page fields behind a Save button (`TitlePageFields`), and how the
   element bar, Dual, Tab and Return behave. Opened from the library, there is no
@@ -595,9 +701,12 @@ and only shows the settings for that manuscript's kind.
 
 Belongs to later phases: autocomplete, smart Tab, typed-input capitals, the
 scene navigator and `(CONT'D)` for a character who speaks again after an action
-line (phase 2); a native phone writing surface that lays the page out while you
-type (phase 4). Never planned here: revision colours, A-pages and locked pages,
+line (phase 2). Never planned here: revision colours, A-pages and locked pages,
 and any claim of Final Draft compatibility.
+
+Phase 4 follow-ups: the page layout on Android (the Kotlin view manager ignores
+the prop today); the layout on for every author once Beta ends (it is a switch,
+off by default, today); bold in a script face that has one.
 
 Smaller follow-ups: a find on the capitals elements is case sensitive, since the
 text is stored as typed; the assistant has no page awareness or page target yet

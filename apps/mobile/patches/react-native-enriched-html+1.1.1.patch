@@ -1,34 +1,62 @@
 diff --git a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-index d948ca9..d16f976 100644
+index d948ca9..83718f9 100644
 --- a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
 +++ b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerDelegate.java
-@@ -80,6 +80,9 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
+@@ -80,6 +80,12 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
        case "allowFontScaling":
          mViewManager.setAllowFontScaling(view, value == null ? false : (boolean) value);
          break;
 +      case "paragraphSpacing":
 +        mViewManager.setParagraphSpacing(view, value == null ? 0f : ((Double) value).floatValue());
 +        break;
++      case "screenplay":
++        mViewManager.setScreenplay(view, value == null ? null : (String) value);
++        break;
        case "color":
          mViewManager.setColor(view, ColorPropConverter.getColor(value, view.getContext()));
          break;
+@@ -199,6 +205,9 @@ public class EnrichedTextInputViewManagerDelegate<T extends View, U extends Base
+       case "setTextAlignment":
+         mViewManager.setTextAlignment(view, args.getString(0));
+         break;
++      case "setScreenplayElement":
++        mViewManager.setScreenplayElement(view, args.getString(0));
++        break;
+     }
+   }
+ }
 diff --git a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-index 8e7b44c..0c43171 100644
+index 8e7b44c..ac22fcf 100644
 --- a/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
 +++ b/node_modules/react-native-enriched-html/android/generated/java/com/facebook/react/viewmanagers/EnrichedTextInputViewManagerInterface.java
-@@ -34,6 +34,7 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
+@@ -34,6 +34,8 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
    void setReturnKeyLabel(T view, @Nullable String value);
    void setSubmitBehavior(T view, @Nullable String value);
    void setAllowFontScaling(T view, boolean value);
 +  void setParagraphSpacing(T view, float value);
++  void setScreenplay(T view, @Nullable String value);
    void setColor(T view, @Nullable Integer value);
    void setFontSize(T view, float value);
    void setLineHeight(T view, float value);
+@@ -71,4 +73,5 @@ public interface EnrichedTextInputViewManagerInterface<T extends View> extends V
+   void addMention(T view, String indicator, String text, String payload);
+   void requestHTML(T view, int requestId);
+   void setTextAlignment(T view, String alignment);
++  void setScreenplayElement(T view, String tag);
+ }
 diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
-index 26fa754..148e748 100644
+index 26fa754..a567794 100644
 --- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
 +++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.cpp
-@@ -235,6 +235,22 @@ payload.setProperty(runtime, "text", event.text);
+@@ -186,6 +186,7 @@ void EnrichedTextInputViewEventEmitter::onChangeState(OnChangeState event) const
+   payload.setProperty(runtime, "checkboxList", checkboxList);
+ }
+ payload.setProperty(runtime, "alignment", event.alignment);
++payload.setProperty(runtime, "screenplay", event.screenplay);
+     return payload;
+   });
+ }
+@@ -235,6 +236,22 @@ payload.setProperty(runtime, "text", event.text);
  }
  
  
@@ -52,10 +80,18 @@ index 26fa754..148e748 100644
    dispatchEvent("requestHtmlResult", [event=std::move(event)](jsi::Runtime &runtime) {
      auto payload = jsi::Object(runtime);
 diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
-index 0da8313..c90be70 100644
+index 0da8313..29e20e5 100644
 --- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
 +++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/EventEmitters.h
-@@ -194,6 +194,17 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+@@ -168,6 +168,7 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+     OnChangeStateMention mention;
+     OnChangeStateCheckboxList checkboxList;
+     std::string alignment;
++    std::string screenplay;
+     };
+ 
+   struct OnLinkDetected {
+@@ -194,6 +195,17 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
      std::string text;
      };
  
@@ -73,7 +109,7 @@ index 0da8313..c90be70 100644
    struct OnRequestHtmlResult {
        int requestId;
      folly::dynamic html;
-@@ -380,6 +391,8 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+@@ -380,6 +392,8 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
  
    void onChangeSelection(OnChangeSelection value) const;
  
@@ -83,18 +119,19 @@ index 0da8313..c90be70 100644
  
    void onInputKeyPress(OnInputKeyPress value) const;
 diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
-index 9569683..ab23db5 100644
+index 9569683..f6f3638 100644
 --- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
 +++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.cpp
-@@ -38,6 +38,7 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
+@@ -38,6 +38,8 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
      returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
      submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
      allowFontScaling(convertRawProp(context, rawProps, "allowFontScaling", sourceProps.allowFontScaling, {false})),
 +    paragraphSpacing(convertRawProp(context, rawProps, "paragraphSpacing", sourceProps.paragraphSpacing, {0.0})),
++    screenplay(convertRawProp(context, rawProps, "screenplay", sourceProps.screenplay, {})),
      color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
      fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
      lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
-@@ -137,6 +138,10 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
+@@ -137,6 +139,14 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
      result["allowFontScaling"] = allowFontScaling;
    }
      
@@ -102,18 +139,23 @@ index 9569683..ab23db5 100644
 +    result["paragraphSpacing"] = paragraphSpacing;
 +  }
 +    
++  if (screenplay != oldProps->screenplay) {
++    result["screenplay"] = screenplay;
++  }
++    
    if (color != oldProps->color) {
      result["color"] = *color;
    }
 diff --git a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
-index b8da319..5f133e8 100644
+index b8da319..2677bda 100644
 --- a/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
 +++ b/node_modules/react-native-enriched-html/android/generated/jni/react/renderer/components/ReactNativeEnrichedSpec/Props.h
-@@ -881,6 +881,7 @@ class EnrichedTextInputViewProps final : public ViewProps {
+@@ -881,6 +881,8 @@ class EnrichedTextInputViewProps final : public ViewProps {
    std::string returnKeyLabel{};
    std::string submitBehavior{};
    bool allowFontScaling{false};
 +  Float paragraphSpacing{0.0};
++  std::string screenplay{};
    SharedColor color{};
    Float fontSize{0.0};
    Float lineHeight{0.0};
@@ -372,7 +414,7 @@ index 023cc20..c8531e2 100644
        spannable.length,
        Spannable.SPAN_INCLUSIVE_INCLUSIVE,
 diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
-index 9dcbb82..2f207c2 100644
+index 9dcbb82..2764e9e 100644
 --- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
 +++ b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt
 @@ -209,6 +209,14 @@ class EnrichedTextInputViewManager :
@@ -390,6 +432,26 @@ index 9dcbb82..2f207c2 100644
    @ReactProp(name = "fontFamily")
    override fun setFontFamily(
      view: EnrichedTextInputView?,
+@@ -479,6 +487,19 @@ class EnrichedTextInputViewManager :
+     view?.setTextAlignment(alignment)
+   }
+ 
++  // The screenplay page layout is iOS only so far: Android accepts the prop and the
++  // command (the codegen interface needs them) and ignores both.
++  @ReactProp(name = "screenplay")
++  override fun setScreenplay(
++    view: EnrichedTextInputView?,
++    value: String?,
++  ) = Unit
++
++  override fun setScreenplayElement(
++    view: EnrichedTextInputView?,
++    tag: String,
++  ) = Unit
++
+   override fun measure(
+     context: Context,
+     localData: ReadableMap?,
 diff --git a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt b/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt
 index 09363e0..fa3d7a4 100644
 --- a/node_modules/react-native-enriched-html/android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt
@@ -500,11 +562,95 @@ index 195e706..48a9516 100644
    serializedProps["allowFontScaling"] = props.allowFontScaling;
    serializedProps["useHtmlNormalizer"] = props.useHtmlNormalizer;
    serializedProps["htmlStyle"] = toDynamic(props.htmlStyle);
+diff --git a/node_modules/react-native-enriched-html/cpp/parser/GumboNormalizer.c b/node_modules/react-native-enriched-html/cpp/parser/GumboNormalizer.c
+index 5a6210f..eb33634 100644
+--- a/node_modules/react-native-enriched-html/cpp/parser/GumboNormalizer.c
++++ b/node_modules/react-native-enriched-html/cpp/parser/GumboNormalizer.c
+@@ -458,6 +458,35 @@ static void emit_alignment(GumboElement *el, const char *tag_name,
+   buffer_append_str(out, "\"");
+ }
+ 
++/* A screenplay element: <p data-sp="character">. The value is written back
++ * into an attribute, so only a plain slug ([A-Za-z0-9][A-Za-z0-9_-]{0,31}) is
++ * kept; anything else is dropped. */
++static bool is_screenplay_tag(const char *val) {
++  size_t len = strlen(val);
++  if (len == 0 || len > 32)
++    return false;
++  for (size_t i = 0; i < len; i++) {
++    unsigned char c = (unsigned char)val[i];
++    bool alnum = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
++                 (c >= '0' && c <= '9');
++    if (!alnum && (i == 0 || (c != '_' && c != '-')))
++      return false;
++  }
++  return true;
++}
++
++static void emit_screenplay(GumboElement *el, const char *tag_name,
++                            buffer_t *out) {
++  if (strcmp(tag_name, "p") != 0)
++    return;
++  const char *val = get_attr(el, "data-sp");
++  if (!val || !is_screenplay_tag(val))
++    return;
++  buffer_append_str(out, " data-sp=\"");
++  buffer_append_str(out, val);
++  buffer_append_str(out, "\"");
++}
++
+ static bool is_checkbox_list(GumboElement *el) {
+   const char *val = get_attr(el, "data-type");
+   if (val && (strcmp(val, "checkbox") == 0 || strcmp(val, "checkboxList") == 0)) {
+@@ -525,6 +554,7 @@ static void emit_attributes(GumboElement *el, const char *tag_name,
+   } else {
+     /* preserve text-align */
+     emit_alignment(el, tag_name, out);
++    emit_screenplay(el, tag_name, out);
+   }
+ }
+ 
 diff --git a/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm b/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
-index a899aa6..36e7125 100644
+index a899aa6..3c84da2 100644
 --- a/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
 +++ b/node_modules/react-native-enriched-html/ios/EnrichedTextInputView.mm
-@@ -235,6 +235,11 @@ - (void)updateProps:(Props::Shared const &)props
+@@ -62,6 +62,10 @@ @implementation EnrichedTextInputView {
+   NSString *_submitBehavior;
+   NSDictionary<NSAttributedStringKey, id> *_capturedAttributesBeforeChange;
+   NSString *_recentlyEmittedAlignment;
++  // Screenplay layout: the element last sent to the app, and the keyboard's
++  // capitalization as the app asked for it (a capitals element overrides it).
++  NSString *_recentlyEmittedScreenplay;
++  UITextAutocapitalizationType _baseAutocapitalizationType;
+ }
+ 
+ @synthesize blockEmitting = blockEmitting;
+@@ -133,6 +137,8 @@ - (void)setDefaults {
+   _recentlyActiveLinkRange = NSMakeRange(0, 0);
+   _recentlyActiveMentionRange = NSMakeRange(0, 0);
+   _recentlyEmittedAlignment = @"left";
++  _recentlyEmittedScreenplay = @"";
++  _baseAutocapitalizationType = UITextAutocapitalizationTypeSentences;
+   _recentInputString = @"";
+   _recentlyEmittedHtml = @"<html>\n<p></p>\n</html>";
+   _emitHtml = NO;
+@@ -210,6 +216,15 @@ - (void)updateProps:(Props::Shared const &)props
+ 
+   EnrichedConfig *newConfig = [config copy];
+ 
++  // screenplay page config (JSON): set first, so that a font change in the same
++  // update rebuilds the text against it
++  ScreenplayStyle *screenplayStyle =
++      (ScreenplayStyle *)stylesDict[@([ScreenplayStyle getType])];
++  BOOL screenplayConfigChanged =
++      newViewProps.screenplay != oldViewProps.screenplay &&
++      [screenplayStyle
++          setConfigFromJson:[NSString fromCppString:newViewProps.screenplay]];
++
+   if (newViewProps.color != oldViewProps.color) {
+     if (isColorMeaningful(newViewProps.color)) {
+       UIColor *uiColor = RCTUIColorFromSharedColor(newViewProps.color);
+@@ -235,6 +250,11 @@ - (void)updateProps:(Props::Shared const &)props
      stylePropChanged = YES;
    }
  
@@ -516,7 +662,7 @@ index a899aa6..36e7125 100644
    if (newViewProps.fontWeight != oldViewProps.fontWeight) {
      if (!newViewProps.fontWeight.empty()) {
        [newConfig
-@@ -660,6 +665,7 @@ - (void)updateProps:(Props::Shared const &)props
+@@ -660,6 +680,7 @@ - (void)updateProps:(Props::Shared const &)props
      NSMutableParagraphStyle *defaultPStyle =
          [[NSMutableParagraphStyle alloc] init];
      defaultPStyle.minimumLineHeight = [config scaledPrimaryLineHeight];
@@ -524,7 +670,44 @@ index a899aa6..36e7125 100644
      defaultTypingAttributes[NSParagraphStyleAttributeName] = defaultPStyle;
  
      // no emitting during styles reload
-@@ -911,6 +917,7 @@ - (void)refreshLineHeight {
+@@ -809,15 +830,15 @@ - (void)updateProps:(Props::Shared const &)props
+   if (newViewProps.autoCapitalize != oldViewProps.autoCapitalize) {
+     NSString *str = [NSString fromCppString:newViewProps.autoCapitalize];
+     if ([str isEqualToString:@"none"]) {
+-      textView.autocapitalizationType = UITextAutocapitalizationTypeNone;
++      _baseAutocapitalizationType = UITextAutocapitalizationTypeNone;
+     } else if ([str isEqualToString:@"sentences"]) {
+-      textView.autocapitalizationType = UITextAutocapitalizationTypeSentences;
++      _baseAutocapitalizationType = UITextAutocapitalizationTypeSentences;
+     } else if ([str isEqualToString:@"words"]) {
+-      textView.autocapitalizationType = UITextAutocapitalizationTypeWords;
++      _baseAutocapitalizationType = UITextAutocapitalizationTypeWords;
+     } else if ([str isEqualToString:@"characters"]) {
+-      textView.autocapitalizationType =
+-          UITextAutocapitalizationTypeAllCharacters;
++      _baseAutocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
+     }
++    textView.autocapitalizationType = _baseAutocapitalizationType;
+ 
+     // textView needs to be refocused on autocapitalization type change and we
+     // don't want to emit these events
+@@ -829,6 +850,15 @@ - (void)updateProps:(Props::Shared const &)props
+     }
+   }
+ 
++  // a new screenplay page config lays every paragraph out again (a font change
++  // already rebuilt the text against it) and re-reads the keyboard's caps
++  if (screenplayConfigChanged) {
++    if (!stylePropChanged) {
++      [screenplayStyle layoutAll];
++    }
++    [self updateScreenplayKeyboard];
++  }
++
+   // isOnChangeHtmlSet
+   _emitHtml = newViewProps.isOnChangeHtmlSet;
+ 
+@@ -911,6 +941,7 @@ - (void)refreshLineHeight {
                  if (pStyle == nil)
                    return;
                  pStyle.minimumLineHeight = [config scaledPrimaryLineHeight];
@@ -532,7 +715,124 @@ index a899aa6..36e7125 100644
                  [textView.textStorage addAttribute:NSParagraphStyleAttributeName
                                               value:pStyle
                                               range:range];
-@@ -2021,10 +2028,72 @@ - (void)textViewDidChangeSelection:(UITextView *)textView {
+@@ -1120,6 +1151,15 @@ - (void)tryUpdatingActiveStyles {
+     updateNeeded = YES;
+   }
+ 
++  // detect screenplay element change; the keyboard's caps follow the element
++  ScreenplayStyle *screenplayStyle = stylesDict[@([ScreenplayStyle getType])];
++  NSString *currentScreenplay =
++      [screenplayStyle isActive] ? [screenplayStyle tagNameAtCaret] : @"";
++  if (![currentScreenplay isEqualToString:_recentlyEmittedScreenplay]) {
++    updateNeeded = YES;
++  }
++  [self updateScreenplayKeyboard];
++
+   if (updateNeeded) {
+     auto emitter = [self getEventEmitter];
+     if (emitter != nullptr) {
+@@ -1127,6 +1167,7 @@ - (void)tryUpdatingActiveStyles {
+       _activeStyles = newActiveStyles;
+       _blockedStyles = newBlockedStyles;
+       _recentlyEmittedAlignment = currentAlignment;
++      _recentlyEmittedScreenplay = currentScreenplay;
+ 
+       emitter->onChangeState(
+           {.bold = GET_STYLE_STATE([BoldStyle getType]),
+@@ -1148,7 +1189,8 @@ - (void)tryUpdatingActiveStyles {
+            .codeBlock = GET_STYLE_STATE([CodeBlockStyle getType]),
+            .image = GET_STYLE_STATE([ImageStyle getType]),
+            .checkboxList = GET_STYLE_STATE([CheckboxListStyle getType]),
+-           .alignment = [currentAlignment UTF8String]});
++           .alignment = [currentAlignment UTF8String],
++           .screenplay = [currentScreenplay UTF8String]});
+     }
+   }
+ 
+@@ -1282,6 +1324,19 @@ - (void)handleCommand:(const NSString *)commandName args:(const NSArray *)args {
+   } else if ([commandName isEqualToString:@"requestHTML"]) {
+     NSInteger requestId = [((NSNumber *)args[0]) integerValue];
+     [self requestHTML:requestId];
++  } else if ([commandName isEqualToString:@"setScreenplayElement"]) {
++    NSString *tag = (NSString *)args[0];
++    ScreenplayStyle *screenplayStyle = stylesDict[@([ScreenplayStyle getType])];
++    if ([screenplayStyle isActive]) {
++      // the paragraph(s) under the caret or selection, and what is typed next
++      [screenplayStyle setTag:tag
++                     forRange:textView.selectedRange
++                   withTyping:YES];
++      [self anyTextMayHaveBeenModified];
++      // the text did not change, so nothing else reports the new element or
++      // moves the keyboard's caps
++      [self tryUpdatingActiveStyles];
++    }
+   } else if ([commandName isEqualToString:@"setTextAlignment"]) {
+     NSString *alignmentString = (NSString *)args[0];
+ 
+@@ -1616,6 +1671,26 @@ - (void)startMentionWithIndicator:(NSString *)indicator {
+   }
+ }
+ 
++// The keyboard types capitals on a capitals element (a scene heading, a cue, a
++// transition) and as the app asked everywhere else. A change to the type only
++// reaches the keyboard on screen once its input views are reloaded.
++- (void)updateScreenplayKeyboard {
++  ScreenplayStyle *screenplayStyle = stylesDict[@([ScreenplayStyle getType])];
++  if (![screenplayStyle isActive]) {
++    return;
++  }
++  UITextAutocapitalizationType wanted =
++      [screenplayStyle capsAtCaret] ? UITextAutocapitalizationTypeAllCharacters
++                                    : _baseAutocapitalizationType;
++  if (textView.autocapitalizationType == wanted) {
++    return;
++  }
++  textView.autocapitalizationType = wanted;
++  if ([textView isFirstResponder]) {
++    [textView reloadInputViews];
++  }
++}
++
+ - (void)manageSelectionBasedChanges {
+   NSString *currentString = [textView.textStorage.string copy];
+ 
+@@ -1668,6 +1743,10 @@ - (void)anyTextMayHaveBeenModified {
+     return;
+   }
+ 
++  // screenplay: give the paragraph a Return just started its element
++  [(ScreenplayStyle *)stylesDict[@([ScreenplayStyle getType])]
++      applyPendingEnter];
++
+   // zero width space adding or removal
+   [ZeroWidthSpaceUtils handleZeroWidthSpacesInHost:self];
+ 
+@@ -1918,6 +1997,24 @@ - (void)handleKeyPressInRange:(NSString *)text range:(NSRange)range {
+ - (bool)textView:(UITextView *)textView
+     shouldChangeTextInRange:(NSRange)range
+             replacementText:(NSString *)text {
++  // screenplay: a Return starts the next element (or, on an empty line, drops
++  // back to action, which changes no text)
++  if ([(ScreenplayStyle *)stylesDict[@([ScreenplayStyle getType])]
++          noteReplacementInRange:range
++                            text:text]) {
++    [self tryUpdatingActiveStyles];
++    // the text is as it was, but the element changed: tell the app, which
++    // checks the HTML and saves what differs
++    auto emitter = [self getEventEmitter];
++    if (emitter != nullptr && _emitTextChange) {
++      NSString *current = [[textView.textStorage.string
++          stringByReplacingOccurrencesOfString:@"\u200B"
++                                    withString:@""] copy];
++      emitter->onChangeText({.value = [current toCppString]});
++    }
++    return false;
++  }
++
+   // Capture the attributes at range.location that are being replaced
+   // (autocorrect / predictive) so didProcessEditing: can re-stamp them onto the
+   // replacement. Only capture for genuine replacements (text.length > 0), not
+@@ -2021,10 +2118,72 @@ - (void)textViewDidChangeSelection:(UITextView *)textView {
           .text = [textAtSelection toCppString]});
    }
  
@@ -954,10 +1254,18 @@ index 72c9620..49394a8 100644
                                     CGRect lineRect =
                                         CGRectMake(x, y, width, height);
 diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp
-index 26fa754..148e748 100644
+index 26fa754..a567794 100644
 --- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp
 +++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.cpp
-@@ -235,6 +235,22 @@ payload.setProperty(runtime, "text", event.text);
+@@ -186,6 +186,7 @@ void EnrichedTextInputViewEventEmitter::onChangeState(OnChangeState event) const
+   payload.setProperty(runtime, "checkboxList", checkboxList);
+ }
+ payload.setProperty(runtime, "alignment", event.alignment);
++payload.setProperty(runtime, "screenplay", event.screenplay);
+     return payload;
+   });
+ }
+@@ -235,6 +236,22 @@ payload.setProperty(runtime, "text", event.text);
  }
  
  
@@ -981,10 +1289,18 @@ index 26fa754..148e748 100644
    dispatchEvent("requestHtmlResult", [event=std::move(event)](jsi::Runtime &runtime) {
      auto payload = jsi::Object(runtime);
 diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h
-index 0da8313..c90be70 100644
+index 0da8313..29e20e5 100644
 --- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h
 +++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h
-@@ -194,6 +194,17 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+@@ -168,6 +168,7 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+     OnChangeStateMention mention;
+     OnChangeStateCheckboxList checkboxList;
+     std::string alignment;
++    std::string screenplay;
+     };
+ 
+   struct OnLinkDetected {
+@@ -194,6 +195,17 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
      std::string text;
      };
  
@@ -1002,7 +1318,7 @@ index 0da8313..c90be70 100644
    struct OnRequestHtmlResult {
        int requestId;
      folly::dynamic html;
-@@ -380,6 +391,8 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
+@@ -380,6 +392,8 @@ class EnrichedTextInputViewEventEmitter : public ViewEventEmitter {
  
    void onChangeSelection(OnChangeSelection value) const;
  
@@ -1012,18 +1328,19 @@ index 0da8313..c90be70 100644
  
    void onInputKeyPress(OnInputKeyPress value) const;
 diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
-index 9569683..ab23db5 100644
+index 9569683..f6f3638 100644
 --- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
 +++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.cpp
-@@ -38,6 +38,7 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
+@@ -38,6 +38,8 @@ EnrichedTextInputViewProps::EnrichedTextInputViewProps(
      returnKeyLabel(convertRawProp(context, rawProps, "returnKeyLabel", sourceProps.returnKeyLabel, {})),
      submitBehavior(convertRawProp(context, rawProps, "submitBehavior", sourceProps.submitBehavior, {})),
      allowFontScaling(convertRawProp(context, rawProps, "allowFontScaling", sourceProps.allowFontScaling, {false})),
 +    paragraphSpacing(convertRawProp(context, rawProps, "paragraphSpacing", sourceProps.paragraphSpacing, {0.0})),
++    screenplay(convertRawProp(context, rawProps, "screenplay", sourceProps.screenplay, {})),
      color(convertRawProp(context, rawProps, "color", sourceProps.color, {})),
      fontSize(convertRawProp(context, rawProps, "fontSize", sourceProps.fontSize, {0.0})),
      lineHeight(convertRawProp(context, rawProps, "lineHeight", sourceProps.lineHeight, {0.0})),
-@@ -137,6 +138,10 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
+@@ -137,6 +139,14 @@ folly::dynamic EnrichedTextInputViewProps::getDiffProps(
      result["allowFontScaling"] = allowFontScaling;
    }
      
@@ -1031,26 +1348,1163 @@ index 9569683..ab23db5 100644
 +    result["paragraphSpacing"] = paragraphSpacing;
 +  }
 +    
++  if (screenplay != oldProps->screenplay) {
++    result["screenplay"] = screenplay;
++  }
++    
    if (color != oldProps->color) {
      result["color"] = *color;
    }
 diff --git a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h
-index b8da319..5f133e8 100644
+index b8da319..2677bda 100644
 --- a/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h
 +++ b/node_modules/react-native-enriched-html/ios/generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h
-@@ -881,6 +881,7 @@ class EnrichedTextInputViewProps final : public ViewProps {
+@@ -881,6 +881,8 @@ class EnrichedTextInputViewProps final : public ViewProps {
    std::string returnKeyLabel{};
    std::string submitBehavior{};
    bool allowFontScaling{false};
 +  Float paragraphSpacing{0.0};
++  std::string screenplay{};
    SharedColor color{};
    Float fontSize{0.0};
    Float lineHeight{0.0};
+diff --git a/node_modules/react-native-enriched-html/ios/htmlParser/HtmlParser.mm b/node_modules/react-native-enriched-html/ios/htmlParser/HtmlParser.mm
+index 0ed3d87..20a5457 100644
+--- a/node_modules/react-native-enriched-html/ios/htmlParser/HtmlParser.mm
++++ b/node_modules/react-native-enriched-html/ios/htmlParser/HtmlParser.mm
+@@ -5,6 +5,8 @@
+ #import "ImageData.h"
+ #import "LinkData.h"
+ #import "MentionParams.h"
++#import "ScreenplayEntry.h"
++#import "ScreenplayUtils.h"
+ #import "StringExtension.h"
+ #import "StyleHeaders.h"
+ #import "StylePair.h"
+@@ -424,6 +426,8 @@ + (NSArray *_Nonnull)getTextAndStylesFromHtml:(NSString *_Nonnull)fixedHtml
+   NSMutableDictionary *checkboxStates = [[NSMutableDictionary alloc] init];
+   NSMutableArray<AlignmentEntry *> *foundAlignments =
+       [[NSMutableArray alloc] init];
++  NSMutableArray<ScreenplayEntry *> *foundScreenplay =
++      [[NSMutableArray alloc] init];
+   BOOL insideCheckboxList = NO;
+   NSInteger precedingImageCount = 0;
+   BOOL insideTag = NO;
+@@ -594,6 +598,12 @@ + (NSArray *_Nonnull)getTextAndStylesFromHtml:(NSString *_Nonnull)fixedHtml
+                        plainText:plainText
+                  foundAlignments:foundAlignments
+              precedingImageCount:precedingImageCount];
++        if ([currentTagName isEqualToString:@"p"]) {
++          [self checkForScreenplay:ongoingTags[currentTagName]
++                         plainText:plainText
++                  foundScreenplay:foundScreenplay
++              precedingImageCount:precedingImageCount];
++        }
+         [self finalizeTagEntry:currentTagName
+                        ongoingTags:ongoingTags
+             initiallyProcessedTags:initiallyProcessedTags
+@@ -845,7 +855,7 @@ + (NSArray *_Nonnull)getTextAndStylesFromHtml:(NSString *_Nonnull)fixedHtml
+     [processedStyles addObject:styleArr];
+   }
+ 
+-  return @[ plainText, processedStyles, foundAlignments ];
++  return @[ plainText, processedStyles, foundAlignments, foundScreenplay ];
+ }
+ 
+ + (NSString *)parseToHtmlFromRange:(NSRange)range
+@@ -877,8 +887,10 @@ + (NSString *)parseToHtmlFromRange:(NSRange)range
+     // check each existing style existence
+     for (NSNumber *type in host.stylesDict) {
+       StyleBase *style = host.stylesDict[type];
+-      // we do not want to add <></> tags for alignment
+-      if ([style isKindOfClass:[AlignmentStyle class]]) {
++      // we do not want to add <></> tags for alignment, nor for a screenplay
++      // element (it is an attribute of the <p>, see prepareCssStyleString)
++      if ([style isKindOfClass:[AlignmentStyle class]] ||
++          [style isKindOfClass:[ScreenplayStyle class]]) {
+         continue;
+       }
+       if ([style detect:currentRange]) {
+@@ -1455,6 +1467,16 @@ + (NSString *)prepareCssStyleString:(NSInteger)location
+       [host.textView.textStorage attribute:NSParagraphStyleAttributeName
+                                    atIndex:location
+                             effectiveRange:nil];
++
++  // A screenplay element is written as data-sp, and stands in for the
++  // alignment its layout gave the paragraph (a transition sits flush right):
++  // that is not text-align the author chose.
++  NSString *screenplayAttr =
++      [ScreenplayUtils htmlAttributeForTextLists:pStyle.textLists];
++  if (screenplayAttr != nil) {
++    return screenplayAttr;
++  }
++
+   NSString *alignStr = [AlignmentUtils cssValueForAlignment:pStyle.alignment];
+ 
+   if (alignStr) {
+@@ -1464,6 +1486,31 @@ + (NSString *)prepareCssStyleString:(NSInteger)location
+   return @"";
+ }
+ 
++// A <p data-sp="..."> is a screenplay element. Unlike an alignment, an empty
++// paragraph needs no placeholder character: its newline (or, at the very end of
++// the text, the app's remembered choice) carries the element.
+++ (void)checkForScreenplay:(NSArray *)tagData
++                 plainText:(NSMutableString *)plainText
++           foundScreenplay:(NSMutableArray<ScreenplayEntry *> *)foundScreenplay
++       precedingImageCount:(NSInteger)precedingImageCount {
++  if (tagData == nil) {
++    return;
++  }
++
++  NSString *storedParams = (tagData.count > 2) ? tagData[2] : nil;
++  NSString *tag = [ScreenplayUtils tagFromHtmlParams:storedParams];
++  if (tag == nil) {
++    return;
++  }
++
++  NSInteger startLoc = [tagData[0] integerValue];
++  ScreenplayEntry *entry = [[ScreenplayEntry alloc] init];
++  entry.tag = tag;
++  entry.range = NSMakeRange(startLoc + precedingImageCount,
++                            plainText.length - startLoc);
++  [foundScreenplay addObject:entry];
++}
++
+ + (void)checkForAlignments:(NSArray *)tagData
+                  plainText:(NSMutableString *)plainText
+            foundAlignments:(NSMutableArray<AlignmentEntry *> *)foundAlignments
+diff --git a/node_modules/react-native-enriched-html/ios/inputAttributesManager/InputAttributesManager.mm b/node_modules/react-native-enriched-html/ios/inputAttributesManager/InputAttributesManager.mm
+index fc07d87..29b4514 100644
+--- a/node_modules/react-native-enriched-html/ios/inputAttributesManager/InputAttributesManager.mm
++++ b/node_modules/react-native-enriched-html/ios/inputAttributesManager/InputAttributesManager.mm
+@@ -61,7 +61,15 @@ - (void)clearRemovedTypingAttributes {
+   [_removedTypingAttributes removeAllObjects];
+ }
+ 
++- (ScreenplayStyle *)screenplayStyle {
++  return _input->stylesDict[@([ScreenplayStyle getType])];
++}
++
+ - (void)handleDirtyRangesStyling {
++  // Every range an edit touched, the empty ones (a deletion) too: a screenplay
++  // paragraph's layout depends on its neighbours.
++  NSArray<NSValue *> *editedRanges = [_dirtyRanges copy];
++
+   // Filter out 0 length ranges for styling.
+   NSPredicate *predicate = [NSPredicate
+       predicateWithBlock:^BOOL(NSValue *evaluatedObject, NSDictionary *_) {
+@@ -122,6 +130,8 @@ - (void)handleDirtyRangesStyling {
+       }
+     }
+   }
++  [[self screenplayStyle] refreshLayoutForRanges:editedRanges];
++
+   // do the typing attributes management, with no selection
+   [self manageTypingAttributesWithOnlySelection:NO];
+ 
+@@ -152,6 +162,7 @@ - (void)manageTypingAttributesWithOnlySelection:(BOOL)onlySelectionChanged {
+ 
+       [ParagraphAttributesUtils resetTypingAttributes:_input
+                                   preservingAlignment:savedAlignment];
++      [[self screenplayStyle] syncTypingAttributes];
+       return;
+     }
+   }
+@@ -217,6 +228,9 @@ - (void)manageTypingAttributesWithOnlySelection:(BOOL)onlySelectionChanged {
+   }
+ 
+   textView.typingAttributes = newAttrs;
++
++  // a screenplay's typing belongs to the paragraph under the caret
++  [[self screenplayStyle] syncTypingAttributes];
+ }
+ 
+ @end
+diff --git a/node_modules/react-native-enriched-html/ios/inputHtmlParser/InputHtmlParser.mm b/node_modules/react-native-enriched-html/ios/inputHtmlParser/InputHtmlParser.mm
+index 05c331b..ae3446f 100644
+--- a/node_modules/react-native-enriched-html/ios/inputHtmlParser/InputHtmlParser.mm
++++ b/node_modules/react-native-enriched-html/ios/inputHtmlParser/InputHtmlParser.mm
+@@ -2,6 +2,7 @@
+ #import "AlignmentEntry.h"
+ #import "EnrichedTextInputView.h"
+ #import "HtmlParser.h"
++#import "ScreenplayEntry.h"
+ #import "StringExtension.h"
+ #import "StyleHeaders.h"
+ #import "StyleUtils.h"
+@@ -29,6 +30,7 @@ - (void)replaceWholeFromHtml:(NSString *_Nonnull)html {
+     NSString *plainText = (NSString *)processingResult[0];
+     NSArray *stylesInfo = (NSArray *)processingResult[1];
+     NSArray *alignments = (NSArray *)processingResult[2];
++    NSArray *screenplay = (NSArray *)processingResult[3];
+ 
+     // set new text
+     _input->textView.text = plainText;
+@@ -38,6 +40,7 @@ - (void)replaceWholeFromHtml:(NSString *_Nonnull)html {
+            offsetFromBeginning:0
+                plainTextLength:plainText.length];
+     [self applyProcessedAlignments:alignments offset:0];
++    [self applyProcessedScreenplay:screenplay offset:0];
+     [_input anyTextMayHaveBeenModified];
+   } @catch (NSException *exception) {
+     RCTLogWarn(@"[EnrichedTextInput]: Failed to parse HTML: (%@), falling back "
+@@ -56,6 +59,7 @@ - (void)replaceFromHtml:(NSString *_Nonnull)html range:(NSRange)range {
+     NSString *plainText = (NSString *)processingResult[0];
+     NSArray *stylesInfo = (NSArray *)processingResult[1];
+     NSArray *alignments = (NSArray *)processingResult[2];
++    NSArray *screenplay = (NSArray *)processingResult[3];
+ 
+     // we can use ready replace util
+     [TextInsertionUtils replaceText:plainText
+@@ -68,6 +72,7 @@ - (void)replaceFromHtml:(NSString *_Nonnull)html range:(NSRange)range {
+            offsetFromBeginning:range.location
+                plainTextLength:plainText.length];
+     [self applyProcessedAlignments:alignments offset:range.location];
++    [self applyProcessedScreenplay:screenplay offset:range.location];
+     [_input anyTextMayHaveBeenModified];
+   } @catch (NSException *exception) {
+     RCTLogWarn(@"[EnrichedTextInput]: Failed to parse HTML: (%@), falling back "
+@@ -88,6 +93,7 @@ - (void)insertFromHtml:(NSString *_Nonnull)html location:(NSInteger)location {
+     NSString *plainText = (NSString *)processingResult[0];
+     NSArray *stylesInfo = (NSArray *)processingResult[1];
+     NSArray *alignments = (NSArray *)processingResult[2];
++    NSArray *screenplay = (NSArray *)processingResult[3];
+ 
+     // same here, insertion utils got our back
+     [TextInsertionUtils insertText:plainText
+@@ -100,6 +106,7 @@ - (void)insertFromHtml:(NSString *_Nonnull)html location:(NSInteger)location {
+            offsetFromBeginning:location
+                plainTextLength:plainText.length];
+     [self applyProcessedAlignments:alignments offset:location];
++    [self applyProcessedScreenplay:screenplay offset:location];
+     [_input anyTextMayHaveBeenModified];
+   } @catch (NSException *exception) {
+     RCTLogWarn(@"[EnrichedTextInput]: Failed to parse HTML: (%@), falling back "
+@@ -220,6 +227,22 @@ - (void)applyProcessedAlignments:(NSArray<AlignmentEntry *> *)alignments
+   }
+ }
+ 
++// The elements a <p data-sp> carried. They are kept as markers whether or not
++// the app sent a layout config, so a tag survives a round trip untouched.
++- (void)applyProcessedScreenplay:(NSArray<ScreenplayEntry *> *)entries
++                          offset:(NSInteger)offset {
++  ScreenplayStyle *style = _input.stylesDict[@([ScreenplayStyle getType])];
++  if (style == nil) {
++    return;
++  }
++
++  for (ScreenplayEntry *entry in entries) {
++    NSRange finalRange =
++        NSMakeRange(offset + entry.range.location, entry.range.length);
++    [style setTag:entry.tag forRange:finalRange withTyping:NO];
++  }
++}
++
+ - (NSString *_Nullable)initiallyProcessHtml:(NSString *_Nonnull)html {
+   return [HtmlParser initiallyProcessHtml:html
+                         useHtmlNormalizer:_input->useHtmlNormalizer];
+diff --git a/node_modules/react-native-enriched-html/ios/interfaces/ScreenplayEntry.h b/node_modules/react-native-enriched-html/ios/interfaces/ScreenplayEntry.h
+new file mode 100644
+index 0000000..d86c2f9
+--- /dev/null
++++ b/node_modules/react-native-enriched-html/ios/interfaces/ScreenplayEntry.h
+@@ -0,0 +1,11 @@
++#pragma once
++#import <UIKit/UIKit.h>
++
++// A screenplay element found on a <p data-sp="..."> while parsing HTML: the tag
++// as written and the text range of the paragraph, like AlignmentEntry.
++@interface ScreenplayEntry : NSObject
++
++@property(nonatomic, assign) NSRange range;
++@property(nonatomic, copy) NSString *tag;
++
++@end
+diff --git a/node_modules/react-native-enriched-html/ios/interfaces/ScreenplayEntry.mm b/node_modules/react-native-enriched-html/ios/interfaces/ScreenplayEntry.mm
+new file mode 100644
+index 0000000..2ac806e
+--- /dev/null
++++ b/node_modules/react-native-enriched-html/ios/interfaces/ScreenplayEntry.mm
+@@ -0,0 +1,4 @@
++#import "ScreenplayEntry.h"
++
++@implementation ScreenplayEntry
++@end
+diff --git a/node_modules/react-native-enriched-html/ios/interfaces/StyleHeaders.h b/node_modules/react-native-enriched-html/ios/interfaces/StyleHeaders.h
+index aca5d4a..7064d18 100644
+--- a/node_modules/react-native-enriched-html/ios/interfaces/StyleHeaders.h
++++ b/node_modules/react-native-enriched-html/ios/interfaces/StyleHeaders.h
+@@ -5,6 +5,7 @@
+ #import "StyleBase.h"
+ 
+ @class EnrichedConfig;
++@class ScreenplayConfig;
+ 
+ @interface BoldStyle : StyleBase
+ @end
+@@ -98,6 +99,25 @@
+ - (NSString *)getStyleState;
+ @end
+ 
++// A screenplay element on a paragraph (see ScreenplayStyle.mm). Inert until the
++// app sends a `screenplay` config.
++@interface ScreenplayStyle : StyleBase
++- (BOOL)isActive;
++- (BOOL)setConfigFromJson:(NSString *)json;
++- (BOOL)capsForTag:(NSString *)tag;
++- (NSString *)tagAtCaret;
++- (NSString *)tagNameAtCaret;
++- (BOOL)capsAtCaret;
++- (void)setTag:(NSString *)tag
++      forRange:(NSRange)range
++    withTyping:(BOOL)withTyping;
++- (void)layoutAll;
++- (void)refreshLayoutForRanges:(NSArray<NSValue *> *)ranges;
++- (void)syncTypingAttributes;
++- (BOOL)noteReplacementInRange:(NSRange)range text:(NSString *)text;
++- (void)applyPendingEnter;
++@end
++
+ @interface BlockQuoteStyle : StyleBase
+ @end
+ 
+diff --git a/node_modules/react-native-enriched-html/ios/interfaces/StyleTypeEnum.h b/node_modules/react-native-enriched-html/ios/interfaces/StyleTypeEnum.h
+index 701d79e..0cf8b7b 100644
+--- a/node_modules/react-native-enriched-html/ios/interfaces/StyleTypeEnum.h
++++ b/node_modules/react-native-enriched-html/ios/interfaces/StyleTypeEnum.h
+@@ -23,5 +23,6 @@ typedef NS_ENUM(NSInteger, StyleType) {
+   Italic,
+   Underline,
+   Strikethrough,
++  Screenplay,
+   None,
+ };
+diff --git a/node_modules/react-native-enriched-html/ios/styles/ScreenplayStyle.mm b/node_modules/react-native-enriched-html/ios/styles/ScreenplayStyle.mm
+new file mode 100644
+index 0000000..4f91b07
+--- /dev/null
++++ b/node_modules/react-native-enriched-html/ios/styles/ScreenplayStyle.mm
+@@ -0,0 +1,486 @@
++#import "ScreenplayUtils.h"
++#import "StyleHeaders.h"
++#import "TextListsUtils.h"
++
++// A screenplay element on a paragraph, next to AlignmentStyle.
++//
++// The element rides in the paragraph's NSParagraphStyle.textLists as a marker
++// ("EnrichedScreenplay:<tag>", the way alignment rides as "EnrichedAlignment…"),
++// so it follows the paragraph through every edit the editor already handles
++// (the dirty-range restyling, typing attributes, undo) and round-trips through
++// HTML as `<p data-sp="<tag>">`. The tag is kept as written: a tag this build
++// has no metrics for lays out as action but is never rewritten.
++//
++// What the marker looks like (indents in columns of the editor's monospace
++// face, the blank line between paragraphs, capitals on the keyboard) comes from
++// the app's `screenplay` prop. With no config the style is inert: it only
++// carries markers an HTML load put there. Action has no marker.
++@implementation ScreenplayStyle {
++  ScreenplayConfig *_config;
++  NSString *_configJson;
++
++  // Return pressed with the caret at the end of a paragraph: where, how long
++  // the text was, and the element of that paragraph. Consumed by the change
++  // that follows.
++  BOOL _pendingEnter;
++  BOOL _pendingMidLine;
++  NSUInteger _pendingLocation;
++  NSUInteger _pendingLength;
++  NSString *_pendingTag;
++
++  // The element chosen for the empty line at the very end of the text, where
++  // there is no character to carry a marker (an empty script, or the line a
++  // trailing Return leaves), and the text length it was chosen for.
++  NSString *_trailingTag;
++  NSUInteger _trailingLength;
++}
++
+++ (StyleType)getType {
++  return Screenplay;
++}
++
++- (NSString *)getValue {
++  return [ScreenplayUtils markerForTag:@"action"];
++}
++
++- (NSString *)getMarkerPrefix {
++  return [ScreenplayUtils markerPrefix];
++}
++
++- (BOOL)isParagraph {
++  return YES;
++}
++
++- (BOOL)appliesStylingToTyping {
++  return YES;
++}
++
++- (void)toggle:(NSRange)range {
++  // no-op: an element is chosen, not toggled
++}
++
++// MARK: - Config
++
++- (BOOL)isActive {
++  return _config != nil;
++}
++
++- (BOOL)setConfigFromJson:(NSString *)json {
++  NSString *next = json.length > 0 ? json : nil;
++  if ((next == nil && _configJson == nil) || [next isEqualToString:_configJson]) {
++    return NO;
++  }
++  _configJson = [next copy];
++  _config = [ScreenplayConfig configFromJson:next];
++  _trailingTag = nil;
++  _pendingEnter = NO;
++  return YES;
++}
++
++- (BOOL)capsForTag:(NSString *)tag {
++  return _config != nil && [_config metricsForTag:tag].caps;
++}
++
++// MARK: - Reading the element
++
++- (UITextView *)textView {
++  return self.host.textView;
++}
++
++- (NSString *)tagInParagraphStyle:(NSParagraphStyle *)pStyle {
++  return [ScreenplayUtils tagFromTextLists:pStyle.textLists];
++}
++
++// The element of the paragraph that starts at `location` (a paragraph's first
++// character decides, as it does for TextKit), nil for action.
++- (NSString *)tagOfParagraphAt:(NSUInteger)location {
++  NSTextStorage *storage = self.textView.textStorage;
++  if (location >= storage.length) {
++    return nil;
++  }
++  NSParagraphStyle *pStyle = [storage attribute:NSParagraphStyleAttributeName
++                                        atIndex:location
++                                 effectiveRange:nil];
++  return [self tagInParagraphStyle:pStyle];
++}
++
++// Whether `location` is the empty line at the very end of the text: there is
++// no character in it to carry a marker.
++- (BOOL)isTrailingEmptyLineAt:(NSUInteger)location {
++  NSString *string = self.textView.textStorage.string;
++  NSUInteger length = string.length;
++  if (location < length) {
++    return NO;
++  }
++  return length == 0 || [[NSCharacterSet newlineCharacterSet]
++                            characterIsMember:[string characterAtIndex:length - 1]];
++}
++
++// The element of the empty line a text ending in a newline leaves, given the
++// one above it: the one chosen for it, else what Return starts after that.
++- (NSString *)trailingTagAfter:(NSString *)above {
++  NSUInteger textLength = self.textView.textStorage.length;
++  if (_trailingTag != nil && _trailingLength == textLength) {
++    return [_trailingTag isEqualToString:@"action"] ? nil : _trailingTag;
++  }
++  if (textLength == 0) {
++    return nil;
++  }
++  NSString *next = [_config tagAfterEnterFrom:above];
++  return [next isEqualToString:@"action"] ? nil : next;
++}
++
++// The element under the caret; nil for action.
++- (NSString *)tagAtCaret {
++  NSTextStorage *storage = self.textView.textStorage;
++  NSString *text = storage.string;
++  NSUInteger length = text.length;
++  NSUInteger caret = self.textView.selectedRange.location;
++  if (length == 0) {
++    return [self trailingTagAfter:nil];
++  }
++  if (caret >= length) {
++    unichar last = [text characterAtIndex:length - 1];
++    NSRange above = [text paragraphRangeForRange:NSMakeRange(length - 1, 0)];
++    NSString *aboveTag = [self tagOfParagraphAt:above.location];
++    if ([[NSCharacterSet newlineCharacterSet] characterIsMember:last]) {
++      return [self trailingTagAfter:aboveTag];
++    }
++    return aboveTag;
++  }
++  NSRange paragraph = [text paragraphRangeForRange:NSMakeRange(caret, 0)];
++  return [self tagOfParagraphAt:paragraph.location];
++}
++
++- (NSString *)tagNameAtCaret {
++  return [self tagAtCaret] ?: @"action";
++}
++
++- (BOOL)capsAtCaret {
++  return [self capsForTag:[self tagAtCaret]];
++}
++
++// MARK: - Layout
++
++- (CGFloat)columnWidth {
++  UIFont *font = self.host.defaultTypingAttributes[NSFontAttributeName];
++  if (font == nil) {
++    return 0;
++  }
++  return [@"0" sizeWithAttributes:@{NSFontAttributeName : font}].width;
++}
++
++// Indents, alignment and the gap after the paragraph, from the element's
++// metrics. Left alignment stays "natural" so the HTML never grows a
++// text-align it did not have.
++- (void)applyMetricsTo:(NSMutableParagraphStyle *)pStyle
++                   tag:(NSString *)tag
++               nextTag:(NSString *)nextTag {
++  CGFloat column = [self columnWidth];
++  if (_config == nil || column <= 0) {
++    return;
++  }
++  ScreenplayElementMetrics *metrics = [_config metricsForTag:tag];
++  CGFloat left = metrics.indent * column;
++  CGFloat right =
++      MAX(0, _config.columns - metrics.indent - metrics.width) * column;
++  pStyle.firstLineHeadIndent = left;
++  pStyle.headIndent = left;
++  pStyle.tailIndent = right > 0 ? -right : 0;
++  pStyle.alignment =
++      metrics.alignRight ? NSTextAlignmentRight : NSTextAlignmentNatural;
++  pStyle.paragraphSpacing = [_config tag:tag runsInto:nextTag]
++                                ? 0
++                                : [self.host.config scaledParagraphSpacing];
++}
++
++// Lay out the paragraphs `range` touches, and the ones either side of them: the
++// gap under a paragraph depends on the one below it.
++- (void)layoutRange:(NSRange)range {
++  if (_config == nil) {
++    return;
++  }
++  NSTextStorage *storage = self.textView.textStorage;
++  NSString *text = storage.string;
++  NSUInteger length = text.length;
++  if (length == 0) {
++    return;
++  }
++
++  NSUInteger first = MIN(range.location, length - 1);
++  NSUInteger last = MIN(MAX(NSMaxRange(range), 1) - 1, length - 1);
++  last = MAX(last, first);
++
++  NSRange start = [text paragraphRangeForRange:NSMakeRange(first, 0)];
++  if (start.location > 0) {
++    start = [text paragraphRangeForRange:NSMakeRange(start.location - 1, 0)];
++  }
++  NSRange end = [text paragraphRangeForRange:NSMakeRange(last, 0)];
++  NSUInteger limit = NSMaxRange(end);
++  if (limit < length) {
++    limit = NSMaxRange([text paragraphRangeForRange:NSMakeRange(limit, 0)]);
++  }
++
++  BOOL trailingEmptyLine =
++      [[NSCharacterSet newlineCharacterSet]
++          characterIsMember:[text characterAtIndex:length - 1]];
++
++  [storage beginEditing];
++  NSUInteger cursor = start.location;
++  while (cursor < limit && cursor < length) {
++    NSRange paragraph = [text paragraphRangeForRange:NSMakeRange(cursor, 0)];
++    if (paragraph.length == 0) {
++      break;
++    }
++    NSUInteger nextLocation = NSMaxRange(paragraph);
++    NSParagraphStyle *existing =
++        [storage attribute:NSParagraphStyleAttributeName
++                   atIndex:paragraph.location
++            effectiveRange:nil];
++    if (![ScreenplayUtils textListsHaveForeignMarker:existing.textLists]) {
++      NSString *tag = [self tagInParagraphStyle:existing];
++      NSString *nextTag = nil;
++      if (nextLocation < length) {
++        nextTag = [self tagOfParagraphAt:nextLocation];
++      } else if (trailingEmptyLine) {
++        nextTag = [self trailingTagAfter:tag];
++      }
++      NSMutableParagraphStyle *pStyle =
++          [existing mutableCopy]
++              ?: [self.host.defaultTypingAttributes[NSParagraphStyleAttributeName]
++                     mutableCopy]
++              ?: [[NSMutableParagraphStyle alloc] init];
++      [self applyMetricsTo:pStyle tag:tag nextTag:nextTag];
++      if (existing == nil || ![pStyle isEqual:existing]) {
++        [storage addAttribute:NSParagraphStyleAttributeName
++                        value:pStyle
++                        range:paragraph];
++      }
++    }
++    cursor = nextLocation;
++  }
++  [storage endEditing];
++}
++
++- (void)layoutAll {
++  [self layoutRange:NSMakeRange(0, self.textView.textStorage.length)];
++}
++
++// The restyling pass after an edit calls this with the ranges that changed, the
++// empty ones (a deletion) included.
++- (void)refreshLayoutForRanges:(NSArray<NSValue *> *)ranges {
++  if (_config == nil) {
++    return;
++  }
++  for (NSValue *value in ranges) {
++    [self layoutRange:value.rangeValue];
++  }
++}
++
++- (void)applyStyling:(NSRange)range {
++  [self layoutRange:range];
++}
++
++- (void)applyStylingToTypingAttrs:(NSMutableDictionary *)attributes {
++  if (_config == nil) {
++    return;
++  }
++  NSMutableParagraphStyle *pStyle =
++      [attributes[NSParagraphStyleAttributeName] mutableCopy];
++  if (pStyle == nil) {
++    return;
++  }
++  [self applyMetricsTo:pStyle
++                   tag:[self tagInParagraphStyle:pStyle]
++               nextTag:nil];
++  attributes[NSParagraphStyleAttributeName] = pStyle;
++}
++
++// MARK: - Typing
++
++// Make what is typed next belong to the paragraph the caret is in. UIKit takes
++// the typing attributes from the character before the caret, which at the start
++// of a line is the previous line's newline, and the editor drops them to the
++// bare list markers when the caret lands on an empty line.
++- (void)syncTypingAttributes {
++  if (_config == nil) {
++    return;
++  }
++  UITextView *textView = self.textView;
++  if (textView.selectedRange.length > 0 || textView.markedTextRange != nil) {
++    return;
++  }
++  NSString *tag = [self tagAtCaret];
++  NSMutableDictionary *attributes = [textView.typingAttributes mutableCopy];
++  NSMutableParagraphStyle *pStyle =
++      [attributes[NSParagraphStyleAttributeName] mutableCopy]
++          ?: [self.host.defaultTypingAttributes[NSParagraphStyleAttributeName]
++                 mutableCopy]
++          ?: [[NSMutableParagraphStyle alloc] init];
++  NSArray<NSTextList *> *lists =
++      [TextListsUtils textListsByRemovingPrefix:[self getMarkerPrefix]
++                                      fromArray:pStyle.textLists];
++  if (tag != nil) {
++    lists = [lists arrayByAddingObject:[[NSTextList alloc]
++                                           initWithMarkerFormat:
++                                               [ScreenplayUtils markerForTag:tag]
++                                                        options:0]];
++  }
++  pStyle.textLists = lists;
++  [self applyMetricsTo:pStyle tag:tag nextTag:nil];
++  attributes[NSParagraphStyleAttributeName] = pStyle;
++  textView.typingAttributes = attributes;
++}
++
++// MARK: - Choosing an element
++
++// Give the paragraphs `range` touches the element `tag` (action clears it).
++// With an empty range at the very end of the text there is no paragraph to
++// mark, so the choice is remembered for that line.
++- (void)setTag:(NSString *)tag
++      forRange:(NSRange)range
++    withTyping:(BOOL)withTyping {
++  NSString *marked = (tag != nil && [ScreenplayUtils isValidTag:tag] &&
++                      ![tag isEqualToString:@"action"])
++                         ? tag
++                         : nil;
++  NSTextStorage *storage = self.textView.textStorage;
++  NSUInteger length = storage.length;
++
++  if (range.length == 0 && [self isTrailingEmptyLineAt:range.location]) {
++    _trailingTag = marked ?: @"action";
++    _trailingLength = length;
++    if (withTyping && _config != nil) {
++      [self syncTypingAttributes];
++    }
++    [self layoutAll];
++    return;
++  }
++
++  NSRange paragraphs = [self actualUsedRange:range];
++  if (paragraphs.length == 0) {
++    return;
++  }
++  if (marked != nil) {
++    [self add:paragraphs
++             withValue:[ScreenplayUtils markerForTag:marked]
++            withTyping:withTyping
++        withDirtyRange:YES];
++  } else {
++    [self remove:paragraphs withDirtyRange:YES];
++  }
++  [self layoutRange:paragraphs];
++}
++
++// MARK: - Return
++
++// Whether the paragraph `location` sits in has no text: the start of an empty
++// text, a newline right after a newline, or the empty line a text ending in a
++// newline leaves.
++- (BOOL)paragraphIsEmptyAt:(NSUInteger)location {
++  NSString *string = self.textView.textStorage.string;
++  NSUInteger length = string.length;
++  if (length == 0) {
++    return YES;
++  }
++  NSCharacterSet *newlines = [NSCharacterSet newlineCharacterSet];
++  BOOL afterNewline =
++      location == 0 || [newlines characterIsMember:[string characterAtIndex:location - 1]];
++  if (location >= length) {
++    return afterNewline;
++  }
++  return afterNewline && [newlines characterIsMember:[string characterAtIndex:location]];
++}
++
++// Called before a change goes into the text; YES means the Return was handled
++// here and the text must not change. The same rules as the web editor
++// (src/lib/tiptap-screenplay.ts): a Return on an empty line that is not action
++// drops back to action instead of stacking empty elements, a Return splitting
++// speech leaves speech on both sides, and any other Return starts the element
++// that follows the one it ends or splits.
++- (BOOL)noteReplacementInRange:(NSRange)range text:(NSString *)text {
++  _pendingEnter = NO;
++  if (_config == nil) {
++    return NO;
++  }
++  BOOL isReturn = [text isEqualToString:@"\n"];
++  if (isReturn && range.length == 0 && [self paragraphIsEmptyAt:range.location]) {
++    NSString *current = [self tagAtCaret];
++    if (current != nil && [_config knowsTag:current]) {
++      [self setTag:nil forRange:range withTyping:YES];
++      return YES;
++    }
++  }
++  _trailingTag = nil;
++  if (!isReturn) {
++    return NO;
++  }
++  NSString *string = self.textView.textStorage.string;
++  NSUInteger length = string.length;
++  NSUInteger after = NSMaxRange(range);
++  BOOL endsParagraph =
++      after >= length ||
++      [[NSCharacterSet newlineCharacterSet] characterIsMember:[string characterAtIndex:after]];
++  _pendingTag = [self tagAtCaret];
++  _pendingMidLine = !endsParagraph;
++  _pendingLocation = range.location;
++  _pendingLength = length - range.length;
++  _pendingEnter = YES;
++  return NO;
++}
++
++// Called after a change went in. Only a Return in the middle of the text needs
++// work here: at the very end the new line takes its element from
++// `trailingTagAfter:`, whenever it is read.
++- (void)applyPendingEnter {
++  if (!_pendingEnter) {
++    return;
++  }
++  _pendingEnter = NO;
++  if (_config == nil) {
++    return;
++  }
++  NSString *string = self.textView.textStorage.string;
++  if (string.length != _pendingLength + 1 || _pendingLocation >= string.length ||
++      ![[NSCharacterSet newlineCharacterSet]
++          characterIsMember:[string characterAtIndex:_pendingLocation]]) {
++    return;
++  }
++  NSString *next = (_pendingMidLine && [_pendingTag isEqualToString:@"dialogue"])
++                       ? @"dialogue"
++                       : [_config tagAfterEnterFrom:_pendingTag];
++  if ([next isEqualToString:(_pendingTag ?: @"action")]) {
++    return;
++  }
++  NSUInteger newLine = _pendingLocation + 1;
++  if (newLine >= string.length) {
++    return;
++  }
++  [self setTag:next forRange:NSMakeRange(newLine, 0) withTyping:YES];
++}
++
++// MARK: - StyleBase
++
++- (BOOL)styleCondition:(id)value range:(NSRange)range {
++  NSParagraphStyle *pStyle = (NSParagraphStyle *)value;
++  if (pStyle == nil) {
++    return NO;
++  }
++  return [TextListsUtils textLists:pStyle.textLists
++                    containsPrefix:[self getMarkerPrefix]];
++}
++
++- (void)reapplyFromStylePair:(StylePair *)pair {
++  NSRange range = [pair.rangeValue rangeValue];
++  NSParagraphStyle *saved = pair.styleValue;
++  NSString *marker =
++      [TextListsUtils firstTextListWithPrefix:[self getMarkerPrefix]
++                                      inArray:saved.textLists]
++          .markerFormat;
++  if (marker == nil) {
++    return;
++  }
++  [self add:range withValue:marker withTyping:NO withDirtyRange:NO];
++}
++
++@end
+diff --git a/node_modules/react-native-enriched-html/ios/utils/ScreenplayUtils.h b/node_modules/react-native-enriched-html/ios/utils/ScreenplayUtils.h
+new file mode 100644
+index 0000000..ccc0563
+--- /dev/null
++++ b/node_modules/react-native-enriched-html/ios/utils/ScreenplayUtils.h
+@@ -0,0 +1,51 @@
++#import <UIKit/UIKit.h>
++
++// Where one screenplay element sits on the page, in columns of the editor's
++// monospace face.
++@interface ScreenplayElementMetrics : NSObject
++@property(nonatomic, assign) CGFloat indent;
++@property(nonatomic, assign) CGFloat width;
++@property(nonatomic, assign) BOOL alignRight;
++@property(nonatomic, assign) BOOL caps;
++@end
++
++// What the app tells the editor about the page (the `screenplay` prop, JSON):
++// the page's width in columns, each element's metrics, what Return starts after
++// each element, and which element pairs sit with no blank line between them.
++// The numbers belong to the app's shared screenplay engine; the editor holds no
++// page rules of its own.
++@interface ScreenplayConfig : NSObject
++@property(nonatomic, readonly) CGFloat columns;
+++ (instancetype _Nullable)configFromJson:(NSString *_Nullable)json;
++// Metrics for `tag`; a tag this config does not know lays out as action.
++- (ScreenplayElementMetrics *_Nonnull)metricsForTag:(NSString *_Nullable)tag;
++// The element a new paragraph takes when Return ends one tagged `tag`.
++- (NSString *_Nonnull)tagAfterEnterFrom:(NSString *_Nullable)tag;
++/// Whether the app's layout lists `tag` (a tag only a newer client writes is laid out as action but never rewritten).
++- (BOOL)knowsTag:(NSString *_Nullable)tag;
++// Whether `next` sits directly under `tag` with no blank line (a speech).
++- (BOOL)tag:(NSString *_Nullable)tag runsInto:(NSString *_Nullable)next;
++@end
++
++@interface ScreenplayUtils : NSObject
++
++// The NSTextList marker prefix a paragraph carries its element in, like the
++// alignment markers: "EnrichedScreenplay:<tag>".
+++ (NSString *_Nonnull)markerPrefix;
++// Whether `tag` is a plain slug. A tag is written into an HTML attribute, so
++// nothing else is kept.
+++ (BOOL)isValidTag:(NSString *_Nullable)tag;
+++ (NSString *_Nonnull)markerForTag:(NSString *_Nonnull)tag;
++// The element tag in a paragraph's text lists, or nil when it carries none
++// (which is action).
+++ (NSString *_Nullable)tagFromTextLists:(NSArray<NSTextList *> *_Nullable)lists;
++// Whether the text lists hold a marker that is neither an alignment nor a
++// screenplay element (a list, a quote).
+++ (BOOL)textListsHaveForeignMarker:(NSArray<NSTextList *> *_Nullable)lists;
++// `data-sp="tag"` for HTML, or nil for no element.
+++ (NSString *_Nullable)htmlAttributeForTextLists:
++    (NSArray<NSTextList *> *_Nullable)lists;
++// The tag in a tag's params string (`data-sp="character"`), or nil.
+++ (NSString *_Nullable)tagFromHtmlParams:(NSString *_Nullable)params;
++
++@end
+diff --git a/node_modules/react-native-enriched-html/ios/utils/ScreenplayUtils.mm b/node_modules/react-native-enriched-html/ios/utils/ScreenplayUtils.mm
+new file mode 100644
+index 0000000..8667b32
+--- /dev/null
++++ b/node_modules/react-native-enriched-html/ios/utils/ScreenplayUtils.mm
+@@ -0,0 +1,208 @@
++#import "ScreenplayUtils.h"
++
++static NSString *const kScreenplayMarkerPrefix = @"EnrichedScreenplay:";
++static NSString *const kActionTag = @"action";
++
++@implementation ScreenplayElementMetrics
++@end
++
++@implementation ScreenplayConfig {
++  CGFloat _columns;
++  NSDictionary<NSString *, ScreenplayElementMetrics *> *_elements;
++  NSDictionary<NSString *, NSString *> *_enter;
++  NSSet<NSString *> *_runs;
++}
++
++- (CGFloat)columns {
++  return _columns;
++}
++
++static NSString *runKey(NSString *from, NSString *to) {
++  return [NSString stringWithFormat:@"%@>%@", from, to];
++}
++
+++ (instancetype)configFromJson:(NSString *)json {
++  if (json.length == 0) {
++    return nil;
++  }
++  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
++  id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
++  if (![parsed isKindOfClass:[NSDictionary class]]) {
++    return nil;
++  }
++  NSDictionary *root = parsed;
++
++  NSNumber *columns = [root[@"columns"] isKindOfClass:[NSNumber class]]
++                          ? root[@"columns"]
++                          : nil;
++  if (columns == nil || columns.doubleValue <= 0) {
++    return nil;
++  }
++
++  NSMutableDictionary<NSString *, ScreenplayElementMetrics *> *elements =
++      [NSMutableDictionary new];
++  NSDictionary *rawElements =
++      [root[@"elements"] isKindOfClass:[NSDictionary class]] ? root[@"elements"]
++                                                             : @{};
++  for (NSString *tag in rawElements) {
++    NSDictionary *raw = rawElements[tag];
++    if (![ScreenplayUtils isValidTag:tag] ||
++        ![raw isKindOfClass:[NSDictionary class]]) {
++      continue;
++    }
++    ScreenplayElementMetrics *metrics = [ScreenplayElementMetrics new];
++    metrics.indent = [raw[@"indent"] doubleValue];
++    metrics.width = [raw[@"width"] doubleValue];
++    metrics.alignRight = [raw[@"align"] isEqual:@"right"];
++    metrics.caps = [raw[@"caps"] boolValue];
++    elements[tag] = metrics;
++  }
++  if (elements[kActionTag] == nil) {
++    ScreenplayElementMetrics *action = [ScreenplayElementMetrics new];
++    action.indent = 0;
++    action.width = columns.doubleValue;
++    elements[kActionTag] = action;
++  }
++
++  NSMutableDictionary<NSString *, NSString *> *enter = [NSMutableDictionary new];
++  NSDictionary *rawEnter =
++      [root[@"enter"] isKindOfClass:[NSDictionary class]] ? root[@"enter"] : @{};
++  for (NSString *tag in rawEnter) {
++    NSString *next = rawEnter[tag];
++    if ([ScreenplayUtils isValidTag:tag] &&
++        [ScreenplayUtils isValidTag:next]) {
++      enter[tag] = next;
++    }
++  }
++
++  NSMutableSet<NSString *> *runs = [NSMutableSet new];
++  NSArray *rawRuns =
++      [root[@"runs"] isKindOfClass:[NSArray class]] ? root[@"runs"] : @[];
++  for (NSArray *pair in rawRuns) {
++    if ([pair isKindOfClass:[NSArray class]] && pair.count == 2 &&
++        [pair[0] isKindOfClass:[NSString class]] &&
++        [pair[1] isKindOfClass:[NSString class]]) {
++      [runs addObject:runKey(pair[0], pair[1])];
++    }
++  }
++
++  ScreenplayConfig *config = [ScreenplayConfig new];
++  config->_columns = columns.doubleValue;
++  config->_elements = elements;
++  config->_enter = enter;
++  config->_runs = runs;
++  return config;
++}
++
++- (ScreenplayElementMetrics *)metricsForTag:(NSString *)tag {
++  ScreenplayElementMetrics *metrics = tag ? _elements[tag] : nil;
++  return metrics ?: _elements[kActionTag];
++}
++
++- (BOOL)knowsTag:(NSString *)tag {
++  return tag != nil && _elements[tag] != nil;
++}
++
++- (NSString *)tagAfterEnterFrom:(NSString *)tag {
++  return (tag ? _enter[tag] : nil) ?: kActionTag;
++}
++
++- (BOOL)tag:(NSString *)tag runsInto:(NSString *)next {
++  return [_runs containsObject:runKey(tag ?: kActionTag, next ?: kActionTag)];
++}
++
++@end
++
++@implementation ScreenplayUtils
++
+++ (NSString *)markerPrefix {
++  return kScreenplayMarkerPrefix;
++}
++
+++ (BOOL)isValidTag:(NSString *)tag {
++  if (![tag isKindOfClass:[NSString class]] || tag.length == 0 ||
++      tag.length > 32) {
++    return NO;
++  }
++  NSCharacterSet *alnum = [NSCharacterSet
++      characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz"
++                                         @"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"];
++  NSCharacterSet *rest = [NSCharacterSet
++      characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz"
++                                         @"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"];
++  if (![alnum characterIsMember:[tag characterAtIndex:0]]) {
++    return NO;
++  }
++  for (NSUInteger i = 1; i < tag.length; i++) {
++    if (![rest characterIsMember:[tag characterAtIndex:i]]) {
++      return NO;
++    }
++  }
++  return YES;
++}
++
+++ (NSString *)markerForTag:(NSString *)tag {
++  return [kScreenplayMarkerPrefix stringByAppendingString:tag];
++}
++
+++ (NSString *)tagFromTextLists:(NSArray<NSTextList *> *)lists {
++  for (NSTextList *list in lists) {
++    NSString *format = list.markerFormat;
++    if ([format hasPrefix:kScreenplayMarkerPrefix]) {
++      NSString *tag = [format substringFromIndex:kScreenplayMarkerPrefix.length];
++      return [self isValidTag:tag] ? tag : nil;
++    }
++  }
++  return nil;
++}
++
+++ (BOOL)textListsHaveForeignMarker:(NSArray<NSTextList *> *)lists {
++  for (NSTextList *list in lists) {
++    NSString *format = list.markerFormat;
++    if (![format hasPrefix:kScreenplayMarkerPrefix] &&
++        ![format hasPrefix:@"EnrichedAlignment"]) {
++      return YES;
++    }
++  }
++  return NO;
++}
++
+++ (NSString *)htmlAttributeForTextLists:(NSArray<NSTextList *> *)lists {
++  NSString *tag = [self tagFromTextLists:lists];
++  if (tag == nil || [tag isEqualToString:kActionTag]) {
++    return nil;
++  }
++  return [NSString stringWithFormat:@" data-sp=\"%@\"", tag];
++}
++
+++ (NSString *)tagFromHtmlParams:(NSString *)params {
++  if (params.length == 0) {
++    return nil;
++  }
++  static NSRegularExpression *regex;
++  static dispatch_once_t once;
++  dispatch_once(&once, ^{
++    regex = [NSRegularExpression
++        regularExpressionWithPattern:@"(?:^|\\s)data-sp\\s*=\\s*(?:\"([^\"]*)\"|'"
++                                     @"([^']*)')"
++                             options:0
++                               error:nil];
++  });
++  NSTextCheckingResult *match =
++      [regex firstMatchInString:params
++                        options:0
++                          range:NSMakeRange(0, params.length)];
++  if (match == nil) {
++    return nil;
++  }
++  NSRange range = [match rangeAtIndex:1].location != NSNotFound
++                      ? [match rangeAtIndex:1]
++                      : [match rangeAtIndex:2];
++  if (range.location == NSNotFound) {
++    return nil;
++  }
++  NSString *tag = [params substringWithRange:range];
++  return [self isValidTag:tag] ? tag : nil;
++}
++
++@end
+diff --git a/node_modules/react-native-enriched-html/ios/utils/StyleUtils.mm b/node_modules/react-native-enriched-html/ios/utils/StyleUtils.mm
+index 8382692..e9a723f 100644
+--- a/node_modules/react-native-enriched-html/ios/utils/StyleUtils.mm
++++ b/node_modules/react-native-enriched-html/ios/utils/StyleUtils.mm
+@@ -74,6 +74,7 @@ + (NSDictionary *)conflictMap {
+       @([BlockQuoteStyle getType]), @([CodeBlockStyle getType])
+     ],
+     @([AlignmentStyle getType]) : @[],
++    @([ScreenplayStyle getType]) : @[],
+     @([BlockQuoteStyle getType]) : @[
+       @([H1Style getType]), @([H2Style getType]), @([H3Style getType]),
+       @([H4Style getType]), @([H5Style getType]), @([H6Style getType]),
+@@ -121,6 +122,7 @@ + (NSDictionary *)blockingMap {
+     @([OrderedListStyle getType]) : @[],
+     @([CheckboxListStyle getType]) : @[],
+     @([AlignmentStyle getType]) : @[],
++    @([ScreenplayStyle getType]) : @[],
+     @([BlockQuoteStyle getType]) : @[],
+     @([CodeBlockStyle getType]) : @[],
+     @([ImageStyle getType]) : @[ @([InlineCodeStyle getType]) ]
+@@ -167,6 +169,13 @@ + (NSDictionary *)stylesDictForHost:(id<EnrichedViewHost>)host
+ 
+   NSMutableDictionary *dict = [NSMutableDictionary new];
+ 
++  // The screenplay element belongs to the input only: the read-only viewer has
++  // no counterpart in `viewerClasses`, so it is added outside that loop.
++  if (isInput) {
++    dict[@([ScreenplayStyle getType])] =
++        [[ScreenplayStyle alloc] initWithHost:host];
++  }
++
+   for (NSUInteger i = 0; i < baseClasses.count; i++) {
+     // Choose the class based on the context
+     Class targetClass = isInput ? baseClasses[i] : viewerClasses[i];
+diff --git a/node_modules/react-native-enriched-html/lib/module/native/EnrichedTextInput.js b/node_modules/react-native-enriched-html/lib/module/native/EnrichedTextInput.js
+index cb357ee..70bf875 100644
+--- a/node_modules/react-native-enriched-html/lib/module/native/EnrichedTextInput.js
++++ b/node_modules/react-native-enriched-html/lib/module/native/EnrichedTextInput.js
+@@ -202,6 +202,9 @@ export const EnrichedTextInput = ({
+     },
+     setTextAlignment: alignment => {
+       Commands.setTextAlignment(nullthrows(nativeRef.current), alignment);
++    },
++    setScreenplayElement: tag => {
++      Commands.setScreenplayElement(nullthrows(nativeRef.current), tag);
+     }
+   }));
+   const handleMentionEvent = e => {
 diff --git a/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts b/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
-index 20e9d12..6d7a6aa 100644
+index 20e9d12..a447cf1 100644
 --- a/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
 +++ b/node_modules/react-native-enriched-html/lib/module/spec/EnrichedTextInputNativeComponent.ts
-@@ -156,6 +156,19 @@ export interface OnChangeSelectionEvent {
+@@ -124,6 +124,8 @@ export interface OnChangeStateEvent {
+     isBlocking: boolean;
+   };
+   alignment: string;
++  // The screenplay element under the caret ("" when no screenplay layout is set)
++  screenplay: string;
+ }
+ 
+ export interface OnLinkDetected {
+@@ -156,6 +158,19 @@ export interface OnChangeSelectionEvent {
    text: string;
  }
  
@@ -1070,15 +2524,17 @@ index 20e9d12..6d7a6aa 100644
  export interface OnRequestHtmlResultEvent {
    requestId: Int32;
    html: UnsafeMixed;
-@@ -377,6 +390,7 @@ export interface NativeProps extends ViewProps {
+@@ -377,6 +392,9 @@ export interface NativeProps extends ViewProps {
    returnKeyLabel?: string;
    submitBehavior?: string;
    allowFontScaling?: boolean;
 +  paragraphSpacing?: Float;
++  // Screenplay page layout (JSON): see EnrichedTextInputProps.screenplay
++  screenplay?: string;
  
    // event callbacks
    onInputFocus?: DirectEventHandler<TargetedEvent>;
-@@ -388,6 +402,7 @@ export interface NativeProps extends ViewProps {
+@@ -388,6 +406,7 @@ export interface NativeProps extends ViewProps {
    onMentionDetected?: DirectEventHandler<OnMentionDetectedInternal>;
    onMention?: DirectEventHandler<OnMentionEvent>;
    onChangeSelection?: DirectEventHandler<OnChangeSelectionEvent>;
@@ -1086,6 +2542,25 @@ index 20e9d12..6d7a6aa 100644
    onRequestHtmlResult?: DirectEventHandler<OnRequestHtmlResultEvent>;
    onInputKeyPress?: DirectEventHandler<OnKeyPressEvent>;
    onPasteImages?: DirectEventHandler<OnPasteImagesEvent>;
+@@ -482,6 +501,10 @@ interface NativeCommands {
+     viewRef: React.ElementRef<ComponentType>,
+     alignment: string
+   ) => void;
++  setScreenplayElement: (
++    viewRef: React.ElementRef<ComponentType>,
++    tag: string
++  ) => void;
+ }
+ 
+ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
+@@ -516,6 +539,7 @@ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
+     'addMention',
+     'requestHTML',
+     'setTextAlignment',
++    'setScreenplayElement',
+   ],
+ });
+ 
 diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts
 index d99dad8..e76cd59 100644
 --- a/node_modules/react-native-enriched-html/lib/typescript/src/index.native.d.ts
@@ -1099,10 +2574,18 @@ index d99dad8..e76cd59 100644
  //# sourceMappingURL=index.native.d.ts.map
 \ No newline at end of file
 diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
-index 5b2fd66..643dfe6 100644
+index 5b2fd66..10f001d 100644
 --- a/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
 +++ b/node_modules/react-native-enriched-html/lib/typescript/src/spec/EnrichedTextInputNativeComponent.d.ts
-@@ -137,6 +137,16 @@ export interface OnChangeSelectionEvent {
+@@ -111,6 +111,7 @@ export interface OnChangeStateEvent {
+         isBlocking: boolean;
+     };
+     alignment: string;
++    screenplay: string;
+ }
+ export interface OnLinkDetected {
+     text: string;
+@@ -137,6 +138,16 @@ export interface OnChangeSelectionEvent {
      end: Int32;
      text: string;
  }
@@ -1119,15 +2602,16 @@ index 5b2fd66..643dfe6 100644
  export interface OnRequestHtmlResultEvent {
      requestId: Int32;
      html: UnsafeMixed;
-@@ -344,6 +354,7 @@ export interface NativeProps extends ViewProps {
+@@ -344,6 +355,8 @@ export interface NativeProps extends ViewProps {
      returnKeyLabel?: string;
      submitBehavior?: string;
      allowFontScaling?: boolean;
 +    paragraphSpacing?: Float;
++    screenplay?: string;
      onInputFocus?: DirectEventHandler<TargetedEvent>;
      onInputBlur?: DirectEventHandler<TargetedEvent>;
      onChangeText?: DirectEventHandler<OnChangeTextEvent>;
-@@ -353,6 +364,7 @@ export interface NativeProps extends ViewProps {
+@@ -353,6 +366,7 @@ export interface NativeProps extends ViewProps {
      onMentionDetected?: DirectEventHandler<OnMentionDetectedInternal>;
      onMention?: DirectEventHandler<OnMentionEvent>;
      onChangeSelection?: DirectEventHandler<OnChangeSelectionEvent>;
@@ -1135,11 +2619,31 @@ index 5b2fd66..643dfe6 100644
      onRequestHtmlResult?: DirectEventHandler<OnRequestHtmlResultEvent>;
      onInputKeyPress?: DirectEventHandler<OnKeyPressEvent>;
      onPasteImages?: DirectEventHandler<OnPasteImagesEvent>;
+@@ -398,6 +412,7 @@ interface NativeCommands {
+     addMention: (viewRef: React.ElementRef<ComponentType>, indicator: string, text: string, payload: string) => void;
+     requestHTML: (viewRef: React.ElementRef<ComponentType>, requestId: Int32) => void;
+     setTextAlignment: (viewRef: React.ElementRef<ComponentType>, alignment: string) => void;
++    setScreenplayElement: (viewRef: React.ElementRef<ComponentType>, tag: string) => void;
+ }
+ export declare const Commands: NativeCommands;
+ declare const _default: HostComponent<NativeProps>;
 diff --git a/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts b/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
-index 9b433e4..cdb4edf 100644
+index 9b433e4..fc0d108 100644
 --- a/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
 +++ b/node_modules/react-native-enriched-html/lib/typescript/src/types.d.ts
-@@ -352,6 +352,18 @@ export interface OnChangeSelectionEvent {
+@@ -335,6 +335,11 @@ export interface OnChangeStateEvent {
+         isBlocking: boolean;
+     };
+     alignment: string;
++    /**
++     * The screenplay element under the caret (`"action"` when it has none), sent
++     * with every state change while a `screenplay` layout is set. iOS only.
++     */
++    screenplay?: string;
+ }
+ export interface OnLinkDetected {
+     text: string;
+@@ -352,6 +357,18 @@ export interface OnChangeSelectionEvent {
      end: number;
      text: string;
  }
@@ -1158,7 +2662,20 @@ index 9b433e4..cdb4edf 100644
  export interface OnKeyPressEvent {
      key: string;
  }
-@@ -558,6 +570,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -477,6 +494,12 @@ export interface EnrichedTextInputInstance extends NativeMethods {
+      * @param alignment - One of `"left"`, `"center"`, `"right"`, `"justify"`, or `"auto"`.
+      */
+     setTextAlignment: (alignment: 'left' | 'center' | 'right' | 'justify' | 'auto') => void;
++    /**
++     * Gives the paragraph(s) at the current selection a screenplay element (the
++     * `data-sp` tag, `"action"` for none) and lays them out. Needs a `screenplay`
++     * layout. iOS only.
++     */
++    setScreenplayElement: (tag: string) => void;
+ }
+ export interface ContextMenuItem {
+     text: string;
+@@ -558,6 +581,24 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
       * expands to fit all content. Defaults to `true`.
       */
      scrollEnabled?: boolean;
@@ -1169,10 +2686,21 @@ index 9b433e4..cdb4edf 100644
 +     * Defaults to `0`.
 +     */
 +    paragraphSpacing?: number;
++    /**
++     * Lays paragraphs out as a screenplay while typing: JSON with `columns` (the
++     * page's width in columns of the editor's monospace face), `elements` (per
++     * `data-sp` tag: `indent`, `width`, `align`, `caps`), `enter` (the tag Return
++     * starts after each tag) and `runs` (tag pairs that sit with no blank line
++     * between). A paragraph's element is its `<p data-sp>` attribute, kept as
++     * written through every edit and in `getHTML()`; a tag with no entry lays out
++     * as `action`. The keyboard types capitals while the caret is in an element
++     * with `caps`. Unset, the editor is unchanged. iOS only.
++     */
++    screenplay?: string;
      /**
       * Regular expression used to auto-detect links as the user types. Set to
       * `null` to disable automatic link detection. Defaults to a built-in URL
-@@ -615,6 +634,12 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -615,6 +656,12 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
      onEndMention?: (indicator: string) => void;
      /** Called when the text selection range changes. */
      onChangeSelection?: (e: NativeSyntheticEvent<OnChangeSelectionEvent>) => void;
@@ -1197,11 +2725,34 @@ index 82d450b..fa6618c 100644
    OnKeyPressEvent,
    OnPasteImagesEvent,
    OnSubmitEditing,
+diff --git a/node_modules/react-native-enriched-html/src/native/EnrichedTextInput.tsx b/node_modules/react-native-enriched-html/src/native/EnrichedTextInput.tsx
+index feffab4..803b6eb 100644
+--- a/node_modules/react-native-enriched-html/src/native/EnrichedTextInput.tsx
++++ b/node_modules/react-native-enriched-html/src/native/EnrichedTextInput.tsx
+@@ -277,6 +277,9 @@ export const EnrichedTextInput = ({
+     ) => {
+       Commands.setTextAlignment(nullthrows(nativeRef.current), alignment);
+     },
++    setScreenplayElement: (tag: string) => {
++      Commands.setScreenplayElement(nullthrows(nativeRef.current), tag);
++    },
+   }));
+ 
+   const handleMentionEvent = (e: NativeSyntheticEvent<OnMentionEvent>) => {
 diff --git a/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts b/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
-index 20e9d12..6d7a6aa 100644
+index 20e9d12..a447cf1 100644
 --- a/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
 +++ b/node_modules/react-native-enriched-html/src/spec/EnrichedTextInputNativeComponent.ts
-@@ -156,6 +156,19 @@ export interface OnChangeSelectionEvent {
+@@ -124,6 +124,8 @@ export interface OnChangeStateEvent {
+     isBlocking: boolean;
+   };
+   alignment: string;
++  // The screenplay element under the caret ("" when no screenplay layout is set)
++  screenplay: string;
+ }
+ 
+ export interface OnLinkDetected {
+@@ -156,6 +158,19 @@ export interface OnChangeSelectionEvent {
    text: string;
  }
  
@@ -1221,15 +2772,17 @@ index 20e9d12..6d7a6aa 100644
  export interface OnRequestHtmlResultEvent {
    requestId: Int32;
    html: UnsafeMixed;
-@@ -377,6 +390,7 @@ export interface NativeProps extends ViewProps {
+@@ -377,6 +392,9 @@ export interface NativeProps extends ViewProps {
    returnKeyLabel?: string;
    submitBehavior?: string;
    allowFontScaling?: boolean;
 +  paragraphSpacing?: Float;
++  // Screenplay page layout (JSON): see EnrichedTextInputProps.screenplay
++  screenplay?: string;
  
    // event callbacks
    onInputFocus?: DirectEventHandler<TargetedEvent>;
-@@ -388,6 +402,7 @@ export interface NativeProps extends ViewProps {
+@@ -388,6 +406,7 @@ export interface NativeProps extends ViewProps {
    onMentionDetected?: DirectEventHandler<OnMentionDetectedInternal>;
    onMention?: DirectEventHandler<OnMentionEvent>;
    onChangeSelection?: DirectEventHandler<OnChangeSelectionEvent>;
@@ -1237,11 +2790,42 @@ index 20e9d12..6d7a6aa 100644
    onRequestHtmlResult?: DirectEventHandler<OnRequestHtmlResultEvent>;
    onInputKeyPress?: DirectEventHandler<OnKeyPressEvent>;
    onPasteImages?: DirectEventHandler<OnPasteImagesEvent>;
+@@ -482,6 +501,10 @@ interface NativeCommands {
+     viewRef: React.ElementRef<ComponentType>,
+     alignment: string
+   ) => void;
++  setScreenplayElement: (
++    viewRef: React.ElementRef<ComponentType>,
++    tag: string
++  ) => void;
+ }
+ 
+ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
+@@ -516,6 +539,7 @@ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
+     'addMention',
+     'requestHTML',
+     'setTextAlignment',
++    'setScreenplayElement',
+   ],
+ });
+ 
 diff --git a/node_modules/react-native-enriched-html/src/types.ts b/node_modules/react-native-enriched-html/src/types.ts
-index d4d0dfd..e8b8923 100644
+index d4d0dfd..011b881 100644
 --- a/node_modules/react-native-enriched-html/src/types.ts
 +++ b/node_modules/react-native-enriched-html/src/types.ts
-@@ -401,6 +401,19 @@ export interface OnChangeSelectionEvent {
+@@ -380,6 +380,11 @@ export interface OnChangeStateEvent {
+     isBlocking: boolean;
+   };
+   alignment: string;
++  /**
++   * The screenplay element under the caret (`"action"` when it has none), sent
++   * with every state change while a `screenplay` layout is set. iOS only.
++   */
++  screenplay?: string;
+ }
+ 
+ export interface OnLinkDetected {
+@@ -401,6 +406,19 @@ export interface OnChangeSelectionEvent {
    text: string;
  }
  
@@ -1261,7 +2845,21 @@ index d4d0dfd..e8b8923 100644
  export interface OnKeyPressEvent {
    key: string;
  }
-@@ -663,6 +676,14 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -564,6 +582,13 @@ export interface EnrichedTextInputInstance extends NativeMethods {
+   setTextAlignment: (
+     alignment: 'left' | 'center' | 'right' | 'justify' | 'auto'
+   ) => void;
++
++  /**
++   * Gives the paragraph(s) at the current selection a screenplay element (the
++   * `data-sp` tag, `"action"` for none) and lays them out. Needs a `screenplay`
++   * layout. iOS only.
++   */
++  setScreenplayElement: (tag: string) => void;
+ }
+ 
+ export interface ContextMenuItem {
+@@ -663,6 +688,26 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
     */
    scrollEnabled?: boolean;
  
@@ -1273,10 +2871,22 @@ index d4d0dfd..e8b8923 100644
 +   */
 +  paragraphSpacing?: number;
 +
++  /**
++   * Lays paragraphs out as a screenplay while typing: JSON with `columns` (the
++   * page's width in columns of the editor's monospace face), `elements` (per
++   * `data-sp` tag: `indent`, `width`, `align`, `caps`), `enter` (the tag Return
++   * starts after each tag) and `runs` (tag pairs that sit with no blank line
++   * between). A paragraph's element is its `<p data-sp>` attribute, kept as
++   * written through every edit and in `getHTML()`; a tag with no entry lays out
++   * as `action`. The keyboard types capitals while the caret is in an element
++   * with `caps`. Unset, the editor is unchanged. iOS only.
++   */
++  screenplay?: string;
++
    /**
     * Regular expression used to auto-detect links as the user types. Set to
     * `null` to disable automatic link detection. Defaults to a built-in URL
-@@ -735,6 +756,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
+@@ -735,6 +780,13 @@ export interface EnrichedTextInputProps extends Omit<ViewProps, 'children'> {
    /** Called when the text selection range changes. */
    onChangeSelection?: (e: NativeSyntheticEvent<OnChangeSelectionEvent>) => void;
  

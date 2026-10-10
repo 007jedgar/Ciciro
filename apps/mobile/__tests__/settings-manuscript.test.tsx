@@ -1,14 +1,25 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { Platform } from "react-native";
 import SettingsScreen from "../app/settings";
 import { defaultSettings } from "../lib/app-settings";
 import { AppThemeContext } from "../lib/app-theme-context";
-import "../lib/i18n";
+import i18n from "../lib/i18n";
+import { getScriptLayout, setScriptLayout } from "../lib/script-layout";
 import { makeLayout, THEME_PALETTES } from "../lib/theme";
 
 const mockParams: { project?: string } = {};
 const mockProject = jest.fn();
 const mockPatchProject = jest.fn();
 
+const mockPrefs = new Map<string, string>();
+jest.mock("../lib/prefs", () => ({
+  getPrefs: () => ({
+    getString: (key: string) => mockPrefs.get(key),
+    set: (key: string, value: string) => {
+      mockPrefs.set(key, value);
+    },
+  }),
+}));
 jest.mock("../lib/use-days-written", () => ({ useDaysWrittenInLast7: () => null }));
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(async () => {}),
@@ -192,5 +203,55 @@ describe("Settings: the open manuscript's own settings", () => {
     mockParams.project = "p1";
     await renderSettings();
     expect(screen.queryByText("Script format")).toBeNull();
+  });
+
+  describe("the page layout switch", () => {
+    const original = Platform.OS;
+    beforeEach(() => {
+      mockParams.project = "p1";
+      mockProject.mockReturnValue({ data: { id: "p1", kind: "screenplay" } });
+    });
+    afterEach(async () => {
+      Platform.OS = original;
+      await act(async () => {
+        setScriptLayout(false);
+        await i18n.changeLanguage("en");
+      });
+    });
+
+    it("is off until the author turns it on, and says what it does", async () => {
+      await renderSettings();
+      expect(screen.getByText("Page layout while typing")).toBeTruthy();
+      expect(screen.getByText(/Indents each line as it prints/)).toBeTruthy();
+      expect(screen.getByLabelText("Page layout while typing").props.value).toBe(false);
+      expect(screen.getByText(/Pages shows the script as it prints, with page numbers\. The phone edits plain lines/)).toBeTruthy();
+      expect(getScriptLayout()).toBe(false);
+
+      await act(async () => {
+        fireEvent(screen.getByLabelText("Page layout while typing"), "valueChange", true);
+      });
+      expect(getScriptLayout()).toBe(true);
+      expect(screen.getByLabelText("Page layout while typing").props.value).toBe(true);
+      expect(screen.getByText(/With page layout on, the editor sets each line/)).toBeTruthy();
+    });
+
+    it("is not offered where the editor cannot do it yet", async () => {
+      Platform.OS = "android";
+      await renderSettings();
+      expect(screen.getByText("Script format")).toBeTruthy();
+      expect(screen.queryByText("Page layout while typing")).toBeNull();
+    });
+
+    it("is grayed out, with an info button, in a language script formatting does not cover", async () => {
+      setScriptLayout(true);
+      await act(async () => {
+        await i18n.changeLanguage("zh");
+      });
+      await renderSettings();
+      const toggle = screen.getByLabelText("输入时显示页面排版");
+      expect(toggle.props.disabled).toBe(true);
+      expect(toggle.props.value).toBe(false);
+      expect(screen.getByTestId("page-layout-language-info")).toBeTruthy();
+    });
   });
 });

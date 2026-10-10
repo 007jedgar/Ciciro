@@ -1320,6 +1320,9 @@ const en = {
       formatNote:
         "A script is set in 12 pt Courier Prime on a 60 column page, so a page here is a page on paper. Your reading font and size never change it.",
       layoutNote: "Pages shows the script as it prints, with page numbers. The phone edits plain lines and the layout follows.",
+      pageLayout: "Page layout while typing",
+      pageLayoutHint: "Indents each line as it prints and puts the keyboard in capitals where the element is.",
+      layoutNoteOn: "Pages shows the script as it prints, with page numbers. With page layout on, the editor sets each line the same way as you type.",
       elementsNote: "Tap an element above the keyboard to set the line you are on.",
       dualNote: "Dual dialogue: on a speech, tap Dual above the keyboard to set it beside the speech above.",
       tabOrder: "Tab steps through: {{elements}}.",

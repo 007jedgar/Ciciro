@@ -6,6 +6,8 @@ import {
   marksFromEnrichedState,
 } from "../components/ChapterEditor";
 import type { EnrichedTextInputInstance, OnChangeStateEvent } from "react-native-enriched-html";
+import { screenplayLayoutConfig, scriptEditorMetrics } from "../lib/script-layout";
+import { fonts } from "../lib/theme";
 
 const editorStyle = {
   fontFamily: "Georgia",
@@ -552,5 +554,104 @@ describe("ChapterEditor", () => {
     const { paddingTop, paddingBottom } = screen.getByTestId("chapter-editor").props.style;
     expect(paddingTop).toBeUndefined();
     expect(paddingBottom).toBe(16 + 190);
+  });
+  describe("in a script's page layout", () => {
+    const script =
+      '<p data-block-id="h" data-sp="scene-heading">INT. LAB - DAY</p><p data-block-id="c" data-sp="character">MARA</p>';
+    const props = {
+      chapterId: "c1",
+      html: script,
+      editorStyle,
+      resumeOffset: null,
+      onFocused: jest.fn(),
+      onBlurred: jest.fn(),
+      onChangeText: jest.fn(),
+      onChangeState: jest.fn(),
+      onChangeSelection: jest.fn(),
+    };
+    const layout = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 600 } } });
+
+    it("waits for its width, so the first layout is already the page's", () => {
+      render(<ChapterEditor {...props} registerEditor={jest.fn()} scriptLayout />);
+      expect(screen.queryByTestId("chapter-editor")).toBeNull();
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      expect(screen.getByTestId("chapter-editor")).toBeTruthy();
+    });
+
+    it("sets the type to fit the 60 columns and hands the native view the page", () => {
+      render(<ChapterEditor {...props} registerEditor={jest.fn()} scriptLayout />);
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      const input = screen.getByTestId("chapter-editor");
+      const { fontSize, lineHeight } = scriptEditorMetrics(390);
+      expect(input.props.style).toMatchObject({ fontFamily: fonts.mono, fontSize, lineHeight });
+      // A blank line is one line of the page, and the reader's text size never scales it.
+      expect(input.props.paragraphSpacing).toBe(lineHeight);
+      expect(input.props.allowFontScaling).toBe(false);
+      expect(input.props.screenplay).toBe(screenplayLayoutConfig());
+    });
+
+    it("gives the native view each line's element, since it carries them itself", () => {
+      render(<ChapterEditor {...props} registerEditor={jest.fn()} scriptLayout />);
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      expect(screen.getByTestId("chapter-editor").props.defaultValue).toBe(
+        '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="character">MARA</p>'
+      );
+    });
+
+    it("leaves the editor exactly as it was with the layout off", () => {
+      render(<ChapterEditor {...props} registerEditor={jest.fn()} />);
+      const input = screen.getByTestId("chapter-editor");
+      expect(input.props.screenplay).toBeUndefined();
+      expect(input.props.allowFontScaling).toBeUndefined();
+      expect(input.props.defaultValue).toBe("<p>INT. LAB - DAY</p><p>MARA</p>");
+      expect(input.props.style.fontFamily).toBe(editorStyle.fontFamily);
+      expect(input.props.paragraphSpacing).toBeCloseTo(editorStyle.fontSize * 0.9);
+    });
+
+    it("remounts the native view when the layout is switched, and re-registers it", () => {
+      const registerEditor = jest.fn();
+      const { rerender } = render(<ChapterEditor {...props} registerEditor={registerEditor} />);
+      const first = registerEditor.mock.calls.filter(([ref]) => ref).at(-1)?.[0];
+      rerender(<ChapterEditor {...props} registerEditor={registerEditor} scriptLayout />);
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      expect(screen.getByTestId("chapter-editor").props.defaultValue).toContain("data-sp=");
+      const second = registerEditor.mock.calls.filter(([ref]) => ref).at(-1)?.[0];
+      expect(second).toBeTruthy();
+      expect(second).not.toBe(first);
+    });
+
+    it("lays out the page at once when the layout is switched on after the shell has its size", () => {
+      const { rerender } = render(<ChapterEditor {...props} registerEditor={jest.fn()} />);
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      rerender(<ChapterEditor {...props} registerEditor={jest.fn()} scriptLayout />);
+      const input = screen.getByTestId("chapter-editor");
+      const { fontSize, lineHeight } = scriptEditorMetrics(390);
+      expect(input.props.style).toMatchObject({ fontFamily: fonts.mono, fontSize, lineHeight });
+      expect(input.props.paragraphSpacing).toBe(lineHeight);
+      expect(input.props.screenplay).toBe(screenplayLayoutConfig());
+    });
+
+    it("does not read its own setValue echo as typing, tags and all", async () => {
+      const onChangeText = jest.fn();
+      const registerEditor = jest.fn();
+      const { rerender } = render(
+        <ChapterEditor {...props} onChangeText={onChangeText} registerEditor={registerEditor} scriptLayout />
+      );
+      fireEvent(screen.getByTestId("chapter-editor-shell"), "layout", layout(390));
+      const editor = registerEditor.mock.calls.filter(([ref]) => ref).at(-1)?.[0] as EnrichedTextInputInstance & {
+        emitNativeChangeText: (value: string) => void;
+      };
+      rerender(
+        <ChapterEditor
+          {...props}
+          html={'<p data-block-id="h" data-sp="scene-heading">INT. LAB - NIGHT</p><p data-block-id="c" data-sp="character">MARA</p>'}
+          onChangeText={onChangeText}
+          registerEditor={registerEditor}
+          scriptLayout
+        />
+      );
+      await act(async () => editor.emitNativeChangeText("INT. LAB - NIGHT\nMARA"));
+      expect(onChangeText).not.toHaveBeenCalled();
+    });
   });
 });

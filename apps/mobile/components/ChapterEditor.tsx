@@ -12,6 +12,8 @@ import type { BlockMarks } from "../lib/block-editor";
 import { opsFromEnrichedHtml, toEnrichedHtml } from "../lib/enriched-html";
 import { FORMAT_PRESS_MS } from "../lib/format-chrome";
 import { typewriterBottomInset } from "../lib/focus-mode";
+import { screenplayLayoutConfig, scriptEditorMetrics } from "../lib/script-layout";
+import { fonts } from "../lib/theme";
 
 export type EditorStyle = {
   fontFamily: string;
@@ -55,6 +57,7 @@ export function ChapterEditor({
   resumeOffset,
   bottomInset = 0,
   typewriter = false,
+  scriptLayout = false,
   onFocused,
   onBlurred,
   onChangeText,
@@ -74,6 +77,14 @@ export function ChapterEditor({
   resumeOffset: number | null;
   bottomInset?: number;
   typewriter?: boolean;
+  /**
+   * Lay the chapter out as a script page while it is typed: monospace type at
+   * the size the 60 column page fits this width, the elements indented, the
+   * keyboard in capitals where the element is. The native view then carries each
+   * paragraph's screenplay element itself (`data-sp`), so the HTML goes in and out
+   * with it. iOS only, Beta (docs/screenplay.md).
+   */
+  scriptLayout?: boolean;
   onFocused: () => void;
   onBlurred: () => void;
   onChangeText: (text: string) => void;
@@ -123,7 +134,16 @@ export function ChapterEditor({
   } | null>(null);
   const { t } = useTranslation();
   const [shellHeight, setShellHeight] = useState(0);
+  const [shellWidth, setShellWidth] = useState(0);
   const typewriterPad = typewriterBottomInset(typewriter, shellHeight - bottomInset);
+  // A script's type is sized to the width, so the native view waits to mount
+  // until the width is known: its first layout is already the page's.
+  const page = scriptLayout && shellWidth > 0 ? scriptEditorMetrics(shellWidth) : null;
+  const mounted = !scriptLayout || page !== null;
+  // Read by the sync effect, which is created once: the layout can be switched
+  // while the screen stays mounted (the native view remounts, see `viewKey`).
+  const scriptLayoutRef = useRef(scriptLayout);
+  scriptLayoutRef.current = scriptLayout;
 
   const markEdited = useCallback(() => {
     dirtyRef.current = true;
@@ -148,15 +168,16 @@ export function ChapterEditor({
     // whose layout effect commits before this passive effect does.
     registerEditor(inputRef.current, markEdited);
     return () => registerEditor(null);
-  }, [registerEditor, markEdited, chapterId]);
+  }, [registerEditor, markEdited, chapterId, mounted, scriptLayout]);
 
   // What the native view mounts with, fixed per chapter. A changed
   // `defaultValue` makes the native view replace its whole buffer and park
   // the caret at the end of the chapter, skipping every guard in syncBuffer,
   // so later content reaches the buffer only through syncBuffer's setValue.
-  const mountedRef = useRef<{ chapterId: string; enriched: string } | null>(null);
-  if (mountedRef.current?.chapterId !== chapterId) {
-    mountedRef.current = { chapterId, enriched: toEnrichedHtml(html) };
+  const mountedRef = useRef<{ key: string; enriched: string } | null>(null);
+  const viewKey = scriptLayout ? `${chapterId}:script` : chapterId;
+  if (mountedRef.current?.key !== viewKey) {
+    mountedRef.current = { key: viewKey, enriched: toEnrichedHtml(html, { elements: scriptLayout }) };
   }
 
   const htmlRef = useRef(html);
@@ -166,7 +187,8 @@ export function ChapterEditor({
   const syncBuffer = useCallback(() => {
     if (echoChecksRef.current > 0) return;
     const html = htmlRef.current;
-    const enriched = toEnrichedHtml(html);
+    const nativeElements = scriptLayoutRef.current;
+    const enriched = toEnrichedHtml(html, { elements: nativeElements });
     if (dirtyRef.current) {
       const input = inputRef.current;
       if (focusedRef.current || !input) return;
@@ -181,7 +203,7 @@ export function ChapterEditor({
         (live) => {
           if (editEpochRef.current !== epoch || focusedRef.current || htmlRef.current !== html)
             return;
-          if (opsFromEnrichedHtml(html, live, 0).length > 0) return;
+          if (opsFromEnrichedHtml(html, live, 0, undefined, { nativeElements }).length > 0) return;
           dirtyRef.current = false;
           appliedHtmlRef.current = html;
           appliedEnrichedRef.current = enriched;
@@ -225,7 +247,10 @@ export function ChapterEditor({
     <View
       testID={`${testID}-shell`}
       style={{ flex: 1 }}
-      onLayout={(event) => setShellHeight(event.nativeEvent.layout.height)}
+      onLayout={(event) => {
+        setShellHeight(event.nativeEvent.layout.height);
+        setShellWidth(event.nativeEvent.layout.width);
+      }}
       onTouchStart={
         onLongPress
           ? (event) => {
@@ -256,111 +281,117 @@ export function ChapterEditor({
       onTouchEnd={onLongPress ? clearPressTouch : undefined}
       onTouchCancel={onLongPress ? clearPressTouch : undefined}
     >
-      <EnrichedTextInput
-        key={chapterId}
-        ref={inputRef}
-        testID={testID}
-        accessibilityLabel={t("manuscript.editorLabel")}
-        defaultValue={mountedRef.current.enriched}
-        placeholder={placeholder}
-        cursorColor={editorStyle.color}
-        selectionColor="rgba(90, 140, 180, 0.35)"
-        scrollEnabled
-        submitBehavior="newline"
-        linkRegex={null}
-        autoCapitalize="sentences"
-        contextMenuItems={
-          onSetKind
-            ? [
-                {
-                  text: t("manuscript.formatHeading"),
-                  onPress: () => onSetKind("heading"),
-                },
-                {
-                  text: t("manuscript.formatQuote"),
-                  onPress: () => onSetKind("quote"),
-                },
-                {
-                  text: t("manuscript.formatList"),
-                  onPress: () => onSetKind("list_item"),
-                },
-                {
-                  text: t("manuscript.formatParagraph"),
-                  onPress: () => onSetKind("paragraph"),
-                },
-              ]
-            : undefined
-        }
-        paragraphSpacing={paragraphSpacingFor(editorStyle.fontSize)}
-        htmlStyle={{
-          h2: { fontSize: editorStyle.fontSize + 6, bold: true },
-          blockquote: {
-            color: editorStyle.color,
-            borderColor: editorStyle.color,
-            borderWidth: 2,
-            gapWidth: 12,
-          },
-          ul: { marginLeft: 18, gapWidth: 6, bulletColor: editorStyle.color },
-        }}
-        style={{
-          flex: 1,
-          paddingBottom: bottomInset + typewriterPad,
-          color: editorStyle.color,
-          fontFamily: editorStyle.fontFamily,
-          fontSize: editorStyle.fontSize,
-          lineHeight: editorStyle.lineHeight,
-        }}
-        onFocus={() => {
-          focusedRef.current = true;
-          onFocused();
-        }}
-        onBlur={() => {
-          focusedRef.current = false;
-          dirtyRef.current = false;
-          onBlurred();
-        }}
-        onChangeText={(e) => {
-          const value = e.nativeEvent.value;
-          const markEdited = () => {
-            dirtyRef.current = true;
-            editEpochRef.current += 1;
-            appliedHtmlRef.current = null;
-            appliedEnrichedRef.current = null;
-            onChangeText(value);
-          };
-          const input = inputRef.current;
-          if (dirtyRef.current || appliedHtmlRef.current == null || !input) {
-            markEdited();
-            return;
+      {mounted ? (
+        <EnrichedTextInput
+          key={viewKey}
+          ref={inputRef}
+          testID={testID}
+          accessibilityLabel={t("manuscript.editorLabel")}
+          defaultValue={mountedRef.current.enriched}
+          placeholder={placeholder}
+          cursorColor={editorStyle.color}
+          selectionColor="rgba(90, 140, 180, 0.35)"
+          scrollEnabled
+          submitBehavior="newline"
+          linkRegex={null}
+          autoCapitalize="sentences"
+          contextMenuItems={
+            onSetKind
+              ? [
+                  {
+                    text: t("manuscript.formatHeading"),
+                    onPress: () => onSetKind("heading"),
+                  },
+                  {
+                    text: t("manuscript.formatQuote"),
+                    onPress: () => onSetKind("quote"),
+                  },
+                  {
+                    text: t("manuscript.formatList"),
+                    onPress: () => onSetKind("list_item"),
+                  },
+                  {
+                    text: t("manuscript.formatParagraph"),
+                    onPress: () => onSetKind("paragraph"),
+                  },
+                ]
+              : undefined
           }
-          echoChecksRef.current += 1;
-          const epoch = editEpochRef.current;
-          void input
-            .getHTML()
-            .then(
-              (enriched) => {
-                const applied = appliedHtmlRef.current;
-                return (
-                  editEpochRef.current === epoch &&
-                  applied != null &&
-                  opsFromEnrichedHtml(applied, enriched, 0).length === 0
-                );
-              },
-              () => false
-            )
-            .then((echo) => {
-              echoChecksRef.current -= 1;
-              // The native editor's own echo of the setValue the sync effect
-              // just applied, not something the user typed: ignore it, and
-              // apply any correction that arrived while this was checked.
-              if (echo) syncBuffer();
-              else markEdited();
-            });
-        }}
-        onChangeState={(e) => onChangeState(e.nativeEvent)}
-        onChangeSelection={(e) => onChangeSelection(e.nativeEvent.start, e.nativeEvent.end)}
-        onSelectionFrame={onSelectionFrame ? (e) => onSelectionFrame(e.nativeEvent) : undefined}
-      />
+          paragraphSpacing={page ? page.lineHeight : paragraphSpacingFor(editorStyle.fontSize)}
+          screenplay={page ? screenplayLayoutConfig() : undefined}
+          allowFontScaling={page ? false : undefined}
+          htmlStyle={{
+            h2: { fontSize: editorStyle.fontSize + 6, bold: true },
+            blockquote: {
+              color: editorStyle.color,
+              borderColor: editorStyle.color,
+              borderWidth: 2,
+              gapWidth: 12,
+            },
+            ul: { marginLeft: 18, gapWidth: 6, bulletColor: editorStyle.color },
+          }}
+          style={{
+            flex: 1,
+            paddingBottom: bottomInset + typewriterPad,
+            color: editorStyle.color,
+            fontFamily: page ? fonts.mono : editorStyle.fontFamily,
+            fontSize: page ? page.fontSize : editorStyle.fontSize,
+            lineHeight: page ? page.lineHeight : editorStyle.lineHeight,
+          }}
+          onFocus={() => {
+            focusedRef.current = true;
+            onFocused();
+          }}
+          onBlur={() => {
+            focusedRef.current = false;
+            dirtyRef.current = false;
+            onBlurred();
+          }}
+          onChangeText={(e) => {
+            const value = e.nativeEvent.value;
+            const markEdited = () => {
+              dirtyRef.current = true;
+              editEpochRef.current += 1;
+              appliedHtmlRef.current = null;
+              appliedEnrichedRef.current = null;
+              onChangeText(value);
+            };
+            const input = inputRef.current;
+            if (dirtyRef.current || appliedHtmlRef.current == null || !input) {
+              markEdited();
+              return;
+            }
+            echoChecksRef.current += 1;
+            const epoch = editEpochRef.current;
+            void input
+              .getHTML()
+              .then(
+                (enriched) => {
+                  const applied = appliedHtmlRef.current;
+                  return (
+                    editEpochRef.current === epoch &&
+                    applied != null &&
+                    opsFromEnrichedHtml(applied, enriched, 0, undefined, {
+                      nativeElements: scriptLayoutRef.current,
+                    }).length === 0
+                  );
+                },
+                () => false
+              )
+              .then((echo) => {
+                echoChecksRef.current -= 1;
+                // The native editor's own echo of the setValue the sync effect
+                // just applied, not something the user typed: ignore it, and
+                // apply any correction that arrived while this was checked.
+                if (echo) syncBuffer();
+                else markEdited();
+              });
+          }}
+          onChangeState={(e) => onChangeState(e.nativeEvent)}
+          onChangeSelection={(e) => onChangeSelection(e.nativeEvent.start, e.nativeEvent.end)}
+          onSelectionFrame={onSelectionFrame ? (e) => onSelectionFrame(e.nativeEvent) : undefined}
+        />
+      ) : null}
     </View>
   );
 }
