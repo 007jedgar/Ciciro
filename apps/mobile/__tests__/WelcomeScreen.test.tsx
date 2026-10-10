@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { AppState } from "react-native";
+import { AppState, StyleSheet } from "react-native";
 import type { ReactNode } from "react";
 import { WelcomeScreen } from "../components/WelcomeScreen";
 import { defaultSettings } from "../lib/app-settings";
@@ -168,5 +168,41 @@ describe("WelcomeScreen", () => {
     await advance(4200);
     expect(headlineText()).toContain("journal");
     expect(onPage("Thursday, 9 October")).toHaveLength(1);
+  });
+
+  it("binds the headline's last word to the one before it, and only that", () => {
+    render(themed(<WelcomeScreen onCreate={jest.fn()} onSignIn={jest.fn()} />, true));
+    const header = screen.getByRole("header");
+    const flat = (node: unknown): string =>
+      typeof node === "string"
+        ? node
+        : ((node as { children?: unknown[] } | null)?.children ?? []).map(flat).join("");
+    const raw = flat(header.children[0] as unknown);
+    expect(raw.endsWith("meaning to.")).toBe(true);
+    expect(raw.match(/ /g)).toHaveLength(1);
+  });
+
+  it("holds the card at its tallest kind's height whichever kind is on show", async () => {
+    render(themed(<WelcomeScreen onCreate={jest.fn()} onSignIn={jest.fn()} />, true));
+    const measure = screen.getByTestId("welcome-measure", HIDDEN);
+    const kinds = measure.children as unknown as { props: { onLayout: (e: unknown) => void } }[];
+    expect(kinds).toHaveLength(4);
+    const heights = [72, 96, 141.2, 120];
+    act(() => {
+      kinds.forEach((kind, i) => kind.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 300, height: heights[i] } } }));
+    });
+    // The card is the nearest surface around the measuring copy (it has the rounded corners).
+    const cardHeight = () => {
+      for (let n = measure.parent; n; n = n.parent) {
+        const style = StyleSheet.flatten(n.props.style);
+        if (style?.borderRadius === 14) return style.height;
+      }
+      return undefined;
+    };
+    // 66 above the copy, the tallest copy rounded up, 30 below.
+    expect(cardHeight()).toBe(66 + 142 + 30);
+    await advance(4200);
+    expect(headlineText()).toContain("journal");
+    expect(cardHeight()).toBe(66 + 142 + 30);
   });
 });
