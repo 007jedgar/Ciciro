@@ -10,7 +10,7 @@
  * derived from that. The page is fixed: 12pt Courier at 10 characters an inch,
  * a 60 column measure and 54 lines a page, so a pure function can say which
  * words land on which line and which line lands on which page. The editor's
- * `ch` units, the page markers, the "about N pages" count, and the PDF writer
+ * `ch` units, the page markers, the "N pages" count, and the PDF writer
  * all call this one layout, so none of them can disagree.
  */
 
