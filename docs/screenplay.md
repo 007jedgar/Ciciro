@@ -192,7 +192,10 @@ sets them the same way (`typesetSequences`), so its page count is the editor's.
   `professional.pages.txt` (`UPDATE_GOLDEN=1`, read the diff).
 - `test/screenplay-parity.test.ts`: the two copies are identical.
 - `test/screenplay-css.test.ts`: the editor's `ch` numbers equal
-  `ELEMENT_METRICS`, and the speech-run selectors equal `SPEECH_RUNS`.
+  `ELEMENT_METRICS` and `DUAL_METRICS`, each width carries the sub-character
+  `--sp-slack` (so a line of exactly that many characters does not wrap early),
+  the editor wraps with `pre-wrap` like `wrapText`, and the speech-run selectors
+  equal `SPEECH_RUNS`.
 - `test/screenplay-editor.test.ts`: the TipTap extension and the page markers.
 - `test/script-lines.test.ts`: the marked-line contract (below), its phone
   mirror, and a round trip of the golden script through the model view.
@@ -264,7 +267,7 @@ through the server, so it has no mirror). Writing (`fountainFromScript`):
 - bold is `**`, italic `*`, both `***`, underline `_`, with the delimiters hugging
   the words and `*` / `_` escaped;
 - dual dialogue is a `^` after the second cue (only for pairs `dualPairs`
-  accepts), centered text is `> text <`, and with scene numbers on each heading
+  accepts on every block, empty ones included, as the editor and PDF pair them), centered text is `> text <`, and with scene numbers on each heading
   carries `#n#` (counted across sequences);
 - more than one sequence is written as `# ` sections; one sequence is written
   bare; a title block carries the title page: `Title`, `Credit`, `Author`,
@@ -313,7 +316,8 @@ for that only; the others are checked-in outputs).
   brackets; scene numbers are `Number` on the heading.
 - `Text` runs with `Style="Bold+Italic+Underline"`.
 - Dual dialogue is `<Paragraph><DualDialogue>…</DualDialogue></Paragraph>`
-  around the two speeches' paragraphs.
+  around the two speeches' paragraphs, paired like Fountain's `^` (an empty
+  block between two speeches separates them).
 - A `TitlePage` of free paragraphs. FDX has no fields for it, so the reader
   sorts them by alignment and shape (centered groups: title, credit, author,
   source; left: contact; right: date) and the writer emits them in that order.
@@ -547,7 +551,11 @@ and only shows the settings for that manuscript's kind.
   **Title page** (title, credit, author, source, draft date, contact, and
   whether the PDF carries it), and a collapsible reference of every element
   shortcut. A change shows at once (the page markers redraw) and is saved
-  after a short pause with a project PATCH.
+  after a short pause with a project PATCH (`createScriptSettingsSaver` in
+  `src/lib/script-settings-save.ts`). A refused save puts the editor back to
+  the stored settings and says so in a snackbar; a waiting save is sent before
+  an export (`ExportMenu`'s `beforeExport`) and, with `keepalive`, when the page
+  goes away.
 - **Phone.** The manuscript tab bar's Settings action opens `/settings` with
   the manuscript's id (`?project=`), and `app/settings.tsx` reads the kind and
   settings from the project query. For a screenplay it shows the locked format,
