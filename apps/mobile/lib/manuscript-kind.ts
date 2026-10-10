@@ -204,6 +204,11 @@ const CHARACTER_CUE = /^[A-Z][A-Z0-9 .'-]{0,38}(?:\s*\((?:V\.O\.|O\.S\.|O\.C\.|C
 const SHOT =
   /^(?:(?:EXTREME )?CLOSE(?:[ -]?UP\b| ON\b)|ECU\b|INSERT\b|ANGLE ON\b|(?:NEW|REVERSE) ANGLE\b|WIDE (?:ON|SHOT)\b|(?:[A-Z][A-Z.'-]* )?POV\b|(?:TRACKING|OVERHEAD|AERIAL|ESTABLISHING|MOVING|MEDIUM|LONG|FULL|TWO) SHOT\b|BACK TO SCENE\b|PUSH IN\b|PULL BACK\b)/;
 
+/** Whether an all-caps line is a camera direction (CLOSE ON, ANGLE ON, POV, INSERT and the like). */
+export function isShotLine(line: string): boolean {
+  return SHOT.test(line);
+}
+
 /**
  * Sort a script written as plain lines (what the assistant returns) into
  * screenplay elements. A line under a character cue is dialogue until a blank
