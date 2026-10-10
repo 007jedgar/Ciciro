@@ -215,6 +215,75 @@ describe("enriched html adapter", () => {
       expect(stamped).not.toContain("data-sp");
     });
   });
+
+  // The patched native editor lays a script out and carries each paragraph's tag itself:
+  // the tag goes in with the HTML and comes back out of getHTML().
+  describe("screenplay elements the native editor carries", () => {
+    const previous =
+      '<p data-block-id="a" data-sp="scene-heading">INT. LAB - DAY</p>' +
+      '<p data-block-id="b" data-sp="character">MARA</p>' +
+      '<p data-block-id="c" data-sp="dialogue">Hi.</p>';
+    const native = { nativeElements: true };
+
+    it("hands the editor the tags, without the block ids", () => {
+      expect(toEnrichedHtml(previous, { elements: true })).toBe(
+        '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="character">MARA</p><p data-sp="dialogue">Hi.</p>'
+      );
+    });
+
+    it("keeps an empty line's tag too", () => {
+      expect(toEnrichedHtml('<p data-block-id="a" data-sp="character"></p>', { elements: true })).toBe(
+        '<p data-sp="character"></p>'
+      );
+    });
+
+    it("reads the tags back out of what the editor reports", () => {
+      const reported =
+        '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="character">MARA</p><p data-sp="dialogue">Hi there.</p>';
+      expect(restampCiciroHtml(previous, fromEnrichedHtml(reported), native)).toBe(
+        '<p data-block-id="a" data-sp="scene-heading">INT. LAB - DAY</p>' +
+          '<p data-block-id="b" data-sp="character">MARA</p>' +
+          '<p data-block-id="c" data-sp="dialogue">Hi there.</p>'
+      );
+    });
+
+    it("commits nothing when the editor reports what it was given", () => {
+      const given = toEnrichedHtml(previous, { elements: true });
+      expect(opsFromEnrichedHtml(previous, given, 4, undefined, { screenplay: true, ...native })).toEqual([]);
+    });
+
+    it("trusts the editor over the stored tag: a line retagged there is a change to commit", () => {
+      const retagged = '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="action">MARA</p><p data-sp="dialogue">Hi.</p>';
+      const ops = opsFromEnrichedHtml(previous, retagged, 4, undefined, native);
+      expect(ops).toHaveLength(1);
+      expect(ops[0]).toMatchObject({ type: "replace_block", blockId: "b" });
+      expect((ops[0] as { html: string }).html).not.toContain("data-sp");
+    });
+
+    it("takes a new line's tag from the editor (Return already chose it), not from the line above", () => {
+      const afterReturn = restampCiciroHtml(
+        '<p data-block-id="b" data-sp="character">MARA</p>',
+        fromEnrichedHtml('<p data-sp="character">MARA</p><p data-sp="dialogue"></p><p data-sp="parenthetical"></p>'),
+        { screenplay: true, ...native }
+      );
+      expect(
+        htmlToDoc(afterReturn, 0).doc.blocks.map((b) => b.html.match(/data-sp="([^"]+)"/)?.[1] ?? "action")
+      ).toEqual(["character", "dialogue", "parenthetical"]);
+    });
+
+    it("carries a tag this build cannot lay out exactly as written", () => {
+      const newer = '<p data-block-id="a" data-sp="dual-dialogue-left">THE END</p>';
+      const reported = fromEnrichedHtml('<p data-sp="dual-dialogue-left">THE END</p>');
+      expect(restampCiciroHtml(newer, reported, native)).toBe(newer);
+      expect(opsFromEnrichedHtml(newer, '<p data-sp="dual-dialogue-left">THE END</p>', 1, undefined, native)).toEqual([]);
+    });
+
+    it("keeps inline marks and the tag together", () => {
+      const reported = fromEnrichedHtml('<p data-sp="action">She <b>runs</b>.</p>');
+      expect(reported).toContain("data-sp=\"action\"");
+      expect(reported).toContain("<strong>runs</strong>");
+    });
+  });
 });
 
 describe("blockSkipsProofreading", () => {

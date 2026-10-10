@@ -1322,6 +1322,9 @@ const es: Translations = {
       formatNote:
         "Un guion se compone en Courier Prime de 12 pt sobre una página de 60 columnas, así que una página aquí es una página en papel. Tu fuente y tamaño de lectura nunca lo cambian.",
       layoutNote: "Páginas muestra el guion como se imprime, con números de página. El teléfono edita líneas simples y el diseño las sigue.",
+      pageLayout: "Diseño de página al escribir",
+      pageLayoutHint: "Sangra cada línea como se imprime y pone el teclado en mayúsculas donde el elemento lo pide.",
+      layoutNoteOn: "Páginas muestra el guion como se imprime, con números de página. Con el diseño de página activado, el editor da el mismo formato a cada línea mientras escribes.",
       elementsNote: "Toca un elemento sobre el teclado para fijar la línea en la que estás.",
       dualNote: "Diálogo simultáneo: en un diálogo, toca Dual sobre el teclado para ponerlo junto al de arriba.",
       tabOrder: "Tab recorre: {{elements}}.",

@@ -56,6 +56,9 @@ import { THEME_META, fonts, type ColorTokens } from "../lib/theme";
 import { useThemeChange } from "../lib/use-theme-change";
 import { AlertText } from "../components/AlertText";
 import { BetaBadge } from "../components/BetaBadge";
+import { ScriptLanguageInfo } from "../components/ScriptLanguageInfo";
+import { scriptLayoutSupported, setScriptLayout, useScriptLayout } from "../lib/script-layout";
+import { useScriptLanguageSupported } from "../lib/script-language";
 import { ELEMENT_LABEL_KEYS } from "../components/ScreenplayBar";
 import { TitlePageFields } from "../components/TitlePageFields";
 import { useScriptSettings } from "../lib/use-script-settings";
@@ -202,6 +205,8 @@ function ToggleRow({
   onValueChange,
   colors,
   last,
+  disabled,
+  info,
 }: {
   label: string;
   hint: string;
@@ -209,6 +214,9 @@ function ToggleRow({
   onValueChange: (next: boolean) => void;
   colors: ColorTokens;
   last?: boolean;
+  /** Grayed out and not switchable; `info` then says why. */
+  disabled?: boolean;
+  info?: ReactNode;
 }) {
   return (
     <>
@@ -222,12 +230,14 @@ function ToggleRow({
           gap: 12,
         }}
       >
-        <View style={{ flex: 1, paddingRight: 8 }}>
+        <View style={{ flex: 1, paddingRight: 8, opacity: disabled ? 0.5 : 1 }}>
           <Text style={{ fontSize: 17, color: colors.ink }}>{label}</Text>
           <Text style={{ marginTop: 3, fontSize: 13, lineHeight: 18, color: colors.inkSoft }}>{hint}</Text>
         </View>
+        {info}
         <Switch
           value={value}
+          disabled={disabled}
           onValueChange={haptics.withTap(onValueChange)}
           {...switchColors(colors)}
           accessibilityLabel={label}
@@ -445,6 +455,9 @@ function KindSettingsGroup({
 
 function ScreenplaySettingsGroup({ manuscript, colors }: { manuscript: OpenManuscript | null; colors: ColorTokens }) {
   const { t } = useTranslation();
+  const layoutSwitch = useScriptLayout();
+  const scriptLanguage = useScriptLanguageSupported();
+  const pageLayout = layoutSwitch && scriptLanguage;
   return (
     <>
       <SectionHeader label={t("screenplay.settings.title")} colors={colors} trailing={<BetaBadge testID="settings-beta-badge" />} />
@@ -454,12 +467,25 @@ function ScreenplaySettingsGroup({ manuscript, colors }: { manuscript: OpenManus
           value={t("screenplay.settings.formatValue")}
           detail={t("screenplay.settings.locked")}
           colors={colors}
-          last
         />
-        <Hairline colors={colors} />
+        {/* The native editor can lay a script out as it is typed on iOS only so far. */}
+        {scriptLayoutSupported() ? (
+          <ToggleRow
+            label={t("screenplay.settings.pageLayout")}
+            hint={t("screenplay.settings.pageLayoutHint")}
+            value={pageLayout}
+            onValueChange={setScriptLayout}
+            disabled={!scriptLanguage}
+            info={scriptLanguage ? undefined : <ScriptLanguageInfo testID="page-layout-language-info" />}
+            colors={colors}
+          />
+        ) : null}
         <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
           <SettingsNote text={t("screenplay.settings.formatNote")} colors={colors} />
-          <SettingsNote text={t("screenplay.settings.layoutNote")} colors={colors} />
+          <SettingsNote
+            text={t(pageLayout ? "screenplay.settings.layoutNoteOn" : "screenplay.settings.layoutNote")}
+            colors={colors}
+          />
         </View>
         <Hairline colors={colors} />
         <View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>

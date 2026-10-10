@@ -5,6 +5,18 @@ else stays in commit messages.
 
 ## Unreleased
 
+- **Write a script in its page layout on iPhone (Beta).** Settings inside a
+  screenplay has a new switch, **Page layout while typing**, off until you turn
+  it on. With it on, the editor sets the script as you type: the page's type
+  sized so 60 columns fill the screen, scene headings and action at the left,
+  character names, parentheticals and dialogue indented as one block, transitions
+  against the right edge. The keyboard types capitals on scene headings,
+  character names and transitions, the element bar and Return follow the web
+  editor (Return on an empty line drops back to action), and the script is saved
+  exactly as before, with every line's element. This needs a new build of the app
+  and is not on Android yet; Pages still shows the finished layout. The switch is
+  grayed out with an info button when the app is in Chinese or Hindi.
+
 - **Screenplays (Beta) get professional output.** A script now has a **title
   page** (title, credit, author, source, draft date and contact, edited under
   "This screenplay" in Settings on the web and the phone) that opens the
@@ -22,8 +34,7 @@ else stays in commit messages.
   ways. The phone shows and keeps all of it, exports FDX from its Export card,
   and edits the title page in Settings; its Pages view sets the same pages, with
   the dual columns, the `(MORE)` and `(CONT'D)` notes and the scene numbers, and
-  its lists say "N pages" to match the editor (typing in a page layout is still
-  to come). Script formatting remains English and Spanish for the PDF, and the
+  its lists say "N pages" to match the editor. Script formatting remains English and Spanish for the PDF, and the
   `(MORE)` and `(CONT'D)` notes are English.
 
 - **Screenplays (Beta) export and import.** Export a script as a **Screenplay
