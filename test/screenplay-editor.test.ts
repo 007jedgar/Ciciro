@@ -163,6 +163,17 @@ describe("screenplay editor", () => {
       ]);
     });
 
+    it("replaces a whole selected line with the break instead of dropping it to action", () => {
+      const ed = make('<p data-sp="character">MARA</p><p data-sp="dialogue">Where is he?</p>');
+      ed.commands.setTextSelection({ from: 7, to: 7 + "Where is he?".length });
+      press(ed, "Enter");
+      expect(lines(ed)).toEqual([
+        ["character", "MARA"],
+        ["dialogue", ""],
+        [null, ""],
+      ]);
+    });
+
     it("still ends speech with an action at the end of the line", () => {
       const ed = make('<p data-sp="dialogue">Go.</p>');
       ed.commands.focus("end");
@@ -215,6 +226,29 @@ describe("screenplay editor", () => {
         ["parenthetical", "low"],
         ["dialogue", "Hello."],
         ["dialogue", "Are you there?"],
+      ]);
+    });
+
+    it("reads on from the line above when pasting at the start of a line", () => {
+      const ed = make('<p>He waits.</p><p data-sp="character">JONAH</p>');
+      ed.commands.setTextSelection(1 + "He waits.".length + 2);
+      paste(ed, "She walks in.\nHe sits.");
+      expect(lines(ed)).toEqual([
+        [null, "He waits."],
+        [null, "She walks in."],
+        [null, "He sits."],
+        ["character", "JONAH"],
+      ]);
+    });
+
+    it("reads on from the line above a whole line it replaces", () => {
+      const ed = make('<p>He waits.</p><p data-sp="character">MARA</p>');
+      ed.commands.setTextSelection({ from: 1 + "He waits.".length + 2, to: 1 + "He waits.".length + 2 + "MARA".length });
+      paste(ed, "She walks in.\nHe sits.");
+      expect(lines(ed)).toEqual([
+        [null, "He waits."],
+        [null, "She walks in."],
+        [null, "He sits."],
       ]);
     });
 

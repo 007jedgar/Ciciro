@@ -126,7 +126,8 @@ export const Screenplay = Extension.create({
       Enter: ({ editor }) => {
         const current = currentElement(editor);
         if (current === null) return false;
-        if (!editor.state.selection.empty) {
+        const selected = !editor.state.selection.empty;
+        if (selected) {
           // A selection inside one line is replaced by the break, as anywhere.
           if (!editor.state.selection.$from.sameParent(editor.state.selection.$to)) return false;
           editor.commands.deleteSelection();
@@ -134,7 +135,7 @@ export const Screenplay = Extension.create({
         const { $from } = editor.state.selection;
         // Enter on an empty line drops back to action instead of stacking
         // empty elements, a scene heading included.
-        if ($from.parent.content.size === 0 && current !== "action") {
+        if (!selected && $from.parent.content.size === 0 && current !== "action") {
           return setElement(editor, "action");
         }
         // Splitting speech in the middle leaves speech on both sides.
@@ -165,9 +166,12 @@ export const Screenplay = Extension.create({
             const { state } = view;
             const { $from, $to } = state.selection;
             if (!$from.sameParent($to) || $from.parent.type.name !== "paragraph") return false;
-            const paragraph = $from.parent;
-            const index = $from.index(0);
-            const above = paragraph.content.size === 0 ? (index > 0 ? state.doc.child(index - 1) : null) : paragraph;
+            const tr = state.tr;
+            if (!state.selection.empty) tr.deleteSelection();
+            const at = tr.selection.$from;
+            const index = at.index(0);
+            const before = at.parent.content.size === 0 || at.parentOffset === 0;
+            const above = before ? (index > 0 ? tr.doc.child(index - 1) : null) : at.parent;
             const lines = classifyScreenplayLines(
               text,
               above ? normalizeElement(above.attrs.screenplay) : undefined
@@ -178,9 +182,6 @@ export const Screenplay = Extension.create({
               type.create({ screenplay: element === "action" ? null : element }, state.schema.text(line))
             );
             const size = nodes.reduce((total, node) => total + node.nodeSize, 0);
-            const tr = state.tr;
-            if (!state.selection.empty) tr.deleteSelection();
-            const at = tr.selection.$from;
             let start: number;
             if (at.parent.content.size === 0) {
               start = at.before();
