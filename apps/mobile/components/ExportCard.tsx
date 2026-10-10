@@ -112,22 +112,27 @@ export function ExportCard({
               accessibilityState={{ disabled: busy !== null || unavailable, busy: busy === format }}
               style={[
                 styles.pill,
+                // The Beta mark makes a script's pill too wide to share a row: it gets its own.
+                script ? styles.pillWide : null,
                 {
-                  borderColor: colors.ink,
+                  borderColor: unavailable ? colors.inkSoft : colors.ink,
                   backgroundColor: "transparent",
-                  opacity: unavailable || (busy && busy !== format) ? 0.5 : 1,
+                  opacity: busy && busy !== format ? 0.5 : 1,
                 },
               ]}
             >
-              {ready === format ? (
-                <ReadyTick color={colors.ink} />
-              ) : busy === format ? (
-                <ActivityIndicator size="small" color={colors.ink} accessibilityLabel={t("common.loading")} />
-              ) : (
-                <ExportIcon color={colors.ink} size={16} />
-              )}
-              <Text numberOfLines={1} style={[styles.pillText, { color: colors.ink }]}>{label}</Text>
-              {script ? <BetaBadge testID={`export-beta-${format}`} /> : null}
+              {/* A grayed-out pill dims what it says, not its info button. */}
+              <View style={[styles.pillContent, unavailable ? { opacity: 0.5 } : null]}>
+                {ready === format ? (
+                  <ReadyTick color={colors.ink} />
+                ) : busy === format ? (
+                  <ActivityIndicator size="small" color={colors.ink} accessibilityLabel={t("common.loading")} />
+                ) : (
+                  <ExportIcon color={colors.ink} size={16} />
+                )}
+                <Text numberOfLines={1} style={[styles.pillText, styles.pillLabel, { color: colors.ink }]}>{label}</Text>
+                {script ? <BetaBadge testID={`export-beta-${format}`} /> : null}
+              </View>
               {unavailable ? <ScriptLanguageInfo testID="export-language-info" /> : null}
             </PressableCard>
           );
@@ -159,5 +164,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  pillContent: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  pillWide: { flexBasis: "100%" },
   pillText: { fontFamily: fonts.uiBold, fontSize: 15 },
+  pillLabel: { flexShrink: 1 },
 });
