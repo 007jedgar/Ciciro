@@ -98,6 +98,15 @@ describe("the editor's CSS agrees with the page engine", () => {
     expect(parseFloat(slack!)).toBeLessThanOrEqual(1);
   });
 
+  it("lets a space at the end of a full line hang past the box, as the engine's wrap does", () => {
+    // ProseMirror's own styles set break-spaces, where the space after a full line
+    // must fit too, so a line of exactly N characters wraps a word early.
+    expect(resolved([PAGE], "white-space")).toBe("pre-wrap");
+    for (const element of SCREENPLAY_ELEMENTS) {
+      expect(resolved(blockSelectors(element), "white-space") ?? "inherit", element).toBe("inherit");
+    }
+  });
+
   it("lets a line of exactly the column count fit on every width", () => {
     const widths: [string, string | null, number][] = [
       ["page", resolved([PAGE], "width"), PAGE_COLUMNS],

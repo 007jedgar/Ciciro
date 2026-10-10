@@ -3980,12 +3980,15 @@ input[type="file"]::file-selector-button {
    the source of these numbers; test/screenplay-css.test.ts fails when they drift.
    Every width carries --sp-slack, half a pixel: a line of exactly N characters
    measures exactly N ch, and the browser breaks it a word early unless the box
-   is a hair wider. A further character needs a whole ch, so none ever fits. */
+   is a hair wider. A further character needs a whole ch, so none ever fits.
+   pre-wrap, not ProseMirror's break-spaces: the space after a full line hangs
+   past the box, as wrapText drops it, instead of pushing the last word down. */
 .ProseMirror.screenplay {
   --sp-slack: 0.5px;
   font-family: "Courier Prime", "Courier New", Courier, monospace;
   font-size: var(--screenplay-size, 12pt);
   line-height: 1.2;
+  white-space: pre-wrap;
   width: calc(60ch + var(--sp-slack));
 }
 .ProseMirror.screenplay p {
