@@ -1,7 +1,7 @@
 import type { ImportResult } from "@/lib/import-manuscript";
 
 /** File types the import picker offers. Kept in step with detectFormat. */
-export const IMPORT_ACCEPT = ".docx,.md,.markdown,.txt,.html,.htm,.zip,.scriv";
+export const IMPORT_ACCEPT = ".docx,.md,.markdown,.txt,.html,.htm,.fountain,.spmd,.zip,.scriv";
 
 /** The file's extension, for the `import_completed` analytics event's `source` property. */
 export function importSourceFromFilename(name: string): string {

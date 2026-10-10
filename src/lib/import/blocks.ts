@@ -14,6 +14,10 @@ export type ImportedManuscript = {
   /** A title the file itself carried (a lone top heading, front matter, filename). */
   title: string;
   chapters: ImportedChapter[];
+  /** The kind of manuscript the file is, when it can only be one (a Fountain script). Absent: no opinion. */
+  kind?: "screenplay";
+  /** An author the file itself carried. */
+  author?: string;
 };
 
 export function escapeHtml(text: string): string {

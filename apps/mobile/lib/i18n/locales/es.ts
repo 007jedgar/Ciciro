@@ -759,7 +759,7 @@ const es: Translations = {
     chaptersMeta: "Desde Word, Google Docs, Markdown o Scrivener",
     importing: "Importando…",
     error: "No se pudo importar ese archivo.",
-    unsupported: "Elige un archivo .docx, .md, .html o .scriv comprimido en zip.",
+    unsupported: "Elige un archivo .docx, .md, .html, .fountain o .scriv comprimido en zip.",
   },
   wordGoal: {
     blurb: "Una meta diaria es opcional. Si la fijas, una barra fina se llena mientras escribes hoy. Sin meta, nada cuenta tus palabras en tu contra.",

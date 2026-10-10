@@ -757,7 +757,7 @@ const en = {
     chaptersMeta: "From Word, Google Docs, Markdown or Scrivener",
     importing: "Importing…",
     error: "Could not import that file.",
-    unsupported: "Choose a .docx, .md, .html or zipped .scriv file.",
+    unsupported: "Choose a .docx, .md, .html, .fountain or zipped .scriv file.",
   },
   wordGoal: {
     blurb: "A daily goal is optional. Set one and a thin bar fills as you write today. With no goal, nothing counts your words against you.",

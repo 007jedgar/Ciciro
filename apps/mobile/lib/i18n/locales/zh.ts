@@ -746,7 +746,7 @@ const zh: Translations = {
     chaptersMeta: "来自 Word、Google Docs、Markdown 或 Scrivener",
     importing: "正在导入…",
     error: "无法导入该文件。",
-    unsupported: "请选择 .docx、.md、.html 或压缩为 zip 的 .scriv 文件。",
+    unsupported: "请选择 .docx、.md、.html、.fountain 或压缩为 zip 的 .scriv 文件。",
   },
   wordGoal: {
     blurb: "每日目标是可选的。设定后，你今天写作时会有一条细细的进度条慢慢填满。不设目标，就没有任何东西在衡量你的字数。",

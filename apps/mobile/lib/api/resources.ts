@@ -401,7 +401,7 @@ export const ciciro = {
   },
 
   imports: {
-    /** Multipart upload of a .docx, .md, .html or zipped .scriv file. */
+    /** Multipart upload of a .docx, .md, .html, .fountain or zipped .scriv file. */
     upload: (form: FormData, opts?: RequestOpts) =>
       api<ImportResult>("/api/import", { ...opts, method: "POST", body: form }),
   },

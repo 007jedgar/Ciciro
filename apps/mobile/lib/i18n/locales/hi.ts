@@ -758,7 +758,7 @@ const hi: Translations = {
     chaptersMeta: "Word, Google Docs, Markdown या Scrivener से",
     importing: "आयात हो रहा है…",
     error: "वह फ़ाइल आयात नहीं की जा सकी।",
-    unsupported: ".docx, .md, .html या ज़िप की हुई .scriv फ़ाइल चुनें।",
+    unsupported: ".docx, .md, .html, .fountain या ज़िप की हुई .scriv फ़ाइल चुनें।",
   },
   wordGoal: {
     blurb: "दैनिक लक्ष्य वैकल्पिक है। इसे तय करने पर आज लिखते समय एक पतली पट्टी भरती जाती है। कोई लक्ष्य न हो तो आपके शब्दों की गिनती आपके विरुद्ध नहीं जाती।",

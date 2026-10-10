@@ -107,4 +107,45 @@ describe("importManuscript", () => {
     await expect(attempt).rejects.toBeInstanceOf(AuthError);
     expect(await prisma.chapter.count({ where: { projectId: project.id } })).toBe(1);
   });
+
+  describe("a Fountain script", () => {
+    const script = new TextEncoder().encode(
+      "Title: Night Shift\n\n# Act one\n\nINT. LAB - DAY\n\nMARA\nHello.\n\n# Act two\n\nEXT. ROOF - NIGHT\n"
+    );
+
+    it("becomes a new screenplay with a sequence for each section", async () => {
+      const ada = await signUp("ada@example.com");
+      const result = await importManuscript(ada, { filename: "night.fountain", data: script });
+      expect(result.title).toBe("Night Shift");
+      const project = await prisma.project.findUniqueOrThrow({ where: { id: result.projectId } });
+      expect(project.kind).toBe("screenplay");
+      const chapters = await listChapters(result.projectId, ada);
+      expect(chapters.map((c) => c.title)).toEqual(["Act one", "Act two"]);
+      expect(chapters[0].content).toContain('data-sp="character"');
+      expect(chapters[0].content).toContain("data-block-id");
+    });
+
+    it("names untitled sequences for a screenplay", async () => {
+      const ada = await signUp("ada@example.com");
+      const result = await importManuscript(ada, {
+        filename: "night.fountain",
+        data: new TextEncoder().encode("INT. A - DAY\n\nHi."),
+      });
+      expect((await listChapters(result.projectId, ada)).map((c) => c.title)).toEqual(["Sequence 1"]);
+    });
+
+    it("is appended to a screenplay with its elements, to a novel as plain paragraphs", async () => {
+      const ada = await signUp("ada@example.com");
+      const play = await createProject(ada, { title: "Play", kind: "screenplay" });
+      await importManuscript(ada, { filename: "n.fountain", data: script, projectId: play.id });
+      const playChapters = await listChapters(play.id, ada);
+      expect(playChapters.at(-1)!.content).toContain('data-sp="scene-heading"');
+
+      const novel = await createProject(ada, { title: "Novel" });
+      await importManuscript(ada, { filename: "n.fountain", data: script, projectId: novel.id });
+      const novelChapters = await listChapters(novel.id, ada);
+      expect(novelChapters.at(-1)!.content).not.toContain("data-sp");
+      expect(novelChapters.at(-1)!.content).toContain("EXT. ROOF - NIGHT");
+    });
+  });
 });

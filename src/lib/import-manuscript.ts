@@ -3,6 +3,7 @@ import { AuthError, authorizeProjectId, requireUserIfHosted, type PublicUser } f
 import { planNewChapters, type NewChapterFields } from "@/lib/chapters";
 import { resolveFolderId } from "@/lib/folders";
 import { importFile, ImportError, type ImportedManuscript } from "@/lib/import";
+import { nextChapterTitle } from "@/lib/manuscript-kind";
 import { stampBlockIds } from "@/lib/manuscript";
 import { countWords, htmlToText } from "@/lib/text";
 
@@ -34,8 +35,10 @@ function parse(input: ImportInput): ImportedManuscript {
 }
 
 /**
- * Import a Word, Markdown, HTML or Scrivener file as a new manuscript, or as
- * extra chapters at the end of an existing one. Chapters are written through
+ * Import a Word, Markdown, HTML, Fountain or Scrivener file as a new manuscript,
+ * or as extra chapters at the end of an existing one. A Fountain script becomes a
+ * screenplay; added to a manuscript of another kind, its lines lose their
+ * elements and read as paragraphs. Chapters are written through
  * the same path as any new chapter: stamped block ids, a word count, revision 0.
  */
 export async function importManuscript(
@@ -49,10 +52,13 @@ export async function importManuscript(
   let projectId = input.projectId;
   let title: string;
   let firstOrder = 0;
+  const kind = parsed.kind ?? "novel";
   let fields = (position: number, input: { title: string; content: string }): NewChapterFields => ({
-    title: input.title || `Chapter ${position + 1}`,
+    title: input.title || nextChapterTitle(kind, position),
     content: input.content,
   });
+  // The lines of a script keep their elements only in a screenplay.
+  let keepElements = kind === "screenplay";
   if (projectId) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
@@ -62,6 +68,7 @@ export async function importManuscript(
     title = project.title;
     const plan = await planNewChapters(projectId, parsed.chapters.length);
     fields = (position, input) => plan.fields(plan.visibleCount + position, input);
+    keepElements = plan.kind === "screenplay";
     const agg = await prisma.chapter.aggregate({ where: { projectId }, _max: { order: true } });
     firstOrder = (agg._max.order ?? -1) + 1;
   } else {
@@ -73,7 +80,8 @@ export async function importManuscript(
         userId: user?.id ?? null,
         folderId: folderId ?? null,
         title,
-        author: input.author?.trim() || user?.name || "",
+        author: input.author?.trim() || parsed.author || user?.name || "",
+        kind,
       },
       select: { id: true },
     });
@@ -82,9 +90,10 @@ export async function importManuscript(
 
   const created: ImportResult["chapters"] = [];
   for (const [i, chapter] of parsed.chapters.entries()) {
+    const html = parsed.kind === "screenplay" && !keepElements ? chapter.html.replace(/ data-sp="[^"]*"/g, "") : chapter.html;
     const { title: chapterTitle, content } = fields(i, {
       title: chapter.title.trim().slice(0, 200),
-      content: chapter.html ? stampBlockIds(chapter.html) : "",
+      content: html ? stampBlockIds(html) : "",
     });
     const row = await prisma.chapter.create({
       data: {

@@ -173,3 +173,34 @@ describe("format detection", () => {
     expect(() => importFile("a.md", new TextEncoder().encode("  \n"))).toThrow(/no text/);
   });
 });
+
+describe("fountain import", () => {
+  const source = new TextEncoder().encode(
+    "Title: Night Shift\nAuthor: A. Writer\n\n# Act one\n\nINT. LAB - DAY\n\nMARA\n(softly)\nHello *there*.\n\n# Act two\n\n!BOOM.\n\nCUT TO:\n"
+  );
+
+  it("is found by .fountain and .spmd", () => {
+    expect(detectFormat("script.fountain")).toBe("fountain");
+    expect(detectFormat("Script.SPMD")).toBe("fountain");
+  });
+
+  it("reads a script as a screenplay, one sequence for each # section", () => {
+    const result = importFile("night.fountain", source);
+    expect(result).toMatchObject({ title: "Night Shift", author: "A. Writer", kind: "screenplay" });
+    expect(result.chapters.map((c) => c.title)).toEqual(["Act one", "Act two"]);
+    expect(result.chapters[0].html).toBe(
+      '<p data-sp="scene-heading">INT. LAB - DAY</p><p data-sp="character">MARA</p><p data-sp="parenthetical">softly</p><p data-sp="dialogue">Hello <em>there</em>.</p>'
+    );
+    expect(result.chapters[1].html).toBe('<p>BOOM.</p><p data-sp="transition">CUT TO:</p>');
+  });
+
+  it("is one sequence without sections, named for the file when it has no title", () => {
+    const result = importFile("night.fountain", new TextEncoder().encode("INT. A - DAY\n\nHi."));
+    expect(result.title).toBe("night");
+    expect(result.chapters).toHaveLength(1);
+  });
+
+  it("refuses a file with nothing in it", () => {
+    expect(() => importFile("empty.fountain", new TextEncoder().encode("\n\n"))).toThrow(ImportError);
+  });
+});
