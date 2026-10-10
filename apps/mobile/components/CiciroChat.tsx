@@ -17,7 +17,6 @@ import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
-  FadeOut,
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
@@ -66,7 +65,7 @@ import { ScriptDraft } from "./ScriptDraft";
 import { Snackbar } from "./Snackbar";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
-import { PRESS_SCALE } from "../lib/motion";
+import { EASE_OUT, PRESS_SCALE } from "../lib/motion";
 
 /** A circle nested in the pill, inset so it shares the field's curve. */
 const SEND_SIZE = 36;
@@ -328,6 +327,68 @@ function JumpChip({
   );
 }
 
+/** Room above and below the chip row for each chip's glass shadow (radius 20, 10 down), which a scroll view clips. */
+const CHIP_SHADOW_ABOVE = 14;
+const CHIP_SHADOW_BELOW = 34;
+/** The gap the open chip row leaves above the Clear chat row. */
+const CHIP_ROW_GAP = 10;
+const CHIPS_MS = 240;
+
+/**
+ * The quick-action chips, folding open above the Clear chat row and back down
+ * into it. The row stays mounted so it can animate both ways: its layout height
+ * grows from nothing to the chips' own height (the dock is pinned at its foot,
+ * so the dock's top rises with it), while the chips fade and rise into place.
+ */
+function SuggestionChips({
+  open,
+  reduceMotion,
+  children,
+}: {
+  open: boolean;
+  reduceMotion: boolean;
+  children: ReactNode;
+}) {
+  const progress = useSharedValue(open ? 1 : 0);
+  const height = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming(open ? 1 : 0, { duration: reduceMotion ? 0 : CHIPS_MS, easing: EASE_OUT });
+  }, [open, reduceMotion, progress]);
+  const overlap = CHIP_SHADOW_ABOVE + CHIP_SHADOW_BELOW - CHIP_ROW_GAP;
+  const frameStyle = useAnimatedStyle(() => ({
+    height: overlap + Math.max(0, height.value - overlap) * progress.value,
+  }));
+  const rowStyle = useAnimatedStyle(() => ({
+    opacity: height.value > 0 ? progress.value : 0,
+    transform: [
+      { translateY: (1 - progress.value) * 14 },
+      { scale: reduceMotion ? 1 : 0.94 + 0.06 * progress.value },
+    ],
+  }));
+  return (
+    <Animated.View
+      pointerEvents={open ? "box-none" : "none"}
+      accessibilityElementsHidden={!open}
+      importantForAccessibility={open ? "auto" : "no-hide-descendants"}
+      style={[styles.actionsFrame, frameStyle]}
+    >
+      <Animated.ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onLayout={(event) => {
+          height.value = event.nativeEvent.layout.height;
+        }}
+        style={[styles.actionsScroll, rowStyle]}
+        contentContainerStyle={styles.actionsRow}
+        testID="chat-quick-actions"
+      >
+        {children}
+      </Animated.ScrollView>
+    </Animated.View>
+  );
+}
+
 /**
  * The empty thread, before the first message: the brand mark and one
  * instructional line that points at the chips docked above the composer.
@@ -509,13 +570,19 @@ export function CiciroChat({
   const keyboardHeight = useKeyboardState((state) => (state.isVisible ? state.height : 0));
   const stickyOffset = Math.max(0, bottomInset - KEYBOARD_GAP);
   const hasSuggestions = Boolean(quickActions?.length && onQuickAction);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  // An empty chat starts with the chips out; either way the Suggestions button folds them.
+  const chatEmpty = messages.length === 0;
+  const [suggestionsOpen, setSuggestionsOpen] = useState(chatEmpty);
   const suggestionsIdle = !streaming && keyboardHeight === 0;
-  const suggestionsShown = hasSuggestions && suggestionsIdle && (messages.length === 0 || suggestionsOpen);
-  // Typing, a reply streaming in or an emptied chat each put the chips away for the next time.
+  const suggestionsShown = hasSuggestions && suggestionsIdle && suggestionsOpen;
+  // An emptied chat lays them out again for the first message.
   useEffect(() => {
-    if (!suggestionsIdle || composer || messages.length === 0) setSuggestionsOpen(false);
-  }, [suggestionsIdle, composer, messages.length]);
+    if (chatEmpty) setSuggestionsOpen(true);
+  }, [chatEmpty]);
+  // Once it has begun, typing or a reply streaming in puts them away for the next time.
+  useEffect(() => {
+    if (!chatEmpty && (!suggestionsIdle || composer)) setSuggestionsOpen(false);
+  }, [chatEmpty, suggestionsIdle, composer]);
   // What the raised dock hides that the resting one did not, so the last reply
   // stays reachable with the keyboard up.
   const keyboardLift = Math.max(0, keyboardHeight + KEYBOARD_GAP - bottomInset);
@@ -988,17 +1055,8 @@ export function CiciroChat({
             underneath this whole dock, and a plain label would have prose
             running straight through it.
           */}
-          {suggestionsShown && quickActions && onQuickAction ? (
-            <Animated.ScrollView
-              entering={animate ? FadeInDown.duration(180) : undefined}
-              exiting={animate ? FadeOut.duration(120) : undefined}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={styles.actionsScroll}
-              contentContainerStyle={styles.actionsRow}
-              testID="chat-quick-actions"
-            >
+          {quickActions && onQuickAction ? (
+            <SuggestionChips open={suggestionsShown} reduceMotion={reduceMotion}>
               {quickActions.map((action) => (
                 <Glass key={action.id} dark={dark} colors={colors} radius={16}>
                   <TapPressable
@@ -1015,7 +1073,7 @@ export function CiciroChat({
                   </TapPressable>
                 </Glass>
               ))}
-            </Animated.ScrollView>
+            </SuggestionChips>
           ) : null}
           <View style={styles.chromeRow}>
             <Glass
@@ -1046,14 +1104,19 @@ export function CiciroChat({
             {onEditModeChange ? (
               <EditModeToggle mode={editMode} onChange={onEditModeChange} />
             ) : null}
-            {hasSuggestions && messages.length > 0 && suggestionsIdle ? (
+            {hasSuggestions && suggestionsIdle ? (
               <Glass dark={dark} colors={colors} radius={14}>
                 <TapPressable
                   feedback="dim"
+                  haptic="none"
                   accessibilityRole="button"
                   accessibilityState={{ expanded: suggestionsOpen }}
                   accessibilityLabel={t("ciciroTab.suggestions")}
-                  onPress={() => setSuggestionsOpen((open) => !open)}
+                  onPress={() => {
+                    // A firmer bump unfolding the chips, a lighter one folding them away.
+                    haptics.impact(suggestionsOpen ? "light" : "medium");
+                    setSuggestionsOpen(!suggestionsOpen);
+                  }}
                   hitSlop={7}
                   style={styles.suggest}
                 >
@@ -1129,8 +1192,21 @@ const styles = StyleSheet.create({
   // A scroll view clips its content, and each chip's glass casts a soft shadow
   // below it: the padding gives the shadow room and the negative margin takes
   // that room back out of the layout.
-  actionsScroll: { marginHorizontal: -16, marginTop: -6, marginBottom: -14, flexGrow: 0 },
-  actionsRow: { gap: 8, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 24 },
+  // The frame's height runs from the shadow room alone (folded) to the whole
+  // padded row; the negative margins take that room back out of the layout, so
+  // folded it adds nothing to the dock and open it leaves CHIP_ROW_GAP.
+  actionsFrame: {
+    marginHorizontal: -16,
+    marginTop: -CHIP_SHADOW_ABOVE,
+    marginBottom: CHIP_ROW_GAP - CHIP_SHADOW_BELOW,
+  },
+  actionsScroll: { position: "absolute", left: 0, right: 0, bottom: 0, flexGrow: 0 },
+  actionsRow: {
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: CHIP_SHADOW_ABOVE,
+    paddingBottom: CHIP_SHADOW_BELOW,
+  },
   actionChip: { paddingHorizontal: 13, paddingVertical: 8 },
   user: {
     alignSelf: "flex-end",

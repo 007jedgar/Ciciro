@@ -69,6 +69,12 @@ export function useTabBarClearance(): number {
 }
 
 const SPRING = { damping: 15, stiffness: 190, mass: 0.7 } as const;
+/**
+ * The selected-tab bubble launches as briskly as SPRING but is critically
+ * damped (damping = 2 * sqrt(stiffness * mass)) and clamped, so it glides to a
+ * dead stop on its tab instead of bouncing past it.
+ */
+const BUBBLE_SPRING = { damping: 32, stiffness: 360, mass: 0.7, overshootClamping: true } as const;
 
 type TabDef = {
   name: string;
@@ -195,7 +201,7 @@ export function ManuscriptTabBar({ projectId, hidden = false }: { projectId: str
   }, [open, reduceMotion, progress]);
 
   useEffect(() => {
-    bubble.value = reduceMotion ? activeIndex : withSpring(activeIndex, SPRING);
+    bubble.value = reduceMotion ? activeIndex : withSpring(activeIndex, BUBBLE_SPRING);
   }, [activeIndex, reduceMotion, bubble]);
 
   useEffect(() => {

@@ -192,7 +192,7 @@ describe("CiciroChat", () => {
     expect(screen.getByLabelText("Suggestions").props.accessibilityState.expanded).toBe(false);
   });
 
-  it("offers no Suggestions button on an empty chat, where the chips already show", () => {
+  it("opens an empty chat with the chips out, and the Suggestions button folds and unfolds them", () => {
     render(
       wrap(
         <CiciroChat
@@ -204,7 +204,12 @@ describe("CiciroChat", () => {
       )
     );
     expect(screen.getByLabelText("Find loose ends")).toBeTruthy();
-    expect(screen.queryByLabelText("Suggestions")).toBeNull();
+    expect(screen.getByLabelText("Suggestions").props.accessibilityState.expanded).toBe(true);
+    fireEvent.press(screen.getByLabelText("Suggestions"));
+    expect(screen.queryByLabelText("Find loose ends")).toBeNull();
+    expect(screen.getByLabelText("Suggestions").props.accessibilityState.expanded).toBe(false);
+    fireEvent.press(screen.getByLabelText("Suggestions"));
+    expect(screen.getByLabelText("Find loose ends")).toBeTruthy();
   });
 
   it("sends typed copy and inserts a closed draft into the manuscript", () => {
