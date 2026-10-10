@@ -14,7 +14,7 @@ import {
   setCommentHighlights,
   type CommentHighlight,
 } from "@/lib/tiptap-comment-highlights";
-import { Screenplay, currentElement, setElement } from "@/lib/tiptap-screenplay";
+import { Screenplay, currentElement, screenplayStarterKit, setElement } from "@/lib/tiptap-screenplay";
 import {
   SCREENPLAY_ELEMENTS,
   SCREENPLAY_ELEMENT_LABELS,
@@ -278,7 +278,7 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      ...(kind === "screenplay" ? screenplayStarterKit() : [StarterKit]),
       BlockId,
       SuggestionInsertion,
       SuggestionDeletion,

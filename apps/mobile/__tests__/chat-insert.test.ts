@@ -1,4 +1,5 @@
 import { insertDraftOps, insertionKey } from "../lib/chat-insert";
+import { elementOfHtml } from "../lib/manuscript-kind";
 
 describe("insertDraftOps", () => {
   it("appends AI paragraph ops after the last block", () => {
@@ -41,6 +42,36 @@ describe("insertDraftOps", () => {
         html: expect.stringContaining("Once."),
       }),
     ]);
+  });
+});
+
+describe("insertDraftOps in a screenplay", () => {
+  it("sorts the draft into elements", () => {
+    const ops = insertDraftOps(
+      { id: "c1", content: '<p data-block-id="b1" data-sp="scene-heading">INT. LAB - DAY</p>', revision: 1 },
+      "Rain on glass.\n\nMARA\n(quietly)\nHe left.\n\nCUT TO:",
+      "screenplay"
+    );
+    const elements = ops.map((op) => (op.type === "insert_block" ? elementOfHtml(op.html) : null));
+    expect(elements).toEqual(["action", "character", "parenthetical", "dialogue", "transition"]);
+    expect(ops[1]).toMatchObject({ chapterId: "c1", actor: "ai" });
+    expect(ops[1].type === "insert_block" && ops[1].html).toContain('data-sp="character"');
+    expect(ops[0].type === "insert_block" && ops[0].html).not.toContain("data-sp");
+  });
+
+  it("reads dialogue on from a cue the chapter ends on", () => {
+    const ops = insertDraftOps(
+      { id: "c1", content: '<p data-block-id="b1" data-sp="character">MARA</p>', revision: 0 },
+      "Where is he?",
+      "screenplay"
+    );
+    expect(ops.map((op) => (op.type === "insert_block" ? elementOfHtml(op.html) : null))).toEqual(["dialogue"]);
+  });
+
+  it("keeps the old one-paragraph-per-break shape outside a screenplay", () => {
+    const ops = insertDraftOps({ id: "c1", content: "", revision: 0 }, "MARA\nHello.\n\nShe waits.", "novel");
+    expect(ops).toHaveLength(2);
+    expect(ops.every((op) => op.type === "insert_block" && !op.html.includes("data-sp"))).toBe(true);
   });
 });
 

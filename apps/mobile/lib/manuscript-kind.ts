@@ -103,6 +103,13 @@ export function normalizeElement(value: unknown): ScreenplayElement {
   return isScreenplayElement(value) ? value : "action";
 }
 
+/** Elements the spell checker and the grammar pass leave alone: names, slugs and cues are not prose. */
+const UNCHECKED_ELEMENTS: readonly ScreenplayElement[] = ["scene-heading", "character", "transition"];
+
+export function isProofread(element: ScreenplayElement): boolean {
+  return !UNCHECKED_ELEMENTS.includes(element);
+}
+
 /** Tab walks this ring; Shift-Tab walks it backwards. */
 const CYCLE: readonly ScreenplayElement[] = [
   "action",
@@ -229,4 +236,55 @@ export function nextChapterTitle(kind: ManuscriptKind, count: number): string {
   if (kind === "screenplay") return `Sequence ${count + 1}`;
   if (kind === "blog") return "Post";
   return `${KIND_INFO[kind].unit} ${count + 1}`;
+}
+
+// --- Screenplay text from the assistant --------------------------------------
+
+const SCENE_HEADING = /^(?:INT|EXT|EST|INT\.?\/EXT|EXT\.?\/INT|I\/E)[.\s]/i;
+const TRANSITION = /^(?:[A-Z][A-Z .'-]*\bTO:|FADE (?:IN|OUT)[.:]?|FADE TO BLACK[.:]?|CUT TO BLACK[.:]?|SMASH CUT:|DISSOLVE TO:|THE END\.?)$/;
+const CHARACTER_CUE = /^[A-Z][A-Z0-9 .'-]{0,38}(?:\s*\((?:V\.O\.|O\.S\.|O\.C\.|CONT'D)\))?$/;
+
+/**
+ * Sort a script written as plain lines (what the assistant returns) into
+ * screenplay elements. A line under a character cue is dialogue until a blank
+ * line; anything unrecognized is action. A parenthetical comes back without
+ * its brackets.
+ */
+export function classifyScreenplayLines(
+  text: string,
+  after?: ScreenplayElement
+): { element: ScreenplayElement; text: string }[] {
+  const out: { element: ScreenplayElement; text: string }[] = [];
+  const speaking = (el?: ScreenplayElement) => el === "character" || el === "parenthetical" || el === "dialogue";
+  let inDialogue = after === "character" || after === "parenthetical";
+  let previous = after;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      inDialogue = false;
+      previous = undefined;
+      continue;
+    }
+    const cue = CHARACTER_CUE.test(line) && line === line.toUpperCase();
+    let element: ScreenplayElement;
+    if (SCENE_HEADING.test(line)) element = "scene-heading";
+    else if (TRANSITION.test(line)) element = "transition";
+    else if (inDialogue && /^\(\s*\S.*\)$/.test(line)) element = "parenthetical";
+    else if (inDialogue && !(cue && previous === "dialogue")) element = "dialogue";
+    else if (cue) element = "character";
+    else element = "action";
+    inDialogue = speaking(element);
+    previous = element;
+    // The page draws a parenthetical's brackets, so the stored text has none.
+    out.push({ element, text: element === "parenthetical" ? line.slice(1, -1).trim() : line });
+  }
+  return out;
+}
+
+/**
+ * The element to read a replacement on from: a replaced line of speech keeps
+ * its speaker open, anything else starts fresh.
+ */
+export function replacementContext(replaced: ScreenplayElement | undefined): ScreenplayElement | undefined {
+  return replaced === "dialogue" || replaced === "parenthetical" ? "character" : undefined;
 }

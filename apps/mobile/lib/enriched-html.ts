@@ -8,7 +8,7 @@ import {
 } from "./manuscript";
 import { carrySuggestions, suggestionsAsDisplayMarks } from "./suggestions";
 
-import { elementOfHtml, nextElementOnEnter, withElement } from "./manuscript-kind";
+import { elementOfHtml, isProofread, nextElementOnEnter, withElement } from "./manuscript-kind";
 
 export const SCENE_BREAK_TEXT = "***";
 
@@ -308,6 +308,15 @@ export function blockAtPlainOffset(
   if (blocks.length === 0) return null;
   const { index, local } = locateEditorOffset(blocks, offset);
   return { blockId: blocks[index].id, local };
+}
+
+/**
+ * Whether the grammar pass leaves block `blockId` alone: a screenplay's scene
+ * headings, character cues and transitions are names and slugs, not prose.
+ */
+export function blockSkipsProofreading(html: string, blockId: string): boolean {
+  const block = htmlToDoc(html || "<p></p>", 0).doc.blocks.find((b) => b.id === blockId);
+  return block ? !isProofread(elementOfHtml(block.html)) : false;
 }
 
 /** Whether block `blockId` sits in a paragraph above the document-level caret `offset`. */
