@@ -327,9 +327,6 @@ function JumpChip({
   );
 }
 
-/** Room above and below the chip row for each chip's glass shadow (radius 20, 10 down), which a scroll view clips. */
-const CHIP_SHADOW_ABOVE = 14;
-const CHIP_SHADOW_BELOW = 34;
 /** The gap the open chip row leaves above the Clear chat row. */
 const CHIP_ROW_GAP = 10;
 const CHIPS_MS = 240;
@@ -354,10 +351,7 @@ function SuggestionChips({
   useEffect(() => {
     progress.value = withTiming(open ? 1 : 0, { duration: reduceMotion ? 0 : CHIPS_MS, easing: EASE_OUT });
   }, [open, reduceMotion, progress]);
-  const overlap = CHIP_SHADOW_ABOVE + CHIP_SHADOW_BELOW - CHIP_ROW_GAP;
-  const frameStyle = useAnimatedStyle(() => ({
-    height: overlap + Math.max(0, height.value - overlap) * progress.value,
-  }));
+  const frameStyle = useAnimatedStyle(() => ({ height: height.value * progress.value }));
   const rowStyle = useAnimatedStyle(() => ({
     opacity: height.value > 0 ? progress.value : 0,
     transform: [
@@ -1058,7 +1052,7 @@ export function CiciroChat({
           {quickActions && onQuickAction ? (
             <SuggestionChips open={suggestionsShown} reduceMotion={reduceMotion}>
               {quickActions.map((action) => (
-                <Glass key={action.id} dark={dark} colors={colors} radius={16}>
+                <Glass key={action.id} dark={dark} colors={colors} radius={16} flat>
                   <TapPressable
                     scale={PRESS_SCALE.chip}
                     accessibilityRole="button"
@@ -1192,21 +1186,12 @@ const styles = StyleSheet.create({
   // A scroll view clips its content, and each chip's glass casts a soft shadow
   // below it: the padding gives the shadow room and the negative margin takes
   // that room back out of the layout.
-  // The frame's height runs from the shadow room alone (folded) to the whole
-  // padded row; the negative margins take that room back out of the layout, so
-  // folded it adds nothing to the dock and open it leaves CHIP_ROW_GAP.
-  actionsFrame: {
-    marginHorizontal: -16,
-    marginTop: -CHIP_SHADOW_ABOVE,
-    marginBottom: CHIP_ROW_GAP - CHIP_SHADOW_BELOW,
-  },
+  // The chips are flat glass: a scroll view clips a drop shadow at its edges,
+  // which reads as a box ending wherever the row stops. The frame's height runs
+  // from nothing (folded) to the row plus its gap above the Clear chat row.
+  actionsFrame: { marginHorizontal: -16 },
   actionsScroll: { position: "absolute", left: 0, right: 0, bottom: 0, flexGrow: 0 },
-  actionsRow: {
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: CHIP_SHADOW_ABOVE,
-    paddingBottom: CHIP_SHADOW_BELOW,
-  },
+  actionsRow: { gap: 8, paddingHorizontal: 16, paddingBottom: CHIP_ROW_GAP },
   actionChip: { paddingHorizontal: 13, paddingVertical: 8 },
   user: {
     alignSelf: "flex-end",
