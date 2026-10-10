@@ -628,19 +628,22 @@ export function fdxFromScript(script: FountainScript, opts: { sceneNumbers?: boo
   const numbering: Numbering = { enabled: opts.sceneNumbers === true, count: 0 };
   const body: string[] = [];
   for (const sequence of script.sequences) {
-    const present = sequence.blocks.filter((b) => runsText(b.runs).trim() !== "");
-    // Two speeches that sit side by side are written together; a flag with nothing above it is dropped.
-    const pairs = dualPairs(present.map((b) => ({ element: b.element, text: "", dual: b.dual })));
-    const pairAt = new Map(pairs.map((pair) => [pair.left.start, pair]));
+    const isPresent = (b: StyledBlock) => runsText(b.runs).trim() !== "";
+    const present = sequence.blocks.filter(isPresent);
+    // Two speeches that sit side by side are written together, paired on every block as the editor pairs them;
+    // a flag with nothing right above it is dropped.
+    const pairAt = new Map<StyledBlock, StyledBlock[]>();
+    for (const pair of dualPairs(sequence.blocks.map((b) => ({ element: b.element, text: "", dual: b.dual })))) {
+      const inPair = sequence.blocks.slice(pair.left.start, pair.right.end).filter(isPresent);
+      if (inPair.length > 0) pairAt.set(inPair[0], inPair);
+    }
     for (let i = 0; i < present.length; i++) {
-      const pair = pairAt.get(i);
-      if (pair) {
+      const inPair = pairAt.get(present[i]);
+      if (inPair) {
         body.push("    <Paragraph>", "      <DualDialogue>");
-        for (let j = pair.left.start; j < pair.right.end; j++) {
-          body.push(paragraphXml(present[j], numbering, "        "));
-        }
+        for (const block of inPair) body.push(paragraphXml(block, numbering, "        "));
         body.push("      </DualDialogue>", "    </Paragraph>");
-        i = pair.right.end - 1;
+        i += inPair.length - 1;
         continue;
       }
       body.push(paragraphXml(present[i], numbering, "    "));

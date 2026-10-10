@@ -69,6 +69,7 @@ import type { ReplacedChapter, SearchMatch } from "@/lib/search-client";
 import type { ReplaceUndoResult } from "@/components/SearchPanel";
 import { makeReplaceUndo } from "@/lib/replace-undo";
 import { applyChapterOrder } from "@/lib/outline";
+import { createScriptSettingsSaver } from "@/lib/script-settings-save";
 import { fetchShareComments } from "@/lib/share-client";
 import type { ShareCommentView } from "@/lib/share-view";
 import type { CommentHighlight } from "@/lib/tiptap-comment-highlights";
@@ -290,22 +291,36 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
   // The title page, the dialogue-break notes and scene numbers are the script's, so every device and every export reads
   // them from the manuscript: written back a moment after the last change.
-  const scriptSettingsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifyRef = useRef(notify);
+  notifyRef.current = notify;
+  const [scriptSettingsSaver] = useState(() =>
+    createScriptSettingsSaver({
+      projectId: project.id,
+      stored: project.scriptSettings ?? "",
+      onFailed: (stored) => {
+        setProject((p) => ({ ...p, scriptSettings: stored }));
+        notifyRef.current({ message: "Couldn't save the script settings. They're back to how they were." });
+      },
+    })
+  );
   const onScriptSettingsChange = useCallback(
     (next: ScriptSettings) => {
-      const stored = serializeScriptSettings(next);
-      setProject((p) => ({ ...p, scriptSettings: stored }));
-      if (scriptSettingsTimer.current) clearTimeout(scriptSettingsTimer.current);
-      scriptSettingsTimer.current = setTimeout(() => {
-        void fetch(`/api/projects/${project.id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ scriptSettings: next }),
-        });
-      }, 700);
+      setProject((p) => ({ ...p, scriptSettings: serializeScriptSettings(next) }));
+      scriptSettingsSaver.schedule(next);
     },
-    [project.id]
+    [scriptSettingsSaver]
   );
+  const flushScriptSettings = useCallback(async () => {
+    await scriptSettingsSaver.flush();
+  }, [scriptSettingsSaver]);
+  useEffect(() => {
+    const leave = () => void scriptSettingsSaver.flush({ keepalive: true });
+    window.addEventListener("pagehide", leave);
+    return () => {
+      window.removeEventListener("pagehide", leave);
+      leave();
+    };
+  }, [scriptSettingsSaver]);
 
   // Suggest mode is a per-device habit, like a text editor's track-changes switch.
   useEffect(() => {
@@ -1219,6 +1234,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           kind={kind}
           script={scriptSettings}
           manuscript={manuscriptNames}
+          beforeExport={kind === "screenplay" ? flushScriptSettings : undefined}
         />
       </div>
 

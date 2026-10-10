@@ -158,9 +158,10 @@ type Numbering = { enabled: boolean; count: number };
 function blocksToChunks(blocks: readonly StyledBlock[], numbering: Numbering): Chunk[] {
   const chunks: Chunk[] = [];
   const present = blocks.filter((b) => runsText(b.runs).trim() !== "");
-  // The cues that open the second speech of a pair; a flag with nothing above it is dropped.
+  // The cues that open the second speech of a pair, paired on every block as the editor pairs them;
+  // a flag with nothing right above it is dropped.
   const seconds = new Set(
-    dualPairs(present.map((b) => ({ element: b.element, text: "", dual: b.dual }))).map((pair) => pair.right.character)
+    dualPairs(blocks.map((b) => ({ element: b.element, text: "", dual: b.dual }))).map((pair) => blocks[pair.right.character])
   );
   for (let i = 0; i < present.length; i++) {
     const block = present[i];
@@ -206,7 +207,7 @@ function blocksToChunks(blocks: readonly StyledBlock[], numbering: Numbering): C
           }
           previous = next;
         }
-        const second = seconds.has(i);
+        const second = seconds.has(block);
         i = j - 1;
         const head = cueIsPlain(cue) && lines.length > 0 ? cue : `@${cue}`;
         chunks.push([second ? `${head} ^` : head, ...lines].join("\n"));

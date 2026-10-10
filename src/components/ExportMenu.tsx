@@ -46,6 +46,7 @@ export default function ExportMenu({
   kind = "novel",
   script = DEFAULT_SCRIPT_SETTINGS,
   manuscript = { title: "", author: "" },
+  beforeExport,
 }: {
   projectId: string;
   chapters: Chapter[];
@@ -54,6 +55,8 @@ export default function ExportMenu({
   script?: ScriptSettings;
   /** The manuscript's own title and author, which a blank title page falls back on. */
   manuscript?: { title: string; author: string };
+  /** Settles anything the export reads from the server (a script's settings still waiting to save). */
+  beforeExport?: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<ExportFormat | null>(null);
@@ -104,6 +107,7 @@ export default function ExportMenu({
     setBusy(format);
     setError("");
     try {
+      await beforeExport?.();
       await downloadExport(projectId, format);
       setOpen(false);
       getAnalytics().track("export_completed", { format });

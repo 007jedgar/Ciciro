@@ -387,6 +387,13 @@ describe("professional output", () => {
     expect(text).not.toContain("^");
   });
 
+  it("pairs speeches as the editor does: an empty block between them keeps them apart", () => {
+    const apart = write(cue("mara"), block("dialogue", "Hi."), block("action", ""), cue("jonah", true), block("dialogue", "Hey."));
+    expect(apart).not.toContain("^");
+    const together = write(cue("mara"), block("dialogue", "Hi."), block("dialogue", " "), cue("jonah", true), block("dialogue", "Hey."));
+    expect(together).toContain("JONAH ^");
+  });
+
   it("reads all of it back: title page, dual flag, centered text, numbered scenes", () => {
     const back = scriptFromFountain(written({ sceneNumbers: true }));
     expect(back.titlePage).toEqual(titlePage);

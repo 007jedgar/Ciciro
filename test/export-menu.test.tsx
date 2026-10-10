@@ -293,3 +293,31 @@ describe("ExportMenu for a screenplay", () => {
     localHost.remove();
   });
 });
+
+describe("ExportMenu before an export", () => {
+  it("lets a waiting save land before it asks the server for the file", async () => {
+    const localHost = document.createElement("div");
+    document.body.appendChild(localHost);
+    const localRoot = createRoot(localHost);
+    let settle: () => void = () => {};
+    const beforeExport = vi.fn(() => new Promise<void>((resolve) => (settle = resolve)));
+    await act(async () =>
+      localRoot.render(
+        <SnackbarProvider>
+          <ExportMenu projectId="p1" chapters={[]} kind="screenplay" beforeExport={beforeExport} />
+        </SnackbarProvider>
+      )
+    );
+    await act(async () => localHost.querySelector<HTMLButtonElement>(".export-menu-root > button")!.click());
+    const fountain = Array.from(localHost.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find((b) =>
+      b.textContent?.includes("Fountain")
+    )!;
+    await act(async () => fountain.click());
+    expect(beforeExport).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
+    await act(async () => settle());
+    expect(fetch).toHaveBeenCalledWith("/api/export/p1?format=fountain");
+    await act(async () => localRoot.unmount());
+    localHost.remove();
+  });
+});

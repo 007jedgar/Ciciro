@@ -141,6 +141,33 @@ describe("writing FDX", () => {
     expect(read(apart).some((b) => b.dual)).toBe(false);
   });
 
+  it("pairs speeches as the editor does: an empty block between them keeps them apart", () => {
+    const apart = write([
+      block("character", "a"),
+      block("dialogue", "One."),
+      block("action", ""),
+      { ...block("character", "b"), dual: true },
+      block("dialogue", "Two."),
+    ]);
+    expect(apart).not.toContain("DualDialogue");
+    const together = write([
+      block("character", "a"),
+      block("dialogue", "One."),
+      block("dialogue", " "),
+      { ...block("character", "b"), dual: true },
+      block("dialogue", "Two."),
+      block("action", "After."),
+    ]);
+    expect(together.match(/<DualDialogue>/g)).toHaveLength(1);
+    expect(read(together).map((b) => [b.element, !!b.dual, text(b)])).toEqual([
+      ["character", false, "A"],
+      ["dialogue", false, "One."],
+      ["character", true, "B"],
+      ["dialogue", false, "Two."],
+      ["action", false, "After."],
+    ]);
+  });
+
   it("numbers scene headings only when asked, counting on across sequences and past blank ones", () => {
     const script: FountainScript = {
       title: "",
