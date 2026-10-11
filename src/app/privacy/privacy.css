@@ -146,6 +146,38 @@
   text-underline-offset: 2px;
 }
 
+.privacy-section code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--panel-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* /changelog reuses this page's layout; these are its extras. */
+.changelog-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.changelog-entry {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.changelog-entry:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.changelog-date {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+
 .privacy-footnote {
   font-size: 0.85rem;
   line-height: 1.6;

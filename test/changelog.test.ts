@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseChangelogEntries } from "@/lib/changelog-parse";
+import { formatChangelogDate, parseChangelogEntries } from "@/lib/changelog-parse";
 import { CHANGELOG_ENTRIES } from "@/lib/changelog-data.generated";
 
 const root = join(import.meta.dirname, "..");
@@ -27,6 +27,26 @@ describe("changelog parsing", () => {
       "First entry, one line.",
       "Second entry, spread across two lines that should join into one.",
     ]);
+  });
+
+  it("reads a leading <!-- YYYY-MM-DD --> comment as the entry's date, and strips it from the text", () => {
+    const md = `## Unreleased
+
+- <!-- 2026-03-05 --> Dated entry.
+
+- Undated entry.
+`;
+    const [dated, undated] = parseChangelogEntries(md);
+    expect(dated.date).toBe("2026-03-05");
+    expect(dated.text).toBe("Dated entry.");
+    expect(dated.summary).toBe("Dated entry.");
+    expect(undated.date).toBe("");
+    expect(undated.text).toBe("Undated entry.");
+  });
+
+  it("formats a YYYY-MM-DD date for display", () => {
+    expect(formatChangelogDate("2026-03-05")).toBe("March 5, 2026");
+    expect(formatChangelogDate("2026-10-10")).toBe("October 10, 2026");
   });
 
   it("summarizes to the first sentence, and caps a long one with an ellipsis", () => {

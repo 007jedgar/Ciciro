@@ -28,6 +28,17 @@ export function authRequired(): boolean {
   return process.env["CICIRO_REQUIRE_AUTH"] === "true";
 }
 
+// Pages whose whole purpose is signing in or recovering an account. A "Back"
+// control (BackLink) never lands here: a visitor who reached a public page
+// (e.g. /changelog) only after the auth middleware bounced them through
+// /login carries that page in their browser history, so router.back() would
+// return them straight to it instead of where they actually meant to go.
+export const AUTH_PAGE_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"];
+
+export function isAuthPagePath(pathname: string): boolean {
+  return AUTH_PAGE_PATHS.includes(pathname);
+}
+
 function decoded(value: string): string {
   try {
     return decodeURIComponent(value);

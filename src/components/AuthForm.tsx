@@ -96,7 +96,9 @@ export default function AuthForm({
         analytics.track("signed_in", { method: "email", platform: "web" });
       }
       window.dispatchEvent(new Event(SETTINGS_SYNC_EVENT));
-      window.location.assign(next);
+      // replace, not assign: a signed-in visitor should never land back on
+      // the sign-in form by pressing Back.
+      window.location.replace(next);
     } catch {
       setError("Network error. Try again.");
       setBusy(false);

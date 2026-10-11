@@ -28,10 +28,11 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  "/changelog",
 ];
 const PUBLIC_PREFIXES = ["/api/auth/", "/api/beta-signup", "/api/health", "/read/", "/api/read/", "/api/billing/webhooks/"];
 
-function isPublic(pathname: string): boolean {
+export function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   // Email previews: sample data only, and a 404 in production builds.
   if (process.env.NODE_ENV !== "production" && pathname.startsWith("/dev/emails")) return true;

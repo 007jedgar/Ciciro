@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import BackLink from "@/app/privacy/BackLink";
 import { CHANGELOG_ENTRIES } from "@/lib/changelog-data.generated";
+import { formatChangelogDate } from "@/lib/changelog-parse";
 import "../privacy/privacy.css";
 
 export const metadata: Metadata = {
@@ -35,11 +38,16 @@ export default function ChangelogPage() {
         {CHANGELOG_ENTRIES.length === 0 ? (
           <p className="privacy-lede">Nothing new yet.</p>
         ) : (
-          <section className="privacy-section">
+          <section className="privacy-section changelog-entries">
             {CHANGELOG_ENTRIES.map((entry) => (
-              <p key={entry.id} id={entry.id}>
-                {entry.text}
-              </p>
+              <article className="changelog-entry" key={entry.id} id={entry.id}>
+                {entry.date ? (
+                  <p className="changelog-date">{formatChangelogDate(entry.date)}</p>
+                ) : null}
+                <div className="changelog-text">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.text}</ReactMarkdown>
+                </div>
+              </article>
             ))}
           </section>
         )}
