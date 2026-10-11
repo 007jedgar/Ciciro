@@ -11,7 +11,7 @@ export function isObstacle(value: unknown): value is Obstacle {
   return typeof value === "string" && (OBSTACLES as readonly string[]).includes(value);
 }
 
-export const DEMO_PATHS = ["focus_typewriter", "suggestions_not_overwrites"] as const;
+export const DEMO_PATHS = ["focus_typewriter", "suggestions_not_overwrites", "screenplay_scene"] as const;
 export type DemoPath = (typeof DEMO_PATHS)[number];
 
 /**
@@ -68,9 +68,14 @@ export function wantsReminderStep(obstacles: readonly Obstacle[]): boolean {
  * Which demo the answers open. With several obstacles picked, the demo most of
  * them point at wins, and a tie goes to whichever was tapped first. Nothing
  * picked (a skipped question) is Focus. A journal is the author's own life, so
- * it never gets invented prose: it always opens Focus, on a blank page.
+ * it never gets invented prose: it always opens Focus, on a blank page. A
+ * screenplay always opens the real screenplay editor on a seeded scene,
+ * whatever the obstacle - the kind, not the obstacle, decides what the page
+ * looks like, and prose or tracked-change demos would show the wrong editor.
+ * Focus mode is still reachable from inside that demo (see ScreenplayDemo).
  */
 export function demoForAnswers(kind: ManuscriptKind, obstacles: readonly Obstacle[]): DemoPath {
+  if (kind === "screenplay") return "screenplay_scene";
   if (kind === "journal") return "focus_typewriter";
   const votes = new Map<DemoPath, number>();
   for (const obstacle of obstacles) {

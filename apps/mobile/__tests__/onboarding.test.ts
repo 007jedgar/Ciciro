@@ -38,6 +38,12 @@ describe("demoForAnswers", () => {
   it("never shows a journal invented prose, whatever the obstacle", () => {
     for (const obstacle of OBSTACLES) expect(demoForAnswers("journal", [obstacle])).toBe("focus_typewriter");
   });
+
+  it("always opens the screenplay editor for a screenplay, whatever the obstacle", () => {
+    for (const obstacle of OBSTACLES) expect(demoForAnswers("screenplay", [obstacle])).toBe("screenplay_scene");
+    expect(demoForAnswers("screenplay", [])).toBe("screenplay_scene");
+    expect(demoForAnswers("screenplay", ["zone", "block", "creativity"])).toBe("screenplay_scene");
+  });
 });
 
 describe("several obstacles", () => {
