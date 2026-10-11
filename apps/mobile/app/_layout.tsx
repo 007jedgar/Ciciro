@@ -18,6 +18,7 @@ import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
 import { SplashOverlay } from "../components/SplashOverlay";
+import { ForceUpdateGate } from "../components/ForceUpdateGate";
 import { ThemeWashScope } from "../components/ThemeWashScope";
 import { StackPopTransition } from "../components/StackPopTransition";
 import { arrivesSettled } from "../lib/stack-arrival";
@@ -174,11 +175,13 @@ export default function RootLayout() {
                   <PushRegistrationSync />
                   <WritingWidgetSync />
                   <UpdateSync />
-                  <SharedTitleMorphProvider>
-                    <ThemeWashScope style={{ flex: 1 }}>
-                      <ThemedStack />
-                    </ThemeWashScope>
-                  </SharedTitleMorphProvider>
+                  <ForceUpdateGate>
+                    <SharedTitleMorphProvider>
+                      <ThemeWashScope style={{ flex: 1 }}>
+                        <ThemedStack />
+                      </ThemeWashScope>
+                    </SharedTitleMorphProvider>
+                  </ForceUpdateGate>
                   <SplashOverlay />
                 </WritingDayProvider>
               </SettingsProvider>

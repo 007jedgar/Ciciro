@@ -33,6 +33,11 @@ const es: Translations = {
     hideDetails: "Ocultar detalles",
     screenCrashed: "Algo salió mal al cargar esta pantalla.",
   },
+  forceUpdate: {
+    title: "Actualización necesaria",
+    message: "Se necesita una nueva versión de Ciciro para continuar. Actualiza la app para seguir escribiendo.",
+    update: "Actualizar",
+  },
   welcome: {
     eyebrow: "Un lugar para escribir",
     // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".

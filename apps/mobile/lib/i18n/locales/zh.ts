@@ -33,6 +33,11 @@ const zh: Translations = {
     hideDetails: "隐藏详情",
     screenCrashed: "加载此页面时出了点问题。",
   },
+  forceUpdate: {
+    title: "需要更新",
+    message: "需要更新 Ciciro 才能继续使用。请更新应用以继续写作。",
+    update: "更新",
+  },
   welcome: {
     eyebrow: "写作的地方",
     // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".

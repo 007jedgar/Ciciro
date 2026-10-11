@@ -33,6 +33,11 @@ const hi: Translations = {
     hideDetails: "विवरण छिपाएं",
     screenCrashed: "इस स्क्रीन को लोड करने में कुछ गड़बड़ हुई।",
   },
+  forceUpdate: {
+    title: "अपडेट आवश्यक है",
+    message: "जारी रखने के लिए Ciciro का नया वर्शन आवश्यक है। लिखना जारी रखने के लिए ऐप अपडेट करें।",
+    update: "अपडेट करें",
+  },
   welcome: {
     eyebrow: "लिखने की एक जगह",
     // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".

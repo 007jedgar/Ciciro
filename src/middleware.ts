@@ -30,7 +30,15 @@ const PUBLIC_PATHS = [
   "/verify-email",
   "/changelog",
 ];
-const PUBLIC_PREFIXES = ["/api/auth/", "/api/beta-signup", "/api/health", "/read/", "/api/read/", "/api/billing/webhooks/"];
+const PUBLIC_PREFIXES = [
+  "/api/auth/",
+  "/api/beta-signup",
+  "/api/health",
+  "/api/app/version-policy",
+  "/read/",
+  "/api/read/",
+  "/api/billing/webhooks/",
+];
 
 export function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

@@ -59,8 +59,14 @@
     "crons": ["0 14 * * *"]
   },
 
+  // MOBILE_MIN_VERSION_* gates the mobile app: a build below it sees the
+  // forced-update screen (GET /api/app/version-policy, see
+  // docs/mobile-release.md#forced-update). "0.0.0" means no forced update.
+  // MOBILE_LATEST_VERSION_* is optional and only a soft nudge; unset means none.
   "vars": {
-    "CICIRO_REQUIRE_AUTH": "true"
+    "CICIRO_REQUIRE_AUTH": "true",
+    "MOBILE_MIN_VERSION_IOS": "0.0.0",
+    "MOBILE_MIN_VERSION_ANDROID": "0.0.0"
   },
 
   "d1_databases": [
