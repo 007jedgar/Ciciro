@@ -173,6 +173,10 @@ The native splash is the brand mark (`assets/splash-icon.png`, from `scripts/gen
 
 `/changelog` is public (in `PUBLIC_PATHS`, `src/middleware.ts`) so the landing footer's "What's new" link works signed out; a "Back" control on a public page must use `src/lib/back-link.ts`'s `shouldGoBack` (via `BackLink.tsx`), not a bare `router.back()`, since a signed-out visitor's history can have an auth page behind it. Every `docs/CHANGELOG.md` bullet is dated with a leading `<!-- YYYY-MM-DD -->` comment (write one when you add an entry); `scripts/generate-changelog-data.ts` backfills a missing one from git history and regenerates `src/lib/changelog-data.generated.ts`, which `/changelog` renders as markdown (`react-markdown` + `remark-gfm`) and `src/lib/email/changelog-digest.ts` sends from.
 
+## Mobile forced update
+
+`GET /api/app/version-policy` (`src/lib/app-version-policy.ts`, public, reads `MOBILE_MIN_VERSION_*` / `MOBILE_LATEST_VERSION_*` from `wrangler.jsonc` vars) lets the team require a minimum app version with no release: raising it needs only a deploy. The app side (`apps/mobile/lib/version-policy.ts` for the pure semver compare/decision, `lib/force-update.ts` for the fetch/cache/foreground-check, `components/ForceUpdateGate.tsx` + `ForceUpdateScreen.tsx` for the non-dismissable branded block) checks on launch and foreground and fails open on any network or parse error. See `docs/mobile-release.md#forced-update`.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

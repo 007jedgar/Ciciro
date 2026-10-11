@@ -31,6 +31,11 @@ const en = {
     hideDetails: "Hide details",
     screenCrashed: "Something went wrong loading this screen.",
   },
+  forceUpdate: {
+    title: "Update required",
+    message: "A new version of Ciciro is required to continue. Update the app to keep writing.",
+    update: "Update",
+  },
   welcome: {
     eyebrow: "A place to write",
     // The sentence is edited live: "before" + word + "after" becomes "beforeFinal" + word + "afterFinal".

@@ -68,6 +68,35 @@ Roll back with `eas update:rollback`, or republish the previous update group
 from the dashboard. `--rollout-percentage` (or the workflow's
 `rollout_percentage`) stages an update to part of the audience first.
 
+## Forced update
+
+Raising the minimum app version doesn't need a release: `GET
+/api/app/version-policy` (`src/lib/app-version-policy.ts`) reads
+`MOBILE_MIN_VERSION_IOS` / `MOBILE_MIN_VERSION_ANDROID` (and the optional,
+soft-nudge `MOBILE_LATEST_VERSION_IOS` / `MOBILE_LATEST_VERSION_ANDROID`) from
+the Worker's `wrangler.jsonc` `vars`. `"0.0.0"` (the default) means no forced
+update. To require an update:
+
+```jsonc
+"vars": {
+  "MOBILE_MIN_VERSION_IOS": "2.3.0",
+  "MOBILE_MIN_VERSION_ANDROID": "2.3.0"
+}
+```
+
+then `wrangler deploy` (or let the next Workers Build pick it up). No app
+build needed - but the check itself only reaches installs running a build
+that already contains it, so ship one before relying on this.
+
+On the app side, `apps/mobile/lib/version-policy.ts` compares the installed
+native version (`expo-application`'s `nativeApplicationVersion`) against the
+policy on launch and on foreground (throttled, same pattern as
+[Over-the-air updates](#over-the-air-updates) above); `lib/force-update.ts`
+caches the last-known policy and fails open on a network error or a malformed
+response. Below the minimum, `components/ForceUpdateScreen.tsx` replaces the
+whole app (see `components/ForceUpdateGate.tsx` in `app/_layout.tsx`) with a
+non-dismissable branded screen whose button opens the store listing.
+
 ## Workflows
 
 EAS Workflows live in `apps/mobile/.eas/workflows/` (next to `eas.json`) and
