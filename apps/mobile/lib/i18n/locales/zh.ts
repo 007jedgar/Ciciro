@@ -124,6 +124,15 @@ const zh: Translations = {
         sample4:
           "傍晚时，水已经漫到了花园的围墙。她点亮灯，摆出两只杯子，终于开始写那封她整个冬天都在回避的信。",
       },
+      screenplay: {
+        title: "按格式写下来",
+        intro: "场景标题和角色名在你输入时会自动变成大写，下方的工具条可以把这一行跳转到任何元素。点进去试写一行。",
+        sceneHeading: "INT. 咖啡馆 - 日",
+        action: "玛拉坐在窗边，笔悬在空白的页面上方。她身后的意式咖啡机发出嘶嘶声。",
+        character: "玛拉",
+        parenthetical: "自言自语",
+        dialogue: "随便从哪里开始。开始就好。",
+      },
       suggestions: {
         title: "是建议，不是替你改写",
         intro: "Ciciro 从不悄悄替你改写。每一处改动都只是建议，直到你点头同意。",

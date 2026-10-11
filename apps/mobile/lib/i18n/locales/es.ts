@@ -130,6 +130,15 @@ const es: Translations = {
         sample4:
           "Al anochecer el agua había llegado al muro del jardín. Encendió la lámpara, puso dos tazas y empezó, por fin, a escribir la carta que llevaba todo el invierno evitando.",
       },
+      screenplay: {
+        title: "Escríbelo con formato",
+        intro: "Los encabezados de escena y las acotaciones de personaje pasan a mayúsculas mientras escribes, y la barra de abajo mueve la línea a cualquier elemento. Toca y prueba una línea.",
+        sceneHeading: "INT. CAFETERÍA - DÍA",
+        action: "Mara está sentada junto a la ventana, con el bolígrafo suspendido sobre una página en blanco. La máquina de espresso sisea detrás de ella.",
+        character: "Mara",
+        parenthetical: "para sí misma",
+        dialogue: "Empieza donde sea. Solo empieza.",
+      },
       suggestions: {
         title: "Sugerencias, no reescrituras",
         intro: "Ciciro nunca te reescribe en silencio. Todo cambio es una sugerencia hasta que tú lo apruebas.",

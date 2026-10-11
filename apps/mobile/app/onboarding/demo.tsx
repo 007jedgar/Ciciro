@@ -3,6 +3,7 @@ import { demoForAnswers, wantsReminderStep } from "../../lib/onboarding";
 import { onboardingParams, parseOnboardingParams, stepsFor, type OnboardingParams } from "../../lib/onboarding-flow";
 import { FocusDemo } from "../../components/onboarding/FocusDemo";
 import { SuggestionsDemo } from "../../components/onboarding/SuggestionsDemo";
+import { ScreenplayDemo } from "../../components/onboarding/ScreenplayDemo";
 import { getAnalytics } from "../../lib/analytics-client";
 
 /** The one demo the answers open - see `demoForAnswers` in lib/onboarding.ts. */
@@ -28,6 +29,9 @@ export default function OnboardingDemoScreen() {
 
   if (path === "suggestions_not_overwrites") {
     return <SuggestionsDemo path={path} steps={steps} onContinue={finish} onSkip={skip} />;
+  }
+  if (path === "screenplay_scene") {
+    return <ScreenplayDemo path={path} steps={steps} onContinue={finish} onSkip={skip} />;
   }
   return (
     <FocusDemo

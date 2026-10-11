@@ -135,6 +135,15 @@ const en = {
         clunky: "walked slowly",
         better: "ambled",
       },
+      screenplay: {
+        title: "Write it in format",
+        intro: "Scene headings and cues snap into capitals as you type, and the toolbar below jumps the line to any element. Tap in and try a line.",
+        sceneHeading: "INT. COFFEE SHOP - DAY",
+        action: "Mara sits by the window, pen hovering over a blank page. The espresso machine hisses behind her.",
+        character: "Mara",
+        parenthetical: "to herself",
+        dialogue: "Start anywhere. Just start.",
+      },
     },
   },
   auth: {
