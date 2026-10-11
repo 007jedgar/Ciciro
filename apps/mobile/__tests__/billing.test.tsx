@@ -103,9 +103,12 @@ function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
     currentPeriodEnd: null,
     cancelAtPeriodEnd: false,
     metered: true,
-    limits: { aiRunsPerMonth: 30 },
-    plans: { free: { aiRunsPerMonth: 30 }, pro: { aiRunsPerMonth: 1500 } },
-    usage: { period: "2026-09", aiRuns: 12 },
+    limits: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
+    plans: {
+      free: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
+      pro: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 },
+    },
+    usage: { period: "2026-09", aiRuns: 12, autowriteWords: 0 },
     billing: { web: true, store: true },
     manageUrl: null,
     ...overrides,
@@ -120,7 +123,7 @@ const pro = (overrides: Partial<Entitlement> = {}) =>
     status: "active",
     interval: "year",
     currentPeriodEnd: "2027-09-29T12:00:00.000Z",
-    limits: { aiRunsPerMonth: 1500 },
+    limits: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 },
     manageUrl: "https://apps.apple.com/account/subscriptions",
     ...overrides,
   });
@@ -168,7 +171,7 @@ describe("billing in the app", () => {
       showing(entitlement());
       withTheme(<PaywallScreen />);
       await flush();
-      expect(screen.getByText("1,500 AI actions a month with Ciciro")).toBeTruthy();
+      expect(screen.getByText("600 AI actions a month with Ciciro")).toBeTruthy();
       expect(screen.getByText("$12.00 / month")).toBeTruthy();
       expect(screen.getByText("$8.00 a month, billed yearly")).toBeTruthy();
       // Yearly is chosen first; the 3.1.2(c) disclosure follows the choice.
@@ -258,7 +261,7 @@ describe("billing in the app", () => {
       showing(entitlement());
       withTheme(<SettingsScreen />);
       await flush();
-      expect(screen.getByText(/12 of 30 AI actions this month · resets Oct 1/)).toBeTruthy();
+      expect(screen.getByText(/12 of 20 AI actions this month · resets Oct 1/)).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Upgrade to Ciciro Pro" }));
       expect(mockPush).toHaveBeenCalledWith("/paywall");
       expect(mockTrack).toHaveBeenCalledWith("cta_clicked", { cta: "upgrade_to_pro", surface: "settings" });
@@ -280,7 +283,7 @@ describe("billing in the app", () => {
       showing(entitlement());
       withTheme(<SettingsScreen />);
       await flush();
-      expect(screen.getByText(/12 of 30 AI actions/)).toBeTruthy();
+      expect(screen.getByText(/12 of 20 AI actions/)).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Upgrade to Ciciro Pro" })).toBeNull();
     });
   });

@@ -25,9 +25,12 @@ function entitlement(overrides: Partial<Entitlement> = {}): Entitlement {
     currentPeriodEnd: null,
     cancelAtPeriodEnd: false,
     metered: true,
-    limits: { aiRunsPerMonth: 30 },
-    plans: { free: { aiRunsPerMonth: 30 }, pro: { aiRunsPerMonth: 1500 } },
-    usage: { period: "2026-09", aiRuns: 30 },
+    limits: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
+    plans: {
+      free: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
+      pro: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 },
+    },
+    usage: { period: "2026-09", aiRuns: 20, autowriteWords: 0 },
     billing: { web: true, store: false },
     manageUrl: null,
     ...overrides,
@@ -42,8 +45,8 @@ const pro = (overrides: Partial<Entitlement> = {}) =>
     status: "active",
     interval: "month",
     currentPeriodEnd: "2026-10-29T12:00:00.000Z",
-    limits: { aiRunsPerMonth: 1500 },
-    usage: { period: "2026-09", aiRuns: 12 },
+    limits: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 },
+    usage: { period: "2026-09", aiRuns: 12, autowriteWords: 0 },
     ...overrides,
   });
 
@@ -83,7 +86,7 @@ describe("billing on the web", () => {
         ).toBe(true);
       });
       expect(text()).toContain("You've used this month's free AI allowance.");
-      expect(text()).toContain("30 of 30 AI actions used. Your allowance starts over on October 1.");
+      expect(text()).toContain("20 of 20 AI actions used. Your allowance starts over on October 1.");
       const upgrade = document.querySelector<HTMLAnchorElement>('a[href="/pricing"]');
       expect(upgrade?.textContent).toBe("See Ciciro Pro");
     });
@@ -95,7 +98,10 @@ describe("billing on the web", () => {
       });
       expect(document.querySelector('a[href="/pricing"]')).toBeNull();
       await act(async () => {
-        reportAiLimit(402, { code: "ai_limit_reached", entitlement: pro({ usage: { period: "2026-09", aiRuns: 1500 } }) });
+        reportAiLimit(402, {
+          code: "ai_limit_reached",
+          entitlement: pro({ usage: { period: "2026-09", aiRuns: 600, autowriteWords: 0 } }),
+        });
       });
       expect(document.querySelector('a[href="/pricing"]')).toBeNull();
     });
@@ -108,8 +114,10 @@ describe("billing on the web", () => {
 
   describe("the Settings plan section", () => {
     it("shows a free account its usage and the way up", async () => {
-      await render(<SettingsBilling entitlement={entitlement({ usage: { period: "2026-09", aiRuns: 12 } })} />);
-      expect(text()).toContain("12 of 30 AI actions this month");
+      await render(
+        <SettingsBilling entitlement={entitlement({ usage: { period: "2026-09", aiRuns: 12, autowriteWords: 0 } })} />
+      );
+      expect(text()).toContain("12 of 20 AI actions this month");
       expect(text()).toContain("resets Oct 1");
       const upgrade = document.querySelector<HTMLAnchorElement>('a[href="/pricing"]')!;
       expect(upgrade.textContent).toBe("Upgrade to Ciciro Pro");
@@ -144,7 +152,11 @@ describe("billing on the web", () => {
     it("stays out of the way when nothing is metered or for sale", async () => {
       await render(
         <SettingsBilling
-          entitlement={entitlement({ metered: false, limits: { aiRunsPerMonth: null }, billing: { web: false, store: false } })}
+          entitlement={entitlement({
+            metered: false,
+            limits: { aiRunsPerMonth: null, autowriteWordsPerMonth: null },
+            billing: { web: false, store: false },
+          })}
         />
       );
       expect(text()).toBe("");

@@ -71,16 +71,18 @@ export default async function PricingPage({
           entitlement={entitlement}
           prices={prices}
           offer={offer}
-          limits={{ free: planLimits("free").aiRunsPerMonth, pro: planLimits("pro").aiRunsPerMonth }}
+          limits={{ free: planLimits("free"), pro: planLimits("pro") }}
           justSubscribed={checkout === "success"}
         />
 
         <section className="pricing-notes">
           <p>
-            An <strong>AI action</strong> is one message to Ciciro, one autowrite run, one
-            continuity check, style analysis, weekly review or set of ideas. Spelling suggestions,
-            chapter summaries and recaps don&apos;t count, and keep working until the month&apos;s
-            actions are used.
+            An <strong>AI action</strong> is one message to Ciciro, one continuity check, style
+            analysis, weekly review or set of ideas - each one action. An <strong>autowrite</strong>{" "}
+            run costs more of the allowance, scaled to how much you ask it to write, since drafting
+            a chapter takes many more model calls than a chat message; autowriting is also capped at
+            a separate number of words a month, shown above. Spelling suggestions, chapter summaries
+            and recaps don&apos;t count, and keep working until the month&apos;s allowance is used.
           </p>
           {offer ? (
             <p>

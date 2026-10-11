@@ -29,6 +29,7 @@ describe("80% allowance nudge in meterAiRun", () => {
 
   beforeEach(async () => {
     process.env.CICIRO_REQUIRE_AUTH = "true";
+    process.env.CICIRO_FREE_AI_RUNS_PER_MONTH = "10"; // a small, fixed cap so 80% is a round number here
     process.env.RESEND_API_KEY = "re_test_key";
     process.env.EMAIL_FROM = "Ciciro <hello@ciciro.test>";
     fetchMock.mockReset();
@@ -51,14 +52,14 @@ describe("80% allowance nudge in meterAiRun", () => {
   });
 
   it("stays quiet below 80%", async () => {
-    await seedUser({ optIn: true, runs: 10 });
+    await seedUser({ optIn: true, runs: 5 });
     await meterAiRun(user);
     expect(nudgeSends()).toHaveLength(0);
   });
 
   it("sends once when a run crosses 80%, and not again the same period", async () => {
-    await seedUser({ optIn: true, runs: 23 });
-    await meterAiRun(user); // 24 of 30 = 80%
+    await seedUser({ optIn: true, runs: 7 });
+    await meterAiRun(user); // 8 of 10 = 80%
     await meterAiRun(user);
     await meterAiRun(user);
     expect(nudgeSends()).toHaveLength(1);
@@ -67,20 +68,20 @@ describe("80% allowance nudge in meterAiRun", () => {
   });
 
   it("sends nothing to an account that has not opted in", async () => {
-    await seedUser({ optIn: false, runs: 25 });
+    await seedUser({ optIn: false, runs: 8 });
     await meterAiRun(user);
     expect(nudgeSends()).toHaveLength(0);
   });
 
   it("never fails the metered run when the nudge throws", async () => {
-    await seedUser({ optIn: true, runs: 25 });
+    await seedUser({ optIn: true, runs: 8 });
     fetchMock.mockImplementation(async () => {
       throw new Error("network down");
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(meterAiRun(user)).resolves.toBeUndefined();
     const counter = await prisma.usageCounter.findFirstOrThrow({ where: { userId: user.id } });
-    expect(counter.aiRuns).toBe(26);
+    expect(counter.aiRuns).toBe(9);
     // A failed send releases its log row so a later run can retry.
     expect(await prisma.marketingEmailLog.count()).toBe(0);
   });

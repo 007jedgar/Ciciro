@@ -639,13 +639,16 @@ model BillingEvent {
 }
 
 // AI use per account per calendar month (UTC), metered against the plan's
-// allowance. `period` is "YYYY-MM". See src/lib/entitlements.ts.
+// allowance. `period` is "YYYY-MM". `aiRuns` is allowance units (weighted,
+// see src/lib/billing/metering.ts); `autowriteWords` is the separate monthly
+// autowrite word cap. See src/lib/entitlements.ts.
 model UsageCounter {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  period String
-  aiRuns Int    @default(0)
+  id             String @id @default(cuid())
+  userId         String
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period         String
+  aiRuns         Int    @default(0)
+  autowriteWords Int    @default(0)
 
   updatedAt DateTime @updatedAt
 

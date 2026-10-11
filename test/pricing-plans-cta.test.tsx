@@ -52,7 +52,7 @@ describe("PricingPlans click-through", () => {
           entitlement={null}
           prices={{ month: price(1200) }}
           offer={null}
-          limits={{ free: 30, pro: 1500 }}
+          limits={{ free: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 }, pro: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 } }}
           justSubscribed={false}
         />
       )
@@ -73,7 +73,7 @@ describe("PricingPlans click-through", () => {
           entitlement={null}
           prices={{ month: price(1200) }}
           offer={null}
-          limits={{ free: 30, pro: 1500 }}
+          limits={{ free: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 }, pro: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 } }}
           justSubscribed={false}
         />
       )
@@ -100,15 +100,18 @@ describe("PricingPlans click-through", () => {
             currentPeriodEnd: null,
             cancelAtPeriodEnd: false,
             metered: true,
-            limits: { aiRunsPerMonth: 30 },
-            plans: { free: { aiRunsPerMonth: 30 }, pro: { aiRunsPerMonth: 1500 } },
-            usage: { period: "2026-09", aiRuns: 0 },
+            limits: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
+            plans: {
+              free: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
+              pro: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 },
+            },
+            usage: { period: "2026-09", aiRuns: 0, autowriteWords: 0 },
             billing: { web: true, store: false },
             manageUrl: null,
           }}
           prices={{ month: price(1200) }}
           offer={null}
-          limits={{ free: 30, pro: 1500 }}
+          limits={{ free: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 }, pro: { aiRunsPerMonth: 600, autowriteWordsPerMonth: 100_000 } }}
           justSubscribed={false}
         />
       )

@@ -10,6 +10,7 @@ import {
   storeName,
   type Entitlement,
 } from "@/lib/billing-client";
+import type { PlanLimits } from "@/lib/billing/config";
 import { offerHeadline, offerTerm, type DisplayOffer, type DisplayPrice } from "@/lib/billing/prices";
 import { getAnalytics } from "@/lib/analytics-client";
 
@@ -17,8 +18,15 @@ type Interval = "month" | "year";
 
 const SIGNUP = "/signup?next=%2Fpricing";
 
-function allowance(cap: number | null): string {
-  return cap === null ? "Unlimited AI actions" : `${cap.toLocaleString("en-US")} AI actions a month`;
+function allowance(limits: PlanLimits): string {
+  return limits.aiRunsPerMonth === null
+    ? "Unlimited AI actions"
+    : `${limits.aiRunsPerMonth.toLocaleString("en-US")} AI actions a month`;
+}
+
+function autowriteCap(limits: PlanLimits): string | null {
+  if (limits.autowriteWordsPerMonth === null) return null;
+  return `Up to ${limits.autowriteWordsPerMonth.toLocaleString("en-US")} autowritten words a month`;
 }
 
 /** Whole percent a year saves against twelve months, or null when it doesn't. */
@@ -30,7 +38,7 @@ function yearlySaving(prices: Partial<Record<Interval, DisplayPrice>>): number |
   return saving > 0 ? saving : null;
 }
 
-/** "$6 a month or $48 for your first year": what the offer costs, per interval. */
+/** "$5 a month or $50 for your first year": what the offer costs, per interval. */
 function offerPrices(offer: DisplayOffer): string {
   const parts: string[] = [];
   if (offer.prices.month) parts.push(`${offer.prices.month.label} a month`);
@@ -38,7 +46,7 @@ function offerPrices(offer: DisplayOffer): string {
   return parts.join(" or ");
 }
 
-/** "$12 a month or $96 a year": the list prices the offer renews at. */
+/** "$10 a month or $100 a year": the list prices the offer renews at. */
 function listPrices(prices: Partial<Record<Interval, DisplayPrice>>): string {
   const parts: string[] = [];
   if (prices.month) parts.push(`${prices.month.label} a month`);
@@ -89,7 +97,7 @@ export default function PricingPlans({
   entitlement: Entitlement | null;
   prices: Partial<Record<Interval, DisplayPrice>>;
   offer: DisplayOffer | null;
-  limits: { free: number | null; pro: number | null };
+  limits: { free: PlanLimits; pro: PlanLimits };
   justSubscribed: boolean;
 }) {
   const [entitlement, setEntitlement] = useState(initial);
@@ -239,6 +247,7 @@ export default function PricingPlans({
             <li>Word, Markdown, EPUB and PDF export, and your data any time</li>
             <li>Sync across the web, iPhone and Android</li>
             <li>{allowance(limits.free)} with Ciciro</li>
+            {autowriteCap(limits.free) ? <li>{autowriteCap(limits.free)}</li> : null}
           </ul>
           {!signedIn ? (
             <Link
@@ -276,6 +285,7 @@ export default function PricingPlans({
           <ul>
             <li>Everything in Free</li>
             <li>{allowance(limits.pro)} with Ciciro</li>
+            {autowriteCap(limits.pro) ? <li>{autowriteCap(limits.pro)}</li> : null}
             <li>Chat, autowrite, continuity checks, style analysis and weekly reviews</li>
             <li>One subscription for the web and the apps</li>
           </ul>

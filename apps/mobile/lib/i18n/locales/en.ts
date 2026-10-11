@@ -386,6 +386,8 @@ const en = {
     actions_one: "{{amount}} AI action a month with Ciciro",
     actions_other: "{{amount}} AI actions a month with Ciciro",
     actionsUnlimited: "Unlimited AI actions with Ciciro",
+    autowriteCap: "Up to {{amount}} autowritten words a month",
+    autowriteCapReached: "This month's autowrite limit is {{cap}} words; {{left}} left. Resets {{date}}.",
     benefitTools: "Chat, autowrite, continuity checks and weekly reviews",
     benefitEverywhere: "One subscription for the app and the web",
     monthly: "Monthly",

@@ -387,6 +387,8 @@ const hi: Translations = {
     actions_one: "Ciciro के साथ हर महीने {{amount}} AI काम",
     actions_other: "Ciciro के साथ हर महीने {{amount}} AI काम",
     actionsUnlimited: "Ciciro के साथ असीमित AI काम",
+    autowriteCap: "हर महीने अधिकतम {{amount}} ऑटो-लिखे शब्द",
+    autowriteCapReached: "इस महीने ऑटो-राइट की सीमा {{cap}} शब्द है; {{left}} बचे हैं। {{date}} को फिर से शुरू होगी।",
     benefitTools: "चैट, ऑटो-राइट, निरंतरता जाँच और साप्ताहिक समीक्षाएँ",
     benefitEverywhere: "ऐप और वेब, दोनों के लिए एक ही सदस्यता",
     monthly: "मासिक",

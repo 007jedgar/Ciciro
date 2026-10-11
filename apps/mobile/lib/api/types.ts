@@ -259,9 +259,12 @@ export type Entitlement = {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   metered: boolean;
-  limits: { aiRunsPerMonth: number | null };
-  plans: { free: { aiRunsPerMonth: number | null }; pro: { aiRunsPerMonth: number | null } };
-  usage: { period: string; aiRuns: number };
+  limits: { aiRunsPerMonth: number | null; autowriteWordsPerMonth: number | null };
+  plans: {
+    free: { aiRunsPerMonth: number | null; autowriteWordsPerMonth: number | null };
+    pro: { aiRunsPerMonth: number | null; autowriteWordsPerMonth: number | null };
+  };
+  usage: { period: string; aiRuns: number; autowriteWords: number };
   billing: { web: boolean; store: boolean };
   manageUrl: string | null;
 };

@@ -31,60 +31,128 @@ use at the free allowance in production.** Set
 `CICIRO_FREE_AI_RUNS_PER_MONTH=unlimited` to keep it open until billing
 launches.
 
-## Placeholders to decide before launch
+## v1 launch defaults (decided 2026-10-10)
 
-- `CICIRO_FREE_AI_RUNS_PER_MONTH`: defaults to **30**.
-- `CICIRO_PRO_AI_RUNS_PER_MONTH`: defaults to **1500**.
-- The prices themselves: set them in Stripe, App Store Connect and Play
-  Console. Keep the same list price in the app and on the web. The
-  recommendation is $12 a month or $96 a year, under the AI-included
-  writing tools it competes with.
+- `CICIRO_FREE_AI_RUNS_PER_MONTH`: defaults to **20**.
+- `CICIRO_PRO_AI_RUNS_PER_MONTH`: defaults to **600**.
+- `CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH`: defaults to **7,500**.
+- `CICIRO_PRO_AUTOWRITE_WORDS_PER_MONTH`: defaults to **100,000**.
+- The prices: set them in Stripe, App Store Connect and Play Console. Keep
+  the same list price in the app and on the web: **$10 a month or $100 a
+  year** (two months free), under the AI-included writing tools it competes
+  with.
+- **Founding-member offer**: 50% off, for as long as the subscription stays
+  active, for anyone who subscribes before early access ends. See
+  [Early-access offer](#early-access-offer) for how this is built differently
+  on the web (a true lifetime discount) than in the stores (the longest
+  introductory offer each allows).
+
+### Launch posture: start cautious, loosen after real usage
+
+Every number above is a model, not a measurement: no usage telemetry existed
+when they were set, only a cost model built from Anthropic's list prices and
+the model calls each feature makes. Revisit after the first month of real
+accounts, in this order of how likely each is to need changing:
+
+1. **`autowriteWeight`'s reference point** (`src/lib/billing/metering.ts`):
+   6 units for a ~2,500-word run. If real autowrite usage comes in heavier or
+   lighter than modeled, adjust the reference weight/words, not the per-call
+   logic.
+2. **The autowrite word caps.** 7,500 (free) / 100,000 (Pro) words/month are
+   guesses at what a normal writer needs versus what bounds the cost tail -
+   loosen the Pro cap first if real heavy users hit it while clearly not
+   abusing it.
+3. **The unit allowances** (20 / 600). These bound overall AI spend per
+   account; loosen once real per-account cost (not just action counts) is
+   known from a month of Anthropic billing against actual usage.
+4. **The price itself** ($10/$100). Hold this longest - changing it affects
+   everyone already subscribed, not just new signups.
 
 ## Early-access offer
 
 While early access is open, an account's **first** Pro subscription gets a
-discount, the same on the web and in the apps, at the same list price. The
-offer is half price for the first year: the most generous discount the stores'
-introductory offers can match exactly (a lifetime discount cannot be made in
-the stores without a cheaper product), and a year is long enough for the
-writing habit to form.
+discount, the same on the web and in the apps. The offer is **50% off for as
+long as the subscription stays active** ("founding member" pricing) - a
+genuine thank-you for being early, not a time-boxed teaser. The web can honor
+this exactly, with a dedicated Stripe coupon; the stores cannot give a true
+lifetime discount without a cheaper product, so the apps use the longest
+introductory offer each store allows and this gap is accepted and documented
+here rather than hidden.
 
-- **Web**: create a Stripe coupon (Products → Coupons), e.g. 50% off,
-  duration "multiple months", 12 months, and put its id in
-  `STRIPE_EARLY_ACCESS_COUPON`. Checkout applies it to an account that has
-  never had a subscription from any source (`earlyAccessApplies`), instead of
-  the promotion code box, and still sells at full price if Stripe rejects it.
-  The pricing page reads the percent and months from the coupon, so it can
-  never promise more than Checkout gives.
-- **iOS**: on both subscriptions, an introductory offer with the same terms
-  (monthly: pay as you go, 50%, 12 periods; yearly: pay up front, 50%, 1 year).
-  Apple gives an introductory offer once per subscription group, which matches
-  the first-subscription rule.
-- **Android**: an introductory offer on each base plan with the matching
-  discounted phase.
+- **Web**: create a Stripe coupon (Products → Coupons) with **percent off
+  50%** and **duration "Forever"** (not "Once" or "Multiple months" - Stripe
+  coupons support `duration: forever`, which is what makes a true lifetime
+  rate possible on the web without a second, permanently-cheaper product).
+  Put its id in `STRIPE_EARLY_ACCESS_COUPON`. Checkout applies it to an
+  account that has never had a subscription from any source
+  (`earlyAccessApplies`), instead of the promotion code box, and still sells
+  at full price if Stripe rejects it. The pricing page reads the percent and
+  duration from the coupon itself (`src/lib/billing/prices.ts` already
+  renders a `forever` duration as "for as long as you subscribe" - no code
+  change needed once the coupon exists), so it can never promise more than
+  Checkout gives.
+- **iOS**: App Store introductory offers do not support "forever" - every
+  shape (pay-as-you-go, pay-up-front, free trial) has a maximum number of
+  billing periods set by Apple, not by Ciciro. In App Store Connect, on both
+  subscriptions, set up a **pay-as-you-go** introductory offer at 50% off for
+  the longest number of periods the offer builder currently allows (check the
+  live maximum at setup time, since Apple's limits change) rather than
+  guessing a number here. Apple gives an introductory offer once per
+  subscription group, which matches the first-subscription rule. This is
+  strictly less generous than the web's lifetime rate - note that gap in the
+  Terms (already general enough not to need a change) rather than implying
+  parity with the web.
+- **Android**: same approach - set up a 50%-off discounted phase at the
+  longest duration Play Console's base-plan offer builder currently allows,
+  on each base plan, and accept the same gap against the web's lifetime rate.
 - **Closing it**: set `CICIRO_EARLY_ACCESS_ENDS` (ISO date) and end the store
-  offers on the same day, or remove the coupon variable. Existing discounts run
-  their course. The Terms describe the offer in general terms, so changing its
-  size or length needs no Terms change.
+  offers on the same day, or remove the coupon variable. Existing discounts
+  (the web's forever coupon and any store subscriber already on the
+  introductory term) run their course and are never revoked.
 
 ## The AI allowance
 
 An "AI action" is one request someone makes of Ciciro: sending a chat message,
-an autowrite, a continuity check, a style analysis, a weekly review, or asking
-for stuck prompts. Compacting the chat, resuming a turn, and background work
-(chapter summaries, spelling, the recap, the reminder nudge) cost nothing, but
-stop once the allowance is used up.
+a continuity check, a style analysis, a weekly review, or asking for stuck
+prompts - each a flat 1 allowance unit. Compacting the chat, resuming a turn,
+and background work (chapter summaries, spelling, the recap, the reminder
+nudge) cost nothing, but stop once the allowance is used up.
+
+**Autowrite is weighted, not flat.** A single autowrite run can be up to 17
+model calls drafting a whole chapter - 15-20x the cost of a chat message - so
+charging it 1 unit like everything else let a Pro subscriber cost far more in
+Anthropic spend than their subscription brought in.
+`autowriteWeight(targetWords)` (`src/lib/billing/metering.ts`, the one place
+this is computed) scales the unit cost with the requested length: 6 units for
+a ~2,500-word run, proportionally more or less for other lengths, floored at
+2. Autowrite also draws against a **separate monthly word cap**
+(`UsageCounter.autowriteWords`, `CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH` /
+`CICIRO_PRO_AUTOWRITE_WORDS_PER_MONTH`) independent of the unit allowance: a
+run that would push total autowritten words this month past the cap is
+refused with **402** and `code: "autowrite_word_cap_reached"` even if unit
+allowance remains, so a handful of large runs can't be hidden inside a big
+unit allowance. (Chat, continuity, style, weekly review and "stuck" stay flat
+at 1 unit rather than getting fractional weights, since `UsageCounter.aiRuns`
+is a D1 integer column and splitting it into fractional units cannot be done
+as an additive-only schema change - see AGENTS.md "Production D1 schema".)
 
 Usage is counted per account per calendar month in UTC (`UsageCounter`,
-period `YYYY-MM`). `meterAiRun` claims one action atomically before the work
-starts; a request that fails gives it back (`withAiRun`). A chat message keeps
-its charge only when its claim starts a run that has never executed; a retry
-with the same `clientTurnId`, a replay of a finished turn, and a 409 are
-refunded, so a retry is never charged twice. Once the allowance
-is used, AI routes answer **402** with `code: "ai_limit_reached"` and the
-entitlement; the web shows `AiLimitDialog`, the app shows the limit notice in
-chat with a way to Pro. The manuscript, notes and story bible stay fully
-editable.
+period `YYYY-MM`). `meterAiRun` claims `weight` units atomically before the
+work starts (default 1); `meterAutowrite` does the same plus the word-cap
+check, in one place so an autowrite run is never charged on one limit and
+refused on the other. A request that fails gives its units back (`withAiRun`,
+or `refundAiRun` directly); autowrite is not refunded on failure (unchanged
+from before this weighting - a partial autowrite run still spent real model
+calls). A chat message keeps its charge only when its claim starts a run that
+has never executed; a retry with the same `clientTurnId`, a replay of a
+finished turn, and a 409 are refunded, so a retry is never charged twice. Once
+a limit is hit, the route answers **402** with the entitlement and either
+`code: "ai_limit_reached"` (the unit allowance) or
+`code: "autowrite_word_cap_reached"` (the word cap); the web shows
+`AiLimitDialog` for the former and the autowrite drawer's own inline message
+(with what's left and when it resets) for the latter, and the app shows the
+limit notice in chat with a way to Pro. The manuscript, notes and story bible
+stay fully editable either way.
 
 ## Environment variables
 
@@ -92,13 +160,15 @@ Server (`wrangler secret put <NAME>` on Cloudflare, or the container env):
 
 | Variable | Notes |
 |---|---|
-| `CICIRO_FREE_AI_RUNS_PER_MONTH` | Free allowance. A whole number, or `unlimited`. |
-| `CICIRO_PRO_AI_RUNS_PER_MONTH` | Pro allowance. A whole number, or `unlimited`. |
+| `CICIRO_FREE_AI_RUNS_PER_MONTH` | Free allowance, in units. A whole number, or `unlimited`. |
+| `CICIRO_PRO_AI_RUNS_PER_MONTH` | Pro allowance, in units. A whole number, or `unlimited`. |
+| `CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH` | Free autowrite word cap, per month. A whole number, or `unlimited`. |
+| `CICIRO_PRO_AUTOWRITE_WORDS_PER_MONTH` | Pro autowrite word cap, per month. A whole number, or `unlimited`. |
 | `STRIPE_SECRET_KEY` | `sk_live_…` (or `sk_test_…`). A restricted key works if it can write Customers, Checkout Sessions, Billing Portal sessions and Subscriptions, and read Prices and Charges. |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` from the webhook endpoint below. |
 | `STRIPE_PRICE_PRO_MONTHLY` | `price_…` of the monthly Pro price. |
 | `STRIPE_PRICE_PRO_YEARLY` | `price_…` of the yearly Pro price. |
-| `STRIPE_EARLY_ACCESS_COUPON` | Optional. The coupon id of the [early-access offer](#early-access-offer). |
+| `STRIPE_EARLY_ACCESS_COUPON` | Optional. The coupon id of the [early-access offer](#early-access-offer) - a `duration: forever`, 50%-off coupon for the founding-member rate. |
 | `CICIRO_EARLY_ACCESS_ENDS` | Optional. ISO date the early-access offer closes; unset keeps it open while the coupon is set. |
 | `STRIPE_TAX_MODE` | `managed_payments` (default), `automatic_tax`, or `none`. See [Tax](#tax). |
 | `REVENUECAT_SECRET_API_KEY` | RevenueCat secret API key (v1, `sk_…`), for re-reading a customer. |
@@ -308,6 +378,14 @@ build that ships them (see [hosting](hosting.md#database)):
 wrangler d1 execute ciciro --remote --file=prisma/d1-billing.sql
 ```
 
+Weighted metering's autowrite word cap needs `UsageCounter.autowriteWords`
+(`prisma/d1-ai-metering.sql`), additive and re-runnable, applied the same way
+before the build that ships it:
+
+```bash
+wrangler d1 execute ciciro --remote --file=prisma/d1-ai-metering.sql
+```
+
 ## Tests
 
 `test/billing-stripe.integration.test.ts` and
@@ -315,5 +393,7 @@ wrangler d1 execute ciciro --remote --file=prisma/d1-billing.sql
 Portal, the double-billing guard and the deletion hook against fake Stripe and
 RevenueCat servers (`test/helpers/fake-billing.ts`) with real signatures.
 `test/entitlements.test.ts` covers resolving a plan across sources,
-`test/ai-gating.integration.test.ts` the metering on every AI route, and
-`test/billing-web.test.tsx` / `apps/mobile/__tests__/billing.test.tsx` the UI.
+`test/ai-gating.integration.test.ts` the metering on every AI route including
+autowrite's weighted units and word cap (both limits, month reset, and the env
+overrides above), and `test/billing-web.test.tsx` /
+`apps/mobile/__tests__/billing.test.tsx` the UI.

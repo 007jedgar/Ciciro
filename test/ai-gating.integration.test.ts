@@ -15,11 +15,15 @@ import { hashSessionToken } from "@/lib/auth/tokens";
 import {
   AI_LIMIT_CODE,
   AiLimitError,
+  AUTOWRITE_CAP_CODE,
+  AutowriteCapError,
   getEntitlement,
   meterAiRun,
+  meterAutowrite,
   usagePeriod,
   withAiRun,
 } from "@/lib/entitlements";
+import { autowriteWeight } from "@/lib/billing/metering";
 import { summarizeChapter } from "@/lib/summarize";
 import { POST as chat } from "@/app/api/chat/route";
 import { POST as autowrite } from "@/app/api/autowrite/route";
@@ -57,8 +61,16 @@ async function useUp(a: Author, runs = LIMIT) {
   await prisma.usageCounter.create({ data: { userId: a.user.id, period: usagePeriod(), aiRuns: runs } });
 }
 
+async function useUpWords(a: Author, autowriteWords: number, aiRuns = 0) {
+  await prisma.usageCounter.create({ data: { userId: a.user.id, period: usagePeriod(), aiRuns, autowriteWords } });
+}
+
 async function runsUsed(a: Author) {
   return (await getEntitlement(a.user.id)).usage.aiRuns;
+}
+
+async function wordsUsed(a: Author) {
+  return (await getEntitlement(a.user.id)).usage.autowriteWords;
 }
 
 function request(path: string, token: string, body?: unknown, method = "POST") {
@@ -146,6 +158,82 @@ describe("AI gating and metering", () => {
       await useUp(a, 50);
       await meterAiRun(a.user);
       expect(await prisma.usageCounter.findFirstOrThrow({ where: { userId: a.user.id } })).toMatchObject({ aiRuns: 50 });
+    });
+  });
+
+  describe("meterAutowrite: weighted units and the separate word cap", () => {
+    beforeEach(() => {
+      // These tests exercise their own, larger unit allowance; the autowrite
+      // word cap is set per test.
+      process.env.CICIRO_FREE_AI_RUNS_PER_MONTH = "100";
+    });
+
+    it("charges autowriteWeight(targetWords) units, not a flat 1, and tallies the words", async () => {
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "unlimited";
+      const a = await author("weighted");
+      await meterAutowrite(a.user, 2500);
+      expect(autowriteWeight(2500)).toBe(6);
+      expect(await runsUsed(a)).toBe(6);
+      expect(await wordsUsed(a)).toBe(2500);
+
+      await meterAutowrite(a.user, 1000);
+      expect(await runsUsed(a)).toBe(6 + autowriteWeight(1000));
+      expect(await wordsUsed(a)).toBe(3500);
+    });
+
+    it("refuses a run that would exceed the unit allowance, without touching the word count", async () => {
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "unlimited";
+      process.env.CICIRO_FREE_AI_RUNS_PER_MONTH = "5";
+      const a = await author("unit-cap");
+      await expect(meterAutowrite(a.user, 2500)).rejects.toBeInstanceOf(AiLimitError); // weight 6 > 5 left
+      expect(await runsUsed(a)).toBe(0);
+      expect(await wordsUsed(a)).toBe(0);
+    });
+
+    it("refuses a run that would exceed the monthly autowrite word cap, leaving units untouched", async () => {
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "3000";
+      const a = await author("word-cap");
+      await useUpWords(a, 2800);
+      await expect(meterAutowrite(a.user, 500)).rejects.toBeInstanceOf(AutowriteCapError);
+      expect(await runsUsed(a)).toBe(0);
+      expect(await wordsUsed(a)).toBe(2800);
+      try {
+        await meterAutowrite(a.user, 500);
+        throw new Error("expected AutowriteCapError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(AutowriteCapError);
+        expect((error as AutowriteCapError).body).toMatchObject({ code: AUTOWRITE_CAP_CODE, wordsLeft: 200 });
+      }
+    });
+
+    it("allows a run that lands exactly on the word cap", async () => {
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "3000";
+      const a = await author("word-cap-exact");
+      await useUpWords(a, 2500);
+      await meterAutowrite(a.user, 500);
+      expect(await wordsUsed(a)).toBe(3000);
+    });
+
+    it("starts both counters over each month", async () => {
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "unlimited";
+      const a = await author("autowrite-month");
+      await prisma.usageCounter.create({
+        data: { userId: a.user.id, period: "2000-01", aiRuns: 99, autowriteWords: 50_000 },
+      });
+      await meterAutowrite(a.user, 1000);
+      expect(await runsUsed(a)).toBe(autowriteWeight(1000));
+      expect(await wordsUsed(a)).toBe(1000);
+    });
+
+    it("reads its word cap from the environment, including unlimited", async () => {
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "unlimited";
+      const unlimited = await author("env-unlimited");
+      await useUpWords(unlimited, 1_000_000);
+      await meterAutowrite(unlimited.user, 5000); // never refused: the cap is off
+
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "1000";
+      const limited = await author("env-limited");
+      await expect(meterAutowrite(limited.user, 1500)).rejects.toBeInstanceOf(AutowriteCapError);
     });
   });
 
@@ -255,6 +343,22 @@ describe("AI gating and metering", () => {
       await expectLimit(
         await autowrite(request("/api/autowrite", a.token, { projectId: a.projectId, chapterId: a.chapterId }))
       );
+    });
+
+    it("autowrite: refused by the word cap even with units left, and never reaches the model", async () => {
+      process.env.CICIRO_FREE_AI_RUNS_PER_MONTH = "100";
+      process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "3000";
+      const a = await author("autowrite-word-cap");
+      await useUpWords(a, 2900);
+      const res = await autowrite(
+        request("/api/autowrite", a.token, { projectId: a.projectId, chapterId: a.chapterId, targetWords: 2000 })
+      );
+      expect(res.status).toBe(402);
+      const body = await res.json();
+      expect(body.code).toBe(AUTOWRITE_CAP_CODE);
+      expect(body.wordsLeft).toBe(100);
+      expect(await runsUsed(a)).toBe(0);
+      expect(mocks.create).not.toHaveBeenCalled();
     });
 
     it("stuck prompts: charged on success, refunded on failure, refused at the limit", async () => {

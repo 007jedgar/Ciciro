@@ -2,8 +2,9 @@
 // RevenueCat settings, all read from the environment so nothing about pricing
 // is hard-coded. See docs/billing.md for every variable.
 //
-// PLACEHOLDERS: the allowance defaults below are not final numbers. Set them
-// with the env vars named next to each before launch.
+// The defaults below are the v1 launch numbers decided 2026-10-10 (see
+// docs/billing.md "Launch posture" for which to revisit after real usage
+// data exists), overridable with the env vars named next to each.
 
 // Bracket access so Next.js cannot replace these with empty strings from the
 // Workers CI build environment. The hosted Worker copies secrets onto
@@ -27,8 +28,12 @@ export type BillingInterval = "month" | "year";
 export type SubscriptionSource = "stripe" | "app_store" | "play_store";
 
 export type PlanLimits = {
-  /** AI actions per calendar month (UTC); null means no cap. */
+  /** AI allowance units per calendar month (UTC); null means no cap. See
+   * src/lib/billing/metering.ts for what each action costs. */
   aiRunsPerMonth: number | null;
+  /** Words an account may autowrite per calendar month (UTC), independent of
+   * the unit allowance above; null means no cap. */
+  autowriteWordsPerMonth: number | null;
 };
 
 export const PLAN_NAMES: Record<PlanId, string> = {
@@ -36,15 +41,25 @@ export const PLAN_NAMES: Record<PlanId, string> = {
   pro: "Ciciro Pro",
 };
 
-/** PLACEHOLDER defaults: CICIRO_FREE_AI_RUNS_PER_MONTH, CICIRO_PRO_AI_RUNS_PER_MONTH. */
-const DEFAULT_FREE_AI_RUNS = 30;
-const DEFAULT_PRO_AI_RUNS = 1500;
+// CICIRO_FREE_AI_RUNS_PER_MONTH, CICIRO_PRO_AI_RUNS_PER_MONTH.
+const DEFAULT_FREE_AI_RUNS = 20;
+const DEFAULT_PRO_AI_RUNS = 600;
+
+// CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH, CICIRO_PRO_AUTOWRITE_WORDS_PER_MONTH.
+const DEFAULT_FREE_AUTOWRITE_WORDS = 7500;
+const DEFAULT_PRO_AUTOWRITE_WORDS = 100_000;
 
 export function planLimits(plan: PlanId): PlanLimits {
   if (plan === "pro") {
-    return { aiRunsPerMonth: readAllowance("CICIRO_PRO_AI_RUNS_PER_MONTH", DEFAULT_PRO_AI_RUNS) };
+    return {
+      aiRunsPerMonth: readAllowance("CICIRO_PRO_AI_RUNS_PER_MONTH", DEFAULT_PRO_AI_RUNS),
+      autowriteWordsPerMonth: readAllowance("CICIRO_PRO_AUTOWRITE_WORDS_PER_MONTH", DEFAULT_PRO_AUTOWRITE_WORDS),
+    };
   }
-  return { aiRunsPerMonth: readAllowance("CICIRO_FREE_AI_RUNS_PER_MONTH", DEFAULT_FREE_AI_RUNS) };
+  return {
+    aiRunsPerMonth: readAllowance("CICIRO_FREE_AI_RUNS_PER_MONTH", DEFAULT_FREE_AI_RUNS),
+    autowriteWordsPerMonth: readAllowance("CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH", DEFAULT_FREE_AUTOWRITE_WORDS),
+  };
 }
 
 export type StripeSettings = {

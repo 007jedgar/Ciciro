@@ -378,6 +378,8 @@ const zh: Translations = {
     actions_one: "每月 {{amount}} 次 Ciciro AI 操作",
     actions_other: "每月 {{amount}} 次 Ciciro AI 操作",
     actionsUnlimited: "无限次 Ciciro AI 操作",
+    autowriteCap: "每月最多可自动撰写 {{amount}} 字",
+    autowriteCapReached: "本月自动写作上限为 {{cap}} 字，还剩 {{left}} 字。将于 {{date}} 重置。",
     benefitTools: "对话、自动写作、连贯性检查和每周回顾",
     benefitEverywhere: "一份订阅，App 和网页通用",
     monthly: "按月",

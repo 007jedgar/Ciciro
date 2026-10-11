@@ -9,8 +9,14 @@ import {
   waitForOnline,
 } from "@/lib/ndjson-stream";
 import DrawerHead from "@/components/DrawerHead";
-import { reportAiLimit } from "@/lib/billing-client";
+import { allowanceResetsOn, reportAiLimit, type Entitlement } from "@/lib/billing-client";
 import { getAnalytics } from "@/lib/analytics-client";
+
+/** "This month's autowrite limit is 7,500 words; 400 left. Resets October 1." */
+function autowriteCapMessage(error: string, entitlement: Entitlement | null | undefined): string {
+  if (!entitlement) return error;
+  return `${error} Resets ${allowanceResetsOn(entitlement.usage.period)}.`;
+}
 
 type Props = {
   projectId: string;
@@ -69,10 +75,18 @@ export default function AutoWrite({
       return;
     }
     if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        code?: string;
+        entitlement?: Entitlement;
+      };
       reportAiLimit(res.status, data);
       setPhase("error");
-      setError(data.error || "Request failed to start.");
+      setError(
+        data.code === "autowrite_word_cap_reached" && data.error
+          ? autowriteCapMessage(data.error, data.entitlement)
+          : data.error || "Request failed to start."
+      );
       return;
     }
     if (!res.body) {

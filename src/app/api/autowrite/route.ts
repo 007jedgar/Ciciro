@@ -5,7 +5,7 @@ import { getAnthropic } from "@/lib/anthropic";
 import { authorizeProjectId, getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError } from "@/lib/auth/http";
 import { ensureBible } from "@/lib/bible";
-import { meterAiRun } from "@/lib/entitlements";
+import { meterAutowrite } from "@/lib/entitlements";
 import { notifyAutowriteFinished } from "@/lib/push/run-finished";
 
 export const runtime = "nodejs";
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     return json({ error: (e as Error).message }, 500);
   }
   try {
-    await meterAiRun(user);
+    await meterAutowrite(user, targetWords);
   } catch (error) {
     const failure = responseFromAuthError(error);
     if (failure) return failure;

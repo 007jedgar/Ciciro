@@ -225,6 +225,14 @@ export default function PaywallScreen() {
                 }
                 colors={colors}
               />
+              {entitlement.plans.pro.autowriteWordsPerMonth !== null ? (
+                <Benefit
+                  label={t("billing.autowriteCap", {
+                    amount: entitlement.plans.pro.autowriteWordsPerMonth.toLocaleString(currentLocale()),
+                  })}
+                  colors={colors}
+                />
+              ) : null}
               <Benefit label={t("billing.benefitTools")} colors={colors} />
               <Benefit label={t("billing.benefitEverywhere")} colors={colors} />
             </View>

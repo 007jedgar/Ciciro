@@ -135,7 +135,7 @@ A quick action (`src/lib/prompts.ts`) can be `kind: "panel"` instead of the defa
 
 ## AI allowance and billing
 
-Every AI entry point is metered on a hosted server (`src/lib/entitlements.ts`, see `docs/billing.md`): a user-initiated action claims one run with `meterAiRun` or `withAiRun` (which refunds on failure), and background or free work checks `aiAllowed`/`assertAiAllowed` so it stops at the limit. A new AI route or lib caller needs one of these, or it bypasses the allowance. Billing UI, web and mobile, renders only the server's entitlement, never Stripe or RevenueCat client state.
+Every AI entry point is metered on a hosted server (`src/lib/entitlements.ts`, see `docs/billing.md`): a user-initiated action claims `weight` allowance units (default 1) with `meterAiRun`/`withAiRun` (which refunds on failure), and background or free work checks `aiAllowed`/`assertAiAllowed` so it stops at the limit. A new AI route or lib caller needs one of these, or it bypasses the allowance. Autowrite is the one weighted action (`autowriteWeight` in `src/lib/billing/metering.ts` - the one place a per-action cost is computed) and also draws against a separate monthly autowrite-word cap, enforced together by `meterAutowrite`; everything else stays a flat 1 unit, since `UsageCounter.aiRuns` is a D1 integer column (see "Production D1 schema" below - fractional units aren't an additive change). Billing UI, web and mobile, renders only the server's entitlement, never Stripe or RevenueCat client state.
 
 ## Model defaults
 

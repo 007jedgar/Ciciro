@@ -27,24 +27,30 @@ describe("entitlement resolution", () => {
   afterEach(() => restoreEnv());
 
   it("is free with no subscriptions", () => {
-    const e = resolveEntitlement([], 4, { metered: true, now });
+    const e = resolveEntitlement([], { aiRuns: 4 }, { metered: true, now });
     expect(e).toMatchObject({
       plan: "free",
       planName: "Free",
       source: null,
       manageUrl: null,
-      usage: { period: "2026-09", aiRuns: 4 },
-      limits: { aiRunsPerMonth: 30 },
+      usage: { period: "2026-09", aiRuns: 4, autowriteWords: 0 },
+      limits: { aiRunsPerMonth: 20, autowriteWordsPerMonth: 7500 },
       billing: { web: false, store: false },
     });
   });
 
+  it("carries the autowrite word usage through", () => {
+    const e = resolveEntitlement([], { aiRuns: 4, autowriteWords: 1200 }, { metered: true, now });
+    expect(e.usage).toMatchObject({ aiRuns: 4, autowriteWords: 1200 });
+  });
+
   it("grants Pro from any source", () => {
     for (const source of ["stripe", "app_store", "play_store"]) {
-      const e = resolveEntitlement([row({ source })], 0, { metered: true, now });
+      const e = resolveEntitlement([row({ source })], { aiRuns: 0 }, { metered: true, now });
       expect(e.plan, source).toBe("pro");
       expect(e.source).toBe(source);
-      expect(e.limits.aiRunsPerMonth).toBe(1500);
+      expect(e.limits.aiRunsPerMonth).toBe(600);
+      expect(e.limits.autowriteWordsPerMonth).toBe(100_000);
     }
   });
 
@@ -66,45 +72,50 @@ describe("entitlement resolution", () => {
     const web = row({ source: "stripe", currentPeriodEnd: new Date(now.getTime() + 5 * day) });
     const store = row({ source: "play_store", currentPeriodEnd: new Date(now.getTime() + 300 * day), interval: "year" });
     expect(activeSubscription([web, store], now)).toBe(store);
-    expect(resolveEntitlement([web, store], 0, { metered: true, now })).toMatchObject({
+    expect(resolveEntitlement([web, store], { aiRuns: 0 }, { metered: true, now })).toMatchObject({
       source: "play_store",
       interval: "year",
     });
   });
 
   it("points store subscribers at the store to manage", () => {
-    expect(resolveEntitlement([row({ source: "app_store" })], 0, { metered: true, now }).manageUrl).toBe(
+    expect(resolveEntitlement([row({ source: "app_store" })], { aiRuns: 0 }, { metered: true, now }).manageUrl).toBe(
       "https://apps.apple.com/account/subscriptions"
     );
     expect(
-      resolveEntitlement([row({ source: "play_store", productId: "ciciro_pro:monthly" })], 0, { metered: true, now })
+      resolveEntitlement([row({ source: "play_store", productId: "ciciro_pro:monthly" })], { aiRuns: 0 }, { metered: true, now })
         .manageUrl
     ).toBe("https://play.google.com/store/account/subscriptions?sku=ciciro_pro&package=app.ciciro.mobile");
-    expect(resolveEntitlement([row({})], 0, { metered: true, now }).manageUrl).toBeNull();
+    expect(resolveEntitlement([row({})], { aiRuns: 0 }, { metered: true, now }).manageUrl).toBeNull();
   });
 
   it("does not cap self-hosted use", () => {
-    expect(resolveEntitlement([], 999, { metered: false, now }).limits).toEqual({ aiRunsPerMonth: null });
+    expect(resolveEntitlement([], { aiRuns: 999 }, { metered: false, now }).limits).toEqual({
+      aiRunsPerMonth: null,
+      autowriteWordsPerMonth: null,
+    });
   });
 
   it("reads allowances from the environment, including unlimited", () => {
     process.env.CICIRO_FREE_AI_RUNS_PER_MONTH = "5";
     process.env.CICIRO_PRO_AI_RUNS_PER_MONTH = "unlimited";
-    expect(planLimits("free")).toEqual({ aiRunsPerMonth: 5 });
-    expect(planLimits("pro")).toEqual({ aiRunsPerMonth: null });
+    process.env.CICIRO_FREE_AUTOWRITE_WORDS_PER_MONTH = "1000";
+    process.env.CICIRO_PRO_AUTOWRITE_WORDS_PER_MONTH = "unlimited";
+    expect(planLimits("free")).toEqual({ aiRunsPerMonth: 5, autowriteWordsPerMonth: 1000 });
+    expect(planLimits("pro")).toEqual({ aiRunsPerMonth: null, autowriteWordsPerMonth: null });
     process.env.CICIRO_FREE_AI_RUNS_PER_MONTH = "lots";
-    expect(planLimits("free")).toEqual({ aiRunsPerMonth: 30 });
+    expect(planLimits("free")).toEqual({ aiRunsPerMonth: 20, autowriteWordsPerMonth: 1000 });
   });
 
   it("says what the server can sell only when fully configured", () => {
     process.env.STRIPE_SECRET_KEY = "sk";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec";
     process.env.STRIPE_PRICE_PRO_MONTHLY = "price_m";
-    expect(resolveEntitlement([], 0, { metered: true, now }).billing.web).toBe(false);
+    expect(resolveEntitlement([], { aiRuns: 0 }, { metered: true, now }).billing.web).toBe(false);
     process.env.STRIPE_PRICE_PRO_YEARLY = "price_y";
     process.env.REVENUECAT_SECRET_API_KEY = "sk_rc";
     process.env.REVENUECAT_WEBHOOK_AUTH = "Bearer x";
-    expect(resolveEntitlement([], 0, { metered: true, now }).billing).toEqual({ web: true, store: true });
+    expect(resolveEntitlement([], { aiRuns: 0 }, { metered: true, now }).billing).toEqual({ web: true, store: true });
   });
 
   it("meters by UTC calendar month", () => {

@@ -86,6 +86,22 @@ describe("diffSchemas against the real Prisma schema", () => {
     );
     const scripts = upgradeScriptsFor(join(root, "prisma"), missing);
     expect(scripts).toEqual(["prisma/d1-billing.sql"]);
+    // A UsageCounter created fresh from d1-billing.sql still needs the later,
+    // column-only d1-ai-metering.sql: upgradeScriptsFor only names the script
+    // that creates the table, since the column it is missing was never named
+    // "missing" (the whole table was).
+    const partiallyFixed = liveFrom(stale, readFileSync(join(root, scripts[0]), "utf8"));
+    expect(diffSchemas(expected, partiallyFixed).errors).toEqual(["missing column UsageCounter.autowriteWords"]);
+    const fixed = liveFrom(partiallyFixed, readFileSync(join(root, "prisma/d1-ai-metering.sql"), "utf8"));
+    expect(diffSchemas(expected, fixed)).toEqual({ errors: [], warnings: [], missing: [] });
+  });
+
+  it("names the ai-metering script for a missing UsageCounter.autowriteWords column", () => {
+    const stale = liveFrom(expected, `ALTER TABLE "UsageCounter" DROP COLUMN "autowriteWords";`);
+    const { errors, missing } = diffSchemas(expected, stale);
+    expect(errors).toEqual(["missing column UsageCounter.autowriteWords"]);
+    const scripts = upgradeScriptsFor(join(root, "prisma"), missing);
+    expect(scripts).toEqual(["prisma/d1-ai-metering.sql"]);
     const fixed = liveFrom(stale, readFileSync(join(root, scripts[0]), "utf8"));
     expect(diffSchemas(expected, fixed)).toEqual({ errors: [], warnings: [], missing: [] });
   });

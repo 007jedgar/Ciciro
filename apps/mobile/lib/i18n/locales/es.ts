@@ -388,6 +388,8 @@ const es: Translations = {
     actions_one: "{{amount}} acción de IA al mes con Ciciro",
     actions_other: "{{amount}} acciones de IA al mes con Ciciro",
     actionsUnlimited: "Acciones de IA ilimitadas con Ciciro",
+    autowriteCap: "Hasta {{amount}} palabras autoescritas al mes",
+    autowriteCapReached: "El límite de escritura automática de este mes es de {{cap}} palabras; quedan {{left}}. Se reinicia el {{date}}.",
     benefitTools: "Chat, escritura automática, revisiones de continuidad y repasos semanales",
     benefitEverywhere: "Una sola suscripción para la app y la web",
     monthly: "Mensual",
