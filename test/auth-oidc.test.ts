@@ -2,6 +2,7 @@ import { decodeJwt, decodeProtectedHeader, jwtVerify } from "jose";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   appleClientSecret,
+  appleClientSecretHealthy,
   exchangeCode,
   IdTokenError,
   pkceChallenge,
@@ -149,6 +150,45 @@ describe("appleClientSecret", () => {
     });
     expect((claims.exp ?? 0) - (claims.iat ?? 0)).toBe(300);
     await expect(jwtVerify(secret, publicKey, { currentDate: now })).resolves.toBeTruthy();
+  });
+});
+
+describe("appleClientSecretHealthy", () => {
+  it("is true when the key is absent (nothing to validate)", async () => {
+    await expect(
+      appleClientSecretHealthy({ servicesId: "app.ciciro.web", bundleId: "", teamId: "", keyId: "", privateKey: "" })
+    ).resolves.toBe(true);
+  });
+
+  it("is true for a valid PKCS#8 key", async () => {
+    const { pem: privateKey } = await fakeAppleSigningKey();
+    await expect(
+      appleClientSecretHealthy({
+        servicesId: "app.ciciro.web",
+        bundleId: "",
+        teamId: "TEAM123456",
+        keyId: "KEY1234567",
+        privateKey,
+      })
+    ).resolves.toBe(true);
+  });
+
+  it("is false, and logs once, for a malformed key", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const config = {
+      servicesId: "app.ciciro.web",
+      bundleId: "",
+      teamId: "TEAM123456",
+      keyId: "KEY1234567",
+      privateKey: "not a pkcs8 key",
+    };
+    await expect(appleClientSecretHealthy(config)).resolves.toBe(false);
+    await expect(appleClientSecretHealthy(config)).resolves.toBe(false);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("APPLE_PRIVATE_KEY is invalid")
+    );
+    errorSpy.mockRestore();
   });
 });
 

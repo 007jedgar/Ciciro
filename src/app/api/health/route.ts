@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { authRequired } from "@/lib/auth/constants";
 import { hasAnthropicKey } from "@/lib/anthropic";
+import { appleClientSecretHealthy } from "@/lib/auth/oidc";
+import { appleConfig } from "@/lib/auth/social-config";
 import { prisma } from "@/lib/db";
 import { findSchemaFailures } from "@/lib/health";
 
@@ -33,6 +35,7 @@ export async function GET() {
       schema: db === "down" ? "unknown" : schemaFailures.length ? "drift" : "ok",
       schemaFailures,
       anthropic: hasAnthropicKey(),
+      appleSigningKeyValid: await appleClientSecretHealthy(appleConfig()),
       authRequired: authRequired(),
       latencyMs: Date.now() - startedAt,
       time: new Date().toISOString(),

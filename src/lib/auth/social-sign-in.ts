@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth/identity";
 import {
   appleClientSecret,
+  appleClientSecretHealthy,
   AUTHORIZE_URL,
   exchangeCode,
   IdTokenError,
@@ -261,6 +262,7 @@ async function appleRefreshToken(
   // only what account deletion will revoke, and the next sign-in retries.
   try {
     const config = appleConfig();
+    await appleClientSecretHealthy(config);
     const exchanged = await exchangeCode(
       "apple",
       { code, clientId, clientSecret: await appleClientSecret(config, clientId), redirectUri },

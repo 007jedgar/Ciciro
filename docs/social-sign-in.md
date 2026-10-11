@@ -55,6 +55,33 @@ web callback forward it, and it only ever fills an empty name.
 Apple sign-ins also exchange the authorization code for a refresh token, stored
 on the `Identity` with the client_id it was issued to.
 
+### Detecting a malformed `APPLE_PRIVATE_KEY`
+
+`appleRefreshToken` (`src/lib/auth/social-sign-in.ts`) treats the code exchange
+as best-effort: the ID token already proved who signed in, so a failure there
+never blocks sign-in and never surfaces to the user. That means a malformed
+`APPLE_PRIVATE_KEY` (not a valid PKCS#8 PEM) silently disables refresh tokens,
+and with them revocation on account deletion, for every Apple sign-in - with
+nothing user-visible to notice it by.
+
+`appleClientSecretHealthy` (`src/lib/auth/oidc.ts`) parses the key and builds
+the client secret once per Worker isolate, cached, and on failure logs the
+distinct, greppable line `apple: APPLE_PRIVATE_KEY is invalid - refresh tokens
+and revocation are disabled` exactly once per isolate. It is also reported as
+`appleSigningKeyValid` on `GET /api/health` (`true` when the key is absent -
+nothing to validate - or valid; `false` only when it is configured but
+malformed). If it reports `false`, re-run:
+
+```bash
+npx wrangler secret put APPLE_PRIVATE_KEY < AuthKey_<KEYID>.p8
+```
+
+using the exact, unmodified `.p8` file from the Apple Developer portal - never
+retype or paste it through a chat/notes app, which can corrupt line breaks or
+truncate the PEM armor. If the original file is lost, Apple only allows
+downloading a key's `.p8` once, so generate a new Sign in with Apple key and
+update `APPLE_KEY_ID` to match.
+
 ### Account deletion
 
 App Store guideline 5.1.1(v) requires revoking Sign in with Apple when the
