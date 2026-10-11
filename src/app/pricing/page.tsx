@@ -63,7 +63,8 @@ export default async function PricingPage({
         </h1>
         <p className="pricing-lede">
           Your manuscripts, story bible, reminders, exports and sync are free, always. Plans only
-          change how much of the AI editor you can use each month.
+          change how much of the AI editor you can use each month.{" "}
+          <Link href="/features">See everything Free and Pro include</Link>.
         </p>
 
         <PricingPlans

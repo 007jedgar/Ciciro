@@ -29,6 +29,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/verify-email",
   "/changelog",
+  "/features",
 ];
 const PUBLIC_PREFIXES = [
   "/api/auth/",

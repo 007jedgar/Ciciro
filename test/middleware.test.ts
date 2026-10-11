@@ -19,6 +19,11 @@ describe("middleware isPublic", () => {
       expect(isPublic(path)).toBe(true);
     }
   });
+
+  it("lets a signed-out visitor reach /features without a session", () => {
+    // Linked from the landing nav and footer, and must not require sign-in.
+    expect(isPublic("/features")).toBe(true);
+  });
 });
 
 describe("isAuthPagePath", () => {
