@@ -282,7 +282,7 @@ export function WelcomeScreen({ onCreate, onSignIn }: { onCreate: () => void; on
           <Text style={[styles.primaryText, { color: colors.bg }]}>{t("welcome.createAccount")}</Text>
         </TapPressable>
       </Rise>
-      <Rise index={5}>
+      <Rise index={5} style={styles.ghostWrap}>
         <TapPressable feedback="dim" onPress={onSignIn} style={styles.ghost}>
           <Text style={[styles.ghostText, { color: colors.inkSoft }]}>{t("welcome.alreadyHaveAccount")}</Text>
         </TapPressable>
@@ -326,7 +326,8 @@ const styles = StyleSheet.create({
   primaryWrap: {},
   primary: { height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center" },
   primaryText: { fontFamily: fonts.uiBold, fontSize: 16 },
+  ghostWrap: { marginTop: 16 },
   ghost: { height: 44, alignItems: "center", justifyContent: "center" },
   ghostText: { fontFamily: fonts.uiMedium, fontSize: 14 },
-  langs: { marginTop: 4 },
+  langs: { marginTop: 12 },
 });
