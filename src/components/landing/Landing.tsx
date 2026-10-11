@@ -77,6 +77,9 @@ export default function Landing() {
           <header className="landing-header">
             <Brand />
             <nav className="landing-nav" aria-label="Account">
+              <TrackedLink href="/features" className="landing-plain-link" cta="features_nav" surface="landing">
+                Features
+              </TrackedLink>
               {selling ? (
                 <Link href="/pricing" className="landing-plain-link">
                   Pricing
@@ -166,6 +169,14 @@ export default function Landing() {
             </div>
           ))}
         </div>
+        <TrackedLink
+          href="/features"
+          className="landing-inline-link landing-how-cta"
+          cta="see_every_feature"
+          surface="landing"
+        >
+          See every feature <Arrow />
+        </TrackedLink>
       </section>
 
       <section className="landing-wrap landing-block" aria-labelledby="landing-why">
@@ -261,6 +272,7 @@ export default function Landing() {
             <nav className="landing-footer-nav" aria-label="Footer">
               <Link href="/login">Sign in</Link>
               <Link href="/signup">Get early access</Link>
+              <Link href="/features">Features</Link>
               {selling ? <Link href="/pricing">Pricing</Link> : null}
               <Link href="/changelog">What&apos;s new</Link>
               <Link href="/privacy">Privacy</Link>
