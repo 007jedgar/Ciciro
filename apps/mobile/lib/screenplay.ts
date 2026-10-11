@@ -1233,6 +1233,11 @@ export function scenes(blocks: readonly ScriptBlock[]): SceneRange[] {
   return out;
 }
 
+/** The index into `scenes(blocks)` that block `index` falls in, or -1 outside any (an empty script). */
+export function sceneAt(blocks: readonly ScriptBlock[], index: number): number {
+  return scenes(blocks).findIndex((s) => index >= s.start && index < s.end);
+}
+
 export type DialogueGroup = {
   /** The cue's block index. */
   character: number;

@@ -526,6 +526,13 @@ agree even when a block is not a paragraph.
   `speechAt`). Not Cmd/Ctrl+1 to 9: browsers keep those for switching tabs. Not
   Ctrl+Alt: that is AltGr on many Windows layouts. `SHORTCUT_ORDER` in
   `screenplay.ts` is the source; the Settings reference reads from it.
+- **Jump to scene.** **Alt+Shift+Down/Up** moves the caret to the start of the
+  next or previous scene and brings it into view, same modifier family as the
+  element picks. `sceneAt(blocks, index)` (`screenplay.ts`) finds the scene the
+  caret is in; `Editor.jumpScene` (`Editor.tsx`, next to `revealScene`, which
+  the Scenes navigator calls) walks to the neighbor and no-ops at either end or
+  outside a script. See `docs/using-ciciro.md` for the full shortcut list and
+  the Cmd/Ctrl+/ reference, which also lists this one.
 
 ## The assistant
 

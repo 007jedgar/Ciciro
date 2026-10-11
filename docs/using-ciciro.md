@@ -352,6 +352,35 @@ press a button, a soft tick as each sentence of Ciciro's reply arrives or an
 edit lands, and a short cue when the reply finishes or fails. Like focus mode it
 is remembered per device, not synced. Turn it off to silence all of them.
 
+## Keyboard shortcuts (web)
+
+**Cmd/Ctrl+/** opens the full list, also reachable from **More → Keyboard
+shortcuts** in the top bar. They are off while you are typing somewhere other
+than the manuscript itself (the chat box, a search field, a dialog), so they
+never fight with what you are typing there.
+
+| Shortcut | Does |
+|---|---|
+| Cmd/Ctrl+Z | Undo |
+| Cmd/Ctrl+Shift+Z | Redo |
+| Cmd/Ctrl+B | Bold |
+| Cmd/Ctrl+I | Italic |
+| Cmd/Ctrl+Shift+F | Find and replace |
+| Cmd/Ctrl+Shift+Enter | Focus mode |
+| Cmd/Ctrl+Alt+T | Typewriter mode |
+| Alt+Shift+Down / Up | Next / previous chapter (next / previous scene in a screenplay) |
+| Cmd/Ctrl+/ | This list |
+
+There is no underline mark or heading styles in the manuscript editor, so
+there is no shortcut for either. A screenplay adds its own element shortcuts
+(Alt+Shift+1 to 8, Alt+Shift+D for dual dialogue) - see
+[docs/screenplay.md](screenplay.md#the-web-editor) - which the same Cmd/Ctrl+/
+list shows while a screenplay is open. The web app has one language
+(English), so this list is not translated. The phone edits in a native view
+that cannot cleanly intercept hardware-keyboard shortcuts (see `AGENTS.md`,
+"Patched native editor"), so none of the above apply there; the element bar
+and chips are its only way to pick a screenplay element.
+
 ## Read aloud
 
 Hearing a chapter is a good way to catch clunky lines. On the web, choose **Listen** in the top bar; on the phone, tap **Listen** above the editor or open the **Read aloud** tile in the Chapters tab.
