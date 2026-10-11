@@ -21,6 +21,7 @@ import RepetitionPanel from "@/components/RepetitionPanel";
 import ContinuityCheckPanel from "@/components/ContinuityCheckPanel";
 import OutlineBoard from "@/components/OutlineBoard";
 import SceneNavigator from "@/components/SceneNavigator";
+import ShortcutsPanel from "@/components/ShortcutsPanel";
 import CanvasBoard from "@/components/CanvasBoard";
 import StateReviewPanel from "@/components/StateReviewPanel";
 import Presence from "@/components/Presence";
@@ -61,6 +62,8 @@ import type { ScriptContext } from "@/lib/tiptap-screenplay";
 import { commentQuote } from "@/lib/selection-menu";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN } from "@/lib/settings";
 import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
+import { isMacPlatform } from "@/lib/selection-menu-view";
+import { isUnrelatedInput } from "@/lib/shortcuts";
 import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
 import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
@@ -151,6 +154,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [editorNonce, setEditorNonce] = useState(0);
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [scenesOpen, setScenesOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // The story bible's characters, so a name is offered before the script first uses it.
   const [bibleNames, setBibleNames] = useState<string[]>([]);
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -268,6 +272,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     () => project.chapters.find((c) => c.id === activeId) ?? null,
     [project.chapters, activeId]
   );
+
+  // The chapters a reader can land on, in sidebar order, for Alt+Shift+Up/Down.
+  const navigableChapters = useMemo(
+    () => project.chapters.filter((c) => !chapterRows.hidden.has(c.id)),
+    [project.chapters, chapterRows.hidden]
+  );
+  const navigableChaptersRef = useRef(navigableChapters);
+  navigableChaptersRef.current = navigableChapters;
 
   // A screenplay's sequences run on from one another, so where the open one
   // starts on the page (for its page markers) and about how many pages the
@@ -708,11 +720,29 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         !document.querySelector('[role="dialog"], [aria-modal="true"]')
       ) {
         setFocusMode(false);
+      } else if (mod && e.key === "/") {
+        if (isUnrelatedInput(e.target)) return;
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
+      } else if (e.altKey && e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        if (isUnrelatedInput(e.target)) return;
+        const direction = e.key === "ArrowDown" ? 1 : -1;
+        if (kind === "screenplay") {
+          if (editorRef.current?.jumpScene(direction)) e.preventDefault();
+          return;
+        }
+        const chapters = navigableChaptersRef.current;
+        const at = chapters.findIndex((c) => c.id === activeIdRef.current);
+        const target = chapters[at + direction];
+        if (at === -1 || !target) return;
+        e.preventDefault();
+        flushHeldWrites();
+        setActiveId(target.id);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [patch]);
+  }, [patch, flushHeldWrites, kind]);
 
   useEffect(() => {
     if (!restoredId || viewMode !== "prose") return;
@@ -1287,6 +1317,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
                 setBetaOpen(true);
               },
             },
+            {
+              key: "shortcuts",
+              label: "Keyboard shortcuts",
+              title: isMacPlatform(typeof navigator === "undefined" ? undefined : navigator.platform)
+                ? "⌘/"
+                : "Ctrl+/",
+              onSelect: () => setShortcutsOpen(true),
+            },
           ]}
         />
         <WeeklyReview
@@ -1687,6 +1725,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
           onJump={onCommentJump}
           onCommentsChanged={refreshReaderComments}
           onClose={closeBetaReaders}
+        />
+      </Presence>
+
+      <Presence open={shortcutsOpen}>
+        <ShortcutsPanel
+          kind={kind}
+          hasChapters={navigableChapters.length > 1}
+          onClose={() => setShortcutsOpen(false)}
         />
       </Presence>
 

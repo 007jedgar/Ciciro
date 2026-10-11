@@ -45,9 +45,11 @@ import {
   hasExtension,
   knownElement,
   parseCue,
+  sceneAt,
   scenes,
   type PageCursor,
   type ScreenplayElement,
+  type SceneRange,
 } from "@/lib/screenplay";
 import { normalizeElement, parseScriptLines, type ManuscriptKind } from "@/lib/manuscript-kind";
 import { SCRIPT_LANGUAGE_NOTE, elementShortcutLabel } from "@/lib/screenplay-view";
@@ -122,6 +124,8 @@ export type EditorHandle = {
   setReadingPosition: (blockId: string, offset: number) => void;
   /** Put the caret at the start of scene `scene` (an index into the script's scenes) and bring it into view. */
   revealScene: (scene: number) => void;
+  /** Move the caret to the next or previous scene; false at the first/last scene or outside a script. */
+  jumpScene: (direction: 1 | -1) => boolean;
   /** Move scene `from` to where scene `to` is; false when nothing moved. */
   moveScene: (from: number, to: number) => boolean;
   /** Accept or reject pending suggestions: the given ids, or all of them. */
@@ -205,6 +209,19 @@ function revealRange(editor: TiptapEditor, from: number, to: number) {
     /* position not renderable yet */
   }
   flashRanges(editor, [{ from, to }], "pulse");
+}
+
+/** Put the caret at the start of a scene and bring it into view; a no-op outside the document. */
+function revealSceneRange(editor: TiptapEditor, range: SceneRange | undefined) {
+  if (!range) return;
+  let at: { from: number; to: number } | null = null;
+  editor.state.doc.forEach((node, offset, index) => {
+    if (index === range.start) at = { from: offset + 1, to: offset + 1 + node.content.size };
+  });
+  if (!at) return;
+  const { from, to } = at as { from: number; to: number };
+  editor.chain().focus(undefined, { scrollIntoView: false }).setTextSelection(from).run();
+  revealRange(editor, from, to);
 }
 
 const CARD_WIDTH = 320;
@@ -991,16 +1008,19 @@ const Editor = forwardRef<EditorHandle, Props>(function Editor(
     },
     revealScene(scene: number) {
       if (!editor) return;
-      const range = scenes(sceneBlocks(editor))[scene];
-      if (!range) return;
-      let at: { from: number; to: number } | null = null;
-      editor.state.doc.forEach((node, offset, index) => {
-        if (index === range.start) at = { from: offset + 1, to: offset + 1 + node.content.size };
-      });
-      if (!at) return;
-      const { from, to } = at as { from: number; to: number };
-      editor.chain().focus(undefined, { scrollIntoView: false }).setTextSelection(from).run();
-      revealRange(editor, from, to);
+      revealSceneRange(editor, scenes(sceneBlocks(editor))[scene]);
+    },
+    jumpScene(direction: 1 | -1) {
+      if (!editor) return false;
+      const { $from } = editor.state.selection;
+      if ($from.depth < 1) return false;
+      const blocks = sceneBlocks(editor);
+      const list = scenes(blocks);
+      const at = sceneAt(blocks, $from.index(0));
+      const target = at + direction;
+      if (at === -1 || target < 0 || target >= list.length) return false;
+      revealSceneRange(editor, list[target]);
+      return true;
     },
     moveScene(from: number, to: number) {
       return editor ? moveScene(editor, from, to) : false;

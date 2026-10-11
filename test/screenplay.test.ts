@@ -21,6 +21,7 @@ import {
   normalizeElement,
   paginate,
   pagesAsText,
+  sceneAt,
   scenes,
   scriptBlocksFromHtml,
   sequenceCursors,
@@ -406,6 +407,15 @@ describe("a script's structure", () => {
     ]);
     expect(scenes([block("scene-heading", "int. a - day")])).toEqual([{ heading: 0, start: 0, end: 1 }]);
     expect(scenes([])).toEqual([]);
+  });
+
+  it("finds which scene a block is in, for jumping between them", () => {
+    expect(sceneAt(script, 0)).toBe(0);
+    expect(sceneAt(script, 1)).toBe(1);
+    expect(sceneAt(script, 6)).toBe(1);
+    expect(sceneAt(script, 7)).toBe(2);
+    expect(sceneAt(script, 8)).toBe(2);
+    expect(sceneAt([], 0)).toBe(-1);
   });
 
   it("finds a cue and what it speaks", () => {

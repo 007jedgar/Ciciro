@@ -28,6 +28,8 @@ export function screenplayShortcuts(mac: boolean, labels: Record<ScreenplayEleme
       label: labels[element],
     })),
     { keys: mac ? "⌥⇧D" : "Alt+Shift+D", label: "Dual dialogue: beside the speech above" },
+    { keys: mac ? "⌥⇧↓" : "Alt+Shift+↓", label: "Next scene" },
+    { keys: mac ? "⌥⇧↑" : "Alt+Shift+↑", label: "Previous scene" },
   ];
 }
 
