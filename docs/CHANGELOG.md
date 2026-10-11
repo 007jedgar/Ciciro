@@ -3,9 +3,14 @@
 User-facing changes only. Model default changes go here (see `AGENTS.md`); everything
 else stays in commit messages.
 
+Prefix a new bullet with `<!-- YYYY-MM-DD -->` (today's date) — the /changelog
+page and the product-update email both show it. Forgetting it isn't fatal:
+`npm run changelog:generate` backfills one from git history (or today's date
+for an uncommitted entry) and writes it back into this file.
+
 ## Unreleased
 
-- **Write a script in its page layout on iPhone (Beta).** Settings inside a
+- <!-- 2026-10-10 --> **Write a script in its page layout on iPhone (Beta).** Settings inside a
   screenplay has a new switch, **Page layout while typing**, off until you turn
   it on. With it on, the editor sets the script as you type: the page's type
   sized so 60 columns fill the screen, scene headings and action at the left,
@@ -17,7 +22,7 @@ else stays in commit messages.
   and is not on Android yet; Pages still shows the finished layout. The switch is
   grayed out with an info button when the app is in Chinese or Hindi.
 
-- **Screenplays (Beta) get professional output.** A script now has a **title
+- <!-- 2026-10-10 --> **Screenplays (Beta) get professional output.** A script now has a **title
   page** (title, credit, author, source, draft date and contact, edited under
   "This screenplay" in Settings on the web and the phone) that opens the
   screenplay PDF and the Fountain and FDX files. The page count is now exact
@@ -37,7 +42,7 @@ else stays in commit messages.
   its lists say "N pages" to match the editor. Script formatting remains English and Spanish for the PDF, and the
   `(MORE)` and `(CONT'D)` notes are English.
 
-- **Screenplays (Beta) are faster to write.** Scene headings, cues, transitions
+- <!-- 2026-10-10 --> **Screenplays (Beta) are faster to write.** Scene headings, cues, transitions
   and shots are typed in capitals as you go. A list under the caret on the web
   (a row of chips above the keyboard on the phone) offers the names, places and
   times of day the script already uses, and the characters in the story bible
@@ -50,7 +55,7 @@ else stays in commit messages.
   are grayed out, with an info button, for a script in a language script
   formatting does not cover yet.
 
-- **Screenplays (Beta) export and import.** Export a script as a **Screenplay
+- <!-- 2026-10-09 --> **Screenplays (Beta) export and import.** Export a script as a **Screenplay
   PDF** (US Letter, 12 pt Courier, page numbers from page 2, the same pages the
   editor's page count counts) or as a **Fountain** file for other writing
   apps, on the web and from the phone's Export card. Import a `.fountain` file
@@ -62,7 +67,7 @@ else stays in commit messages.
   info button that says so, and support for more languages is planned. The web
   no longer loads Courier Prime twice.
 
-- **Ciciro understands screenplays.** It reads a script by its elements (scene
+- <!-- 2026-10-10 --> **Ciciro understands screenplays.** It reads a script by its elements (scene
   headings, cues, dialogue, parentheticals, transitions, shots) and by its
   scenes, so it can name, find and rewrite a scene by its heading, and what it
   writes, rewrites or auto-drafts lands as the right elements and continues from
@@ -72,7 +77,7 @@ else stays in commit messages.
   keyboard and lights the right element the moment you press Return, and a
   script draft in the chat is set as a script.
 
-- **Screenplays** are tidier to write. Typing `# `, `- `, `1. ` or `> ` at the
+- <!-- 2026-10-09 --> **Screenplays** are tidier to write. Typing `# `, `- `, `1. ` or `> ` at the
   start of a line no longer turns it into a heading, list or quote, and
   pasting several lines sorts them into scene headings, cues, dialogue and
   transitions. Tab and Shift-Tab change every selected line at once and no
@@ -83,7 +88,7 @@ else stays in commit messages.
   headings, character cues and transitions are skipped by spell check and the
   grammar pass.
 
-- On the phone, a manuscript can have a **deadline**: a due date and a word
+- <!-- 2026-10-09 --> On the phone, a manuscript can have a **deadline**: a due date and a word
   target for the whole manuscript, set from the new Deadline tool on its
   chapters screen (and changed or removed there). A ring fills as the words
   arrive and closes with a tick when the target is met. Ciciro reads your last
@@ -92,19 +97,19 @@ else stays in commit messages.
   pick up the pace, with the daily words it takes. Deadlines are optional and
   independent of the daily word goal.
 
-- On the iPhone, highlighting words in the chapter editor shows the same menu
+- <!-- 2026-10-09 --> On the iPhone, highlighting words in the chapter editor shows the same menu
   under the selection (above it, clear of the system Cut and Copy bar, when the
   keyboard leaves no room). One word offers its synonyms as chips, with the rest
   behind "more...", and tapping one swaps it in place and keeps your cursor.
 
-- On the website, highlighting words in the chapter shows a small menu over
+- <!-- 2026-10-09 --> On the website, highlighting words in the chapter shows a small menu over
   them. Two or more words offer Comment, Rewrite, Describe, Expand and Fix
   (each sends Ciciro a brief about that text, and Comment starts a chat with it
   quoted); one word offers Comment, Describe and Fix plus synonyms that fit its
   sentence, and choosing one swaps it in place. Cmd+K (Ctrl+K) moves into the
   menu from the keyboard.
 
-- On the phone, tapping anywhere around the page in the chapter editor (the
+- <!-- 2026-10-09 --> On the phone, tapping anywhere around the page in the chapter editor (the
   margins, the chapter title row, the pills) puts the keyboard away. The
   selected tab in the manuscript tab bar now fills its whole segment of the bar,
   rounder at the two ends and flatter in the middle. The Ciciro chat shows its
@@ -112,7 +117,7 @@ else stays in commit messages.
   a sparkle button. "Previously on" is now two or three sentences (web and
   phone), and the phone clamps it to five lines with Show more.
 
-- **Who knows what** is now chapter by chapter (web and phone). A character
+- <!-- 2026-10-07 --> **Who knows what** is now chapter by chapter (web and phone). A character
   can know, suspect, believe wrongly, or not know something, from a chapter
   until the chapter it changes in; facts saved as "believes" read as
   "suspects". The Knowledge screen opens at the chapter you have open, with a
@@ -120,16 +125,16 @@ else stays in commit messages.
   replaced it, and a grid by topic with an optional Reader column from
   canon.md. Ciciro's editing, the continuity check and What changed now see
   only what characters know by the chapter in question, never a later one.
-- Ask Ciciro in chat to record who knows what ("note that Joe suspects Suzy
+- <!-- 2026-10-07 --> Ask Ciciro in chat to record who knows what ("note that Joe suspects Suzy
   has the pen"): it records it against the chapter you have open, or the one
   you name, says exactly what it recorded, and can change or remove it. "What
   does Joe know at this point?" answers from the ledger as of your chapter.
   This works in Chat only too.
 
-- Fixed: on the phone, typing in a chapter after switching from another one no
+- <!-- 2026-10-06 --> Fixed: on the phone, typing in a chapter after switching from another one no
   longer fails to save with an "Unexpected null or undefined value" error.
 
-- The phone's Ciciro chat now has the website's quick-action chips above the
+- <!-- 2026-10-08 --> The phone's Ciciro chat now has the website's quick-action chips above the
   message box (What needs work most?, Critique this chapter, Tighten dialogue,
   Find loose ends, and the rest, different for a novel, screenplay, blog post
   or journal). A tap sends the brief; the ones that work on a passage need
@@ -137,12 +142,12 @@ else stays in commit messages.
   manuscript need Allow edits. This replaces the three starter prompts the
   empty chat used to offer. Rewrite from the writing tools now works on the
   words you have highlighted.
-- On the phone, a manuscript has a **Manuscript details** tool (in the Tools
+- <!-- 2026-10-08 --> On the phone, a manuscript has a **Manuscript details** tool (in the Tools
   row on the chapters screen) to change its title, author and logline, move it
   between folders, or delete it. Chapters can be renamed from a title line
   above the page, which also says which chapter you are in. The chapters
   screen shows the manuscript's total word count.
-- Phone Settings is grouped under Appearance, Writing, Ciciro, Goals and
+- <!-- 2026-10-08 --> Phone Settings is grouped under Appearance, Writing, Ciciro, Goals and
   reminders, and Privacy, and Writing history is listed there. The + menu on
   the manuscripts list is only for creating (new manuscript, import, new
   folder), and the writing-tools grid no longer repeats Chapters and
@@ -151,13 +156,13 @@ else stays in commit messages.
   (Chapters, Manuscript, Ciciro), the empty chat's prompt is no longer drawn
   upside down, and deleting a manuscript returns to a library that shows its
   remaining manuscripts instead of a blank list.
-- On the phone, Settings' Goals and reminders is now three rows (Word goal,
+- <!-- 2026-10-09 --> On the phone, Settings' Goals and reminders is now three rows (Word goal,
   Writing reminders, Writing history), each opening its own screen instead of
   adjusting the goal inline. A word goal is optional: pick **No goal** on the
   Word goal screen to hide the writing meter, and a writing reminder can be
   saved without a word count, so it simply says "Time to write".
 
-- The phone app has the website's Archive look as two new themes, **Ciciro** and
+- <!-- 2026-10-05 --> The phone app has the website's Archive look as two new themes, **Ciciro** and
   **Ciciro Night**, now the default for anyone who has not picked a theme. The
   chapters screen is restyled in it (new typefaces, folder-tab chapter cards,
   paper-stock stage chips) and the app's text uses Newsreader, Instrument Sans
@@ -166,28 +171,28 @@ else stays in commit messages.
   and Inkwell keep their names, and everyone keeps the theme they picked. This
   needs a new app build; an over-the-air update does not carry the fonts.
 
-- New **Allow edits / Chat only** switch under Ciciro's chat (web and phone). It
+- <!-- 2026-10-05 --> New **Allow edits / Chat only** switch under Ciciro's chat (web and phone). It
   belongs to the conversation: a new chat starts on Allow edits, and Chat only
   stays on for as long as that conversation continues. In Chat only, Ciciro
   answers and discusses but never changes your manuscript; the server withholds
   its writing tools, so it holds even when a page or app is out of date.
 
-- **Stop** in Ciciro's chat (web and phone) now actually stops a request. Ciciro
+- <!-- 2026-10-02 --> **Stop** in Ciciro's chat (web and phone) now actually stops a request. Ciciro
   finishes the step it is on, then stops before its next tool call; anything it
   already wrote stays and can be undone.
 
-- Auto-draft and the chat's draft tool no longer put text that was cut off
+- <!-- 2026-09-29 --> Auto-draft and the chat's draft tool no longer put text that was cut off
   mid-sentence into your chapter. A beat that runs past its length limit now
   fails and can be retried, and Recap and chapter summaries keep their previous
   version instead of saving a cut-off one.
 
-- The website has a new look, the Archive design language: paper texture, richer
+- <!-- 2026-09-29 --> The website has a new look, the Archive design language: paper texture, richer
   color, and a light/dark toggle on the public pages. `/` is now the landing page
   for signed-out visitors (the library for signed-in ones), with app screenshots
   and short demos, and `/launch` redirects there. The pricing page shows an
   early-access discount when one is set up (see `docs/billing.md`).
 
-- New opt-in setting, **Experimental writing prompt** (Settings, web and
+- <!-- 2026-09-29 --> New opt-in setting, **Experimental writing prompt** (Settings, web and
   phone, off by default): Ciciro's drafts follow craft defaults that avoid
   habits common in model-written prose (feelings mirrored by the weather,
   stated themes, "not X but Y" contrasts, tidy endings), and a check after
@@ -195,10 +200,10 @@ else stays in commit messages.
   your voice notes, and anything a brief asks for still win. Off, drafting
   works exactly as before.
 
-- Em dashes stay off by default; a `- Em dashes: allowed` line in `style.md`
+- <!-- 2026-09-29 --> Em dashes stay off by default; a `- Em dashes: allowed` line in `style.md`
   switches them on for drafts, with or without the experimental setting.
 
-- Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5
+- <!-- 2026-09-29 --> Drafter default is now Claude Sonnet 5.5 (`claude-sonnet-5-5`), was Claude Sonnet 5
   (`claude-sonnet-5`). Same per-token price. No request-shape changes were needed.
   Anthropic's migration guidance for Sonnet 5.5 is: "`thinking: {type: "disabled"}`
   returns a 400 - to turn thinking off, send `thinking: {type: "between_tools"}`"
@@ -212,25 +217,25 @@ else stays in commit messages.
   `thinking` rather than disabling it, so the `between_tools` note does not apply
   and behavior is unchanged.
 
-- Ciciro now sends email: a link to confirm your address after signing up, a
+- <!-- 2026-09-29 --> Ciciro now sends email: a link to confirm your address after signing up, a
   welcome once it's confirmed, password reset links ("Forgot password?" on web
   and mobile sign-in), and a note when an account is deleted. Settings shows
   when your email isn't confirmed yet and can resend the link.
-- Settings (web and mobile) can now export all of your data as one zip and delete
+- <!-- 2026-09-28 --> Settings (web and mobile) can now export all of your data as one zip and delete
   your account. `/account/delete` explains account deletion publicly, for the
   App Store and Google Play deletion requirements.
 
-- Sign in with Apple and Google on the web and in the app, next to email and
+- <!-- 2026-09-28 --> Sign in with Apple and Google on the web and in the app, next to email and
   password. A verified email that matches an existing account signs into it.
   An account without a password confirms deletion by typing DELETE, and deleting
   it revokes Ciciro's Sign in with Apple access. See `docs/social-sign-in.md`.
 
-- Settings (web and mobile) now shows the models Ciciro is actually running: Editor,
+- <!-- 2026-09-28 --> Settings (web and mobile) now shows the models Ciciro is actually running: Editor,
   Drafter, Quick drafts, and the Groq router when configured. Current defaults, set in
   `src/lib/anthropic.ts` and `src/lib/fast-lane.ts`:
   - Editor: Claude Opus 5 (`claude-opus-5`)
   - Drafter: Claude Sonnet 5 (`claude-sonnet-5`)
   - Quick drafts: Claude Haiku 4.5 (`claude-haiku-4-5`)
   - Router (when `GROQ_API_KEY` is set): Llama 3.1 8B (`llama-3.1-8b-instant`)
-- Editor default is now Claude Opus 5.5 (`claude-opus-5-5`), was Claude Opus 5
+- <!-- 2026-09-28 --> Editor default is now Claude Opus 5.5 (`claude-opus-5-5`), was Claude Opus 5
   (`claude-opus-5`). The drafter stays on Claude Sonnet 5.
