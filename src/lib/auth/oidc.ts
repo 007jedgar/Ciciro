@@ -161,6 +161,41 @@ export async function appleClientSecret(
     .sign(key);
 }
 
+// Cached per Worker isolate, keyed by the config values that feed
+// `appleClientSecret`: the key never changes mid-isolate (env is static), so
+// this costs one `importPKCS8` for the isolate's whole lifetime instead of
+// one per sign-in. Logs the failure once, at first use, since
+// `appleRefreshToken` otherwise swallows it silently by design.
+let appleSecretCheck: { signature: string; ok: boolean } | undefined;
+
+function appleConfigSignature(config: AppleConfig): string {
+  return `${config.teamId}:${config.keyId}:${config.privateKey}`;
+}
+
+/**
+ * True when Apple's signing key is either absent (nothing to validate) or
+ * parses and signs correctly. False only means `APPLE_PRIVATE_KEY` is
+ * configured but malformed, which silently disables Apple refresh tokens and
+ * account-deletion revocation (see docs/social-sign-in.md).
+ */
+export async function appleClientSecretHealthy(config: AppleConfig): Promise<boolean> {
+  if (!config.teamId || !config.keyId || !config.privateKey) return true;
+  const signature = appleConfigSignature(config);
+  if (appleSecretCheck?.signature === signature) return appleSecretCheck.ok;
+
+  let ok = true;
+  try {
+    await appleClientSecret(config, config.servicesId || config.bundleId || "healthcheck");
+  } catch {
+    ok = false;
+  }
+  appleSecretCheck = { signature, ok };
+  if (!ok) {
+    console.error("apple: APPLE_PRIVATE_KEY is invalid - refresh tokens and revocation are disabled");
+  }
+  return ok;
+}
+
 export type CodeExchange = {
   idToken: string;
   refreshToken: string;
