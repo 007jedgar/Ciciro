@@ -14,9 +14,8 @@ export const contentType = "image/png";
  * so a fixed size that looks great on "Dana Ruiz ... Midnight Harbor"
  * overflows on a longer pairing. `overflow: hidden` does not reliably save
  * us here - Satori does not always clip a wrapped flex row's overflow the
- * way a browser would (see OgFrame and main-option-c.tsx's phone mockup,
- * which hit the same thing) - so the sentence is sized to actually fit
- * instead of leaning on clipping.
+ * way a browser would (see OgFrame's `minHeight: 0` comment) - so the
+ * sentence is sized to actually fit instead of leaning on clipping.
  */
 export function bigFontFor(totalChars: number): number {
   if (totalChars <= 75) return 72;
