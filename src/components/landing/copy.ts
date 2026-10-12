@@ -98,8 +98,8 @@ export const HOW = {
           kind: "phones",
           clips: [
             {
-              day: { webm: "/landing/phone-reminder-day.webm", mp4: "/landing/phone-reminder-day.mp4", poster: "/landing/phone-reminder.webp" },
-              night: { webm: "/landing/phone-reminder-night.webm", mp4: "/landing/phone-reminder-night.mp4", poster: "/landing/phone-reminder.webp" },
+              day: { webm: "/landing/phone-reminder-day.webm", mp4: "/landing/phone-reminder-day.mp4", poster: "/landing/phone-reminder-day.webp" },
+              night: { webm: "/landing/phone-reminder-night.webm", mp4: "/landing/phone-reminder-night.mp4", poster: "/landing/phone-reminder-night.webp" },
               width: 600,
               height: 1304,
               alt: "A reminder arrives on the phone: “Time to write The Letter”, quoting the last lines written. Tapping it opens the manuscript.",

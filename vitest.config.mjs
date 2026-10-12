@@ -13,7 +13,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    exclude: ["**/node_modules/**", "**/apps/**", "**/dist/**", "**/.worktrees/**"],
+    exclude: ["**/node_modules/**", "**/apps/**", "**/tools/**", "**/dist/**", "**/.worktrees/**"],
     clearMocks: true,
     restoreMocks: true,
     fileParallelism: false,

@@ -19,6 +19,7 @@ const eslintConfig = [
       ".open-next/**",
       "src/worker/**",
       "apps/**",
+      "tools/**",
     ],
   },
 ];
