@@ -1,5 +1,6 @@
 import {
   buildWritingWidgetSnapshot,
+  SIGNED_OUT_WIDGET_SNAPSHOT,
   snapshotEquals,
   toWidgetProps,
   widgetOpenUrl,
@@ -37,5 +38,17 @@ describe("writing widget snapshot", () => {
     expect(snapshotEquals(a, a)).toBe(true);
     expect(snapshotEquals(a, { ...a, words: 11 })).toBe(false);
     expect(snapshotEquals(null, a)).toBe(false);
+  });
+
+  it("provides an all-zero snapshot for the signed-out state", () => {
+    // Published regardless of sign-in so the widget's native layout gets
+    // registered on first launch, not only after someone signs in - see
+    // WritingWidgetSync.
+    expect(SIGNED_OUT_WIDGET_SNAPSHOT).toEqual({
+      words: 0,
+      goal: 0,
+      daysInLast7: 0,
+      openHref: "/manuscripts",
+    });
   });
 });
