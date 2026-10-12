@@ -14,6 +14,7 @@ import { SettingsProvider } from "../lib/settings";
 import { DEFAULT_THEME, THEME_PALETTES } from "../lib/theme";
 import { LastPlaceTracker } from "../components/LastPlaceTracker";
 import { AnalyticsSync } from "../components/AnalyticsSync";
+import { ConsentGate } from "../components/ConsentGate";
 import { PushRegistrationSync } from "../components/PushRegistrationSync";
 import { WritingReminderSync } from "../components/WritingReminderSync";
 import { WritingWidgetSync } from "../components/WritingWidgetSync";
@@ -102,6 +103,10 @@ function ThemedStack() {
           options={{ title: t("settings.title"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
         />
         <Stack.Screen
+          name="privacy-choices"
+          options={{ title: t("settings.privacyChoices"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
+        />
+        <Stack.Screen
           name="delete-account"
           options={{ title: t("account.deleteAccount"), headerShown: false, ...POP_OVER_STACK_SCREEN_OPTIONS }}
         />
@@ -171,6 +176,7 @@ export default function RootLayout() {
                 <WritingDayProvider>
                   <LastPlaceTracker />
                   <AnalyticsSync />
+                  <ConsentGate />
                   <WritingReminderSync />
                   <PushRegistrationSync />
                   <WritingWidgetSync />
