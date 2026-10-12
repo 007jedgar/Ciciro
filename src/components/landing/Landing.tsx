@@ -1,14 +1,17 @@
 import Link from "next/link";
+import BetaBadge from "@/components/BetaBadge";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import TrackedLink from "@/components/TrackedLink";
 import CookieSettingsButton from "@/components/CookieSettingsButton";
 import CyclingWord from "./CyclingWord";
 import Exhibit from "./Exhibit";
+import ExerciseDemo from "./ExerciseDemo";
+import ScreenplayShowcase from "./ScreenplayShowcase";
 import Scene from "./Scene";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
 import BetaSignupForm from "./BetaSignupForm";
-import { BETA, CLOSING, HERO, HOW, PRICING, WHY } from "./copy";
+import { BETA, CLOSING, EXERCISE, HERO, HOW, PRICING, SCREENPLAY_SHOWCASE, WHY } from "./copy";
 import "./landing.css";
 
 function Arrow() {
@@ -178,6 +181,34 @@ export default function Landing() {
         >
           See every feature <Arrow />
         </TrackedLink>
+      </section>
+
+      <section className="landing-wrap landing-block" aria-labelledby="landing-exercise">
+        <p className="landing-kicker">{EXERCISE.kicker}</p>
+        <div className="landing-split">
+          <div>
+            <h2 id="landing-exercise" className="landing-h2">
+              {EXERCISE.headingLead} <em>{EXERCISE.headingKey}</em>
+            </h2>
+            <p className="landing-split-body">{EXERCISE.body}</p>
+          </div>
+          <ExerciseDemo />
+        </div>
+      </section>
+
+      <section className="landing-wrap landing-block" aria-labelledby="landing-screenplay">
+        <p className="landing-kicker">
+          {SCREENPLAY_SHOWCASE.kicker} <BetaBadge />
+        </p>
+        <div className="landing-split landing-split-reverse">
+          <div>
+            <h2 id="landing-screenplay" className="landing-h2">
+              {SCREENPLAY_SHOWCASE.headingLead} <em>{SCREENPLAY_SHOWCASE.headingKey}</em>
+            </h2>
+            <p className="landing-split-body">{SCREENPLAY_SHOWCASE.body}</p>
+          </div>
+          <ScreenplayShowcase />
+        </div>
       </section>
 
       <section className="landing-wrap landing-block" aria-labelledby="landing-why">

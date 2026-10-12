@@ -1033,6 +1033,166 @@
     margin-top: 48px;
   }
 }
+
+/* ---- The guided exercise and the screenplay showcase: a two-column split,
+   text beside a live exhibit, each demo on the right except where reversed. ---- */
+.landing-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: center;
+}
+.landing-split-reverse > :first-child {
+  order: 2;
+}
+.landing-split-reverse > :last-child {
+  order: 1;
+}
+.landing-split-body {
+  max-width: 460px;
+  margin: 18px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+@media (max-width: 900px) {
+  .landing-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .landing-split-reverse > :first-child,
+  .landing-split-reverse > :last-child {
+    order: initial;
+  }
+}
+
+/* ---- Exhibit F: the guided exercise, looping in CSS alone. One keyframe
+   shape, reused by every panel at a different --xd (a negative delay), so
+   each takes its turn without any JS driving it. See ExerciseDemo.tsx. */
+.landing-exercise-exhibit {
+  --duration-exercise-stage: calc(2800ms * var(--motion));
+}
+.landing-exercise-card {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--paper-shadow);
+}
+.landing-exercise-panel {
+  position: absolute;
+  inset: 28px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  opacity: 0;
+  animation: landing-exercise-fade calc(7 * var(--duration-exercise-stage)) linear infinite;
+  animation-delay: var(--xd);
+}
+.landing-exercise-panel:first-child {
+  opacity: 1;
+}
+.landing-exercise-kicker {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.landing-exercise-prompt {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.3rem;
+  line-height: 1.4;
+}
+.landing-exercise-sample {
+  margin: 4px 0 0;
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+.landing-exercise-type {
+  background: linear-gradient(var(--panel), var(--panel)) no-repeat right / 100% 100%;
+  animation: landing-exercise-type calc(7 * var(--duration-exercise-stage)) steps(30) infinite;
+  animation-delay: var(--xd);
+}
+@keyframes landing-exercise-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  1% {
+    opacity: 1;
+  }
+  13% {
+    opacity: 1;
+  }
+  14.2857% {
+    opacity: 0;
+  }
+}
+@keyframes landing-exercise-type {
+  0%,
+  100% {
+    background-size: 100% 100%;
+  }
+  2.5% {
+    background-size: 100% 100%;
+  }
+  9% {
+    background-size: 0 100%;
+  }
+  14.2857% {
+    background-size: 0 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-exercise-panel,
+  .landing-exercise-type {
+    animation: none;
+  }
+  .landing-exercise-type {
+    background-size: 0 100%;
+  }
+}
+:root[data-reduce-motion="true"] .landing-exercise-panel,
+:root[data-reduce-motion="true"] .landing-exercise-type {
+  animation: none;
+}
+:root[data-reduce-motion="true"] .landing-exercise-type {
+  background-size: 0 100%;
+}
+
+/* ---- Exhibit G: a real page of screenplay, set with the editor's own
+   .ProseMirror.screenplay rules (globals.css). --screenplay-size is driven by
+   a container query, the CSS equivalent of Editor.tsx's ResizeObserver, so
+   the fixed 60-column page shrinks to fit a phone instead of overflowing it. */
+.landing-script-window {
+  width: min(560px, 100%);
+  margin: 0 auto;
+}
+.landing-script-page {
+  background: var(--paper, var(--panel));
+}
+.landing-script-inner {
+  container-type: inline-size;
+  padding: 28px 22px;
+  overflow: hidden;
+}
+.landing-script-inner .ProseMirror.screenplay {
+  --screenplay-size: clamp(7.5px, calc(100cqw / 36), 16px);
+  margin: 0 auto;
+  min-height: 0;
+  color: var(--ink);
+}
+.landing-script-exhibit figcaption {
+  max-width: 480px;
+}
 .landing-file {
   position: relative;
   min-width: 0;

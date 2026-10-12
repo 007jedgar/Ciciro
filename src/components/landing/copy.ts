@@ -8,24 +8,24 @@ import type { Metadata } from "next";
 // ships, and never use em dashes.
 
 export const LANDING_METADATA: Metadata = {
-  title: "Ciciro - a reason to open the file again tomorrow",
+  title: "Ciciro - keeps you writing, five minutes at a time",
   description:
-    "Ciciro reminds you on the days you choose, shows you the last lines you wrote, and puts your cursor back where you stopped, at your desk or on your phone. Five minutes is enough to keep a novel alive.",
+    "Ciciro is a writing habit and a creative partner for people who write in stolen minutes, not for a living. Reminders on the days you choose, your cursor back where you stopped, and a guided exercise for the days you don't know where to start.",
 };
 
 export const HERO = {
-  eyebrow: "For writers who keep meaning to get back to it",
+  eyebrow: "For people who write around a job, a family, a life",
   headlineStart: "Most",
   /** The subject the headline retypes, first word first. Plural, and only the
       forms Ciciro is built for (see src/lib/manuscript-kind.ts). */
   headlineSubjects: ["novels", "journals", "screenplays", "blogs", "memoirs", "newsletters", "scripts"],
   headlineLead: "don't stall from writer's block. They stall from",
   headlineKey: "silence.",
-  sideNoteTitle: "Unfinished. Not abandoned.",
+  sideNoteTitle: "A hobby. Not a deadline.",
   sideNote: "Reminders on the days you pick. Five minutes counts. Rest days are built in.",
   sub:
-    "On the days you pick, Ciciro's phone app reminds you with the last lines you wrote and one nudge back into the scene. Open the manuscript and your cursor is exactly where you stopped, at your desk or on your phone. Five minutes is enough to keep going.",
-  chips: ["Reminders on your days", "Back at your last sentence", "No streak to break", "Your prose, your call"],
+    "Ciciro keeps you writing in the time you actually have. It's built for people for whom writing isn't the job: a chapter before bed, a scene on the train, a line of dialogue typed one-handed at your kid's practice. On the days you pick, the phone app reminds you with the last lines you wrote and a nudge back into the scene, then opens straight to the sentence you stopped on, desk or phone. When you don't know where to start, a short guided exercise gets the pen moving. An editor is in there if you want a hand with a line, but it never writes the book for you.",
+  chips: ["Five minutes counts", "Reminders on your days", "No streak to break", "Your prose, your call"],
 };
 
 /** A screenshot of the real app, in a day and a night version. */
@@ -156,6 +156,71 @@ export const HOW = {
       },
     },
   ] as ValueProp[],
+};
+
+/** The guided writing exercise (phone app today): a settle-in through four
+    senses, then three short prompts. Mirrors the shape of
+    apps/mobile/lib/writing-exercise.ts (Observe, React, Narrate), in Ciciro's
+    own words for the landing page. ExerciseDemo.tsx loops these on repeat,
+    in CSS, with no text here read by any AI. */
+export const EXERCISE = {
+  kicker: "The blank page",
+  headingLead: "A nudge before the",
+  headingKey: "page opens.",
+  body:
+    "When you don't know where to start, the phone app can open with a short guided exercise instead of a blank page. It settles you into the room for a minute, then asks for three small things: what you noticed, what it made you feel, and one line of a story hiding in it. No account needed, no AI drafting it for you, five to ten minutes and you're back in the chair.",
+  caption: "The same settle-in and the same three prompts the exercise opens with, looping here on repeat.",
+  settle: [
+    { label: "Look", prompt: "What do you see from right where you're sitting?" },
+    { label: "Listen", prompt: "What can you hear, even faintly, under everything else?" },
+    { label: "Smell", prompt: "Is there a smell in the room? Would you have noticed it an hour ago?" },
+    { label: "Feel", prompt: "What does the chair feel like, now that you're paying attention?" },
+  ] as { label: string; prompt: string }[],
+  parts: [
+    {
+      label: "Observe",
+      prompt: "Write down what you noticed. Just the facts of the room.",
+      sample: "The radiator ticks twice before it decides to stay quiet.",
+    },
+    {
+      label: "React",
+      prompt: "What did noticing that make you feel?",
+      sample: "I went still, like the room was listening back.",
+    },
+    {
+      label: "Narrate",
+      prompt: "Give the room one line of a story.",
+      sample: "The house had been trying to say something for years before she finally sat still enough to hear it.",
+    },
+  ] as { label: string; prompt: string; sample: string }[],
+};
+
+/** A short excerpt rendered in Ciciro's real screenplay typography (the
+    .ProseMirror.screenplay rules in globals.css, see src/lib/screenplay.ts),
+    not a screenshot. "action" carries no data-sp attribute, the others use
+    their tag name. ScreenplayShowcase.tsx renders these lines. */
+export const SCREENPLAY_SHOWCASE = {
+  kicker: "Writing a script",
+  headingLead: "It reads like a screenplay because it",
+  headingKey: "is one.",
+  body:
+    "Screenplay is its own mode (Beta): scene headings go uppercase on their own line, cues center and capitalize, parentheticals get their parens for free, and Tab moves you on to wherever the next line belongs. What's below is twelve point Courier, the size a script is actually read in, not a preview of one.",
+  caption: "A page from a script in progress, set in Ciciro's own screenplay mode.",
+  lines: [
+    { tag: "scene-heading", text: "INT. KITCHEN - NIGHT" },
+    {
+      tag: "action",
+      text: "Maya sits at the table, laptop shut, a cold cup of coffee by her elbow. Next door, a porch light clicks off.",
+    },
+    { tag: "character", text: "MAYA" },
+    { tag: "parenthetical", text: "to herself" },
+    { tag: "dialogue", text: "Ten minutes. That's all I've got tonight." },
+    {
+      tag: "action",
+      text: "She opens the laptop. The cursor finds the sentence she left off on, like it never moved.",
+    },
+    { tag: "transition", text: "CUT TO:" },
+  ] as { tag: "scene-heading" | "action" | "character" | "parenthetical" | "dialogue" | "transition"; text: string }[],
 };
 
 export const WHY = {
