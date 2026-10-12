@@ -12,13 +12,13 @@ export async function renderMainOptionA() {
   return new ImageResponse(
     (
       <OgFrame>
-        <div style={{ display: "flex", flexDirection: "column", maxWidth: 980, maxHeight: 400, overflow: "hidden" }}>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 980, maxHeight: 300, overflow: "hidden" }}>
           <span
             style={{
               fontFamily: "Newsreader Display",
               fontWeight: 500,
-              fontSize: 108,
-              lineHeight: 1.08,
+              fontSize: 72,
+              lineHeight: 1.1,
               color: OG_COLORS.ink,
             }}
           >
@@ -28,9 +28,10 @@ export async function renderMainOptionA() {
             style={{
               fontFamily: "Instrument Sans",
               fontWeight: 600,
-              fontSize: 50,
+              fontSize: 46,
+              lineHeight: 1.2,
               color: OG_COLORS.accent,
-              marginTop: 32,
+              marginTop: 24,
             }}
           >
             For novels, screenplays, journals and articles.
