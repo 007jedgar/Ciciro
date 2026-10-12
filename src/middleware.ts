@@ -30,6 +30,9 @@ const PUBLIC_PATHS = [
   "/verify-email",
   "/changelog",
   "/features",
+  // The home/marketing page (src/app/about/page.tsx), reachable from a
+  // signed-in writer's app header and account menu as well as signed out.
+  "/about",
 ];
 const PUBLIC_PREFIXES = [
   "/api/auth/",

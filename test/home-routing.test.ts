@@ -72,6 +72,18 @@ describe("the home screen", () => {
     LaunchPage();
     expect(nav.permanentRedirect).toHaveBeenCalledWith("/");
   });
+
+  it("lets a signed-out visitor reach /about, the way back from a logo or account menu link", () => {
+    const res = middleware(new NextRequest("http://localhost/about"));
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("also lets a signed-in writer reach /about, since it offers a way back into the app", async () => {
+    session.user = { id: "u1" };
+    const res = middleware(new NextRequest("http://localhost/about"));
+    expect(res.headers.get("location")).toBeNull();
+    expect(await homeShowsLibrary()).toBe(true);
+  });
 });
 
 describe("theme ids", () => {
