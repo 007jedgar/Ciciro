@@ -116,6 +116,14 @@ const checked = () =>
 const click = (el: Element) => act(async () => el.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 const chip = (label: string) =>
   [...host.querySelectorAll<HTMLButtonElement>(".chip")].find((el) => el.textContent === label)!;
+const chatSettingsTrigger = () =>
+  [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    (el) => el.textContent === "Chat settings"
+  )!;
+const autoSwitch = () => host.querySelector<HTMLButtonElement>('.chat-settings-menu [role="switch"]');
+async function openChatSettings() {
+  if (!autoSwitch()) await click(chatSettingsTrigger());
+}
 
 async function sendText(text: string) {
   const box = host.querySelector("textarea")!;
@@ -189,17 +197,14 @@ describe("the chat's Allow edits / Chat only switch", () => {
     expect(posts[0]).toMatchObject({ editsAllowed: false, kind: "action" });
   });
 
-  it("turns Auto off while edits are off", async () => {
+  it("turns auto-insert off while edits are off", async () => {
     await mount();
-    const auto = () =>
-      [...host.querySelectorAll<HTMLButtonElement>("button")].find((el) =>
-        el.textContent?.startsWith("Auto")
-      )!;
-    await click(auto());
-    expect(auto().textContent).toBe("Auto on");
+    await openChatSettings();
+    await click(autoSwitch()!);
+    expect(autoSwitch()!.textContent).toBe("On");
     await click(option("Chat only"));
-    expect(auto().textContent).toBe("Auto off");
-    expect(auto().disabled).toBe(true);
+    expect(autoSwitch()!.textContent).toBe("Off");
+    expect(autoSwitch()!.disabled).toBe(true);
   });
 
   it("never auto-inserts a Chat only reply's drafts, even if edits are allowed mid-stream", async () => {
@@ -217,11 +222,8 @@ describe("the chat's Allow edits / Chat only switch", () => {
       return new Response(body, { headers: { "content-type": "application/x-ndjson" } });
     };
     await mount((text) => inserted.push(text));
-    const auto = () =>
-      [...host.querySelectorAll<HTMLButtonElement>("button")].find((el) =>
-        el.textContent?.startsWith("Auto")
-      )!;
-    await click(auto());
+    await openChatSettings();
+    await click(autoSwitch()!);
     await click(option("Chat only"));
 
     const box = host.querySelector("textarea")!;
@@ -240,7 +242,7 @@ describe("the chat's Allow edits / Chat only switch", () => {
     });
     await settle();
     await click(option("Allow edits"));
-    expect(auto().textContent).toBe("Auto on");
+    expect(autoSwitch()!.textContent).toBe("On");
     await act(async () => push({ type: "text", v: " Or <draft>Mara stayed.</draft>" }));
     await settle();
     expect(inserted).toEqual([]);

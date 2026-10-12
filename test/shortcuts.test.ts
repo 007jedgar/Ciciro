@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from "vitest";
-import { generalShortcuts, isUnrelatedInput } from "@/lib/shortcuts";
+import { generalShortcuts, isUnrelatedInput, keyCaps } from "@/lib/shortcuts";
 
 describe("the shortcuts reference", () => {
   it("lists the Mac glyphs on a Mac and the Windows/Linux words elsewhere", () => {
@@ -16,6 +16,33 @@ describe("the shortcuts reference", () => {
   it("only lists chapter navigation when there is more than one chapter to jump between", () => {
     expect(generalShortcuts(false, false).some((r) => r.label === "Next chapter")).toBe(false);
     expect(generalShortcuts(false, true).some((r) => r.label === "Next chapter")).toBe(true);
+  });
+
+  it("groups every row under Editing or View & navigation, for the panel's section headings", () => {
+    const groups = new Set(generalShortcuts(true, true).map((r) => r.group));
+    expect(groups).toEqual(new Set(["Editing", "View & navigation"]));
+  });
+});
+
+describe("keyCaps", () => {
+  it("splits a Mac symbol combo into one cap per modifier plus the trailing key", () => {
+    expect(keyCaps("⌘⇧Z")).toEqual(["⌘", "⇧", "Z"]);
+    expect(keyCaps("⌘⇧Enter")).toEqual(["⌘", "⇧", "Enter"]);
+    expect(keyCaps("⌘/")).toEqual(["⌘", "/"]);
+  });
+
+  it("splits a Ctrl/Alt word combo on the +", () => {
+    expect(keyCaps("Ctrl+Shift+Z")).toEqual(["Ctrl", "Shift", "Z"]);
+    expect(keyCaps("Alt+Shift+Enter")).toEqual(["Alt", "Shift", "Enter"]);
+  });
+
+  it("splits space-separated alternatives into their own caps", () => {
+    expect(keyCaps("↑ ↓")).toEqual(["↑", "↓"]);
+  });
+
+  it("leaves a single bare key as one cap", () => {
+    expect(keyCaps("Tab")).toEqual(["Tab"]);
+    expect(keyCaps("Esc")).toEqual(["Esc"]);
   });
 });
 

@@ -7,7 +7,7 @@
  * every manuscript kind.
  */
 
-export type ShortcutRow = { keys: string; label: string };
+export type ShortcutRow = { keys: string; label: string; group?: string };
 
 /** "Cmd" on a Mac, "Ctrl" everywhere else - the modifier every row below is built on. */
 function mod(mac: boolean): string {
@@ -22,21 +22,36 @@ function mod(mac: boolean): string {
 export function generalShortcuts(mac: boolean, hasChapters: boolean): ShortcutRow[] {
   const cmd = mod(mac);
   return [
-    { keys: `${cmd}Z`, label: "Undo" },
-    { keys: mac ? "⌘⇧Z" : "Ctrl+Shift+Z", label: "Redo" },
-    { keys: `${cmd}B`, label: "Bold" },
-    { keys: `${cmd}I`, label: "Italic" },
-    { keys: mac ? "⌘⇧F" : "Ctrl+Shift+F", label: "Find and replace" },
-    { keys: mac ? "⌘⇧Enter" : "Ctrl+Shift+Enter", label: "Focus mode" },
-    { keys: mac ? "⌘⌥T" : "Ctrl+Alt+T", label: "Typewriter mode" },
+    { keys: `${cmd}Z`, label: "Undo", group: "Editing" },
+    { keys: mac ? "⌘⇧Z" : "Ctrl+Shift+Z", label: "Redo", group: "Editing" },
+    { keys: `${cmd}B`, label: "Bold", group: "Editing" },
+    { keys: `${cmd}I`, label: "Italic", group: "Editing" },
+    { keys: mac ? "⌘⇧F" : "Ctrl+Shift+F", label: "Find and replace", group: "Editing" },
+    { keys: mac ? "⌘⇧Enter" : "Ctrl+Shift+Enter", label: "Focus mode", group: "View & navigation" },
+    { keys: mac ? "⌘⌥T" : "Ctrl+Alt+T", label: "Typewriter mode", group: "View & navigation" },
     ...(hasChapters
       ? [
-          { keys: mac ? "⌥⇧↓" : "Alt+Shift+↓", label: "Next chapter" },
-          { keys: mac ? "⌥⇧↑" : "Alt+Shift+↑", label: "Previous chapter" },
+          { keys: mac ? "⌥⇧↓" : "Alt+Shift+↓", label: "Next chapter", group: "View & navigation" },
+          { keys: mac ? "⌥⇧↑" : "Alt+Shift+↑", label: "Previous chapter", group: "View & navigation" },
         ]
       : []),
-    { keys: mac ? "⌘/" : "Ctrl+/", label: "Keyboard shortcuts" },
+    { keys: mac ? "⌘/" : "Ctrl+/", label: "Keyboard shortcuts", group: "View & navigation" },
   ];
+}
+
+/**
+ * `keys` split into the individual caps a `<kbd>` should render: each
+ * modifier symbol (⌘ ⌥ ⇧ ⌃) on its own, the trailing key or word kept
+ * whole ("Enter", "Z", "/"), "Ctrl+Shift+Z"-style words split on "+", and
+ * "↑ ↓"-style alternatives (no chord, just two keys the row mentions)
+ * split on the space.
+ */
+export function keyCaps(keys: string): string[] {
+  if (keys.includes(" ")) return keys.split(" ");
+  if (keys.includes("+")) return keys.split("+");
+  const m = /^([⌘⌥⇧⌃]+)(.*)$/.exec(keys);
+  if (m && m[2]) return [...m[1], m[2]];
+  return [keys];
 }
 
 /**

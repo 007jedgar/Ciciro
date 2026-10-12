@@ -45,6 +45,10 @@ The native view treats a changed `defaultValue` (and `setValue`) as a whole-buff
 
 The widget extension itself ships no layout of its own - babel's `expo-widgets` plugin turns the `"widget"`-tagged function into a source-code string, and that string only reaches the shared app group's storage (`UserDefaults(suiteName: groupIdentifier)`, key `__expo_widgets_<name>_layout`) as a side effect of the main app importing `widgets/WritingDayWidget.tsx` (`lib/writing-widget.ts`'s `publishWritingWidgetSnapshot`, the only caller). Until that import has run once, WidgetKit's placeholder, the Add Widget gallery preview, and the home screen all render the same hardcoded red "No layout found for `<group>::<name>`" box (`EntryView.swift` in `expo-widgets`), regardless of app-group entitlements being correctly wired. So that publish call must run unconditionally on every iOS launch - including signed out, with an all-zero `SIGNED_OUT_WIDGET_SNAPSHOT` - rather than being gated on sign-in or data being ready; gating it is what breaks the widget until first login, not a build or entitlement problem.
 
+## Local dev database
+
+A fresh worktree's `dev.db` (the default `DATABASE_URL="file:./dev.db"`, see `docs/hosting.md`) has no tables until `npm run db:push` runs once - without it `npm run dev` 500s on every `/api/*` route with Prisma's "table does not exist". This is local-only; it never touches production D1 (below).
+
 ## Production D1 schema
 
 `prisma db push` never reaches the Worker's D1. A schema change needs a `prisma/d1-*.sql` upgrade (see `docs/hosting.md`) applied to production before merging to `main`; the `main` build fails while D1 is behind (`npm run db:check:d1`). Only add tables and columns there: D1 cannot turn foreign keys off, so rebuilding a referenced table (the only way SQLite drops NOT NULL or changes a type) cascade-deletes its children. Model "no value" with a default instead (e.g. `User.passwordHash = ""` for Apple / Google accounts).
