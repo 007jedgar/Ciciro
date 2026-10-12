@@ -32,6 +32,7 @@ import type {
   ChapterSnapshotListResponse,
   ChapterSnapshotRestoreResponse,
   ChapterSnapshotSummary,
+  CanvasBoardResponse,
   Character,
   CharacterCreateRequest,
   CharacterPatchRequest,
@@ -284,6 +285,11 @@ export const ciciro = {
           `/api/projects/${encodeURIComponent(id)}/target`,
           jsonInit("DELETE", undefined, opts)
         ),
+    },
+    canvas: {
+      /** Cards, labels, and arrows for the planning board. Read-only on the phone for now. */
+      get: (id: string, opts?: RequestOpts) =>
+        api<CanvasBoardResponse>(`/api/projects/${encodeURIComponent(id)}/canvas`, opts),
     },
     scratch: {
       list: (id: string, opts?: RequestOpts) =>

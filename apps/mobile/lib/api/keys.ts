@@ -36,6 +36,7 @@ export const queryKeys = {
   recap: (projectId: string) => ["recap", projectId] as const,
   weeklyReviews: (projectId: string) => ["weekly-reviews", projectId] as const,
   manuscriptTarget: (projectId: string) => ["manuscript-target", projectId] as const,
+  canvas: (projectId: string) => ["canvas", projectId] as const,
   shares: (projectId: string) => ["shares", projectId] as const,
   shareComments: {
     all: (projectId: string) => ["share-comments", projectId] as const,

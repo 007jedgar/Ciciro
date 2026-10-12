@@ -1269,6 +1269,15 @@ export function useDeleteManuscriptTargetMutation() {
   });
 }
 
+/** The planning board's cards, labels, and arrows. Read-only on the phone for now. */
+export function useCanvasBoardQuery(projectId: string, options?: Enabled) {
+  return useQuery({
+    queryKey: queryKeys.canvas(projectId),
+    queryFn: () => ciciro.projects.canvas.get(projectId),
+    enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
 export function useCreateWeeklyReviewMutation() {
   return useMutation({
     mutationFn: ({ projectId, to, tzOffset }: { projectId: string; to: string; tzOffset?: number }) =>
