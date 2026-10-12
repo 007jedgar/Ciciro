@@ -35,7 +35,13 @@ export type AppSettings = {
   aiSuggestions: boolean;
   /** "Experimental writing prompt": craft defaults and a post-draft check for prose Ciciro drafts. Opt-in. */
   craftDefaults: boolean;
-  /** Product analytics (PostHog). Opt-out; see docs/analytics.md. */
+  /**
+   * Product analytics (PostHog), synced per account. Opt-in: defaults to
+   * false, since a brand-new account implies no consent decision - the
+   * on-device consent record (lib/consent.ts) is the source of truth for
+   * whether to ask, and this is only one half of whether analytics actually
+   * runs (see effectiveAnalyticsAllowed). See docs/analytics.md.
+   */
   analyticsEnabled: boolean;
   updatedAt: string;
 };
@@ -57,7 +63,7 @@ export function defaultSettings(): AppSettings {
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,
-    analyticsEnabled: true,
+    analyticsEnabled: false,
     updatedAt: SETTINGS_EPOCH,
   };
 }

@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { usePathname } from "expo-router";
-import { getAnalytics } from "../lib/analytics-client";
+import { getAnalytics, setAnalyticsConsent } from "../lib/analytics-client";
 import { trackScreenView, type ScreenView } from "../lib/analytics-events";
+import { effectiveAnalyticsAllowed, useConsent } from "../lib/consent";
 import type { AppActiveListener } from "../lib/sync-engine";
+import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
 
 /**
@@ -68,18 +70,28 @@ function screenNameForPath(pathname: string): string {
 }
 
 /**
- * Honors the analytics opt-out setting and tracks a screen view with
- * duration on every route change. Identify/reset lives in lib/session.tsx,
- * next to the matching RevenueCat wiring. See docs/analytics.md.
+ * Honors the device's analytics consent (lib/consent.ts) and the account's
+ * `analyticsEnabled` setting - effective analytics requires both - and
+ * tracks a screen view with duration on every route change. Identify/reset
+ * lives in lib/session.tsx, next to the matching RevenueCat wiring. See
+ * docs/analytics.md.
  */
 export function AnalyticsSync() {
   const pathname = usePathname();
   const { settings } = useAppTheme();
+  const { user } = useSession();
+  const consent = useConsent();
   const activeScreen = useRef<ScreenView | null>(null);
 
   useEffect(() => {
-    getAnalytics().setOptedOut(!settings.analyticsEnabled);
-  }, [settings.analyticsEnabled]);
+    setAnalyticsConsent(consent?.categories.analytics === true);
+    const allowed = effectiveAnalyticsAllowed({
+      record: consent,
+      signedIn: !!user,
+      accountEnabled: settings.analyticsEnabled,
+    });
+    getAnalytics().setOptedOut(!allowed);
+  }, [consent, user, settings.analyticsEnabled]);
 
   useEffect(() => {
     const screen = screenNameForPath(pathname);

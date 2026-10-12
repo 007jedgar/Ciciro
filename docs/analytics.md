@@ -83,12 +83,73 @@ These are enforced in code, not just convention:
   account-switch) change, never for an anonymous visitor, and both PostHog
   adapters re-register the super properties (`platform`, `release`) after a
   reset.
-- **Opt-out, not opt-in, and on by default.** `analyticsEnabled` in
-  `AppSettings` (web `src/lib/settings.ts`, mobile `apps/mobile/lib/app-settings.ts`)
-  defaults to `true`. This is first-party product analytics about how the
-  product is used, not third-party ad tracking or cross-app data sharing, so
-  it is outside the scope of Apple's App Tracking Transparency (no ATT
-  prompt is needed or shown for it) - see "App Store privacy" below.
+- **Opt-in consent, per device, required everywhere (GDPR/ePrivacy).**
+  Analytics storage/access on a device needs affirmative consent before it
+  happens, in every region - this app does not geo-gate the rule. The
+  consent record (`{ version, categories: { analytics }, decidedAt }`) lives
+  on the device, never synced: a second device, or a reinstall, has no
+  record and is asked again even for an account that already said yes
+  elsewhere. `necessary` (session/auth, security, the consent record
+  itself) and `functional` (theme, focus mode, editor/reader prefs, chat
+  width, unsaved scratchpad drafts - storage the person already asked for)
+  are always on and disclosed but not gated by the prompt; only `analytics`
+  is a real choice. `marketing` is a reserved category id with no consumer
+  or UI yet - bump the version below when it gets one. A stored record from
+  an older version means "ask again": bump the shared version constant
+  (mobile: `CONSENT_VERSION` in `apps/mobile/lib/consent.ts`) whenever a
+  category or its purpose changes.
+
+  The prompt is equal-weight Allow/Don't-allow (Accept-all/Reject-all on
+  web) plus a Choose/Customize path to the same per-category view, no
+  pre-ticked analytics box, no cookie wall - the product works fully with
+  analytics rejected. Withdrawing is exactly as easy as granting: a
+  persistent "Privacy choices" entry point (mobile: a Settings row, opening
+  `app/privacy-choices.tsx`, which also shows the current decision and when
+  it was made; web: a footer link) reopens the same choice anytime.
+
+  `analyticsEnabled` in `AppSettings` (web `src/lib/settings.ts`, mobile
+  `apps/mobile/lib/app-settings.ts`) is the signed-in account's *synced*
+  copy of the analytics decision - a separate, secondary question from the
+  device-local consent record above, and now defaults to `false` (a
+  brand-new account implies no decision either way). Effective analytics is
+  **device consent granted AND (not signed in OR the account's
+  `analyticsEnabled` agrees)** - both sides must agree once someone is
+  signed in, since the account setting can come from a *different* device
+  that already decided. Deciding through the consent UI while signed in
+  writes the decision through to `analyticsEnabled` too, so the two never
+  contradict on the device that made the choice.
+
+  This is first-party product analytics about how the product is used, not
+  third-party ad tracking or cross-app data sharing, so it is outside the
+  scope of Apple's App Tracking Transparency (no ATT prompt is needed or
+  shown for it) - see "App Store privacy" below. That reasoning holds only
+  for a first-party processor acting solely on Ciciro's instructions; it
+  would stop applying the moment an ad-attribution SDK, or any sharing of an
+  identifier with an ad network, is added.
+
+  **Mobile implementation notes** (`apps/mobile/lib/analytics-client.ts`,
+  `lib/consent.ts`, `lib/analytics-posthog-native.ts`): the real
+  posthog-react-native client is never constructed at all until device
+  consent is granted at least once (stronger than relying on an opt-out-by-
+  default config flag, since there is then nothing to default), and starts
+  opted out even then (`defaultOptIn: false`), with an explicit `optOut()`
+  call on every construction before the one caller allowed to opt it back
+  in (`setAnalyticsConsent`) does so. That explicit `optOut()` is a
+  deliberate belt-and-suspenders step, not decoration: posthog-react-native
+  has a known cold-start race where a *native-side* persisted opt-out/opt-in
+  marker from a previous launch can override the JS config before JS
+  corrects it (tracked upstream as `persistOptOut`, PostHog/posthog-js#4973);
+  as of the pinned `posthog-react-native@^4.78.4` that option does not exist
+  yet (confirmed by inspecting the published package - absent from both its
+  type declarations and compiled bundle), so the app does not rely on
+  `defaultOptIn` alone. Revisit once `persistOptOut` ships and the package
+  is bumped. Withdrawal always calls `optOut()` before `reset()` (the
+  required order) and keeps the adapter instance alive, just opted out, so
+  changing your mind again in the same session needs no app restart.
+  `sweepLegacyAnalyticsIdentity()` additionally resets any PostHog identity
+  a device may already have from before this consent gate shipped (the
+  prior behavior was opt-out and on by default) the first time a "Don't
+  allow" decision is recorded.
 - **Account deletion asks PostHog to forget the person.** The
   `posthog-delete-person` `PRE_DELETE_HOOK` (`src/lib/account/delete.ts`,
   see [docs/account-data.md](account-data.md)) is best-effort: it catches its
@@ -275,18 +336,29 @@ why:
 
 For the App Store "App Privacy" (nutrition label) questionnaire:
 
-- **Data collected**: "User ID" (the internal account id, used for
-  Analytics). No "Name", "Email Address", or "User Content" category applies
-  to this integration, since none of those are ever sent.
-- **Purpose**: "Analytics" and, if the questionnaire asks separately,
-  "App Functionality" do not apply here - PostHog event data is used only
-  for analytics, not to functionally drive the app.
+- **Data collected**: "User ID" (the internal account id) and "Product
+  Interaction" (the typed event/screen data in the catalog above), both for
+  purpose "Analytics". No "Name", "Email Address", or "User Content"
+  category applies to this integration, since none of those are ever sent.
 - **Linked to the user**: Yes (the PostHog person is identified by the
   account's internal id while signed in).
-- **Used for tracking**: No. "Tracking" in Apple's definition is
-  linking data with third-party data for ads or sharing with a data broker;
-  this integration does neither, so it does not require an ATT prompt and
-  should be marked "not used for tracking".
+- **Used for tracking**: No. "Tracking" in Apple's definition is linking
+  data with third-party data for ads or sharing with a data broker; PostHog
+  here is a data processor acting solely on Ciciro's instructions, which
+  does neither, so this does not require an ATT prompt and should be marked
+  "not used for tracking". That holds only while PostHog's terms keep it a
+  processor and nothing here adds an ad SDK or shares an identifier with an
+  ad network - if either ever changes, this note and the ATT exemption both
+  need re-checking.
 - The privacy policy should mention PostHog as a sub-processor for product
   analytics, alongside Stripe/RevenueCat/Resend/Anthropic if they are
   already listed there.
+
+**Google Play Data safety form** (mobile): declare data types "App
+activity / App interactions" and "User ID" (both the internal account id),
+purpose "Analytics", and mark "Not shared with third parties" - PostHog
+qualifies for Google's "service provider" carve-out (processes solely on
+Ciciro's instruction, under Ciciro's privacy policy) as long as the signed
+PostHog DPA (not just its general cloud terms) keeps it from reusing the
+data for its own purposes. The owner should confirm that against the
+actual signed agreement, not assume it from the public terms.

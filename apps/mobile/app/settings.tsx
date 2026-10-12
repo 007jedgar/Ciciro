@@ -911,6 +911,7 @@ export default function SettingsScreen() {
     : t("wordGoal.off");
   const daysWritten = useDaysWrittenInLast7({ enabled: Boolean(user) });
   const historyValue = daysWritten == null ? "" : t("writingHistory.daysOfLast7", { count: daysWritten });
+  const privacyChoicesValue = settings.analyticsEnabled ? t("settings.privacyOn") : t("settings.privacyOff");
   const locale = currentLocale();
   const localeName = LOCALE_OPTIONS.find((opt) => opt.id === locale)?.nativeName ?? locale;
 
@@ -1117,11 +1118,10 @@ export default function SettingsScreen() {
 
         <SectionHeader label={t("settings.sectionPrivacy")} colors={colors} />
         <Group colors={colors}>
-          <ToggleRow
-            label={t("settings.analytics")}
-            hint={t("settings.analyticsHint")}
-            value={settings.analyticsEnabled}
-            onValueChange={(analyticsEnabled) => patch({ analyticsEnabled })}
+          <SheetRow
+            label={t("settings.privacyChoices")}
+            value={privacyChoicesValue}
+            onPress={() => router.push("/privacy-choices")}
             colors={colors}
             last
           />

@@ -25,12 +25,36 @@ export type PostHogNativeConfig = {
  * (touch autocapture needs PostHogProvider, which this adapter does not
  * use), so only the app's typed events, screens and lifecycle events are
  * sent. Super properties survive reset(), which would otherwise clear them.
+ *
+ * Only ever constructed after device consent is granted (lib/analytics-client.ts
+ * creates it lazily on first consent), so `defaultOptIn: false` is defense
+ * in depth, not the only gate - it stops app-lifecycle autocapture from
+ * firing before the explicit optIn() below runs.
+ *
+ * posthog-react-native has a known cold-start race where a *native-side*
+ * persisted opt-out/opt-in marker from a previous launch can override the
+ * JS `defaultOptIn` config before JS gets a chance to correct it (fixed
+ * upstream by a `persistOptOut: false` option that makes JS the sole source
+ * of truth - PostHog/posthog-js#4973). As of the pinned ^4.78.4 that option
+ * does not exist yet (checked: absent from both the published type
+ * declarations and the compiled bundle), so instead of trusting
+ * `defaultOptIn` alone, every construction explicitly forces a known state:
+ * optOut() right here, unconditionally, on every construction (clearing
+ * whatever native marker survived) - the one caller allowed to opt back in
+ * (lib/analytics-client.ts's getAnalytics(), only once device consent is
+ * granted) does so explicitly afterward, never this constructor, so a
+ * legacy-identity sweep (sweepLegacyAnalyticsIdentity, for a "Don't allow"
+ * decision on a device with pre-existing PostHog history) can never cause
+ * even a momentary opt-in that drains a native-buffered event. Revisit
+ * dropping this once `persistOptOut` ships and the package is bumped.
  */
 export function createPostHogNativeAdapter(config: PostHogNativeConfig): AnalyticsAdapter {
   const client = new PostHog(config.apiKey, {
     host: config.apiHost,
     captureAppLifecycleEvents: true,
+    defaultOptIn: false,
   });
+  void client.optOut();
 
   let superProperties: SuperProperties = {};
 
