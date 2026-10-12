@@ -1,0 +1,28 @@
+{
+  "name": "landing-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Renders the home page's reminder-to-write phone clip (public/landing/phone-reminder-*) from React with Remotion.",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "node scripts/render-all.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.534",
+    "@remotion/cli": "^4.0.534",
+    "@remotion/google-fonts": "^4.0.534",
+    "@remotion/renderer": "^4.0.534",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.534"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2"
+  }
+}
