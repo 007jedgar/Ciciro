@@ -24,6 +24,25 @@ describe("middleware isPublic", () => {
     // Linked from the landing nav and footer, and must not require sign-in.
     expect(isPublic("/features")).toBe(true);
   });
+
+  it("lets a link-unfurling bot fetch every page's preview image without a session", () => {
+    // A crawler fetching an opengraph-image/twitter-image never sends a
+    // session; bouncing it through /login broke every static page's link
+    // preview on a hosted (CICIRO_REQUIRE_AUTH=true) deployment, which is
+    // production's actual setting - caught by fetching these routes on the
+    // real Workers runtime, not by guessing.
+    for (const path of [
+      "/opengraph-image",
+      "/twitter-image",
+      "/features/opengraph-image",
+      "/changelog/twitter-image",
+      "/privacy/opengraph-image",
+      "/terms/twitter-image",
+      "/read/some-token/opengraph-image",
+    ]) {
+      expect(isPublic(path)).toBe(true);
+    }
+  });
 });
 
 describe("isAuthPagePath", () => {

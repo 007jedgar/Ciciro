@@ -48,6 +48,14 @@ export function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   // Email previews: sample data only, and a 404 in production builds.
   if (process.env.NODE_ENV !== "production" && pathname.startsWith("/dev/emails")) return true;
+  // Next's file-convention image routes (opengraph-image, twitter-image):
+  // a link-unfurling bot fetching a preview has no session to send, and
+  // each image already decides its own content privacy (src/lib/og/,
+  // src/lib/share-preview.ts - a revoked/expired share link's image falls
+  // back to the generic one rather than leaking anything). Matches by
+  // suffix, not a fixed list, so a page that grows its own preview image
+  // later doesn't also need a middleware change.
+  if (pathname.endsWith("/opengraph-image") || pathname.endsWith("/twitter-image")) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 

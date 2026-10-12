@@ -10,6 +10,18 @@ export const FEATURES_METADATA: Metadata = {
   title: "Ciciro Features - continuity, voice, and habit for writers",
   description:
     "See everything Ciciro does: a story bible that tracks who knows what, AI edits you accept or reject, screenplay support (Beta), and reminders that bring you back to the last line you wrote.",
+  openGraph: {
+    title: "Ciciro Features - continuity, voice, and habit for writers",
+    description:
+      "A story bible that tracks who knows what, AI edits you accept or reject, screenplay support, and reminders that bring you back to the last line you wrote.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ciciro Features - continuity, voice, and habit for writers",
+    description:
+      "A story bible that tracks who knows what, AI edits you accept or reject, screenplay support, and reminders that bring you back to the last line you wrote.",
+  },
 };
 
 export const FEATURES_HERO = {

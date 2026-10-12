@@ -12,6 +12,16 @@ import "../privacy/privacy.css";
 export const metadata: Metadata = {
   title: "What's new - Ciciro",
   description: "New features and changes in Ciciro, newest first.",
+  openGraph: {
+    title: "What's new - Ciciro",
+    description: "New features and changes in Ciciro, newest first.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "What's new - Ciciro",
+    description: "New features and changes in Ciciro, newest first.",
+  },
 };
 
 // Sourced from docs/CHANGELOG.md's Unreleased section (see
