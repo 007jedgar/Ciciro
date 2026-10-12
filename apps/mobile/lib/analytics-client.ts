@@ -35,7 +35,7 @@ function ensureClient(): AnalyticsAdapter {
     cached = new NoopAnalyticsAdapter();
     return cached;
   }
-  const apiHost = process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+  const apiHost = process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com";
   cached = createPostHogNativeAdapter({ apiKey, apiHost });
   const platform: AnalyticsPlatform = Platform.OS === "android" ? "android" : "ios";
   cached.registerSuperProperties({

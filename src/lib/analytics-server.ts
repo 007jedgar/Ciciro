@@ -25,10 +25,10 @@ function readEnv(name: string): string | undefined {
 export function createServerAnalytics(): AnalyticsAdapter {
   const apiKey = readEnv("POSTHOG_PROJECT_API_KEY");
   if (!apiKey) return new NoopAnalyticsAdapter();
-  const apiHost = readEnv("POSTHOG_HOST") || "https://us.i.posthog.com";
+  const apiHost = readEnv("POSTHOG_HOST") || "https://eu.i.posthog.com";
   const personalApiKey = readEnv("POSTHOG_PERSONAL_API_KEY");
   const projectId = readEnv("POSTHOG_PROJECT_ID");
-  const appHost = readEnv("POSTHOG_APP_HOST") || "https://us.posthog.com";
+  const appHost = readEnv("POSTHOG_APP_HOST") || "https://eu.posthog.com";
   const adapter = createPostHogServerAdapter({
     apiKey,
     apiHost,

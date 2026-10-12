@@ -110,8 +110,8 @@ export default async function PrivacyPage() {
             <strong>Analytics.</strong> Off until you turn it on. Once you do, PostHog sets its
             own cookies and local-storage keys (named <code>ph_*</code>) to tell your visits apart
             from everyone else&apos;s; turning it back off clears them immediately. PostHog
-            processes this data on Ciciro&apos;s behalf, hosted in the United States, under its
-            own{" "}
+            processes this data on Ciciro&apos;s behalf, on PostHog&apos;s EU cloud (Frankfurt,
+            Germany), under its own{" "}
             <a href="https://posthog.com/privacy" target="_blank" rel="noreferrer">
               privacy policy
             </a>
