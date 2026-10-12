@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import BrandMarkOg from "@/lib/og/BrandMarkOg";
+import OgFrame from "@/lib/og/OgFrame";
 import { OG_COLORS, OG_SIZE } from "@/lib/og/brand";
 import { loadOgFonts } from "@/lib/og/fonts";
 import type { SharePreviewParts } from "@/lib/share-preview";
@@ -7,125 +7,99 @@ import type { SharePreviewParts } from "@/lib/share-preview";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
+/**
+ * Font size for the big (serif) words, picked from how much text the
+ * sentence actually holds. Author and title are user-written and can run
+ * long even after sharePreviewParts()'s truncation (up to ~60 + ~80 chars),
+ * so a fixed size that looks great on "Dana Ruiz ... Midnight Harbor"
+ * overflows on a longer pairing. `overflow: hidden` does not reliably save
+ * us here - Satori does not always clip a wrapped flex row's overflow the
+ * way a browser would (see OgFrame and main-option-c.tsx's phone mockup,
+ * which hit the same thing) - so the sentence is sized to actually fit
+ * instead of leaning on clipping.
+ */
+export function bigFontFor(totalChars: number): number {
+  if (totalChars <= 75) return 72;
+  if (totalChars <= 110) return 58;
+  if (totalChars <= 140) return 48;
+  return 40;
+}
+
 // "{author} is sending you their {kind} {title}", one wrapped line with the
 // author and title set in the manuscript serif and the connecting words in
 // the UI sans - the same sentence sharePreviewSentence() renders as plain
 // text for the card's description, just typeset. `parts` is already
 // cleaned/truncated by sharePreviewParts(); this only lays it out.
+//
+// Sized to still read once a messaging app shrinks the 1200x630 canvas to
+// its usual phone-width preview (~350-400px, a ~0.3x scale) - owner feedback
+// (round 1) called the previous pass too small. Two text tiers only: the
+// sentence itself, large everywhere, and nothing smaller.
 export async function renderShareOgImage(parts: SharePreviewParts) {
   const fonts = await loadOgFonts();
+  const connector = "is sending you their";
+  const bigFont = bigFontFor(parts.author.length + connector.length + parts.kindWord.length + parts.title.length);
+  const smallFont = Math.round(bigFont * 0.58);
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          backgroundColor: OG_COLORS.paper,
-          padding: 56,
-        }}
-      >
+      <OgFrame>
         <div
           style={{
-            width: "100%",
-            height: "100%",
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: 48,
-            border: `1px solid ${OG_COLORS.line}`,
-            borderRadius: 6,
+            flexWrap: "wrap",
+            alignItems: "baseline",
+            maxWidth: 980,
+            maxHeight: 420,
+            overflow: "hidden",
+            rowGap: 10,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <BrandMarkOg size={36} />
-            <span
-              style={{
-                fontFamily: "Instrument Sans",
-                fontWeight: 600,
-                fontSize: 20,
-                letterSpacing: 1.5,
-                color: OG_COLORS.ink,
-              }}
-            >
-              CICIRO
-            </span>
-          </div>
-
-          <div style={{ display: "flex", flexGrow: 1, alignItems: "center", overflow: "hidden" }}>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "baseline",
-                maxWidth: 940,
-                maxHeight: 360,
-                overflow: "hidden",
-                rowGap: 6,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "Newsreader Display",
-                  fontWeight: 500,
-                  fontSize: 46,
-                  color: OG_COLORS.ink,
-                  marginRight: 14,
-                }}
-              >
-                {parts.author}
-              </span>
-              <span
-                style={{
-                  fontFamily: "Instrument Sans",
-                  fontWeight: 400,
-                  fontSize: 30,
-                  color: OG_COLORS.inkSoft,
-                  marginRight: 14,
-                }}
-              >
-                is sending you their
-              </span>
-              <span
-                style={{
-                  fontFamily: "Instrument Sans",
-                  fontWeight: 600,
-                  fontSize: 30,
-                  color: OG_COLORS.accent,
-                  marginRight: 14,
-                }}
-              >
-                {parts.kindWord}
-              </span>
-              <span
-                style={{
-                  fontFamily: "Newsreader Display",
-                  fontWeight: 500,
-                  fontSize: 46,
-                  color: OG_COLORS.ink,
-                }}
-              >
-                {parts.title}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span
-              style={{
-                fontFamily: "Instrument Sans",
-                fontWeight: 400,
-                fontSize: 21,
-                color: OG_COLORS.inkSoft,
-                letterSpacing: 0.3,
-              }}
-            >
-              Read the draft and leave notes on Ciciro.
-            </span>
-            <span style={{ display: "flex", width: 64, height: 4, backgroundColor: OG_COLORS.accent, borderRadius: 2 }} />
-          </div>
+          <span
+            style={{
+              fontFamily: "Newsreader Display",
+              fontWeight: 500,
+              fontSize: bigFont,
+              color: OG_COLORS.ink,
+              marginRight: 20,
+            }}
+          >
+            {parts.author}
+          </span>
+          <span
+            style={{
+              fontFamily: "Instrument Sans",
+              fontWeight: 400,
+              fontSize: smallFont,
+              color: OG_COLORS.inkSoft,
+              marginRight: 20,
+            }}
+          >
+            {connector}
+          </span>
+          <span
+            style={{
+              fontFamily: "Instrument Sans",
+              fontWeight: 600,
+              fontSize: smallFont,
+              color: OG_COLORS.accent,
+              marginRight: 20,
+            }}
+          >
+            {parts.kindWord}
+          </span>
+          <span
+            style={{
+              fontFamily: "Newsreader Display",
+              fontWeight: 500,
+              fontSize: bigFont,
+              color: OG_COLORS.ink,
+            }}
+          >
+            {parts.title}
+          </span>
         </div>
-      </div>
+      </OgFrame>
     ),
     { ...OG_SIZE, fonts }
   );
