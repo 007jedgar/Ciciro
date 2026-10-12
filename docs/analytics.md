@@ -105,7 +105,9 @@ These are enforced in code, not just convention:
   analytics rejected. Withdrawing is exactly as easy as granting: a
   persistent "Privacy choices" entry point (mobile: a Settings row, opening
   `app/privacy-choices.tsx`, which also shows the current decision and when
-  it was made; web: a footer link) reopens the same choice anytime.
+  it was made; web: the landing/features footers, the pricing and privacy
+  pages, and a "Cookie settings" row in Settings, all opening the same
+  preference center) reopens the same choice anytime.
 
   `analyticsEnabled` in `AppSettings` (web `src/lib/settings.ts`, mobile
   `apps/mobile/lib/app-settings.ts`) is the signed-in account's *synced*
@@ -150,6 +152,39 @@ These are enforced in code, not just convention:
   a device may already have from before this consent gate shipped (the
   prior behavior was opt-out and on by default) the first time a "Don't
   allow" decision is recorded.
+
+  **Web implementation notes** (`src/lib/analytics-client.ts`,
+  `lib/consent.ts`, `lib/consent-cookie.ts`, `lib/analytics-posthog-web.ts`):
+  the consent record lives in a first-party `ciciro_consent` cookie
+  (SameSite=Lax, ~180 days), read server-side in `src/app/layout.tsx` with
+  `next/headers` and handed to `ConsentProvider.tsx` as `initialRecord`, so
+  the banner never flashes on a reload where a decision already exists. The
+  prompt is `CookieConsentBanner.tsx` (equal-weight Accept all/Reject
+  all/Customize, shown on every page including signed-out marketing pages)
+  and `CookiePreferencesDialog.tsx` (the per-category preference center,
+  reopenable any time through `CookieSettingsButton.tsx` - the
+  landing/features footers, the pricing and privacy pages, and a "Cookie
+  settings" row in web Settings). `posthog-js` follows
+  [PostHog's own documented consent posture](https://posthog.com/docs/privacy/data-collection):
+  `posthog.init()` runs with `persistence: "memory"` and
+  `opt_out_capturing_by_default: true` unless analytics is already granted
+  at that exact moment (a returning, consented visitor), so nothing lands
+  in a cookie or `localStorage` key before consent either way. Accepting
+  calls `posthog.set_config({ persistence: "localStorage+cookie" })` then
+  `opt_in_capturing()`; withdrawing calls `opt_out_capturing()` then
+  `reset()` - never the other order, since `reset()` returns the SDK to its
+  default consent state and would silently re-opt-out a capture that was
+  never actually withdrawn if it ran first - then `clearPostHogWebStorage()`
+  sweeps every `ph_*` cookie and `localStorage` key outright, including ones
+  written by a returning visitor's browser from before this gating shipped.
+  `navigator.globalPrivacyControl`, when sent, is honored as reject-all for
+  analytics only while no explicit record exists yet for the device - it
+  never overrides a choice already made. `cookieless_mode` (PostHog's
+  server-hashed counting of non-consenting visitors) is deliberately not
+  configured: it needs "Cookieless server hashing" turned on in the PostHog
+  project dashboard first and silently does nothing without it - note that
+  toggle explicitly if this is ever adopted, rather than assuming the mode
+  works because the code passed the option.
 - **Account deletion asks PostHog to forget the person.** The
   `posthog-delete-person` `PRE_DELETE_HOOK` (`src/lib/account/delete.ts`,
   see [docs/account-data.md](account-data.md)) is best-effort: it catches its
@@ -157,6 +192,76 @@ These are enforced in code, not just convention:
 - **A/B tests, feature flags, session replay, and PostHog dashboards are out
   of scope** for this integration. Nothing here blocks adding them later;
   they just weren't built.
+
+## Consent
+
+A self-built cookie banner and preference center gate analytics - no
+third-party consent platform, by owner preference. Web (`src/app/`) and
+mobile build their own UI around the same contract; this section covers the
+web implementation.
+
+- **Categories**: `necessary` (the `ciciro_session` auth cookie and the
+  `ciciro_consent` record itself - always on, no toggle, no consent needed),
+  `functional` (device-local preferences: theme, focus mode, TTS prefs,
+  chat width, scratchpad drafts, last-opened manuscript - on by default
+  since they're the feature the author explicitly asked for, disclosed on
+  the privacy page but never gated by the banner), `analytics` (PostHog -
+  off until explicitly granted, everywhere, with no geo-gating), and a
+  reserved `marketing` id with no consumer yet (left out of the UI and the
+  stored record until something needs it).
+- **The record**: `src/lib/consent.ts`'s `ConsentRecord`
+  (`{ version, categories, decidedAt }`), stored in a first-party
+  `ciciro_consent` cookie (`src/lib/consent-cookie.ts`: SameSite=Lax,
+  ~180 days). `src/app/layout.tsx` reads it server-side with `next/headers`
+  and hands it to `ConsentProvider.tsx` as `initialRecord`, so the banner
+  never flashes on a reload where a decision already exists. Bump the
+  exported `CONSENT_VERSION` whenever a category is added or its purpose
+  changes; a stored record at any other version is treated as no decision
+  yet, and the banner reappears.
+- **UI**: `CookieConsentBanner.tsx` (equal-weight Accept all / Reject all /
+  Customize, shown on every page - including signed-out marketing pages -
+  until a current-version record exists; never a blocking modal) and
+  `CookiePreferencesDialog.tsx` (the preference center: per-category
+  toggles, reachable any time through `CookieSettingsButton.tsx` - the
+  landing/features footers, the pricing and privacy pages, and the "Cookie
+  settings" row in web Settings). No pre-ticked box, no cookie wall: the
+  product works fully with analytics rejected.
+- **Global Privacy Control**: `honorsGlobalPrivacyControl()` in
+  `consent.ts` treats a `navigator.globalPrivacyControl` signal as
+  reject-all for analytics only while no explicit record exists yet for
+  this device - it never overrides a choice the author already made, and
+  the banner still shows either way so they can make a real categorized
+  choice.
+- **Write-through with `analyticsEnabled`**: effective analytics is this
+  device's consent AND (signed out OR the account's `analyticsEnabled`).
+  `AnalyticsProvider.tsx` writes a signed-in author's consent decision
+  through to `analyticsEnabled` the moment it actually changes (never on
+  first load, which would let whatever this device decided before anyone
+  signed in silently overwrite the account's setting), so the per-device
+  and per-account settings never end up disagreeing. Server-side capture
+  already respected `analyticsEnabled` (`analyticsOptedOut()` in
+  `analytics-server.ts`, checked before `captureServerEvent` constructs an
+  adapter at all) - the write-through above is what keeps that check
+  correct now that consent, not this setting, decides whether to ask.
+- **Gating posthog-js**: `analytics-client.ts` / `analytics-posthog-web.ts`
+  follow [PostHog's own documented consent posture](https://posthog.com/docs/privacy/data-collection):
+  `posthog.init()` runs with `persistence: "memory"` and
+  `opt_out_capturing_by_default: true` unless analytics is already granted
+  at that exact moment (a returning, consented visitor), so nothing lands
+  in a cookie or `localStorage` key before consent either way. Accepting
+  calls `posthog.set_config({ persistence: "localStorage+cookie" })` then
+  `opt_in_capturing()`; withdrawing calls `opt_out_capturing()` then
+  `reset()` - never the other order, since `reset()` returns the SDK to its
+  default consent state and would silently re-opt-out a capture that was
+  never actually withdrawn if it ran first - then `clearPostHogWebStorage()`
+  sweeps every `ph_*` cookie and `localStorage` key outright, including ones
+  written by a returning visitor's browser from before this gating shipped.
+  `cookieless_mode` (PostHog's server-hashed counting of non-consenting
+  visitors) is deliberately not configured: it needs "Cookieless server
+  hashing" turned on in the PostHog project dashboard first and silently
+  does nothing without it - note that dashboard toggle explicitly if this
+  is ever adopted, rather than assuming the mode works because the code
+  passed the option.
 
 ## Tracking plan
 
@@ -331,6 +436,11 @@ why:
    Stripe side needs no equivalent check: `customer.subscription.updated` and
    `customer.subscription.deleted` are already handled events the webhook
    endpoint receives today.
+7. Cookieless counting of visitors who reject analytics (PostHog's
+   `cookieless_mode`) is not configured - see "Opt-in consent" above.
+   Adopting it later needs "Cookieless server hashing" turned on in the
+   PostHog project settings first; the code alone does nothing without that
+   toggle.
 
 ## App Store privacy label notes
 

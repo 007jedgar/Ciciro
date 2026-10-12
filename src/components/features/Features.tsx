@@ -2,6 +2,7 @@ import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import TrackedLink from "@/components/TrackedLink";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import Exhibit from "@/components/landing/Exhibit";
 import Scene from "@/components/landing/Scene";
 import { stripeSettings } from "@/lib/billing/config";
@@ -145,6 +146,7 @@ export default function Features() {
               <Link href="/changelog">What&apos;s new</Link>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
+              <CookieSettingsButton className="landing-footer-cookie" />
             </nav>
             <span className="landing-footer-note">Ciciro is in early access. © {new Date().getFullYear()}.</span>
           </footer>

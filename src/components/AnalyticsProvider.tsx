@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { getAnalytics } from "@/lib/analytics-client";
+import { getAnalytics, setAnalyticsEnabled } from "@/lib/analytics-client";
 import { followIdentity, trackScreenView, type ScreenView } from "@/lib/analytics-events";
+import { useConsent } from "@/components/ConsentProvider";
 import { useSettings } from "@/components/SettingsProvider";
 import { SETTINGS_SYNC_EVENT } from "@/lib/settings";
 
@@ -84,7 +85,8 @@ function screenNameForPath(pathname: string, signedIn: boolean): string {
  * every route change. See docs/analytics.md.
  */
 export default function AnalyticsProvider() {
-  const { settings } = useSettings();
+  const { settings, patch } = useSettings();
+  const consent = useConsent();
   const pathname = usePathname();
   // Screen tracking waits until /api/auth/me first answers, so "/" is not
   // counted as landing for a signed-in author before their identity is
@@ -92,6 +94,7 @@ export default function AnalyticsProvider() {
   // keyed on the route, so signing in or out on the same page records none.
   const [identityResolved, setIdentityResolved] = useState(false);
   const signedIn = useRef(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -102,6 +105,7 @@ export default function AnalyticsProvider() {
         if (!active) return;
         const userId = typeof data.user?.id === "string" ? (data.user.id as string) : null;
         signedIn.current = userId !== null;
+        setIsSignedIn(userId !== null);
         setIdentityResolved(true);
         storeIdentity(followIdentity(getAnalytics(), storedIdentity(), userId));
       } catch {
@@ -116,9 +120,32 @@ export default function AnalyticsProvider() {
     };
   }, []);
 
+  // Effective analytics = this device's consent AND (signed out, or the
+  // account's own analyticsEnabled agrees). setAnalyticsEnabled is what
+  // actually gates posthog-js (see analytics-client.ts); it never runs
+  // before identity resolves, so a signed-in author's analyticsEnabled is
+  // never ignored for one tick.
   useEffect(() => {
-    getAnalytics().setOptedOut(!settings.analyticsEnabled);
-  }, [settings.analyticsEnabled]);
+    if (!identityResolved) return;
+    setAnalyticsEnabled(consent.categories.analytics && (!isSignedIn || settings.analyticsEnabled));
+  }, [identityResolved, isSignedIn, settings.analyticsEnabled, consent.categories.analytics]);
+
+  // Write the device's consent decision through to the signed-in account's
+  // analyticsEnabled, so the two never contradict (AGENTS.md-style rule from
+  // docs/analytics.md's "Opt-in consent" bullet). Only fires on an actual change made while
+  // this provider is mounted and identity is known - not on first load,
+  // which would overwrite the account's setting with whatever this device
+  // happened to decide before anyone signed in.
+  const previousAnalyticsConsent = useRef(consent.categories.analytics);
+  useEffect(() => {
+    if (!identityResolved) return;
+    const previous = previousAnalyticsConsent.current;
+    previousAnalyticsConsent.current = consent.categories.analytics;
+    if (!isSignedIn || previous === consent.categories.analytics) return;
+    if (settings.analyticsEnabled !== consent.categories.analytics) {
+      patch({ analyticsEnabled: consent.categories.analytics });
+    }
+  }, [identityResolved, isSignedIn, consent.categories.analytics, settings.analyticsEnabled, patch]);
 
   // The one-time ?auth_event=&auth_provider= pair a social sign-in redirect
   // leaves on the landing URL, since that flow finishes server-side with no

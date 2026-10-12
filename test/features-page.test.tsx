@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/components/ThemeToggle", () => ({ default: () => <button type="button">Theme</button> }));
 
 import Features from "@/components/features/Features";
+import { ConsentProvider } from "@/components/ConsentProvider";
+
+function withConsent(children: ReactNode) {
+  return <ConsentProvider>{children}</ConsentProvider>;
+}
 
 describe("Features page", () => {
   let root: Root;
@@ -30,7 +35,7 @@ describe("Features page", () => {
   });
 
   it("renders every section's heading and the screenplay Beta caveats", () => {
-    act(() => root.render(<Features />));
+    act(() => root.render(withConsent(<Features />)));
     const html = host.innerHTML;
     expect(html).toContain("Everything in Ciciro");
     expect(html).toContain("Who-knows-what ledger");
@@ -41,12 +46,12 @@ describe("Features page", () => {
   });
 
   it("names no em dash anywhere in the page's own copy", () => {
-    act(() => root.render(<Features />));
+    act(() => root.render(withConsent(<Features />)));
     expect(host.textContent ?? "").not.toContain("—");
   });
 
   it("hides any Pro or pricing language when Stripe is not configured", () => {
-    act(() => root.render(<Features />));
+    act(() => root.render(withConsent(<Features />)));
     expect(host.querySelector('a[href="/pricing"]')).toBeNull();
     expect(host.textContent ?? "").not.toMatch(/\bPro\b/);
   });
@@ -56,7 +61,7 @@ describe("Features page", () => {
     vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
     vi.stubEnv("STRIPE_PRICE_PRO_MONTHLY", "price_month");
     vi.stubEnv("STRIPE_PRICE_PRO_YEARLY", "price_year");
-    act(() => root.render(<Features />));
+    act(() => root.render(withConsent(<Features />)));
     expect(host.querySelector('a[href="/pricing"]')).not.toBeNull();
   });
 });

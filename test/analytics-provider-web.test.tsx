@@ -14,15 +14,34 @@ const posthog = vi.hoisted(() => ({
   init: vi.fn(),
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
+  set_config: vi.fn(),
 }));
 
-vi.mock("@/lib/analytics-client", () => ({ getAnalytics: () => analytics.adapter }));
+vi.mock("@/lib/analytics-client", () => ({
+  getAnalytics: () => analytics.adapter,
+  setAnalyticsEnabled: () => {},
+}));
 vi.mock("next/navigation", () => ({
   usePathname: () => route.pathname,
   useRouter: () => ({ refresh: () => {}, push: (path: string) => (route.pathname = path) }),
 }));
 vi.mock("@/components/SettingsProvider", () => ({
-  useSettings: () => ({ settings: { analyticsEnabled: true } }),
+  useSettings: () => ({ settings: { analyticsEnabled: true }, patch: () => {} }),
+}));
+// Consent already granted and decided, so these tests exercise screen
+// tracking exactly as before the consent layer existed; gating itself is
+// covered by test/consent.test.ts and test/analytics-client-web.test.ts.
+vi.mock("@/components/ConsentProvider", () => ({
+  useConsent: () => ({
+    categories: { analytics: true },
+    decided: true,
+    preferencesOpen: false,
+    openPreferences: () => {},
+    closePreferences: () => {},
+    acceptAll: () => {},
+    rejectAll: () => {},
+    save: () => {},
+  }),
 }));
 vi.mock("posthog-js", () => ({ default: posthog }));
 
@@ -267,7 +286,11 @@ describe("AccountBar", () => {
 
 describe("PostHog web adapter opt-in", () => {
   it("opts in without capturing an $opt_in event", () => {
-    const adapter = createPostHogWebAdapter({ apiKey: "phc_test", apiHost: "https://example.test" });
+    const adapter = createPostHogWebAdapter({
+      apiKey: "phc_test",
+      apiHost: "https://example.test",
+      grantedAtInit: false,
+    });
     adapter.setOptedOut(false);
     expect(posthog.opt_in_capturing).toHaveBeenCalledWith({ captureEventName: false });
   });
