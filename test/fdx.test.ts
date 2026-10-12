@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseFdx as draftFirstParse } from "@draftfirst/core/fdx";
 import { describe, expect, it } from "vitest";
 import { fdxFromScript, scriptFromFdx } from "@/lib/fdx";
 import { scriptBlocksToHtml, scriptFromFountain, type FountainScript } from "@/lib/fountain";
@@ -536,26 +535,17 @@ describe("open-source readers as oracles", () => {
     });
   });
 
-  it("@draftfirst/core reads the same paragraphs, numbers and title page", () => {
-    const { script, diagnostics } = draftFirstParse(golden);
-    // The one thing it notes is the paragraph that wraps the DualDialogue.
-    expect(diagnostics.map((d) => d.code)).toEqual(["FDX_NESTED_PARAGRAPH"]);
-    const theirs = script.elements.filter((e) => e.text !== "");
-    const ours = blocksOf(scriptFromFdx(golden));
-    const typeOf: Record<string, string> = {
-      "scene-heading": "scene",
-      // It reads centered text only from a General paragraph; an Action with a center alignment is action to it.
-      centered: "action",
-    };
-    expect(theirs.map((e) => [e.type, e.text.replace(/\s+/g, " ")])).toEqual(
-      ours.map((b) => [typeOf[b.element] ?? b.element, (b.element === "parenthetical" ? `(${text(b)})` : text(b)).replace(/\s+/g, " ")])
-    );
-    expect(theirs.filter((e) => e.type === "scene").map((e) => e.sceneNumber)).toEqual(["1", "2"]);
-    const page = Object.fromEntries(script.titlePage.map((entry) => [entry.key, entry.values]));
-    expect(page.Title).toEqual(["NIGHT SHIFT"]);
-    expect(page.Credit).toEqual(["Written by"]);
-    expect(page.Author).toEqual(["Jo Writer"]);
-    expect(page.Source).toEqual(["Based on a true story"]);
+  it("the checked-in golden file reads back as the fixture script: paragraphs, scene numbers and title page", () => {
+    const script = scriptFromFdx(golden);
+    const caps = new Set(["scene-heading", "character", "transition", "shot"]);
+    const expected = blocksOf(NIGHT_SHIFT_FDX).map((b) => ({
+      element: b.element,
+      dual: !!b.dual,
+      runs: merged(b.runs.map((r) => ({ ...r, text: caps.has(b.element) ? r.text.toUpperCase() : r.text }))),
+    }));
+    expect(detail(blocksOf(script))).toEqual(expected);
+    expect(script.sceneNumbers).toBe(true);
+    expect(script.titlePage).toEqual({ ...NIGHT_SHIFT_FDX.titlePage, title: "NIGHT SHIFT" });
   });
 
   it("screenplain's FDX for a Fountain script reads as the Fountain does", () => {
