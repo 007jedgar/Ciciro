@@ -27,7 +27,7 @@ function ensurePostHogAdapter(grantedAtInit: boolean): AnalyticsAdapter | null {
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!apiKey) return null;
 
-  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com";
   const adapter = createPostHogWebAdapter({ apiKey, apiHost, grantedAtInit });
   const release = process.env.NEXT_PUBLIC_CICIRO_RELEASE;
   adapter.registerSuperProperties(release ? { platform: "web", release } : { platform: "web" });

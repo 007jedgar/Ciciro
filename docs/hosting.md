@@ -557,30 +557,34 @@ section is only the environment variables and account setup.
 With none of the variables below set, analytics is a silent no-op everywhere:
 local dev, tests and CI need no PostHog account.
 
-1. Create a PostHog project (US or EU data region; EU customers may prefer
-   `*.eu.i.posthog.com`/`eu.posthog.com` hosts for that reason) and copy its
-   **Project API key** (safe to expose to a browser or app bundle).
+1. Create a PostHog project. Ciciro defaults to **PostHog EU Cloud
+   (Frankfurt)** for GDPR posture, so pick the EU data region; copy the
+   project's **Project API key** (safe to expose to a browser or app
+   bundle).
 2. Web: set `NEXT_PUBLIC_POSTHOG_KEY` to that key (build-time, so it needs a
    redeploy to change) and optionally `NEXT_PUBLIC_POSTHOG_HOST` (defaults to
-   the US cloud).
+   the EU cloud, `https://eu.i.posthog.com`; override to point at US cloud or
+   a self-hosted instance).
 3. Mobile: set the same key as an EAS environment variable,
    `EXPO_PUBLIC_POSTHOG_KEY` (see [mobile release](mobile-release.md)), plus
-   optionally `EXPO_PUBLIC_POSTHOG_HOST`. No native code is added by this, so
-   it ships over the air; no new build is required.
+   optionally `EXPO_PUBLIC_POSTHOG_HOST` (same EU default and override).
+   No native code is added by this, so it ships over the air; no new build
+   is required.
 4. Server: `wrangler secret put POSTHOG_PROJECT_API_KEY` with the same
    project key (kept as a separate secret from the public one so it can be
-   rotated independently), plus `POSTHOG_HOST` if not using the US cloud.
-   This is what lets Stripe/RevenueCat webhooks, signup, and run-completion
-   events reach PostHog even when a browser or app never does (ad blockers,
-   a closed tab).
+   rotated independently), plus `POSTHOG_HOST` if not using the EU cloud
+   default. This is what lets Stripe/RevenueCat webhooks, signup, and
+   run-completion events reach PostHog even when a browser or app never does
+   (ad blockers, a closed tab).
 5. Account deletion (`PRE_DELETE_HOOKS`, see [account data](account-data.md))
    asks PostHog to forget the person. That needs a **personal API key**
    (Settings → Personal API Keys in PostHog, with Person read/write
    permission on the project) plus the project's numeric id: set
    `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID`, and `POSTHOG_APP_HOST`
-   (the dashboard host, e.g. `https://us.posthog.com` - different from the
-   capture host above). Unset, deletion still succeeds; the person just
-   keeps their PostHog record.
+   (the dashboard host, defaults to `https://eu.posthog.com` - different from
+   the capture host above - override if not using the EU cloud default).
+   Unset, deletion still succeeds; the person just keeps their PostHog
+   record.
 6. `CICIRO_RELEASE` (any build identifier - a git SHA, a version tag) is
    stamped on every server-side event as a super property, so a release can
    be isolated in a PostHog insight. The web and mobile adapters stamp their

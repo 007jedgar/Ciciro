@@ -412,8 +412,11 @@ why:
 
 ## Owner setup checklist
 
-1. Create a PostHog project. Pick US or EU data residency up front; it
-   cannot be changed later without migrating to a new project.
+1. Create a PostHog project. Ciciro defaults to PostHog EU Cloud (Frankfurt)
+   for GDPR posture; pick data residency up front, since it cannot be changed
+   later without migrating to a new project. Point at US cloud or a
+   self-hosted instance instead via the host env vars in
+   [hosting.md#analytics](hosting.md#analytics).
 2. Follow [hosting.md#analytics](hosting.md#analytics) to set the project
    API key (web + mobile + server), and optionally the personal API key for
    account-deletion person-delete.
