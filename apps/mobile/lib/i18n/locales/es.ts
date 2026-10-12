@@ -833,6 +833,17 @@ const es: Translations = {
       hint: "Muestra otro período de tiempo",
     },
   },
+  canvas: {
+    title: "Lienzo",
+    cardMeta: "Tarjetas, etiquetas y flechas para planificar esta historia.",
+    empty: "Este tablero aún no tiene tarjetas. Abre el Lienzo en la web para empezar a planificar.",
+    loadError: "No se pudo cargar el lienzo.",
+    untitled: "Tarjeta sin título",
+    noNotes: "Esta tarjeta no tiene notas.",
+    openCardA11y: "Abrir {{title}}",
+    fit: "Ajustar a la pantalla",
+    readOnlyNote: "Crear y editar tarjetas está disponible en la web por ahora.",
+  },
   scratch: {
     title: "Bloc de notas",
     cardMeta: "Notas e investigación, aparte de tus capítulos",

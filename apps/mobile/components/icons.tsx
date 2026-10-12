@@ -690,6 +690,33 @@ export function FlagIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** Four corner brackets: fit the canvas to the screen. */
+export function FitScreenIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/** Two small cards joined by an arrow: the planning canvas. */
+export function CanvasIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x="3" y="4.5" width="7.5" height="6" rx="1.3" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Rect x="13.5" y="13.5" width="7.5" height="6" rx="1.3" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M10.5 10 L14 14" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 /** An arrow into a tray: bring a file in. */
 export function ImportIcon({ color, size = 24 }: IconProps) {
   return (

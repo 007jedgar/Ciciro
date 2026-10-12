@@ -9,6 +9,7 @@ import { PressableCard } from "../../../../components/PressableCard";
 import { ProjectTools, type ProjectTool } from "../../../../components/ProjectTools";
 import {
   BookIcon,
+  CanvasIcon,
   CommentIcon,
   FlagIcon,
   HeadphonesIcon,
@@ -45,6 +46,7 @@ import {
   useWeeklyReviewsQuery,
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
+import { canvasHref } from "../../../../lib/canvas";
 import { outlineHref } from "../../../../lib/outline";
 import { requestChapterDelete } from "../../../../lib/chapter-delete";
 import { useUndoableRemoval } from "../../../../lib/undo-removal";
@@ -287,6 +289,12 @@ function ChaptersScreenContent() {
       label: t("outline.title"),
       icon: <OutlineIcon color={colors.accent} />,
       onPress: () => router.push(outlineHref(projectId) as never),
+    },
+    {
+      key: "canvas",
+      label: t("canvas.title"),
+      icon: <CanvasIcon color={colors.accent} />,
+      onPress: () => router.push(canvasHref(projectId) as never),
     },
     ...(kind === "screenplay"
       ? [

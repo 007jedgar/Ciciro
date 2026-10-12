@@ -821,6 +821,17 @@ const zh: Translations = {
       hint: "显示另一段时间",
     },
   },
+  canvas: {
+    title: "画布",
+    cardMeta: "用于规划这部作品的卡片、标签和箭头。",
+    empty: "这个画布上还没有卡片。请在网页端打开画布开始规划。",
+    loadError: "无法加载画布。",
+    untitled: "无标题卡片",
+    noNotes: "这张卡片没有备注。",
+    openCardA11y: "打开{{title}}",
+    fit: "适应屏幕",
+    readOnlyNote: "创建和编辑卡片目前仅支持网页端。",
+  },
   scratch: {
     title: "草稿本",
     cardMeta: "笔记与资料，与章节分开存放",

@@ -41,6 +41,7 @@ export default function ProjectStackLayout() {
       <Stack.Screen name="scratch" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="history/[chapterId]" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="outline" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
+      <Stack.Screen name="canvas" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="pages" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="scenes" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="listen" options={CONTAINED_POP_OVER_STACK_SCREEN_OPTIONS} />

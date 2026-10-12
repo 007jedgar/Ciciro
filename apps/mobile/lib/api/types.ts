@@ -1,4 +1,5 @@
 import type { AppSettings, SettingsPatch } from "../app-settings";
+import type { CanvasLabelColor } from "../canvas";
 import type { ScriptSettings } from "../screenplay";
 
 export type { AppSettings, SettingsPatch };
@@ -1057,4 +1058,22 @@ export type ShareCommentStatusResponse = {
   id: string;
   status: ShareCommentStatus;
   resolvedAt: string | null;
+};
+
+export type CanvasLabelResponse = { id: string; name: string; color: CanvasLabelColor };
+export type CanvasCardResponse = {
+  id: string;
+  title: string;
+  body: string;
+  x: number;
+  y: number;
+  labelIds: string[];
+};
+export type CanvasEdgeResponse = { id: string; fromId: string; toId: string };
+
+/** GET /api/projects/:id/canvas — cards, labels, and arrows. Read-only on the phone for now. */
+export type CanvasBoardResponse = {
+  labels: CanvasLabelResponse[];
+  cards: CanvasCardResponse[];
+  edges: CanvasEdgeResponse[];
 };

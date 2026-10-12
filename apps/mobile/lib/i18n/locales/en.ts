@@ -831,6 +831,17 @@ const en = {
       hint: "Shows another stretch of time",
     },
   },
+  canvas: {
+    title: "Canvas",
+    cardMeta: "Cards, labels, and arrows for planning this story.",
+    empty: "No cards on this board yet. Open Canvas on the web to start planning.",
+    loadError: "Couldn't load the canvas.",
+    untitled: "Untitled card",
+    noNotes: "No notes on this card.",
+    openCardA11y: "Open {{title}}",
+    fit: "Fit to screen",
+    readOnlyNote: "Creating and editing cards is on the web for now.",
+  },
   scratch: {
     title: "Scratchpad",
     cardMeta: "Notes and research, kept apart from your chapters",
