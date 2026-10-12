@@ -9,6 +9,16 @@ import "./privacy.css";
 export const metadata: Metadata = {
   title: "Privacy - Ciciro",
   description: "Who sees your manuscript, what Ciciro stores, and what it never does with your writing.",
+  openGraph: {
+    title: "Privacy - Ciciro",
+    description: "Who sees your manuscript, what Ciciro stores, and what it never does with your writing.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy - Ciciro",
+    description: "Who sees your manuscript, what Ciciro stores, and what it never does with your writing.",
+  },
 };
 
 export default async function PrivacyPage() {

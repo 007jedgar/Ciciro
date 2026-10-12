@@ -210,6 +210,29 @@ export async function openSharedManuscript(
   };
 }
 
+/**
+ * What a link preview (Open Graph / Twitter card) may say about `token`: the
+ * author display name, the title and the project's raw kind - the same
+ * fields the reader page itself already shows. Never throws, and returns
+ * null for anything that isn't a live, active link (unknown token, revoked,
+ * expired), so the preview route can fall back to the generic image instead
+ * of leaking that a link ever existed.
+ */
+export async function sharePreviewInfo(
+  token: unknown,
+  now: Date = new Date()
+): Promise<{ author: string; title: string; kind: unknown } | null> {
+  if (!isShareTokenShape(token)) return null;
+  const link = await prisma.shareLink.findUnique({ where: { token } });
+  if (!link || shareLinkStatus(link, now) !== "active") return null;
+  const project = await prisma.project.findUnique({
+    where: { id: link.projectId },
+    select: { title: true, author: true, kind: true },
+  });
+  if (!project) return null;
+  return { author: project.author, title: project.title, kind: project.kind };
+}
+
 /** Rate-limit key for one reader on one link. The address itself is not kept. */
 export function readerClientHash(linkId: string, address: string): string {
   return createHash("sha256").update(`${linkId}\u0000${address}`).digest("hex");

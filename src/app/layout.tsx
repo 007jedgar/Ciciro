@@ -29,7 +29,11 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// Set once here so every route's file-convention image (opengraph-image.tsx,
+// twitter-image.tsx) resolves to an absolute URL instead of localhost; see
+// docs/hosting.md for CICIRO_PUBLIC_URL.
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env["CICIRO_PUBLIC_URL"] || "https://ciciro.app"),
   title: "Ciciro",
   description: "An AI book-writing assistant and manuscript editor.",
 };

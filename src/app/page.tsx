@@ -8,7 +8,9 @@ import { LANDING_METADATA } from "@/components/landing/copy";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return (await homeShowsLibrary()) ? { title: "Ciciro" } : LANDING_METADATA;
+  return (await homeShowsLibrary())
+    ? { title: "Ciciro", openGraph: { title: "Ciciro" }, twitter: { card: "summary_large_image", title: "Ciciro" } }
+    : LANDING_METADATA;
 }
 
 export default async function HomePage() {

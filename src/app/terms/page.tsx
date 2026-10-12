@@ -8,6 +8,16 @@ import "../privacy/privacy.css";
 export const metadata: Metadata = {
   title: "Terms of Use - Ciciro",
   description: "The terms for using Ciciro and for Ciciro Pro subscriptions, on the web and in the apps.",
+  openGraph: {
+    title: "Terms of Use - Ciciro",
+    description: "The terms for using Ciciro and for Ciciro Pro subscriptions, on the web and in the apps.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Use - Ciciro",
+    description: "The terms for using Ciciro and for Ciciro Pro subscriptions, on the web and in the apps.",
+  },
 };
 
 export default async function TermsPage() {

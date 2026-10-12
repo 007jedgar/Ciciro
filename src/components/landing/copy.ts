@@ -11,6 +11,18 @@ export const LANDING_METADATA: Metadata = {
   title: "Ciciro - keeps you writing, five minutes at a time",
   description:
     "Ciciro is a writing habit and a creative partner for people who write in stolen minutes, not for a living. Reminders on the days you choose, your cursor back where you stopped, and a guided exercise for the days you don't know where to start.",
+  openGraph: {
+    title: "Ciciro keeps you writing",
+    description:
+      "A writing habit and a creative partner for people who write in stolen minutes, not for a living. Reminders on your days, your cursor back where you stopped.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ciciro keeps you writing",
+    description:
+      "A writing habit and a creative partner for people who write in stolen minutes, not for a living. Reminders on your days, your cursor back where you stopped.",
+  },
 };
 
 export const HERO = {
