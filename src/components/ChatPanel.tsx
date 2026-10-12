@@ -19,6 +19,7 @@ import {
   type EditMode,
 } from "@/lib/edit-mode";
 import EditModeToggle from "@/components/EditModeToggle";
+import InfoTip from "@/components/InfoTip";
 import { countWords } from "@/lib/text";
 import { getAnalytics } from "@/lib/analytics-client";
 import { scriptDisplayText, type ManuscriptKind } from "@/lib/manuscript-kind";
@@ -304,6 +305,8 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
   const [conn, setConn] = useState<ConnState>("online");
   const [activePhase, setActivePhase] = useState<EditorRunStatus | null>(null);
   const [compacting, setCompacting] = useState(false);
+  const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
+  const chatSettingsRef = useRef<HTMLDivElement>(null);
   const [moveDest, setMoveDest] = useState("decide");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -345,6 +348,24 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapters, activeChapterId]);
+
+  useEffect(() => {
+    if (!chatSettingsOpen) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!chatSettingsRef.current?.contains(e.target as Node)) setChatSettingsOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setChatSettingsOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [chatSettingsOpen]);
 
   function markInserted(draftKey: string) {
     setInsertedKeys((prev) => new Set(prev).add(draftKey));
@@ -1161,8 +1182,12 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
           disabled={streaming || compacting || messages.length < 8}
           onClick={compactNow}
         >
-          {compacting ? "Compacting…" : "Compact"}
+          {compacting ? "Tidying up…" : "Tidy up chat"}
         </button>
+        <InfoTip
+          label="What tidying up chat does"
+          text="Summarizes your older messages into a short note, freeing up space so Ciciro can keep the conversation going."
+        />
         <button
           className="btn ghost small"
           title="Clear the conversation and start fresh"
@@ -1171,18 +1196,39 @@ const ChatPanel = forwardRef<ChatHandle, Props>(function ChatPanel(
         >
           Clear chat
         </button>
-        <button
-          className={`btn small ${autoMode && editMode === "edits" ? "primary" : "ghost"}`}
-          title={
-            editMode === "chat"
-              ? "Auto needs Allow edits: Ciciro is in Chat only mode for this conversation."
-              : "When on, finished drafts insert into the open chapter automatically. Ciciro can also create and switch chapters."
-          }
-          disabled={editMode === "chat"}
-          onClick={() => setAutoMode((v) => !v)}
-        >
-          Auto {autoMode && editMode === "edits" ? "on" : "off"}
-        </button>
+        <div className="chat-settings-root" ref={chatSettingsRef}>
+          <button
+            type="button"
+            className="btn ghost small"
+            aria-haspopup="dialog"
+            aria-expanded={chatSettingsOpen}
+            onClick={() => setChatSettingsOpen((v) => !v)}
+          >
+            Chat settings
+          </button>
+          {chatSettingsOpen && (
+            <div className="chat-settings-menu" role="dialog" aria-label="Chat settings">
+              <div className="settings-row">
+                <span>Insert finished drafts into my chapter automatically</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoMode && editMode === "edits"}
+                  className={`settings-switch ${autoMode && editMode === "edits" ? "on" : ""}`}
+                  disabled={editMode === "chat"}
+                  onClick={() => setAutoMode((v) => !v)}
+                >
+                  {autoMode && editMode === "edits" ? "On" : "Off"}
+                </button>
+              </div>
+              <p className="settings-hint">
+                {editMode === "chat"
+                  ? "Switch this conversation to Allow edits to use this."
+                  : "When on, Ciciro inserts finished drafts into your open chapter as it writes, and can create or switch chapters."}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {banner && <div className="conn-banner">{banner}</div>}

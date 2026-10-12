@@ -13,23 +13,25 @@ export function elementShortcutLabel(element: ScreenplayElement, mac: boolean, s
 export const SCRIPT_LANGUAGE_NOTE =
   "Script formatting is only available in English and Spanish for now. We plan to support more languages.";
 
-export type ShortcutRow = { keys: string; label: string };
+export type ShortcutRow = { keys: string; label: string; group?: string };
 
 /** Every shortcut a script has, for the settings reference: the keys that move between elements, then one per element. */
 export function screenplayShortcuts(mac: boolean, labels: Record<ScreenplayElement, string>): ShortcutRow[] {
+  const group = "Screenplay elements";
   return [
-    { keys: "Tab", label: "Take the first suggestion, or move on" },
-    { keys: "Shift+Tab", label: "Previous element" },
-    { keys: "Enter", label: "New line, in the element that follows" },
-    { keys: "↑ ↓", label: "Choose a suggestion" },
-    { keys: "Esc", label: "Close the suggestions" },
+    { keys: "Tab", label: "Take the first suggestion, or move on", group },
+    { keys: "Shift+Tab", label: "Previous element", group },
+    { keys: "Enter", label: "New line, in the element that follows", group },
+    { keys: "↑ ↓", label: "Choose a suggestion", group },
+    { keys: "Esc", label: "Close the suggestions", group },
     ...SHORTCUT_ORDER.map((element) => ({
       keys: elementShortcutLabel(element, mac),
       label: labels[element],
+      group,
     })),
-    { keys: mac ? "⌥⇧D" : "Alt+Shift+D", label: "Dual dialogue: beside the speech above" },
-    { keys: mac ? "⌥⇧↓" : "Alt+Shift+↓", label: "Next scene" },
-    { keys: mac ? "⌥⇧↑" : "Alt+Shift+↑", label: "Previous scene" },
+    { keys: mac ? "⌥⇧D" : "Alt+Shift+D", label: "Dual dialogue: beside the speech above", group },
+    { keys: mac ? "⌥⇧↓" : "Alt+Shift+↓", label: "Next scene", group },
+    { keys: mac ? "⌥⇧↑" : "Alt+Shift+↑", label: "Previous scene", group },
   ];
 }
 

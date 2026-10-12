@@ -1608,6 +1608,77 @@ input[type="file"]::file-selector-button {
   font-size: 19px;
   margin: 0;
 }
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.info-tip-trigger {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  font: italic 600 10px/1 var(--serif);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.info-tip-trigger:hover {
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+.info-tip-bubble {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 16%, transparent);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--duration-fast) var(--ease-out);
+  z-index: 60;
+}
+.info-tip-trigger:hover + .info-tip-bubble,
+.info-tip-trigger:focus-visible + .info-tip-bubble,
+.info-tip-bubble[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+@media (max-width: 480px) {
+  .info-tip-bubble {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+}
+.chat-settings-root {
+  position: relative;
+}
+.chat-settings-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 240px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  z-index: 50;
+}
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2015,6 +2086,73 @@ input[type="file"]::file-selector-button {
 .drawer h2 {
   font-family: var(--serif);
   margin-top: 0;
+}
+
+/* ---------- Keyboard shortcuts panel ---------- */
+.shortcuts-panel {
+  /* The drawer itself scrolls (.drawer: overflow-y: auto); this only keeps
+     a long key cap or label from forcing the page to scroll sideways. */
+  overflow-x: hidden;
+}
+.shortcuts-group {
+  margin-bottom: var(--space-5);
+}
+.shortcuts-group h3 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--line);
+}
+.shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.shortcuts-table tr {
+  border-bottom: 1px solid var(--line);
+}
+.shortcuts-table tr:last-child {
+  border-bottom: 0;
+}
+.shortcuts-keys-cell {
+  width: 42%;
+  padding: 7px 10px 7px 0;
+  vertical-align: top;
+}
+.shortcuts-label-cell {
+  padding: 7px 0;
+  font-size: 13px;
+  color: var(--ink);
+  vertical-align: top;
+  line-height: 1.4;
+}
+.shortcut-keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+.shortcut-keys kbd {
+  font: 600 11px/1.5 var(--mono);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--ink);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .shortcuts-keys-cell {
+    width: 38%;
+  }
+  .shortcuts-label-cell {
+    font-size: 12.5px;
+  }
 }
 .field {
   margin-bottom: 14px;

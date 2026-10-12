@@ -145,16 +145,17 @@ export default function ThemePicker({
         className="btn small theme-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Appearance and writing settings"
+        title="Settings - appearance and writing preferences"
         onClick={() => setOpen((v) => !v)}
       >
         <span
           className="theme-swatch"
+          aria-hidden="true"
           style={{
             background: `linear-gradient(135deg, ${current.swatch[0]} 55%, ${current.swatch[1]} 55%)`,
           }}
         />
-        {!compact && <span>{current.label}</span>}
+        <span>{compact ? "Settings" : current.label}</span>
       </button>
       {open && (
         <div className="theme-menu" role="dialog" aria-label="App settings">
