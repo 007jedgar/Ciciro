@@ -65,7 +65,12 @@ function Pricing({ offerOpen }: { offerOpen: boolean }) {
   );
 }
 
-export default function Landing() {
+/**
+ * `openApp`: this visitor already has a working session (see
+ * `homeShowsLibrary` in src/lib/home.ts), so the header offers a way back
+ * into the app instead of the signed-out sign-in / early-access CTAs.
+ */
+export default function Landing({ openApp = false }: { openApp?: boolean }) {
   // /pricing exists only where the web sells Pro (docs/billing.md).
   const selling = stripeSettings() !== null;
   const offerOpen = selling && openEarlyAccess() !== null;
@@ -89,18 +94,31 @@ export default function Landing() {
                   Pricing
                 </Link>
               ) : null}
-              <TrackedLink href="/login" className="landing-plain-link" cta="sign_in_nav" surface="landing">
-                Sign in
-              </TrackedLink>
-              <ThemeToggle className="landing-theme-toggle" />
-              <TrackedLink
-                href="/signup"
-                className="landing-btn landing-btn-light landing-btn-small"
-                cta="get_early_access_nav"
-                surface="landing"
-              >
-                Get early access <Arrow />
-              </TrackedLink>
+              {openApp ? (
+                <TrackedLink
+                  href="/"
+                  className="landing-btn landing-btn-light landing-btn-small"
+                  cta="open_app_nav"
+                  surface="landing"
+                >
+                  Open Ciciro <Arrow />
+                </TrackedLink>
+              ) : (
+                <>
+                  <TrackedLink href="/login" className="landing-plain-link" cta="sign_in_nav" surface="landing">
+                    Sign in
+                  </TrackedLink>
+                  <ThemeToggle className="landing-theme-toggle" />
+                  <TrackedLink
+                    href="/signup"
+                    className="landing-btn landing-btn-light landing-btn-small"
+                    cta="get_early_access_nav"
+                    surface="landing"
+                  >
+                    Get early access <Arrow />
+                  </TrackedLink>
+                </>
+              )}
             </nav>
           </header>
           <section className="landing-hero" aria-labelledby="landing-headline">

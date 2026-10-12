@@ -7,6 +7,7 @@ import BetaBadge from "@/components/BetaBadge";
 import ThemePicker from "@/components/ThemePicker";
 import AccountBar from "@/components/AccountBar";
 import BrandMark from "@/components/BrandMark";
+import TrackedLink from "@/components/TrackedLink";
 import { IMPORT_ACCEPT, importSourceFromFilename, uploadImport } from "@/lib/import-client";
 import { getAnalytics } from "@/lib/analytics-client";
 import {
@@ -323,11 +324,20 @@ export default function Library() {
   return (
     <div className="home">
       <div className="home-top">
-        <div className="brand-lockup">
+        <TrackedLink
+          href="/about"
+          className="brand-lockup"
+          cta="logo_home"
+          surface="library"
+          aria-label="About Ciciro"
+        >
           <BrandMark size={36} />
           <span className="home-wordmark">Ciciro</span>
-        </div>
+        </TrackedLink>
         <div className="account-bar">
+          <Link className="btn ghost small" href="/about">
+            About Ciciro
+          </Link>
           <Link className="btn ghost small" href="/privacy">
             Privacy
           </Link>
