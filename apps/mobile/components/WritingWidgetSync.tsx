@@ -15,11 +15,17 @@ import { useWritingDay } from "../lib/writing-day-session";
 import {
   buildWritingWidgetSnapshot,
   publishWritingWidgetSnapshot,
+  SIGNED_OUT_WIDGET_SNAPSHOT,
 } from "../lib/writing-widget";
 
 /**
  * Keeps the iOS home/lock-screen writing widget aligned with today’s words and
  * the rolling 7-day count. No-op on Android/web and until a native rebuild.
+ *
+ * Publishes even signed out (a zero snapshot): the widget's native layout is
+ * only registered with the OS as a side effect of the first published
+ * snapshot, so gating this on `user` left the widget extension with no
+ * layout to render - "No layout found" - until first sign-in.
  */
 export function WritingWidgetSync() {
   const { user } = useSession();
@@ -47,13 +53,15 @@ export function WritingWidgetSync() {
   const goal = activeDailyGoal(settings);
   const publishRef = useRef(() => {});
   publishRef.current = () => {
-    if (Platform.OS !== "ios" || !user) return;
-    const snapshot = buildWritingWidgetSnapshot({
-      words: day.words,
-      goal,
-      daysInLast7,
-      lastPlace: getLastPlace(user.id),
-    });
+    if (Platform.OS !== "ios") return;
+    const snapshot = user
+      ? buildWritingWidgetSnapshot({
+          words: day.words,
+          goal,
+          daysInLast7,
+          lastPlace: getLastPlace(user.id),
+        })
+      : SIGNED_OUT_WIDGET_SNAPSHOT;
     void publishWritingWidgetSnapshot(snapshot);
   };
 

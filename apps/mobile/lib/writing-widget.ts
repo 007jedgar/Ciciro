@@ -29,6 +29,22 @@ export function buildWritingWidgetSnapshot(input: {
   };
 }
 
+/**
+ * The widget's native layout is only registered (written into the shared app
+ * group's storage) as a side effect of importing `widgets/WritingDayWidget`,
+ * which happens the first time something publishes a snapshot. Without
+ * someone signed in to read real data from, this is what keeps the widget
+ * showing a sane zero state (and, critically, keeps the layout registered at
+ * all) on a fresh install and after sign-out, instead of leaving the
+ * extension with no layout to render.
+ */
+export const SIGNED_OUT_WIDGET_SNAPSHOT: WritingWidgetSnapshot = buildWritingWidgetSnapshot({
+  words: 0,
+  goal: 0,
+  daysInLast7: 0,
+  lastPlace: null,
+});
+
 export function snapshotEquals(
   a: WritingWidgetSnapshot | null,
   b: WritingWidgetSnapshot

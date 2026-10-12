@@ -18,9 +18,11 @@ export type WritingDayWidgetProps = {
 
 const WritingDayWidgetView = (props: WritingDayWidgetProps, environment: WidgetEnvironment) => {
   "widget";
-  const words = Math.max(0, Math.floor(props.words));
-  const goal = Math.max(0, Math.floor(props.goal));
-  const days = Math.max(0, Math.floor(props.daysInLast7));
+  // props can be empty (the widget gallery's placeholder pass, or a timeline entry
+  // predating the first real snapshot) - never NaN out the whole render over it.
+  const words = Math.max(0, Math.floor(props.words ?? 0));
+  const goal = Math.max(0, Math.floor(props.goal ?? 0));
+  const days = Math.max(0, Math.floor(props.daysInLast7 ?? 0));
   const url = props.openUrl || "ciciro:///manuscripts";
   const family = environment.widgetFamily;
   const ink = environment.colorScheme === "dark" ? "#F4EDE3" : "#2C241B";
