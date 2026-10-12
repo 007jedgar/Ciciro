@@ -4,7 +4,8 @@
  * import": Ciciro has no way to try the files against Final Draft itself, so it
  * makes no claim of compatibility. The structure follows what open-source
  * readers and writers agree on (afterwriting's converter, screenplain's
- * exporter, @draftfirst/core), and test/fdx.test.ts checks it against them.
+ * exporter), and test/fdx.test.ts checks it against them and against a golden
+ * fixture checked into the repo.
  *
  * Like Fountain, FDX is an interchange format, never the stored one: a script
  * stays flat element-tagged blocks (see screenplay.ts). What FDX carries:
