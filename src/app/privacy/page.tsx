@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import BackLink from "./BackLink";
 import "./privacy.css";
 
@@ -27,7 +28,7 @@ export default async function PrivacyPage() {
       <article className="privacy-body">
         <p className="privacy-eyebrow">Privacy, in plain language</p>
         <h1 className="privacy-title">Who sees your manuscript, and what Ciciro does with it</h1>
-        <p className="privacy-updated">Last updated September 2026.</p>
+        <p className="privacy-updated">Last updated October 2026.</p>
 
         <p className="privacy-lede">
           This isn&apos;t a legal document - it&apos;s a straight answer to the question every
@@ -65,15 +66,62 @@ export default async function PrivacyPage() {
             no Groq key is set, or Groq has a problem, Ciciro falls back to Anthropic instead.
           </p>
           <p>
-            Nobody else sees your manuscript as part of normal use. Ciciro has no analytics,
-            telemetry, or error-reporting service wired in, and no email-sending is set up, so
-            your writing can&apos;t end up in an analytics dashboard or an email body.
-            Dictation and read-aloud use your device&apos;s or browser&apos;s built-in speech
+            Nobody else sees your manuscript as part of normal use. Ciciro uses{" "}
+            <a href="https://posthog.com/privacy" target="_blank" rel="noreferrer">
+              PostHog
+            </a>{" "}
+            for product analytics - counts of which features get used, never your manuscript
+            text, chat content, or titles - and it stays off until you say yes; see
+            &ldquo;Cookies and local storage&rdquo; below for exactly what that does and
+            doesn&apos;t include, and how to change your mind. No other error-reporting or
+            telemetry service is wired in, and no email-sending is set up, so your writing still
+            can&apos;t end up in a crash report or an email body. Dictation and read-aloud use
+            your device&apos;s or browser&apos;s built-in speech
             engine, not a cloud voice API Ciciro talks to. That engine may still process your
             voice on its maker&apos;s servers: in the phone app, dictation can go to Apple or
             Google under your phone&apos;s speech-recognition settings, and in a browser like
             Chrome, the browser may send the audio to Google. That happens between your device
             and its maker, not through Ciciro.
+          </p>
+        </section>
+
+        <section className="privacy-section" id="cookies">
+          <h2>Cookies and local storage</h2>
+          <p>
+            <strong>Necessary.</strong> <code>ciciro_session</code> keeps you signed in, and{" "}
+            <code>ciciro_consent</code> remembers the choice below. Always on; there&apos;s no
+            toggle for these, because the site can&apos;t run without them.
+          </p>
+          <p>
+            <strong>Functional.</strong> Preferences you set yourself - theme, focus mode,
+            read-aloud settings, the chat panel&apos;s width, an unfinished scratchpad note, which
+            manuscript you had open - are saved in your browser&apos;s local storage (keys named{" "}
+            <code>ciciro-settings</code>, <code>ciciro-theme</code>, <code>ciciro-focus-mode</code>,{" "}
+            <code>ciciro-read-aloud</code>, and a few others scoped to one manuscript or reader).
+            These exist only because you asked for the feature they belong to, so they&apos;re
+            always on too, with no separate consent. If you&apos;re signed in, a few of them -
+            your theme, your analytics choice below - are also synced to your account on
+            Ciciro&apos;s own servers, the same as the rest of what&apos;s in &ldquo;What Ciciro
+            stores&rdquo;, so they follow you to another device; that sync is a separate thing
+            from this page&apos;s cookie consent, which only covers what&apos;s written to your
+            device.
+          </p>
+          <p>
+            <strong>Analytics.</strong> Off until you turn it on. Once you do, PostHog sets its
+            own cookies and local-storage keys (named <code>ph_*</code>) to tell your visits apart
+            from everyone else&apos;s; turning it back off clears them immediately. PostHog
+            processes this data on Ciciro&apos;s behalf, hosted in the United States, under its
+            own{" "}
+            <a href="https://posthog.com/privacy" target="_blank" rel="noreferrer">
+              privacy policy
+            </a>
+            . If your browser sends a Global Privacy Control signal and you haven&apos;t made a
+            choice yet, Ciciro treats that the same as turning analytics off - you&apos;ll still
+            see the banner so you can make an explicit, categorized choice instead.
+          </p>
+          <p>
+            <CookieSettingsButton>Change your cookie choices</CookieSettingsButton>, any time -
+            the same choice is also in Settings.
           </p>
         </section>
 

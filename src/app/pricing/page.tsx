@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import BackLink from "@/app/privacy/BackLink";
 import { getSessionUser } from "@/lib/auth/session";
 import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/config";
@@ -97,7 +98,8 @@ export default async function PricingPage({
             manage it in the App Store or Google Play instead.
           </p>
           <p>
-            <Link href="/terms">Terms of Use</Link> · <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms of Use</Link> · <Link href="/privacy">Privacy</Link> ·{" "}
+            <CookieSettingsButton />
           </p>
         </section>
       </div>

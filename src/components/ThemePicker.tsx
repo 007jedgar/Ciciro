@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { THEMES, webTheme, type ThemeId } from "@/lib/theme";
 import { EDITOR_FONT_SIZES, FORMAT_CHROME, type FormatChrome } from "@/lib/settings";
 import { useSettings } from "@/components/SettingsProvider";
+import { useConsent } from "@/components/ConsentProvider";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import DeleteAccountDialog from "@/components/DeleteAccountDialog";
 import { EXPORT_URL } from "@/lib/account/copy";
 import type { ModelSummary } from "@/lib/models";
@@ -33,6 +35,7 @@ export default function ThemePicker({
   script?: ScriptSettingsControl;
 }) {
   const { settings, patch } = useSettings();
+  const consent = useConsent();
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<ModelSummary | null>(null);
   // undefined until asked; null when signed out (local-first has no account).
@@ -340,17 +343,21 @@ export default function ThemePicker({
             <button
               type="button"
               role="switch"
-              aria-checked={settings.analyticsEnabled}
-              className={`settings-switch ${settings.analyticsEnabled ? "on" : ""}`}
-              onClick={() => patch({ analyticsEnabled: !settings.analyticsEnabled })}
+              aria-checked={consent.categories.analytics}
+              className={`settings-switch ${consent.categories.analytics ? "on" : ""}`}
+              onClick={() => consent.save({ analytics: !consent.categories.analytics })}
             >
-              {settings.analyticsEnabled ? "On" : "Off"}
+              {consent.categories.analytics ? "On" : "Off"}
             </button>
           </div>
           <p className="settings-hint">
             Helps us see which features are used and improve Ciciro. Never your manuscript text,
             chat content, or titles.
           </p>
+          <div className="settings-row">
+            <span>Cookie settings</span>
+            <CookieSettingsButton className="btn small">Manage</CookieSettingsButton>
+          </div>
 
           <div className="theme-menu-label">Daily words</div>
           <p className="settings-hint">

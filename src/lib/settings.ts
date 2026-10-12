@@ -46,7 +46,12 @@ export type AppSettings = {
    * defaults and gets a post-draft check (src/lib/craft-defaults.ts). Opt-in.
    */
   craftDefaults: boolean;
-  /** Product analytics (PostHog). Opt-out; see docs/analytics.md. */
+  /**
+   * Product analytics (PostHog), synced per account. Opt-in: defaults to
+   * false, since the device's cookie-consent record (src/lib/consent.ts),
+   * not this setting, is the source of truth for whether to ask. Effective
+   * analytics is device consent AND this - see docs/analytics.md's "Opt-in consent" bullet.
+   */
   analyticsEnabled: boolean;
   updatedAt: string;
 };
@@ -70,7 +75,7 @@ export function defaultSettings(now = new Date()): AppSettings {
     typewriterMode: false,
     aiSuggestions: true,
     craftDefaults: false,
-    analyticsEnabled: true,
+    analyticsEnabled: false,
     updatedAt: now.toISOString(),
   };
 }

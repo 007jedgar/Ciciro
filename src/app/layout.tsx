@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/app/providers";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme-boot";
+import { CONSENT_COOKIE_NAME, parseConsentRecord } from "@/lib/consent";
 
 // Newsreader carries display type and the manuscript (its optical sizes run
 // from the editor's text cut to the landing's light display cut), Instrument
@@ -32,11 +34,13 @@ export const metadata: Metadata = {
   description: "An AI book-writing assistant and manuscript editor.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const jar = await cookies();
+  const initialConsent = parseConsentRecord(jar.get(CONSENT_COOKIE_NAME)?.value ?? null);
   return (
     <html
       lang="en"
@@ -47,7 +51,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers initialConsent={initialConsent}>{children}</Providers>
       </body>
     </html>
   );

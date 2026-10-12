@@ -2,6 +2,7 @@ import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import TrackedLink from "@/components/TrackedLink";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import CyclingWord from "./CyclingWord";
 import Exhibit from "./Exhibit";
 import Scene from "./Scene";
@@ -277,6 +278,7 @@ export default function Landing() {
               <Link href="/changelog">What&apos;s new</Link>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
+              <CookieSettingsButton className="landing-footer-cookie" />
             </nav>
             <span className="landing-footer-note">
               Ciciro is in early access. © {new Date().getFullYear()}.

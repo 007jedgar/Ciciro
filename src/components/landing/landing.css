@@ -63,7 +63,8 @@
 .landing-plain-link:focus-visible,
 .landing-inline-link:focus-visible,
 .landing-brand:focus-visible,
-.landing-footer-nav a:focus-visible {
+.landing-footer-nav a:focus-visible,
+.landing-footer-cookie:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--band), 0 0 0 4px var(--butter);
 }
@@ -1361,6 +1362,19 @@
   border-radius: 4px;
 }
 .landing-footer-nav a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.landing-footer-cookie {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--band-ink);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.landing-footer-cookie:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
 }

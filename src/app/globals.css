@@ -3263,6 +3263,7 @@ input[type="file"]::file-selector-button {
 }
 .account-dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
@@ -3278,6 +3279,51 @@ input[type="file"]::file-selector-button {
 .btn.danger:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* ---------- Cookie consent ---------- */
+.cookie-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 2px;
+  box-shadow: var(--paper-shadow), 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  color: var(--ink);
+}
+.cookie-banner-text {
+  flex: 1 1 320px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.cookie-banner-text a {
+  color: var(--accent);
+}
+.cookie-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cookie-dialog-categories {
+  margin: 14px 0;
+}
+.cookie-dialog-locked {
+  font-size: 12px;
+  color: var(--ink-soft);
 }
 
 /* ---------- Outline / corkboard ---------- */
@@ -4398,7 +4444,8 @@ input[type="file"]::file-selector-button {
   animation: drawer-in var(--duration-drawer-in) var(--ease-drawer) both;
 }
 .outline-panel,
-.account-dialog {
+.account-dialog,
+.cookie-banner {
   animation: dialog-in var(--duration-dialog-in) var(--ease-drawer) both;
 }
 .presence[data-state="closed"] > .drawer-overlay {
@@ -4408,7 +4455,8 @@ input[type="file"]::file-selector-button {
   animation: drawer-out var(--duration-drawer-out) ease-in both;
 }
 .presence[data-state="closed"] > .outline-panel,
-.presence[data-state="closed"] > .account-dialog {
+.presence[data-state="closed"] > .account-dialog,
+.presence[data-state="closed"] > .cookie-banner {
   animation: dialog-out var(--duration-drawer-out) ease-in both;
 }
 
