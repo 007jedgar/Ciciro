@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import AuthForm from "@/components/AuthForm";
 import { socialAvailability } from "@/lib/auth/social-config";
 
-export const metadata = { title: "Create account - Ciciro" };
+export const metadata = { title: "Create account - Ciciro", robots: { index: false, follow: true } };
 // The Apple / Google buttons follow runtime secrets, not the build's env.
 export const dynamic = "force-dynamic";
 

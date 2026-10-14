@@ -2,7 +2,7 @@ import VerifyEmailConfirm from "@/components/VerifyEmailConfirm";
 import { getSessionUser } from "@/lib/auth/session";
 import { peekVerification } from "@/lib/auth/verify-email";
 
-export const metadata = { title: "Confirm your email - Ciciro" };
+export const metadata = { title: "Confirm your email - Ciciro", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ token?: string }> };

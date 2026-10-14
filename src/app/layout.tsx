@@ -5,6 +5,8 @@ import "./globals.css";
 import { Providers } from "@/app/providers";
 import { THEME_BOOT_SCRIPT } from "@/lib/theme-boot";
 import { CONSENT_COOKIE_NAME, parseConsentRecord } from "@/lib/consent";
+import { SITE_URL } from "@/lib/public-origin";
+import { jsonLdScript, organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 
 // Newsreader carries display type and the manuscript (its optical sizes run
 // from the editor's text cut to the landing's light display cut), Instrument
@@ -33,7 +35,7 @@ const jetbrainsMono = JetBrains_Mono({
 // twitter-image.tsx) resolves to an absolute URL instead of localhost; see
 // docs/hosting.md for CICIRO_PUBLIC_URL.
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env["CICIRO_PUBLIC_URL"] || "https://ciciro.app"),
+  metadataBase: new URL(SITE_URL),
   title: "Ciciro",
   description: "An AI book-writing assistant and manuscript editor.",
 };
@@ -53,6 +55,10 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript([organizationJsonLd(), websiteJsonLd()]) }}
+        />
       </head>
       <body>
         <Providers initialConsent={initialConsent}>{children}</Providers>

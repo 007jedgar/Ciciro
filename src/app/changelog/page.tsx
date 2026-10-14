@@ -7,11 +7,13 @@ import ThemeToggle from "@/components/ThemeToggle";
 import BackLink from "@/app/privacy/BackLink";
 import { CHANGELOG_ENTRIES } from "@/lib/changelog-data.generated";
 import { formatChangelogDate } from "@/lib/changelog-parse";
+import { breadcrumbJsonLd, jsonLdScript } from "@/lib/structured-data";
 import "../privacy/privacy.css";
 
 export const metadata: Metadata = {
   title: "What's new - Ciciro",
   description: "New features and changes in Ciciro, newest first.",
+  alternates: { canonical: "/changelog" },
   openGraph: {
     title: "What's new - Ciciro",
     description: "New features and changes in Ciciro, newest first.",
@@ -30,6 +32,17 @@ export const metadata: Metadata = {
 export default function ChangelogPage() {
   return (
     <main className="privacy-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "What's new", path: "/changelog" },
+            ])
+          ),
+        }}
+      />
       <header className="privacy-header">
         <Link href="/" className="privacy-brand">
           <BrandMark size={24} />

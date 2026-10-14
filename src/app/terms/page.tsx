@@ -3,11 +3,13 @@ import Link from "next/link";
 import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import BackLink from "@/app/privacy/BackLink";
+import { breadcrumbJsonLd, jsonLdScript } from "@/lib/structured-data";
 import "../privacy/privacy.css";
 
 export const metadata: Metadata = {
   title: "Terms of Use - Ciciro",
   description: "The terms for using Ciciro and for Ciciro Pro subscriptions, on the web and in the apps.",
+  alternates: { canonical: "/terms" },
   openGraph: {
     title: "Terms of Use - Ciciro",
     description: "The terms for using Ciciro and for Ciciro Pro subscriptions, on the web and in the apps.",
@@ -23,6 +25,17 @@ export const metadata: Metadata = {
 export default async function TermsPage() {
   return (
     <main className="privacy-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Terms of Use", path: "/terms" },
+            ])
+          ),
+        }}
+      />
       <header className="privacy-header">
         <Link href="/" className="privacy-brand">
           <BrandMark size={24} />
