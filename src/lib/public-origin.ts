@@ -12,6 +12,13 @@ export function publicOrigin(requestOrigin: string): string {
   return configured || requestOrigin.replace(/\/+$/, "");
 }
 
+/**
+ * The site's public origin for contexts with no request to read a Host from
+ * (metadata routes like sitemap.ts/robots.ts, structured data, metadataBase).
+ */
+export const SITE_URL =
+  (process.env["CICIRO_PUBLIC_URL"] ?? "").trim().replace(/\/+$/, "") || "https://ciciro.app";
+
 /** The request's origin from its headers, where there is no Request (Server Components). */
 export function originFromHeaders(headers: { get(name: string): string | null }): string {
   const host = headers.get("host") || "localhost";

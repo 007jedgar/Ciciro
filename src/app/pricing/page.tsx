@@ -10,6 +10,7 @@ import { openEarlyAccess, planLimits, stripeSettings } from "@/lib/billing/confi
 import { earlyAccessApplies, getStripe } from "@/lib/billing/stripe";
 import { earlyAccessOffer, proPrices } from "@/lib/billing/prices";
 import { getEntitlement } from "@/lib/entitlements";
+import { breadcrumbJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structured-data";
 import PricingPlans from "./PricingPlans";
 import "../privacy/privacy.css";
 import "./pricing.css";
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
   title: "Pricing - Ciciro",
   description:
     "Ciciro is free to write in. Ciciro Pro adds more of the AI editor every month, and early-access writers get a founding discount.",
+  alternates: { canonical: "/pricing" },
 };
 
 export const dynamic = "force-dynamic";
@@ -44,8 +46,26 @@ export default async function PricingPage({
   const eligible = open && (!user || (await earlyAccessApplies(user.id)) !== null);
   const offer = eligible ? await earlyAccessOffer(stripe, open, prices) : null;
 
+  const offers = Object.values(prices).map((price) => ({
+    name: price.interval === "year" ? "Ciciro Pro (yearly)" : "Ciciro Pro (monthly)",
+    price: price.amount / 100,
+    priceCurrency: price.currency.toUpperCase(),
+  }));
+
   return (
     <main className="privacy-page pricing-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript([
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Pricing", path: "/pricing" },
+            ]),
+            ...(offers.length ? [softwareApplicationJsonLd({ offers })] : []),
+          ]),
+        }}
+      />
       <header className="privacy-header">
         <Link href="/" className="privacy-brand">
           <BrandMark size={24} />

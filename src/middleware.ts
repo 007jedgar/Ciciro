@@ -33,6 +33,11 @@ const PUBLIC_PATHS = [
   // The home/marketing page (src/app/about/page.tsx), reachable from a
   // signed-in writer's app header and account menu as well as signed out.
   "/about",
+  // Next's file-convention metadata routes (src/app/robots.ts, sitemap.ts):
+  // a crawler fetching these has no session, and without this they 302 to
+  // /login like any other unauthenticated request to a non-public path.
+  "/robots.txt",
+  "/sitemap.xml",
 ];
 const PUBLIC_PREFIXES = [
   "/api/auth/",
@@ -74,6 +79,17 @@ function nextWithSession(req: NextRequest): NextResponse {
 // cannot set the Cookie header, so cookie-only checks 401 a signed-in phone.
 // Session validity is still verified in route handlers via getSessionUser.
 export function middleware(req: NextRequest) {
+  // Both ciciro.app and www.ciciro.app are routed to this Worker
+  // (wrangler.jsonc), so without this a crawler sees the same page twice
+  // under two hosts with no signal which one to rank. ciciro.app is
+  // canonical (SITE_URL in src/lib/public-origin.ts).
+  const host = req.headers.get("host") ?? "";
+  if (host.startsWith("www.")) {
+    const url = req.nextUrl.clone();
+    url.host = host.slice("www.".length);
+    return NextResponse.redirect(url, 308);
+  }
+
   if (!authRequired()) return nextWithSession(req);
 
   const { pathname } = req.nextUrl;

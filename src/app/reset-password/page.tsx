@@ -4,7 +4,7 @@ import ResetPasswordForm from "@/components/ResetPasswordForm";
 import { checkEmailToken } from "@/lib/auth/email-tokens";
 import { RESET_LINK_PROBLEMS } from "@/lib/auth/password-reset";
 
-export const metadata = { title: "Choose a new password - Ciciro" };
+export const metadata = { title: "Choose a new password - Ciciro", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ token?: string }> };

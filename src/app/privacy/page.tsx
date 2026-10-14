@@ -4,11 +4,13 @@ import BrandMark from "@/components/BrandMark";
 import ThemeToggle from "@/components/ThemeToggle";
 import CookieSettingsButton from "@/components/CookieSettingsButton";
 import BackLink from "./BackLink";
+import { breadcrumbJsonLd, jsonLdScript } from "@/lib/structured-data";
 import "./privacy.css";
 
 export const metadata: Metadata = {
   title: "Privacy - Ciciro",
   description: "Who sees your manuscript, what Ciciro stores, and what it never does with your writing.",
+  alternates: { canonical: "/privacy" },
   openGraph: {
     title: "Privacy - Ciciro",
     description: "Who sees your manuscript, what Ciciro stores, and what it never does with your writing.",
@@ -24,6 +26,17 @@ export const metadata: Metadata = {
 export default async function PrivacyPage() {
   return (
     <main className="privacy-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Privacy", path: "/privacy" },
+            ])
+          ),
+        }}
+      />
       <header className="privacy-header">
         <Link href="/" className="privacy-brand">
           <BrandMark size={24} />

@@ -10,6 +10,7 @@ export const FEATURES_METADATA: Metadata = {
   title: "Ciciro Features - continuity, voice, and habit for writers",
   description:
     "See everything Ciciro does: a story bible that tracks who knows what, AI edits you accept or reject, screenplay support (Beta), and reminders that bring you back to the last line you wrote.",
+  alternates: { canonical: "/features" },
   openGraph: {
     title: "Ciciro Features - continuity, voice, and habit for writers",
     description:
