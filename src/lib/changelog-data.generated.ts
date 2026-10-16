@@ -5,6 +5,12 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "d3321e7c5731",
+    "date": "2026-10-16",
+    "summary": "**Highlighting text on the phone is easier to do and no longer collides with the system menu.** The Comment, Describe and Fix buttons and a word's synonyms now…",
+    "text": "**Highlighting text on the phone is easier to do and no longer collides with the system menu.** The Comment, Describe and Fix buttons and a word's synonyms now sit in one row at the top of the manuscript, over the weekly progress bar, instead of floating over the page where the iPhone's own Cut / Copy menu could cover them. The row scrolls sideways, so a long synonym or a long list never runs off the screen. It waits until your selection has held still before it appears, so dragging a handle across a sentence is no longer interrupted. With the Smart header the small bold / italic / underline / strikethrough bubble over a highlight is gone, since the formatting bar at the top already has those buttons; \"On highlight\" in Settings still shows it."
+  },
+  {
     "id": "ec84cec340bc",
     "date": "2026-10-16",
     "summary": "**Deadlines on the website.** A manuscript can now have a due date and a word target on the web too, set from **Deadline** in the top bar's More menu (and chan…",
