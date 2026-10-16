@@ -10,6 +10,12 @@ for an uncommitted entry) and writes it back into this file.
 
 ## Unreleased
 
+- <!-- 2026-10-16 --> **A quiet nudge to rate Ciciro on the phone.** After the first time you export a
+  manuscript or finish a writing exercise, the app asks once for a store review
+  through the system's own rating sheet, a couple of seconds after the moment
+  has passed. It never asks again on that device, and the system decides whether
+  to show it.
+
 - <!-- 2026-10-16 --> **Four new writing exercises on iPhone.** The writing exercise is now a list of
   five to pick from, under **+** on your manuscripts (and under the first-manuscript
   button when the library is empty). New: **Pour it out**, ten minutes of unfiltered

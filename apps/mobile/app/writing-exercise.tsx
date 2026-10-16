@@ -14,6 +14,7 @@ import { ApiError } from "../lib/api";
 import type { ProjectCreated } from "../lib/api/types";
 import { announce } from "../lib/announce";
 import { getAnalytics } from "../lib/analytics-client";
+import { scheduleReviewPrompt } from "../lib/review-prompt";
 import * as haptics from "../lib/haptics";
 import { markNewManuscriptArrival } from "../lib/new-manuscript-arrival";
 import { useSession } from "../lib/session";
@@ -113,6 +114,10 @@ function WritingExerciseContent() {
     });
     return () => sub.remove();
   }, [step.kind, backToList, requestClose]);
+
+  // Finishing any exercise is a good moment (once per device) to ask for a store review, after the finish screen settles.
+  const finished = step.kind === "done";
+  useEffect(() => (finished ? scheduleReviewPrompt("exercise") : undefined), [finished]);
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;

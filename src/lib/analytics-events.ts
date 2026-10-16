@@ -107,6 +107,8 @@ export type EventCatalog = {
   // The guided writing exercises (mobile). No author text: the exercise id (see EXERCISE_IDS in apps/mobile/lib/writing-exercise.ts) and a whole-minute length only.
   writing_exercise_started: { exercise: string };
   writing_exercise_completed: { exercise: string; durationMinutes: number };
+  // The native store-review prompt (mobile), asked for once on the first finished export or writing exercise. The OS decides whether to show it.
+  review_prompt_requested: { trigger: "export" | "exercise" };
   outline_reordered: NoProperties;
   story_bible_edited: { file: "canon" | "plot" | "style" | "timeline" };
   character_created: NoProperties;

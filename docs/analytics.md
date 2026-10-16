@@ -335,6 +335,7 @@ property shape.
 | `deadline_met` | The manuscript's words reach its deadline target, once per target on a device (the same guard as the goal-met haptic; the web keeps it in `localStorage`) | Both |
 | `writing_exercise_started` (`exercise`) | Begin is tapped on one of the guided writing exercises | Mobile only; no author text, the id is one of `EXERCISE_IDS` (`observe_react_narrate`, `pour_it_out`, `one_true_sentence`, `terrible_first_draft`, `noun_list`) |
 | `writing_exercise_completed` (`exercise`, `durationMinutes`) | The exercise's last part is finished (not on leaving early) | Mobile only; whole minutes from Begin, same ids as above |
+| `review_prompt_requested` (`trigger`: `export` or `exercise`) | The native store-review prompt is asked for, once per device, after the first manuscript export or finished writing exercise | Mobile only; the OS decides whether it appears |
 | `outline_reordered` | Chapters are reordered (drag or arrow buttons) | Both |
 | `story_bible_edited` (`file`) | Saving one of the four core bible files (`canon`/`plot`/`style`/`timeline`) | Both. Editing a character or plot-thread file (`characters/*.md`, `plot/*.md`) through the same editor does not fire this - the catalog's `file` union is the four core files only |
 | `character_created` | Adding a character from the bible index | Both |
