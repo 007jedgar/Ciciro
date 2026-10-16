@@ -33,6 +33,14 @@ const DEMO_BY_OBSTACLE: Record<Obstacle, DemoPath> = {
 export const REMINDER_OBSTACLE: Obstacle = "consistency";
 
 /**
+ * The obstacles that get the writing-exercises step after the demo: the ones
+ * the guided exercises are for (ideas that feel stuck, a page that stays
+ * blank). The step only tells them the exercises exist and where to find them,
+ * since an exercise needs an account.
+ */
+export const EXERCISE_OBSTACLES: readonly Obstacle[] = ["creativity", "block"];
+
+/**
  * The obstacles in a route param: comma-separated ids in the order they were
  * tapped. Unknown ids and repeats drop out, and "unsure" is exclusive, so a
  * stale or hand-edited link never reaches the rest of the flow malformed.
@@ -62,6 +70,10 @@ export function toggleObstacle(selected: readonly Obstacle[], obstacle: Obstacle
 
 export function wantsReminderStep(obstacles: readonly Obstacle[]): boolean {
   return obstacles.includes(REMINDER_OBSTACLE);
+}
+
+export function wantsExercisesStep(obstacles: readonly Obstacle[]): boolean {
+  return obstacles.some((obstacle) => EXERCISE_OBSTACLES.includes(obstacle));
 }
 
 /**

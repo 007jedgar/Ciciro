@@ -9,7 +9,7 @@ import * as haptics from "../../lib/haptics";
 import { useAppTheme } from "../../lib/settings";
 import { fonts } from "../../lib/theme";
 import { useExerciseClock } from "../../lib/use-exercise-clock";
-import { PART_MS, paragraphs, type ExercisePart } from "../../lib/writing-exercise";
+import { paragraphs, partMs, type ExerciseDef, type ExercisePartDef } from "../../lib/writing-exercise";
 import { ChapterEditor } from "../ChapterEditor";
 import { PressableCard } from "../PressableCard";
 import { ProgressRing } from "../ProgressRing";
@@ -20,16 +20,17 @@ const CLOCK_RING = 26;
 const EARLIER_SHARE = 0.26;
 const EARLIER_SHARE_TYPING = 0.16;
 
-export type EarlierText = { part: ExercisePart; label: string; text: string };
+export type EarlierText = { part: string; label: string; text: string };
 
 /**
  * One writing part, on focus mode's calm surface: a quiet guide line, the text
  * from earlier parts folded small above the page (read only, scrollable), and
  * the real editor taking the rest. The part's soft clock is a ring in the top
- * bar that closes after `PART_MINUTES`; when it does the page says so gently
+ * bar that closes after the part's minutes; when it does the page says so gently
  * and Next warms to the accent, but nothing locks: they can write on or move on.
  */
 export function ExercisePage({
+  exercise,
   part,
   label,
   earlier,
@@ -38,8 +39,9 @@ export function ExercisePage({
   onNext,
   onClose,
 }: {
-  part: ExercisePart;
-  /** The top bar's label: the part and where it sits in the three. */
+  exercise: ExerciseDef;
+  part: ExercisePartDef;
+  /** The top bar's label: the part and where it sits in the exercise. */
   label: string;
   earlier: EarlierText[];
   nextLabel: string;
@@ -54,11 +56,13 @@ export function ExercisePage({
   const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const editorRef = useRef<EnrichedTextInputInstance | null>(null);
 
-  const { progress, elapsedMs, done } = useExerciseClock(true, PART_MS, () => {
+  const base = `exercise.items.${exercise.id}.parts.${part.id}`;
+  const totalMs = partMs(part);
+  const { progress, elapsedMs, done } = useExerciseClock(true, totalMs, () => {
     haptics.impact("light");
     announce(t("exercise.timeUpA11y"));
   });
-  const minutesLeft = Math.max(1, Math.ceil((PART_MS - elapsedMs) / 60_000));
+  const minutesLeft = Math.max(1, Math.ceil((totalMs - elapsedMs) / 60_000));
 
   const editorStyle = {
     fontFamily: settings.editorFont === "sans" ? fonts.sans : fonts.serif,
@@ -74,8 +78,8 @@ export function ExercisePage({
   }
 
   useEffect(() => {
-    announce(`${t(`exercise.parts.${part}.name`)}. ${t(`exercise.parts.${part}.guide`)}`);
-  }, [part, t]);
+    announce(`${t(`${base}.name`)}. ${t(`${base}.guide`)}`);
+  }, [base, t]);
 
   const ring = (
     <View
@@ -92,7 +96,7 @@ export function ExercisePage({
       <ExerciseTopBar label={label} ring={ring} closeLabel={t("exercise.close")} onClose={onClose} />
       <Pressable onPress={dismissKeyboard} accessible={false} style={styles.guideBox}>
         <Text style={[styles.guide, { color: colors.ink }]} accessibilityRole="header">
-          {t(`exercise.parts.${part}.guide`)}
+          {t(`${base}.guide`)}
         </Text>
         {done ? <Text style={[layout.cardMeta, { marginTop: 8 }]}>{t("exercise.timeUp")}</Text> : null}
       </Pressable>
@@ -136,10 +140,10 @@ export function ExercisePage({
 
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8 }}>
         <ChapterEditor
-          chapterId={`exercise-${part}`}
+          chapterId={`exercise-${exercise.id}-${part.id}`}
           html=""
           editorStyle={editorStyle}
-          placeholder={t(`exercise.parts.${part}.placeholder`)}
+          placeholder={t(`${base}.placeholder`)}
           resumeOffset={0}
           typewriter
           onFocused={() => {}}

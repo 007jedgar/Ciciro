@@ -10,6 +10,19 @@ for an uncommitted entry) and writes it back into this file.
 
 ## Unreleased
 
+- <!-- 2026-10-16 --> **Four new writing exercises on iPhone.** The writing exercise is now a list of
+  five to pick from, under **+** on your manuscripts (and under the first-manuscript
+  button when the library is empty). New: **Pour it out**, ten minutes of unfiltered
+  writing after Julia Cameron's Morning Pages and Peter Elbow's freewriting;
+  **One true sentence**, a way into a stuck page after Ernest Hemingway, ending by
+  leaving yourself a note on what comes next; **The terrible first draft**, Anne
+  Lamott's permission to write badly on purpose and then keep one good line; and
+  **A list of nouns**, after Ray Bradbury's lists, where you list ten things that
+  pull at you and write about the strongest. Each has a gentle timer that never locks
+  the page, and can be kept as a journal manuscript or copied. If you pick
+  Creativity or Writer's block when you set up Ciciro, it now tells you the exercises
+  are there before you sign up. Observe, react, narrate is unchanged.
+
 - <!-- 2026-10-16 --> **Highlighting text on the phone is easier to do and no longer collides with the
   system menu.** The Comment, Describe and Fix buttons and a word's synonyms now sit in one
   row at the top of the manuscript, over the weekly progress bar, instead of floating

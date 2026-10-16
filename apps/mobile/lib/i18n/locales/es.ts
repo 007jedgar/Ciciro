@@ -117,6 +117,11 @@ const es: Translations = {
       },
       unsure: { label: "Aún no lo sé", description: "Por ahora solo estoy explorando." },
     },
+    exercises: {
+      title: "También hay ejercicios de escritura",
+      body: "Cuando las ideas tardan o la página sigue en blanco, Ciciro tiene ejercicios breves y guiados. Solo tú, un temporizador suave y una página.",
+      find: "Los encontrarás bajo + en tus manuscritos cuando entres.",
+    },
     demo: {
       continue: "Continuar",
       focus: {
@@ -205,6 +210,7 @@ const es: Translations = {
     loadError: "No se pudieron cargar los manuscritos.",
     foldersLoadError: "No se pudieron cargar las carpetas.",
     empty: "Aún no hay manuscritos. Empieza el primero.",
+    emptyExercise: "O prueba un ejercicio de escritura",
     untitled: "Manuscrito sin título",
     fallbackKind: "Manuscrito",
     folderKind: "Carpeta",
@@ -1180,48 +1186,165 @@ const es: Translations = {
     },
   },
   exercise: {
-    menu: "Ejercicio de escritura",
-    title: "Observa, reacciona, narra",
-    lead: "Un ejercicio guiado en tres partes tranquilas.",
-    intro:
-      "Busca un lugar donde puedas estar quieto. Empezarás solo observando; después escribirás lo que notaste, cómo te hizo sentir y un relato breve construido con ambas cosas.",
-    each_one: "Cada parte de escritura dura unos {{count}} minuto.",
-    each_other: "Cada parte de escritura dura unos {{count}} minutos.",
+    menu: "Ejercicios de escritura",
+    pickTitle: "Ejercicios de escritura",
+    pickLead: "Formas breves y guiadas de empezar cuando las ideas tardan o la página sigue en blanco. Elige una. Solo tú, un temporizador suave y una página.",
+    cardMeta_one: "Unos {{minutes}} min, {{count}} parte",
+    cardMeta_other: "Unos {{minutes}} min, {{count}} partes",
+    allExercises: "Todos los ejercicios",
+    minutes_one: "{{count}} min",
+    minutes_other: "{{count}} min",
+    total_one: "Unos {{count}} minuto en total. Los temporizadores son suaves: nada se bloquea cuando termina uno.",
+    total_other: "Unos {{count}} minutos en total. Los temporizadores son suaves: nada se bloquea cuando termina uno.",
     begin: "Empezar",
     close: "Cerrar el ejercicio",
-    parts: {
-      observe: {
-        name: "Observa",
-        blurb: "Mira, escucha, huele y siente; luego escribe lo que notas.",
-        guide: "Escribe lo que notaste. Detalles sencillos, sin juicios.",
-        placeholder: "¿Qué ves, oyes, hueles, sientes?",
-        label: "Lo que notaste",
+    items: {
+      observe_react_narrate: {
+        title: "Observa, reacciona, narra",
+        tagline: "Fíjate en el lugar, nombra lo que sientes y construye con ambas cosas un relato breve.",
+        intro:
+          "Busca un lugar donde puedas estar quieto. Empezarás solo observando; después escribirás lo que notaste, cómo te hizo sentir y un relato breve construido con ambas cosas.",
+        settle: {
+          hint: "No escribas todavía. Solo observa.",
+          open: "La página está abierta. Escribe lo que notaste.",
+          prompts: {
+            look: "Mira a tu alrededor.",
+            listen: "Ahora escucha.",
+            smell: "Respira hondo. ¿A qué huele?",
+            feel: "Siente lo que te toca.",
+          },
+        },
+        parts: {
+          observe: {
+            name: "Observa",
+            blurb: "Mira, escucha, huele y siente; luego escribe lo que notas.",
+            guide: "Escribe lo que notaste. Detalles sencillos, sin juicios.",
+            placeholder: "¿Qué ves, oyes, hueles, sientes?",
+            label: "Lo que notaste",
+          },
+          react: {
+            name: "Reacciona",
+            blurb: "Escribe cómo te hacen sentir esas cosas.",
+            guide: "¿Cómo te hacen sentir esas cosas? Sigue la emoción.",
+            placeholder: "Un recuerdo, un ánimo, un nudo en el pecho...",
+            label: "Cómo se sintió",
+          },
+          narrate: {
+            name: "Narra",
+            blurb: "Construye un relato breve con lo que notaste y sentiste.",
+            guide: "Haz un relato breve con lo que notaste y sentiste.",
+            placeholder: "Una vez, en un lugar como este...",
+            label: "Tu relato",
+          },
+        },
       },
-      react: {
-        name: "Reacciona",
-        blurb: "Escribe cómo te hacen sentir esas cosas.",
-        guide: "¿Cómo te hacen sentir esas cosas? Sigue la emoción.",
-        placeholder: "Un recuerdo, un ánimo, un nudo en el pecho...",
-        label: "Cómo se sintió",
+      pour_it_out: {
+        title: "Suéltalo todo",
+        tagline: "Diez minutos de escritura sin filtro para despejar la cabeza y encontrar la entrada.",
+        intro:
+          "Sin tema, sin plan, sin corregir. Escribe lo que tengas en la cabeza y no dejes de mover la mano. Si te quedas sin nada, escribe que estás atascado hasta que aparezca otra cosa. Nadie lo lee, solo tú.",
+        credit:
+          "Inspirado en las Morning Pages de Julia Cameron en The Artist's Way, en la escritura libre de Peter Elbow y en la práctica de escritura de Natalie Goldberg.",
+        settle: {
+          hint: "Nada de esto tiene que ser bueno.",
+          open: "La página está abierta. Suéltalo todo.",
+          prompts: {
+            breathe: "Suelta el aire despacio.",
+            letGo: "Deja de querer que salga bien.",
+            begin: "Empieza por lo primero que tengas en la cabeza.",
+          },
+        },
+        parts: {
+          pages: {
+            name: "Suéltalo todo",
+            blurb: "Escribe sin parar y sin corregir nada.",
+            guide: "Sigue. No te detengas a corregir ni a releer. Si te atascas, escribe eso.",
+            placeholder: "Lo que tengas en la cabeza...",
+            label: "Tus páginas",
+          },
+        },
       },
-      narrate: {
-        name: "Narra",
-        blurb: "Construye un relato breve con lo que notaste y sentiste.",
-        guide: "Haz un relato breve con lo que notaste y sentiste.",
-        placeholder: "Una vez, en un lugar como este...",
-        label: "Tu relato",
+      one_true_sentence: {
+        title: "Una frase verdadera",
+        tagline: "Empieza con una sola frase que sabes que es verdad y deja que una lleve a la siguiente.",
+        intro:
+          "Cuando la página no arranca, empieza en pequeño. Escribe una frase verdadera, lo más sencilla que puedas, y luego añade la siguiente. Pararás mientras aún sepas lo que viene y te dejarás un camino de vuelta.",
+        credit:
+          "De A Moveable Feast de Ernest Hemingway y de su costumbre, descrita en The Paris Review, de parar cuando sabía lo que iba a pasar después.",
+        parts: {
+          sentence: {
+            name: "Una frase",
+            blurb: "Escribe la frase más verdadera que conozcas.",
+            guide: "Escribe una frase verdadera. La más verdadera que conozcas, lo más sencilla que puedas.",
+            placeholder: "Una frase verdadera...",
+            label: "La frase",
+          },
+          onward: {
+            name: "Las siguientes",
+            blurb: "Añade frases verdaderas, una tras otra.",
+            guide: "Ahora la siguiente frase verdadera, y la que sigue. Que cada una sea verdad.",
+            placeholder: "Y luego...",
+            label: "Lo que siguió",
+          },
+          stop: {
+            name: "Un camino de vuelta",
+            blurb: "Para mientras aún sepas lo que viene.",
+            guide: "Para aquí, mientras va bien. Escríbete una nota sobre lo que viene después.",
+            placeholder: "Después, voy a...",
+            label: "Lo que viene",
+          },
+        },
+      },
+      terrible_first_draft: {
+        title: "El borrador terrible",
+        tagline: "Date permiso para escribir mal a propósito y quédate con lo que funcione.",
+        intro:
+          "Elige algo que llevas tiempo posponiendo: una escena, una carta, un comienzo. Escríbelo lo peor que puedas, con frases torpes, tópicos y sin corregir. Un borrador solo tiene que existir.",
+        credit: "A partir de “Shitty First Drafts” en Bird by Bird de Anne Lamott.",
+        parts: {
+          terrible: {
+            name: "El borrador terrible",
+            blurb: "Escríbelo mal a propósito.",
+            guide: "Escríbelo mal a propósito. Las frases torpes y los tópicos son bienvenidos. Nadie lo lee.",
+            placeholder: "Era una noche oscura y tormentosa...",
+            label: "El borrador terrible",
+          },
+          keeper: {
+            name: "Encuentra una joya",
+            blurb: "Saca la única línea que tiene vida.",
+            guide: "Reléelo. Encuentra una línea con chispa y vuelve a escribirla lo mejor que puedas.",
+            placeholder: "La línea que vale la pena guardar...",
+            label: "La joya",
+          },
+        },
+      },
+      noun_list: {
+        title: "Una lista de sustantivos",
+        tagline: "Haz una lista de lo que te atrae y escribe hasta meterte en una de esas cosas.",
+        intro:
+          "Empieza con diez sustantivos, uno por línea: lugares, objetos, criaturas, momentos. No los expliques. Luego elige el que más te atraiga y escribe sobre él hasta que se convierta en algo.",
+        credit: "A partir de las listas de sustantivos que Ray Bradbury describe en Zen in the Art of Writing.",
+        parts: {
+          list: {
+            name: "La lista",
+            blurb: "Diez sustantivos que te atraen.",
+            guide: "Anota diez sustantivos, uno por línea. Cosas de tu vida que aún te atraen. No expliques.",
+            placeholder: "Un lugar, una cosa, un ser de la infancia...",
+            label: "La lista",
+          },
+          pull: {
+            name: "La atracción",
+            blurb: "Escribe sobre el que más te atrae.",
+            guide: "Elige el sustantivo que más te atraiga. Escribe sobre él: un recuerdo, un ensayo, un relato, lo que quiera ser.",
+            placeholder: "Empieza con...",
+            label: "En qué se convirtió",
+          },
+        },
       },
     },
-    partCount: "{{part}} / {{count}}",
     settle: {
-      hint: "No escribas todavía. Solo observa.",
-      look: "Mira a tu alrededor.",
-      listen: "Ahora escucha.",
-      smell: "Respira hondo. ¿A qué huele?",
-      feel: "Siente lo que te toca.",
       a11y: "Para empezar. {{prompt}}",
       skip: "Estoy listo",
-      open: "La página está abierta. Escribe lo que notaste.",
     },
     timerA11y_one: "Queda aproximadamente {{count}} minuto en esta parte",
     timerA11y_other: "Quedan unos {{count}} minutos en esta parte",
@@ -1237,15 +1360,15 @@ const es: Translations = {
     },
     done: {
       title: "Ejercicio completo",
-      words_one: "{{count}} palabra en tres partes.",
-      words_other: "{{count}} palabras en tres partes.",
+      words_one: "{{count}} palabra escrita.",
+      words_other: "{{count}} palabras escritas.",
       keep: "Guardar como manuscrito",
       keeping: "Guardando...",
       copy: "Copiar texto",
       copied: "Copiado",
       finish: "Listo",
       keepError: "No se pudo guardar tu escritura. Inténtalo de nuevo.",
-      manuscriptTitle: "Ejercicio de escritura, {{date}}",
+      manuscriptTitle: "{{name}}, {{date}}",
       announce: "Ejercicio completo.",
     },
   },

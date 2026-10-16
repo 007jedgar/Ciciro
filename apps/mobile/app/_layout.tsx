@@ -149,7 +149,7 @@ function ThemedStack() {
         <Stack.Screen
           name="writing-exercise"
           options={{
-            title: t("exercise.title"),
+            title: t("exercise.pickTitle"),
             headerShown: false,
             // Swiping away would drop writing that is kept nowhere else: the screen asks before closing.
             gestureEnabled: false,

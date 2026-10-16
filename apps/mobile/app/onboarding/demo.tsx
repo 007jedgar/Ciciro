@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { demoForAnswers, wantsReminderStep } from "../../lib/onboarding";
-import { onboardingParams, parseOnboardingParams, stepsFor, type OnboardingParams } from "../../lib/onboarding-flow";
+import { demoForAnswers } from "../../lib/onboarding";
+import { onboardingParams, parseOnboardingParams, pathAfter, stepsFor, type OnboardingParams } from "../../lib/onboarding-flow";
 import { FocusDemo } from "../../components/onboarding/FocusDemo";
 import { SuggestionsDemo } from "../../components/onboarding/SuggestionsDemo";
 import { ScreenplayDemo } from "../../components/onboarding/ScreenplayDemo";
@@ -15,11 +15,10 @@ export default function OnboardingDemoScreen() {
   const path = demoForAnswers(state.kind, state.obstacles);
   const steps = stepsFor(state.obstacles);
 
+  // Writer's block and creativity hear about the exercises next, then
+  // people who said showing up is the hard part get the reminder form.
   function finish() {
-    const params = onboardingParams(state);
-    // People who said showing up is the hard part get the reminder form next.
-    if (wantsReminderStep(state.obstacles)) router.push({ pathname: "/onboarding/reminder", params });
-    else router.push({ pathname: "/signup", params });
+    router.push({ pathname: pathAfter("demo", state.obstacles), params: onboardingParams(state) });
   }
 
   function skip() {

@@ -115,6 +115,11 @@ const en = {
       },
       unsure: { label: "Not sure yet", description: "Just exploring for now." },
     },
+    exercises: {
+      title: "Writing exercises, too",
+      body: "When ideas are slow or the page stays blank, Ciciro has short guided exercises. Just you, a gentle timer and a page.",
+      find: "You'll find them under + on your manuscripts once you're in.",
+    },
     demo: {
       continue: "Continue",
       focus: {
@@ -203,6 +208,7 @@ const en = {
     loadError: "Could not load manuscripts.",
     foldersLoadError: "Could not load folders.",
     empty: "No manuscripts yet. Start your first one.",
+    emptyExercise: "Or try a writing exercise",
     untitled: "Untitled Manuscript",
     fallbackKind: "Manuscript",
     folderKind: "Folder",
@@ -1178,48 +1184,165 @@ const en = {
     },
   },
   exercise: {
-    menu: "Writing exercise",
-    title: "Observe, react, narrate",
-    lead: "A guided exercise in three quiet parts.",
-    intro:
-      "Find somewhere you can be still. You will begin by only noticing, then write what you noticed, how it made you feel, and a short story built from both.",
-    each_one: "Each writing part is about {{count}} minute.",
-    each_other: "Each writing part is about {{count}} minutes.",
+    menu: "Writing exercises",
+    pickTitle: "Writing exercises",
+    pickLead: "Short, guided ways in for when ideas are slow or the page stays blank. Pick one. It is just you, a gentle timer and a page.",
+    cardMeta_one: "About {{minutes}} min, {{count}} part",
+    cardMeta_other: "About {{minutes}} min, {{count}} parts",
+    allExercises: "All exercises",
+    minutes_one: "{{count}} min",
+    minutes_other: "{{count}} min",
+    total_one: "About {{count}} minute in all. The timers are gentle: nothing locks when one ends.",
+    total_other: "About {{count}} minutes in all. The timers are gentle: nothing locks when one ends.",
     begin: "Begin",
     close: "Close the exercise",
-    parts: {
-      observe: {
-        name: "Observe",
-        blurb: "Look, listen, smell and feel, then write down what you notice.",
-        guide: "Write what you noticed. Plain details, not judgments.",
-        placeholder: "What do you see, hear, smell, feel?",
-        label: "What you noticed",
+    items: {
+      observe_react_narrate: {
+        title: "Observe, react, narrate",
+        tagline: "Notice the room, name the feeling, then build a small story from both.",
+        intro:
+          "Find somewhere you can be still. You will begin by only noticing, then write what you noticed, how it made you feel, and a short story built from both.",
+        settle: {
+          hint: "Don't write yet. Just notice.",
+          open: "The page is open. Write what you noticed.",
+          prompts: {
+            look: "Look around you.",
+            listen: "Now listen.",
+            smell: "Breathe in. What do you smell?",
+            feel: "Feel what is touching you.",
+          },
+        },
+        parts: {
+          observe: {
+            name: "Observe",
+            blurb: "Look, listen, smell and feel, then write down what you notice.",
+            guide: "Write what you noticed. Plain details, not judgments.",
+            placeholder: "What do you see, hear, smell, feel?",
+            label: "What you noticed",
+          },
+          react: {
+            name: "React",
+            blurb: "Write how those things make you feel.",
+            guide: "How do those things make you feel? Follow the feeling.",
+            placeholder: "A memory, a mood, a pull in your chest...",
+            label: "How it felt",
+          },
+          narrate: {
+            name: "Narrate",
+            blurb: "Build a short narrative from what you noticed and felt.",
+            guide: "Make a short story from what you noticed and felt.",
+            placeholder: "Once, in a place like this...",
+            label: "Your story",
+          },
+        },
       },
-      react: {
-        name: "React",
-        blurb: "Write how those things make you feel.",
-        guide: "How do those things make you feel? Follow the feeling.",
-        placeholder: "A memory, a mood, a pull in your chest...",
-        label: "How it felt",
+      pour_it_out: {
+        title: "Pour it out",
+        tagline: "Ten minutes of unfiltered writing to clear your head and find your way in.",
+        intro:
+          "No topic, no plan, no fixing. Write whatever is on top of your mind and keep your hand moving. If you run dry, write that you are stuck until something else turns up. Nobody reads this but you.",
+        credit:
+          "Inspired by Julia Cameron's Morning Pages in The Artist's Way, Peter Elbow's freewriting and Natalie Goldberg's writing practice.",
+        settle: {
+          hint: "Nothing here has to be good.",
+          open: "The page is open. Pour it out.",
+          prompts: {
+            breathe: "Take one slow breath out.",
+            letGo: "Let go of getting it right.",
+            begin: "Begin with whatever is on top.",
+          },
+        },
+        parts: {
+          pages: {
+            name: "Pour it out",
+            blurb: "Write without stopping and without fixing anything.",
+            guide: "Keep going. Don't stop to fix or reread. If you are stuck, write that down.",
+            placeholder: "Whatever is on your mind...",
+            label: "Your pages",
+          },
+        },
       },
-      narrate: {
-        name: "Narrate",
-        blurb: "Build a short narrative from what you noticed and felt.",
-        guide: "Make a short story from what you noticed and felt.",
-        placeholder: "Once, in a place like this...",
-        label: "Your story",
+      one_true_sentence: {
+        title: "One true sentence",
+        tagline: "Start with a single sentence you know is true, then let one lead to the next.",
+        intro:
+          "When a page won't start, begin small. Write one sentence that is true, as plainly as you can, then add the next. You will stop while you still know what comes next, and leave yourself a way back in.",
+        credit:
+          "From Ernest Hemingway's A Moveable Feast, and his habit, described in The Paris Review, of stopping when he knew what would happen next.",
+        parts: {
+          sentence: {
+            name: "One sentence",
+            blurb: "Write the truest sentence you know.",
+            guide: "Write one true sentence. The truest one you know, as plainly as you can.",
+            placeholder: "One true sentence...",
+            label: "The sentence",
+          },
+          onward: {
+            name: "The next ones",
+            blurb: "Add true sentences, one after another.",
+            guide: "Now the next true sentence, and the one after. Keep each one true.",
+            placeholder: "And then...",
+            label: "What came next",
+          },
+          stop: {
+            name: "A way back in",
+            blurb: "Stop while you still know what comes next.",
+            guide: "Stop here, while it is going well. Write a note to yourself about what comes next.",
+            placeholder: "Next, I will...",
+            label: "What comes next",
+          },
+        },
+      },
+      terrible_first_draft: {
+        title: "The terrible first draft",
+        tagline: "Give yourself permission to write badly on purpose, then keep what works.",
+        intro:
+          "Choose something you have been putting off: a scene, a letter, an opening. Write it as badly as you can, with clumsy lines, clichés and no fixing. A rough draft only has to exist.",
+        credit: "After “Shitty First Drafts” in Anne Lamott's Bird by Bird.",
+        parts: {
+          terrible: {
+            name: "The terrible draft",
+            blurb: "Write it badly on purpose.",
+            guide: "Write it badly on purpose. Clumsy lines and clichés are welcome. Nobody is reading.",
+            placeholder: "It was a dark and stormy...",
+            label: "The terrible draft",
+          },
+          keeper: {
+            name: "Find a keeper",
+            blurb: "Pull out the one line that has life in it.",
+            guide: "Read it back. Find one line with a spark in it and write it again as well as you can.",
+            placeholder: "The line worth keeping...",
+            label: "The keeper",
+          },
+        },
+      },
+      noun_list: {
+        title: "A list of nouns",
+        tagline: "List the things that pull at you, then write your way into one.",
+        intro:
+          "Start with ten nouns, one per line: places, objects, creatures, moments. Don't explain them. Then choose the one with the strongest pull and write about it until it turns into something.",
+        credit: "After the lists of nouns Ray Bradbury describes in Zen in the Art of Writing.",
+        parts: {
+          list: {
+            name: "The list",
+            blurb: "Ten nouns that pull at you.",
+            guide: "List ten nouns, one per line. Things from your life that still pull at you. Don't explain.",
+            placeholder: "A place, a thing, a creature from childhood...",
+            label: "The list",
+          },
+          pull: {
+            name: "The pull",
+            blurb: "Write about the one that pulls hardest.",
+            guide: "Pick the noun with the strongest pull. Write about it: a memory, an essay, a story, whatever it wants to be.",
+            placeholder: "It begins with...",
+            label: "What it became",
+          },
+        },
       },
     },
-    partCount: "{{part}} / {{count}}",
     settle: {
-      hint: "Don't write yet. Just notice.",
-      look: "Look around you.",
-      listen: "Now listen.",
-      smell: "Breathe in. What do you smell?",
-      feel: "Feel what is touching you.",
       a11y: "Settling in. {{prompt}}",
       skip: "I'm ready",
-      open: "The page is open. Write what you noticed.",
     },
     timerA11y_one: "About {{count}} minute left in this part",
     timerA11y_other: "About {{count}} minutes left in this part",
@@ -1235,15 +1358,15 @@ const en = {
     },
     done: {
       title: "Exercise complete",
-      words_one: "{{count}} word across three parts.",
-      words_other: "{{count}} words across three parts.",
+      words_one: "{{count}} word written.",
+      words_other: "{{count}} words written.",
       keep: "Keep as a manuscript",
       keeping: "Saving...",
       copy: "Copy text",
       copied: "Copied",
       finish: "Done",
       keepError: "Could not save your writing. Try again.",
-      manuscriptTitle: "Writing exercise, {{date}}",
+      manuscriptTitle: "{{name}}, {{date}}",
       announce: "Exercise complete.",
     },
   },

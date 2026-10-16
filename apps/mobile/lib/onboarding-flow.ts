@@ -4,7 +4,7 @@
 // when the sign-up really created an account.
 
 import { normalizeKind, type ManuscriptKind } from "./manuscript-kind";
-import { parseObstacles, serializeObstacles, wantsReminderStep, type Obstacle } from "./onboarding";
+import { parseObstacles, serializeObstacles, wantsExercisesStep, wantsReminderStep, type Obstacle } from "./onboarding";
 import {
   DEFAULT_REMINDER_MINUTE,
   newWritingReminder,
@@ -57,10 +57,26 @@ export function onboardingParams(state: Partial<OnboardingState>): Record<string
   return out;
 }
 
-export const ONBOARDING_STEPS = ["goal", "obstacle", "look", "demo", "reminder", "account"] as const;
+export const ONBOARDING_STEPS = ["goal", "obstacle", "look", "demo", "exercises", "reminder", "account"] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
-/** The steps this person will see: the reminder step is there only when their obstacles ask for it. */
+/**
+ * The steps this person will see: the exercises step is there only for
+ * creativity or writer's block, and the reminder step only when their obstacles
+ * ask for it.
+ */
 export function stepsFor(obstacles: readonly Obstacle[]): OnboardingStep[] {
-  return ONBOARDING_STEPS.filter((step) => step !== "reminder" || wantsReminderStep(obstacles));
+  return ONBOARDING_STEPS.filter(
+    (step) =>
+      (step !== "exercises" || wantsExercisesStep(obstacles)) && (step !== "reminder" || wantsReminderStep(obstacles))
+  );
+}
+
+/** Where the flow goes after `step` for these answers: the next step this person sees, with signup after the last. */
+export function pathAfter(step: OnboardingStep, obstacles: readonly Obstacle[]): "/onboarding/exercises" | "/onboarding/reminder" | "/signup" {
+  const steps = stepsFor(obstacles);
+  const next = steps[steps.indexOf(step) + 1];
+  if (next === "exercises") return "/onboarding/exercises";
+  if (next === "reminder") return "/onboarding/reminder";
+  return "/signup";
 }

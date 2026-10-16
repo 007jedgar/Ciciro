@@ -209,6 +209,11 @@ function ManuscriptsScreenContent() {
     router.push("/new-manuscript");
   }
 
+  function openExercises(surface: "library" | "library_empty") {
+    getAnalytics().track("cta_clicked", { cta: "writing_exercise", surface });
+    router.push("/writing-exercise");
+  }
+
   const newItems: NewMenuItem[] = [
     {
       key: "manuscript",
@@ -226,10 +231,7 @@ function ManuscriptsScreenContent() {
       key: "exercise",
       label: t("exercise.menu"),
       Icon: FocusIcon,
-      onPress: () => {
-        getAnalytics().track("cta_clicked", { cta: "writing_exercise", surface: "library" });
-        router.push("/writing-exercise");
-      },
+      onPress: () => openExercises("library"),
     },
     {
       key: "folder",
@@ -334,6 +336,15 @@ function ManuscriptsScreenContent() {
                   accessibilityLabel={t("manuscripts.newManuscript")}
                 >
                   <Text style={layout.primaryBtnText}>{t("manuscripts.newManuscript")}</Text>
+                </TapPressable>
+                <TapPressable
+                  feedback="dim"
+                  onPress={() => openExercises("library_empty")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("manuscripts.emptyExercise")}
+                  style={{ alignSelf: "center", paddingVertical: 12, paddingHorizontal: 8, marginTop: 4 }}
+                >
+                  <Text style={{ color: colors.accent, fontSize: 16 }}>{t("manuscripts.emptyExercise")}</Text>
                 </TapPressable>
               </View>
             )

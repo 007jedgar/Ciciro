@@ -1,4 +1,7 @@
+import { exerciseById, type ExerciseDef } from "../lib/writing-exercise";
 import { keepExerciseAsManuscript } from "../lib/writing-exercise-save";
+
+const exercise = exerciseById("observe_react_narrate") as ExerciseDef;
 
 const labels = { observe: "Noticed", react: "Felt", narrate: "Story" };
 const texts = { observe: "Rain.", react: "Calm.", narrate: "Once." };
@@ -22,7 +25,7 @@ describe("keepExerciseAsManuscript", () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     const onCreated = jest.fn();
 
-    const result = await keepExerciseAsManuscript({ texts, labels, title: "Exercise", author: "Ana", onCreated });
+    const result = await keepExerciseAsManuscript({ exercise, texts, labels, title: "Exercise", author: "Ana", onCreated });
 
     expect(result.id).toBe("p1");
     expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
@@ -45,6 +48,7 @@ describe("keepExerciseAsManuscript", () => {
     const onCreated = jest.fn();
 
     await keepExerciseAsManuscript({
+      exercise,
       texts,
       labels,
       title: "Exercise",
@@ -67,8 +71,26 @@ describe("keepExerciseAsManuscript", () => {
     const onCreated = jest.fn();
 
     await expect(
-      keepExerciseAsManuscript({ texts, labels, title: "Exercise", author: "Ana", onCreated })
+      keepExerciseAsManuscript({ exercise, texts, labels, title: "Exercise", author: "Ana", onCreated })
     ).rejects.toBeDefined();
     expect(onCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves a one-part exercise as plain paragraphs with no heading", async () => {
+    const fetchMock = jest.fn(async (url: string) =>
+      url.endsWith("/api/projects") ? jsonResponse(project, 201) : jsonResponse({ id: "c1" })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await keepExerciseAsManuscript({
+      exercise: exerciseById("pour_it_out") as ExerciseDef,
+      texts: { pages: "Rain.\n\nMore rain." },
+      labels: { pages: "Your pages" },
+      title: "Pour it out, October 16",
+      author: "Ana",
+    });
+
+    const patch = JSON.parse(((fetchMock.mock.calls[1] as unknown[])[1] as { body: string }).body);
+    expect(patch.content).toBe("<p>Rain.</p><p>More rain.</p>");
   });
 });
