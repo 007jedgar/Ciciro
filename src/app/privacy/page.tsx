@@ -102,7 +102,12 @@ export default async function PrivacyPage() {
             for product analytics - counts of which features get used, never your manuscript
             text, chat content, or titles - and it stays off until you say yes; see
             &ldquo;Cookies and local storage&rdquo; below for exactly what that does and
-            doesn&apos;t include, and how to change your mind. No other error-reporting or
+            doesn&apos;t include, and how to change your mind. (The phone app asks first in
+            the European Economic Area, the UK, Switzerland, California, Washington and
+            Oregon, and wherever it can&apos;t tell; elsewhere in the United States its
+            analytics starts on, and Settings, then Privacy choices, turns it off at once.)
+            That analytics data is only used to improve Ciciro, and is never sold or shared
+            with advertisers or data brokers. No other error-reporting or
             telemetry service is wired in, and no email-sending is set up, so your writing still
             can&apos;t end up in a crash report or an email body. Dictation and read-aloud use
             your device&apos;s or browser&apos;s built-in speech

@@ -65,6 +65,7 @@ import { SelectCheck, SelectChip, SelectLabel } from "../components/SelectChip";
 import { TapPressable } from "../components/TapPressable";
 import { Group, Hairline, InfoRow, SectionHeader, SheetRow } from "../components/SettingsParts";
 import { useListeningSummary } from "../lib/use-listening-summary";
+import { useAnalyticsAllowed } from "../lib/use-analytics-allowed";
 
 /** The theme sheet shows the themes two to a row. */
 const themeRows = THEME_META.reduce<(typeof THEME_META)[]>((rows, theme, i) => {
@@ -763,7 +764,8 @@ export default function SettingsScreen() {
     : t("wordGoal.off");
   const daysWritten = useDaysWrittenInLast7({ enabled: Boolean(user) });
   const historyValue = daysWritten == null ? "" : t("writingHistory.daysOfLast7", { count: daysWritten });
-  const privacyChoicesValue = settings.analyticsEnabled ? t("settings.privacyOn") : t("settings.privacyOff");
+  const analyticsAllowed = useAnalyticsAllowed();
+  const privacyChoicesValue = analyticsAllowed ? t("settings.privacyOn") : t("settings.privacyOff");
   const locale = currentLocale();
   const localeName = LOCALE_OPTIONS.find((opt) => opt.id === locale)?.nativeName ?? locale;
 

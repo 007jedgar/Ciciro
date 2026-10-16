@@ -384,7 +384,9 @@ const zh: Translations = {
   },
   consent: {
     title: "你的隐私选择",
-    body: "Ciciro 运行应用始终需要一些东西：登录、安全性，以及你设置的偏好，比如主题。分析不同——在你同意之前它是关闭的，并且绝不包括你的手稿文本、聊天内容或标题。你可以随时在设置中改变想法。",
+    body: "Ciciro 希望统计哪些功能被使用，以便改进应用。其中绝不包括你的手稿文本、聊天内容或标题。这些数据仅用于我们自己的分析：我们绝不出售，也绝不与广告商或数据经纪人共享。",
+    bodyProvider: "我们的分析服务提供商 PostHog 仅代表我们处理这些数据。",
+    bodyFooter: "无论你如何选择，登录、安全性和你的偏好设置都能正常使用。你可以随时在“设置”的“隐私选择”中改变想法。",
     allow: "允许",
     dontAllow: "不允许",
     choose: "选择",
@@ -399,6 +401,10 @@ const zh: Translations = {
     statusAllowed: "你于 {{date}} 允许了分析。",
     statusNotAllowed: "你于 {{date}} 选择不允许分析。",
     statusUndecided: "你尚未在此设备上做出选择。",
+    promise: "我们不会出售这些数据，也不会与广告商或数据经纪人共享。它们仅用于改进 Ciciro，并由我们的分析服务提供商 PostHog 代表我们处理。",
+    statusDefaultOn: "在你所在的地区，分析默认开启。你可以随时关闭，并立即生效。",
+    statusAccountOff: "你的账户已关闭分析。你可以在这里开启。",
+    policy: "阅读隐私政策",
   },
   billing: {
     title: "Ciciro Pro",

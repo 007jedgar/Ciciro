@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { TapPressable } from "./TapPressable";
 import { switchColors } from "../lib/switch-theme";
 import * as haptics from "../lib/haptics";
+import { useAppTheme } from "../lib/settings";
 import type { ColorTokens } from "../lib/theme";
 import type { ConsentCategories } from "../lib/consent";
 
@@ -46,29 +47,31 @@ function CategoryRow({
   );
 }
 
-function EqualButton({
+function ChoiceButton({
   label,
-  colors,
   onPress,
+  primary,
   style,
 }: {
   label: string;
-  colors: ChoiceColors;
   onPress: () => void;
+  /** The filled, accent button; otherwise the quiet outlined one. */
+  primary?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors, layout } = useAppTheme();
   return (
     <TapPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       style={[
+        primary ? layout.primaryBtn : [styles.secondaryButton, { backgroundColor: colors.panel, borderColor: colors.field }],
         styles.button,
-        { backgroundColor: colors.panel, borderColor: colors.line },
         style,
       ]}
     >
-      <Text style={[styles.buttonLabel, { color: colors.ink }]} numberOfLines={1}>
+      <Text style={primary ? layout.primaryBtnText : [layout.primaryBtnText, { color: colors.ink }]} numberOfLines={1}>
         {label}
       </Text>
     </TapPressable>
@@ -76,12 +79,14 @@ function EqualButton({
 }
 
 /**
- * The shared privacy/consent decision surface: used by the auto-shown
- * ConsentGate sheet, the Settings "Privacy choices" screen, and nowhere
- * else. "Allow" / "Don't allow" are styled identically (equal weight, no
- * dark pattern), with "Choose" revealing the per-category view - today just
- * the Analytics toggle, since Necessary and Functional are always on. See
- * docs/analytics.md and AGENTS.md.
+ * The analytics consent prompt's content: used by the auto-shown ConsentGate
+ * sheet and nowhere else (Settings > Privacy choices is a plain switch, see
+ * app/privacy-choices.tsx). "Allow" is the primary button and "Don't allow"
+ * the quiet one beside it, both the same size and one tap; "Choose" reveals
+ * the per-category view - today just the Analytics toggle, since Necessary
+ * and Functional are always on. The copy says plainly what analytics is for
+ * and that it is never sold or shared for advertising; keep it true to
+ * docs/analytics.md ("What the provider holds") when either changes.
  */
 export function PrivacyChoices({
   analyticsEnabled,
@@ -110,12 +115,8 @@ export function PrivacyChoices({
           value={analytics}
           onValueChange={setAnalytics}
         />
-        <EqualButton
-          label={t("consent.save")}
-          colors={colors}
-          onPress={() => onDecide({ analytics })}
-          style={{ marginTop: 16 }}
-        />
+        <Text style={[styles.promise, { color: colors.inkSoft }]}>{t("consent.promise")}</Text>
+        <ChoiceButton label={t("consent.save")} onPress={() => onDecide({ analytics })} primary style={{ marginTop: 16 }} />
       </View>
     );
   }
@@ -123,20 +124,12 @@ export function PrivacyChoices({
   return (
     <View>
       <Text style={[styles.title, { color: colors.ink }]}>{t("consent.title")}</Text>
-      <Text style={[styles.body, { color: colors.inkSoft }]}>{t("consent.body")}</Text>
+      <Text style={[styles.body, { color: colors.ink }]}>{t("consent.body")}</Text>
+      <Text style={[styles.body, { color: colors.inkSoft }]}>{t("consent.bodyProvider")}</Text>
+      <Text style={[styles.body, { color: colors.inkSoft }]}>{t("consent.bodyFooter")}</Text>
       <View style={styles.buttonRow}>
-        <EqualButton
-          label={t("consent.dontAllow")}
-          colors={colors}
-          onPress={() => onDecide({ analytics: false })}
-          style={{ flex: 1 }}
-        />
-        <EqualButton
-          label={t("consent.allow")}
-          colors={colors}
-          onPress={() => onDecide({ analytics: true })}
-          style={{ flex: 1 }}
-        />
+        <ChoiceButton label={t("consent.dontAllow")} onPress={() => onDecide({ analytics: false })} style={{ flex: 1 }} />
+        <ChoiceButton label={t("consent.allow")} onPress={() => onDecide({ analytics: true })} primary style={{ flex: 1 }} />
       </View>
       <TapPressable
         onPress={() => setCustomizing(true)}
@@ -153,17 +146,16 @@ export function PrivacyChoices({
 
 const styles = StyleSheet.create({
   title: { fontSize: 19, fontWeight: "600", marginBottom: 8 },
-  body: { fontSize: 14, lineHeight: 20, marginBottom: 4 },
-  buttonRow: { flexDirection: "row", gap: 10, marginTop: 18 },
+  body: { fontSize: 14, lineHeight: 20, marginBottom: 8 },
+  promise: { fontSize: 13, lineHeight: 18, marginTop: 8 },
+  buttonRow: { flexDirection: "row", gap: 10, marginTop: 14 },
   button: {
     minHeight: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
+    marginTop: 0,
   },
-  buttonLabel: { fontSize: 16, fontWeight: "600" },
+  secondaryButton: { borderRadius: 8, borderWidth: 1, alignItems: "center" },
   chooseLink: { marginTop: 14, alignSelf: "center", paddingVertical: 8, paddingHorizontal: 12 },
   chooseLabel: { fontSize: 15, fontWeight: "600" },
   row: {

@@ -393,7 +393,9 @@ const es: Translations = {
   },
   consent: {
     title: "Tus opciones de privacidad",
-    body: "Ciciro siempre usa algunas cosas para funcionar: iniciar sesión, la seguridad y las preferencias que elijes, como tu tema. El análisis es distinto: está desactivado hasta que lo autorizas, y nunca incluye el texto de tu manuscrito, el contenido del chat ni los títulos. Puedes cambiar de opinión cuando quieras desde Configuración.",
+    body: "A Ciciro le gustaría contar qué funciones se usan para poder mejorar la app. Nunca incluye el texto de tu manuscrito, el contenido del chat ni los títulos. Es solo para nuestro propio análisis: nunca lo vendemos ni lo compartimos con anunciantes ni intermediarios de datos.",
+    bodyProvider: "Nuestro proveedor de análisis, PostHog, lo procesa en nuestro nombre y solo para nosotros.",
+    bodyFooter: "Iniciar sesión, la seguridad y tus preferencias funcionan igual en ambos casos. Puedes cambiar de opinión cuando quieras en Configuración, en Opciones de privacidad.",
     allow: "Permitir",
     dontAllow: "No permitir",
     choose: "Elegir",
@@ -408,6 +410,10 @@ const es: Translations = {
     statusAllowed: "Permitiste el análisis el {{date}}.",
     statusNotAllowed: "Elegiste no permitir el análisis el {{date}}.",
     statusUndecided: "Todavía no has decidido en este dispositivo.",
+    promise: "No vendemos estos datos ni los compartimos con anunciantes ni intermediarios de datos. Solo se usan para mejorar Ciciro, y nuestro proveedor de análisis, PostHog, los procesa en nuestro nombre.",
+    statusDefaultOn: "El análisis está activado de forma predeterminada donde estás. Desactívalo cuando quieras y se detiene al instante.",
+    statusAccountOff: "El análisis está desactivado para tu cuenta. Puedes activarlo aquí.",
+    policy: "Leer la política de privacidad",
   },
   billing: {
     title: "Ciciro Pro",
