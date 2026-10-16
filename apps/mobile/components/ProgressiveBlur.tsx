@@ -3,6 +3,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { alpha } from "./Glass";
+import { BLUR_SUPPORTED } from "../lib/blur-support";
 
 /**
  * Blur layers from weakest to strongest. Each one is masked to fade out a
@@ -18,7 +19,11 @@ const LAYERS = [
 /**
  * A blur that is strongest at the top and melts away at the bottom, with a
  * light wash of `color` so text on top stays readable while what scrolls
- * underneath still shows through.
+ * underneath still shows through. Android cannot blur what scrolls under a
+ * header (`lib/blur-support.ts`), so there it is a plain solid band over the
+ * header's own box, ignoring the tail `style` asks for: what scrolls under the
+ * header is cut off cleanly, as under any Android app bar, and the first row at
+ * rest keeps its top edge.
  */
 export function ProgressiveBlur({
   dark,
@@ -29,6 +34,9 @@ export function ProgressiveBlur({
   color: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  if (!BLUR_SUPPORTED) {
+    return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color }]} />;
+  }
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
       {LAYERS.map(({ intensity, solidUntil }) => (
@@ -46,7 +54,6 @@ export function ProgressiveBlur({
           <BlurView
             tint={dark ? "dark" : "light"}
             intensity={intensity}
-            blurMethod="dimezisBlurView"
             style={StyleSheet.absoluteFill}
           />
         </MaskedView>

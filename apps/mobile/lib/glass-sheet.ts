@@ -99,12 +99,15 @@ function withAlpha(hex: string, a: number): string {
 
 /**
  * Frosted pane wash: translucent so the BlurView reads as glass, denser at the
- * bottom so type on the sheet still sits on a solid-enough ground.
+ * bottom so type on the sheet still sits on a solid-enough ground. `solid` is
+ * for a platform that cannot blur (Android, `lib/blur-support.ts`): with nothing
+ * frosting what is behind the sheet, the wash alone has to hide it.
  */
-export function glassSheetFillColors(dark: boolean, base?: string): string[] {
+export function glassSheetFillColors(dark: boolean, base?: string, solid = false): string[] {
   const panel = base ?? (dark ? "#20262e" : "#f6f8fb");
   const top = mixHex(panel, "#ffffff", dark ? 0.14 : 0.48);
   const bottom = mixHex(panel, "#000000", dark ? 0.28 : 0.06);
+  if (solid) return [top, bottom];
   return [withAlpha(top, dark ? 0.48 : 0.4), withAlpha(bottom, dark ? 0.72 : 0.62)];
 }
 

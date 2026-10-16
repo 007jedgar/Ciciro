@@ -20,6 +20,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
+import { BLUR_SUPPORTED } from "../lib/blur-support";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polyline } from "react-native-svg";
 import { useRouter } from "expo-router";
@@ -380,12 +381,9 @@ export function AuthScreen({
         {/* untransformed wrapper we measure for the natural pane rect */}
         <View style={styles.paneWrap} onLayout={onPaneLayout} collapsable={false}>
           <Animated.View style={[styles.pane, { borderColor: colors.line }, paneStyle]}>
-            <BlurView
-              style={StyleSheet.absoluteFill}
-              tint={dark ? "dark" : "light"}
-              intensity={Platform.OS === "android" ? 40 : 24}
-              blurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
-            />
+            {BLUR_SUPPORTED ? (
+              <BlurView style={StyleSheet.absoluteFill} tint={dark ? "dark" : "light"} intensity={24} />
+            ) : null}
             <View
               style={[StyleSheet.absoluteFill, { backgroundColor: colors.panel, opacity: 0.62 }]}
             />

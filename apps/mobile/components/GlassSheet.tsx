@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import { BLUR_SUPPORTED } from "../lib/blur-support";
 import { useTranslation } from "react-i18next";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
@@ -339,12 +340,13 @@ export function GlassSheet({
                   },
                 ]}
               >
-                <BlurView
-                  tint={dark ? "dark" : "light"}
-                  intensity={dark ? 56 : 72}
-                  blurMethod="dimezisBlurView"
-                  style={StyleSheet.absoluteFill}
-                />
+                {BLUR_SUPPORTED ? (
+                  <BlurView
+                    tint={dark ? "dark" : "light"}
+                    intensity={dark ? 56 : 72}
+                    style={StyleSheet.absoluteFill}
+                  />
+                ) : null}
               </View>
               <GlassSheetBorder
                 width={borderSize.width}
