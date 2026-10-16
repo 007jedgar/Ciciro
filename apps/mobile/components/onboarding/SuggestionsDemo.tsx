@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Pressable, Text, View } from "react-native";
-import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useCoveringKeyboard } from "../../lib/use-covering-keyboard";
 import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -60,7 +61,7 @@ export function SuggestionsDemo({
   const [reviewOpen, setReviewOpen] = useState(false);
   const completedRef = useRef(false);
   const editorRef = useRef<EnrichedTextInputInstance | null>(null);
-  const keyboardVisible = useKeyboardState((state) => state.isVisible);
+  const keyboardVisible = useCoveringKeyboard();
   const suggestions = useMemo(() => listSuggestions(html), [html]);
   useOnboardingChrome({ step: "demo", steps, onBack: () => backOr("/"), onSkip });
 

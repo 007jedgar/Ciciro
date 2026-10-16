@@ -1,4 +1,14 @@
-import { keyboardHideProgress, tabBubble } from "../lib/manuscript-tab-bar";
+import { isRealKeyboard, keyboardHideProgress, tabBubble } from "../lib/manuscript-tab-bar";
+
+describe("isRealKeyboard", () => {
+  it("is false for a floating add-on and true for a keyboard that covers the bottom", () => {
+    expect(isRealKeyboard(0)).toBe(false);
+    expect(isRealKeyboard(60)).toBe(false);
+    expect(isRealKeyboard(-60)).toBe(false);
+    expect(isRealKeyboard(120)).toBe(true);
+    expect(isRealKeyboard(-300)).toBe(true);
+  });
+});
 
 describe("keyboardHideProgress", () => {
   it("stays visible when no keyboard is up", () => {

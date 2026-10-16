@@ -23,6 +23,16 @@ export function keyboardHideProgress(keyboardHeight: number): number {
   return Math.min(1, Math.max(0, t));
 }
 
+/**
+ * Whether an Android keyboard of this height (dp) is a real one that covers the bottom of the
+ * screen, rather than a floating add-on (see above) that leaves it free. Plain JS, for the
+ * places that lay out around the keyboard rather than animate with it; keep the number in step
+ * with `keyboardHideProgress`'s first threshold.
+ */
+export function isRealKeyboard(keyboardHeight: number): boolean {
+  return Math.abs(keyboardHeight) >= 120;
+}
+
 /** The selected-tab bubble's frame at a (possibly fractional) tab position. */
 export type TabBubble = {
   left: number;

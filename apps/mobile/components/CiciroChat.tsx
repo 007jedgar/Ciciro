@@ -38,6 +38,7 @@ import {
 } from "../lib/chat-clear";
 import { splitErrorFooter, type ChatFailure } from "../lib/chat-errors";
 import { insertionKey } from "../lib/chat-insert";
+import { isRealKeyboard } from "../lib/manuscript-tab-bar";
 import {
   CHAT_JUMP_FADE_SCREENS,
   CHAT_JUMP_START_SCREENS,
@@ -561,7 +562,11 @@ export function CiciroChat({
    * reserves room for the floating tab bar; open, that reserve would be a dead
    * gap over the keyboard, so the sticky offset gives it back.
    */
-  const keyboardHeight = useKeyboardState((state) => (state.isVisible ? state.height : 0));
+  // On Android a floating IME add-on (the stylus toolbar, voice typing's strip) reports an IME
+  // inset but covers nothing of the dock, so only a real keyboard counts (`isRealKeyboard`).
+  const keyboardHeight = useKeyboardState((state) =>
+    state.isVisible && (Platform.OS !== "android" || isRealKeyboard(state.height)) ? state.height : 0
+  );
   const stickyOffset = Math.max(0, bottomInset - KEYBOARD_GAP);
   const hasSuggestions = Boolean(quickActions?.length && onQuickAction);
   // An empty chat starts with the chips out; either way the Suggestions button folds them.
@@ -1004,6 +1009,7 @@ export function CiciroChat({
       */}
       <KeyboardStickyView
         testID="chat-dock"
+        enabled={keyboardHeight > 0 || Platform.OS !== "android"}
         offset={{ closed: 0, opened: stickyOffset }}
         pointerEvents="box-none"
         style={styles.dockWrap}
