@@ -848,7 +848,7 @@ const zh: Translations = {
       read_one: "识别 {{count}} 页",
       read_other: "识别 {{count}} 页",
       tooMany: "一次扫描最多 {{max}} 页，多出的照片已忽略。",
-      offline: "你已离线。照片会保留在这里，联网后即可开始识别。",
+      offline: "你已离线。照片会保留在这里，联网后点按“识别”即可。",
       privacy: "照片由 AI 识别，不会被存储，你离开时会从手机中删除。",
       cameraOff: "相机权限已关闭。请在“设置”中允许，以拍摄笔记，或从相册选择。",
       cameraDenied: "Ciciro 需要使用相机来拍摄你的笔记。你也可以从相册选择照片。",

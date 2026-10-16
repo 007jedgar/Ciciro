@@ -247,6 +247,43 @@ export function appendScannedNotes(existing: string, text: string, date: string)
   return base ? `${base}\n\n${section}\n` : `${section}\n`;
 }
 
+/** A file name that keeps every letter and digit of any script, so 张三 and 李四 are two names, not two "unnamed"s. */
+export function entrySlug(name: string): string {
+  return (
+    name
+      .normalize("NFC")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "") || "unnamed"
+  );
+}
+
+const NEW_ENTRY_PATHS_MAX = 50;
+
+/**
+ * The paths a new character or plot line may take, first choice first: the
+ * bible's usual Latin-letter name when the name has any (so a scan joins the
+ * file the web made for the same name), then one that keeps every letter,
+ * then that one numbered.
+ */
+export function newEntryPaths(kind: "character" | "plot", name: string): string[] {
+  const folder = kind === "character" ? "characters" : "plot";
+  const latin = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const full = entrySlug(name);
+  const slugs = [...new Set([latin, full].filter(Boolean))];
+  for (let n = 2; slugs.length < NEW_ENTRY_PATHS_MAX; n++) slugs.push(`${full}-${n}`);
+  return slugs.map((slug) => `${folder}/${slug}.md`);
+}
+
+/** Whether an existing file is the entry `name` names: its "# Title" says the same name, or it has no title to say otherwise. */
+export function isEntryFor(content: string, name: string): boolean {
+  const title = /^#\s+(.+)$/m.exec(content)?.[1]?.trim();
+  return !title || entrySlug(title) === entrySlug(name);
+}
+
 // --- Canvas ---------------------------------------------------------------
 
 const TITLE_SOFT_MAX = 80;

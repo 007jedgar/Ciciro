@@ -217,6 +217,46 @@ describe("scan notes", () => {
       expect(file!.content).toContain("- afraid of boats");
     });
 
+    it("gives two different non-Latin names a file each instead of one shared unnamed.md", async () => {
+      const { user, project } = await seed();
+      const first = await applyScannedNotes(project.id, user, {
+        text: "- 住在河边",
+        destination: { type: "bible", mode: "new", kind: "character", name: "张三" },
+      });
+      const second = await applyScannedNotes(project.id, user, {
+        text: "- 是个厨师",
+        destination: { type: "bible", mode: "new", kind: "character", name: "李四" },
+      });
+      expect(first).toMatchObject({ path: "characters/张三.md", created: true });
+      expect(second).toMatchObject({ path: "characters/李四.md", created: true });
+      const zhang = (await getBibleFile(project.id, "characters/张三.md"))!.content;
+      const li = (await getBibleFile(project.id, "characters/李四.md"))!.content;
+      expect(zhang.startsWith("# 张三\n")).toBe(true);
+      expect(zhang).toContain("- 住在河边");
+      expect(zhang).not.toContain("- 是个厨师");
+      expect(li.startsWith("# 李四\n")).toBe(true);
+      expect(li).toContain("- 是个厨师");
+      expect(await getBibleFile(project.id, "characters/unnamed.md")).toBeNull();
+
+      const again = await applyScannedNotes(project.id, user, {
+        text: "- 怕水",
+        destination: { type: "bible", mode: "new", kind: "character", name: "张三" },
+      });
+      expect(again).toMatchObject({ path: "characters/张三.md", created: false });
+      expect((await getBibleFile(project.id, "characters/张三.md"))!.content).toContain("- 怕水");
+    });
+
+    it("never joins a file whose title names someone else, even at the same path", async () => {
+      const { user, project } = await seed();
+      await writeBibleFile(project.id, "characters/jos.md", "# Jos\n> Character\n");
+      const result = await applyScannedNotes(project.id, user, {
+        text: "- el hermano mayor",
+        destination: { type: "bible", mode: "new", kind: "character", name: "José" },
+      });
+      expect(result).toMatchObject({ path: "characters/josé.md", created: true });
+      expect((await getBibleFile(project.id, "characters/jos.md"))!.content).toBe("# Jos\n> Character\n");
+    });
+
     it("creates a plot line the same way", async () => {
       const { user, project } = await seed();
       const result = await applyScannedNotes(project.id, user, {

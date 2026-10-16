@@ -6,11 +6,11 @@ import { EDITOR_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { meterAiRun, refundAiRun } from "@/lib/entitlements";
 import { SCAN_NOTES_SYSTEM } from "@/lib/prompts";
 import {
-  createNamedBibleFile,
+  emptyCharacterFile,
+  emptyPlotLineFile,
   ensureBible,
   getBibleFile,
   normalizeBiblePath,
-  slugify,
   writeBibleFile,
 } from "@/lib/bible";
 import { CANVAS_CARDS_MAX } from "@/lib/canvas-view";
@@ -23,7 +23,9 @@ import {
   cardRoom,
   combinePages,
   countOutlineCards,
+  isEntryFor,
   layoutScannedOutline,
+  newEntryPaths,
   notesToOutline,
   parsePageReading,
   parseScanApply,
@@ -172,6 +174,10 @@ async function appendToBibleFile(projectId: string, path: string, text: string) 
   throw new AuthError("That file keeps changing. Try adding the notes again.", 409);
 }
 
+function newEntryFile(kind: "character" | "plot", name: string): string {
+  return kind === "character" ? emptyCharacterFile(name) : emptyPlotLineFile(name);
+}
+
 async function addToBible(
   projectId: string,
   destination: Extract<ScanDestination, { type: "bible" }>,
@@ -188,12 +194,16 @@ async function addToBible(
     const saved = await appendToBibleFile(projectId, path, text);
     return { destination: "bible", ...saved, created: false };
   }
-  // A new entry never replaces an existing file with the same name: the notes join it instead.
-  const path = `${destination.kind === "character" ? "characters" : "plot"}/${slugify(destination.name)}.md`;
-  const existing = await getBibleFile(projectId, path);
-  if (!existing) await createNamedBibleFile(projectId, destination.kind, destination.name);
-  const saved = await appendToBibleFile(projectId, path, text);
-  return { destination: "bible", ...saved, created: !existing };
+  // A new entry never replaces an existing file: the notes join the one for the same
+  // name, and a different name that would land on the same path takes the next free one.
+  for (const path of newEntryPaths(destination.kind, destination.name)) {
+    const existing = await getBibleFile(projectId, path);
+    if (existing && !isEntryFor(existing.content, destination.name)) continue;
+    if (!existing) await writeBibleFile(projectId, path, newEntryFile(destination.kind, destination.name));
+    const saved = await appendToBibleFile(projectId, path, text);
+    return { destination: "bible", ...saved, created: !existing };
+  }
+  throw new AuthError("There are too many entries with that name. Choose another name.", 409);
 }
 
 async function addToCanvas(projectId: string, text: string): Promise<ScanApplyResult> {

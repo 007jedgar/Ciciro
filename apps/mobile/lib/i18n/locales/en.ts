@@ -859,7 +859,7 @@ const en = {
       read_one: "Read {{count}} page",
       read_other: "Read {{count}} pages",
       tooMany: "A scan holds {{max}} pages. The extra photos were left out.",
-      offline: "You're offline. Your photos are kept here, and reading starts once you're connected.",
+      offline: "You're offline. Your photos are kept here. Tap Read once you're connected.",
       privacy: "Photos are read by AI and not stored. They're removed from this phone when you leave.",
       cameraOff:
         "Camera access is off. Allow it in Settings to photograph your notes, or choose from your library.",

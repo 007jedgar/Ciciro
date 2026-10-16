@@ -861,7 +861,7 @@ const es: Translations = {
       read_one: "Leer {{count}} página",
       read_other: "Leer {{count}} páginas",
       tooMany: "Un escaneo admite {{max}} páginas. Se dejaron fuera las fotos sobrantes.",
-      offline: "No tienes conexión. Tus fotos se conservan aquí y la lectura empieza cuando te conectes.",
+      offline: "No tienes conexión. Tus fotos se conservan aquí. Toca Leer cuando te conectes.",
       privacy: "Una IA lee las fotos y no se guardan. Se borran de este teléfono al salir.",
       cameraOff:
         "El acceso a la cámara está desactivado. Permítelo en Ajustes para fotografiar tus notas, o elige desde la fototeca.",

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  entrySlug,
+  isEntryFor,
+  newEntryPaths,
   SCAN_TEXT_MAX,
   appendScannedNotes,
   boardOrigin,
@@ -360,5 +363,26 @@ describe("boardOrigin and layoutScannedOutline", () => {
     const placed = layoutScannedOutline(notesToOutline(text), { x: 80, top: 80 });
     const spots = new Set(placed.map((card) => `${card.x},${card.y}`));
     expect(spots.size).toBe(placed.length);
+  });
+});
+
+describe("new entry paths", () => {
+  it("keeps the bible's usual name for a Latin name, then one that keeps every letter", () => {
+    expect(newEntryPaths("character", "Mara Vale").slice(0, 2)).toEqual(["characters/mara-vale.md", "characters/mara-vale-2.md"]);
+    expect(newEntryPaths("plot", "José").slice(0, 3)).toEqual(["plot/jos.md", "plot/josé.md", "plot/josé-2.md"]);
+  });
+
+  it("gives different non-Latin names different paths", () => {
+    expect(newEntryPaths("character", "张三")[0]).toBe("characters/张三.md");
+    expect(newEntryPaths("character", "李四")[0]).toBe("characters/李四.md");
+    expect(entrySlug("राम कुमार")).toBe("राम-कुमार");
+    expect(entrySlug("!!!")).toBe("unnamed");
+  });
+
+  it("matches a file to a name by its title", () => {
+    expect(isEntryFor("# 张三\n> Character\n", "张三")).toBe(true);
+    expect(isEntryFor("# 张三\n> Character\n", "李四")).toBe(false);
+    expect(isEntryFor("# Mara Vale\n", "mara  vale")).toBe(true);
+    expect(isEntryFor("no title here\n", "Anyone")).toBe(true);
   });
 });
