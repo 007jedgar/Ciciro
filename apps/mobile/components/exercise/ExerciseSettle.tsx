@@ -9,7 +9,7 @@ import { useAppTheme } from "../../lib/settings";
 import { fonts } from "../../lib/theme";
 import { useExerciseClock } from "../../lib/use-exercise-clock";
 import { useReduceMotion } from "../../lib/use-reduce-motion";
-import { SETTLE_MS, settlePromptAt } from "../../lib/writing-exercise";
+import { settleMs, settlePromptAt, type ExerciseDef, type ExerciseSettleDef } from "../../lib/writing-exercise";
 import { ProgressRing } from "../ProgressRing";
 import { TapPressable } from "../TapPressable";
 import { ExerciseTopBar } from "./ExerciseTopBar";
@@ -18,16 +18,21 @@ const PROMPT_FADE_MS = 500;
 const SETTLE_RING = 64;
 
 /**
- * Before any writing: the page stays shut for the settle-in while a prompt for
- * each sense (look, listen, smell, feel) holds the screen in turn. A ring fills
- * across the whole pause and it ends by opening the page, so it is a pause with
- * an end, not a wait with no end in sight.
+ * Before any writing: the page stays shut for the settle-in while the
+ * exercise's lines (for the sensory one a prompt for each sense: look, listen,
+ * smell, feel) hold the screen in turn. A ring fills across the whole pause and
+ * it ends by opening the page, so it is a pause with an end, not a wait with no
+ * end in sight.
  */
 export function ExerciseSettle({
+  exercise,
+  settle,
   label,
   onDone,
   onClose,
 }: {
+  exercise: ExerciseDef;
+  settle: ExerciseSettleDef;
   label: string;
   onDone: () => void;
   onClose: () => void;
@@ -36,12 +41,13 @@ export function ExerciseSettle({
   const { colors, layout } = useAppTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
-  const { progress, elapsedMs } = useExerciseClock(true, SETTLE_MS, () => {
+  const base = `exercise.items.${exercise.id}.settle`;
+  const { progress, elapsedMs } = useExerciseClock(true, settleMs(settle), () => {
     haptics.impact("light");
     onDone();
   });
-  const prompt = settlePromptAt(elapsedMs);
-  const text = t(`exercise.settle.${prompt}`);
+  const prompt = settlePromptAt(settle, elapsedMs);
+  const text = t(`${base}.prompts.${prompt}`);
 
   // VoiceOver hears each sense as it comes up, since a moving line of text is not announced on its own.
   useEffect(() => {
@@ -52,7 +58,7 @@ export function ExerciseSettle({
     <View style={{ flex: 1 }}>
       <ExerciseTopBar label={label} closeLabel={t("exercise.close")} onClose={onClose} />
       <View style={styles.center}>
-        <Text style={[layout.cardMeta, styles.hint]}>{t("exercise.settle.hint")}</Text>
+        <Text style={[layout.cardMeta, styles.hint]}>{t(`${base}.hint`)}</Text>
         <View style={styles.promptBox}>
           <Animated.Text
             key={prompt}

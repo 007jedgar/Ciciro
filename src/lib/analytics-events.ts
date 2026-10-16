@@ -104,7 +104,7 @@ export type EventCatalog = {
   deadline_saved: { created: boolean; daysAhead: number };
   deadline_removed: NoProperties;
   deadline_met: NoProperties;
-  // The guided Observe / React / Narrate exercise (mobile). No author text: the exercise id and a whole-minute length only.
+  // The guided writing exercises (mobile). No author text: the exercise id (see EXERCISE_IDS in apps/mobile/lib/writing-exercise.ts) and a whole-minute length only.
   writing_exercise_started: { exercise: string };
   writing_exercise_completed: { exercise: string; durationMinutes: number };
   outline_reordered: NoProperties;
@@ -138,7 +138,9 @@ export type EventCatalog = {
   onboarding_reminder_created: { permission: "granted" | "denied" | "unavailable" };
   onboarding_demo_viewed: { path: string };
   onboarding_demo_completed: { path: string };
-  onboarding_skipped: { step: "goal" | "obstacle" | "theme" | "demos" | "reminder" };
+  // The writing-exercises step, shown after the demo when creativity or writer's block was picked.
+  onboarding_exercises_viewed: NoProperties;
+  onboarding_skipped: { step: "goal" | "obstacle" | "theme" | "demos" | "exercises" | "reminder" };
 
   // Account data. Deletion has no event: see AnalyticsAdapter.deleteUser
   // below - the person record is asked to be forgotten, not tracked once more.

@@ -8,7 +8,7 @@ import * as haptics from "../../lib/haptics";
 import { useAppTheme } from "../../lib/settings";
 import { fonts } from "../../lib/theme";
 import { useReduceMotion } from "../../lib/use-reduce-motion";
-import { EXERCISE_PARTS, paragraphs, totalWords, type ExerciseTexts } from "../../lib/writing-exercise";
+import { namesParts, paragraphs, totalWords, type ExerciseDef, type ExerciseTexts } from "../../lib/writing-exercise";
 import { AlertText } from "../AlertText";
 import { DrawCheck, useDrawProgress } from "../DrawCheck";
 import { InlineDots } from "../InlineDots";
@@ -23,10 +23,11 @@ const RING_CLOSE_MS = 480;
 
 /**
  * The calm end: a ring that closes and a tick that draws inside it, then the
- * three texts, kept on the page, and the two ways to take them away: as a new
- * manuscript, or copied out.
+ * texts of each part, kept on the page, and the two ways to take them away: as
+ * a new manuscript, or copied out.
  */
 export function ExerciseDone({
+  exercise,
   texts,
   labels,
   busy,
@@ -36,8 +37,9 @@ export function ExerciseDone({
   onCopy,
   onClose,
 }: {
+  exercise: ExerciseDef;
   texts: ExerciseTexts;
-  labels: Record<(typeof EXERCISE_PARTS)[number], string>;
+  labels: Record<string, string>;
   busy: boolean;
   error: string | null;
   copied: boolean;
@@ -64,7 +66,8 @@ export function ExerciseDone({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const words = totalWords(texts);
+  const words = totalWords(exercise, texts);
+  const headed = namesParts(exercise);
   const bodyFont = settings.editorFont === "sans" ? fonts.sans : fonts.serif;
 
   return (
@@ -85,10 +88,16 @@ export function ExerciseDone({
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16, gap: 18 }}
         showsVerticalScrollIndicator={false}
       >
-        {EXERCISE_PARTS.map((part) => (
-          <View key={part} accessible accessibilityLabel={`${labels[part]}. ${texts[part].trim()}`}>
-            <Text style={[styles.partLabel, { color: colors.inkSoft }]}>{labels[part].toUpperCase()}</Text>
-            {paragraphs(texts[part]).map((line, index) => (
+        {exercise.parts.map(({ id: part }) => (
+          <View
+            key={part}
+            accessible
+            accessibilityLabel={headed ? `${labels[part]}. ${texts[part]?.trim()}` : texts[part]?.trim()}
+          >
+            {headed ? (
+              <Text style={[styles.partLabel, { color: colors.inkSoft }]}>{labels[part]?.toUpperCase()}</Text>
+            ) : null}
+            {paragraphs(texts[part] ?? "").map((line, index) => (
               <Text
                 key={index}
                 style={{

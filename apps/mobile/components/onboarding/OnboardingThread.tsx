@@ -24,8 +24,9 @@ const DRAW_MS = 460;
 /**
  * A thread with a knot at every step. It is drawn up to the screen you are on
  * each time one arrives (the line takes 460ms, then the new knot pops once), so
- * the flow reads as one line with a start and an end. The reminder step adds a
- * knot, springing in, the moment someone picks "Sitting down consistently".
+ * the flow reads as one line with a start and an end. The reminder and exercises
+ * steps each add a knot, springing in, the moment someone picks "Sitting down
+ * consistently", "Creativity" or "Writer's block".
  */
 export function OnboardingThread({ steps, current }: { steps: readonly OnboardingStep[]; current: OnboardingStep }) {
   const { t } = useTranslation();
@@ -69,7 +70,7 @@ export function OnboardingThread({ steps, current }: { steps: readonly Onboardin
           isCurrent={i === index}
           progress={progress}
           pop={pop}
-          entering={reduceMotion || step !== "reminder" ? undefined : ZoomIn.springify().damping(12)}
+          entering={reduceMotion || (step !== "reminder" && step !== "exercises") ? undefined : ZoomIn.springify().damping(12)}
           idle={colors.line}
           done={colors.accent}
         />

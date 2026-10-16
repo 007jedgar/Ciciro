@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, BackHandler, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { ExerciseDone } from "../components/exercise/ExerciseDone";
 import { ExerciseIntro } from "../components/exercise/ExerciseIntro";
 import { ExercisePage } from "../components/exercise/ExercisePage";
+import { ExercisePicker } from "../components/exercise/ExercisePicker";
 import { ExerciseSettle } from "../components/exercise/ExerciseSettle";
 import { ScreenErrorBoundary } from "../components/ScreenErrorBoundary";
 import { ApiError } from "../lib/api";
@@ -20,21 +21,27 @@ import { useAppTheme } from "../lib/settings";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { useStackBack } from "../lib/use-stack-back";
 import {
-  EMPTY_TEXTS,
-  EXERCISE_ID,
-  EXERCISE_PARTS,
+  emptyTexts,
+  exerciseById,
   exerciseCopyText,
   hasWriting,
+  namesParts,
   nextPart,
   partsBefore,
-  type ExercisePart,
+  type ExerciseDef,
+  type ExercisePartDef,
   type ExerciseTexts,
 } from "../lib/writing-exercise";
 import { keepExerciseAsManuscript } from "../lib/writing-exercise-save";
 
 const STEP_FADE_MS = 320;
 
-type Step = { kind: "intro" } | { kind: "settle" } | { kind: "write"; part: ExercisePart } | { kind: "done" };
+type Step =
+  | { kind: "pick" }
+  | { kind: "intro" }
+  | { kind: "settle" }
+  | { kind: "write"; part: string }
+  | { kind: "done" };
 
 export default function WritingExerciseScreen() {
   return (
@@ -45,10 +52,13 @@ export default function WritingExerciseScreen() {
 }
 
 /**
- * The guided exercise: Observe, React, Narrate, on focus mode's calm surface. It
- * is one screen with a step at a time (intro, the settle-in, three writing
- * parts, the finish); the writing lives only in this screen's state until the
- * person keeps it, so there is nothing to sync and no AI anywhere.
+ * The guided writing exercises, on focus mode's calm surface. One screen with a
+ * step at a time: the list to pick from (skipped when the link names an
+ * exercise by `?id=`), the exercise's intro, its settle-in if it has one, each
+ * writing part, and the finish. The exercises themselves are data
+ * (`EXERCISES` in lib/writing-exercise.ts); the writing lives only in this
+ * screen's state until the person keeps it, so there is nothing to sync and no
+ * AI anywhere.
  */
 function WritingExerciseContent() {
   const router = useRouter();
@@ -57,8 +67,10 @@ function WritingExerciseContent() {
   const { user, ready } = useSession();
   const { layout } = useAppTheme();
   const reduceMotion = useReduceMotion();
-  const [step, setStep] = useState<Step>({ kind: "intro" });
-  const [texts, setTexts] = useState<ExerciseTexts>(EMPTY_TEXTS);
+  const params = useLocalSearchParams<{ id?: string }>();
+  const [exercise, setExercise] = useState<ExerciseDef | null>(() => exerciseById(params.id));
+  const [step, setStep] = useState<Step>(() => (exerciseById(params.id) ? { kind: "intro" } : { kind: "pick" }));
+  const [texts, setTexts] = useState<ExerciseTexts>({});
   const [keeping, setKeeping] = useState(false);
   const [keepError, setKeepError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -67,18 +79,17 @@ function WritingExerciseContent() {
   const kept = useRef(false);
   const completed = useRef(false);
 
-  const labels = {
-    observe: t("exercise.parts.observe.label"),
-    react: t("exercise.parts.react.label"),
-    narrate: t("exercise.parts.narrate.label"),
-  } satisfies Record<ExercisePart, string>;
+  const base = exercise ? `exercise.items.${exercise.id}` : "";
+  const labels: Record<string, string> = Object.fromEntries(
+    (exercise?.parts ?? []).map((part) => [part.id, t(`${base}.parts.${part.id}.label`)])
+  );
 
   const leave = useCallback(() => backOr("/manuscripts"), [backOr]);
 
   // Closing would lose writing that lives nowhere else, so it asks first until it is kept or copied.
   const requestClose = useCallback(() => {
     const takenAway = step.kind === "done" && (kept.current || copied);
-    if (takenAway || !hasWriting(texts)) {
+    if (takenAway || !exercise || !hasWriting(exercise, texts)) {
       leave();
       return;
     }
@@ -86,7 +97,7 @@ function WritingExerciseContent() {
       { text: t("exercise.leave.stay"), style: "cancel" },
       { text: t("exercise.leave.go"), style: "destructive", onPress: leave },
     ]);
-  }, [step.kind, copied, texts, leave, t]);
+  }, [step.kind, copied, exercise, texts, leave, t]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -99,41 +110,55 @@ function WritingExerciseContent() {
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
 
-  function begin() {
+  function pick(chosen: ExerciseDef) {
+    setExercise(chosen);
+    setTexts(emptyTexts(chosen));
+    setStep({ kind: "intro" });
+  }
+
+  function backToList() {
+    setExercise(null);
+    setTexts({});
+    setStep({ kind: "pick" });
+  }
+
+  function begin(current: ExerciseDef) {
     startedAt.current = Date.now();
-    getAnalytics().track("writing_exercise_started", { exercise: EXERCISE_ID });
-    setStep({ kind: "settle" });
+    getAnalytics().track("writing_exercise_started", { exercise: current.id });
+    setTexts(emptyTexts(current));
+    setStep(current.settle ? { kind: "settle" } : { kind: "write", part: current.parts[0]!.id });
   }
 
-  function openPage() {
-    announce(t("exercise.settle.open"));
-    setStep({ kind: "write", part: "observe" });
+  function openPage(current: ExerciseDef) {
+    announce(t(`exercise.items.${current.id}.settle.open`));
+    setStep({ kind: "write", part: current.parts[0]!.id });
   }
 
-  function advance(part: ExercisePart) {
-    const next = nextPart(part);
+  function advance(current: ExerciseDef, part: ExercisePartDef) {
+    const next = nextPart(current, part.id);
     if (next) {
-      setStep({ kind: "write", part: next });
+      setStep({ kind: "write", part: next.id });
       return;
     }
     if (!completed.current) {
       completed.current = true;
       const minutes = Math.max(1, Math.round((Date.now() - (startedAt.current ?? Date.now())) / 60_000));
-      getAnalytics().track("writing_exercise_completed", { exercise: EXERCISE_ID, durationMinutes: minutes });
+      getAnalytics().track("writing_exercise_completed", { exercise: current.id, durationMinutes: minutes });
     }
     setStep({ kind: "done" });
   }
 
   async function keep() {
-    if (keeping) return;
+    if (keeping || !exercise) return;
     setKeepError(null);
     setKeeping(true);
     try {
       const date = new Date().toLocaleDateString(i18n.language, { month: "long", day: "numeric" });
       const project = await keepExerciseAsManuscript({
+        exercise,
         texts,
         labels,
-        title: t("exercise.done.manuscriptTitle", { date }),
+        title: t("exercise.done.manuscriptTitle", { name: t(`${base}.title`), date }),
         author: user?.name ?? "",
         existing: created.current,
         onCreated: (project) => {
@@ -153,14 +178,19 @@ function WritingExerciseContent() {
   }
 
   async function copy() {
-    await Clipboard.setStringAsync(exerciseCopyText(texts, labels));
+    if (!exercise) return;
+    await Clipboard.setStringAsync(exerciseCopyText(exercise, texts, labels));
     haptics.success();
     setCopied(true);
     announce(t("exercise.done.copied"));
   }
 
-  const partLabel = (part: ExercisePart) =>
-    `${t(`exercise.parts.${part}.name`)}  ${EXERCISE_PARTS.indexOf(part) + 1} / ${EXERCISE_PARTS.length}`;
+  // A part's name and where it sits in the exercise; a lone part is just its name.
+  const partLabel = (current: ExerciseDef, part: ExercisePartDef) => {
+    const name = t(`exercise.items.${current.id}.parts.${part.id}.name`);
+    return namesParts(current) ? `${name}  ${current.parts.indexOf(part) + 1} / ${current.parts.length}` : name;
+  };
+  const writingPart = exercise && step.kind === "write" ? exercise.parts.find((p) => p.id === step.part) : undefined;
   const stepKey = step.kind === "write" ? `write-${step.part}` : step.kind;
 
   return (
@@ -171,31 +201,49 @@ function WritingExerciseContent() {
         exiting={reduceMotion ? undefined : FadeOut.duration(STEP_FADE_MS / 2)}
         style={StyleSheet.absoluteFill}
       >
-        {step.kind === "intro" ? <ExerciseIntro onBegin={begin} onClose={requestClose} /> : null}
-        {step.kind === "settle" ? (
-          <ExerciseSettle label={partLabel("observe")} onDone={openPage} onClose={requestClose} />
+        {step.kind === "pick" ? <ExercisePicker onPick={pick} onClose={requestClose} /> : null}
+        {step.kind === "intro" && exercise ? (
+          <ExerciseIntro
+            exercise={exercise}
+            onBegin={() => begin(exercise)}
+            onClose={requestClose}
+            onBack={backToList}
+          />
         ) : null}
-        {step.kind === "write" ? (
-          <ExercisePage
-            part={step.part}
-            label={partLabel(step.part)}
-            earlier={partsBefore(step.part).map((part) => ({
-              part,
-              label: labels[part],
-              text: texts[part],
-            }))}
-            nextLabel={
-              nextPart(step.part)
-                ? t("exercise.next", { part: t(`exercise.parts.${nextPart(step.part)}.name`) })
-                : t("exercise.finish")
-            }
-            onChangeText={(text) => setTexts((current) => ({ ...current, [step.part]: text }))}
-            onNext={() => advance(step.part)}
+        {step.kind === "settle" && exercise?.settle ? (
+          <ExerciseSettle
+            exercise={exercise}
+            settle={exercise.settle}
+            label={partLabel(exercise, exercise.parts[0]!)}
+            onDone={() => openPage(exercise)}
             onClose={requestClose}
           />
         ) : null}
-        {step.kind === "done" ? (
+        {exercise && writingPart ? (
+          <ExercisePage
+            exercise={exercise}
+            part={writingPart}
+            label={partLabel(exercise, writingPart)}
+            earlier={partsBefore(exercise, writingPart.id).map((earlier) => ({
+              part: earlier.id,
+              label: labels[earlier.id] ?? "",
+              text: texts[earlier.id] ?? "",
+            }))}
+            nextLabel={
+              nextPart(exercise, writingPart.id)
+                ? t("exercise.next", {
+                    part: t(`${base}.parts.${nextPart(exercise, writingPart.id)!.id}.name`),
+                  })
+                : t("exercise.finish")
+            }
+            onChangeText={(text) => setTexts((current) => ({ ...current, [writingPart.id]: text }))}
+            onNext={() => advance(exercise, writingPart)}
+            onClose={requestClose}
+          />
+        ) : null}
+        {step.kind === "done" && exercise ? (
           <ExerciseDone
+            exercise={exercise}
             texts={texts}
             labels={labels}
             busy={keeping}

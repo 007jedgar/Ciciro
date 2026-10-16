@@ -1,9 +1,11 @@
 import {
   demoForAnswers,
+  EXERCISE_OBSTACLES,
   isObstacle,
   OBSTACLES,
   parseObstacles,
   toggleObstacle,
+  wantsExercisesStep,
   wantsReminderStep,
 } from "../lib/onboarding";
 
@@ -92,5 +94,30 @@ describe("wantsReminderStep", () => {
     expect(wantsReminderStep(["block", "consistency"])).toBe(true);
     expect(wantsReminderStep(["block"])).toBe(false);
     expect(wantsReminderStep([])).toBe(false);
+  });
+});
+
+describe("wantsExercisesStep", () => {
+  it("is true for creativity or writer's block, alone or among others", () => {
+    expect(EXERCISE_OBSTACLES).toEqual(["creativity", "block"]);
+    expect(wantsExercisesStep(["creativity"])).toBe(true);
+    expect(wantsExercisesStep(["block"])).toBe(true);
+    expect(wantsExercisesStep(["zone", "block", "consistency"])).toBe(true);
+    expect(wantsExercisesStep(["self_criticism", "creativity"])).toBe(true);
+  });
+
+  it("is false for every other answer, and for none", () => {
+    for (const obstacle of OBSTACLES) {
+      if (EXERCISE_OBSTACLES.includes(obstacle)) continue;
+      expect(wantsExercisesStep([obstacle])).toBe(false);
+    }
+    expect(wantsExercisesStep(["zone", "consistency", "self_criticism"])).toBe(false);
+    expect(wantsExercisesStep([])).toBe(false);
+  });
+
+  it("leaves every obstacle's demo exactly where it was", () => {
+    expect(demoForAnswers("novel", ["creativity"])).toBe("suggestions_not_overwrites");
+    expect(demoForAnswers("novel", ["block"])).toBe("suggestions_not_overwrites");
+    expect(demoForAnswers("novel", ["zone"])).toBe("focus_typewriter");
   });
 });
