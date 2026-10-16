@@ -5,7 +5,6 @@ import {
   EnrichedTextInput,
   type EnrichedTextInputInstance,
   type OnChangeStateEvent,
-  type OnSelectionFrameEvent,
 } from "react-native-enriched-html";
 import type { FormatBlockKind } from "./FormatBar";
 import type { BlockMarks } from "../lib/block-editor";
@@ -65,7 +64,6 @@ export function ChapterEditor({
   onContentApplied,
   onChangeState,
   onChangeSelection,
-  onSelectionFrame,
   onLongPress,
   onSetKind,
   registerEditor,
@@ -94,8 +92,6 @@ export function ChapterEditor({
   onContentApplied?: () => void;
   onChangeState: (state: OnChangeStateEvent) => void;
   onChangeSelection: (start: number, end: number) => void;
-  /** Where the selection sits in the editor, for a menu hung by it (the patched native view; iOS). */
-  onSelectionFrame?: (event: OnSelectionFrameEvent) => void;
   onLongPress?: () => void;
   onSetKind?: (kind: FormatBlockKind) => void;
   registerEditor: (ref: EnrichedTextInputInstance | null, markEdited?: () => void) => void;
@@ -392,7 +388,6 @@ export function ChapterEditor({
           }}
           onChangeState={(e) => onChangeState(e.nativeEvent)}
           onChangeSelection={(e) => onChangeSelection(e.nativeEvent.start, e.nativeEvent.end)}
-          onSelectionFrame={onSelectionFrame ? (e) => onSelectionFrame(e.nativeEvent) : undefined}
         />
       ) : null}
     </View>

@@ -20,9 +20,14 @@ export function hideFormatBarWhileTyping(chrome: FormatChrome, typing: boolean):
   return chrome === "smart" && typing;
 }
 
+/**
+ * The B / I / U / S bubble over a highlight is the "On highlight" home's only
+ * formatting control. The Smart header and Always on already carry the same
+ * four buttons in a bar, so there the bubble would only sit over the page
+ * next to the system callout.
+ */
 export function showSelectionBubble(chrome: FormatChrome, selected: boolean): boolean {
-  if (!selected) return false;
-  return chrome === "smart" || chrome === "selection";
+  return selected && chrome === "selection";
 }
 
 export function showPressMenu(chrome: FormatChrome): boolean {

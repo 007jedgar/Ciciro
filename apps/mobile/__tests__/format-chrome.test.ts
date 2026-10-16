@@ -11,9 +11,11 @@ describe("format chrome placement", () => {
     expect(hideFormatBarWhileTyping("always", true)).toBe(false);
   });
 
-  it("shows a highlight bubble and a long-press menu for the matching homes", () => {
-    expect(showSelectionBubble("smart", true)).toBe(true);
+  it("shows a highlight bubble only where it is the sole formatting control, and a long-press menu for the matching homes", () => {
+    // The Smart header and Always on carry B / I / U / S in a bar already, so no bubble sits over the page.
+    expect(showSelectionBubble("smart", true)).toBe(false);
     expect(showSelectionBubble("selection", true)).toBe(true);
+    expect(showSelectionBubble("selection", false)).toBe(false);
     expect(showSelectionBubble("smart", false)).toBe(false);
     expect(showSelectionBubble("always", true)).toBe(false);
     expect(showSelectionBubble("press", true)).toBe(false);
@@ -26,9 +28,9 @@ describe("format chrome placement", () => {
   it("keeps highlight and long-press chips as overlays, not page flow", () => {
     expect(
       overlayFormatChrome({ chrome: "smart", selected: true, pressOpen: true, grammarOpen: false })
-    ).toEqual({ bubble: true, press: true });
+    ).toEqual({ bubble: false, press: true });
     expect(
-      overlayFormatChrome({ chrome: "smart", selected: true, pressOpen: false, grammarOpen: true })
+      overlayFormatChrome({ chrome: "selection", selected: true, pressOpen: false, grammarOpen: true })
     ).toEqual({ bubble: false, press: false });
     expect(
       overlayFormatChrome({ chrome: "press", selected: false, pressOpen: true, grammarOpen: false })

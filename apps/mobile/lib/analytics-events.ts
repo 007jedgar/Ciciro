@@ -87,7 +87,7 @@ export type EventCatalog = {
     action: "comment" | "rewrite" | "describe" | "expand" | "fix";
     target: "word" | "passage";
   };
-  // A synonym swapped in for the highlighted word; `more` when it came from the overflow list.
+  // A synonym swapped in for the highlighted word; `more` when it was past the first few (behind "N more..." on the web, a scroll along the strip on the phone).
   synonym_used: { more: boolean };
   autowrite_used: NoProperties;
   suggestion_accepted: NoProperties;

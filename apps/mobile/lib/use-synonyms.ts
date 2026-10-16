@@ -7,6 +7,8 @@ export type Synonyms =
   | { status: "ready"; list: string[] };
 
 const IDLE: Synonyms = { status: "idle", list: [] };
+const LOADING: Synonyms = { status: "loading", list: [] };
+const NONE: Synonyms = { status: "none", list: [] };
 
 /**
  * Synonyms for the word in `context`, looked up when it changes. Null asks for
@@ -22,10 +24,10 @@ export function useSynonyms(context: SynonymContext | null): Synonyms {
     let current = true;
     lookupSynonyms(context).then(
       (list) => {
-        if (current) setResult({ key, synonyms: list.length > 0 ? { status: "ready", list } : { status: "none", list: [] } });
+        if (current) setResult({ key, synonyms: list.length > 0 ? { status: "ready", list } : NONE });
       },
       () => {
-        if (current) setResult({ key, synonyms: { status: "none", list: [] } });
+        if (current) setResult({ key, synonyms: NONE });
       }
     );
     return () => {
@@ -35,5 +37,5 @@ export function useSynonyms(context: SynonymContext | null): Synonyms {
   }, [key]);
 
   if (!key) return IDLE;
-  return result?.key === key ? result.synonyms : { status: "loading", list: [] };
+  return result?.key === key ? result.synonyms : LOADING;
 }
