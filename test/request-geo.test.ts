@@ -51,6 +51,16 @@ describe("requestGeo", () => {
     });
   });
 
+  it("lets CICIRO_DEV_GEO pin the place outside production, and ignores it in production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("CICIRO_DEV_GEO", "US-TX");
+    expect(requestGeo(request())).toEqual({ country: "US", region: "TX" });
+    vi.stubEnv("CICIRO_DEV_GEO", "DE");
+    expect(requestGeo(request())).toEqual({ country: "DE", region: null });
+    vi.stubEnv("NODE_ENV", "production");
+    expect(requestGeo(request())).toEqual({ country: null, region: null });
+  });
+
   it("ignores the query string in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     expect(requestGeo(request("https://x.test/api/app/consent-region?country=US&region=TX"))).toEqual({

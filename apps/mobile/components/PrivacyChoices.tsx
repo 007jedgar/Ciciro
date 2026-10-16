@@ -105,7 +105,6 @@ export function PrivacyChoices({
   if (customizing) {
     return (
       <View>
-        <Text style={[styles.title, { color: colors.ink }]}>{t("consent.title")}</Text>
         <CategoryRow title={t("consent.necessaryTitle")} desc={t("consent.necessaryDesc")} colors={colors} locked />
         <CategoryRow title={t("consent.functionalTitle")} desc={t("consent.functionalDesc")} colors={colors} locked />
         <CategoryRow
@@ -123,7 +122,6 @@ export function PrivacyChoices({
 
   return (
     <View>
-      <Text style={[styles.title, { color: colors.ink }]}>{t("consent.title")}</Text>
       <Text style={[styles.body, { color: colors.ink }]}>{t("consent.body")}</Text>
       <Text style={[styles.body, { color: colors.inkSoft }]}>{t("consent.bodyProvider")}</Text>
       <Text style={[styles.body, { color: colors.inkSoft }]}>{t("consent.bodyFooter")}</Text>
@@ -145,7 +143,6 @@ export function PrivacyChoices({
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 19, fontWeight: "600", marginBottom: 8 },
   body: { fontSize: 14, lineHeight: 20, marginBottom: 8 },
   promise: { fontSize: 13, lineHeight: 18, marginTop: 8 },
   buttonRow: { flexDirection: "row", gap: 10, marginTop: 14 },
