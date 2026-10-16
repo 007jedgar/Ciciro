@@ -139,6 +139,14 @@ function ThemedStack() {
           }}
         />
         <Stack.Screen
+          name="listening"
+          options={{
+            title: t("listening.title"),
+            headerShown: false,
+            ...POP_OVER_STACK_SCREEN_OPTIONS,
+          }}
+        />
+        <Stack.Screen
           name="writing-history"
           options={{
             title: t("writingHistory.title"),

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { ReactElement } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ReadAloud } from "../components/ReadAloud";
-import type { SpeechEngine } from "../lib/read-aloud";
+import { resetReadAloudPrefsForTests, setReadAloudPrefs, type SpeechEngine } from "../lib/read-aloud";
 
 jest.mock("expo-blur", () => {
   const { View } = require("react-native");
@@ -40,6 +40,8 @@ function fakeEngine() {
 const html = "<p>One. Two.</p><p>Three.</p>";
 
 describe("ReadAloud", () => {
+  beforeEach(() => resetReadAloudPrefsForTests());
+
   it("plays, highlights the sentence being read, and stops", async () => {
     const { engine, calls } = fakeEngine();
     renderWithInsets(
@@ -75,25 +77,47 @@ describe("ReadAloud", () => {
     expect(calls.map((c) => c.text)).toEqual(["Three."]);
   });
 
-  it("changes speed and voice", async () => {
+  it("changes speed", async () => {
     const { engine, calls } = fakeEngine();
+    renderWithInsets(
+      <ReadAloud chapterId="c1" html={html} selection={null} engine={engine} loadVoiceList={async () => []} />
+    );
+    await act(async () => {});
+    fireEvent.press(screen.getByLabelText("Play"));
+    fireEvent.press(screen.getByLabelText("Speed: 1x"));
+    expect(calls[calls.length - 1]).toMatchObject({ text: "One.", rate: 1.25 });
+  });
+
+  it("names the saved system voice on the voice row, and the row ends the read and opens Listening settings", async () => {
+    setReadAloudPrefs({ voice: "v1" });
+    const { engine } = fakeEngine();
+    const open = jest.fn();
     renderWithInsets(
       <ReadAloud
         chapterId="c1"
         html={html}
         selection={null}
         engine={engine}
+        onOpenVoiceSettings={open}
         loadVoiceList={async () => [{ identifier: "v1", name: "Ava", language: "en-US" }]}
       />
     );
     await act(async () => {});
     fireEvent.press(screen.getByLabelText("Play"));
-    fireEvent.press(screen.getByLabelText("Speed: 1x"));
-    expect(calls[calls.length - 1]).toMatchObject({ text: "One.", rate: 1.25 });
-    fireEvent.press(screen.getByLabelText("Voice: Default"));
-    fireEvent.press(screen.getByLabelText("Ava (en-US)"));
-    expect(calls[calls.length - 1]).toMatchObject({ voice: "v1" });
-    expect(screen.getByLabelText("Voice: Ava")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Voice: Ava"));
+    expect(open).toHaveBeenCalledTimes(1);
+    // Settings can delete the model a read is using, so the read stops first.
+    expect(screen.queryByTestId("reading-sentence")).toBeNull();
+    expect(screen.getByLabelText("Play")).toBeTruthy();
+  });
+
+  it("has no voice row when there is nowhere to change the voice", async () => {
+    const { engine } = fakeEngine();
+    renderWithInsets(
+      <ReadAloud chapterId="c1" html={html} selection={null} engine={engine} loadVoiceList={async () => []} />
+    );
+    await act(async () => {});
+    expect(screen.queryByLabelText(/^Voice:/)).toBeNull();
   });
 
   it("keeps Play and Stop outside the scrolling text, so they stay reachable", async () => {

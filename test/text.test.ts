@@ -26,6 +26,16 @@ describe("htmlToText", () => {
     expect(htmlToText("line one<br>line two")).toBe("line one\nline two");
   });
 
+  it("decodes numeric entities, which Android's editor writes for every non-ASCII letter", () => {
+    expect(htmlToText("<p>La ma&#241;ana era fr&#237;a, as&#xED; que &#x1F30A; &#2344;&#2366;&#2357;</p>")).toBe(
+      "La mañana era fría, así que 🌊 नाव"
+    );
+  });
+
+  it("leaves an escaped numeric entity as text and an impossible one alone", () => {
+    expect(htmlToText("<p>&amp;#241; &#0; &#xD800; &#1114112;</p>")).toBe("&#241; &#0; &#xD800; &#1114112;");
+  });
+
   it("decodes common HTML entities", () => {
     expect(htmlToText("<p>Tom &amp; Jerry &lt;3 &quot;x&quot; &#39;y&#39;</p>")).toBe(
       "Tom & Jerry <3 \"x\" 'y'"

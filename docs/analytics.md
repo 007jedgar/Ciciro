@@ -336,6 +336,16 @@ property shape.
 | `writing_exercise_started` (`exercise`) | Begin is tapped on one of the guided writing exercises | Mobile only; no author text, the id is one of `EXERCISE_IDS` (`observe_react_narrate`, `pour_it_out`, `one_true_sentence`, `terrible_first_draft`, `noun_list`) |
 | `writing_exercise_completed` (`exercise`, `durationMinutes`) | The exercise's last part is finished (not on leaving early) | Mobile only; whole minutes from Begin, same ids as above |
 | `review_prompt_requested` (`trigger`: `export` or `exercise`) | The native store-review prompt is asked for, once per device, after the first manuscript export or finished writing exercise | Mobile only; the OS decides whether it appears |
+| `listening_engine_chosen` (`engine`: `system` or `natural`) | The writer picks the voice engine on the Listening settings screen | Mobile only |
+| `natural_voice_chosen` (`voice`) | The writer picks a natural voice; `voice` is a Kokoro voice id from `NATURAL_VOICES` | Mobile only; a fixed catalog id, no text |
+| `natural_voice_sample_played` (`voice`) | A bundled voice sample is played, before or after the download | Mobile only; same ids |
+| `natural_voice_download_started` (`resumed`, `cellular`) | The natural-voice download starts or picks up again; `cellular` is true when the writer chose to download on mobile data | Mobile only |
+| `natural_voice_download_completed` (`seconds`, `resumed`) | The download finished and every file is in place and checked | Mobile only; whole seconds of the last stretch |
+| `natural_voice_download_failed` (`reason`) | The download or install stopped in an error: `network`, `storage`, `integrity`, `install` or `unknown` | Mobile only |
+| `natural_voice_download_canceled` | The writer cancelled a download and its partial files were removed | Mobile only |
+| `natural_voice_deleted` | The writer removed the downloaded model to free space | Mobile only |
+| `natural_voice_read_finished` (`firstAudioMs`, `rtf`, `underruns`, `synthesized`, `cached`) | A natural-voice read ended: ms to the first sound, time spent making speech over its length (under 1 keeps up), pauses waiting for the next sentence, sentences made and sentences answered from the saved audio | Mobile only; numbers, no text. The only real-phone performance data we collect |
+| `natural_voice_fallback` (`reason`, `why`) | The natural voice gave up partway and the system voice carried on | Mobile only; `reason` is `failed` or `too-slow`, `why` says which check fired |
 | `outline_reordered` | Chapters are reordered (drag or arrow buttons) | Both |
 | `story_bible_edited` (`file`) | Saving one of the four core bible files (`canon`/`plot`/`style`/`timeline`) | Both. Editing a character or plot-thread file (`characters/*.md`, `plot/*.md`) through the same editor does not fire this - the catalog's `file` union is the four core files only |
 | `character_created` | Adding a character from the bible index | Both |

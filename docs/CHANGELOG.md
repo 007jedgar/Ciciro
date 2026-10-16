@@ -10,6 +10,23 @@ for an uncommitted entry) and writes it back into this file.
 
 ## Unreleased
 
+- <!-- 2026-10-16 --> **A natural voice for Listen on the phone.** Listening settings (Settings, then
+  **Listening**, or the voice row on the Listen screen) now lets you choose who reads
+  your chapters back. Next to the phone's own voices there is a more lifelike voice,
+  Kokoro, that runs on the phone itself for English, Spanish and Hindi: download it
+  once (about 380 MB, with a prompt on mobile data, and pause, resume, cancel and
+  delete), and hear a short sample of each voice before you do. Nothing you write
+  leaves the phone, reading continues with the screen locked, and if the phone cannot
+  keep up the system voice takes over from that sentence. The system voice stays the
+  default until you download it, and other languages such as Mandarin keep using it.
+  This ships in a new app build (it adds native modules), not an over-the-air update,
+  and the app now needs iOS 17 or Android 8.
+
+- <!-- 2026-10-16 --> **Accents and Hindi read correctly on the phone.** Chapters written on
+  Android with accented or non-Latin letters (Spanish, Hindi and so on) showed codes like
+  `&#241;` in Read aloud and in the text Ciciro reads, and now come through as the
+  letters you typed. Hindi chapters are also read, and highlighted, one sentence at a time.
+
 - <!-- 2026-10-16 --> **A quiet nudge to rate Ciciro on the phone.** After the first time you export a
   manuscript or finish a writing exercise, the app asks once for a store review
   through the system's own rating sheet, a couple of seconds after the moment

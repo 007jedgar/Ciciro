@@ -3,6 +3,7 @@ import * as Sharing from "expo-sharing";
 import { API_URL, sessionHeaderRecord } from "./api";
 import { clearReplica } from "./db";
 import { resetLastPlace } from "./last-place";
+import { clearNaturalAudioCache } from "./natural-engine";
 import { commitWritingReminders } from "./writing-reminder-store";
 
 export const ACCOUNT_EXPORT_PATH = "/api/account/export";
@@ -89,6 +90,8 @@ export async function exportAccountData(now = new Date()): Promise<void> {
 export async function forgetAccountOnDevice(userId: string): Promise<void> {
   commitWritingReminders(userId, []);
   resetLastPlace();
+  // Sentences read aloud are the author's prose in audio form: they go with the account.
+  await clearNaturalAudioCache();
   try {
     for (const entry of new Directory(Paths.cache).list()) {
       if (entry instanceof File && /^ciciro-data-.*\.zip$/.test(entry.name)) deleteQuietly(entry);

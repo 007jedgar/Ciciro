@@ -9,6 +9,7 @@ import {
   splitSentences,
   voiceChoices,
   type SpeechEngine,
+  type SpeechRun,
 } from "../lib/read-aloud";
 import { blocksPlainText } from "../lib/read-aloud-text";
 
@@ -20,6 +21,15 @@ describe("splitSentences", () => {
       '"Stop!"',
       "he cried.",
       "Why?",
+    ]);
+  });
+
+  it("ends a Hindi sentence at the danda, so a paragraph is read and highlighted a sentence at a time", () => {
+    const text = "सुबह बहुत ठंड थी। घाट पर किसी ने कुछ नहीं कहा। वह खड़ी रही॥";
+    expect(splitSentences(text).map((r) => text.slice(r.start, r.end))).toEqual([
+      "सुबह बहुत ठंड थी।",
+      "घाट पर किसी ने कुछ नहीं कहा।",
+      "वह खड़ी रही॥",
     ]);
   });
 });
@@ -173,6 +183,135 @@ describe("SentenceReader", () => {
     expect(reader.current.state).toBe("idle");
     expect(clampRate(10)).toBe(2);
     expect(clampRate("x")).toBe(1);
+  });
+});
+
+describe("SentenceReader with a read-ahead engine", () => {
+  let runs: SpeechRun[];
+  let spoken: Array<{ text: string; rate: number; voice?: string; onDone: () => void }>;
+  let primary: SpeechEngine & { stop: jest.Mock };
+  let fallbackEngine: SpeechEngine & { stop: jest.Mock };
+  let events: Array<[string, number]>;
+  let notices: Array<{ reason: string; index: number }>;
+  let buffering: boolean[];
+  let reader: SentenceReader;
+  const run = () => runs[runs.length - 1];
+
+  beforeEach(() => {
+    runs = [];
+    spoken = [];
+    events = [];
+    notices = [];
+    buffering = [];
+    primary = { speak: jest.fn(), stop: jest.fn(), playRun: (r) => void runs.push(r) };
+    fallbackEngine = {
+      speak: (text, options) => void spoken.push({ text, ...options }),
+      stop: jest.fn(),
+    };
+    reader = new SentenceReader(primary, (state, index) => events.push([state, index]), {
+      fallback: () => fallbackEngine,
+      onFallback: (info) => notices.push(info),
+      onBuffering: (b) => buffering.push(b),
+    });
+  });
+
+  it("hands the whole read to the engine and follows the sentence it reports", () => {
+    reader.start(["A.", "B.", "C."], { rate: 1.25, voice: "af_heart", fallbackVoice: "sys" });
+    expect(run()).toMatchObject({ texts: ["A.", "B.", "C."], from: 0, rate: 1.25, voice: "af_heart" });
+    expect(primary.speak).not.toHaveBeenCalled();
+    run().onSentence(0);
+    run().onSentence(1);
+    expect(reader.current).toEqual({ state: "playing", index: 1 });
+    run().onSentence(2);
+    run().onDone();
+    expect(reader.current).toEqual({ state: "idle", index: 0 });
+  });
+
+  it("pauses by stopping the engine and resumes from the sentence it was on", () => {
+    reader.start(["A.", "B.", "C."]);
+    run().onSentence(1);
+    reader.pause();
+    expect(primary.stop).toHaveBeenCalled();
+    expect(reader.current).toEqual({ state: "paused", index: 1 });
+    reader.resume();
+    expect(runs).toHaveLength(2);
+    expect(run().from).toBe(1);
+  });
+
+  it("restarts at the current sentence when the speed or voice changes", () => {
+    reader.start(["A.", "B."], { rate: 1, voice: "af_heart" });
+    run().onSentence(1);
+    reader.setRate(1.5);
+    expect(run()).toMatchObject({ from: 1, rate: 1.5, voice: "af_heart" });
+    reader.setVoice("bf_emma");
+    expect(run()).toMatchObject({ from: 1, voice: "bf_emma" });
+  });
+
+  it("ignores callbacks from a run that was stopped or replaced", () => {
+    reader.start(["A.", "B."]);
+    const first = run();
+    reader.stop();
+    first.onSentence(1);
+    first.onDone();
+    first.onError({ reason: "failed", index: 1 });
+    expect(reader.current).toEqual({ state: "idle", index: 0 });
+    expect(notices).toEqual([]);
+    reader.start(["A.", "B."]);
+    first.onSentence(1);
+    expect(reader.current.index).toBe(0);
+  });
+
+  it("passes the engine's buffering through, and clears it when the read halts", () => {
+    reader.start(["A."]);
+    run().onBuffering?.(true);
+    run().onBuffering?.(false);
+    reader.pause();
+    expect(buffering).toEqual([false, true, false, false]);
+  });
+
+  it("carries on with the fallback engine from the sentence the engine gave up at", () => {
+    reader.start(["A.", "B.", "C."], { rate: 1.5, voice: "af_heart", fallbackVoice: "sys-voice" });
+    run().onSentence(0);
+    run().onSentence(1);
+    run().onError({ reason: "too-slow", index: 2 });
+    expect(primary.stop).toHaveBeenCalled();
+    expect(notices).toEqual([{ reason: "too-slow", index: 2 }]);
+    expect(reader.usingFallback).toBe(true);
+    expect(spoken[0]).toMatchObject({ text: "C.", rate: 1.5, voice: "sys-voice" });
+    expect(reader.current).toEqual({ state: "playing", index: 2 });
+    spoken[0].onDone();
+    expect(reader.current).toEqual({ state: "idle", index: 0 });
+  });
+
+  it("keeps using the fallback after a pause and a speed change, then returns to the engine on the next start", () => {
+    reader.start(["A.", "B."], { voice: "af_heart", fallbackVoice: "sys" });
+    run().onError({ reason: "failed", index: 0 });
+    reader.pause();
+    reader.resume();
+    expect(spoken.at(-1)).toMatchObject({ text: "A.", voice: "sys" });
+    reader.setRate(2);
+    expect(spoken.at(-1)).toMatchObject({ text: "A.", rate: 2 });
+    reader.start(["X."], { voice: "af_heart" });
+    expect(reader.usingFallback).toBe(false);
+    expect(run().texts).toEqual(["X."]);
+  });
+
+  it("ends the read when the engine gives up and there is no fallback, or the fallback itself fails", () => {
+    const bare = new SentenceReader(primary, (state, index) => events.push([state, index]));
+    bare.start(["A.", "B."]);
+    run().onError({ reason: "too-slow", index: 1 });
+    expect(bare.current).toEqual({ state: "idle", index: 0 });
+
+    const twice = new SentenceReader(
+      { ...primary, playRun: (r) => void runs.push(r) },
+      () => {},
+      { fallback: () => ({ speak: jest.fn(), stop: jest.fn(), playRun: (r) => void runs.push(r) }) }
+    );
+    twice.start(["A.", "B."]);
+    run().onError({ reason: "failed", index: 0 });
+    expect(twice.usingFallback).toBe(true);
+    run().onError({ reason: "failed", index: 0 });
+    expect(twice.current.state).toBe("idle");
   });
 });
 

@@ -54,7 +54,14 @@ under someone who is writing. Development builds skip all of this
 
 Adding `expo-updates` is a native change: rebuild the dev client
 (`npx expo run:ios`, or the Development build workflow) before running this
-branch on a device.
+branch on a device. The same goes for the natural voice (`docs/natural-voice.md`):
+it adds `react-native-executorch`, `react-native-blob-util`,
+`react-native-audio-api` and `expo-build-properties`, raises the minimums to iOS
+17.0 and Android 26 (`app.json`; the fingerprint and the stores' minimum OS both
+change), turns on the iOS `audio` background mode and, on Android, adds a media
+foreground service. The fingerprint changes, so the push to `main` builds a
+new binary instead of publishing an update. The model itself is never in the
+binary: it downloads on demand from Hugging Face when the writer asks.
 
 To ship a hotfix by hand instead of through the workflow:
 

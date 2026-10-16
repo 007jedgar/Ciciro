@@ -109,6 +109,19 @@ export type EventCatalog = {
   writing_exercise_completed: { exercise: string; durationMinutes: number };
   // The native store-review prompt (mobile), asked for once on the first finished export or writing exercise. The OS decides whether to show it.
   review_prompt_requested: { trigger: "export" | "exercise" };
+  // On-device natural voice for Listen (mobile). Numbers and fixed ids only, never text: `voice` is a Kokoro voice id from NATURAL_VOICES (apps/mobile/lib/natural-voice.ts).
+  listening_engine_chosen: { engine: "system" | "natural" };
+  natural_voice_chosen: { voice: string };
+  natural_voice_sample_played: { voice: string };
+  natural_voice_download_started: { resumed: boolean; cellular: boolean };
+  natural_voice_download_completed: { seconds: number; resumed: boolean };
+  natural_voice_download_failed: { reason: "network" | "storage" | "integrity" | "install" | "unknown" };
+  natural_voice_download_canceled: NoProperties;
+  natural_voice_deleted: NoProperties;
+  // A natural-voice read that ended, for how it ran on real phones: `firstAudioMs` to the first sound, `rtf` the time spent making speech over its length (under 1 keeps up), `underruns` the pauses waiting for the next sentence.
+  natural_voice_read_finished: { firstAudioMs: number; rtf: number; underruns: number; synthesized: number; cached: number };
+  // The natural voice gave up partway and the system voice carried on.
+  natural_voice_fallback: { reason: "failed" | "too-slow"; why: "load" | "synthesis" | "underruns" | "rtf" | "first-audio" };
   outline_reordered: NoProperties;
   story_bible_edited: { file: "canon" | "plot" | "style" | "timeline" };
   character_created: NoProperties;
