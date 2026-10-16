@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, withDelay, withTiming } from "react-native-reanimated";
 import { Redirect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -34,6 +34,21 @@ import { countWritingFrequency } from "../lib/writing-frequency";
 import { AlertText } from "../components/AlertText";
 
 const HEATMAP_DAYS = 28;
+/** One row a week, so the 28 days always lay out as four even rows (a wrapping row broke at 8 or 9 cells depending on the phone's width). */
+const HEATMAP_COLUMNS = 7;
+const HEATMAP_GAP = 4;
+const HEATMAP_CELL_MAX = 56;
+const SCREEN_PADDING = 20;
+
+/** The heatmap's height on a window this wide, so the skeleton stands in for it at the right size. */
+function heatmapHeight(windowWidth: number): number {
+  const rows = Math.ceil(HEATMAP_DAYS / HEATMAP_COLUMNS);
+  const cell = Math.min(
+    HEATMAP_CELL_MAX,
+    (windowWidth - SCREEN_PADDING * 2 - HEATMAP_GAP * (HEATMAP_COLUMNS - 1)) / HEATMAP_COLUMNS
+  );
+  return Math.round(cell * rows + HEATMAP_GAP * (rows - 1));
+}
 const ALL_TIME_FROM = "2018-01-01";
 
 /** A heatmap cell scales and fades in, each a little after the one before. */
@@ -144,7 +159,7 @@ export default function WritingHistoryScreen() {
         onHeightChange={onHeaderHeight}
       />
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: headerHeight, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: SCREEN_PADDING, paddingTop: headerHeight, paddingBottom: 32 }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >
         {error ? (
@@ -165,22 +180,26 @@ export default function WritingHistoryScreen() {
               <Text style={[layout.cardMeta, { marginBottom: 8 }]}>{weekLabel}</Text>
 
               <View style={styles.heat} accessibilityLabel={t("writingHistory.heatmapA11y")}>
-                {buckets.map((row, i) => (
-                  <Animated.View
-                    key={row.date}
-                    entering={reduceMotion ? undefined : cellEntering(i)}
-                    style={styles.heatCell}
-                    accessibilityLabel={`${row.date}: ${t("writingHistory.wordsValue", { count: row.words })}`}
-                  >
-                    <View
-                      style={[
-                        styles.heatFill,
-                        row.words > 0
-                          ? { backgroundColor: colors.accent, opacity: heatOpacity(row.words, maxWords) }
-                          : { backgroundColor: colors.panel2, borderWidth: 1, borderColor: colors.line },
-                      ]}
-                    />
-                  </Animated.View>
+                {Array.from({ length: Math.ceil(buckets.length / HEATMAP_COLUMNS) }, (_, week) => (
+                  <View key={week} style={styles.heatRow}>
+                    {buckets.slice(week * HEATMAP_COLUMNS, (week + 1) * HEATMAP_COLUMNS).map((row, d) => (
+                      <Animated.View
+                        key={row.date}
+                        entering={reduceMotion ? undefined : cellEntering(week * HEATMAP_COLUMNS + d)}
+                        style={styles.heatCell}
+                        accessibilityLabel={`${row.date}: ${t("writingHistory.wordsValue", { count: row.words })}`}
+                      >
+                        <View
+                          style={[
+                            styles.heatFill,
+                            row.words > 0
+                              ? { backgroundColor: colors.accent, opacity: heatOpacity(row.words, maxWords) }
+                              : { backgroundColor: colors.panel2, borderWidth: 1, borderColor: colors.line },
+                          ]}
+                        />
+                      </Animated.View>
+                    ))}
+                  </View>
                 ))}
               </View>
             </FadeUp>
@@ -288,11 +307,12 @@ function StatRow({
 function HistorySkeleton({ lineHeight }: { lineHeight: number }) {
   const { t } = useTranslation();
   const label = t("common.loading");
+  const { width } = useWindowDimensions();
   return (
     <View testID="writing-history-skeleton">
       <Skeleton width="68%" height={lineHeight - 6} radius={8} accessibilityLabel={label} style={{ marginBottom: 20 }} />
       <Skeleton width="36%" height={13} radius={6} accessibilityLabel={label} style={{ marginBottom: 12 }} />
-      <Skeleton height={SKELETON_HEAT_HEIGHT} radius={8} accessibilityLabel={label} style={{ marginBottom: 24 }} />
+      <Skeleton height={heatmapHeight(width)} radius={8} accessibilityLabel={label} style={{ marginBottom: 24 }} />
       {[0, 1, 2, 3, 4].map((i) => (
         <Skeleton key={i} height={16} radius={6} accessibilityLabel={label} style={{ marginVertical: 14 }} />
       ))}
@@ -302,11 +322,11 @@ function HistorySkeleton({ lineHeight }: { lineHeight: number }) {
 
 /** The rolling figure starts a beat after its row begins to fade up. */
 const FIGURE_ROLL_LEAD_MS = 160;
-const SKELETON_HEAT_HEIGHT = 150;
 
 const styles = StyleSheet.create({
-  heat: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginBottom: 20 },
-  heatCell: { width: "12.5%", aspectRatio: 1, maxWidth: 36 },
+  heat: { gap: HEATMAP_GAP, marginBottom: 20 },
+  heatRow: { flexDirection: "row", gap: HEATMAP_GAP },
+  heatCell: { flex: 1, aspectRatio: 1, maxWidth: HEATMAP_CELL_MAX },
   heatFill: { flex: 1, borderRadius: 3 },
   statRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, paddingVertical: 12 },
   statValue: { flexShrink: 1, alignItems: "flex-end" },
