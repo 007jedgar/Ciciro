@@ -215,4 +215,15 @@ describe("ReadAloud with the natural voice", () => {
       ["natural_voice_fallback", { reason: "too-slow", why: "rtf" }],
     ]);
   });
+
+  it("records a natural read stopped before its first sentence was heard, with no speed", async () => {
+    renderReader(<ReadAloud chapterId="c1" html={english} selection={null} loadVoiceList={async () => []} />);
+    await act(async () => {});
+    act(() =>
+      mockEngineListener?.({ type: "run-finished", outcome: "stopped", synthesized: 0, cached: 0, underruns: 0, rtf: null, firstAudioMs: null })
+    );
+    expect(mockTracked).toEqual([
+      ["natural_voice_read_finished", { outcome: "stopped", firstAudioMs: null, rtf: null, underruns: 0, synthesized: 0, cached: 0 }],
+    ]);
+  });
 });

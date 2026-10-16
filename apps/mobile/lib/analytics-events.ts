@@ -119,7 +119,7 @@ export type EventCatalog = {
   natural_voice_download_canceled: NoProperties;
   natural_voice_deleted: NoProperties;
   // A natural-voice read that ended, for how it ran on real phones: `firstAudioMs` to the first sound, `rtf` the time spent making speech over its length (under 1 keeps up), `underruns` the pauses waiting for the next sentence.
-  natural_voice_read_finished: { outcome: "completed" | "stopped" | "fallback"; firstAudioMs: number; rtf: number; underruns: number; synthesized: number; cached: number };
+  natural_voice_read_finished: { outcome: "completed" | "stopped" | "fallback"; firstAudioMs: number | null; rtf: number | null; underruns: number; synthesized: number; cached: number };
   // The natural voice gave up partway and the system voice carried on.
   natural_voice_fallback: { reason: "failed" | "too-slow"; why: "load" | "synthesis" | "underruns" | "rtf" | "first-audio" };
   outline_reordered: NoProperties;

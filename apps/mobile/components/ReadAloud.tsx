@@ -170,11 +170,14 @@ export function ReadAloud({
     () =>
       onNaturalEngineEvent((event) => {
         const analytics = getAnalytics();
-        if (event.type === "run-finished" && event.firstAudioMs != null && event.rtf != null) {
+        if (
+          event.type === "run-finished" &&
+          ((event.firstAudioMs != null && event.rtf != null) || event.outcome === "stopped")
+        ) {
           analytics.track("natural_voice_read_finished", {
             outcome: event.outcome,
-            firstAudioMs: Math.round(event.firstAudioMs),
-            rtf: Math.round(event.rtf * 100) / 100,
+            firstAudioMs: event.firstAudioMs == null ? null : Math.round(event.firstAudioMs),
+            rtf: event.rtf == null ? null : Math.round(event.rtf * 100) / 100,
             underruns: event.underruns,
             synthesized: event.synthesized,
             cached: event.cached,

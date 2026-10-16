@@ -414,6 +414,16 @@ describe("kokoro engine: stopping", () => {
     expect(t.jobs.map((j) => j.text)).toEqual(["One."]);
   });
 
+  it("reports a read stopped before its first sentence was made, with no speed or first-audio time", async () => {
+    const t = setup();
+    t.run(["One.", "Two."]);
+    await flush();
+    t.engine.stop();
+    expect(t.events.filter((e) => e.type === "run-finished")).toEqual([
+      { type: "run-finished", outcome: "stopped", synthesized: 0, cached: 0, underruns: 0, rtf: null, firstAudioMs: null },
+    ]);
+  });
+
   it("reports a read stopped partway as stopped, with what it measured so far", async () => {
     const t = setup();
     t.run(["One.", "Two.", "Three."]);
