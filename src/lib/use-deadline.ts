@@ -158,6 +158,7 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
       message: "Deadline removed",
       actionLabel: "Undo",
       onAction: () => {
+        if (removal.cancelled) return;
         removal.cancelled = true;
         if (pendingRemoval.current === removal) pendingRemoval.current = null;
         setTarget(previous);

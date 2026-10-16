@@ -287,6 +287,19 @@ describe("the web deadline", () => {
     expect(live.textContent).toBe(announced);
   });
 
+  it("ignores Undo on a removal that a later save already replaced", async () => {
+    server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
+    await render(100);
+    await act(async () => button("Remove deadline").click());
+    await settle();
+    await type("#deadline-target", "7000");
+    await submit();
+    await act(async () => button("Undo").click());
+    await settle();
+    expect(server.target?.wordGoal).toBe(7_000);
+    expect(host.querySelector(".deadline-card")!.textContent).toContain("100 of 7,000 words");
+  });
+
   it("puts a removal back when the server will not delete it", async () => {
     server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
     await render(100);
