@@ -60,7 +60,7 @@ and bezels `src/styles.css`.
 | 6 | Write a little. Get better at it. | Guided exercise + the weekly review's "what to write next" | Getting better, not just producing words |
 | 7 | What color were her eyes? | Story bible | Canon beside the chapters |
 | 8 | Make it yours. | Three themes side by side | Eight themes |
-| held | Scan your handwritten notes into your outline. | Not rendered by default | Planned, see below |
+| held | Scan your handwritten notes into your story bible. | Not rendered by default | Planned, see below |
 
 Eight frames, so one sequence fits Google Play's limit and the App Store's.
 Every claim is a feature the phone ships today; screenplay is marked Beta in
@@ -83,6 +83,9 @@ is missing.
 
 `captures/<locale>/meta.json` carries two facts about the set:
 
+- `"app": "<sha>"`: the app commit the captures were taken from. If
+  `apps/mobile` has changed a screen a frame shows since (`git log <sha>..
+  -- apps/mobile`), re-capture that screen; the renderer cannot tell.
 - `"island": true`: the screenshot already includes the Dynamic Island, so the
   bezel does not draw one.
 - `"keyboard": { "<capture>": { "top": <px>, "fill": "<css colour>" } }`: the
@@ -143,19 +146,27 @@ Store takes 10).
 
 ## The held scan frame
 
-The camera-scan feature is on `fm/cic-scan-notes` and has not shipped, so its
-frame has `status: "planned"` in `src/frames.mjs`. It is skipped by default
-and, when forced with `--include-planned`, draws a "PLANNED, NOT SHIPPED, DO NOT
-UPLOAD" band so it cannot reach a listing by accident. To use it once the
-feature ships:
+Scan notes (photograph handwritten or printed notes, check the text, add it to
+the story bible or the outline cards) landed on `main` as #198, after this set
+was captured. It needs a native build (the camera and photo permissions come
+from the `expo-image-picker` plugin), so it reaches an author with the next
+store release, not with an OTA update. Until that release is out and it has
+been captured, its frame has `status: "planned"` in `src/frames.mjs`: skipped
+by default and, when forced with `--include-planned`, drawn with a "PLANNED,
+NOT SHIPPED, DO NOT UPLOAD" band so it cannot reach a listing by accident. To
+swap it in:
 
-1. Capture the scan flow as `scan` (phone and tablet) with `capture/sim.sh`.
+1. Rebuild the dev client from current `main` (`npx expo run:ios` in
+   `apps/mobile`) and capture the flow as `scan` on a phone and an iPad with
+   `capture/sim.sh`. The simulator has no camera, so choose "Choose from
+   library" with a photo added by `xcrun simctl addmedia <udid> <image>`;
+   reading it spends one model call, so the local server needs its API key.
+   The review step ("Check the text") is the screen worth showing.
 2. In `src/frames.mjs` set the frame's `status` to `"shipped"` and move it to
    its place in the order. Remove the band from `LAYOUTS.scan` in
    `src/layouts.mjs`.
-3. Re-read `scan` in `src/copy/en.json` against what shipped (it was written
-   from the branch), then `npm run render`. Google Play takes 8, so drop one
-   frame from its upload.
+3. Re-read `scan` in `src/copy/en.json` against what shipped, then
+   `npm run render`. Google Play takes 8, so drop one frame from its upload.
 
 ## Other languages
 

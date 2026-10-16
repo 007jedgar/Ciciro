@@ -215,7 +215,7 @@ Every public page's preview image is `ImageResponse` (`next/og`), never a static
 
 ## Store screenshots
 
-`tools/store-screenshots` (standalone package, HTML/CSS rasterised by headless Chrome, `npm run render`) builds the App Store and Google Play images and the Play feature graphic from real simulator captures kept in `captures/<locale>/<phone|tablet|android>/`; nothing inside a device is drawn by the tool, so a visible redesign of a shown screen (or a new theme, or the reminder notification's wording) needs a re-capture, not a CSS edit. Its README holds the current store dimensions and counts, the seed data, the capture recipe and how to swap the held scan frame in once `fm/cic-scan-notes` ships. Only a feature that ships today gets a frame: a `planned` frame renders only with `--include-planned` and carries a DO NOT UPLOAD band.
+`tools/store-screenshots` (standalone package, HTML/CSS rasterised by headless Chrome, `npm run render`) builds the App Store and Google Play images and the Play feature graphic from real simulator captures kept in `captures/<locale>/<phone|tablet|android>/`; nothing inside a device is drawn by the tool, so a visible redesign of a shown screen (or a new theme, or the reminder notification's wording) needs a re-capture, not a CSS edit. Its README holds the current store dimensions and counts, the seed data, the capture recipe and how to swap the held Scan notes frame in once it is in a store release. Only a feature that ships today gets a frame: a `planned` frame renders only with `--include-planned` and carries a DO NOT UPLOAD band.
 
 ## Maintaining this file
 

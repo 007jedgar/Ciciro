@@ -4,8 +4,9 @@
 // names under captures/<locale>/<source>/ (png). A frame whose status is not
 // "shipped" is skipped unless you pass --include-planned.
 //
-// "planned" means the feature behind it has not shipped, so the frame must
-// not reach a store listing. To swap one in when its feature ships:
+// "planned" means the feature behind it is not in a store release yet (or has
+// not been captured), so the frame must not reach a store listing. To swap one
+// in when its feature ships:
 //   1. capture the real screens (see README, "Capturing"),
 //   2. set status to "shipped" (and move it to where it should sit),
 //   3. npm run render.
@@ -21,7 +22,7 @@ export const FRAMES = [
   { id: "exercise", status: "shipped", bg: "blue", captures: ["exercise-intro", "weekly-review-next"] },
   { id: "bible", status: "shipped", bg: "ink", captures: ["bible", "bible-entry"] },
   { id: "themes", status: "shipped", bg: "paper", captures: ["theme-ciciro", "theme-night", "theme-bookshelf"] },
-  // Held: the camera-scan feature lives on fm/cic-scan-notes and has not shipped.
+  // Held: Scan notes is on main (#198) but not in a store release or captured yet.
   { id: "scan", status: "planned", bg: "butter", captures: ["scan"] },
 ];
 
