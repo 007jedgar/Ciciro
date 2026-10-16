@@ -53,14 +53,23 @@ and bezels `src/styles.css`.
 | # | Headline | Picture |
 |---|---|---|
 | 1 | Keeps you writing, five minutes at a time. | Editor, open on the last sentence |
-| 2 | A reminder that knows where you left off. | Reminder setup + the personalised notification |
-| 3 | Your commute is a writing session. | Sprint, with dictate / listen / sprint callouts |
-| 4 | Ciciro suggests. You decide. | Tracked suggestions |
-| 5 | Stuck? Start with a prompt, not a blank page. | Guided exercise |
-| 6 | Every week, a look at what to write next. | Weekly review |
+| 2 | A script that looks like a script. | Screenplay mode (Beta) with the element bar, and a page of the script |
+| 3 | A reminder that knows where you left off. | Reminder setup + the personalised notification |
+| 4 | Your commute is a writing session. | Sprint, with dictate / listen / sprint callouts |
+| 5 | Ciciro suggests. You decide. | Tracked suggestions |
+| 6 | Write a little. Get better at it. | Guided exercise + the weekly review's "what to write next" |
 | 7 | What color were her eyes? | Story bible |
 | 8 | Make it yours. | Three themes side by side |
 | held | Scan your handwritten notes into your outline. | Not rendered by default |
+
+Eight frames, so one sequence fits Google Play's limit and the App Store's.
+Every claim is a feature the phone ships today; screenplay is marked Beta in
+the frame because it is Beta in the app. Manuscript import only creates
+chapters (it does not fill the story bible), so there is no frame saying so.
+
+Every render also writes `out/<locale>/gallery.html`: one self-contained page
+of every image (previews embedded, each linking to its full-size PNG beside it)
+for review.
 
 ## Capturing
 
@@ -93,12 +102,14 @@ saves each capture. Which screen each name is:
 | Capture | Screen |
 |---|---|
 | `editor` | Chapter 12, "The Letter", caret at the end of the last sentence |
+| `screenplay` | "Ten Minutes", the screenplay, page layout on, element bar over the keyboard |
+| `screenplay-pages` | The same script's Pages view (one sheet) |
 | `reminder` | Writing reminder form for The Letter (days, time, word goal) |
 | `notification` | The reminder banner over the home screen, cropped (`src/crops.mjs`) |
 | `sprint` | A sprint running, a few words typed (Ciciro Night) |
 | `suggestions`, `suggestions-bar` | Chapter 11 with Ciciro's tracked changes, and the review bar |
 | `exercise` | Guided writing exercise, settle-in |
-| `weekly-review` | Weekly review for The Letter |
+| `weekly-review` | Weekly review for The Letter (the "What to write next" part becomes a card) |
 | `bible`, `bible-entry` | Story bible list, and Ines Lind's entry |
 | `theme-ciciro`, `theme-night`, `theme-bookshelf` | The editor in Ciciro, Ciciro Night and Bookshelf |
 
