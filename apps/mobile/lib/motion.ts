@@ -39,7 +39,7 @@ export const POP_SPRING = { damping: 14, stiffness: 220 } as const;
 /** The colour crossfade when a single-select control flips. */
 export const SELECT_FADE_MS = 180;
 
-/** The menu over highlighted text fades and settles in over this long (see `components/SelectionMenu.tsx`). */
+/** The strip over highlighted text fades in over this long (see `components/SelectionDock.tsx`). */
 export const SELECTION_MENU_MS = 160;
 
 /** The writing-frequency line: how long each period holds, and how fast it types and deletes. */

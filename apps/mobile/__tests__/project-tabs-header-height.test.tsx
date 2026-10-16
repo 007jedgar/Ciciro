@@ -1,8 +1,12 @@
 import { act, render, screen } from "@testing-library/react-native";
 import type { ReactElement, ReactNode } from "react";
+import { StyleSheet } from "react-native";
 import ProjectTabsLayout from "../app/project/[id]/(tabs)/_layout";
+import { setFocusMode } from "../lib/focus-mode";
+import { DOCK_ACTIONS_ROW, DOCK_ROW_HEIGHT, DOCK_SYNONYMS_ROW, setSelectionDock } from "../lib/selection-dock";
 
 let mockSegments = ["project", "[id]", "(tabs)", "chapters"];
+let mockShowDailyGoal = true;
 let mockScreenLayout: ((args: { route: { name: string }; children: ReactNode }) => ReactElement) | undefined;
 
 jest.mock("expo-router", () => {
@@ -56,7 +60,7 @@ jest.mock("../lib/settings", () => ({
   useOptionalAppTheme: () => null,
   useAppTheme: () => {
     const { colors, makeLayout } = jest.requireActual("../lib/theme");
-    return { colors, layout: makeLayout(colors), settings: { reduceMotion: false } };
+    return { colors, layout: makeLayout(colors), settings: { reduceMotion: false, showDailyGoal: mockShowDailyGoal } };
   },
 }));
 jest.mock("../lib/use-reduce-motion", () => ({ useReduceMotion: () => false }));
@@ -85,5 +89,73 @@ describe("project tabs header height", () => {
     view.rerender(<ProjectTabsLayout />);
     expect(heightOf("chapters")).toBe("100");
     expect(mockScreenLayout).toBeDefined();
+  });
+});
+
+// What the writer can do with highlighted text hangs over the header's last row. The page under the
+// header is padded by the header's height, so the strip must sit inside that height and never add to it.
+describe("selection strip over the project header", () => {
+  const published = {
+    target: "passage" as const,
+    word: "who had been pushing",
+    synonyms: { status: "idle" as const, list: [] as [] },
+    onAction: jest.fn(),
+    onSynonym: jest.fn(),
+  };
+  const word = {
+    ...published,
+    target: "word" as const,
+    word: "country",
+    synonyms: { status: "ready" as const, list: ["homeland", "nation"] },
+  };
+  const hostStyle = () => StyleSheet.flatten(screen.getByTestId("selection-dock-host").props.style);
+
+  afterEach(() => {
+    mockShowDailyGoal = true;
+    act(() => {
+      setSelectionDock(null);
+      setFocusMode(false);
+    });
+  });
+
+  it("covers the header's pills and meter rows on the manuscript tab, and is gone on the others", () => {
+    mockSegments = ["project", "[id]", "(tabs)", "manuscript"];
+    const view = render(<ProjectTabsLayout />);
+    act(() => mockReportHeight?.(155));
+    act(() => setSelectionDock(word));
+    expect(hostStyle()).toMatchObject({
+      top: 155 - (DOCK_ACTIONS_ROW + DOCK_SYNONYMS_ROW),
+      height: DOCK_ACTIONS_ROW + DOCK_SYNONYMS_ROW,
+    });
+
+    mockSegments = ["project", "[id]", "(tabs)", "chapters"];
+    view.rerender(<ProjectTabsLayout />);
+    expect(screen.queryByTestId("selection-dock-host")).toBeNull();
+  });
+
+  it("covers only the pills row for a passage, from the same top", () => {
+    mockSegments = ["project", "[id]", "(tabs)", "manuscript"];
+    render(<ProjectTabsLayout />);
+    act(() => mockReportHeight?.(155));
+    act(() => setSelectionDock(published));
+    expect(hostStyle()).toMatchObject({ top: 155 - (DOCK_ACTIONS_ROW + DOCK_SYNONYMS_ROW), height: DOCK_ACTIONS_ROW });
+  });
+
+  it("is a single row where the writer turned the daily goal (and so the meter) off", () => {
+    mockShowDailyGoal = false;
+    mockSegments = ["project", "[id]", "(tabs)", "manuscript"];
+    render(<ProjectTabsLayout />);
+    act(() => mockReportHeight?.(155));
+    act(() => setSelectionDock(word));
+    expect(hostStyle()).toMatchObject({ top: 155 - DOCK_ROW_HEIGHT, height: DOCK_ROW_HEIGHT });
+  });
+
+  it("moves under the status bar while focus mode has the header away", () => {
+    mockSegments = ["project", "[id]", "(tabs)", "manuscript"];
+    render(<ProjectTabsLayout />);
+    act(() => mockReportHeight?.(155));
+    act(() => setSelectionDock(word));
+    act(() => setFocusMode(true));
+    expect(hostStyle()).toMatchObject({ top: 50, height: DOCK_ROW_HEIGHT });
   });
 });

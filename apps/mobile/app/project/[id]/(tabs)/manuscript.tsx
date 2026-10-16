@@ -251,7 +251,6 @@ function ManuscriptScreenContent() {
   const [typing, setTyping] = useState(false);
   const [pressMenuOpen, setPressMenuOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [editorBounds, setEditorBounds] = useState({ width: 0, height: 0 });
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideBar = useSharedValue(0);
   const keyboardVisible = useKeyboardState((state) => state.isVisible);
@@ -524,7 +523,6 @@ function ManuscriptScreenContent() {
   const selectionMenu = useSelectionMenu({
     chapterId: chapter?.id,
     focused,
-    bounds: editorBounds,
     getText: getSelectionText,
     replaceWord,
     onAction: onSelectionAction,
@@ -1057,10 +1055,9 @@ function ManuscriptScreenContent() {
           <View
             style={{ flex: 1 }}
             onStartShouldSetResponder={() => true}
-            onLayout={(event) => {
-              const { width, height } = event.nativeEvent.layout;
-              setEditorBounds((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
-            }}
+            onTouchStart={selectionMenu.onTouchStart}
+            onTouchEnd={selectionMenu.onTouchEnd}
+            onTouchCancel={selectionMenu.onTouchEnd}
           >
             <ChapterEditor
               chapterId={chapter.id}
@@ -1078,12 +1075,10 @@ function ManuscriptScreenContent() {
               onContentApplied={onContentApplied}
               onChangeState={onChangeState}
               onChangeSelection={onCaret}
-              onSelectionFrame={selectionMenu.onSelectionFrame}
               onLongPress={showPressMenu(settings.formatChrome) ? openPressMenu : undefined}
               onSetKind={showPressMenu(settings.formatChrome) ? onSetKind : undefined}
               registerEditor={registerEditor}
             />
-            {selectionMenu.anchored}
             <View
               pointerEvents="box-none"
               style={{
@@ -1135,7 +1130,6 @@ function ManuscriptScreenContent() {
               {formatOverlay.bubble ? (
                 <FormatBubble marks={targetMarks} onToggleMark={onToggleMark} />
               ) : null}
-              {selectionMenu.inline}
             </View>
           </View>
         </Pressable>

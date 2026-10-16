@@ -8,6 +8,7 @@ import { AppHeader, AppHeaderHeightContext } from "../../../../components/AppHea
 import { manuscriptMorphKey, useSharedTitleMorphState } from "../../../../lib/shared-title-morph";
 import { ManuscriptTabBar } from "../../../../components/ManuscriptTabBar";
 import { SkeletonList } from "../../../../components/Skeleton";
+import { SelectionDockHost } from "../../../../components/SelectionDock";
 import { WritingMeter } from "../../../../components/WritingMeter";
 import { FocusIcon, HeadphonesIcon } from "../../../../components/icons";
 import { useProject } from "../../../../lib/project";
@@ -106,7 +107,7 @@ export default function ProjectTabsLayout() {
   const { backTo } = useStackBack();
   const { t } = useTranslation();
   const { user, ready } = useSession();
-  const { layout, colors } = useAppTheme();
+  const { layout, colors, settings } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
@@ -200,6 +201,18 @@ export default function ProjectTabsLayout() {
       >
         <ProjectHeader projectId={id} showMeter={onEditor} onHeightChange={onHeaderHeight} />
       </Animated.View>
+      {/* What the writer can do with highlighted text takes the place of the header's Focus / Listen
+          pills and writing meter (under the status bar while focus mode has the header away): the
+          system callout opens over the page, so a menu by the selection can end up under it. */}
+      {headerHeights.meter !== null ? (
+        <SelectionDockHost
+          visible={onEditor}
+          headerHeight={headerHeights.meter}
+          safeTop={insets.top}
+          focused={focused}
+          meterShown={Boolean(settings.showDailyGoal)}
+        />
+      ) : null}
       <Animated.View
         pointerEvents={focused ? "box-none" : "none"}
         accessibilityElementsHidden={!focused}
