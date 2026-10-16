@@ -141,7 +141,6 @@ const SCRIPT = [
   ["scene-heading", "INT. KITCHEN - NIGHT"],
   ["action", "Maya sits at the table, laptop shut, a cold cup of coffee by her elbow. Next door, a porch light clicks off."],
   ["character", "MAYA"],
-  ["parenthetical", "(to herself)"],
   ["dialogue", "Ten minutes. That's all I've got tonight."],
   ["action", "She opens the laptop. The cursor finds the sentence she left off on, like it never moved."],
   ["character", "MAYA"],
@@ -234,7 +233,9 @@ async function main() {
   const db = new PrismaClient();
   try {
     const week = DAYS.filter(([back]) => back <= 6);
-    const touched = [11, 10, 9].map((i) => ({ id: chapters[i].id, title: CHAPTERS[i][0], wordCount: 120 }));
+    // Real chapter word counts, as the server would report them.
+    const wordsOf = (paragraphs) => paragraphs.join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+    const touched = [11, 10, 9].map((i) => ({ id: chapters[i].id, title: CHAPTERS[i][0], wordCount: wordsOf(CHAPTERS[i][1]) }));
     await db.weeklyReview.create({
       data: {
         projectId,

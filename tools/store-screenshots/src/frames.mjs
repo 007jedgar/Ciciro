@@ -17,8 +17,8 @@ export const FRAMES = [
   { id: "screenplay", status: "shipped", bg: "butter", captures: ["screenplay", "screenplay-pages"] },
   { id: "reminders", status: "shipped", bg: "vermilion", captures: ["reminder", "notification"] },
   { id: "commute", status: "shipped", bg: "paper", captures: ["sprint"] },
-  { id: "suggest", status: "shipped", bg: "blush", captures: ["suggestions", "suggestions-bar"] },
-  { id: "exercise", status: "shipped", bg: "blue", captures: ["exercise", "weekly-review"] },
+  { id: "suggest", status: "shipped", bg: "blush", captures: ["suggestions"] },
+  { id: "exercise", status: "shipped", bg: "blue", captures: ["exercise-intro", "weekly-review-next"] },
   { id: "bible", status: "shipped", bg: "ink", captures: ["bible", "bible-entry"] },
   { id: "themes", status: "shipped", bg: "paper", captures: ["theme-ciciro", "theme-night", "theme-bookshelf"] },
   // Held: the camera-scan feature lives on fm/cic-scan-notes and has not shipped.

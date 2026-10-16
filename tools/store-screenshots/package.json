@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "render": "node src/render.mjs",
-    "render:all": "node src/render.mjs --all-targets",
     "check": "node src/render.mjs --check"
   },
   "dependencies": {

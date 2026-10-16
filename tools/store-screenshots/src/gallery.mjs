@@ -29,7 +29,7 @@ export async function buildGallery({ outRoot, locale, placeholders }) {
         name: f,
         href: `${key}/${f}`,
         kb: Math.round(statSync(full).size / 1024),
-        src: await preview(full, wide ? 760 : 380),
+        src: await preview(full, wide ? 840 : 440),
       });
     }
     sections.push({ key, target, wide, items });
@@ -44,7 +44,7 @@ export async function buildGallery({ outRoot, locale, placeholders }) {
       <div class="row${wide ? " wide" : ""}">
         ${items
           .map(
-            (i) => `<figure><a href="${esc(i.href)}" target="_blank" rel="noopener"><img src="${i.src}" alt="${esc(i.name)}" width="${wide ? 380 : 190}"></a>
+            (i) => `<figure><a href="${esc(i.href)}" target="_blank" rel="noopener"><img src="${i.src}" alt="${esc(i.name)}" loading="lazy"></a>
           <figcaption>${esc(i.name)}<br><small>${i.kb} KB</small></figcaption></figure>`
           )
           .join("\n")}
@@ -69,9 +69,11 @@ export async function buildGallery({ outRoot, locale, placeholders }) {
   h2 span { color:var(--blue); margin-left:10px; }
   .meta { color:var(--soft); font-size:14px; margin:0 0 18px; }
   code { font:13px ui-monospace,Menlo,monospace; }
-  .row { display:flex; gap:18px; overflow-x:auto; padding:4px 2px 14px; }
-  figure { margin:0; flex:none; }
-  img { display:block; height:auto; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.14); }
+  /* Every image wraps into view: a reviewer should never have to scroll sideways to find frame 8. */
+  .row { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr)); gap:24px 20px; padding:4px 2px 14px; }
+  .row.wide { grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr)); }
+  figure { margin:0; min-width:0; }
+  img { display:block; width:100%; height:auto; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.14); }
   figcaption { font:12px/1.4 ui-monospace,Menlo,monospace; color:var(--soft); margin-top:8px; }
 </style></head><body>
 <h1>Ciciro store screenshots</h1>

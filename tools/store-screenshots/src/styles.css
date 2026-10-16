@@ -263,6 +263,13 @@ h1 em {
   height: auto;
   border-radius: inherit;
 }
+/* A taped print: a paper border around the picture so the tape never covers it. */
+.cut.taped {
+  padding: calc(2.2 * var(--c));
+}
+.cut.taped img {
+  border-radius: calc(1.2 * var(--c));
+}
 .cut.taped::before {
   content: "";
   position: absolute;
@@ -273,6 +280,11 @@ h1 em {
   height: calc(5.4 * var(--c));
   background: color-mix(in srgb, var(--butter) 78%, transparent);
   transform: translateX(-50%) rotate(2.4deg);
+}
+/* The reminder banner is a rounded card of its own: round the cut to match. */
+.cut.notif {
+  border-radius: var(--notif-r, 6.3% / 22%);
+  background: transparent;
 }
 .chip {
   position: absolute;
@@ -353,6 +365,7 @@ h1 em {
   --head-h: 590px;
 }
 .form-tablet {
+  --notif-r: 5.3% / 34%;
   --pad-top: 84px;
   --pad-x: 80px;
   --tab-size: 20px;

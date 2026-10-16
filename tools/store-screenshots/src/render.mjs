@@ -157,6 +157,13 @@ async function prepare(ctx, captures, run) {
     if (!entry) continue;
     let buf = entry.buf;
     const trim = captures.trimFor(entry);
+    // Google Play frames show no iOS chrome, and the iOS keyboard is some: where
+    // the capture has one (meta.json "keyboard"), paint it out in the page colour.
+    const kb = trim && ctx.meta.keyboard?.[name];
+    if (kb) {
+      const fill = { create: { width: entry.width, height: entry.height - kb.top, channels: 3, background: kb.fill } };
+      buf = await sharp(buf).composite([{ input: await sharp(fill).png().toBuffer(), left: 0, top: kb.top }]).png().toBuffer();
+    }
     if (trim) buf = await sharp(buf).extract({ left: 0, top: trim.top, width: entry.width, height: entry.height - trim.top - trim.bottom }).png().toBuffer();
     ctx.prepared.set(`cap:${name}`, { uri: uri(buf) });
   }

@@ -35,6 +35,9 @@ function cutout(ctx, name, rect, style, cls = "") {
   return `<figure class="cut ${cls}" style="${style}"><img src="${cap.uri}" alt=""></figure>`;
 }
 
+/** The tablet's value when the target is a tablet, else the phone's. */
+const byForm = (ctx, phoneValue, tabletValue) => (ctx.target.form === "tablet" ? tabletValue : phoneValue);
+
 const comp = (inner, style = "") => `<div class="comp" style="${style}">${inner}</div>`;
 
 export const LAYOUTS = {
@@ -45,7 +48,7 @@ export const LAYOUTS = {
         <span style="writing-mode:vertical-rl;font:400 24px var(--serif);color:#141414">Chapter 12</span></div>
       ${comp(
         `${phone(ctx, "editor")}
-         ${stamp(ctx.copy.stamp, "left:-9%;top:14%;width:32%;height:32%;transform:rotate(-14deg)")}`,
+         ${stamp(ctx.copy.stamp, "right:-10%;top:calc(-17 * var(--c));width:calc(27 * var(--c));aspect-ratio:1;transform:rotate(12deg)")}`,
         "top:6%"
       )}`;
   },
@@ -53,7 +56,7 @@ export const LAYOUTS = {
   screenplay(ctx) {
     return comp(
       `${phone(ctx, "screenplay")}
-       ${cutout(ctx, "screenplay-pages", ctx.rects.scriptPage, "right:-17%;top:52%;width:62%;transform:rotate(2.2deg)", "taped")}`,
+       ${cutout(ctx, "screenplay-pages", ctx.rects.scriptPage, byForm(ctx, "right:-12%;top:52%;width:60%;transform:rotate(2.2deg)", "right:-10%;top:66%;width:62%;transform:rotate(2deg)"), "taped")}`,
       "top:2%"
     );
   },
@@ -61,7 +64,7 @@ export const LAYOUTS = {
   reminders(ctx) {
     return comp(
       `${phone(ctx, "reminder")}
-       ${cutout(ctx, "notification", ctx.rects.notification, "left:-8%;top:-4%;width:116%;transform:rotate(-2.2deg)")}`,
+       ${cutout(ctx, "notification", ctx.rects.notification, byForm(ctx, "left:-8%;top:-1%;width:116%;transform:rotate(-2.2deg)", "left:-4%;top:-2%;width:108%;transform:rotate(-1.4deg)"), "notif")}`,
       "top:6%"
     );
   },
@@ -79,8 +82,8 @@ export const LAYOUTS = {
 
   exercise(ctx) {
     return comp(
-      `${phone(ctx, "exercise")}
-       ${cutout(ctx, "weekly-review", ctx.rects.weeklyNext, "right:-15%;top:58%;width:78%;transform:rotate(2deg)", "taped")}`,
+      `${phone(ctx, "exercise-intro")}
+       ${cutout(ctx, "weekly-review-next", ctx.rects.weeklyNext, byForm(ctx, "right:-10%;top:64%;width:76%;transform:rotate(2deg)", "right:-8%;top:68%;width:84%;transform:rotate(1.6deg)"), "taped")}`,
       "top:2%"
     );
   },
@@ -88,7 +91,7 @@ export const LAYOUTS = {
   suggest(ctx) {
     return comp(
       `${phone(ctx, "suggestions")}
-       ${cutout(ctx, "suggestions-bar", ctx.rects.suggestionsBar, "left:-12%;top:50%;width:84%;transform:rotate(-2deg)")}`,
+       ${cutout(ctx, "suggestions", ctx.rects.suggestionCard, byForm(ctx, "left:-10%;top:22%;width:112%;transform:rotate(-1.8deg)", "left:-6%;top:44%;width:112%;transform:rotate(-1.4deg)"))}`,
       "top:2%"
     );
   },
@@ -96,7 +99,7 @@ export const LAYOUTS = {
   bible(ctx) {
     return comp(
       `${phone(ctx, "bible")}
-       ${cutout(ctx, "bible-entry", ctx.rects.bibleEntry, "left:-14%;top:58%;width:78%;transform:rotate(-2deg)", "taped")}`,
+       ${cutout(ctx, "bible-entry", ctx.rects.bibleEntry, byForm(ctx, "left:-10%;top:60%;width:92%;transform:rotate(-2deg)", "left:-8%;top:62%;width:78%;transform:rotate(-1.8deg)"), "taped")}`,
       "top:2%"
     );
   },
@@ -108,9 +111,9 @@ export const LAYOUTS = {
          <div style="font:500 20px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--soft);margin-bottom:18px;text-align:center">${esc(label)}</div>
          ${phone(ctx, name)}</div>`;
     return `
-      ${slot("theme-ciciro", names[0], "left:2%;top:10%;transform:rotate(-5deg);transform-origin:50% 100%", 430)}
-      ${slot("theme-bookshelf", names[2], "right:2%;top:10%;transform:rotate(5deg);transform-origin:50% 100%", 430)}
-      ${slot("theme-night", names[1], "left:50%;top:0;transform:translateX(-50%);z-index:3", 500)}`;
+      ${slot("theme-ciciro", names[0], `left:${byForm(ctx, -70, -34)}px;top:9%;transform:rotate(-5deg);transform-origin:50% 100%`, byForm(ctx, 500, 460))}
+      ${slot("theme-bookshelf", names[2], `right:${byForm(ctx, -70, -34)}px;top:9%;transform:rotate(5deg);transform-origin:50% 100%`, byForm(ctx, 500, 460))}
+      ${slot("theme-night", names[1], "left:50%;top:0;transform:translateX(-50%);z-index:3", byForm(ctx, 600, 560))}`;
   },
 
   scan(ctx) {

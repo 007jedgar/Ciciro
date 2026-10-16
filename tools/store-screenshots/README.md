@@ -50,17 +50,17 @@ sequence fits both stores; the App Store would take two more.
 (`*word*` becomes the italic accent), pictures are `src/layouts.mjs`, tokens
 and bezels `src/styles.css`.
 
-| # | Headline | Picture |
-|---|---|---|
-| 1 | Keeps you writing, five minutes at a time. | Editor, open on the last sentence |
-| 2 | A script that looks like a script. | Screenplay mode (Beta) with the element bar, and a page of the script |
-| 3 | A reminder that knows where you left off. | Reminder setup + the personalised notification |
-| 4 | Your commute is a writing session. | Sprint, with dictate / listen / sprint callouts |
-| 5 | Ciciro suggests. You decide. | Tracked suggestions |
-| 6 | Write a little. Get better at it. | Guided exercise + the weekly review's "what to write next" |
-| 7 | What color were her eyes? | Story bible |
-| 8 | Make it yours. | Three themes side by side |
-| held | Scan your handwritten notes into your outline. | Not rendered by default |
+| # | Headline | Picture | What it sells |
+|---|---|---|---|
+| 1 | Keeps you writing, five minutes at a time. | Editor, open on the last sentence | The habit, for people who write in stolen minutes |
+| 2 | A script that looks like a script. | Screenplay mode (Beta) with the element bar, and a page of the script | A real screenplay format on a phone |
+| 3 | A reminder that knows where you left off. | Reminder setup + the personalised notification | Reminders that quote your last lines |
+| 4 | Your commute is a writing session. | Sprint, with dictate / listen back / 15 min sprint callouts | Small pockets of time |
+| 5 | Ciciro suggests. You decide. | Tracked suggestions | The book stays yours |
+| 6 | Write a little. Get better at it. | Guided exercise + the weekly review's "what to write next" | Getting better, not just producing words |
+| 7 | What color were her eyes? | Story bible | Canon beside the chapters |
+| 8 | Make it yours. | Three themes side by side | Eight themes |
+| held | Scan your handwritten notes into your outline. | Not rendered by default | Planned, see below |
 
 Eight frames, so one sequence fits Google Play's limit and the App Store's.
 Every claim is a feature the phone ships today; screenplay is marked Beta in
@@ -79,8 +79,17 @@ size, in `captures/<locale>/<form>/<name>.png`: `phone` (iPhone 17,
 build exists, `android` (the renderer falls back to `phone` and trims the iOS
 status bar and home indicator, so Play never shows iOS chrome). A frame's
 `captures` list in `src/frames.mjs` names what it needs; `--check` lists what
-is missing. `captures/<locale>/meta.json` records `{"island": true}` when the
-simulator's screenshot already includes the Dynamic Island.
+is missing.
+
+`captures/<locale>/meta.json` carries two facts about the set:
+
+- `"island": true`: the screenshot already includes the Dynamic Island, so the
+  bezel does not draw one.
+- `"keyboard": { "<capture>": { "top": <px>, "fill": "<css colour>" } }`: the
+  capture has the iOS software keyboard up. App Store frames keep it (it is the
+  real screen); Google Play frames paint it out in the page colour, since the
+  iOS keyboard is iOS chrome. The simulator cannot dismiss the keyboard while an
+  editor is open, which is why the editor frame has one.
 
 The data is a local server seeded with the homepage's sample book, never
 production:
@@ -88,7 +97,7 @@ production:
 ```sh
 # repo root: DATABASE_URL="file:./dev.db", CICIRO_REQUIRE_AUTH=true in .env
 npm run setup && npx next dev -p 3187
-node tools/store-screenshots/seed/seed.mjs          # "The Letter" by Nell Harrow
+node tools/store-screenshots/seed/seed.mjs          # "The Letter" by Nell Harrow, "Ten Minutes" (a script)
 # apps/mobile/.env: EXPO_PUBLIC_API_URL=http://localhost:3187
 cd apps/mobile && npx expo start --dev-client --port 8187
 ```
@@ -96,25 +105,41 @@ cd apps/mobile && npx expo start --dev-client --port 8187
 Sign in as `store-shots@ciciro.test` (password in `seed/seed.mjs`). Then, with
 the simulator booted by the person holding its turn, `capture/sim.sh` cleans
 the status bar (9:41, full bars), opens deep links, delivers the reminder
-banner (`capture/notification.json`, the title and body the app schedules) and
-saves each capture. Which screen each name is:
+banner (`capture/notification.json`, the title and body shape the app
+schedules, with the last lines of chapter 12) and saves each capture. Which
+screen each name is:
 
 | Capture | Screen |
 |---|---|
-| `editor` | Chapter 12, "The Letter", caret at the end of the last sentence |
-| `screenplay` | "Ten Minutes", the screenplay, page layout on, element bar over the keyboard |
-| `screenplay-pages` | The same script's Pages view (one sheet) |
-| `reminder` | Writing reminder form for The Letter (days, time, word goal) |
-| `notification` | The reminder banner over the home screen, cropped (`src/crops.mjs`) |
-| `sprint` | A sprint running, a few words typed (Ciciro Night) |
-| `suggestions`, `suggestions-bar` | Chapter 11 with Ciciro's tracked changes, and the review bar |
-| `exercise` | Guided writing exercise, settle-in |
-| `weekly-review` | Weekly review for The Letter (the "What to write next" part becomes a card) |
+| `editor` | Chapter 12, "The Letter", caret at the end of the last sentence (iPad: with two more paragraphs typed in, then removed) |
+| `screenplay` | "Ten Minutes", the screenplay, page layout on (Settings > Screenplay > Page layout while typing), element bar |
+| `screenplay-pages` | The same script's Pages tile (one sheet, with page numbers) |
+| `reminder` | Writing reminder form for The Letter: 250 words, 8:00 AM, Mon / Wed / Thu / Sat |
+| `notification` | The reminder banner over the home screen, long-pressed to expand; cropped by `src/crops.mjs` |
+| `sprint` | A 15 minute sprint running, Ciciro Night, a few words typed first (chapter 1 is restored afterwards) |
+| `suggestions` | Chapter 11 with three tracked changes from Ciciro, the Suggestions sheet open |
+| `exercise-intro` | The guided writing exercise's first screen |
+| `weekly-review-next` | Weekly review for The Letter, scrolled to "What to write next" (the seed writes the review directly, so no model call is spent) |
 | `bible`, `bible-entry` | Story bible list, and Ines Lind's entry |
-| `theme-ciciro`, `theme-night`, `theme-bookshelf` | The editor in Ciciro, Ciciro Night and Bookshelf |
+| `theme-ciciro`, `theme-night`, `theme-bookshelf` | The chapters tab of The Letter in each theme (Settings > Theme) |
 
-Floating cards are cut from the captures by fractions in `src/crops.mjs`; if a
-screen moves, adjust the rect.
+Floating cards are cut from the captures by fractions in `src/crops.mjs` (phone
+and tablet have their own rects); if a screen moves, adjust the rect. The
+renderer never draws app UI itself: every pixel inside a device is a capture.
+
+## Google Play and Android
+
+There is no Android build to capture yet, so the Play set (`play-phone`, 1080 x
+1920, and the 1024 x 500 feature graphic) reuses the iPhone captures: the renderer
+trims the iOS status bar (top 186 px) and home indicator (bottom 102 px), draws a
+plain slab with no brand, notch or Dynamic Island, and paints out the iOS
+keyboard where a capture has one (`meta.json`, above). No iOS chrome is left in
+a Play image. When an Android build exists, take the same captures on an
+emulator into `captures/en/android/` (one name per capture, same list); the
+renderer prefers that folder and stops trimming, with no code change. Play
+takes at most 8 phone screenshots, which is exactly the set; if the scan frame
+ships (below) and the set becomes 9, drop one from the Play upload (the App
+Store takes 10).
 
 ## The held scan frame
 
@@ -128,7 +153,9 @@ feature ships:
 2. In `src/frames.mjs` set the frame's `status` to `"shipped"` and move it to
    its place in the order. Remove the band from `LAYOUTS.scan` in
    `src/layouts.mjs`.
-3. `npm run render`. Google Play takes 8, so drop one frame from its upload.
+3. Re-read `scan` in `src/copy/en.json` against what shipped (it was written
+   from the branch), then `npm run render`. Google Play takes 8, so drop one
+   frame from its upload.
 
 ## Other languages
 

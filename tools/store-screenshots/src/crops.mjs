@@ -5,28 +5,26 @@
 
 export const CROPS = {
   phone: {
-    // The notification banner as it lands over the home screen.
-    notification: { x: 0.02, y: 0.045, w: 0.96, h: 0.095 },
-    // The top of the Writing history screen: days written, the calm count.
-    history: { x: 0, y: 0.06, w: 1, h: 0.62 },
-    // The tracked-changes bar: Accept all / Reject all and the count.
-    suggestionsBar: { x: 0.03, y: 0.2, w: 0.94, h: 0.12 },
-    // The prompt on the guided exercise.
-    exerciseCard: { x: 0.05, y: 0.3, w: 0.9, h: 0.3 },
-    // The "What to write next" part of the Weekly review.
-    weeklyNext: { x: 0.04, y: 0.62, w: 0.92, h: 0.22 },
-    // One character entry in the Story bible.
-    bibleEntry: { x: 0.04, y: 0.3, w: 0.92, h: 0.16 },
-    // One sheet of the script's page view (the Pages tile).
-    scriptPage: { x: 0.08, y: 0.12, w: 0.84, h: 0.62 },
+    // The expanded reminder banner (long-pressed), measured from the capture.
+    notification: { x: 0.0415, y: 0.0946, w: 0.9163, h: 0.1194 },
+    // The second suggestion on the Suggestions sheet: the struck text and its replacement, the whole card.
+    suggestionCard: { x: 0.054, y: 0.752, w: 0.892, h: 0.222 },
+    // The "What to write next" part of the Weekly review (from weekly-review-next).
+    weeklyNext: { x: 0.03, y: 0.745, w: 0.94, h: 0.205 },
+    // The description line of Ines Lind's entry (from bible-entry): "Grey eyes ...".
+    bibleEntry: { x: 0.06, y: 0.372, w: 0.88, h: 0.085 },
+    // The top of the script's page view (the Pages tile): the sheet's text, without the empty page under it.
+    scriptPage: { x: 0.052, y: 0.256, w: 0.896, h: 0.34 },
   },
   tablet: {
-    notification: { x: 0.55, y: 0.02, w: 0.43, h: 0.06 },
-    history: { x: 0, y: 0.04, w: 1, h: 0.62 },
-    suggestionsBar: { x: 0.05, y: 0.18, w: 0.9, h: 0.1 },
-    exerciseCard: { x: 0.1, y: 0.3, w: 0.8, h: 0.26 },
-    weeklyNext: { x: 0.06, y: 0.6, w: 0.88, h: 0.2 },
-    bibleEntry: { x: 0.06, y: 0.3, w: 0.88, h: 0.14 },
-    scriptPage: { x: 0.2, y: 0.1, w: 0.6, h: 0.7 },
+    // The expanded reminder banner, measured from the capture.
+    notification: { x: 0.2001, y: 0.0378, w: 0.6003, h: 0.0705 },
+    suggestionCard: { x: 0.018, y: 0.581, w: 0.964, h: 0.112 },
+    // "Loose ends" and "What to write next": the iPad shows the whole review on one screen.
+    weeklyNext: { x: 0.02, y: 0.372, w: 0.96, h: 0.163 },
+    // The top of Ines Lind's entry (from bible-entry), Grey eyes included.
+    bibleEntry: { x: 0.02, y: 0.09, w: 0.96, h: 0.25 },
+    // The top of the script's page view: the sheet's text without the empty page under it.
+    scriptPage: { x: 0.02, y: 0.185, w: 0.96, h: 0.5 },
   },
 };
