@@ -107,7 +107,7 @@ export function AnalyticsSync() {
     // keeps the signed-in identity); the account only opts it in or out, and
     // a client built while the account says off is never opted in even for a
     // moment (an opt-in can itself be an event).
-    setAnalyticsConsent(deviceAnalyticsAllowed(consent, mode), allowed);
+    setAnalyticsConsent(deviceAnalyticsAllowed(consent, mode), allowed, user?.id ?? null);
     getAnalytics().setOptedOut(!allowed);
   }, [consent, mode, user, settings.analyticsEnabled]);
 
