@@ -56,9 +56,13 @@ function ensureClient(): AnalyticsAdapter {
  * identifiers (optOut() first, then reset(), the required order). The
  * adapter itself is never torn down on withdrawal, so a later re-grant in
  * the same session - withdraw then change your mind again - opts the same
- * instance back in without needing an app restart.
+ * instance back in without needing an app restart. `active` is whether it
+ * should capture right now (false while the signed-in account's own setting
+ * is off): the device's grant alone decides whether the client exists and
+ * keeps its identity, so an account-level "off" only opts it out, never
+ * resets it.
  */
-export function setAnalyticsConsent(granted: boolean): void {
+export function setAnalyticsConsent(granted: boolean, active: boolean = granted): void {
   if (granted === consentGranted) return;
   consentGranted = granted;
   if (!granted) {
@@ -68,7 +72,7 @@ export function setAnalyticsConsent(granted: boolean): void {
     }
     return;
   }
-  ensureClient().setOptedOut(false);
+  ensureClient().setOptedOut(!active);
 }
 
 /**

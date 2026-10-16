@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import { usePathname } from "expo-router";
 import { getAnalytics, setAnalyticsConsent } from "../lib/analytics-client";
 import { trackScreenView, type ScreenView } from "../lib/analytics-events";
-import { effectiveAnalyticsAllowed, useConsent } from "../lib/consent";
+import { deviceAnalyticsAllowed, effectiveAnalyticsAllowed, useConsent } from "../lib/consent";
 import { refreshRegion, refreshRegionIfStale, useConsentMode } from "../lib/consent-region-store";
 import type { AppActiveListener } from "../lib/sync-engine";
 import { useSession } from "../lib/session";
@@ -103,10 +103,11 @@ export function AnalyticsSync() {
       signedIn: !!user,
       accountEnabled: settings.analyticsEnabled,
     });
-    // The real client is built and opted in only when analytics is actually
-    // allowed, so a default-on place whose account said off never opts in even
-    // for a moment (an opt-in can itself be an event).
-    setAnalyticsConsent(allowed);
+    // The device's own answer decides whether the real client exists (and so
+    // keeps the signed-in identity); the account only opts it in or out, and
+    // a client built while the account says off is never opted in even for a
+    // moment (an opt-in can itself be an event).
+    setAnalyticsConsent(deviceAnalyticsAllowed(consent, mode), allowed);
     getAnalytics().setOptedOut(!allowed);
   }, [consent, mode, user, settings.analyticsEnabled]);
 

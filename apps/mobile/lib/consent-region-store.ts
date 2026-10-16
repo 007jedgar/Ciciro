@@ -120,6 +120,15 @@ export function refreshRegion(client: RegionClient = defaultClient, now: () => n
   return inFlight;
 }
 
+/**
+ * Resolves once the lookup in flight (if any) has come back or failed, so a
+ * one-time decision can wait for the real answer instead of reading the
+ * opt-in default a slow first lookup leaves in place.
+ */
+export function regionLookup(): Promise<void> {
+  return inFlight ?? Promise.resolve();
+}
+
 /** Re-checks on a foreground return when the last attempt is old enough. */
 export function refreshRegionIfStale(client?: RegionClient, now: () => number = Date.now): Promise<void> {
   if (inFlight) return inFlight;

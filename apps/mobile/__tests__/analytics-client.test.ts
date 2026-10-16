@@ -94,6 +94,20 @@ describe("setAnalyticsConsent", () => {
     expect(adapterOut.calls).toEqual([{ method: "optIn" }]);
   });
 
+  it("builds the client opted out, never opting in, while the account's own setting is off", () => {
+    adapterOut = fakeAdapterFactory();
+    const create = jest.fn(() => adapterOut.adapter);
+    const { getAnalytics, setAnalyticsConsent } = loadAnalyticsClient("phc_test", create);
+
+    setAnalyticsConsent(true, false);
+    expect(adapterOut.calls).toEqual([{ method: "registerSuperProperties" }, { method: "optOut" }]);
+
+    adapterOut.calls.length = 0;
+    getAnalytics().identify("u1");
+    getAnalytics().setOptedOut(false);
+    expect(adapterOut.calls).toEqual([{ method: "identify" }, { method: "optIn" }]);
+  });
+
   it("is a no-op when the flag does not actually change", () => {
     adapterOut = fakeAdapterFactory();
     const create = jest.fn(() => adapterOut.adapter);

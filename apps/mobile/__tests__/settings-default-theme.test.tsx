@@ -95,9 +95,9 @@ describe("SettingsProvider: the phone's default theme", () => {
 describe("SettingsProvider: defaults for a brand-new account", () => {
   const server = blankServer();
 
-  function Adopter({ patch }: { patch: Partial<AppSettings> }) {
+  function Adopter({ patch, userId = "u1" }: { patch: Partial<AppSettings>; userId?: string }) {
     const { adoptNewAccount } = useThemePreview();
-    return <Text testID="adopt" onPress={() => adoptNewAccount(patch)} />;
+    return <Text testID="adopt" onPress={() => adoptNewAccount(patch, userId)} />;
   }
   function Analytics() {
     return <Text testID="analytics">{String(useAppTheme().settings.analyticsEnabled)}</Text>;
@@ -149,5 +149,20 @@ describe("SettingsProvider: defaults for a brand-new account", () => {
       answer({ settings: server, settingsSaved: false });
     });
     expect(screen.getByTestId("analytics").props.children).toBe("true");
+  });
+
+  it("never gives them to an account other than the one they were meant for", async () => {
+    mockGet.mockResolvedValue({ settings: server, settingsSaved: true });
+    render(
+      <SettingsProvider>
+        <Analytics />
+        <Adopter patch={{ analyticsEnabled: true }} userId="someone-else" />
+      </SettingsProvider>
+    );
+    await act(async () => {});
+    await act(async () => {
+      screen.getByTestId("adopt").props.onPress();
+    });
+    expect(screen.getByTestId("analytics").props.children).toBe("false");
   });
 });
