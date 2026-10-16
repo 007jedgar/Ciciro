@@ -19,7 +19,7 @@ export const FRAMES = [
   { id: "reminders", status: "shipped", bg: "vermilion", captures: ["reminder", "notification"] },
   { id: "commute", status: "shipped", bg: "paper", captures: ["sprint"] },
   { id: "suggest", status: "shipped", bg: "blush", captures: ["suggestions"] },
-  { id: "exercise", status: "shipped", bg: "blue", captures: ["exercise-intro", "weekly-review-next"] },
+  { id: "exercise", status: "shipped", bg: "blue", captures: ["exercise-picker", "weekly-review-next"] },
   { id: "bible", status: "shipped", bg: "ink", captures: ["bible", "bible-entry"] },
   { id: "themes", status: "shipped", bg: "paper", captures: ["theme-ciciro", "theme-night", "theme-bookshelf"] },
   // Held: Scan notes is on main (#198) but not in a store release or captured yet.

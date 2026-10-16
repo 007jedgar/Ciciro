@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-// Seeds a LOCAL Ciciro server with the sample manuscript the captures show:
-// "The Letter" by Nell Harrow, the same fictional book the homepage uses.
-// Never point it at production (it refuses a non-local base URL).
+// Seeds a LOCAL Ciciro server with the sample manuscripts the captures show:
+// "Belt Buckle First", a satirical novel about an alien invasion that lifts
+// everyone in Dayton into the sky except the narrator, and a short script from
+// the same world, "Number Forty-Seven". Never point it at production (it
+// refuses a non-local base URL).
 //
-//   node seed/seed.mjs [--base http://localhost:3187] [--db ../../prisma/dev.db]
+//   node seed/seed.mjs [--base http://localhost:3187] [--db ../../prisma/dev.db] [--reset]
+//
+// --reset deletes the demo account's existing manuscripts first.
 //
 // It signs up the demo account (or signs in if it exists), then writes through
 // the same HTTP API the apps use, so every row is one the server would make
@@ -26,7 +30,7 @@ if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(BASE)) {
   process.exit(1);
 }
 
-export const DEMO = { email: "store-shots@ciciro.test", password: "Letter-2026-demo", name: "Nell Harrow" };
+export const DEMO = { email: "store-shots@ciciro.test", password: "Letter-2026-demo", name: "Dana Whitlock" };
 
 let cookie = "";
 async function api(path, { method = "GET", body } = {}) {
@@ -57,51 +61,131 @@ const SUGGEST = (id, from, to) =>
     `<ins data-suggestion-id="sg-${id}" data-author-id="ciciro" data-author-name="Ciciro" data-created-at="${new Date().toISOString()}">${to}</ins>`,
   ].join("");
 
-// Twelve chapters. Only 11 and 12 are shown in full; the rest are short real
-// scenes so the book reads as a book in lists and the "previously on" recap.
+// Nine short chapters. Chapter 1 is the hero shot, chapter 4 carries Ciciro's
+// pending suggestions (a limp metaphor swapped for one you can see), chapter 7
+// is where the reminder picks up. The rest read as a book in lists and recaps.
 const CHAPTERS = [
-  ["The Harbour", ["Mara came back to Saltgate in the last week of October, when the ferry ran only twice a day and the gulls had the quay to themselves.", "Nobody met her. She had not told anyone which boat."]],
-  ["Ines", ["Her aunt's house stood at the top of Fish Row, narrow as a held breath. Ines Lind opened the door before Mara could knock.", "“You look like your mother,” Ines said, and went to put the kettle on, which was how Mara knew the conversation was over."]],
-  ["Low Tide", ["At low tide the harbour showed its ribs: old moorings, a bicycle, a rope nobody had hauled in for years.", "Mara walked out along the mud with her boots in her hand, not looking for anything, and found the brass key."]],
-  ["The Dockmaster", ["The dockmaster kept his log in pencil, so that nothing in it would ever have to be permanent.", "“Six years,” he said, looking at the key and not at her. “Your brother left it on my desk the night he went.”"]],
-  ["What the Lamps Showed", ["The lamps came on along the wall one at a time, as they always had, and for the first time she noticed they did not light the same stretch of water twice."]],
-  ["A Week of Rain", ["It rained for seven days. Mara read the shipping notices in the post office window and learned the names of boats that no longer sailed."]],
-  ["Her Brother's Boat", ["The Wren was still on the slip, under a tarpaulin gone green. Someone had been oiling the hinges on the cabin door."]],
-  ["The Ferry", ["She took the morning ferry to the mainland and came back on the evening one, which was the longest day she had spent doing nothing in her life."]],
-  ["Salt", ["Ines salted everything. Fish, bread, the occasional argument. “It keeps,” she said, when Mara asked why."]],
-  ["Ines Speaks", ["Ines told it in the dark, with the lamp off, the way you tell the things you have been practising for years.", "When she finished, neither of them reached for the light."]],
   [
-    "The Return",
+    "Tuesday",
     [
-      `She ${SUGGEST("11a", "walked slowly to", "crossed to")} the door and stood there ${SUGGEST("11b", "for a while, which was, in the end, what she actually did, for what felt to her like a very long time", "for a long time")}.`,
-      "Behind her the stove ticked as it cooled. The house had the held, waiting quiet of a place that already knows what you are about to say.",
-      `The tide ${SUGGEST("11c", "was in the process of turning", "was turning")}, and she could hear it before she could see it, the small sounds of water finding its way back in among the stones.`,
+      "The aliens arrived on a Tuesday, which Dale Pruitt took personally. It was bowling night.",
+      "By Wednesday all of Dayton was rising, calmly, belt buckle first. Nobody lifted Dale. He checked his pockets, in case he'd been issued something.",
     ],
   ],
   [
-    "The Letter",
+    "The Belt Line",
     [
-      "The harbour had gone quiet by the time she reached the steps, and the lamps were only just coming on along the wall.",
-      "Mara took the letter from her coat pocket, the paper gone soft at the folds. She didn't need to unfold it, only to feel the weight of it, warm from her pocket.",
+      "It took Dale until noon to work out the rule. The sky took you by the belt line, as if it had a hook there, and the bigger the buckle the faster the climb.",
+      "Gary from Accounts, who wore a rodeo buckle the size of a hubcap, left the building like a cork leaving a bottle.",
+    ],
+  ],
+  [
+    "Rhonda",
+    [
+      "His ex-wife went up past the bank sign at 2:14, still holding her iced coffee. She had always said she wanted a bigger life.",
+      "Dale waved. She did not wave back, being busy, but she did look down, and he decided to take that as something.",
+    ],
+  ],
+  [
+    "Aisle Nine",
+    [
+      "The grocery on Dorothy Lane was the only place in Dayton with the lights still on, so Dale shopped like a man with a future. Cereal. Batteries. A candle shaped like a lighthouse.",
+      `By aisle nine the music had stopped, and his loneliness was ${SUGGEST("4a", "an overwhelming wave of emotion", "the last suitcase on the carousel, going round and round for nobody")}.`,
+      `The self-checkout asked if he had brought his own bags. He had brought only questions. He ${SUGGEST("4b", "walked slowly out across", "crossed")} the lot feeling ${SUGGEST("4c", "very tired and extremely upset about all of it", "wrung out")}.`,
+    ],
+  ],
+  [
+    "The Tuesday League",
+    [
+      "The bowling league went up in order of average score, which Dale felt was a little pointed.",
+      "Lorraine, a 212, led the procession. Dale, a 143, watched from the parking lot of the Strike Zone and tried not to read anything into it. He read everything into it.",
+    ],
+  ],
+  [
+    "What the Signs Said",
+    [
+      "On Thursday the water tower changed. PLEASE REMAIN CALM, it said. YOU ARE BEING LIFTED.",
+      "Underneath, in smaller letters: SOME OF YOU WILL BE LIFTED LATER. THIS IS NORMAL. Dale read it eleven times, looking for his name in the gaps.",
+    ],
+  ],
+  [
+    "A Fair Question",
+    [
+      "He went up to the water tower and asked, as a citizen, whether there had been a mistake.",
+      "He asked the sky politely, then not politely. The sky, which had a lot on, did not answer.",
+    ],
+  ],
+  [
+    "Suspenders",
+    [
+      "Gary's wife noticed first, from about four feet up. \u201cDale,\u201d she called, \u201cwhat are you wearing?\u201d",
+      "He looked down. Red suspenders, his father's, bought for a funeral and never retired. He had not worn a belt since the Obama administration.",
     ],
   ],
 ];
 
+// Every bible file opens with a one-line summary: that line is what the Story
+// bible index shows under each name, so each is written as a real one.
+const BIBLE = {
+  "canon.md": `The Lift: everyone in Dayton rises into the sky belt buckle first, calmly. Dale is the exception.
+
+# Canon
+
+- The sky takes people by the belt line. The heavier the buckle, the faster the climb.
+- Nobody has seen the aliens. They talk only through signs on the water tower.
+- The Lift began on a Tuesday and had most of Dayton by Wednesday night.
+- Dale wears suspenders (his father's, red). Do not explain this before chapter 8.
+`,
+  "plot.md": `Dale tries to find out why the sky keeps skipping him before it changes its mind.
+
+# Plot
+
+1. Tuesday the arrival, Wednesday the Lift.
+2. Dale checks everything he can think of: pockets, signs, the sky.
+3. The signs say some will be lifted later. Dale does not trust "later".
+`,
+  "style.md": `Deadpan, close third on Dale. Short paragraphs, one joke each, then get out.
+
+# Style
+
+- Never explain the joke. End the paragraph on the funniest word.
+- No aliens on the page. The sky behaves like a very polite bureaucracy.
+`,
+  "timeline.md": `Tuesday the aliens arrive, Wednesday the Lift, Thursday the signs, Friday Dale asks the sky.
+
+# Timeline
+
+- Tuesday, 7:40 pm: bowling night is cancelled.
+- Wednesday, 2:14 pm: Rhonda goes up past the bank sign.
+- Thursday: the water tower speaks.
+`,
+  "world.md": `Dayton, Ohio, the week the sky started collecting people.
+
+# World
+
+- The grocery on Dorothy Lane is the last place with the lights on.
+- The Strike Zone bowling alley is empty and still plays music.
+`,
+};
+
 const CHARACTERS = [
   {
-    name: "Mara",
-    role: "Protagonist. Back in Saltgate after six years.",
-    body: "## Description\nThirty-four. Grey coat, dark hair she keeps cutting herself. Chews the cord of her hood when she is deciding something.\n\n## Arc\nFrom someone who left without a word to someone who stays long enough to hear the answer.\n\n## Voice\n> How they speak: diction, rhythm, tics.\nDry, short sentences. Answers a question with a smaller question.",
+    name: "Dale Pruitt",
+    summary: "Dale Pruitt, 44, dental floss rep and the only person in Dayton the sky keeps skipping.",
+    role: "Narrator. Wants to be taken, then wants to know why he is not.",
+    body: "## Description\nForty-four. Red suspenders, a sales lanyard he forgets to take off, and a bowling average of 143 that he defends.\n\n## Arc\nFrom a man who wants to be lifted to a man who wants an explanation.\n\n## Voice\n> How they speak: diction, rhythm, tics.\nPolite to the point of accusation. Asks a question, then answers it himself.",
   },
   {
-    name: "Ines Lind",
-    role: "Mara's aunt. Net-mender, keeper of the house on Fish Row.",
-    body: "## Description\nSeventy-one. Grey eyes, a net-mender's hands, a habit of salting everything. Hums when she is lying.\n\n## Arc\nTells the truth only when the lamp is off.\n\n## Voice\n> How they speak: diction, rhythm, tics.\nPlain and unhurried. Never uses Mara's name when she is angry.",
+    name: "Rhonda Pruitt",
+    summary: "Rhonda Pruitt, Dale's ex-wife, who always said she wanted a bigger life.",
+    role: "Ex-wife. First of the main cast to go up.",
+    body: "## Description\nForty-two. Hazel eyes, a laugh like a car alarm, and a habit of finishing Dale's sentences wrong.\n\n## Arc\nAlready gone by chapter 3; the book keeps checking what she left behind.\n\n## Voice\n> How they speak: diction, rhythm, tics.\nCheerful and final. Never repeats herself.",
   },
   {
-    name: "The Dockmaster",
-    role: "Keeps the harbour log, in pencil.",
-    body: "## Description\nSixty, broad, sunburnt in every season. Reads the tide table like scripture.\n\n## Arc\nHas held the brass key for six years and wants it gone.\n\n## Voice\n> How they speak: diction, rhythm, tics.\nSlow. Says “well” before every answer.",
+    name: "Gary Oyelaran",
+    summary: "Gary Oyelaran from Accounts, owner of the rodeo buckle and the first man up on Wednesday.",
+    role: "Dale's colleague. Left the building like a cork.",
+    body: "## Description\nFifty. Broad, cheerful, a buckle the size of a hubcap.\n\n## Arc\nGone early. His wife stays on the ground long enough to notice the suspenders.\n\n## Voice\n> How they speak: diction, rhythm, tics.\nBooms. Calls everyone \u201cchief\u201d.",
   },
 ];
 
@@ -135,25 +219,29 @@ function dayKey(daysBack) {
   return `${y}-${m}-${day}`;
 }
 
-// A short script in the phone's screenplay mode (Beta). The element is the
-// data-sp tag; an action line carries none (see docs/screenplay.md).
+// A short script from the same world, in the phone's screenplay mode (Beta).
+// The element is the data-sp tag; an action line carries none (see
+// docs/screenplay.md). No parenthetical, so the page view and the editor agree.
 const SCRIPT = [
-  ["scene-heading", "INT. KITCHEN - NIGHT"],
-  ["action", "Maya sits at the table, laptop shut, a cold cup of coffee by her elbow. Next door, a porch light clicks off."],
-  ["character", "MAYA"],
-  ["dialogue", "Ten minutes. That's all I've got tonight."],
-  ["action", "She opens the laptop. The cursor finds the sentence she left off on, like it never moved."],
-  ["character", "MAYA"],
-  ["dialogue", "Okay. Where were we?"],
+  ["scene-heading", "INT. DAYTON DMV - DAY"],
+  ["action", "Every chair is empty. The whole room hangs from the ceiling, belt buckle first. DALE PRUITT, 44, holds number 47."],
+  ["character", "CLERK"],
+  ["dialogue", "Number forty-seven."],
+  ["character", "DALE"],
+  ["dialogue", "That's me. I'm down here."],
+  ["character", "CLERK"],
+  ["dialogue", "You'll have to come up."],
+  ["character", "DALE"],
+  ["dialogue", "I would love to."],
   ["transition", "CUT TO:"],
-  ["scene-heading", "EXT. PORCH - CONTINUOUS"],
-  ["action", "A neighbour's dog barks twice and thinks better of it. Through the window, Maya's silhouette bends over the screen."],
+  ["scene-heading", "EXT. DMV PARKING LOT - CONTINUOUS"],
+  ["action", "Dale checks his pockets, in case he was issued something. He wasn't."],
 ];
 
 async function seedScript() {
   const project = await api("/api/projects", {
     method: "POST",
-    body: { title: "Ten Minutes", author: DEMO.name, kind: "screenplay", genre: "Short film" },
+    body: { title: "Number Forty-Seven", author: DEMO.name, kind: "screenplay", genre: "Short film" },
   });
   const chapter = project.chapters[0];
   const content = SCRIPT.map(([tag, text], i) =>
@@ -173,22 +261,27 @@ async function main() {
     console.log("signed in", DEMO.email);
   }
 
-  const existing = await api("/api/projects");
+  let existing = await api("/api/projects");
+  if (process.argv.includes("--reset") && Array.isArray(existing)) {
+    for (const x of existing) await api(`/api/projects/${x.id}`, { method: "DELETE" });
+    console.log("deleted", existing.length, "manuscripts");
+    existing = [];
+  }
   const have = (title) => Array.isArray(existing) && existing.some((x) => x.title === title);
-  if (!have("Ten Minutes")) await seedScript();
-  if (have("The Letter")) {
-    console.log("The Letter already exists; leaving the seed as it is. Delete the account's data to reseed.");
+  if (!have("Number Forty-Seven")) await seedScript();
+  if (have("Belt Buckle First")) {
+    console.log("Belt Buckle First already exists; leaving the seed as it is. Re-run with --reset to reseed.");
     return;
   }
 
   const project = await api("/api/projects", {
     method: "POST",
     body: {
-      title: "The Letter",
+      title: "Belt Buckle First",
       author: DEMO.name,
-      genre: "Literary fiction",
+      genre: "Satire",
       kind: "novel",
-      logline: "A woman returns to her harbour town and finds the letter her brother left for her six years ago.",
+      logline: "The sky is collecting everyone in Dayton, belt buckle first. Dale Pruitt would like to know why it skipped him.",
     },
   });
   const projectId = project.id;
@@ -207,6 +300,11 @@ async function main() {
   }
   console.log("chapters", CHAPTERS.length);
 
+  // The five default bible files get a real one-line summary, then the characters.
+  for (const [path, content] of Object.entries(BIBLE)) {
+    const file = await api(`/api/bible?projectId=${projectId}&path=${encodeURIComponent(path)}`);
+    await api("/api/bible", { method: "POST", body: { projectId, path, content, expectedRevision: file.revision } });
+  }
   for (const c of CHARACTERS) {
     const file = await api("/api/bible", { method: "POST", body: { projectId, newCharacter: c.name } });
     await api("/api/bible", {
@@ -214,12 +312,12 @@ async function main() {
       body: {
         projectId,
         path: file.path,
-        content: `# ${c.name}\n> Character\n\n**Role:** ${c.role}\n\n${c.body}\n`,
+        content: `${c.summary}\n\n# ${c.name}\n> Character\n\n**Role:** ${c.role}\n\n${c.body}\n`,
         expectedRevision: file.revision,
       },
     });
   }
-  console.log("characters", CHARACTERS.length);
+  console.log("bible", Object.keys(BIBLE).length + CHARACTERS.length, "files");
 
   for (const [back, words, activeMs] of DAYS) {
     await api("/api/writing/day", { method: "PUT", body: { date: dayKey(back), words: WORDS(words), activeMs } });
@@ -235,7 +333,8 @@ async function main() {
     const week = DAYS.filter(([back]) => back <= 6);
     // Real chapter word counts, as the server would report them.
     const wordsOf = (paragraphs) => paragraphs.join(" ").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-    const touched = [11, 10, 9].map((i) => ({ id: chapters[i].id, title: CHAPTERS[i][0], wordCount: wordsOf(CHAPTERS[i][1]) }));
+    const touched = [6, 5, 3].map((i) => ({ id: chapters[i].id, title: CHAPTERS[i][0], wordCount: wordsOf(CHAPTERS[i][1]) }));
+    const totalWords = CHAPTERS.reduce((n, [, paragraphs]) => n + wordsOf(paragraphs), 0);
     await db.weeklyReview.create({
       data: {
         projectId,
@@ -251,23 +350,23 @@ async function main() {
             return { date: dayKey(back), words: hit ? hit[1] : 0 };
           }),
           chaptersTouched: touched,
-          totalWords: 2400,
+          totalWords,
           chapterCount: CHAPTERS.length,
           openQuestions: 2,
           openThreads: 3,
         }),
         content: JSON.stringify({
           summary:
-            "A steady week: four days at the page, and the book moved from Ines's confession into Mara walking down to the harbour with the letter. The Return sets the mood well. The house, the stove, the tide all say the same thing without being told to.",
+            "A steady week: four days at the page, and Dale went from the grocery parking lot to the foot of the water tower. The signs are the best thing you wrote. They are funny because nobody in the book thinks they are.",
           looseEnds: [
-            "Who left the brass key on the dockmaster's desk, and why was it six years before anyone mentioned it?",
-            "The Wren's cabin hinges are freshly oiled. Someone has been aboard, and the book has not said who.",
-            "Ines hums when she is lying. She is humming in Chapter 10, and Mara has not noticed.",
+            "Dale checked his pockets in Chapter 1 in case he had been issued something. The book has not said what he hoped to find.",
+            "The signs say some of you will be lifted later. Nobody has asked who decides.",
+            "Gary's wife noticed the suspenders from four feet up, and no one has mentioned them since.",
           ],
           nextSteps: [
-            "Finish Chapter 12 by letting Mara read the first line, then decide whether to read the rest tonight.",
-            "Give the dockmaster one more scene before the letter is opened, so his silence has weight.",
-            "Walk the Wren's slip once more in your head, and note in the story bible who has a key.",
+            "Let Dale try to get lifted on purpose: a ladder, a very large buckle, anything.",
+            "Give the water tower one more sign, and make this one personal.",
+            "Note in the story bible who in Dayton owns a belt, and who does not.",
           ],
         }),
       },

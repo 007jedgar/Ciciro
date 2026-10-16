@@ -45,7 +45,7 @@ export const LAYOUTS = {
     return `
       <div style="position:absolute;left:0;right:0;top:32%;bottom:0;background:var(--blue);border-radius:10px 0 0 0;box-shadow:0 -4px 30px rgba(0,0,0,.35)"></div>
       <div style="position:absolute;right:0;top:36%;width:50px;height:230px;background:var(--vermilion);border-radius:10px 0 0 10px;display:flex;align-items:center;justify-content:center;box-shadow:-6px 4px 14px -6px rgba(0,0,0,.5);z-index:2">
-        <span style="writing-mode:vertical-rl;font:400 24px var(--serif);color:#141414">Chapter 12</span></div>
+        <span style="writing-mode:vertical-rl;font:400 24px var(--serif);color:#141414">Chapter 1</span></div>
       ${comp(
         `${phone(ctx, "editor")}
          ${stamp(ctx.copy.stamp, "right:-10%;top:calc(-17 * var(--c));width:calc(27 * var(--c));aspect-ratio:1;transform:rotate(12deg)")}`,
@@ -64,7 +64,7 @@ export const LAYOUTS = {
   reminders(ctx) {
     return comp(
       `${phone(ctx, "reminder")}
-       ${cutout(ctx, "notification", ctx.rects.notification, byForm(ctx, "left:-8%;top:-1%;width:116%;transform:rotate(-2.2deg)", "left:-4%;top:-2%;width:108%;transform:rotate(-1.4deg)"), "notif")}`,
+       ${cutout(ctx, "notification", ctx.rects.notification, byForm(ctx, "left:-4%;top:-1.5%;width:108%;transform:rotate(-1.6deg)", "left:-4%;top:-2%;width:108%;transform:rotate(-1.4deg)"), "notif")}`,
       "top:6%"
     );
   },
@@ -82,7 +82,7 @@ export const LAYOUTS = {
 
   exercise(ctx) {
     return comp(
-      `${phone(ctx, "exercise-intro")}
+      `${phone(ctx, "exercise-picker")}
        ${cutout(ctx, "weekly-review-next", ctx.rects.weeklyNext, byForm(ctx, "right:-10%;top:64%;width:76%;transform:rotate(2deg)", "right:-8%;top:68%;width:84%;transform:rotate(1.6deg)"), "taped")}`,
       "top:2%"
     );
@@ -132,7 +132,7 @@ export function featureGraphic(ctx) {
     <div class="frame bg-ink target-play-feature" style="height:${ctx.canvasH}px;flex-direction:row;--dw:${ctx.target.deviceWidth}px">
       <div style="position:absolute;right:0;top:0;bottom:0;width:41%;background:var(--blue)"></div>
       <div style="position:absolute;right:0;top:64px;width:34px;height:150px;background:var(--vermilion);border-radius:8px 0 0 8px;display:flex;align-items:center;justify-content:center;z-index:2">
-        <span style="writing-mode:vertical-rl;font:400 15px var(--serif);color:#141414">Chapter 12</span></div>
+        <span style="writing-mode:vertical-rl;font:400 15px var(--serif);color:#141414">Chapter 1</span></div>
       <div style="position:relative;z-index:3;width:60%;padding:48px 0 0 56px">
         <div class="brand" style="font-size:32px;margin-bottom:30px">${MARK}<span>Ciciro</span></div>
         <h1 style="font-size:62px;max-width:500px">${rich(copy.headline)}</h1>

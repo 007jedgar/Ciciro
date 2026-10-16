@@ -283,7 +283,7 @@ h1 em {
 }
 /* The reminder banner is a rounded card of its own: round the cut to match. */
 .cut.notif {
-  border-radius: var(--notif-r, 6.3% / 22%);
+  border-radius: var(--notif-r, 6.3% / 19.5%);
   background: transparent;
 }
 .chip {
@@ -365,7 +365,7 @@ h1 em {
   --head-h: 590px;
 }
 .form-tablet {
-  --notif-r: 5.3% / 34%;
+  --notif-r: 5.6% / 30%;
   --pad-top: 84px;
   --pad-x: 80px;
   --tab-size: 20px;

@@ -4,7 +4,7 @@
   "frames": {
     "hero": {
       "tag": "Five minutes counts",
-      "headline": "Keeps you writing, *five minutes* at a time.",
+      "headline": "Build a writing habit, *five minutes* at a time.",
       "sub": "A writing habit for people who write in stolen minutes, not for a living.",
       "stamp": [
         "5 MIN",
@@ -13,38 +13,38 @@
     },
     "screenplay": {
       "tag": "Screenplay · Beta",
-      "headline": "A script that *looks* like a script.",
+      "headline": "Write a script that *looks* like a script.",
       "sub": "Scene headings, cues and dialogue format themselves as you type, and Tab moves you on to the next line. Screenplay mode is in beta."
     },
     "reminders": {
       "tag": "Reminders",
-      "headline": "A reminder that knows *where you left off.*",
+      "headline": "Get a reminder that knows *where you left off.*",
       "sub": "Pick your days. Each reminder quotes the last lines you wrote and nudges you back into the scene."
     },
     "commute": {
       "tag": "Small pockets of time",
-      "headline": "Your commute is a *writing session.*",
-      "sub": "Dictate a line, listen back to a chapter, or run a 15 minute sprint. Offline, what you write is still saved and counted.",
+      "headline": "Make your commute a *writing session.*",
+      "sub": "Start a 15 minute sprint, pick up on your last sentence, and keep going with no signal. Everything saves.",
       "chips": [
-        "Dictate",
-        "Listen back",
-        "15 min sprint"
+        "15 min sprint",
+        "Saves offline",
+        "Listen back"
       ]
     },
     "suggest": {
       "tag": "Your words, your call",
-      "headline": "Ciciro *suggests.* You decide.",
-      "sub": "Edits arrive as tracked changes you accept or reject. The book stays yours."
+      "headline": "Let Ciciro *suggest.* You decide.",
+      "sub": "Edits arrive as tracked changes. Swap a limp metaphor for one you can see, or reject it and keep yours."
     },
     "exercise": {
-      "tag": "Get better at it",
-      "headline": "Write a little. Get *better* at it.",
-      "sub": "A short guided exercise when you are stuck, and a weekly review of what you wrote and what to write next."
+      "tag": "A writing habit",
+      "headline": "Learn to *enjoy* writing.",
+      "sub": "Short guided exercises turn a blank page into ten minutes you look forward to. A weekly review tells you what to write next."
     },
     "bible": {
       "tag": "Story bible",
-      "headline": "What color were *her eyes?*",
-      "sub": "Characters, places and canon live beside your chapters, one tap from the page."
+      "headline": "Keep every detail *straight.*",
+      "sub": "Characters, places and canon sit beside your chapters, so you never scroll back to check what color her eyes were."
     },
     "themes": {
       "tag": "Eight themes",
@@ -63,7 +63,7 @@
     }
   },
   "feature": {
-    "headline": "Keeps you writing, *five minutes* at a time.",
+    "headline": "Build a writing habit, *five minutes* at a time.",
     "kicker": "For people who write around a job, a family, a life"
   }
 }

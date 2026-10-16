@@ -52,15 +52,26 @@ and bezels `src/styles.css`.
 
 | # | Headline | Picture | What it sells |
 |---|---|---|---|
-| 1 | Keeps you writing, five minutes at a time. | Editor, open on the last sentence | The habit, for people who write in stolen minutes |
-| 2 | A script that looks like a script. | Screenplay mode (Beta) with the element bar, and a page of the script | A real screenplay format on a phone |
-| 3 | A reminder that knows where you left off. | Reminder setup + the personalised notification | Reminders that quote your last lines |
-| 4 | Your commute is a writing session. | Sprint, with dictate / listen back / 15 min sprint callouts | Small pockets of time |
-| 5 | Ciciro suggests. You decide. | Tracked suggestions | The book stays yours |
-| 6 | Write a little. Get better at it. | Guided exercise + the weekly review's "what to write next" | Getting better, not just producing words |
-| 7 | What color were her eyes? | Story bible | Canon beside the chapters |
+| 1 | Build a writing habit, five minutes at a time. | Editor, open on the last sentence | The habit, for people who write in stolen minutes |
+| 2 | Write a script that looks like a script. | Screenplay mode (Beta) with the element bar, and a page of the script | A real screenplay format on a phone |
+| 3 | Get a reminder that knows where you left off. | Reminder setup + the personalised notification | Reminders that quote your last lines and nudge you back in |
+| 4 | Make your commute a writing session. | Sprint, with 15 min sprint / saves offline / listen back callouts | Small pockets of time |
+| 5 | Let Ciciro suggest. You decide. | A limp metaphor swapped for a concrete one, as a tracked change | Edits that make the writing better, and stay yours |
+| 6 | Learn to enjoy writing. | The guided exercises, and the weekly review's "what to write next" | Habit and getting better |
+| 7 | Keep every detail straight. | Story bible, with a character entry | Canon beside the chapters |
 | 8 | Make it yours. | Three themes side by side | Eight themes |
 | held | Scan your handwritten notes into your story bible. | Not rendered by default | Planned, see below |
+
+Headlines are action-oriented on purpose: "Make your commute a writing
+session", not "Your commute is a writing session".
+
+The sample content is one coherent, funny world rather than literary drama,
+because people do read store screenshots: "Belt Buckle First" is a satire in
+which an alien invasion lifts everyone in Dayton into the sky belt buckle first
+and the narrator, Dale, wants to know why he is not going up like everyone
+else. The screenplay is a scene from the same world, the story bible is its
+canon, the reminder quotes its last lines, and the suggestion swaps a flat
+metaphor for one you can see. `seed/seed.mjs` writes all of it.
 
 Eight frames, so one sequence fits Google Play's limit and the App Store's.
 Every claim is a feature the phone ships today; screenplay is marked Beta in
@@ -100,7 +111,7 @@ production:
 ```sh
 # repo root: DATABASE_URL="file:./dev.db", CICIRO_REQUIRE_AUTH=true in .env
 npm run setup && npx next dev -p 3187
-node tools/store-screenshots/seed/seed.mjs          # "The Letter" by Nell Harrow, "Ten Minutes" (a script)
+node tools/store-screenshots/seed/seed.mjs --reset   # "Belt Buckle First" and the script "Number Forty-Seven"
 # apps/mobile/.env: EXPO_PUBLIC_API_URL=http://localhost:3187
 cd apps/mobile && npx expo start --dev-client --port 8187
 ```
@@ -109,22 +120,22 @@ Sign in as `store-shots@ciciro.test` (password in `seed/seed.mjs`). Then, with
 the simulator booted by the person holding its turn, `capture/sim.sh` cleans
 the status bar (9:41, full bars), opens deep links, delivers the reminder
 banner (`capture/notification.json`, the title and body shape the app
-schedules, with the last lines of chapter 12) and saves each capture. Which
+schedules, with the last lines of chapter 7, "A Fair Question") and saves each capture. Which
 screen each name is:
 
 | Capture | Screen |
 |---|---|
-| `editor` | Chapter 12, "The Letter", caret at the end of the last sentence (iPad: with two more paragraphs typed in, then removed) |
-| `screenplay` | "Ten Minutes", the screenplay, page layout on (Settings > Screenplay > Page layout while typing), element bar |
+| `editor` | Chapter 1, "Tuesday", caret at the end of the last sentence |
+| `screenplay` | "Number Forty-Seven", the screenplay, page layout on (Settings > Screenplay > Page layout while typing), element bar |
 | `screenplay-pages` | The same script's Pages tile (one sheet, with page numbers) |
-| `reminder` | Writing reminder form for The Letter: 250 words, 8:00 AM, Mon / Wed / Thu / Sat |
+| `reminder` | Writing reminder form for Belt Buckle First: 250 words, 8:00 AM, Mon / Wed / Thu / Sat |
 | `notification` | The reminder banner over the home screen, long-pressed to expand; cropped by `src/crops.mjs` |
 | `sprint` | A 15 minute sprint running, Ciciro Night, a few words typed first (chapter 1 is restored afterwards) |
-| `suggestions` | Chapter 11 with three tracked changes from Ciciro, the Suggestions sheet open |
-| `exercise-intro` | The guided writing exercise's first screen |
-| `weekly-review-next` | Weekly review for The Letter, scrolled to "What to write next" (the seed writes the review directly, so no model call is spent) |
-| `bible`, `bible-entry` | Story bible list, and Ines Lind's entry |
-| `theme-ciciro`, `theme-night`, `theme-bookshelf` | The chapters tab of The Letter in each theme (Settings > Theme) |
+| `suggestions` | Chapter 4, "Aisle Nine", with three tracked changes from Ciciro, the Suggestions sheet open |
+| `exercise-picker` | The guided writing exercises: the list of four |
+| `weekly-review-next` | Weekly review for Belt Buckle First, scrolled to "What to write next" (the seed writes the review directly, so no model call is spent) |
+| `bible`, `bible-entry` | Story bible list, and Rhonda Pruitt's entry |
+| `theme-ciciro`, `theme-night`, `theme-bookshelf` | The chapters tab of Belt Buckle First in each theme (Settings > Theme) |
 
 Floating cards are cut from the captures by fractions in `src/crops.mjs` (phone
 and tablet have their own rects); if a screen moves, adjust the rect. The

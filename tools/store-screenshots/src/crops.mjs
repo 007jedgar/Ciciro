@@ -6,25 +6,25 @@
 export const CROPS = {
   phone: {
     // The expanded reminder banner (long-pressed), measured from the capture.
-    notification: { x: 0.0415, y: 0.0946, w: 0.9163, h: 0.1194 },
-    // The second suggestion on the Suggestions sheet: the struck text and its replacement, the whole card.
-    suggestionCard: { x: 0.054, y: 0.752, w: 0.892, h: 0.222 },
+    notification: { x: 0.0423, y: 0.095, w: 0.9146, h: 0.1373 },
+    // The first suggestion on the Suggestions sheet (the metaphor swap): the struck text and its replacement, the whole card.
+    suggestionCard: { x: 0.049, y: 0.5702, w: 0.9013, h: 0.2216 },
     // The "What to write next" part of the Weekly review (from weekly-review-next).
-    weeklyNext: { x: 0.03, y: 0.745, w: 0.94, h: 0.205 },
-    // The description line of Ines Lind's entry (from bible-entry): "Grey eyes ...".
-    bibleEntry: { x: 0.06, y: 0.372, w: 0.88, h: 0.085 },
+    weeklyNext: { x: 0.03, y: 0.7476, w: 0.94, h: 0.2021 },
+    // The Description part of Rhonda Pruitt's entry (from bible-entry): "Hazel eyes, a laugh like a car alarm ...".
+    bibleEntry: { x: 0.05, y: 0.4455, w: 0.9, h: 0.108 },
     // The top of the script's page view (the Pages tile): the sheet's text, without the empty page under it.
-    scriptPage: { x: 0.052, y: 0.256, w: 0.896, h: 0.34 },
+    scriptPage: { x: 0.052, y: 0.256, w: 0.896, h: 0.355 },
   },
   tablet: {
     // The expanded reminder banner, measured from the capture.
-    notification: { x: 0.2001, y: 0.0378, w: 0.6003, h: 0.0705 },
-    suggestionCard: { x: 0.018, y: 0.581, w: 0.964, h: 0.112 },
+    notification: { x: 0.2011, y: 0.0389, w: 0.5979, h: 0.081 },
+    suggestionCard: { x: 0.0189, y: 0.4873, w: 0.9617, h: 0.1065 },
     // "Loose ends" and "What to write next": the iPad shows the whole review on one screen.
-    weeklyNext: { x: 0.02, y: 0.372, w: 0.96, h: 0.163 },
-    // The top of Ines Lind's entry (from bible-entry), Grey eyes included.
-    bibleEntry: { x: 0.02, y: 0.09, w: 0.96, h: 0.25 },
+    weeklyNext: { x: 0.02, y: 0.3797, w: 0.96, h: 0.1526 },
+    // The top of Rhonda Pruitt's entry (from bible-entry), Hazel eyes included.
+    bibleEntry: { x: 0.02, y: 0.0985, w: 0.96, h: 0.2031 },
     // The top of the script's page view: the sheet's text without the empty page under it.
-    scriptPage: { x: 0.02, y: 0.185, w: 0.96, h: 0.5 },
+    scriptPage: { x: 0.02, y: 0.185, w: 0.96, h: 0.538 },
   },
 };
