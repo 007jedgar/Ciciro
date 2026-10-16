@@ -46,8 +46,8 @@ const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
 
 const targetCalls = (method: string) => calls.filter((c) => c.url === TARGET_URL && c.method === method);
 
-function Harness({ words, open }: { words: number; open: boolean }) {
-  const deadline = useDeadline(PID, words);
+function Harness({ words, open, signedIn = true }: { words: number; open: boolean; signedIn?: boolean }) {
+  const deadline = useDeadline(PID, words, signedIn);
   return (
     <>
       <DeadlineCard deadline={deadline} onOpen={() => {}} />
@@ -66,11 +66,11 @@ async function settle() {
   });
 }
 
-async function render(words: number, open = true) {
+async function render(words: number, open = true, signedIn = true) {
   await act(async () =>
     root.render(
       <SnackbarProvider>
-        <Harness words={words} open={open} />
+        <Harness words={words} open={open} signedIn={signedIn} />
       </SnackbarProvider>
     )
   );
@@ -121,6 +121,17 @@ afterEach(async () => {
 });
 
 describe("the web deadline", () => {
+  it("shows nothing and asks the server nothing with no signed-in account", async () => {
+    server.target = { projectId: PID, wordGoal: 20000, deadline: shiftWritingDayKey(writingDayKey(), 30), manuscriptWords: 0, pace: null };
+    await render(1500, false, false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(host.querySelector(".deadline-card")).toBeNull();
+
+    await render(1500, false, true);
+    expect(targetCalls("GET")).toHaveLength(1);
+    expect(host.querySelector(".deadline-card")).not.toBeNull();
+  });
+
   it("offers a round first target and a due date a month out for a manuscript with none", async () => {
     await render(1_200);
     expect(host.querySelector(".deadline-card")).toBeNull();

@@ -123,7 +123,14 @@ function recordAiAcceptance(chapterId: string, words: number) {
   }).catch(() => {});
 }
 
-export default function Workspace({ initialProject }: { initialProject: Project }) {
+export default function Workspace({
+  initialProject,
+  signedIn = false,
+}: {
+  initialProject: Project;
+  /** False in local single-author mode, where there is no account to hold a deadline. */
+  signedIn?: boolean;
+}) {
   const [project, setProject] = useState<Project>(initialProject);
   const kind = normalizeKind(project.kind);
   const kindInfo = KIND_INFO[kind];
@@ -150,7 +157,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [deadlineOpen, setDeadlineOpen] = useState(false);
   const manuscriptWords = project.chapters.reduce((sum, c) => sum + c.wordCount, 0);
-  const deadline = useDeadline(project.id, manuscriptWords);
+  const deadline = useDeadline(project.id, manuscriptWords, signedIn);
   const [weeklyDue, setWeeklyDue] = useState(false);
   const [betaTab, setBetaTab] = useState<BetaReadersTab>("comments");
   const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
@@ -1307,12 +1314,16 @@ export default function Workspace({ initialProject }: { initialProject: Project 
               onSelect: () => setRepetitionOpen(true),
             },
             { key: "scratchpad", label: "Scratchpad", onSelect: () => setScratchOpen(true) },
-            {
-              key: "deadline",
-              label: "Deadline",
-              title: "A due date and word target for this manuscript, and whether you are on pace",
-              onSelect: () => setDeadlineOpen(true),
-            },
+            ...(deadline.available
+              ? [
+                  {
+                    key: "deadline",
+                    label: "Deadline",
+                    title: "A due date and word target for this manuscript, and whether you are on pace",
+                    onSelect: () => setDeadlineOpen(true),
+                  },
+                ]
+              : []),
             {
               key: "weekly",
               label: "Weekly review",

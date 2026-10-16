@@ -8,8 +8,8 @@ import { dueText, progressText, statusText } from "@/lib/deadline-view";
 // when it is due, and how it is going. Nothing renders for a manuscript with no
 // deadline (the Deadline item in the More menu is where one is set).
 export default function DeadlineCard({ deadline, onOpen }: { deadline: DeadlineState; onOpen: () => void }) {
-  const { snapshot, loaded } = deadline;
-  if (!snapshot || !loaded) return null;
+  const { available, snapshot, loaded } = deadline;
+  if (!available || !snapshot || !loaded) return null;
 
   const complete = snapshot.status === "complete";
   const headline = complete ? statusText(snapshot) : dueText(snapshot);

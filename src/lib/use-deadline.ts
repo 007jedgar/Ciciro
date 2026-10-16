@@ -14,6 +14,8 @@ import {
 import { writingDayKey } from "@/lib/writing-day";
 
 export type DeadlineState = {
+  /** False with no signed-in account (local single-author mode): nothing about a deadline shows. */
+  available: boolean;
   /** False until the server has answered, so nothing shows a number about to change. */
   loaded: boolean;
   /** The saved target, or null when this manuscript has no deadline. */
@@ -59,8 +61,9 @@ function firstTimeMet(projectId: string, wordGoal: number): boolean {
  * Deadline drawer. `manuscriptWords` is the open manuscript's live count (so
  * what was just typed counts); the pace comes from the author's writing days
  * over the last two weeks, read against whether they wrote before that.
+ * `available` is false with no account to hold a deadline; nothing is fetched then.
  */
-export function useDeadline(projectId: string, manuscriptWords: number): DeadlineState {
+export function useDeadline(projectId: string, manuscriptWords: number, available = true): DeadlineState {
   const notify = useSnackbar();
   const [today, setToday] = useState(() => writingDayKey());
   const [target, setTarget] = useState<DeadlineTarget | null>(null);
@@ -85,6 +88,7 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
   }, []);
 
   useEffect(() => {
+    if (!available) return;
     let cancelled = false;
     setError(false);
     void fetchDeadlineTarget(projectId).then(
@@ -100,9 +104,10 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
     return () => {
       cancelled = true;
     };
-  }, [projectId, nonce]);
+  }, [projectId, nonce, available]);
 
   useEffect(() => {
+    if (!available) return;
     let cancelled = false;
     void fetchDeadlineDays(today)
       .catch(() => [] as WritingDayWords[])
@@ -114,7 +119,7 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
     return () => {
       cancelled = true;
     };
-  }, [today]);
+  }, [today, available]);
 
   const snapshot = useMemo(
     () =>
@@ -223,6 +228,7 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
   }, [notify, projectId, target]);
 
   return {
+    available,
     loaded: targetLoaded && (!target || daysLoaded),
     target,
     snapshot,
