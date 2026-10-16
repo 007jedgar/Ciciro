@@ -143,8 +143,9 @@ These are enforced in code, not just convention:
   is the one thing it would have to decide, so with no server answer the
   prompt shows. The prompt (`ConsentGate`) waits for the first lookup (at most
   5 seconds) rather than flash for someone it turns out not to apply to.
-  Outside production the endpoint accepts `?country=US&region=TX` so every
-  case can be walked without a VPN. IP geolocation is approximate: a VPN
+  Outside production the endpoint accepts `?country=US&region=TX`, and
+  `CICIRO_DEV_GEO=US-TX` (or `DE`) on the dev server pins the answer, so every
+  case can be walked on a simulator without a VPN. IP geolocation is approximate: a VPN
   moves a person to the other side of the table.
 
   In an opt-out place with no recorded decision, analytics is on **unless the

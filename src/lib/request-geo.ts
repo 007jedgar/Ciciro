@@ -41,7 +41,8 @@ function workerCf(): { country?: unknown; regionCode?: unknown } | undefined {
  * The country and state of a request. Prefers the Worker's `request.cf`, then
  * the `cf-ipcountry` / `cf-region-code` headers Cloudflare adds in front of a
  * plain Node host. Outside production the query string may set `country` and
- * `region`, so a simulator can walk every case without a VPN.
+ * `region`, or `CICIRO_DEV_GEO` (e.g. `US-TX`, `DE`) pins the answer for every
+ * request, so a simulator can walk every case without a VPN.
  */
 export function requestGeo(request: Request): RequestGeo {
   if (process.env.NODE_ENV !== "production") {
@@ -49,6 +50,11 @@ export function requestGeo(request: Request): RequestGeo {
     if (params.has("country")) {
       return { country: cleanCountry(params.get("country")), region: cleanRegion(params.get("region")) };
     }
+  }
+  const pinned = process.env.NODE_ENV !== "production" ? process.env.CICIRO_DEV_GEO?.trim() : undefined;
+  if (pinned) {
+    const [country, region] = pinned.split("-");
+    return { country: cleanCountry(country), region: cleanRegion(region) };
   }
   const cf = workerCf();
   const country = cleanCountry(cf?.country ?? request.headers.get("cf-ipcountry"));
