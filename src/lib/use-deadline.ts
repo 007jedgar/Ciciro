@@ -31,7 +31,15 @@ export type DeadlineState = {
   remove: () => void;
 };
 
-type Removal = { cancelled: boolean; deleting: Promise<boolean> | null };
+type Removal = {
+  cancelled: boolean;
+  /** A save is in flight, so the delete waits for it. */
+  saving: boolean;
+  /** The Undo window lapsed while a save was in flight. */
+  lapsed: boolean;
+  deleting: Promise<boolean> | null;
+  commit: () => Promise<void>;
+};
 
 const metKey = (projectId: string, wordGoal: number) => `ciciro:deadline-met:${projectId}:${wordGoal}`;
 
@@ -134,10 +142,29 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
       const removal = pendingRemoval.current;
       let created = !target;
       if (removal) {
-        removal.cancelled = true;
-        created = removal.deleting ? await removal.deleting : false;
+        if (removal.deleting) {
+          removal.cancelled = true;
+          created = await removal.deleting;
+        } else {
+          removal.saving = true;
+          created = false;
+        }
       }
-      const saved = await saveDeadlineTarget(projectId, body);
+      let saved: DeadlineTarget;
+      try {
+        saved = await saveDeadlineTarget(projectId, body);
+      } catch (e) {
+        if (removal && removal.saving) {
+          removal.saving = false;
+          if (removal.lapsed && !removal.cancelled) void removal.commit();
+        }
+        throw e;
+      }
+      if (removal) {
+        removal.saving = false;
+        removal.cancelled = true;
+        if (pendingRemoval.current === removal) pendingRemoval.current = null;
+      }
       setTarget(saved);
       setTargetLoaded(true);
       getAnalytics().track("deadline_saved", {
@@ -151,20 +178,12 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
   const remove = useCallback(() => {
     const previous = target;
     if (!previous) return;
-    const removal: Removal = { cancelled: false, deleting: null };
-    pendingRemoval.current = removal;
-    setTarget(null);
-    notify({
-      message: "Deadline removed",
-      actionLabel: "Undo",
-      onAction: () => {
-        if (removal.cancelled) return;
-        removal.cancelled = true;
-        if (pendingRemoval.current === removal) pendingRemoval.current = null;
-        setTarget(previous);
-      },
-      onCommit: async () => {
-        if (removal.cancelled) return;
+    const removal: Removal = {
+      cancelled: false,
+      saving: false,
+      lapsed: false,
+      deleting: null,
+      commit: async () => {
         const outcome = deleteDeadlineTarget(projectId).then(
           () => null,
           (e: unknown) => (e instanceof Error ? e : new Error("Couldn't remove the deadline."))
@@ -179,6 +198,26 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
         if (removal.cancelled) return;
         setTarget(previous);
         notify({ message: failure.message });
+      },
+    };
+    pendingRemoval.current = removal;
+    setTarget(null);
+    notify({
+      message: "Deadline removed",
+      actionLabel: "Undo",
+      onAction: () => {
+        if (removal.cancelled) return;
+        removal.cancelled = true;
+        if (pendingRemoval.current === removal) pendingRemoval.current = null;
+        setTarget(previous);
+      },
+      onCommit: async () => {
+        if (removal.cancelled) return;
+        if (removal.saving) {
+          removal.lapsed = true;
+          return;
+        }
+        await removal.commit();
       },
     });
   }, [notify, projectId, target]);

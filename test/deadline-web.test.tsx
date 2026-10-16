@@ -300,6 +300,48 @@ describe("the web deadline", () => {
     expect(host.querySelector(".deadline-card")!.textContent).toContain("100 of 7,000 words");
   });
 
+  it("still offers Undo after a save inside the Undo window fails", async () => {
+    server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
+    await render(100);
+    await act(async () => button("Remove deadline").click());
+    await settle();
+    await type("#deadline-target", "7000");
+    fetchMock.mockImplementationOnce(async () => json({ error: "offline" }, 503));
+    await submit();
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe("offline");
+    await act(async () => button("Undo").click());
+    await settle();
+    expect(server.target?.wordGoal).toBe(5_000);
+    expect(host.querySelector(".deadline-card")!.textContent).toContain("100 of 5,000 words");
+    await act(async () => vi.advanceTimersByTimeAsync(SNACKBAR_MS + 500));
+    await settle();
+    expect(targetCalls("DELETE")).toHaveLength(0);
+  });
+
+  it("sends the delete once a save that outlasted the Undo window fails", async () => {
+    server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
+    await render(100);
+    await act(async () => button("Remove deadline").click());
+    await settle();
+    await type("#deadline-target", "7000");
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
+      calls.push({ method: init?.method ?? "GET", url });
+      await held;
+      return json({ error: "offline" }, 503);
+    });
+    await submit();
+    await act(async () => vi.advanceTimersByTimeAsync(SNACKBAR_MS + 500));
+    await settle();
+    expect(targetCalls("DELETE")).toHaveLength(0);
+    release();
+    await settle();
+    expect(targetCalls("DELETE")).toHaveLength(1);
+    expect(server.target).toBeNull();
+    expect(host.querySelector(".deadline-card")).toBeNull();
+  });
+
   it("puts a removal back when the server will not delete it", async () => {
     server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
     await render(100);
