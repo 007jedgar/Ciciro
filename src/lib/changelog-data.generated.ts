@@ -5,6 +5,12 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "ec84cec340bc",
+    "date": "2026-10-16",
+    "summary": "**Deadlines on the website.** A manuscript can now have a due date and a word target on the web too, set from **Deadline** in the top bar's More menu (and chan…",
+    "text": "**Deadlines on the website.** A manuscript can now have a due date and a word target on the web too, set from **Deadline** in the top bar's More menu (and changed or removed there; removing it offers Undo). A ring fills as the words arrive and closes with a tick when the target is met, and a card at the head of the chapter list shows the ring, when it is due and how it is going. Ciciro reads your last two weeks of writing against the words a day the deadline still needs and says plainly whether you are comfortably ahead, on track, or would do well to pick up the pace. It is the same deadline as on the phone, so one set on either shows on both."
+  },
+  {
     "id": "d81901176c33",
     "date": "2026-10-10",
     "summary": "**Write a script in its page layout on iPhone (Beta).** Settings inside a screenplay has a new switch, **Page layout while typing**, off until you turn it on.",

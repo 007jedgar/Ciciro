@@ -330,9 +330,9 @@ property shape.
 | `export_completed` (`format`) | A manuscript or chapter export's share sheet/download succeeds | Both |
 | `snapshot_restored` | Restoring a chapter snapshot (not the undo-of-restore) | Both |
 | `writing_sprint_completed` (`durationMinutes?`) | A writing sprint ends (timeout, early end, or foreground catch-up) | Mobile only (sprints are a mobile-only feature) |
-| `deadline_saved` (`created`, `daysAhead`) | A manuscript's deadline is saved: `created` is false for an edit, `daysAhead` is whole days from today to the due date | Mobile only (the desk has no deadline surface yet); no title or text |
-| `deadline_removed` | A manuscript's deadline is removed | Mobile only |
-| `deadline_met` | The manuscript's words reach its deadline target, once per target on a device (the same guard as the goal-met haptic) | Mobile only |
+| `deadline_saved` (`created`, `daysAhead`) | A manuscript's deadline is saved: `created` is false for an edit, `daysAhead` is whole days from today to the due date | Both (the web's Deadline drawer in the More menu, the phone's Deadline screen); no title or text |
+| `deadline_removed` | A manuscript's deadline is removed (on the web, once its Undo has lapsed and the server has deleted it) | Both |
+| `deadline_met` | The manuscript's words reach its deadline target, once per target on a device (the same guard as the goal-met haptic; the web keeps it in `localStorage`) | Both |
 | `writing_exercise_started` (`exercise`) | Begin is tapped on the guided Observe / React / Narrate exercise | Mobile only; no author text, the id is `observe_react_narrate` |
 | `writing_exercise_completed` (`exercise`, `durationMinutes`) | The exercise's last part is finished (not on leaving early) | Mobile only; whole minutes from Begin |
 | `outline_reordered` | Chapters are reordered (drag or arrow buttons) | Both |

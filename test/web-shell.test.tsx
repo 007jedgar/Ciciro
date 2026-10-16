@@ -19,12 +19,12 @@ const { workspaceMounts, workspaceUnmounts } = vi.hoisted(() => ({
 vi.mock("@/components/Workspace", async () => {
   const { useEffect } = await import("react");
   return {
-    default: function MockWorkspace() {
+    default: function MockWorkspace({ signedIn }: { signedIn?: boolean }) {
       useEffect(() => {
         workspaceMounts();
         return () => workspaceUnmounts();
       }, []);
-      return <div data-testid="workspace" />;
+      return <div data-testid="workspace" data-signed-in={String(signedIn)} />;
     },
   };
 });
@@ -182,6 +182,14 @@ describe("WorkspaceGate", () => {
     await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
     expect(workspaceMounts).toHaveBeenCalled();
     expect(host.querySelector("[data-testid=workspace]")).not.toBeNull();
+  });
+
+  it("tells the workspace whether an account is signed in", async () => {
+    mockWidth(false);
+    await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} />));
+    expect(host.querySelector("[data-testid=workspace]")!.getAttribute("data-signed-in")).toBe("false");
+    await act(async () => root.render(<WorkspaceGate initialProject={{} as Project} signedIn />));
+    expect(host.querySelector("[data-testid=workspace]")!.getAttribute("data-signed-in")).toBe("true");
   });
 
   it("keeps the workspace mounted when a desktop window narrows and widens", async () => {
