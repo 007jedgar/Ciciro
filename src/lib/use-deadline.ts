@@ -31,6 +31,8 @@ export type DeadlineState = {
   remove: () => void;
 };
 
+type Removal = { cancelled: boolean; deleting: Promise<boolean> | null };
+
 const metKey = (projectId: string, wordGoal: number) => `ciciro:deadline-met:${projectId}:${wordGoal}`;
 
 /** True the first time a target is met on this device (the same once-per-target guard the phone keeps). */
@@ -59,8 +61,12 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
   const [daysLoaded, setDaysLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [nonce, setNonce] = useState(0);
-  /** A removal still inside its Undo window; a save made meanwhile replaces the row, so the delete must not run. */
-  const pendingRemoval = useRef<{ cancelled: boolean } | null>(null);
+  /**
+   * A removal still inside its Undo window or on its way to the server. A save made
+   * meanwhile replaces the row, so it stops a delete that has not started and waits
+   * out one that has.
+   */
+  const pendingRemoval = useRef<Removal | null>(null);
 
   useEffect(() => {
     function onVisible() {
@@ -125,8 +131,12 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
 
   const save = useCallback(
     async (body: { wordGoal: number; deadline: string }) => {
-      if (pendingRemoval.current) pendingRemoval.current.cancelled = true;
-      const created = !target;
+      const removal = pendingRemoval.current;
+      let created = !target;
+      if (removal) {
+        removal.cancelled = true;
+        created = removal.deleting ? await removal.deleting : false;
+      }
       const saved = await saveDeadlineTarget(projectId, body);
       setTarget(saved);
       setTargetLoaded(true);
@@ -141,7 +151,7 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
   const remove = useCallback(() => {
     const previous = target;
     if (!previous) return;
-    const removal = { cancelled: false };
+    const removal: Removal = { cancelled: false, deleting: null };
     pendingRemoval.current = removal;
     setTarget(null);
     notify({
@@ -154,15 +164,20 @@ export function useDeadline(projectId: string, manuscriptWords: number): Deadlin
       },
       onCommit: async () => {
         if (removal.cancelled) return;
-        try {
-          await deleteDeadlineTarget(projectId);
+        const outcome = deleteDeadlineTarget(projectId).then(
+          () => null,
+          (e: unknown) => (e instanceof Error ? e : new Error("Couldn't remove the deadline."))
+        );
+        removal.deleting = outcome.then((failure) => failure === null);
+        const failure = await outcome;
+        if (pendingRemoval.current === removal) pendingRemoval.current = null;
+        if (!failure) {
           getAnalytics().track("deadline_removed", {});
-        } catch (e) {
-          setTarget(previous);
-          notify({ message: e instanceof Error ? e.message : "Couldn't remove the deadline." });
-        } finally {
-          if (pendingRemoval.current === removal) pendingRemoval.current = null;
+          return;
         }
+        if (removal.cancelled) return;
+        setTarget(previous);
+        notify({ message: failure.message });
       },
     });
   }, [notify, projectId, target]);

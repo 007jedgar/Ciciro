@@ -36,6 +36,7 @@ export default function DeadlinePanel({ deadline, manuscriptWords, onClose }: Pr
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState("");
+  const [announcing, setAnnouncing] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -53,12 +54,13 @@ export default function DeadlinePanel({ deadline, manuscriptWords, onClose }: Pr
   }, [target?.wordGoal, target?.deadline]);
 
   // The save lands a render before the ring and the verdict change; say how it
-  // is going once the new numbers are on screen.
+  // is going once the new numbers are on screen, and only that once.
   const verdict = snapshot ? verdictText(snapshot) : "";
   useEffect(() => {
-    if (!saved || !snapshot) return;
+    if (!announcing || !snapshot) return;
+    setAnnouncing(false);
     setSaved(`Deadline saved. ${verdict}`);
-  }, [saved, snapshot, verdict]);
+  }, [announcing, snapshot, verdict]);
 
   const parsedGoal = parseWordTarget(form.goal);
   const dirty = !target || form.goal !== initial.goal || form.date !== initial.date;
@@ -80,6 +82,7 @@ export default function DeadlinePanel({ deadline, manuscriptWords, onClose }: Pr
       await deadline.save({ wordGoal: parsedGoal, deadline: form.date });
       setDraft(null);
       setSaved("Deadline saved.");
+      setAnnouncing(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the deadline.");
     } finally {
@@ -182,6 +185,7 @@ export default function DeadlinePanel({ deadline, manuscriptWords, onClose }: Pr
                     deadline.remove();
                     setError(null);
                     setSaved("");
+                    setAnnouncing(false);
                   }}
                 >
                   Remove deadline

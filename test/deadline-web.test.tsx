@@ -225,6 +225,68 @@ describe("the web deadline", () => {
     expect(host.querySelector(".deadline-card")).not.toBeNull();
   });
 
+  async function removeAndHoldDelete(status: number) {
+    server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
+    await render(100);
+    await act(async () => button("Remove deadline").click());
+    await settle();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    fetchMock.mockImplementationOnce(async (url: string, init?: RequestInit) => {
+      calls.push({ method: init?.method ?? "GET", url });
+      await held;
+      if (status !== 200) return json({ error: "nope" }, status);
+      server.target = null;
+      return json({ ok: true });
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(SNACKBAR_MS + 500));
+    await settle();
+    expect(targetCalls("DELETE")).toHaveLength(1);
+    await type("#deadline-target", "7000");
+    await submit();
+    expect(targetCalls("PUT")).toHaveLength(0);
+    release();
+    await settle();
+  }
+
+  it("waits for a delete already on its way before saving, so the new deadline survives", async () => {
+    await removeAndHoldDelete(200);
+    expect(targetCalls("PUT")).toHaveLength(1);
+    expect(server.target?.wordGoal).toBe(7_000);
+    expect(host.querySelector(".deadline-card")!.textContent).toContain("100 of 7,000 words");
+    expect(track).toHaveBeenCalledWith("deadline_saved", { created: true, daysAhead: 30 });
+  });
+
+  it("keeps a deadline saved after a delete that then fails, rather than putting the old one back", async () => {
+    await removeAndHoldDelete(500);
+    expect(targetCalls("PUT")).toHaveLength(1);
+    expect(server.target?.wordGoal).toBe(7_000);
+    expect(host.querySelector(".deadline-card")!.textContent).toContain("100 of 7,000 words");
+    expect(host.textContent).not.toContain("nope");
+    expect(track).toHaveBeenCalledWith("deadline_saved", { created: false, daysAhead: 30 });
+  });
+
+  it("counts a save inside a removal's Undo window as a change, not a new deadline", async () => {
+    server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
+    await render(100);
+    await act(async () => button("Remove deadline").click());
+    await settle();
+    await submit();
+    expect(track).toHaveBeenCalledWith("deadline_saved", { created: false, daysAhead: 30 });
+  });
+
+  it("announces a save once, not again each time the verdict moves", async () => {
+    await render(1_200);
+    await type("#deadline-target", "10,000");
+    await submit();
+    const live = host.querySelector(".deadline-live")!;
+    const announced = live.textContent;
+    expect(announced).toContain("Deadline saved. You need about 284 words a day");
+    await render(5_000);
+    expect(host.querySelector('[data-testid="deadline-verdict"]')!.textContent).not.toContain("284");
+    expect(live.textContent).toBe(announced);
+  });
+
   it("puts a removal back when the server will not delete it", async () => {
     server.target = { projectId: PID, wordGoal: 5_000, deadline: shiftWritingDayKey(writingDayKey(), 20), manuscriptWords: 0, pace: null };
     await render(100);
