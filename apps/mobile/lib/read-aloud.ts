@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { naturalVoiceById, type EnginePreference, type NaturalLanguage } from "./natural-voice";
 
 /** Read-aloud (text-to-speech) helpers: sentence splitting, prefs and a sentence-by-sentence reader. */
 
@@ -7,7 +8,8 @@ export type Sentence = { line: number; start: number; end: number; text: string 
 const ABBREVIATIONS = new Set([
   "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc", "e.g", "i.e", "no", "mt",
 ]);
-const TERMINATORS = new Set([".", "!", "?", "…"]);
+// "।" and "॥" end a Hindi sentence the way "." ends an English one.
+const TERMINATORS = new Set([".", "!", "?", "…", "।", "॥"]);
 const CLOSERS = new Set(['"', "'", "”", "’", ")", "]", "»"]);
 
 function endsWithAbbreviation(text: string, dotIndex: number): boolean {
@@ -148,17 +150,41 @@ export function voiceChoices<V extends VoiceOption>(voices: V[], locale: string,
 
 /** Read-aloud speed and voice belong to this device, so they live in local prefs. */
 const PREFS_KEY = "read-aloud";
-export type ReadAloudPrefs = { rate: number; voice: string | null };
-const DEFAULTS: ReadAloudPrefs = { rate: DEFAULT_RATE, voice: null };
+export type ReadAloudPrefs = {
+  rate: number;
+  /** The system voice, an identifier from the device's own list. */
+  voice: string | null;
+  /** The writer's choice of engine; null takes the natural voice once its model is downloaded. */
+  engine: EnginePreference | null;
+  /** The natural (Kokoro) voice picked for each language. */
+  naturalVoices: Partial<Record<NaturalLanguage, string>>;
+};
+const DEFAULTS: ReadAloudPrefs = { rate: DEFAULT_RATE, voice: null, engine: null, naturalVoices: {} };
 let prefs: ReadAloudPrefs | null = null;
 const listeners = new Set<() => void>();
+
+function readNaturalVoices(raw: unknown): ReadAloudPrefs["naturalVoices"] {
+  if (!raw || typeof raw !== "object") return {};
+  const out: ReadAloudPrefs["naturalVoices"] = {};
+  for (const language of ["en", "es", "hi"] as const) {
+    const id = (raw as Record<string, unknown>)[language];
+    // A voice that is no longer offered, or filed under the wrong language, is dropped.
+    if (typeof id === "string" && naturalVoiceById(id)?.language === language) out[language] = id;
+  }
+  return out;
+}
 
 function readStored(): ReadAloudPrefs {
   try {
     const { getPrefs } = require("./prefs") as typeof import("./prefs");
     const raw = JSON.parse(getPrefs().getString(PREFS_KEY) ?? "null");
     if (raw && typeof raw === "object") {
-      return { rate: clampRate(raw.rate), voice: typeof raw.voice === "string" ? raw.voice : null };
+      return {
+        rate: clampRate(raw.rate),
+        voice: typeof raw.voice === "string" ? raw.voice : null,
+        engine: raw.engine === "system" || raw.engine === "natural" ? raw.engine : null,
+        naturalVoices: readNaturalVoices(raw.naturalVoices),
+      };
     }
   } catch {
     /* web / tests / missing native module */
@@ -174,6 +200,7 @@ export function getReadAloudPrefs(): ReadAloudPrefs {
 export function setReadAloudPrefs(patch: Partial<ReadAloudPrefs>) {
   const next = { ...getReadAloudPrefs(), ...patch };
   next.rate = clampRate(next.rate);
+  next.naturalVoices = readNaturalVoices(next.naturalVoices);
   prefs = next;
   try {
     const { getPrefs } = require("./prefs") as typeof import("./prefs");
@@ -182,6 +209,11 @@ export function setReadAloudPrefs(patch: Partial<ReadAloudPrefs>) {
     /* web / tests / missing native module */
   }
   for (const listener of listeners) listener();
+}
+
+/** Forgets what was loaded, so the next read comes from storage (tests). */
+export function resetReadAloudPrefsForTests() {
+  prefs = null;
 }
 
 function subscribe(listener: () => void) {
@@ -197,18 +229,53 @@ export function useReadAloudPrefs(): ReadAloudPrefs {
 
 export type ReaderState = "idle" | "playing" | "paused";
 
+/** Why an engine gave up partway: it errored, or it could not make speech as fast as it plays. */
+export type SpeechError = { reason: "failed" | "too-slow"; index: number };
+
+/**
+ * A whole read handed to an engine that works ahead of the sentence being
+ * heard (synthesising the next one while this one plays, chaining them with no
+ * gap). It reports each sentence as it becomes audible and what to do when it
+ * gives up; the reader never sees the engine's queue.
+ */
+export type SpeechRun = {
+  texts: string[];
+  /** Sentence to begin at. */
+  from: number;
+  rate: number;
+  voice?: string;
+  /** Sentence `index` is now being heard. */
+  onSentence(index: number): void;
+  /** The engine is preparing audio and nothing is playing yet. */
+  onBuffering?(buffering: boolean): void;
+  onDone(): void;
+  onError(error: SpeechError): void;
+};
+
 export type SpeechEngine = {
   speak(
     text: string,
     options: { rate: number; voice?: string; onDone: () => void; onError: () => void }
   ): void;
   stop(): void;
+  /** Engines that can read ahead take the whole run instead of one sentence at a time. */
+  playRun?(run: SpeechRun): void;
+};
+
+export type ReaderOptions = {
+  /** Where to carry on from when the engine fails or cannot keep up. */
+  fallback?: () => SpeechEngine;
+  /** The engine failed or fell behind and `fallback` took over at `index`. */
+  onFallback?: (info: SpeechError) => void;
+  onBuffering?: (buffering: boolean) => void;
 };
 
 /**
  * Reads sentences one utterance at a time. Pause stops the engine and resumes
  * from the start of the current sentence, which works the same on iOS and
- * Android (expo-speech can only pause on iOS).
+ * Android (expo-speech can only pause on iOS). An engine with `playRun` is
+ * handed the rest of the read instead, and `fallback` takes over from the
+ * sentence it stopped at if it gives up.
  */
 export class SentenceReader {
   private texts: string[] = [];
@@ -217,21 +284,44 @@ export class SentenceReader {
   private token = 0;
   private rate = DEFAULT_RATE;
   private voice: string | null = null;
+  private fallbackVoice: string | null = null;
+  private engine: SpeechEngine;
+  private onFallingBack = false;
 
   constructor(
-    private engine: SpeechEngine,
-    private listener: (state: ReaderState, index: number) => void
-  ) {}
+    private primary: SpeechEngine,
+    private listener: (state: ReaderState, index: number) => void,
+    private options: ReaderOptions = {}
+  ) {
+    this.engine = primary;
+  }
 
   get current() {
     return { state: this.state, index: this.index };
   }
 
-  start(texts: string[], options: { rate?: number; voice?: string | null } = {}) {
+  /** True once the fallback engine has taken over the current read. */
+  get usingFallback() {
+    return this.onFallingBack;
+  }
+
+  start(
+    texts: string[],
+    options: {
+      rate?: number;
+      voice?: string | null;
+      fallbackVoice?: string | null;
+      /** Reads this one with another engine than the reader's own (the natural voice); the fallback is unchanged. */
+      engine?: SpeechEngine;
+    } = {}
+  ) {
     this.halt();
+    this.engine = options.engine ?? this.primary;
+    this.onFallingBack = false;
     this.texts = texts.filter((t) => t.trim().length > 0);
     this.rate = clampRate(options.rate ?? this.rate);
     this.voice = options.voice ?? null;
+    this.fallbackVoice = options.fallbackVoice ?? null;
     this.index = 0;
     if (this.texts.length === 0) return this.setState("idle");
     this.setState("playing");
@@ -275,14 +365,42 @@ export class SentenceReader {
   private halt() {
     this.token++;
     this.engine.stop();
+    this.options.onBuffering?.(false);
   }
 
   private speakCurrent() {
     const token = ++this.token;
     this.listener(this.state, this.index);
+    const voice = (this.onFallingBack ? this.fallbackVoice : this.voice) ?? undefined;
+    if (this.engine.playRun) {
+      this.engine.playRun({
+        texts: this.texts,
+        from: this.index,
+        rate: this.rate,
+        voice,
+        onSentence: (index) => {
+          if (token !== this.token || this.state !== "playing") return;
+          this.index = index;
+          this.listener(this.state, index);
+        },
+        onBuffering: (buffering) => {
+          if (token === this.token) this.options.onBuffering?.(buffering);
+        },
+        onDone: () => {
+          if (token !== this.token || this.state !== "playing") return;
+          this.index = 0;
+          this.setState("idle");
+        },
+        onError: (error) => {
+          if (token !== this.token || this.state !== "playing") return;
+          this.handleRunError(error);
+        },
+      });
+      return;
+    }
     this.engine.speak(this.texts[this.index], {
       rate: this.rate,
-      voice: this.voice ?? undefined,
+      voice,
       onDone: () => {
         if (token !== this.token || this.state !== "playing") return;
         if (this.index + 1 >= this.texts.length) {
@@ -299,6 +417,22 @@ export class SentenceReader {
         this.setState("idle");
       },
     });
+  }
+
+  /** A read-ahead engine gave up: carry on from where it stopped on the fallback, or end the read. */
+  private handleRunError(error: SpeechError) {
+    const fallback = this.options.fallback;
+    if (!fallback || this.onFallingBack) {
+      this.index = 0;
+      this.setState("idle");
+      return;
+    }
+    this.halt();
+    this.engine = fallback();
+    this.onFallingBack = true;
+    this.index = Math.min(Math.max(error.index, 0), this.texts.length - 1);
+    this.options.onFallback?.(error);
+    this.speakCurrent();
   }
 
   private setState(state: ReaderState) {

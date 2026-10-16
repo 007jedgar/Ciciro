@@ -34,6 +34,7 @@
     "expo-apple-authentication": "~57.0.2",
     "expo-application": "~57.0.3",
     "expo-blur": "~57.0.2",
+    "expo-build-properties": "~57.0.22",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.17",
     "expo-crypto": "~57.0.3",
@@ -68,7 +69,10 @@
     "react": "19.2.3",
     "react-i18next": "^17.0.13",
     "react-native": "0.86.3",
+    "react-native-audio-api": "0.13.6",
+    "react-native-blob-util": "^0.25.1",
     "react-native-enriched-html": "^1.1.1",
+    "react-native-executorch": "0.10.5",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-keyboard-controller": "1.21.9",
     "react-native-mmkv": "^4.3.2",
@@ -94,5 +98,16 @@
   "op-sqlite": {
     "performanceMode": true,
     "fts5": true
+  },
+  "react-native-executorch": {
+    "backends": [
+      "xnnpack"
+    ],
+    "libs": [
+      "phonemis"
+    ]
+  },
+  "allowScripts": {
+    "react-native-executorch": true
   }
 }

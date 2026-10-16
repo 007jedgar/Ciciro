@@ -122,7 +122,9 @@ describe("WelcomeScreen", () => {
     expect(journal).toBe(true);
     await advance(4000);
     expect(onPage("Thursday, 9 October")).toHaveLength(1);
-  });
+    // About 30 s of fake time in 100 ms steps, each one a render: well under a second on an idle
+    // machine, but past jest's 5 s default when the whole suite runs in parallel.
+  }, 30_000);
 
   it("does not start until the hand-off from the splash is done", async () => {
     resetHandoff(false);

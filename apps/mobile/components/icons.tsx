@@ -222,6 +222,15 @@ export function ArrowDownIcon({ color, size = 16 }: IconProps) {
   );
 }
 
+/** Play: a filled, softly rounded triangle, for a voice sample. */
+export function PlayIcon({ color, size = 14 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.4-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6Z" fill={color} />
+    </Svg>
+  );
+}
+
 /** Stop: a filled square, for interrupting a reply that is still arriving. */
 export function StopIcon({ color, size = 14 }: IconProps) {
   return (

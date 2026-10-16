@@ -14,6 +14,18 @@ describe("htmlToPlainText", () => {
   });
 });
 
+describe("htmlToPlainText numeric entities", () => {
+  it("decodes the entities Android's editor writes for every non-ASCII letter", () => {
+    expect(htmlToPlainText("<p>La ma&#241;ana era fr&#237;a, as&#xED; que &#x1F30A; &#2344;&#2366;&#2357;</p>")).toBe(
+      "La mañana era fría, así que 🌊 नाव"
+    );
+  });
+
+  it("leaves an escaped numeric entity as text and an impossible one alone", () => {
+    expect(htmlToPlainText("<p>&amp;#241; &#0; &#xD800; &#1114112;</p>")).toBe("&#241; &#0; &#xD800; &#1114112;");
+  });
+});
+
 describe("isChapterEmpty", () => {
   it("treats blank TipTap shells as empty", () => {
     expect(isChapterEmpty("")).toBe(true);

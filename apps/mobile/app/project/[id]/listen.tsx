@@ -1,4 +1,4 @@
-import { Redirect, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Text, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeIn } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -48,6 +48,9 @@ function ListenBody() {
         chapterId={chapter.id}
         html={chapter.content}
         selection={selection}
+        chapterTitle={chapter.title}
+        manuscriptTitle={project?.title}
+        onOpenVoiceSettings={() => router.push("/listening")}
       />
     </View>
   );

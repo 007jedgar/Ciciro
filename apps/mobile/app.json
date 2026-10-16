@@ -40,6 +40,17 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.0"
+          },
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
       "expo-secure-store",
       [
         "expo-splash-screen",
@@ -114,7 +125,13 @@
         }
       ],
       "expo-web-browser",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "react-native-audio-api",
+        {
+          "disableFFmpeg": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

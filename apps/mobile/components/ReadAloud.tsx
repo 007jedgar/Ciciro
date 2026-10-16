@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { getLocales } from "expo-localization";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "../lib/settings";
 import { useFade } from "../lib/use-fade";
 import { useReduceMotion } from "../lib/use-reduce-motion";
 import { alpha } from "./Glass";
-import { GlassSheet } from "./GlassSheet";
 import { fonts } from "../lib/theme";
 import { blocksPlainText } from "../lib/read-aloud-text";
 import {
@@ -21,11 +19,17 @@ import {
   useReadAloudPrefs,
   voiceChoices,
   type ReaderState,
+  type ReadAloudPrefs,
   type SpeechEngine,
   type VoiceOption,
 } from "../lib/read-aloud";
+import { announce } from "../lib/announce";
 import { getAnalytics } from "../lib/analytics-client";
-import { SelectChip, SelectLabel } from "./SelectChip";
+import { getNaturalAudioOutput } from "../lib/natural-audio-output";
+import { getNaturalEngine, naturalNativeAvailable, onNaturalEngineEvent } from "../lib/natural-engine";
+import { naturalModelState, useNaturalModelState } from "../lib/natural-model-store";
+import { chooseSpeechEngine, detectTextLanguage, naturalVoiceName } from "../lib/natural-voice";
+import { deviceLocale, loadSystemVoices } from "../lib/system-voices";
 import { TapPressable } from "./TapPressable";
 import { PRESS_SCALE } from "../lib/motion";
 
@@ -48,28 +52,19 @@ function Sentence({ on, color, children }: { on: boolean; color: string; childre
   );
 }
 
-function deviceLocale(): string {
-  try {
-    return getLocales()[0]?.languageTag ?? "";
-  } catch {
-    return "";
-  }
+/** Who reads this text: the natural voice when it is downloaded, chosen and has a voice for the language. */
+function pickEngine(prefs: ReadAloudPrefs, modelReady: boolean, sample: string) {
+  return chooseSpeechEngine({
+    preferred: prefs.engine,
+    modelReady,
+    nativeAvailable: naturalNativeAvailable(),
+    language: detectTextLanguage(sample, deviceLocale()),
+    voices: prefs.naturalVoices,
+  });
 }
 
-async function loadVoices(): Promise<ReadAloudVoice[]> {
-  try {
-    const Speech = require("expo-speech") as typeof import("expo-speech");
-    const all = await Speech.getAvailableVoicesAsync();
-    return all.map((v) => ({
-      identifier: v.identifier,
-      name: v.name,
-      language: v.language,
-      quality: String(v.quality),
-    }));
-  } catch {
-    return [];
-  }
-}
+/** The first stretch of the text is enough to tell its language. */
+const SAMPLE_CHARS = 2000;
 
 /**
  * Reads a chapter (or the writer's selection) aloud sentence by sentence,
@@ -81,16 +76,25 @@ export function ReadAloud({
   html,
   selection,
   engine,
-  loadVoiceList = loadVoices,
+  loadVoiceList = loadSystemVoices,
   header,
+  chapterTitle,
+  manuscriptTitle,
+  onOpenVoiceSettings,
 }: {
   chapterId: string;
   html: string;
   selection: { start: number; end: number } | null;
+  /** Reads with this engine only (tests); otherwise the writer's voice settings pick who reads. */
   engine?: SpeechEngine;
   loadVoiceList?: () => Promise<ReadAloudVoice[]>;
   /** Scrolls away with the page, so the text never slides under a fixed title. */
   header?: ReactNode;
+  /** Named on the lock screen while the natural voice reads. */
+  chapterTitle?: string;
+  manuscriptTitle?: string;
+  /** Opens Listening settings; the voice row is only shown when there is somewhere to go. */
+  onOpenVoiceSettings?: () => void;
 }) {
   const { t } = useTranslation();
   const { layout, colors } = useAppTheme();
@@ -99,7 +103,10 @@ export function ReadAloud({
   const [index, setIndex] = useState(0);
   const [voices, setVoices] = useState<ReadAloudVoice[]>([]);
   const [readingSelection, setReadingSelection] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [buffering, setBuffering] = useState(false);
+  const [fellBack, setFellBack] = useState(false);
+  const model = useNaturalModelState();
+  const usingNatural = useRef(false);
   const insets = useSafeAreaInsets();
   const readerRef = useRef<SentenceReader | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -114,20 +121,77 @@ export function ReadAloud({
   const lines = plain.split("\n");
 
   useEffect(() => {
-    const reader = new SentenceReader(engine ?? expoSpeechEngine(), (next, at) => {
-      setState(next);
-      setIndex(at);
-    });
+    const output = engine ? null : getNaturalAudioOutput();
+    const system = engine ?? expoSpeechEngine();
+    const reader = new SentenceReader(
+      system,
+      (next, at) => {
+        setState(next);
+        setIndex(at);
+        if (next === "idle") setFellBack(false);
+        // The lock-screen card is the natural voice's: the phone's own voices have their own controls.
+        const natural = usingNatural.current && !reader.usingFallback;
+        if (!output || !natural) return;
+        if (next === "idle") output.nowPlaying.hide();
+        else output.nowPlaying.show({ title: chapterTitle ?? "", artist: manuscriptTitle }, next);
+      },
+      {
+        fallback: engine ? undefined : () => system,
+        onFallback: () => {
+          setFellBack(true);
+          output?.nowPlaying.hide();
+        },
+        onBuffering: setBuffering,
+      }
+    );
     readerRef.current = reader;
+    const unsubscribe = output?.nowPlaying.onCommand((command) => {
+      if (!usingNatural.current || reader.usingFallback) return;
+      if (command === "play") reader.resume();
+      else if (command === "pause") reader.pause();
+      else reader.stop();
+    });
     return () => {
+      unsubscribe?.();
       reader.stop();
+      output?.nowPlaying.hide();
       readerRef.current = null;
     };
+    // The lock-screen title follows the chapter; the reader itself is rebuilt per chapter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, chapterId]);
 
   useEffect(() => {
     void loadVoiceList().then(setVoices);
   }, [loadVoiceList]);
+
+  // How natural reads went on real phones, and when the phone could not keep up.
+  useEffect(
+    () =>
+      onNaturalEngineEvent((event) => {
+        const analytics = getAnalytics();
+        if (
+          event.type === "run-finished" &&
+          ((event.firstAudioMs != null && event.rtf != null) || event.outcome === "stopped")
+        ) {
+          analytics.track("natural_voice_read_finished", {
+            outcome: event.outcome,
+            firstAudioMs: event.firstAudioMs == null ? null : Math.round(event.firstAudioMs),
+            rtf: event.rtf == null ? null : Math.round(event.rtf * 100) / 100,
+            underruns: event.underruns,
+            synthesized: event.synthesized,
+            cached: event.cached,
+          });
+        } else if (event.type === "gave-up") {
+          analytics.track("natural_voice_fallback", { reason: event.reason, why: event.why });
+        }
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (fellBack) announce(t("readAloud.fellBack"));
+  }, [fellBack, t]);
 
   const play = useCallback(() => {
     const reader = readerRef.current;
@@ -137,11 +201,21 @@ export function ReadAloud({
     const sentences = readAloudSentences(plain, selection);
     setActive(sentences);
     setReadingSelection(Boolean(selection));
-    reader.start(
-      sentences.map((s) => s.text),
-      { rate: prefs.rate, voice: prefs.voice }
-    );
-  }, [plain, selection, prefs.rate, prefs.voice]);
+    setFellBack(false);
+    const texts = sentences.map((s) => s.text);
+    // Read the state fresh: a download may have finished since this screen last rendered.
+    const choice = engine
+      ? null
+      : pickEngine(prefs, naturalModelState().status === "ready", texts.join(" ").slice(0, SAMPLE_CHARS));
+    const natural = choice?.kind === "natural" ? getNaturalEngine() : null;
+    usingNatural.current = natural !== null;
+    reader.start(texts, {
+      rate: prefs.rate,
+      voice: natural && choice?.kind === "natural" ? choice.voice.id : prefs.voice,
+      fallbackVoice: prefs.voice,
+      engine: natural ?? undefined,
+    });
+  }, [plain, selection, engine, prefs]);
 
   const stop = useCallback(() => {
     readerRef.current?.stop();
@@ -167,15 +241,12 @@ export function ReadAloud({
   }, [current]);
 
   const sortedVoices = useMemo(() => voiceChoices(voices, deviceLocale(), prefs.voice), [voices, prefs.voice]);
-
+  const choice = pickEngine(prefs, model.status === "ready", plain.slice(0, SAMPLE_CHARS));
   const voiceName =
-    sortedVoices.find((v) => v.identifier === prefs.voice)?.name ?? t("readAloud.defaultVoice");
+    choice.kind === "natural"
+      ? naturalVoiceName(choice.voice.id)
+      : (sortedVoices.find((v) => v.identifier === prefs.voice)?.name ?? t("readAloud.defaultVoice"));
   const nextRate = RATE_STEPS[(RATE_STEPS.findIndex((r) => r === prefs.rate) + 1) % RATE_STEPS.length];
-  const pickVoice = (identifier: string | null) => {
-    setReadAloudPrefs({ voice: identifier });
-    readerRef.current?.setVoice(identifier);
-    setVoiceOpen(false);
-  };
 
   // The page scrolls; Play, Stop and speed stay in a bar underneath so they are
   // in reach however far into the chapter the reader has got.
@@ -194,16 +265,30 @@ export function ReadAloud({
             ? selection
               ? t("readAloud.selectionReady")
               : t("readAloud.chapterReady")
-            : t("readAloud.progress", {
+            : buffering && state === "playing"
+              ? t("readAloud.buffering")
+              : t("readAloud.progress", {
                 scope: readingSelection ? t("readAloud.selection") : t("readAloud.chapter"),
                 current: index + 1,
                 total: shown.length,
               })}
         </Text>
-        {sortedVoices.length > 0 ? (
+        {fellBack ? (
+          <Text
+            testID="read-aloud-fell-back"
+            style={[layout.cardMeta, { marginTop: 0, marginBottom: 12, color: colors.ink }]}
+          >
+            {t("readAloud.fellBack")}
+          </Text>
+        ) : null}
+        {onOpenVoiceSettings ? (
           <TapPressable
             scale={PRESS_SCALE.card}
-            onPress={() => setVoiceOpen(true)}
+            onPress={() => {
+              // Listening settings can delete the model the read is using: end the read first.
+              stop();
+              onOpenVoiceSettings();
+            }}
             accessibilityRole="button"
             accessibilityLabel={`${t("readAloud.voice")}: ${voiceName}`}
             style={[styles.voiceRow, { borderColor: colors.line, backgroundColor: colors.bg }]}
@@ -303,43 +388,6 @@ export function ReadAloud({
           <Text style={{ color: colors.accent, fontSize: 16, fontWeight: "600" }}>{prefs.rate}x</Text>
         </TapPressable>
       </View>
-      <GlassSheet
-        visible={voiceOpen}
-        onClose={() => setVoiceOpen(false)}
-        title={t("readAloud.voice")}
-        snapPoints={[0.62]}
-        testID="voice-sheet"
-      >
-        <ScrollView>
-          {[{ identifier: null as string | null, label: t("readAloud.defaultVoice") }]
-            .concat(sortedVoices.map((v) => ({ identifier: v.identifier, label: `${v.name} (${v.language})` })))
-            .map((opt) => {
-              const selected = prefs.voice === opt.identifier;
-              return (
-                <SelectChip
-                  key={opt.identifier ?? "default"}
-                  selected={selected}
-                  tokens={{
-                    restFill: "transparent",
-                    activeFill: colors.accentSoft,
-                    restBorder: "transparent",
-                    activeBorder: "transparent",
-                    restText: colors.ink,
-                    activeText: colors.accent,
-                  }}
-                  scale={PRESS_SCALE.card}
-                  onPress={() => pickVoice(opt.identifier)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={opt.label}
-                  surfaceStyle={styles.option}
-                >
-                  <SelectLabel style={{ fontSize: 16 }}>{opt.label}</SelectLabel>
-                </SelectChip>
-              );
-            })}
-        </ScrollView>
-      </GlassSheet>
     </View>
   );
 }
@@ -379,5 +427,4 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
-  option: { minHeight: 48, borderRadius: 14, paddingHorizontal: 14, justifyContent: "center" },
 });
