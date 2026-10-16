@@ -8,6 +8,7 @@ import {
   exportFormatsFor,
   exportManuscript,
 } from "../lib/export";
+import { scheduleReviewPrompt } from "../lib/review-prompt";
 
 jest.mock("expo-file-system", () => {
   const create = jest.fn();
@@ -23,6 +24,7 @@ jest.mock("expo-sharing", () => ({
   isAvailableAsync: jest.fn(async () => true),
   shareAsync: jest.fn(async () => {}),
 }));
+jest.mock("../lib/review-prompt", () => ({ scheduleReviewPrompt: jest.fn() }));
 jest.mock("../lib/api", () => ({ ciciro: { export: { download: jest.fn(), downloadChapter: jest.fn() } } }));
 
 const fns = (jest.requireMock("expo-file-system") as { __fns: { create: jest.Mock; write: jest.Mock } }).__fns;
@@ -47,6 +49,25 @@ describe("exportManuscript", () => {
       "file:///cache/my_book.epub",
       expect.objectContaining({ mimeType: "application/epub+zip", UTI: "org.idpf.epub-container" })
     );
+  });
+
+  it("schedules the store review prompt once the manuscript is shared", async () => {
+    (scheduleReviewPrompt as jest.Mock).mockClear();
+    await exportManuscript("p 1", "pdf");
+    expect(scheduleReviewPrompt).toHaveBeenCalledTimes(1);
+    expect(scheduleReviewPrompt).toHaveBeenCalledWith("export");
+  });
+
+  it("does not schedule it when the export fails", async () => {
+    (scheduleReviewPrompt as jest.Mock).mockClear();
+    (Sharing.shareAsync as jest.Mock).mockRejectedValueOnce(new Error("share failed"));
+    await expect(exportManuscript("p 1", "pdf")).rejects.toThrow("share failed");
+    (Sharing.isAvailableAsync as jest.Mock).mockResolvedValueOnce(false);
+    await expect(exportManuscript("p 1", "pdf")).rejects.toBeInstanceOf(ExportUnavailableError);
+    await expect(exportManuscript("p 1", "pdf", { flush: async () => false })).rejects.toBeInstanceOf(
+      ExportUnsyncedError
+    );
+    expect(scheduleReviewPrompt).not.toHaveBeenCalled();
   });
 
   it("handles markdown format with correct MIME type", async () => {
@@ -118,6 +139,12 @@ describe("exportChapter", () => {
       filename: "chapter_one.md",
       contentType: "text/markdown",
     });
+  });
+
+  it("does not schedule the store review prompt for a single chapter", async () => {
+    (scheduleReviewPrompt as jest.Mock).mockClear();
+    await exportChapter("p 1", "c 1", "markdown");
+    expect(scheduleReviewPrompt).not.toHaveBeenCalled();
   });
 
   it("downloads the chapter and opens the share sheet", async () => {

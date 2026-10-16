@@ -5,6 +5,12 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "a7886311bd8d",
+    "date": "2026-10-16",
+    "summary": "**A quiet nudge to rate Ciciro on the phone.** After the first time you export a manuscript or finish a writing exercise, the app asks once for a store review…",
+    "text": "**A quiet nudge to rate Ciciro on the phone.** After the first time you export a manuscript or finish a writing exercise, the app asks once for a store review through the system's own rating sheet, a couple of seconds after the moment has passed. It never asks again on that device, and the system decides whether to show it."
+  },
+  {
     "id": "833f4b69eee2",
     "date": "2026-10-16",
     "summary": "**Four new writing exercises on iPhone.** The writing exercise is now a list of five to pick from, under **+** on your manuscripts (and under the first-manuscr…",

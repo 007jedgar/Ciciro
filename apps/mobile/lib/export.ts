@@ -2,6 +2,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { ciciro, type ExportFormat } from "./api";
 import { getAnalytics } from "./analytics-client";
+import { scheduleReviewPrompt } from "./review-prompt";
 import type { ManuscriptKind } from "./manuscript-kind";
 
 export type { ExportFormat };
@@ -66,6 +67,8 @@ export async function exportManuscript(
     dialogTitle: filename,
   });
   getAnalytics().track("export_completed", { format });
+  // The sheet is closed: let it settle, then (once per device) ask for a store review.
+  scheduleReviewPrompt("export");
 }
 
 /**

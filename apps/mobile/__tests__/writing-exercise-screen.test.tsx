@@ -2,12 +2,14 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Alert, BackHandler, TextInput } from "react-native";
 import WritingExerciseScreen from "../app/writing-exercise";
 import { EXERCISES } from "../lib/writing-exercise";
+import { scheduleReviewPrompt } from "../lib/review-prompt";
 
 const mockLeave = jest.fn();
 const mockReplace = jest.fn();
 const mockKeep = jest.fn();
 const mockTrack = jest.fn();
 let mockParams: { id?: string } = {};
+const mockCancelReview = jest.fn();
 
 jest.mock("expo-router", () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -27,6 +29,7 @@ jest.mock("../lib/settings", () => ({
 jest.mock("../lib/writing-exercise-save", () => ({
   keepExerciseAsManuscript: (args: unknown) => mockKeep(args),
 }));
+jest.mock("../lib/review-prompt", () => ({ scheduleReviewPrompt: jest.fn(() => mockCancelReview) }));
 jest.mock("../lib/new-manuscript-arrival", () => ({ markNewManuscriptArrival: jest.fn() }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -210,6 +213,24 @@ describe("Writing exercise screen", () => {
     expect(screen.getByText("the attic")).toBeTruthy();
     expect(screen.getByText("a red coat")).toBeTruthy();
     expect(screen.getByText("Pick the noun with the strongest pull. Write about it: a memory, an essay, a story, whatever it wants to be.")).toBeTruthy();
+  });
+
+  it("asks for a store review only once the exercise is finished, and stops if the screen goes first", async () => {
+    const view = render(<WritingExerciseScreen />);
+    pick("observe_react_narrate");
+    fireEvent.press(screen.getByRole("button", { name: "Begin" }));
+    fireEvent.press(screen.getByRole("button", { name: "I'm ready" }));
+    for (const next of ["Next: React", "Next: Narrate"]) {
+      write("Words.");
+      fireEvent.press(screen.getByRole("button", { name: next }));
+    }
+    expect(scheduleReviewPrompt).not.toHaveBeenCalled();
+    write("Words.");
+    fireEvent.press(screen.getByRole("button", { name: "Finish" }));
+    expect(scheduleReviewPrompt).toHaveBeenCalledTimes(1);
+    expect(scheduleReviewPrompt).toHaveBeenCalledWith("exercise");
+    view.unmount();
+    expect(mockCancelReview).toHaveBeenCalledTimes(1);
   });
 
   it("asks before leaving the finish when nothing was kept or copied", async () => {
