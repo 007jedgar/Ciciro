@@ -18,6 +18,7 @@ import { TARGETS, DEFAULT_TARGETS } from "./targets.mjs";
 import { FRAMES, FEATURE_GRAPHIC } from "./frames.mjs";
 import { CROPS } from "./crops.mjs";
 import { LAYOUTS, featureGraphic, rich } from "./layouts.mjs";
+import { buildGallery } from "./gallery.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
@@ -220,7 +221,9 @@ async function main() {
   const cacheDir = join(ROOT, ".cache");
   mkdirSync(cacheDir, { recursive: true });
 
-  const frames = FRAMES.filter((f) => (args.planned || f.status === "shipped") && (!args.frames || args.frames.includes(f.id)));
+  // Numbers come from the full set, so rendering one frame keeps its place.
+  const eligible = FRAMES.filter((f) => args.planned || f.status === "shipped").map((f, i) => ({ frame: f, number: i + 1 }));
+  const frames = eligible.filter(({ frame }) => !args.frames || args.frames.includes(frame.id));
   const outRoot = join(ROOT, "out", args.placeholders ? "_placeholder" : args.locale);
   if (args.placeholders) rmSync(outRoot, { recursive: true, force: true });
 
@@ -235,7 +238,7 @@ async function main() {
       const jobs =
         target.form === "graphic"
           ? [{ id: "feature", html: null }]
-          : frames.map((f, i) => ({ id: f.id, frame: f, number: i + 1 }));
+          : frames.map(({ frame, number }) => ({ id: frame.id, frame, number }));
       for (const job of jobs) {
         const isFeature = job.id === "feature";
         const fctx = makeContext({ target, locale: args.locale, copy: isFeature ? copy.feature : copy.frames[job.id], canvasH });
@@ -263,6 +266,10 @@ async function main() {
     await browser?.close();
   }
   for (const w of written) console.log(`wrote ${w.replace(ROOT + "/", "")}`);
+  if (written.length) {
+    const gallery = await buildGallery({ outRoot, locale: args.locale, placeholders: args.placeholders });
+    console.log(`gallery ${gallery}`);
+  }
   if (problems.length) {
     console.error(`\n${problems.length} frame(s) skipped:\n  ${problems.join("\n  ")}`);
     process.exitCode = 1;

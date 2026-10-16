@@ -50,6 +50,14 @@ export const LAYOUTS = {
       )}`;
   },
 
+  screenplay(ctx) {
+    return comp(
+      `${phone(ctx, "screenplay")}
+       ${cutout(ctx, "screenplay-pages", ctx.rects.scriptPage, "right:-17%;top:52%;width:62%;transform:rotate(2.2deg)", "taped")}`,
+      "top:2%"
+    );
+  },
+
   reminders(ctx) {
     return comp(
       `${phone(ctx, "reminder")}
@@ -72,7 +80,7 @@ export const LAYOUTS = {
   exercise(ctx) {
     return comp(
       `${phone(ctx, "exercise")}
-       ${ctx.rects.exerciseCard ? cutout(ctx, "exercise", ctx.rects.exerciseCard, "right:-14%;top:54%;width:70%;transform:rotate(2.4deg)") : ""}`,
+       ${cutout(ctx, "weekly-review", ctx.rects.weeklyNext, "right:-15%;top:58%;width:78%;transform:rotate(2deg)", "taped")}`,
       "top:2%"
     );
   },
@@ -81,14 +89,6 @@ export const LAYOUTS = {
     return comp(
       `${phone(ctx, "suggestions")}
        ${cutout(ctx, "suggestions-bar", ctx.rects.suggestionsBar, "left:-12%;top:50%;width:84%;transform:rotate(-2deg)")}`,
-      "top:2%"
-    );
-  },
-
-  weekly(ctx) {
-    return comp(
-      `${phone(ctx, "weekly-review")}
-       ${cutout(ctx, "weekly-review", ctx.rects.weeklyNext, "right:-15%;top:60%;width:76%;transform:rotate(2deg)", "taped")}`,
       "top:2%"
     );
   },

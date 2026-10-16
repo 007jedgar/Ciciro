@@ -11,6 +11,11 @@
         "COUNTED"
       ]
     },
+    "screenplay": {
+      "tag": "Screenplay · Beta",
+      "headline": "A script that *looks* like a script.",
+      "sub": "Scene headings, cues and dialogue format themselves as you type, and Tab moves you on to the next line. Screenplay mode is in beta."
+    },
     "reminders": {
       "tag": "Reminders",
       "headline": "A reminder that knows *where you left off.*",
@@ -33,13 +38,8 @@
     },
     "exercise": {
       "tag": "Get better at it",
-      "headline": "Stuck? Start with a *prompt,* not a blank page.",
-      "sub": "A short guided exercise settles you in, then asks for three small things. No AI drafting it for you."
-    },
-    "weekly": {
-      "tag": "Weekly review",
-      "headline": "Every week, a look at *what to write next.*",
-      "sub": "Ciciro looks back over your week: what you wrote, what is still open in the story, and where to pick it up."
+      "headline": "Write a little. Get *better* at it.",
+      "sub": "A short guided exercise when you are stuck, and a weekly review of what you wrote and what to write next."
     },
     "bible": {
       "tag": "Story bible",

@@ -17,6 +17,8 @@ export const CROPS = {
     weeklyNext: { x: 0.04, y: 0.62, w: 0.92, h: 0.22 },
     // One character entry in the Story bible.
     bibleEntry: { x: 0.04, y: 0.3, w: 0.92, h: 0.16 },
+    // One sheet of the script's page view (the Pages tile).
+    scriptPage: { x: 0.08, y: 0.12, w: 0.84, h: 0.62 },
   },
   tablet: {
     notification: { x: 0.55, y: 0.02, w: 0.43, h: 0.06 },
@@ -25,5 +27,6 @@ export const CROPS = {
     exerciseCard: { x: 0.1, y: 0.3, w: 0.8, h: 0.26 },
     weeklyNext: { x: 0.06, y: 0.6, w: 0.88, h: 0.2 },
     bibleEntry: { x: 0.06, y: 0.3, w: 0.88, h: 0.14 },
+    scriptPage: { x: 0.2, y: 0.1, w: 0.6, h: 0.7 },
   },
 };

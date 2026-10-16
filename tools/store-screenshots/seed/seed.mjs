@@ -135,6 +135,35 @@ function dayKey(daysBack) {
   return `${y}-${m}-${day}`;
 }
 
+// A short script in the phone's screenplay mode (Beta). The element is the
+// data-sp tag; an action line carries none (see docs/screenplay.md).
+const SCRIPT = [
+  ["scene-heading", "INT. KITCHEN - NIGHT"],
+  ["action", "Maya sits at the table, laptop shut, a cold cup of coffee by her elbow. Next door, a porch light clicks off."],
+  ["character", "MAYA"],
+  ["parenthetical", "(to herself)"],
+  ["dialogue", "Ten minutes. That's all I've got tonight."],
+  ["action", "She opens the laptop. The cursor finds the sentence she left off on, like it never moved."],
+  ["character", "MAYA"],
+  ["dialogue", "Okay. Where were we?"],
+  ["transition", "CUT TO:"],
+  ["scene-heading", "EXT. PORCH - CONTINUOUS"],
+  ["action", "A neighbour's dog barks twice and thinks better of it. Through the window, Maya's silhouette bends over the screen."],
+];
+
+async function seedScript() {
+  const project = await api("/api/projects", {
+    method: "POST",
+    body: { title: "Ten Minutes", author: DEMO.name, kind: "screenplay", genre: "Short film" },
+  });
+  const chapter = project.chapters[0];
+  const content = SCRIPT.map(([tag, text], i) =>
+    tag === "action" ? p(i + 1, text) : `<p data-block-id="b${i + 1}" data-sp="${tag}">${text}</p>`
+  ).join("");
+  await api(`/api/chapters/${chapter.id}`, { method: "PATCH", body: { content, expectedRevision: chapter.revision } });
+  console.log("script", project.id);
+}
+
 async function main() {
   try {
     await api("/api/auth/signup", { method: "POST", body: { ...DEMO, marketingOptIn: false } });
@@ -146,7 +175,9 @@ async function main() {
   }
 
   const existing = await api("/api/projects");
-  if (Array.isArray(existing) && existing.some((x) => x.title === "The Letter")) {
+  const have = (title) => Array.isArray(existing) && existing.some((x) => x.title === title);
+  if (!have("Ten Minutes")) await seedScript();
+  if (have("The Letter")) {
     console.log("The Letter already exists; leaving the seed as it is. Delete the account's data to reseed.");
     return;
   }
