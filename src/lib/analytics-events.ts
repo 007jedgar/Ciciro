@@ -100,7 +100,7 @@ export type EventCatalog = {
   export_completed: { format: "epub" | "pdf" | "markdown" | "docx" | "fountain" | "fdx" };
   snapshot_restored: NoProperties;
   writing_sprint_completed: { durationMinutes?: number };
-  // A manuscript's deadline (mobile). Counts only, never the title or any text: `daysAhead` is whole days from today to the due date.
+  // A manuscript's deadline (web and mobile). Counts only, never the title or any text: `daysAhead` is whole days from today to the due date.
   deadline_saved: { created: boolean; daysAhead: number };
   deadline_removed: NoProperties;
   deadline_met: NoProperties;

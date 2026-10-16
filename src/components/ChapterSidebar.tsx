@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { Chapter } from "@/lib/types";
 import { isChapterEmpty } from "@/lib/text";
 import { IMPORT_ACCEPT } from "@/lib/import-client";
@@ -19,6 +19,8 @@ type Props = {
   onImport?: (file: File) => Promise<void>;
   /** What is being written; a journal adds today's entry, a blog post is one piece. */
   kind?: ManuscriptKind;
+  /** The manuscript's deadline at a glance, under the heading. */
+  deadline?: ReactNode;
 };
 
 export default function ChapterSidebar({
@@ -30,6 +32,7 @@ export default function ChapterSidebar({
   leavingIds,
   onImport,
   kind = "novel",
+  deadline,
 }: Props) {
   const info = KIND_INFO[kind];
   const fileRef = useRef<HTMLInputElement>(null);
@@ -63,6 +66,7 @@ export default function ChapterSidebar({
           )}
         </span>
       </div>
+      {deadline}
       {onImport ? (
         <>
           <input

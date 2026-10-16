@@ -5,6 +5,8 @@ import Link from "next/link";
 import TopbarMore from "@/components/TopbarMore";
 import Editor, { type EditorHandle } from "@/components/Editor";
 import ChapterSidebar from "@/components/ChapterSidebar";
+import DeadlineCard from "@/components/DeadlineCard";
+import DeadlinePanel from "@/components/DeadlinePanel";
 import ChatPanel, { type ChatHandle } from "@/components/ChatPanel";
 import StoryBible from "@/components/StoryBible";
 import KnowledgeBoard from "@/components/KnowledgeBoard";
@@ -65,6 +67,7 @@ import { getFocusMode, setFocusMode, useFocusMode } from "@/lib/focus-mode";
 import { isMacPlatform } from "@/lib/selection-menu-view";
 import { isUnrelatedInput } from "@/lib/shortcuts";
 import { MOTION_MS, motionMs, useLeavingIds } from "@/lib/motion";
+import { useDeadline } from "@/lib/use-deadline";
 import { useFocusPhase } from "@/lib/focus-phase";
 import { useSnackbar } from "@/components/Snackbar";
 import { OptimisticChapterStore, type SaveOutcome } from "@/lib/optimistic-chapter";
@@ -145,6 +148,9 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   const [restoredId, setRestoredId] = useState<string | null>(null);
   const notify = useSnackbar();
   const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [deadlineOpen, setDeadlineOpen] = useState(false);
+  const manuscriptWords = project.chapters.reduce((sum, c) => sum + c.wordCount, 0);
+  const deadline = useDeadline(project.id, manuscriptWords);
   const [weeklyDue, setWeeklyDue] = useState(false);
   const [betaTab, setBetaTab] = useState<BetaReadersTab>("comments");
   const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
@@ -699,6 +705,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
     knowledgeOpen ||
     searchOpen ||
     repetitionOpen ||
+    deadlineOpen ||
     continuityOpen ||
     questionsOpen ||
     autoWriteOpen;
@@ -1301,6 +1308,12 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             },
             { key: "scratchpad", label: "Scratchpad", onSelect: () => setScratchOpen(true) },
             {
+              key: "deadline",
+              label: "Deadline",
+              title: "A due date and word target for this manuscript, and whether you are on pace",
+              onSelect: () => setDeadlineOpen(true),
+            },
+            {
               key: "weekly",
               label: "Weekly review",
               title: "How your week went, loose ends, and what to write next",
@@ -1355,6 +1368,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
         onDelete={deleteChapter}
         onImport={importChapters}
         kind={kind}
+        deadline={<DeadlineCard deadline={deadline} onOpen={() => setDeadlineOpen(true)} />}
       />
 
       {focusPhase === "on" && (
@@ -1689,6 +1703,14 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       <Presence open={styleAnalysisOpen}>
         <StyleAnalysisPanel projectId={project.id} onClose={() => setStyleAnalysisOpen(false)} />
+      </Presence>
+
+      <Presence open={deadlineOpen}>
+        <DeadlinePanel
+          deadline={deadline}
+          manuscriptWords={manuscriptWords}
+          onClose={() => setDeadlineOpen(false)}
+        />
       </Presence>
 
       <Presence open={repetitionOpen}>
