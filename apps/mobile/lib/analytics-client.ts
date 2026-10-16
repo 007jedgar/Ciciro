@@ -60,9 +60,15 @@ function ensureClient(): AnalyticsAdapter {
  * should capture right now (false while the signed-in account's own setting
  * is off): the device's grant alone decides whether the client exists and
  * keeps its identity, so an account-level "off" only opts it out, never
- * resets it.
+ * resets it. `userId` is the account signed in at the moment of the grant: a
+ * client built after sign-in never saw that sign-in's identify, so it is
+ * identified here.
  */
-export function setAnalyticsConsent(granted: boolean, active: boolean = granted): void {
+export function setAnalyticsConsent(
+  granted: boolean,
+  active: boolean = granted,
+  userId: string | null = null
+): void {
   if (granted === consentGranted) return;
   consentGranted = granted;
   if (!granted) {
@@ -72,7 +78,9 @@ export function setAnalyticsConsent(granted: boolean, active: boolean = granted)
     }
     return;
   }
-  ensureClient().setOptedOut(!active);
+  const client = ensureClient();
+  client.setOptedOut(!active);
+  if (userId) client.identify(userId);
 }
 
 /**
