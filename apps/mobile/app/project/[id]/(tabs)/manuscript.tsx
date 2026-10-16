@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Pressable, Text, View } from "react-native";
+import { Keyboard, Platform, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import * as haptics from "../../../../lib/haptics";
 import { announce } from "../../../../lib/announce";
+import { useCoveringKeyboard } from "../../../../lib/use-covering-keyboard";
 import type { EnrichedTextInputInstance, OnChangeStateEvent } from "react-native-enriched-html";
 import {
   ChapterEditor,
@@ -253,7 +254,7 @@ function ManuscriptScreenContent() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideBar = useSharedValue(0);
-  const keyboardVisible = useKeyboardState((state) => state.isVisible);
+  const keyboardVisible = useCoveringKeyboard();
 
   const overlay = chapter && inflight > 0 && localDoc?.chapterId === chapter.id ? localDoc : null;
 

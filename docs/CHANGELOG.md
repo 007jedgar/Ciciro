@@ -16,6 +16,13 @@ for an uncommitted entry) and writes it back into this file.
   has passed. It never asks again on that device, and the system decides whether
   to show it.
 
+- <!-- 2026-10-16 --> **Android polish.** Titles and the editor now use a serif face on Android
+  (they were falling back to sans), the floating tab bar, headers and sheets no longer let page
+  text show through, the chat box, screenplay element bar and exercise Next button stay clear of
+  the tab bar and gesture bar when a floating keyboard toolbar is up, switches are visible in dark
+  themes, the writing history heatmap lays out in even rows, and the onboarding exercises step no
+  longer cuts a row off above its footer.
+
 - <!-- 2026-10-16 --> **Four new writing exercises on iPhone.** The writing exercise is now a list of
   five to pick from, under **+** on your manuscripts (and under the first-manuscript
   button when the library is empty). New: **Pour it out**, ten minutes of unfiltered

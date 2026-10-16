@@ -7,6 +7,7 @@ import {
   glassSheetRimColors,
   topRoundedPath,
 } from "../lib/glass-sheet";
+import { BLUR_SUPPORTED } from "../lib/blur-support";
 
 export { GLASS_SHEET_RADIUS, glassSheetFillColors, glassSheetRimColors };
 
@@ -47,7 +48,7 @@ export function GlassSheetBorder({
 
   if (width < 2 || height < 2 || !path || !edge) return null;
 
-  const fill = glassSheetFillColors(dark, base);
+  const fill = glassSheetFillColors(dark, base, !BLUR_SUPPORTED);
   const rim = glassSheetRimColors(dark);
 
   return (

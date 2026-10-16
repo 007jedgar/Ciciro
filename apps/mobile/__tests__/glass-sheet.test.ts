@@ -84,4 +84,12 @@ describe("glass sheet", () => {
     }
     expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080");
   });
+
+  it("fills the pane with no transparency where nothing can blur what is behind it", () => {
+    for (const dark of [true, false]) {
+      const [top, bottom] = glassSheetFillColors(dark, "#faf6ef", true);
+      expect(top).toMatch(/^#[0-9a-f]{6}$/);
+      expect(bottom).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
 });

@@ -115,4 +115,15 @@ describe("themes", () => {
     expect(fonts.serif).toBe("Georgia");
     expect(fonts.display).not.toBe(fonts.serif);
   });
+
+  it("asks Android for its generic serif and sans, since it has no Georgia", () => {
+    jest.isolateModules(() => {
+      // The isolated registry has its own react-native, so set the OS on that one before the theme reads it.
+      const { Platform } = require("react-native");
+      Platform.OS = "android";
+      const android = require("../lib/theme").fonts;
+      expect(android.serif).toBe("serif");
+      expect(android.sans).toBe("sans-serif");
+    });
+  });
 });

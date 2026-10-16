@@ -205,9 +205,13 @@ export const THEME_PALETTES: Record<ThemeId, ColorTokens> = {
 const embedded = (ios: string, android: string) => (Platform.OS === "ios" ? ios : android);
 
 export const fonts = {
-  /** The manuscript's own face (the author's editor-font setting). */
-  serif: "Georgia",
-  sans: "System",
+  /**
+   * The manuscript's own face (the author's editor-font setting). Android ships no Georgia
+   * (a missing family falls back to the sans UI face, so "serif" would read as sans), so it
+   * asks for the platform's serif and sans by their generic names.
+   */
+  serif: Platform.OS === "android" ? "serif" : "Georgia",
+  sans: Platform.OS === "android" ? "sans-serif" : "System",
   /** Archive display: Newsreader light, italic for the one emphasised word. */
   display: embedded("Newsreader-Light", "Newsreader_300Light"),
   displayRegular: embedded("Newsreader-Regular", "Newsreader_400Regular"),

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
-import { KeyboardAvoidingView, useKeyboardState } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useCoveringKeyboard } from "../../lib/use-covering-keyboard";
 import type { EnrichedTextInputInstance } from "react-native-enriched-html";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -56,7 +57,7 @@ export function FocusDemo({
   const reduceMotion = useReduceMotion();
   const [on, setOn] = useState(false);
   const editorRef = useRef<EnrichedTextInputInstance | null>(null);
-  const keyboardVisible = useKeyboardState((state) => state.isVisible);
+  const keyboardVisible = useCoveringKeyboard();
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale > LARGE_TEXT_SCALE;
   // `onChangeText` reports plain text, not HTML (see ChapterEditor) - the
