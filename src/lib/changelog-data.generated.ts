@@ -11,6 +11,12 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     "text": "**Deadlines on the website.** A manuscript can now have a due date and a word target on the web too, set from **Deadline** in the top bar's More menu (and changed or removed there; removing it offers Undo). A ring fills as the words arrive and closes with a tick when the target is met, and a card at the head of the chapter list shows the ring, when it is due and how it is going. Ciciro reads your last two weeks of writing against the words a day the deadline still needs and says plainly whether you are comfortably ahead, on track, or would do well to pick up the pace. It is the same deadline as on the phone, so one set on either shows on both."
   },
   {
+    "id": "f4fd07e6fb28",
+    "date": "2026-10-16",
+    "summary": "**Scan your handwritten notes into Ciciro (phone).** Photograph handwritten or printed notes, or choose up to six photos from your library, and Ciciro reads th…",
+    "text": "**Scan your handwritten notes into Ciciro (phone).** Photograph handwritten or printed notes, or choose up to six photos from your library, and Ciciro reads them into text. You check and edit the text first (words it was unsure of are marked `[?]`, with a button that jumps between them), then add it to your story bible, as a dated section at the end of any file you choose or as a new character or plot line, or onto the Canvas as one card per line. Nothing is overwritten, one scan uses one AI action however many pages it has (and is given back if nothing could be read), and your photos are not stored. Find it under the tools on the Chapters tab, in the Story Bible, and on an empty Canvas. This needs a new build of the app."
+  },
+  {
     "id": "d81901176c33",
     "date": "2026-10-10",
     "summary": "**Write a script in its page layout on iPhone (Beta).** Settings inside a screenplay has a new switch, **Page layout while typing**, off until you turn it on.",

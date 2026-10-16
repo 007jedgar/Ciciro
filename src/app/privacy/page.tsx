@@ -72,6 +72,12 @@ export default async function PrivacyPage() {
             the editor to do something - it&apos;s the core of the product.
           </p>
           <p>
+            The same goes for photos of notes. When you scan notes on the phone, the photos you
+            send are read by Anthropic&apos;s API into text. Ciciro holds them in memory for that
+            one request and does not store or log them; the phone removes its own copies when you
+            leave the screen. Only the text you check and add is kept.
+          </p>
+          <p>
             If the operator running this Ciciro instance has set up a Groq key (optional -
             not everyone does), some of your text is also sent to{" "}
             <a href="https://groq.com/terms-of-use/" target="_blank" rel="noreferrer">

@@ -9,7 +9,7 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
-import { Redirect, useLocalSearchParams } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { AppHeader, useMeasuredAppHeaderHeight } from "../../../components/AppHeader";
 import { alpha } from "../../../components/Glass";
@@ -34,6 +34,7 @@ import {
   type CanvasLabel,
   type CanvasLabelColor,
 } from "../../../lib/canvas";
+import { scanNotesHref } from "../../../lib/notes-scan";
 import { useReduceMotion } from "../../../lib/use-reduce-motion";
 import { useSession } from "../../../lib/session";
 import { useAppTheme } from "../../../lib/settings";
@@ -221,7 +222,12 @@ function CanvasBoardView({
     >
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill}>
-          <Animated.View style={[styles.world, worldStyle, { transformOrigin: "left top" }]}>
+          {/* The world is as big as its content and scales from its top-left corner, which is what
+              `fitCanvasView` assumes. A zero-size world with a "left top" origin string was
+              drawn well away from where the fit put it. */}
+          <Animated.View
+            style={[styles.world, worldStyle, { width: svgWidth, height: svgHeight, transformOrigin: [0, 0, 0] }]}
+          >
             <Svg width={svgWidth} height={svgHeight} style={styles.edges} pointerEvents="none">
               {edges.map((edge) => {
                 const from = byId.get(edge.fromId);
@@ -309,6 +315,7 @@ function CanvasCardSheet({
 
 function CanvasScreenBody({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { backOr } = useStackBack();
   const { colors, layout } = useAppTheme();
   const [headerHeight, onHeaderHeight] = useMeasuredAppHeaderHeight();
@@ -343,6 +350,14 @@ function CanvasScreenBody({ projectId }: { projectId: string }) {
     body = (
       <View style={[layout.padded, { paddingTop: headerHeight + 16 }]}>
         <Text style={layout.body}>{t("canvas.empty")}</Text>
+        <TapPressable
+          testID="canvas-scan-notes"
+          style={[layout.primaryBtn, { marginTop: 20 }]}
+          accessibilityRole="button"
+          onPress={() => router.push(scanNotesHref(projectId, "canvas") as never)}
+        >
+          <Text style={layout.primaryBtnText}>{t("scanNotes.title")}</Text>
+        </TapPressable>
       </View>
     );
   } else {

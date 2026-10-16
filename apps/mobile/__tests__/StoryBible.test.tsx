@@ -124,6 +124,21 @@ describe("StoryBibleIndex", () => {
     unmount();
   });
 
+  it("offers Scan notes only when the screen can open it", () => {
+    mockIndex();
+    const onScanNotes = jest.fn();
+    const first = render(
+      <StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={jest.fn()} onScanNotes={onScanNotes} />
+    );
+    fireEvent.press(screen.getByTestId("bible-scan-notes"));
+    expect(onScanNotes).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    const second = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={jest.fn()} />);
+    expect(screen.queryByTestId("bible-scan-notes")).toBeNull();
+    second.unmount();
+  });
+
   it("keeps the add fields a gap above the keyboard", () => {
     mockIndex();
     const { unmount } = render(<StoryBibleIndex projectId="p1" onOpenFile={jest.fn()} onOpenKnowledge={jest.fn()} />);

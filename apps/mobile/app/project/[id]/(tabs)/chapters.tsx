@@ -9,6 +9,7 @@ import { PressableCard } from "../../../../components/PressableCard";
 import { ProjectTools, type ProjectTool } from "../../../../components/ProjectTools";
 import {
   BookIcon,
+  CameraIcon,
   CanvasIcon,
   CommentIcon,
   FlagIcon,
@@ -47,6 +48,7 @@ import {
 } from "../../../../lib/api";
 import { bibleIndexHref } from "../../../../lib/bible-files";
 import { canvasHref } from "../../../../lib/canvas";
+import { scanNotesHref } from "../../../../lib/notes-scan";
 import { outlineHref } from "../../../../lib/outline";
 import { requestChapterDelete } from "../../../../lib/chapter-delete";
 import { useUndoableRemoval } from "../../../../lib/undo-removal";
@@ -295,6 +297,12 @@ function ChaptersScreenContent() {
       label: t("canvas.title"),
       icon: <CanvasIcon color={colors.accent} />,
       onPress: () => router.push(canvasHref(projectId) as never),
+    },
+    {
+      key: "scan-notes",
+      label: t("scanNotes.title"),
+      icon: <CameraIcon color={colors.accent} />,
+      onPress: () => router.push(scanNotesHref(projectId) as never),
     },
     ...(kind === "screenplay"
       ? [

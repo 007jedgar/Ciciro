@@ -7,9 +7,11 @@ let mockIsPending = false;
 let mockIsError = false;
 let mockError: unknown = null;
 const mockRefetch = jest.fn();
+const mockPush = jest.fn();
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ id: "p1" }),
+  useRouter: () => ({ push: mockPush }),
   Redirect: () => null,
 }));
 jest.mock("../lib/session", () => ({ useSession: () => ({ ready: true, user: { id: "u1" } }) }));
@@ -70,6 +72,7 @@ beforeEach(() => {
   mockIsError = false;
   mockError = null;
   mockRefetch.mockClear();
+  mockPush.mockClear();
 });
 
 describe("Canvas screen", () => {
@@ -92,6 +95,19 @@ describe("Canvas screen", () => {
     mockData = board({ cards: [], edges: [] });
     render(<CanvasScreen />);
     expect(screen.getByText(/No cards on this board yet/)).toBeTruthy();
+  });
+
+  it("offers to scan notes into an empty board", () => {
+    mockData = board({ cards: [], edges: [] });
+    render(<CanvasScreen />);
+    fireEvent.press(screen.getByTestId("canvas-scan-notes"));
+    expect(mockPush).toHaveBeenCalledWith("/project/p1/scan-notes?to=canvas");
+  });
+
+  it("does not offer the scan once the board has cards", () => {
+    mockData = board();
+    render(<CanvasScreen />);
+    expect(screen.queryByTestId("canvas-scan-notes")).toBeNull();
   });
 
   it("renders every card and its label at its stored position", () => {

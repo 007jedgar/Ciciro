@@ -23,6 +23,7 @@ import { PressableCard } from "./PressableCard";
 import { getAnalytics } from "../lib/analytics-client";
 import { TapPressable } from "./TapPressable";
 import { AlertText } from "./AlertText";
+import { CameraIcon } from "./icons";
 
 const STAGGER_MS = 40;
 
@@ -30,14 +31,18 @@ export function StoryBibleIndex({
   projectId,
   onOpenFile,
   onOpenKnowledge,
+  onScanNotes,
 }: {
   projectId: string;
   onOpenFile: (path: string) => void;
   onOpenKnowledge: () => void;
+  /** Opens Scan notes aimed at the story bible; the card is left out when absent. */
+  onScanNotes?: () => void;
 }) {
   const { t } = useTranslation();
   const themed = useOptionalAppTheme();
   const layout = themed?.layout ?? parchmentLayout;
+  const colors = themed?.colors ?? parchmentColors;
   const autoCorrect = themed?.settings.autoCorrect ?? true;
   const reduceMotion = useReduceMotion();
   const index = useBibleIndexQuery(projectId);
@@ -100,6 +105,26 @@ export function StoryBibleIndex({
         <AlertText style={[layout.error, { marginTop: 0, marginBottom: 12 }]} role="alert">
           {t("bible.loadError")}
         </AlertText>
+      ) : null}
+
+      {onScanNotes ? (
+        <View style={styles.section}>
+          <Animated.View entering={reduceMotion ? undefined : FadeInDown.duration(260)}>
+            <PressableCard
+              testID="bible-scan-notes"
+              style={[layout.card, styles.scanCard]}
+              onPress={onScanNotes}
+              accessibilityRole="button"
+              accessibilityLabel={t("scanNotes.title")}
+            >
+              <CameraIcon color={colors.accent} />
+              <View style={styles.scanText}>
+                <Text style={layout.cardTitle}>{t("scanNotes.title")}</Text>
+                <Text style={layout.cardMeta}>{t("scanNotes.cardMeta")}</Text>
+              </View>
+            </PressableCard>
+          </Animated.View>
+        </View>
       ) : null}
 
       <Section title={t("bible.sectionKnowledge")}>
@@ -297,6 +322,8 @@ function AddRow({
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 48 },
   section: { marginBottom: 20 },
+  scanCard: { flexDirection: "row", alignItems: "center", gap: 14 },
+  scanText: { flex: 1, gap: 2 },
   sectionTitle: {
     fontSize: 12,
     fontWeight: "700",

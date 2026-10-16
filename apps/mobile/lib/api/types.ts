@@ -1077,3 +1077,30 @@ export type CanvasBoardResponse = {
   cards: CanvasCardResponse[];
   edges: CanvasEdgeResponse[];
 };
+
+export type ScanKind = "outline" | "character" | "world" | "plot" | "timeline" | "other";
+export type ScanLegibility = "clear" | "partial" | "unreadable";
+
+/** One photo's read. `failed` means the reading itself went wrong, not that the page is blank. */
+export type ScanPageResponse = { text: string; legibility: ScanLegibility; failed: boolean };
+
+/** POST /api/projects/:id/scan-notes: what the photos say, for the writer to review before anything is added. */
+export type ScanReadingResponse = {
+  text: string;
+  pages: ScanPageResponse[];
+  kind: ScanKind;
+  title: string;
+  status: "ok" | "partial" | "unreadable";
+  uncertain: number;
+};
+
+export type ScanDestinationRequest =
+  | { type: "bible"; mode: "append"; path: string }
+  | { type: "bible"; mode: "new"; kind: "character" | "plot"; name: string }
+  | { type: "canvas" };
+
+/** POST /api/projects/:id/scan-notes/apply */
+export type ScanApplyRequest = { text: string; destination: ScanDestinationRequest };
+export type ScanApplyResponse =
+  | { destination: "bible"; path: string; revision: number; created: boolean }
+  | { destination: "canvas"; cards: number; arrows: number };
