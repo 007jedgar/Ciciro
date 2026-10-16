@@ -354,6 +354,8 @@ property shape.
 | `knowledge_fact_added_via_chat` | Ciciro recording a who-knows-what fact the author asked for in chat (`record_knowledge`) | Server, for the project's owner |
 | `canvas_card_created` | Adding a card on the planning canvas | Web only |
 | `canvas_generated` (`mode`: `fill` \| `outline` \| `options`) | Accepting a Fill, Options, or Generate full outline result onto the canvas | Web only |
+| `notes_scan_read` (`pages`, `outcome`: `ok` \| `partial` \| `unreadable` \| `offline` \| `limit` \| `error`) | Photos of handwritten notes finish being read (or fail to): `partial` means some words or a page were doubtful, `unreadable` that no writing was found, `offline` and `limit` (this month's AI allowance) that the read could not start | Mobile only; counts only, never the notes or a photo |
+| `notes_scan_added` (`destination`: `bible_file` \| `bible_new` \| `canvas`, `pages`, `edited`) | The reviewed text is added to a story bible file, a new character / plot-line file, or the canvas; `edited` is whether the writer changed the recognized text first | Mobile only; no text |
 | `social_sign_in_used` (`provider`) | Completing an Apple/Google sign-in | Both |
 | `push_notification_opened` (`type`) | Tapping a push notification (currently only `writing_reminder`) | Mobile only |
 | `run_completed` (`surface`, `status`) | A server-executed editor run (chat) finishes | Server-side, fires regardless of platform |

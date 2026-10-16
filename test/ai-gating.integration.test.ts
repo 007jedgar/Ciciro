@@ -29,6 +29,8 @@ import { POST as continuity } from "@/app/api/projects/[id]/continuity-check/rou
 import { POST as weeklyReview } from "@/app/api/projects/[id]/weekly-reviews/route";
 import { POST as styleAnalysis } from "@/app/api/projects/[id]/style-analysis/route";
 import { POST as reminderNudge } from "@/app/api/projects/[id]/reminder-nudge/route";
+import { POST as scanNotes } from "@/app/api/projects/[id]/scan-notes/route";
+import { POST as scanNotesApply } from "@/app/api/projects/[id]/scan-notes/apply/route";
 import { GET as recap } from "@/app/api/projects/[id]/recap/route";
 import { GET as me } from "@/app/api/auth/me/route";
 import { wipeDatabase } from "./account-fixture";
@@ -271,6 +273,61 @@ describe("AI gating and metering", () => {
 
       await prisma.usageCounter.updateMany({ where: { userId: a.user.id }, data: { aiRuns: LIMIT } });
       await expectLimit(await stuck(request(`/api/projects/${a.projectId}/stuck`, a.token, {}), ctx(a.projectId)));
+    });
+
+    it("scan notes: charged for a read, refunded when it fails or finds no writing, refused at the limit", async () => {
+      const a = await author("scan");
+      const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+      const send = () => {
+        const form = new FormData();
+        form.append("page", new File([jpeg], "page.jpg", { type: "image/jpeg" }));
+        return scanNotes(
+          new NextRequest(`http://localhost/api/projects/${a.projectId}/scan-notes`, {
+            method: "POST",
+            headers: { [SESSION_HEADER]: a.token },
+            body: form,
+          }),
+          ctx(a.projectId)
+        );
+      };
+      const toolReply = (text: string, legibility: string) =>
+        mocks.create.mockResolvedValueOnce({
+          stop_reason: "tool_use",
+          content: [{ type: "text", text: JSON.stringify({ text, legibility, kind: "other", title: "" }) }],
+        });
+
+      toolReply("- a note", "clear");
+      expect((await send()).status).toBe(200);
+      expect(await runsUsed(a)).toBe(1);
+
+      toolReply("", "unreadable");
+      const blank = await send();
+      expect(blank.status).toBe(200);
+      expect((await blank.json()).status).toBe("unreadable");
+      expect(await runsUsed(a)).toBe(1);
+
+      mocks.create.mockRejectedValueOnce(new Error("overloaded"));
+      expect((await send()).status).toBe(502);
+      expect(await runsUsed(a)).toBe(1);
+
+      await prisma.usageCounter.updateMany({ where: { userId: a.user.id }, data: { aiRuns: LIMIT } });
+      mocks.create.mockClear();
+      await expectLimit(await send());
+      expect(mocks.create).not.toHaveBeenCalled();
+    });
+
+    it("scan notes: adding the reviewed text is free, even at the limit", async () => {
+      const a = await author("scanapply");
+      await useUp(a);
+      const res = await scanNotesApply(
+        request(`/api/projects/${a.projectId}/scan-notes/apply`, a.token, {
+          text: "- a note",
+          destination: { type: "canvas" },
+        }),
+        ctx(a.projectId)
+      );
+      expect(res.status).toBe(201);
+      expect(await runsUsed(a)).toBe(LIMIT);
     });
 
     it("continuity check, weekly review and style analysis", async () => {

@@ -19,9 +19,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.ciciro.mobile",
       "usesAppleSignIn": true,
-      "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Ciciro reads a photo only when you choose a file from your photo library to import into a manuscript."
-      },
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -52,6 +49,14 @@
         }
       ],
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Ciciro uses the camera so you can photograph handwritten notes and read them into your story bible or outline.",
+          "photosPermission": "Ciciro reads a photo only when you choose one from your library, to scan handwritten notes or to import a file into a manuscript.",
+          "microphonePermission": false
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-dev-client",
       [

@@ -127,6 +127,9 @@ export type EventCatalog = {
   knowledge_fact_added_via_chat: NoProperties;
   canvas_card_created: NoProperties;
   canvas_generated: { mode: "fill" | "outline" | "options" };
+  // Scan notes (mobile): photographed handwritten notes read into text, then added to the story bible or the canvas. Counts and kinds only, never the notes or any file name.
+  notes_scan_read: { pages: number; outcome: "ok" | "partial" | "unreadable" | "offline" | "limit" | "error" };
+  notes_scan_added: { destination: "bible_file" | "bible_new" | "canvas"; pages: number; edited: boolean };
 
   // Pre-signup onboarding quiz (mobile only for now - see AGENTS.md
   // "Pre-signup onboarding"). No author text in any property.

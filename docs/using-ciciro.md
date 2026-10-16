@@ -332,7 +332,20 @@ Each row is **Keep** or **Dismiss**. Keep appends a bullet to that file, or reco
 
 **Canvas** sits beside **Outline** in the top bar, on the web. Outline is the chapter corkboard. Canvas is a planning board for cards you place yourself: a title, notes, labels you create, and arrows you drag from the dot on a card. Drag the dotted background to pan, use the wheel or the + and − buttons to zoom, and drag a card to move it. The position saves when you let go. Undo and Redo cover the session.
 
-Select a card to ask Ciciro to **Fill this** (one body), offer **Options** (three, and you pick), or **Generate full outline** from that card as the premise. Each of those waits for **Accept**. Accepted outline cards are laid under the premise with arrows between them. Titles come back as "Part 1" style names. Ciciro does not create labels, and none of this text becomes a chapter or a draft in the manuscript. The board holds up to 200 cards and 40 labels. The phone does not have this board.
+Select a card to ask Ciciro to **Fill this** (one body), offer **Options** (three, and you pick), or **Generate full outline** from that card as the premise. Each of those waits for **Accept**. Accepted outline cards are laid under the premise with arrows between them. Titles come back as "Part 1" style names. Ciciro does not create labels, and none of this text becomes a chapter or a draft in the manuscript. The board holds up to 200 cards and 40 labels. On the phone the board is view-only: open **Canvas** on the Chapters tab to pan, pinch to zoom and tap a card to read it in full. The one way onto it from the phone is **Scan notes** (below).
+
+## Scan notes (phone)
+
+**Scan notes** turns a photo of handwritten or printed notes into text you check and then add. Open it from the tools on the Chapters tab, from the card at the top of the Story Bible, or from the empty Canvas.
+
+1. **Photograph or choose.** Take a photo with the camera, or choose up to six from your photo library (the library needs no permission, and is the way in on a device with no camera). Pages are read in the order you added them. Remove a page with its ✕.
+2. **Read.** Ciciro reads the photos into text. One scan uses one AI action, however many pages it has. If nothing at all could be read (a blank or blurry page), or the reading fails, the action is given back and your photos stay so you can retake them. If only some pages could be read, those are kept and the others are flagged.
+3. **Check.** The text is yours to edit before anything goes anywhere. A word Ciciro was unsure of is marked `[?]` (a guess) or `[illegible]` (no guess), with a count and a **Next** button that jumps from one to the next. Delete a mark once you have settled the word.
+4. **Choose where it goes.**
+   - **Story bible**: add it to the end of a file you pick, under a dated **Scanned notes** heading, or make a new character or plot line from it. Adding only ever adds: a file's own text is never changed or overwritten, and a new entry whose name already exists is added to rather than replaced.
+   - **Outline cards**: each line becomes a card on the **Canvas** planning board, nested lines become cards that follow their parent, and the board is laid out under what is already on it. This is the board, not the chapter corkboard: nothing here creates or changes a chapter.
+
+Ciciro suggests a destination from what the notes look like (a list of scenes starts on the canvas, a person on their character file), and you can change it. Photos are read by AI and are not stored; the phone clears its copies when you leave the screen, and leaving with text you have not added asks first. With no connection the photos wait on the screen and Read comes on when you are back. Camera access is only asked for when you tap **Take a photo**; if it is off, the library still works. Scanning is on the phone only.
 
 ## Focus and typewriter mode
 

@@ -32,6 +32,8 @@ import type {
   ProjectDetail,
   ProjectListItem,
   QuestionCreateRequest,
+  ScanApplyRequest,
+  ScanApplyResponse,
   ScratchNote,
   ScratchNotePatchRequest,
   WeeklyReviewListResponse,
@@ -1275,6 +1277,26 @@ export function useCanvasBoardQuery(projectId: string, options?: Enabled) {
     queryKey: queryKeys.canvas(projectId),
     queryFn: () => ciciro.projects.canvas.get(projectId),
     enabled: (options?.enabled ?? true) && Boolean(projectId),
+  });
+}
+
+/**
+ * Add reviewed scanned notes to the story bible or the canvas. Whatever it
+ * touches is refetched, so the bible file, the bible index and the board show
+ * the new text the next time they open.
+ */
+export function useScanNotesApplyMutation() {
+  return useMutation({
+    mutationFn: ({ projectId, body }: { projectId: string; body: ScanApplyRequest }) =>
+      ciciro.projects.scanNotes.apply(projectId, body),
+    onSuccess: (data: ScanApplyResponse, vars) => {
+      if (data.destination === "canvas") {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.canvas(vars.projectId) });
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bible.index(vars.projectId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bible.file(vars.projectId, data.path) });
+    },
   });
 }
 

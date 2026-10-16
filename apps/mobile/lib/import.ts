@@ -1,4 +1,5 @@
 import * as DocumentPicker from "expo-document-picker";
+import { File } from "expo-file-system";
 import { ciciro, queryClient, queryKeys } from "./api";
 import type { ImportResult } from "./api/types";
 import { getAnalytics } from "./analytics-client";
@@ -48,12 +49,10 @@ export async function importManuscriptFile(
   opts: { projectId?: string; folderId?: string | null; author?: string } = {}
 ): Promise<ImportResult> {
   const form = new FormData();
-  // React Native's FormData accepts a { uri, name, type } descriptor as a file part.
-  form.append("file", {
-    uri: file.uri,
-    name: file.name,
-    type: file.mimeType || "application/octet-stream",
-  } as unknown as Blob);
+  // The app's fetch (expo/fetch) cannot send React Native's `{ uri, name, type }` file
+  // descriptor ("Unsupported FormDataPart"); a `File` reads its own bytes, and the third
+  // argument keeps the name, whose extension is how the server tells the formats apart.
+  form.append("file", new File(file.uri) as unknown as Blob, file.name);
   if (opts.projectId) form.append("projectId", opts.projectId);
   if (opts.folderId) form.append("folderId", opts.folderId);
   if (opts.author) form.append("author", opts.author);

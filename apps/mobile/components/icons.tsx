@@ -777,3 +777,30 @@ export function FixIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+/** Scan notes: a camera. */
+export function CameraIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      <Circle cx="12" cy="13" r="3.3" fill="none" stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+/** Library: a photograph (a frame with a hill and a sun). */
+export function PhotoIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Circle cx="9" cy="10" r="1.6" fill="none" stroke={color} strokeWidth={1.8} />
+      <Path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}

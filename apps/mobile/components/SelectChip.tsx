@@ -29,6 +29,17 @@ export function segmentSelectTokens(colors: { panel: string; ink: string; inkSof
   };
 }
 
+/**
+ * The invisible start of a crossfade towards `color`: the same colour at no
+ * opacity, so the fade passes through no other hue. Only a `#rrggbb` has an
+ * alpha to take off; anything else (the `transparent` keyword, for a control
+ * that never shows a border) is already clear, and appending an alpha to it
+ * ("transparent00") is a colour Reanimated refuses to interpolate.
+ */
+export function clearOf(color: string): string {
+  return /^#[0-9a-f]{6}$/i.test(color) ? alpha(color, 0) : "transparent";
+}
+
 type SelectState = { selected: boolean; progress: SharedValue<number>; tokens: SelectTokens; reduceMotion: boolean };
 
 const SelectContext = createContext<SelectState | null>(null);
@@ -53,8 +64,8 @@ type Props = Omit<ComponentProps<typeof TapPressable>, "style" | "children" | "f
 export function SelectChip({ selected, tokens, style, surfaceStyle, children, scale, haptic = "select", ...rest }: Props) {
   const reduceMotion = useReduceMotion();
   const { progress, scale: pop } = useSelectionPop(selected, reduceMotion);
-  const restFill = tokens.restFill === "transparent" ? alpha(tokens.activeFill, 0) : tokens.restFill;
-  const restBorder = tokens.restBorder === "transparent" ? alpha(tokens.activeBorder, 0) : tokens.restBorder;
+  const restFill = tokens.restFill === "transparent" ? clearOf(tokens.activeFill) : tokens.restFill;
+  const restBorder = tokens.restBorder === "transparent" ? clearOf(tokens.activeBorder) : tokens.restBorder;
   const activeFill = tokens.activeFill;
   const activeBorder = tokens.activeBorder;
 

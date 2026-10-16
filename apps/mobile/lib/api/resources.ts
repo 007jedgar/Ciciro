@@ -33,6 +33,9 @@ import type {
   ChapterSnapshotRestoreResponse,
   ChapterSnapshotSummary,
   CanvasBoardResponse,
+  ScanApplyRequest,
+  ScanApplyResponse,
+  ScanReadingResponse,
   Character,
   CharacterCreateRequest,
   CharacterPatchRequest,
@@ -290,6 +293,21 @@ export const ciciro = {
       /** Cards, labels, and arrows for the planning board. Read-only on the phone for now. */
       get: (id: string, opts?: RequestOpts) =>
         api<CanvasBoardResponse>(`/api/projects/${encodeURIComponent(id)}/canvas`, opts),
+    },
+    scanNotes: {
+      /** Photos of notes (a multipart form of `page` files, in reading order) to text. One AI run; nothing is stored. */
+      read: (id: string, form: FormData, opts?: RequestOpts) =>
+        api<ScanReadingResponse>(`/api/projects/${encodeURIComponent(id)}/scan-notes`, {
+          ...opts,
+          method: "POST",
+          body: form,
+        }),
+      /** Add the reviewed text to a story bible file, a new character / plot line, or the canvas. Adds only. */
+      apply: (id: string, body: ScanApplyRequest, opts?: RequestOpts) =>
+        api<ScanApplyResponse>(
+          `/api/projects/${encodeURIComponent(id)}/scan-notes/apply`,
+          jsonInit("POST", body, opts)
+        ),
     },
     scratch: {
       list: (id: string, opts?: RequestOpts) =>

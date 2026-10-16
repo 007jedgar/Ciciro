@@ -42,6 +42,17 @@ yet"), the editor should record it in the same turn (`append_canon` or
 `update_bible`) and tell you what it wrote. If it flags something instead of
 writing it, confirm so it lands in the file, not only in the thread.
 
+## Notes from a photo (phone)
+
+**Scan notes** on the phone reads a photo of handwritten or printed notes into
+text you check and then adds to the bible: onto the end of any file you pick as
+a dated `## Scanned notes (YYYY-MM-DD)` section (before a character file's
+who-knows-what mirror, never inside it), or as a new `characters/<slug>.md` /
+`plot/<slug>.md` file from the usual template. It only adds, and a name that
+already has a file is added to, not replaced. See
+[using-ciciro](using-ciciro.md#scan-notes-phone) for the flow and
+`src/lib/scan-notes.ts` for the rules.
+
 ## Adding context for consistency
 
 **Characters.** In the Story Bible footer, type a name and click **Add**. That

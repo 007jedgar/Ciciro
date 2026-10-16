@@ -30,6 +30,17 @@ for an uncommitted entry) and writes it back into this file.
   would do well to pick up the pace. It is the same deadline as on the phone, so
   one set on either shows on both.
 
+- <!-- 2026-10-16 --> **Scan your handwritten notes into Ciciro (phone).** Photograph handwritten or
+  printed notes, or choose up to six photos from your library, and Ciciro reads
+  them into text. You check and edit the text first (words it was unsure of are
+  marked `[?]`, with a button that jumps between them), then add it to your story
+  bible, as a dated section at the end of any file you choose or as a new
+  character or plot line, or onto the Canvas as one card per line. Nothing is
+  overwritten, one scan uses one AI action however many pages it has (and is
+  given back if nothing could be read), and your photos are not stored. Find it
+  under the tools on the Chapters tab, in the Story Bible, and on an empty
+  Canvas. This needs a new build of the app.
+
 - <!-- 2026-10-10 --> **Write a script in its page layout on iPhone (Beta).** Settings inside a
   screenplay has a new switch, **Page layout while typing**, off until you turn
   it on. With it on, the editor sets the script as you type: the page's type

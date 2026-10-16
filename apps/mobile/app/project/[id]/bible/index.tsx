@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { AppHeader } from "../../../../components/AppHeader";
 import { StoryBibleIndex } from "../../../../components/StoryBibleIndex";
 import { bibleFileHref } from "../../../../lib/bible-files";
+import { scanNotesHref } from "../../../../lib/notes-scan";
 import { useAppTheme } from "../../../../lib/settings";
 import { useSession } from "../../../../lib/session";
 
@@ -32,6 +33,7 @@ export default function StoryBibleIndexScreen() {
         projectId={projectId}
         onOpenFile={(path) => router.push(bibleFileHref(projectId, path) as never)}
         onOpenKnowledge={() => router.push(`/project/${projectId}/bible/knowledge` as never)}
+        onScanNotes={() => router.push(scanNotesHref(projectId, "bible") as never)}
       />
     </View>
   );
