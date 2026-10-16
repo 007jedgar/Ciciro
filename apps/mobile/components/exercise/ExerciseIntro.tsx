@@ -99,5 +99,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   partNumber: { fontFamily: fonts.mono, fontSize: 13, width: 14, marginTop: 6 },
-  partMinutes: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, marginTop: 8 },
+  partMinutes: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, marginTop: 3 },
 });

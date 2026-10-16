@@ -118,7 +118,7 @@ describe("the writing-exercises step", () => {
   it("names the exercises, how long each takes, and where to find them once signed in", () => {
     mockParams = { kind: "novel", obstacles: "creativity" };
     render(<OnboardingExercisesScreen />);
-    expect(screen.getByText("There are writing exercises, too")).toBeTruthy();
+    expect(screen.getByText("Writing exercises, too")).toBeTruthy();
     // One row per exercise the app has, each read out as its name and what it is for.
     expect(screen.getAllByLabelText(/^[^.]+\. .+/).length).toBeGreaterThanOrEqual(EXERCISES.length);
     expect(screen.getByText("Pour it out")).toBeTruthy();

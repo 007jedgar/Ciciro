@@ -116,7 +116,7 @@ const en = {
       unsure: { label: "Not sure yet", description: "Just exploring for now." },
     },
     exercises: {
-      title: "There are writing exercises, too",
+      title: "Writing exercises, too",
       body: "When ideas are slow or the page stays blank, Ciciro has short guided exercises. Just you, a gentle timer and a page.",
       find: "You'll find them under + on your manuscripts once you're in.",
     },

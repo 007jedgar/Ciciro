@@ -45,16 +45,22 @@ export default function OnboardingExercisesScreen() {
       body={t("onboarding.exercises.body")}
       onBack={() => backOr("/")}
       onSkip={skip}
+      // Pinned with Continue, so where to find the exercises is in view without scrolling the list.
       footer={
-        <PressableCard
-          accent
-          onPress={next}
-          accessibilityRole="button"
-          accessibilityLabel={t("onboarding.continue")}
-          style={[layout.primaryBtn, { marginTop: 0 }]}
-        >
-          <Text style={layout.primaryBtnText}>{t("onboarding.continue")}</Text>
-        </PressableCard>
+        <>
+          <Text style={[layout.cardMeta, { textAlign: "center", marginTop: 0, marginBottom: 12 }]}>
+            {t("onboarding.exercises.find")}
+          </Text>
+          <PressableCard
+            accent
+            onPress={next}
+            accessibilityRole="button"
+            accessibilityLabel={t("onboarding.continue")}
+            style={[layout.primaryBtn, { marginTop: 0 }]}
+          >
+            <Text style={layout.primaryBtnText}>{t("onboarding.continue")}</Text>
+          </PressableCard>
+        </>
       }
     >
       <View accessibilityRole="list">
@@ -80,9 +86,6 @@ export default function OnboardingExercisesScreen() {
           );
         })}
       </View>
-      <Rise index={EXERCISES.length + 2}>
-        <Text style={[layout.cardMeta, { marginTop: 16 }]}>{t("onboarding.exercises.find")}</Text>
-      </Rise>
     </OnboardingFrame>
   );
 }
@@ -96,5 +99,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   title: { fontFamily: fonts.displayRegular, fontSize: 20 },
-  minutes: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, marginTop: 8 },
+  minutes: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, marginTop: 3 },
 });
