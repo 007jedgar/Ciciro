@@ -64,6 +64,8 @@ export type EngineEvent =
   | { type: "gave-up"; reason: "failed" | "too-slow"; why: "load" | "synthesis" | "underruns" | "rtf" | "first-audio" }
   | {
       type: "run-finished";
+      /** The read played to its end, was stopped (or paused) partway, or handed over to the system voice. */
+      outcome: RunOutcome;
       synthesized: number;
       cached: number;
       underruns: number;
@@ -71,6 +73,8 @@ export type EngineEvent =
       rtf: number | null;
       firstAudioMs: number | null;
     };
+
+export type RunOutcome = "completed" | "stopped" | "fallback";
 
 export type KokoroEngineOptions = {
   /** Sentences synthesised beyond the one being heard. */
@@ -137,6 +141,8 @@ export function createKokoroEngine(deps: {
   const report = deps.report ?? (() => {});
 
   let runId = 0;
+  /** Ends the read in progress as stopped, reporting how it went. */
+  let endCurrent: (() => boolean) | null = null;
   let idleTimer: unknown = null;
   // The model takes one sentence at a time, and it cannot be cancelled mid-sentence.
   let chain: Promise<unknown> = Promise.resolve();
@@ -159,6 +165,7 @@ export function createKokoroEngine(deps: {
   };
 
   function playRun(run: SpeechRun) {
+    endCurrent?.();
     const id = ++runId;
     const alive = () => id === runId;
     cancelIdle();
@@ -193,13 +200,14 @@ export function createKokoroEngine(deps: {
     };
     const waitForProgress = () => new Promise<void>((resolve) => waiters.push(resolve));
 
-    const finish = () => {
-      if (finished || !alive()) return;
+    const finish = (outcome: RunOutcome): boolean => {
+      if (finished || !alive()) return false;
       finished = true;
       output.close();
       run.onBuffering?.(false);
       report({
         type: "run-finished",
+        outcome,
         synthesized,
         cached,
         underruns,
@@ -207,7 +215,9 @@ export function createKokoroEngine(deps: {
         firstAudioMs,
       });
       scheduleIdleRelease();
+      return true;
     };
+    endCurrent = () => finish("stopped");
 
     /** Everything queued has been heard (or nothing was): hand over to whoever carries on. */
     const settle = () => {
@@ -215,13 +225,13 @@ export function createKokoroEngine(deps: {
       if (giveUp) {
         const index = lastQueued + 1;
         const error = giveUp;
-        finish();
+        finish(index >= texts.length ? "completed" : "fallback");
         if (index >= texts.length) run.onDone();
         else run.onError({ reason: error.reason, index });
         return;
       }
       if (lastQueued >= texts.length - 1) {
-        finish();
+        finish("completed");
         run.onDone();
       }
     };
@@ -275,7 +285,7 @@ export function createKokoroEngine(deps: {
       const key = sentenceKey({ model: modelId, voice: voice.id, speed: run.rate, text: texts[index] });
       const hit = await cache.get(key).catch(() => null);
       if (hit) return { audio: { samples: pcm16ToFloat(hit.samples), sampleRate: hit.sampleRate }, fromCache: true };
-      const t0 = now();
+      let elapsed = 0;
       const audio = await serialize(async () => {
         // A read that was stopped while this waited its turn does not need the sentence.
         if (!alive()) throw new Error("cancelled");
@@ -286,9 +296,11 @@ export function createKokoroEngine(deps: {
         } catch (error) {
           throw new ModelLoadFailed(error);
         }
-        return runtime.synthesize(texts[index], { voice, speed: run.rate });
+        const t0 = now();
+        const made = await runtime.synthesize(texts[index], { voice, speed: run.rate });
+        elapsed = now() - t0;
+        return made;
       });
-      const elapsed = now() - t0;
       // The audio is good whether or not this read is still going.
       void cache.put(key, { samples: floatToPcm16(audio.samples), sampleRate: audio.sampleRate }).catch(() => {});
       if (alive()) {
@@ -350,9 +362,12 @@ export function createKokoroEngine(deps: {
   }
 
   function stop() {
+    const ended = endCurrent?.() ?? false;
     runId++;
-    output.close();
-    scheduleIdleRelease();
+    if (!ended) {
+      output.close();
+      scheduleIdleRelease();
+    }
   }
 
   return {
@@ -370,6 +385,7 @@ export function createKokoroEngine(deps: {
     playRun,
     stop,
     async dispose() {
+      endCurrent?.();
       runId++;
       output.close();
       cancelIdle();

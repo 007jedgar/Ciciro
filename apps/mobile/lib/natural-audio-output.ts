@@ -116,6 +116,12 @@ export function createAudioApiOutput(
     }
   };
 
+  const releaseSession = (force = false) => {
+    if (!sessionReady && !force) return;
+    sessionReady = false;
+    void api.AudioManager.setAudioSessionActivity(false).catch(() => {});
+  };
+
   const teardownNode = () => {
     const current = node;
     node = null;
@@ -220,13 +226,14 @@ export function createAudioApiOutput(
       },
       hide() {
         cardWanted = false;
-        if (!cardShown) return;
-        cardShown = false;
-        for (const s of subscriptions) s?.remove();
-        subscriptions = [];
-        void api.PlaybackNotificationManager.hide().catch(() => {});
-        void api.AudioManager.setAudioSessionActivity(false).catch(() => {});
-        sessionReady = false;
+        const hadCard = cardShown;
+        if (cardShown) {
+          cardShown = false;
+          for (const s of subscriptions) s?.remove();
+          subscriptions = [];
+          void api.PlaybackNotificationManager.hide().catch(() => {});
+        }
+        if (clipsActive === 0) releaseSession(hadCard);
       },
       onCommand(handler) {
         handlers.add(handler);
@@ -276,7 +283,10 @@ export function createAudioApiOutput(
         } finally {
           clipsActive--;
           // Nothing else is playing: give the speaker back.
-          if (clipsActive === 0 && !playing) void getContext().suspend().catch(() => {});
+          if (clipsActive === 0 && !playing) {
+            void getContext().suspend().catch(() => {});
+            if (!node && !cardWanted) releaseSession();
+          }
         }
       })().catch(() => {});
       return { done, stop: () => stopClip() };

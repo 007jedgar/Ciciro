@@ -24,7 +24,7 @@ const audio = (seconds: number): NaturalAudio => ({
 type Job = { text: string; voice: NaturalVoice; speed: number; resolve: (a: NaturalAudio) => void; reject: (e: Error) => void };
 
 /** A model whose every sentence waits for the test to finish it, so timing is in the test's hands. */
-function fakeRuntime(opts: { loadFails?: boolean } = {}) {
+function fakeRuntime(opts: { loadFails?: boolean; onLoad?: () => void } = {}) {
   const jobs: Job[] = [];
   let active = 0;
   let maxActive = 0;
@@ -37,6 +37,7 @@ function fakeRuntime(opts: { loadFails?: boolean } = {}) {
       const g2p = phonemizerFor(voice);
       if (loaded === g2p) return;
       if (opts.loadFails) throw new Error("no model");
+      opts.onLoad?.();
       loaded = g2p;
       runtime.loads++;
     },
@@ -91,12 +92,14 @@ function fakeOutput() {
   };
 }
 
-function setup(overrides: { loadFails?: boolean; options?: Parameters<typeof createKokoroEngine>[0]["options"] } = {}) {
-  const rt = fakeRuntime({ loadFails: overrides.loadFails });
+function setup(
+  overrides: { loadFails?: boolean; loadTakesMs?: number; options?: Parameters<typeof createKokoroEngine>[0]["options"] } = {}
+) {
+  let clock = 0;
+  const rt = fakeRuntime({ loadFails: overrides.loadFails, onLoad: () => (clock += overrides.loadTakesMs ?? 0) });
   const out = fakeOutput();
   const files = memoryCacheFiles();
   const cache = new SentenceCache(files, { maxBytes: 50_000_000 });
-  let clock = 0;
   const scheduled: Array<{ fn: () => void; ms: number; cleared: boolean }> = [];
   const events: EngineEvent[] = [];
   const engine = createKokoroEngine({
@@ -410,6 +413,57 @@ describe("kokoro engine: stopping", () => {
     await flush(40);
     expect(t.jobs.map((j) => j.text)).toEqual(["One."]);
   });
+
+  it("reports a read stopped partway as stopped, with what it measured so far", async () => {
+    const t = setup();
+    t.run(["One.", "Two.", "Three."]);
+    await flush();
+    t.advance(500);
+    t.jobs[0].resolve(audio(1));
+    await flush(40);
+    t.start(0);
+    t.engine.stop();
+    t.engine.stop();
+    expect(t.events.filter((e) => e.type === "run-finished")).toEqual([
+      { type: "run-finished", outcome: "stopped", synthesized: 1, cached: 0, underruns: 0, rtf: 0.5, firstAudioMs: 500 },
+    ]);
+  });
+
+  it("reports a read replaced by another as stopped", async () => {
+    const t = setup();
+    t.run(["One.", "Two."]);
+    await flush();
+    t.run(["Two."], { from: 0 });
+    expect(t.events).toContainEqual(expect.objectContaining({ type: "run-finished", outcome: "stopped", synthesized: 0 }));
+  });
+
+  it("reports a read that played to its end as completed, once", async () => {
+    const t = setup();
+    t.run(["One."]);
+    await flush();
+    t.jobs[0].resolve(audio(1));
+    await flush(40);
+    t.start(0);
+    t.end(0);
+    t.engine.stop();
+    expect(t.events.filter((e) => e.type === "run-finished")).toEqual([
+      expect.objectContaining({ outcome: "completed", synthesized: 1 }),
+    ]);
+  });
+});
+
+describe("kokoro engine: measuring speed", () => {
+  it("times only the making of speech, not reading the model into memory", async () => {
+    const t = setup({ loadTakesMs: 10_000 });
+    t.run(["One."]);
+    await flush();
+    t.advance(500);
+    t.jobs[0].resolve(audio(1));
+    await flush(40);
+    t.start(0);
+    t.end(0);
+    expect(t.events).toContainEqual(expect.objectContaining({ type: "run-finished", outcome: "completed", rtf: 0.5 }));
+  });
 });
 
 describe("kokoro engine: giving up", () => {
@@ -435,6 +489,7 @@ describe("kokoro engine: giving up", () => {
     await flush(40);
     expect(t.log.errors).toEqual([{ reason: "failed", index: 1 }]);
     expect(t.events).toContainEqual({ type: "gave-up", reason: "failed", why: "load" });
+    expect(t.events).toContainEqual(expect.objectContaining({ type: "run-finished", outcome: "fallback" }));
   });
 
   it("hands over when the output reports an error", async () => {

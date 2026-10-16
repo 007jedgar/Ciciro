@@ -224,6 +224,47 @@ describe("audio api output: the lock-screen card", () => {
   });
 });
 
+describe("audio api output: giving the speaker back without a card", () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it("gives the speaker back when Listen ends on a phone that never raised the card (Android, no notifications)", async () => {
+    const f = fakeApi("Denied");
+    const out = createAudioApiOutput(f.api, { cardNeedsNotificationPermission: true });
+    out.open(sink().events);
+    out.nowPlaying.show({ title: "T" }, "playing");
+    await flush();
+    out.close();
+    out.nowPlaying.hide();
+    expect(f.calls).not.toContain("card hidden");
+    expect(f.calls.filter((c) => c === "activity false")).toHaveLength(1);
+    out.nowPlaying.hide();
+    expect(f.calls.filter((c) => c === "activity false")).toHaveLength(1);
+  });
+
+  it("gives the speaker back once a voice sample is over", async () => {
+    const f = fakeApi();
+    const out = createAudioApiOutput(f.api);
+    const clip = out.playClip(7);
+    await flush();
+    expect(f.calls).toContain("activity true");
+    expect(f.calls).not.toContain("activity false");
+    f.endClip();
+    await clip.done;
+    expect(f.calls).toContain("activity false");
+  });
+
+  it("keeps the session for a chapter being read while a sample ends", async () => {
+    const f = fakeApi();
+    const out = createAudioApiOutput(f.api);
+    out.open(sink().events);
+    const clip = out.playClip(7);
+    await flush();
+    f.endClip();
+    await clip.done;
+    expect(f.calls).not.toContain("activity false");
+  });
+});
+
 describe("audio api output: the lock-screen card needs notification permission (Android)", () => {
   const androidOutput = (f: ReturnType<typeof fakeApi>) =>
     createAudioApiOutput(f.api, { cardNeedsNotificationPermission: true });

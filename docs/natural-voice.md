@@ -263,7 +263,7 @@ the file exist" cannot tell.)
 Events (both catalogs, `docs/analytics.md`): `listening_engine_chosen`,
 `natural_voice_chosen`, `natural_voice_sample_played`, the download's
 `started` / `completed` / `failed` / `canceled`, `natural_voice_deleted`,
-`natural_voice_read_finished` (first-audio time, real-time factor, underruns and
+`natural_voice_read_finished` (how the read ended, first-audio time, real-time factor, underruns and
 counts, which is how real-phone speed gets measured after release) and
 `natural_voice_fallback`. None carries text.
 

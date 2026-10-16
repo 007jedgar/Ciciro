@@ -203,15 +203,15 @@ describe("ReadAloud with the natural voice", () => {
     renderReader(<ReadAloud chapterId="c1" html={english} selection={null} loadVoiceList={async () => []} />);
     await act(async () => {});
     act(() =>
-      mockEngineListener?.({ type: "run-finished", synthesized: 3, cached: 0, underruns: 0, rtf: 0.456, firstAudioMs: 812.4 })
+      mockEngineListener?.({ type: "run-finished", outcome: "stopped", synthesized: 3, cached: 0, underruns: 0, rtf: 0.456, firstAudioMs: 812.4 })
     );
     act(() => mockEngineListener?.({ type: "gave-up", reason: "too-slow", why: "rtf" }));
     // A read served wholly from saved audio has no speed to report.
     act(() =>
-      mockEngineListener?.({ type: "run-finished", synthesized: 0, cached: 3, underruns: 0, rtf: null, firstAudioMs: null })
+      mockEngineListener?.({ type: "run-finished", outcome: "completed", synthesized: 0, cached: 3, underruns: 0, rtf: null, firstAudioMs: null })
     );
     expect(mockTracked).toEqual([
-      ["natural_voice_read_finished", { firstAudioMs: 812, rtf: 0.46, underruns: 0, synthesized: 3, cached: 0 }],
+      ["natural_voice_read_finished", { outcome: "stopped", firstAudioMs: 812, rtf: 0.46, underruns: 0, synthesized: 3, cached: 0 }],
       ["natural_voice_fallback", { reason: "too-slow", why: "rtf" }],
     ]);
   });

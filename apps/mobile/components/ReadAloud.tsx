@@ -172,6 +172,7 @@ export function ReadAloud({
         const analytics = getAnalytics();
         if (event.type === "run-finished" && event.firstAudioMs != null && event.rtf != null) {
           analytics.track("natural_voice_read_finished", {
+            outcome: event.outcome,
             firstAudioMs: Math.round(event.firstAudioMs),
             rtf: Math.round(event.rtf * 100) / 100,
             underruns: event.underruns,
