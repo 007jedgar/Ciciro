@@ -463,6 +463,15 @@ why:
 
 ## Known gaps (documented, not fixed in this pass)
 
+- **An existing account stays off in an opt-out place.** A saved
+  `analyticsEnabled: false` cannot be told apart from a real "no", so it
+  still wins over the regional default: an account made before regional
+  consent, or one signing in on a new phone, keeps analytics off with no
+  prompt until its owner turns it on under Privacy choices. Only a brand-new
+  account starts on, and only once the region lookup in flight has answered
+  (`regionLookup` in `lib/consent-region-store.ts`). This is a deliberate
+  product decision, not a bug.
+
 - **A widget glance has no event.** `apps/mobile/lib/writing-widget.ts`'s
   deep link is byte-identical to any other navigation to the same route, so
   "opened from the widget" is not distinguishable from a normal screen open

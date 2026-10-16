@@ -17,9 +17,10 @@ export type ThemePreviewState = {
    * Gives the account that just signed up these settings (e.g. analytics on,
    * where that is the default), once its settings have loaded - so a stale
    * cache or the settings fetch still in flight cannot undo them. Only for a
-   * brand-new account: an existing one's saved choices are its own.
+   * brand-new account: an existing one's saved choices are its own. Only
+   * `userId` ever receives them, so a late call cannot land on another account.
    */
-  adoptNewAccount: (patch: SettingsPatch) => void;
+  adoptNewAccount: (patch: SettingsPatch, userId: string) => void;
 };
 
 const NO_PREVIEW: ThemePreviewState = {

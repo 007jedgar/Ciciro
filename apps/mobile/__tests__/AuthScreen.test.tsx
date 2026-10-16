@@ -47,7 +47,11 @@ const mockSetPreview = jest.fn();
 const mockAdoptPreview = jest.fn();
 const mockAdoptNewAccount = jest.fn();
 let mockConsentMode: "opt-in" | "opt-out" = "opt-in";
-jest.mock("../lib/consent-region-store", () => ({ getConsentMode: () => mockConsentMode }));
+let mockRegionLookup: Promise<void> = Promise.resolve();
+jest.mock("../lib/consent-region-store", () => ({
+  getConsentMode: () => mockConsentMode,
+  regionLookup: () => mockRegionLookup,
+}));
 
 function renderOnboardingSignup(onboarding: OnboardingState, preview: ThemeId | null = "ember") {
   const settings = defaultSettings();
@@ -150,6 +154,7 @@ describe("Signing up from the onboarding", () => {
     mockAdoptPreview.mockReset();
     mockAdoptNewAccount.mockReset();
     mockConsentMode = "opt-in";
+    mockRegionLookup = Promise.resolve();
   });
 
   async function submitSignup() {
@@ -202,7 +207,20 @@ describe("Signing up from the onboarding", () => {
     mockConsentMode = "opt-out";
     mockSignup.mockResolvedValueOnce({ id: "u-new" });
     await submitSignup();
-    expect(mockAdoptNewAccount).toHaveBeenCalledWith({ analyticsEnabled: true });
+    expect(mockAdoptNewAccount).toHaveBeenCalledWith({ analyticsEnabled: true }, "u-new");
+  });
+
+  it("waits for a region lookup still in flight before choosing the new account's default", async () => {
+    let answer: () => void = () => {};
+    mockRegionLookup = new Promise((resolve) => (answer = resolve));
+    mockSignup.mockResolvedValueOnce({ id: "u-new" });
+    await submitSignup();
+    expect(mockAdoptNewAccount).not.toHaveBeenCalled();
+    mockConsentMode = "opt-out";
+    await act(async () => {
+      answer();
+    });
+    expect(mockAdoptNewAccount).toHaveBeenCalledWith({ analyticsEnabled: true }, "u-new");
   });
 
   it("leaves analytics off for a new account where the person must opt in", async () => {

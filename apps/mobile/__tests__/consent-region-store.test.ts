@@ -100,6 +100,16 @@ describe("consent region store", () => {
     expect(fetchGeo).toHaveBeenCalledTimes(2);
   });
 
+  it("lets a one-time decision wait for the lookup in flight", async () => {
+    const store = loadStore();
+    await expect(store.regionLookup()).resolves.toBeUndefined();
+    let answer: (geo: { country: string; region: string }) => void = () => {};
+    void store.refreshRegion({ fetchGeo: () => new Promise((resolve) => (answer = resolve)) });
+    const waited = store.regionLookup().then(() => store.getConsentMode());
+    answer({ country: "US", region: "TX" });
+    await expect(waited).resolves.toBe("opt-out");
+  });
+
   it("stops waiting for a lookup that never answers", async () => {
     jest.useFakeTimers();
     const store = loadStore();

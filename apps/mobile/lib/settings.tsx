@@ -78,7 +78,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user);
   userRef.current = user;
   const adoptPending = useRef(false);
-  const newAccountPatch = useRef<SettingsPatch | null>(null);
+  const newAccountPatch = useRef<{ userId: string; patch: SettingsPatch } | null>(null);
   const reconciledFor = useRef<string | null>(null);
 
   const commit = useCallback(
@@ -121,7 +121,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     (userId: string) => {
       adoptPending.current = false;
       const theme = previewRef.current;
-      const defaults = newAccountPatch.current;
+      const pending = newAccountPatch.current;
+      const defaults = pending?.userId === userId ? pending.patch : null;
       newAccountPatch.current = null;
       if (theme || defaults) {
         commit(applyPatch(settingsRef.current, { ...defaults, ...(theme ? { theme } : {}) }), true, "patch", userId);
@@ -159,7 +160,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
       if (cancelled) return;
       reconciledFor.current = user.id;
-      if (adoptPending.current || newAccountPatch.current) adopt(user.id);
+      if (adoptPending.current || newAccountPatch.current?.userId === user.id) adopt(user.id);
     })();
     return () => {
       cancelled = true;
@@ -188,10 +189,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [adopt]);
 
   const adoptNewAccount = useCallback(
-    (defaults: SettingsPatch) => {
-      newAccountPatch.current = defaults;
+    (defaults: SettingsPatch, userId: string) => {
+      newAccountPatch.current = { userId, patch: defaults };
       const current = userRef.current;
-      if (current && reconciledFor.current === current.id) adopt(current.id);
+      if (current?.id === userId && reconciledFor.current === userId) adopt(userId);
     },
     [adopt]
   );

@@ -48,7 +48,7 @@ import { saveOnboardingAnswers } from "../lib/onboarding-answers";
 import { stepsFor, type OnboardingState } from "../lib/onboarding-flow";
 import { commitWritingReminders } from "../lib/writing-reminder-store";
 import { useThemePreview } from "../lib/theme-preview-context";
-import { getConsentMode } from "../lib/consent-region-store";
+import { getConsentMode, regionLookup } from "../lib/consent-region-store";
 import { OnboardingThread } from "./onboarding/OnboardingThread";
 import { InlineDots } from "./InlineDots";
 import { AUTH_EXIT_MS, markAuthArrival } from "../lib/auth-arrival";
@@ -154,7 +154,12 @@ export function AuthScreen({
     reset();
     // Where analytics is on by default (lib/consent-region.ts), a brand-new
     // account starts with it on; an existing account's saved choice is its own.
-    if (created && getConsentMode() === "opt-out") adoptNewAccount({ analyticsEnabled: true });
+    // It waits for a region lookup still in flight, so a slow first launch is not read as opt-in.
+    if (created) {
+      void regionLookup().then(() => {
+        if (getConsentMode() === "opt-out") adoptNewAccount({ analyticsEnabled: true }, user.id);
+      });
+    }
     const arrive = () => restoreLastPlace(router, user.id);
     if (!isSignup || !onboarding) {
       setPreview(null);
