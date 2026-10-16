@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Alert, TextInput } from "react-native";
+import { Alert, BackHandler, TextInput } from "react-native";
 import WritingExerciseScreen from "../app/writing-exercise";
 import { EXERCISES } from "../lib/writing-exercise";
 
@@ -67,6 +67,15 @@ async function writeThroughToFinish() {
   expect(screen.getByText("Exercise complete")).toBeTruthy();
 }
 
+function pressHardwareBack() {
+  const handlers = jest.mocked(BackHandler.addEventListener).mock.calls
+    .filter(([event]) => event === "hardwareBackPress")
+    .map(([, handler]) => handler);
+  act(() => {
+    handlers.at(-1)?.();
+  });
+}
+
 function pressLeaveInAlert() {
   const buttons = (jest.mocked(Alert.alert).mock.calls.at(-1)?.[2] ?? []) as { text: string; onPress?: () => void }[];
   buttons.find((b) => b.text === "Leave")?.onPress?.();
@@ -77,6 +86,7 @@ describe("Writing exercise screen", () => {
     mockParams = {};
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    jest.spyOn(BackHandler, "addEventListener");
   });
 
   it("opens on the list of exercises, each with what it is for and how long it takes", () => {
@@ -103,6 +113,20 @@ describe("Writing exercise screen", () => {
     fireEvent.press(screen.getByRole("button", { name: "All exercises" }));
     expect(screen.getByText("Writing exercises")).toBeTruthy();
     expect(screen.getByTestId("exercise-card-noun_list")).toBeTruthy();
+  });
+
+  it("goes back to the list on the hardware back from an intro, rather than leaving", () => {
+    render(<WritingExerciseScreen />);
+    pick("one_true_sentence");
+    expect(screen.getByRole("button", { name: "Begin" })).toBeTruthy();
+
+    pressHardwareBack();
+    expect(screen.getByText("Writing exercises")).toBeTruthy();
+    expect(screen.getByTestId("exercise-card-noun_list")).toBeTruthy();
+    expect(mockLeave).not.toHaveBeenCalled();
+
+    pressHardwareBack();
+    expect(mockLeave).toHaveBeenCalledWith("/manuscripts");
   });
 
   it("skips the list when the link names an exercise, and still offers the way back", () => {

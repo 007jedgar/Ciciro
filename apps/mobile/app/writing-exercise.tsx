@@ -99,13 +99,20 @@ function WritingExerciseContent() {
     ]);
   }, [step.kind, copied, exercise, texts, leave, t]);
 
+  const backToList = useCallback(() => {
+    setExercise(null);
+    setTexts({});
+    setStep({ kind: "pick" });
+  }, []);
+
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      requestClose();
+      if (step.kind === "intro") backToList();
+      else requestClose();
       return true;
     });
     return () => sub.remove();
-  }, [requestClose]);
+  }, [step.kind, backToList, requestClose]);
 
   if (!ready) return null;
   if (!user) return <Redirect href="/login" />;
@@ -114,12 +121,6 @@ function WritingExerciseContent() {
     setExercise(chosen);
     setTexts(emptyTexts(chosen));
     setStep({ kind: "intro" });
-  }
-
-  function backToList() {
-    setExercise(null);
-    setTexts({});
-    setStep({ kind: "pick" });
   }
 
   function begin(current: ExerciseDef) {
