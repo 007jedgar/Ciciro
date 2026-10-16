@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import type { ConsentMode } from "./consent-region";
 
 /**
  * On-device analytics/privacy consent (GDPR/ePrivacy opt-in), separate from
@@ -70,8 +71,15 @@ export function getConsent(): ConsentRecord | null {
   return cached;
 }
 
-/** True when nobody has decided on this device, or they decided under an older version. */
-export function needsConsentPrompt(record: ConsentRecord | null): boolean {
+/**
+ * True when the prompt must be shown: nobody has decided on this device (or
+ * they decided under an older version) AND this is a place that requires
+ * asking first. In an opt-out place (the US outside California, Washington
+ * and Oregon, lib/consent-region.ts) nothing is ever asked; the switch under
+ * Settings > Privacy choices is the way out.
+ */
+export function needsConsentPrompt(record: ConsentRecord | null, mode: ConsentMode = "opt-in"): boolean {
+  if (mode === "opt-out") return false;
   return !record || record.version !== CONSENT_VERSION;
 }
 
@@ -101,16 +109,29 @@ export function useConsent(): ConsentRecord | null {
 }
 
 /**
- * Whether analytics may actually run right now: consent granted on this
- * device AND (nobody signed in, or the signed-in account's own
- * `analyticsEnabled` agrees). A device that never decided, or said no, is
- * always false regardless of any account setting.
+ * Whether this device allows analytics, before the account is consulted: its
+ * recorded decision when there is one, otherwise the default for where it is
+ * (off where the person must opt in, on where they opt out).
+ */
+export function deviceAnalyticsAllowed(record: ConsentRecord | null, mode: ConsentMode): boolean {
+  if (record) return record.categories.analytics === true;
+  return mode === "opt-out";
+}
+
+/**
+ * Whether analytics may actually run right now: the device allows it AND
+ * (nobody signed in, or the signed-in account's own `analyticsEnabled`
+ * agrees). An opt-in place with no decision, or a "no", is always false
+ * regardless of any account setting; in an opt-out place with no decision the
+ * default is on, and a signed-in account's saved "off" still wins (a new
+ * account in such a place is created with it on: see AuthScreen).
  */
 export function effectiveAnalyticsAllowed(input: {
   record: ConsentRecord | null;
+  mode: ConsentMode;
   signedIn: boolean;
   accountEnabled: boolean;
 }): boolean {
-  if (input.record?.categories.analytics !== true) return false;
+  if (!deviceAnalyticsAllowed(input.record, input.mode)) return false;
   return !input.signedIn || input.accountEnabled;
 }

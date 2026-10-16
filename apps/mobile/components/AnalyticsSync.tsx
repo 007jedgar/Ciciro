@@ -4,6 +4,7 @@ import { usePathname } from "expo-router";
 import { getAnalytics, setAnalyticsConsent } from "../lib/analytics-client";
 import { trackScreenView, type ScreenView } from "../lib/analytics-events";
 import { effectiveAnalyticsAllowed, useConsent } from "../lib/consent";
+import { refreshRegion, refreshRegionIfStale, useConsentMode } from "../lib/consent-region-store";
 import type { AppActiveListener } from "../lib/sync-engine";
 import { useSession } from "../lib/session";
 import { useAppTheme } from "../lib/settings";
@@ -70,9 +71,10 @@ function screenNameForPath(pathname: string): string {
 }
 
 /**
- * Honors the device's analytics consent (lib/consent.ts) and the account's
- * `analyticsEnabled` setting - effective analytics requires both - and
- * tracks a screen view with duration on every route change. Identify/reset
+ * Honors the device's analytics consent (lib/consent.ts, whose default for a
+ * device with no decision depends on where it is: lib/consent-region.ts) and
+ * the account's `analyticsEnabled` setting - effective analytics requires
+ * both - and tracks a screen view with duration on every route change. Identify/reset
  * lives in lib/session.tsx, next to the matching RevenueCat wiring. See
  * docs/analytics.md.
  */
@@ -81,17 +83,32 @@ export function AnalyticsSync() {
   const { settings } = useAppTheme();
   const { user } = useSession();
   const consent = useConsent();
+  const { mode } = useConsentMode();
   const activeScreen = useRef<ScreenView | null>(null);
 
+  // Where the device is decides whether analytics defaults on (lib/consent-region.ts):
+  // look it up at launch, and again on a foreground return when the last look is old.
   useEffect(() => {
-    setAnalyticsConsent(consent?.categories.analytics === true);
+    void refreshRegion();
+    const sub = AppState.addEventListener("change", (status) => {
+      if (status === "active") void refreshRegionIfStale();
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
     const allowed = effectiveAnalyticsAllowed({
       record: consent,
+      mode,
       signedIn: !!user,
       accountEnabled: settings.analyticsEnabled,
     });
+    // The real client is built and opted in only when analytics is actually
+    // allowed, so a default-on place whose account said off never opts in even
+    // for a moment (an opt-in can itself be an event).
+    setAnalyticsConsent(allowed);
     getAnalytics().setOptedOut(!allowed);
-  }, [consent, user, settings.analyticsEnabled]);
+  }, [consent, mode, user, settings.analyticsEnabled]);
 
   useEffect(() => {
     const screen = screenNameForPath(pathname);

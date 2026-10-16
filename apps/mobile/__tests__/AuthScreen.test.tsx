@@ -45,13 +45,21 @@ jest.mock("../lib/session", () => ({
 
 const mockSetPreview = jest.fn();
 const mockAdoptPreview = jest.fn();
+const mockAdoptNewAccount = jest.fn();
+let mockConsentMode: "opt-in" | "opt-out" = "opt-in";
+jest.mock("../lib/consent-region-store", () => ({ getConsentMode: () => mockConsentMode }));
 
 function renderOnboardingSignup(onboarding: OnboardingState, preview: ThemeId | null = "ember") {
   const settings = defaultSettings();
   const colors = THEME_PALETTES[settings.theme];
   return render(
     <ThemePreviewContext.Provider
-      value={{ preview, setPreview: mockSetPreview, adoptPreview: mockAdoptPreview }}
+      value={{
+        preview,
+        setPreview: mockSetPreview,
+        adoptPreview: mockAdoptPreview,
+        adoptNewAccount: mockAdoptNewAccount,
+      }}
     >
       <AppThemeContext.Provider
         value={{ settings, colors, layout: makeLayout(colors, settings.editorFont), dark: false, patch: jest.fn() }}
@@ -140,6 +148,8 @@ describe("Signing up from the onboarding", () => {
     mockCommitReminders.mockReset();
     mockSetPreview.mockReset();
     mockAdoptPreview.mockReset();
+    mockAdoptNewAccount.mockReset();
+    mockConsentMode = "opt-in";
   });
 
   async function submitSignup() {
@@ -186,5 +196,27 @@ describe("Signing up from the onboarding", () => {
     expect(mockSaveAnswers).not.toHaveBeenCalled();
     expect(mockAdoptPreview).not.toHaveBeenCalled();
     expect(mockCommitReminders).not.toHaveBeenCalled();
+  });
+
+  it("starts a new account with analytics on where it is on by default", async () => {
+    mockConsentMode = "opt-out";
+    mockSignup.mockResolvedValueOnce({ id: "u-new" });
+    await submitSignup();
+    expect(mockAdoptNewAccount).toHaveBeenCalledWith({ analyticsEnabled: true });
+  });
+
+  it("leaves analytics off for a new account where the person must opt in", async () => {
+    mockSignup.mockResolvedValueOnce({ id: "u-new" });
+    await submitSignup();
+    expect(mockAdoptNewAccount).not.toHaveBeenCalled();
+  });
+
+  it("never turns analytics on for an existing account a social sign-in lands on", async () => {
+    mockConsentMode = "opt-out";
+    renderOnboardingSignup(quiz);
+    await act(async () => {
+      mockSocialSignedIn({ id: "u-old" }, false);
+    });
+    expect(mockAdoptNewAccount).not.toHaveBeenCalled();
   });
 });

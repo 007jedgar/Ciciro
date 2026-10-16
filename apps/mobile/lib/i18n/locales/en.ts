@@ -391,7 +391,9 @@ const en = {
   },
   consent: {
     title: "Your privacy choices",
-    body: "Ciciro always uses a few things to run the app: signing in, security, and the preferences you set, like your theme. Analytics is different - it's off until you say yes, and it never includes your manuscript text, chat content, or titles. You can change your mind anytime from Settings.",
+    body: "Ciciro would like to count which features get used, so we can improve the app. It never includes your manuscript text, chat content, or titles. This is only for our own analytics: we never sell it, and we never share it with advertisers or data brokers.",
+    bodyProvider: "Our analytics provider, PostHog, processes it on our behalf and only for us.",
+    bodyFooter: "Signing in, security, and your preferences work either way. You can change your mind anytime in Settings, under Privacy choices.",
     allow: "Allow",
     dontAllow: "Don't allow",
     choose: "Choose",
@@ -406,6 +408,10 @@ const en = {
     statusAllowed: "You allowed analytics on {{date}}.",
     statusNotAllowed: "You chose not to allow analytics on {{date}}.",
     statusUndecided: "You haven't made a choice on this device yet.",
+    promise: "We never sell this data or share it with advertisers or data brokers. It is used only to improve Ciciro, and our analytics provider, PostHog, processes it on our behalf.",
+    statusDefaultOn: "Analytics is on by default where you are. Turn it off any time and it stops right away.",
+    statusAccountOff: "Analytics is off for your account. You can turn it on here.",
+    policy: "Read the privacy policy",
   },
   billing: {
     title: "Ciciro Pro",

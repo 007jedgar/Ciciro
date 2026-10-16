@@ -10,6 +10,13 @@ for an uncommitted entry) and writes it back into this file.
 
 ## Unreleased
 
+- <!-- 2026-10-16 --> **A clearer analytics choice on the phone.** The first-run analytics question now makes
+  **Allow** the main button and **Don't allow** the quieter one beside it, and says plainly
+  that analytics is only for improving Ciciro: it never includes your manuscript, chat or
+  titles, and it is never sold or shared with advertisers. In the United States outside
+  California, Washington and Oregon the question is no longer asked; analytics starts on
+  and **Settings, then Privacy choices** is now a simple switch (available to everyone, with
+  a link to the privacy policy) that turns it off the moment you flip it.
 - <!-- 2026-10-16 --> **A natural voice for Listen on the phone.** Listening settings (Settings, then
   **Listening**, or the voice row on the Listen screen) now lets you choose who reads
   your chapters back. Next to the phone's own voices there is a more lifelike voice,

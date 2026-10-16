@@ -83,9 +83,12 @@ These are enforced in code, not just convention:
   account-switch) change, never for an anonymous visitor, and both PostHog
   adapters re-register the super properties (`platform`, `release`) after a
   reset.
-- **Opt-in consent, per device, required everywhere (GDPR/ePrivacy).**
+- **Opt-in consent, per device, where the law asks for it (GDPR/ePrivacy).**
   Analytics storage/access on a device needs affirmative consent before it
-  happens, in every region - this app does not geo-gate the rule. The
+  happens in the EU / EEA / UK / Switzerland (and, by the owner's choice,
+  California, Washington and Oregon). **Web asks everyone**; **the phone asks
+  only there**, and elsewhere in the US analytics is on by default with an
+  easy opt-out - see "Where the prompt shows (phone)" below. The
   consent record (`{ version, categories: { analytics }, decidedAt }`) lives
   on the device, never synced: a second device, or a reinstall, has no
   record and is asked again even for an account that already said yes
@@ -99,15 +102,68 @@ These are enforced in code, not just convention:
   (mobile: `CONSENT_VERSION` in `apps/mobile/lib/consent.ts`) whenever a
   category or its purpose changes.
 
-  The prompt is equal-weight Allow/Don't-allow (Accept-all/Reject-all on
-  web) plus a Choose/Customize path to the same per-category view, no
-  pre-ticked analytics box, no cookie wall - the product works fully with
-  analytics rejected. Withdrawing is exactly as easy as granting: a
-  persistent "Privacy choices" entry point (mobile: a Settings row, opening
-  `app/privacy-choices.tsx`, which also shows the current decision and when
-  it was made; web: the landing/features footers, the pricing and privacy
-  pages, and a "Cookie settings" row in Settings, all opening the same
-  preference center) reopens the same choice anytime.
+  The phone's prompt is **Allow (the primary, filled button)** beside
+  **Don't allow (the quiet, outlined button)**, same size, one tap each, plus
+  a Choose path to the same per-category view, no pre-ticked analytics box,
+  no cookie wall - the product works fully with analytics rejected. (Web's
+  banner keeps equal-weight Accept all / Reject all.) The copy says plainly
+  that the data is only for Ciciro's own analytics, is never sold and is
+  never shared with advertisers or data brokers, and that the analytics
+  provider (PostHog) processes it on Ciciro's behalf. Keep it true: if a
+  second recipient, an ad SDK, or any sharing is ever added, change the
+  `consent.*` strings in all four locales and bump `CONSENT_VERSION`.
+  Withdrawing is exactly as easy as granting: **Settings > Privacy choices**
+  (`app/privacy-choices.tsx`) is a plain on/off switch for analytics, for
+  every user everywhere, with the promise above and a link to the privacy
+  policy; changing it takes effect at once (`AnalyticsSync` reacts to the new
+  record) and is recorded like a choice at the prompt. Web: the landing/
+  features footers, the pricing and privacy pages, and a "Cookie settings"
+  row in Settings reopen the preference center.
+
+  ### Where the prompt shows (phone)
+
+  `apps/mobile/lib/consent-region.ts` (`consentModeFor`, pure and tested in
+  `__tests__/consent-region.test.ts`) turns a coarse location into one of two
+  modes:
+
+  | Where | Mode | Behaviour |
+  | --- | --- | --- |
+  | EU (27), Iceland, Liechtenstein, Norway, UK, Switzerland | opt-in | Prompt after signup; analytics off until Allow |
+  | United States: California, Washington, Oregon | opt-in | Same |
+  | United States, any other state or DC | opt-out | No prompt; analytics on by default; switch off in Privacy choices |
+  | US with no state, any other country (incl. US territories), unknown | opt-in | Same as the first rows: asking when unsure costs one tap |
+
+  The location comes from our own server, not the device:
+  `GET /api/app/consent-region` (`src/lib/request-geo.ts`) returns Cloudflare's
+  country and, in the US, state for the request's IP - nothing finer, nothing
+  stored or logged. `apps/mobile/lib/consent-region-store.ts` looks it up at
+  launch and on a foreground return older than 6 hours, caches it in local
+  prefs, and stops trusting a cached place after 7 days (travel). The device
+  language region is deliberately **not** a fallback: it names no state, which
+  is the one thing it would have to decide, so with no server answer the
+  prompt shows. The prompt (`ConsentGate`) waits for the first lookup (at most
+  5 seconds) rather than flash for someone it turns out not to apply to.
+  Outside production the endpoint accepts `?country=US&region=TX` so every
+  case can be walked without a VPN. IP geolocation is approximate: a VPN
+  moves a person to the other side of the table.
+
+  In an opt-out place with no recorded decision, analytics is on **unless the
+  signed-in account's saved `analyticsEnabled` is off** (the account setting
+  still follows a person across devices). A brand-new account created in such
+  a place is created with it on (`adoptNewAccount` in `lib/settings.tsx`,
+  called from `AuthScreen`); an existing account keeps whatever it saved, so
+  an older US account that never opted in stays off until its owner flips the
+  switch. Moving into an opt-in place with no decision shows the prompt and
+  holds analytics off until it is answered; a recorded decision always wins
+  over the regional default.
+
+  **Not implemented, recommended for review** (see the PR for sources):
+  Quebec (Law 25 reads as opt-in for profiling / non-essential tracking),
+  South Korea, and Brazil (LGPD; the ANPD cookie guide allows legitimate
+  interest for pure audience measurement, so it is not clearly opt-in).
+  These currently fall in the "any other country" row and so get the prompt
+  anyway; if the opt-out set is ever widened beyond the US, add them (and
+  verify each one) first.
 
   `analyticsEnabled` in `AppSettings` (web `src/lib/settings.ts`, mobile
   `apps/mobile/lib/app-settings.ts`) is the signed-in account's *synced*

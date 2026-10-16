@@ -78,6 +78,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user);
   userRef.current = user;
   const adoptPending = useRef(false);
+  const newAccountPatch = useRef<SettingsPatch | null>(null);
   const reconciledFor = useRef<string | null>(null);
 
   const commit = useCallback(
@@ -120,7 +121,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     (userId: string) => {
       adoptPending.current = false;
       const theme = previewRef.current;
-      if (theme) commit(applyPatch(settingsRef.current, { theme }), true, "patch", userId);
+      const defaults = newAccountPatch.current;
+      newAccountPatch.current = null;
+      if (theme || defaults) {
+        commit(applyPatch(settingsRef.current, { ...defaults, ...(theme ? { theme } : {}) }), true, "patch", userId);
+      }
       previewRef.current = null;
       setPreviewState(null);
     },
@@ -131,7 +136,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const local = readCache();
     commit(local.settings, local.saved, "none");
     reconciledFor.current = null;
-    if (!user) return;
+    if (!user) {
+      newAccountPatch.current = null;
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
@@ -151,7 +159,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
       if (cancelled) return;
       reconciledFor.current = user.id;
-      if (adoptPending.current) adopt(user.id);
+      if (adoptPending.current || newAccountPatch.current) adopt(user.id);
     })();
     return () => {
       cancelled = true;
@@ -179,9 +187,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     else adoptPending.current = true;
   }, [adopt]);
 
+  const adoptNewAccount = useCallback(
+    (defaults: SettingsPatch) => {
+      newAccountPatch.current = defaults;
+      const current = userRef.current;
+      if (current && reconciledFor.current === current.id) adopt(current.id);
+    },
+    [adopt]
+  );
+
   const previewValue = useMemo(
-    () => ({ preview, setPreview, adoptPreview }),
-    [preview, setPreview, adoptPreview]
+    () => ({ preview, setPreview, adoptPreview, adoptNewAccount }),
+    [preview, setPreview, adoptPreview, adoptNewAccount]
   );
 
   const shownTheme = preview ?? settings.theme;

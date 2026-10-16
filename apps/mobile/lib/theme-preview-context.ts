@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { SettingsPatch } from "./app-settings";
 import type { ThemeId } from "./theme";
 
 /**
@@ -12,9 +13,21 @@ export type ThemePreviewState = {
   setPreview: (theme: ThemeId | null) => void;
   /** Saves the previewed theme to the account that just signed up, once its settings have loaded. */
   adoptPreview: () => void;
+  /**
+   * Gives the account that just signed up these settings (e.g. analytics on,
+   * where that is the default), once its settings have loaded - so a stale
+   * cache or the settings fetch still in flight cannot undo them. Only for a
+   * brand-new account: an existing one's saved choices are its own.
+   */
+  adoptNewAccount: (patch: SettingsPatch) => void;
 };
 
-const NO_PREVIEW: ThemePreviewState = { preview: null, setPreview: () => {}, adoptPreview: () => {} };
+const NO_PREVIEW: ThemePreviewState = {
+  preview: null,
+  setPreview: () => {},
+  adoptPreview: () => {},
+  adoptNewAccount: () => {},
+};
 
 /** Leaf module so Metro/inline-requires cannot split provider and consumer. */
 export const ThemePreviewContext = createContext<ThemePreviewState>(NO_PREVIEW);

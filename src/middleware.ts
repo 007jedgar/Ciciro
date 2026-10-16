@@ -44,6 +44,7 @@ const PUBLIC_PREFIXES = [
   "/api/beta-signup",
   "/api/health",
   "/api/app/version-policy",
+  "/api/app/consent-region",
   "/read/",
   "/api/read/",
   "/api/billing/webhooks/",

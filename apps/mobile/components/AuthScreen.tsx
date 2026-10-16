@@ -48,6 +48,7 @@ import { saveOnboardingAnswers } from "../lib/onboarding-answers";
 import { stepsFor, type OnboardingState } from "../lib/onboarding-flow";
 import { commitWritingReminders } from "../lib/writing-reminder-store";
 import { useThemePreview } from "../lib/theme-preview-context";
+import { getConsentMode } from "../lib/consent-region-store";
 import { OnboardingThread } from "./onboarding/OnboardingThread";
 import { InlineDots } from "./InlineDots";
 import { AUTH_EXIT_MS, markAuthArrival } from "../lib/auth-arrival";
@@ -127,7 +128,7 @@ export function AuthScreen({
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const isSignup = mode === "signup";
-  const { setPreview, adoptPreview } = useThemePreview();
+  const { setPreview, adoptPreview, adoptNewAccount } = useThemePreview();
   // Return walks the form: name, then email, then password, and on the
   // password it submits, so nobody has to dismiss the keyboard to find the button.
   const emailRef = useRef<TextInput>(null);
@@ -151,6 +152,9 @@ export function AuthScreen({
 
   function signedIn(user: PublicUser, created = isSignup) {
     reset();
+    // Where analytics is on by default (lib/consent-region.ts), a brand-new
+    // account starts with it on; an existing account's saved choice is its own.
+    if (created && getConsentMode() === "opt-out") adoptNewAccount({ analyticsEnabled: true });
     const arrive = () => restoreLastPlace(router, user.id);
     if (!isSignup || !onboarding) {
       setPreview(null);
