@@ -1,0 +1,13 @@
+{
+  "aps": {
+    "alert": {
+      "title": "Time to write The Letter",
+      "body": "She didn't need to unfold it, only to feel the weight of it, warm from her pocket.\n\nMara still hasn't said who sent it."
+    },
+    "sound": "default"
+  },
+  "kind": "writing-reminder",
+  "reminderId": "store-shots",
+  "projectId": null,
+  "href": "/manuscripts"
+}

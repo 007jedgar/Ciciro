@@ -1,0 +1,22 @@
+{
+  "name": "store-screenshots",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Renders the App Store and Google Play screenshots and the Play feature graphic from real app captures.",
+  "type": "module",
+  "scripts": {
+    "render": "node src/render.mjs",
+    "render:all": "node src/render.mjs --all-targets",
+    "check": "node src/render.mjs --check"
+  },
+  "dependencies": {
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@fontsource/instrument-sans": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/newsreader": "^5.2.10",
+    "playwright-core": "^1.60.0",
+    "sharp": "^0.35.5"
+  }
+}

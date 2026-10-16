@@ -1,0 +1,367 @@
+/* Store frames. Drawn on a canvas 1000px wide and scaled by deviceScaleFactor,
+   so every length here is a "design pixel". Tokens mirror the homepage
+   (src/app/globals.css, src/components/landing/landing.css): Newsreader display
+   with one italic word, JetBrains Mono marginalia, Instrument Sans body, and
+   the Archive paper stocks. */
+
+:root {
+  --sans: "Instrument Sans Variable", "Instrument Sans", system-ui, sans-serif;
+  --serif: "Newsreader Variable", Newsreader, Georgia, serif;
+  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+
+  --blue: #2340e0;
+  --vermilion: #ff5a40;
+  --blush: #f5aca2;
+  --butter: #ffd84d;
+  --paper: #f1ede4;
+  --panel: #fffdf7;
+  --ink: #141414;
+  --cream: #f3efe6;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+html,
+body {
+  background: #000;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.frame {
+  position: relative;
+  width: 1000px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink-c);
+  font-family: var(--sans);
+}
+
+/* Stocks: background, text, softer text, the italic word, and the tab. */
+.bg-ink {
+  --bg: #141414;
+  --ink-c: #f3efe6;
+  --soft: #b4afa2;
+  --em: #ffd84d;
+  --tab-bg: #f3efe6;
+  --tab-ink: #141414;
+  --line: #2c2b28;
+}
+.bg-blue {
+  --bg: #2340e0;
+  --ink-c: #fffdf7;
+  --soft: rgba(255, 253, 247, 0.82);
+  --em: #ffd84d;
+  --tab-bg: #141414;
+  --tab-ink: #f3efe6;
+  --line: rgba(255, 253, 247, 0.28);
+}
+.bg-vermilion {
+  --bg: #ff5a40;
+  --ink-c: #141414;
+  --soft: rgba(20, 20, 20, 0.78);
+  --em: #fffdf7;
+  --tab-bg: #141414;
+  --tab-ink: #f3efe6;
+  --line: rgba(20, 20, 20, 0.3);
+}
+.bg-butter {
+  --bg: #ffd84d;
+  --ink-c: #141414;
+  --soft: rgba(20, 20, 20, 0.76);
+  --em: #2340e0;
+  --tab-bg: #141414;
+  --tab-ink: #f3efe6;
+  --line: rgba(20, 20, 20, 0.3);
+}
+.bg-blush {
+  --bg: #f5aca2;
+  --ink-c: #141414;
+  --soft: rgba(20, 20, 20, 0.76);
+  --em: #2340e0;
+  --tab-bg: #141414;
+  --tab-ink: #f3efe6;
+  --line: rgba(20, 20, 20, 0.3);
+}
+.bg-paper {
+  --bg: #f1ede4;
+  --ink-c: #141414;
+  --soft: #5a574f;
+  --em: #2340e0;
+  --tab-bg: #141414;
+  --tab-ink: #f3efe6;
+  --line: #dad4c6;
+}
+
+/* ---------- Header: tab, headline, sub ---------- */
+.head {
+  position: relative;
+  z-index: 3;
+  padding: var(--pad-top) var(--pad-x) 0;
+  /* Every frame's picture starts at the same height, whatever the headline's length. */
+  min-height: var(--head-h);
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font: 500 var(--tab-size) / 1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--tab-bg);
+  color: var(--tab-ink);
+  padding: 0.7em 1.15em 0.7em 1em;
+  border-radius: 0.28em 0.28em 0 0;
+  margin-bottom: var(--tab-gap);
+}
+.tab b {
+  font-weight: 500;
+  opacity: 0.62;
+}
+h1 {
+  font-family: var(--serif);
+  font-weight: 330;
+  font-size: var(--h1);
+  line-height: 0.98;
+  letter-spacing: -0.026em;
+  font-variation-settings: "opsz" 72;
+  text-wrap: balance;
+  max-width: var(--h1-max);
+}
+h1 em {
+  white-space: nowrap;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--em);
+}
+.sub {
+  margin-top: var(--sub-gap);
+  max-width: var(--sub-max);
+  font-size: var(--sub-size);
+  line-height: 1.42;
+  color: var(--soft);
+  text-wrap: pretty;
+}
+
+/* ---------- Stage: where the device and the floaters sit ---------- */
+.stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  margin-top: var(--stage-gap);
+}
+/* The composition: as wide as the device, so every floater is placed in
+   percentages of it and survives a different canvas. --c is 1% of its width. */
+.comp {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--dw);
+  --c: calc(var(--dw) / 100);
+  transform: translateX(-50%);
+}
+
+/* ---------- Devices ---------- */
+.dev {
+  position: relative;
+  width: 100%;
+  background: #0b0b0c;
+  box-shadow:
+    inset 0 0 0 calc(0.45 * var(--c)) #4a4a4d,
+    0 calc(2.4 * var(--c)) calc(7 * var(--c)) rgba(0, 0, 0, 0.3),
+    0 calc(10 * var(--c)) calc(28 * var(--c)) rgba(0, 0, 0, 0.22);
+}
+.dev .screen {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+.dev .screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* iPhone 17: 402pt wide, ~55pt screen corner, ~5pt bezel. */
+.dev.iphone {
+  padding: calc(1.9 * var(--c));
+  border-radius: calc(15.4 * var(--c));
+}
+.dev.iphone .screen {
+  border-radius: calc(13.5 * var(--c));
+}
+.dev.iphone .island {
+  position: absolute;
+  top: calc(2.8 * var(--c));
+  left: 50%;
+  width: calc(29 * var(--c));
+  height: calc(8.4 * var(--c));
+  transform: translateX(-50%);
+  background: #000;
+  border-radius: 999px;
+}
+.dev.iphone::before,
+.dev.iphone::after {
+  content: "";
+  position: absolute;
+  width: calc(0.9 * var(--c));
+  background: #2a2a2c;
+  border-radius: calc(0.5 * var(--c));
+}
+.dev.iphone::before {
+  left: calc(-0.8 * var(--c));
+  top: 15%;
+  height: 9%;
+  box-shadow: 0 calc(12 * var(--c)) 0 #2a2a2c;
+}
+.dev.iphone::after {
+  right: calc(-0.8 * var(--c));
+  top: 22%;
+  height: 14%;
+}
+/* iPad Pro 13": thinner bezel, smaller corner. */
+.dev.ipad {
+  padding: calc(2.4 * var(--c));
+  border-radius: calc(4.6 * var(--c));
+}
+.dev.ipad .screen {
+  border-radius: calc(2.6 * var(--c));
+}
+/* Play and the feature graphic: a plain slab with no brand or camera, since
+   the capture has its system bars cut off. */
+.dev.plain {
+  padding: calc(1.6 * var(--c));
+  border-radius: calc(11 * var(--c));
+}
+.dev.plain .screen {
+  border-radius: calc(9.6 * var(--c));
+}
+
+/* ---------- Floaters ---------- */
+.fl {
+  position: absolute;
+  z-index: 4;
+}
+.cut {
+  position: absolute;
+  z-index: 4;
+  border-radius: calc(2.6 * var(--c));
+  background: var(--panel);
+  box-shadow:
+    0 calc(1.4 * var(--c)) calc(3.2 * var(--c)) rgba(0, 0, 0, 0.22),
+    0 calc(7 * var(--c)) calc(18 * var(--c)) rgba(0, 0, 0, 0.2);
+}
+.cut img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: inherit;
+}
+.cut.taped::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: calc(-2.2 * var(--c));
+  left: 50%;
+  width: calc(22 * var(--c));
+  height: calc(5.4 * var(--c));
+  background: color-mix(in srgb, var(--butter) 78%, transparent);
+  transform: translateX(-50%) rotate(2.4deg);
+}
+.chip {
+  position: absolute;
+  z-index: 4;
+  font: 500 calc(3.2 * var(--c)) / 1 var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: calc(2.2 * var(--c)) calc(3.2 * var(--c));
+  border: calc(0.5 * var(--c)) dashed currentColor;
+  border-radius: calc(1.2 * var(--c));
+  background: var(--bg);
+  color: var(--ink-c);
+  white-space: nowrap;
+  box-shadow: 0 calc(1.2 * var(--c)) calc(3 * var(--c)) rgba(0, 0, 0, 0.18);
+}
+.stamp {
+  position: absolute;
+  z-index: 5;
+  color: var(--butter);
+}
+.stamp svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.stamp circle {
+  fill: none;
+  stroke: currentColor;
+}
+.stamp text {
+  fill: currentColor;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+}
+.stamp .mid {
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+/* Brand lockup used on the hero and the feature graphic. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.brand svg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+/* ---------- Form variants ---------- */
+.form-phone {
+  --pad-top: 104px;
+  --pad-x: 72px;
+  --tab-size: 21px;
+  --tab-gap: 40px;
+  --h1: 118px;
+  --h1-max: 860px;
+  --sub-gap: 34px;
+  --sub-size: 32px;
+  --sub-max: 760px;
+  --stage-gap: 0px;
+  --head-h: 700px;
+}
+.form-phone.target-play-phone {
+  --pad-top: 84px;
+  --tab-gap: 32px;
+  --h1: 102px;
+  --sub-gap: 26px;
+  --sub-size: 29px;
+  --stage-gap: 0px;
+  --head-h: 590px;
+}
+.form-tablet {
+  --pad-top: 84px;
+  --pad-x: 80px;
+  --tab-size: 20px;
+  --tab-gap: 34px;
+  --h1: 98px;
+  --h1-max: 840px;
+  --sub-gap: 26px;
+  --sub-size: 30px;
+  --sub-max: 720px;
+  --stage-gap: 0px;
+  --head-h: 450px;
+}
