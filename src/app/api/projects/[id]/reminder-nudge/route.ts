@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DRAFTER_FAST_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { DRAFTER_FAST_MODEL, FAST_LANE_THINKING, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { prisma } from "@/lib/db";
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const result = await anthropic.messages.create({
       model: DRAFTER_FAST_MODEL,
       max_tokens: 60,
+      thinking: FAST_LANE_THINKING,
       messages: [
         {
           role: "user",

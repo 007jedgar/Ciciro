@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { getAnthropic, DRAFTER_FAST_MODEL } from "@/lib/anthropic";
+import { getAnthropic, DRAFTER_FAST_MODEL, FAST_LANE_THINKING } from "@/lib/anthropic";
 import { chapterPlainText } from "@/lib/text";
 import { SUMMARIZER_SYSTEM } from "@/lib/prompts";
 import { aiAllowed } from "@/lib/entitlements";
@@ -38,6 +38,7 @@ export async function summarizeChapter(chapterId: string, user: PublicUser | nul
   const res = await anthropic.messages.create({
     model: DRAFTER_FAST_MODEL,
     max_tokens: 200,
+    thinking: FAST_LANE_THINKING,
     system: SUMMARIZER_SYSTEM,
     messages: [{ role: "user", content: text }],
   });

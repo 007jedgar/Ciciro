@@ -34,4 +34,11 @@ export const EDITOR_MODEL =
   readEnv("CICIRO_EDITOR_MODEL") || readEnv("CICIRO_MODEL") || "claude-opus-5-5";
 export const DRAFTER_MODEL = readEnv("CICIRO_DRAFTER_MODEL") || "claude-sonnet-5-5";
 export const DRAFTER_FAST_MODEL =
-  readEnv("CICIRO_DRAFTER_FAST_MODEL") || "claude-haiku-4-5";
+  readEnv("CICIRO_DRAFTER_FAST_MODEL") || "claude-haiku-5-5";
+
+// Haiku 5.5 thinks adaptively unless told not to, and thinking spends the same
+// max_tokens as the answer. The short fast-lane calls (spelling, synonyms,
+// summaries, recaps, nudges) cap output at 60-400 tokens, so they turn thinking
+// off; the API accepts "disabled" on Haiku 5.5 at effort high or below (default
+// medium). Haiku 5.5 also rejects temperature other than 1, so those calls send none.
+export const FAST_LANE_THINKING = { type: "disabled" } as const;

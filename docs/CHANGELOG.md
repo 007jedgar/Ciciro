@@ -10,6 +10,9 @@ for an uncommitted entry) and writes it back into this file.
 
 ## Unreleased
 
+- <!-- 2026-10-17 --> Quick drafts default is now Claude Haiku 5.5 (`claude-haiku-5-5`), was Claude Haiku 4.5
+  (`claude-haiku-4-5`). It also serves spelling help, synonyms, chapter summaries and recaps.
+  `CICIRO_DRAFTER_FAST_MODEL` still overrides it.
 - <!-- 2026-10-16 --> **A clearer analytics choice on the phone.** The first-run analytics question now makes
   **Allow** the main button and **Don't allow** the quieter one beside it, and says plainly
   that analytics is only for improving Ciciro: it never includes your manuscript, chat or

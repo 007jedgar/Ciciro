@@ -5,6 +5,12 @@ import type { ChangelogEntry } from "@/lib/changelog-parse";
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "id": "fc4778a25c82",
+    "date": "2026-10-17",
+    "summary": "Quick drafts default is now Claude Haiku 5.5 (`claude-haiku-5-5`), was Claude Haiku 4.5 (`claude-haiku-4-5`).",
+    "text": "Quick drafts default is now Claude Haiku 5.5 (`claude-haiku-5-5`), was Claude Haiku 4.5 (`claude-haiku-4-5`). It also serves spelling help, synonyms, chapter summaries and recaps. `CICIRO_DRAFTER_FAST_MODEL` still overrides it."
+  },
+  {
     "id": "e2f86041df9b",
     "date": "2026-10-16",
     "summary": "**A clearer analytics choice on the phone.** The first-run analytics question now makes **Allow** the main button and **Don't allow** the quieter one beside it…",

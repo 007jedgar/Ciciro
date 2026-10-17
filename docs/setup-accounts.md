@@ -32,7 +32,7 @@ Copy [`.env.example`](../.env.example) to `.env` in the repo root (the Next.js a
 | `DATABASE_URL` | Yes | Prisma (`prisma/schema.prisma`) |
 | `CICIRO_EDITOR_MODEL` | No | Default `claude-opus-5-5` (also accepts legacy `CICIRO_MODEL`) |
 | `CICIRO_DRAFTER_MODEL` | No | Default `claude-sonnet-5-5` |
-| `CICIRO_DRAFTER_FAST_MODEL` | No | Default `claude-haiku-4-5` |
+| `CICIRO_DRAFTER_FAST_MODEL` | No | Default `claude-haiku-5-5` |
 | `CICIRO_REQUIRE_AUTH` | Hosted | Middleware + `/api/health`. Set to the string `true`. |
 | `CICIRO_STANDALONE` | Docker build | `next.config.mjs`; the Dockerfile sets this. |
 | `GROQ_API_KEY` | No | `src/lib/fast-lane.ts` |

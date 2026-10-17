@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { getAnthropic, DRAFTER_FAST_MODEL } from "@/lib/anthropic";
+import { getAnthropic, DRAFTER_FAST_MODEL, FAST_LANE_THINKING } from "@/lib/anthropic";
 import { joinSegments, parseSegments } from "@/lib/segments";
 import { countWords } from "@/lib/text";
 
@@ -212,6 +212,7 @@ export async function ensureModelContent(messageId: string): Promise<void> {
       const res = await anthropic.messages.create({
         model: DRAFTER_FAST_MODEL,
         max_tokens: 120,
+        thinking: FAST_LANE_THINKING,
         system:
           "Summarize this chat message for a novel editor AI in one short line. " +
           "Keep decisions and open threads. Drop full prose. No preamble.",

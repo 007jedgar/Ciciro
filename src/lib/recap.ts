@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { authorizeOwnedProject } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
-import { DRAFTER_FAST_MODEL, DRAFTER_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { DRAFTER_FAST_MODEL, DRAFTER_MODEL, FAST_LANE_THINKING, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { aiAllowed, withAiRun } from "@/lib/entitlements";
 import { RECAP_SYSTEM, STUCK_SYSTEM } from "@/lib/prompts";
 import { readBibleFile } from "@/lib/bible";
@@ -90,6 +90,7 @@ export async function getRecap(
     const res = await getAnthropic().messages.create({
       model: DRAFTER_FAST_MODEL,
       max_tokens: 250,
+      thinking: FAST_LANE_THINKING,
       system: RECAP_SYSTEM,
       messages: [{ role: "user", content: source }],
     });

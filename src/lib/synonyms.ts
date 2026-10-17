@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
-import { DRAFTER_FAST_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { DRAFTER_FAST_MODEL, FAST_LANE_THINKING, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { aiAllowed } from "@/lib/entitlements";
 import { SYNONYMS_SYSTEM } from "@/lib/prompts";
 import { SYNONYM_LIMIT, synonymEligible, type SynonymContext } from "@/lib/selection-menu";
@@ -71,7 +71,7 @@ async function askHaiku(context: SynonymContext): Promise<string> {
   const res = await anthropic.messages.create({
     model: DRAFTER_FAST_MODEL,
     max_tokens: 300,
-    temperature: 0,
+    thinking: FAST_LANE_THINKING,
     system: SYNONYMS_SYSTEM,
     messages: [
       {
