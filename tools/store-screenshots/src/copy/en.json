@@ -1,0 +1,69 @@
+{
+  "locale": "en",
+  "brand": "Ciciro",
+  "frames": {
+    "hero": {
+      "tag": "Five minutes counts",
+      "headline": "Build a writing habit, *five minutes* at a time.",
+      "sub": "A writing habit for people who write in stolen minutes, not for a living.",
+      "stamp": [
+        "5 MIN",
+        "COUNTED"
+      ]
+    },
+    "screenplay": {
+      "tag": "Screenplay · Beta",
+      "headline": "Write a script that *looks* like a script.",
+      "sub": "Scene headings, cues and dialogue format themselves as you type, and Tab moves you on to the next line. Screenplay mode is in beta."
+    },
+    "reminders": {
+      "tag": "Reminders",
+      "headline": "Get a reminder that knows *where you left off.*",
+      "sub": "Pick your days. Each reminder quotes the last lines you wrote and nudges you back into the scene."
+    },
+    "commute": {
+      "tag": "Small pockets of time",
+      "headline": "Make your commute a *writing session.*",
+      "sub": "Start a 15 minute sprint, pick up on your last sentence, and keep going with no signal. Everything saves.",
+      "chips": [
+        "15 min sprint",
+        "Saves offline",
+        "Listen back"
+      ]
+    },
+    "suggest": {
+      "tag": "Your words, your call",
+      "headline": "Let Ciciro *suggest.* You decide.",
+      "sub": "Edits arrive as tracked changes. Swap a limp metaphor for one you can see, or reject it and keep yours."
+    },
+    "exercise": {
+      "tag": "A writing habit",
+      "headline": "Learn to *enjoy* writing.",
+      "sub": "Short guided exercises turn a blank page into ten minutes you look forward to. A weekly review tells you what to write next."
+    },
+    "bible": {
+      "tag": "Story bible",
+      "headline": "Keep every detail *straight.*",
+      "sub": "Characters, places and canon sit beside your chapters, so you never scroll back to check what color her eyes were."
+    },
+    "themes": {
+      "tag": "Eight themes",
+      "headline": "Make it *yours.*",
+      "sub": "From bright paper to a candle-lit night, there is a page to suit the hour you write in.",
+      "names": [
+        "Ciciro",
+        "Ciciro Night",
+        "Bookshelf"
+      ]
+    },
+    "scan": {
+      "tag": "Scan notes",
+      "headline": "Scan your *handwritten notes* into your story bible.",
+      "sub": "Photograph a notebook page, check what Ciciro read, then choose where it goes: your story bible or your outline cards."
+    }
+  },
+  "feature": {
+    "headline": "Build a writing habit, *five minutes* at a time.",
+    "kicker": "For people who write around a job, a family, a life"
+  }
+}

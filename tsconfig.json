@@ -23,5 +23,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "src/worker", "apps", "tools/landing-video"]
+  "exclude": ["node_modules", "src/worker", "apps", "tools/landing-video", "tools/store-screenshots"]
 }
