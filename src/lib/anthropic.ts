@@ -42,3 +42,10 @@ export const DRAFTER_FAST_MODEL =
 // off; the API accepts "disabled" on Haiku 5.5 at effort high or below (default
 // medium). Haiku 5.5 also rejects temperature other than 1, so those calls send none.
 export const FAST_LANE_THINKING = { type: "disabled" } as const;
+
+// Text that stopped at its token limit, or at a safety classifier's refusal
+// (Haiku 5.5 has no server-side fallback), is not a finished reply: a caller
+// that stores the text as is must keep what it had instead.
+export function stoppedShort(res: { stop_reason: string | null }): boolean {
+  return res.stop_reason === "max_tokens" || res.stop_reason === "refusal";
+}

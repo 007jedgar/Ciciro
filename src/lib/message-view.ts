@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
-import { getAnthropic, DRAFTER_FAST_MODEL, FAST_LANE_THINKING } from "@/lib/anthropic";
+import { getAnthropic, DRAFTER_FAST_MODEL, FAST_LANE_THINKING, stoppedShort } from "@/lib/anthropic";
 import { joinSegments, parseSegments } from "@/lib/segments";
 import { countWords } from "@/lib/text";
 
@@ -218,11 +218,13 @@ export async function ensureModelContent(messageId: string): Promise<void> {
           "Keep decisions and open threads. Drop full prose. No preamble.",
         messages: [{ role: "user", content: mdParts.join("\n\n").slice(0, 6000) }],
       });
-      gist = res.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("")
-        .trim();
+      gist = stoppedShort(res)
+        ? oneLineGist(msg.content)
+        : res.content
+            .filter((b): b is Anthropic.TextBlock => b.type === "text")
+            .map((b) => b.text)
+            .join("")
+            .trim();
     } else {
       gist = oneLineGist(msg.content);
     }
