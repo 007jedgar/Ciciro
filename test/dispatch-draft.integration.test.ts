@@ -46,4 +46,19 @@ describe("dispatch_draft", () => {
       "Mara ran for the\n\n(The drafter hit its length limit, so this draft stops mid-passage. Finish or trim it in your edit.)"
     );
   });
+
+  it("tells the editor when the drafter stopped early with a refusal", async () => {
+    const project = await prisma.project.create({ data: { title: "Tides" } });
+    mocks.create.mockResolvedValue(reply("Mara ran for the", "refusal"));
+
+    const result = await executeEditorTool(
+      "dispatch_draft",
+      { brief: "Mara runs.", mode: "fast" },
+      { projectId: project.id }
+    );
+
+    expect(result.content).toBe(
+      "Mara ran for the\n\n(The drafter declined to continue, so this draft is incomplete and stops mid-passage. Do not insert it as finished: finish or rewrite it in your edit.)"
+    );
+  });
 });
