@@ -36,6 +36,7 @@ npm install
 cp .env.example .env      # add ANTHROPIC_API_KEY (or export it in your shell)
 npm run setup             # prisma generate + create the SQLite db
 npm run dev               # http://localhost:3000
+npm run nuke              # delete every node_modules, apps/mobile/ios/Pods and Podfile.lock (then npm install)
 ```
 
 Get a key at https://console.anthropic.com/. The editor still works if only the DB
