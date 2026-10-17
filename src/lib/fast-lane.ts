@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { getAnthropic, DRAFTER_FAST_MODEL, FAST_LANE_THINKING } from "@/lib/anthropic";
+import { getAnthropic, DRAFTER_FAST_MODEL, FAST_LANE_THINKING, stoppedShort } from "@/lib/anthropic";
 import type { EditorIntentContract } from "@/lib/editor-intent";
 import { COMPACT_SYSTEM } from "@/lib/prompts";
 
@@ -92,6 +92,7 @@ async function haikuText(system: string, user: string): Promise<string> {
     system,
     messages: [{ role: "user", content: user }],
   });
+  if (stoppedShort(res)) throw new Error(`fast-lane reply stopped short (${res.stop_reason})`);
   return res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)

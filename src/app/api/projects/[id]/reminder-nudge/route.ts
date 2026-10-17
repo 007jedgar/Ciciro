@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DRAFTER_FAST_MODEL, FAST_LANE_THINKING, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { DRAFTER_FAST_MODEL, FAST_LANE_THINKING, getAnthropic, hasAnthropicKey, stoppedShort } from "@/lib/anthropic";
 import { getSessionUser } from "@/lib/auth/session";
 import { responseFromAuthError, responseFromDbError } from "@/lib/auth/http";
 import { prisma } from "@/lib/db";
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         },
       ],
     });
+    if (stoppedShort(result)) return NextResponse.json({ body: null });
     const line = result.content
       .filter((block) => block.type === "text")
       .map((block) => (block.type === "text" ? block.text : ""))
