@@ -68,7 +68,7 @@ const MODELS: ModelsResponse = {
   slots: [
     { key: "editor", role: "Editor", id: "claude-opus-5-5", name: "Claude Opus 5.5" },
     { key: "drafter", role: "Drafter", id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
-    { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+    { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
   ],
   router: { key: "router", role: "Router", id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", provider: "groq" },
 };
@@ -101,7 +101,7 @@ describe("Settings models section", () => {
     for (const [label, name, id] of [
       ["Editor", "Claude Opus 5.5", "claude-opus-5-5"],
       ["Drafter", "Claude Sonnet 5.5", "claude-sonnet-5-5"],
-      ["Quick drafts", "Claude Haiku 4.5", "claude-haiku-4-5"],
+      ["Quick drafts", "Claude Haiku 5.5", "claude-haiku-5-5"],
       ["Router", "Llama 3.1 8B (Groq)", "llama-3.1-8b-instant"],
     ]) {
       expect(screen.getByText(label)).toBeTruthy();

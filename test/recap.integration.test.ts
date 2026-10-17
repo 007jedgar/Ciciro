@@ -2,9 +2,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ create: vi.fn(), hasKey: true }));
 
-vi.mock("@/lib/anthropic", () => ({
-  DRAFTER_FAST_MODEL: "claude-haiku-4-5",
-  DRAFTER_MODEL: "claude-sonnet-5-5",
+vi.mock("@/lib/anthropic", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/anthropic")>()),
   hasAnthropicKey: () => mocks.hasKey,
   getAnthropic: () => ({ messages: { create: mocks.create } }),
 }));
@@ -89,6 +88,19 @@ describe("previously-on recap and stuck prompts", () => {
 
     await write(chapter.id, prose("moon"));
     mocks.create.mockResolvedValue(reply("You left Marta at d", "max_tokens"));
+    expect((await getRecap(project.id, user)).recap?.text).toBe("Old recap.");
+    const cached = await prisma.projectRecap.findUnique({ where: { projectId: project.id } });
+    expect(cached?.content).toBe("Old recap.");
+  });
+
+  it("keeps the stale recap instead of caching one cut off by a refusal", async () => {
+    const { user, project, chapter } = await seed();
+    await write(chapter.id, prose("tide"));
+    mocks.create.mockResolvedValueOnce(reply("Old recap."));
+    await getRecap(project.id, user);
+
+    await write(chapter.id, prose("moon"));
+    mocks.create.mockResolvedValue(reply("You left Marta at d", "refusal"));
     expect((await getRecap(project.id, user)).recap?.text).toBe("Old recap.");
     const cached = await prisma.projectRecap.findUnique({ where: { projectId: project.id } });
     expect(cached?.content).toBe("Old recap.");

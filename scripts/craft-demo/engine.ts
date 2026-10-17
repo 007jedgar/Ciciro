@@ -358,6 +358,9 @@ export async function runDemo(opts: {
 export const PRICES: Record<string, { input: number; output: number }> = {
   "claude-opus-5-5": { input: 4, output: 20 },
   "claude-sonnet-5-5": { input: 2, output: 10 },
+  // https://platform.claude.com/docs/en/about-claude/pricing: the prompts-up-to-100K-token
+  // tier ($0.50 / $2.50 above it); the demo's prompts are well under 100K.
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
   "claude-haiku-4-5": { input: 1, output: 5 },
 };
 

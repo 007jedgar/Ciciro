@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { authorizeOwnedChapter } from "@/lib/auth/access";
 import { AuthError, type PublicUser } from "@/lib/auth/session";
-import { DRAFTER_FAST_MODEL, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
+import { DRAFTER_FAST_MODEL, FAST_LANE_THINKING, getAnthropic, hasAnthropicKey } from "@/lib/anthropic";
 import { aiAllowed } from "@/lib/entitlements";
 import { CORRECT_SYSTEM } from "@/lib/prompts";
 import { getUserSettings } from "@/lib/user-settings";
@@ -162,7 +162,7 @@ async function askHaiku(text: string): Promise<string> {
   const res = await anthropic.messages.create({
     model: DRAFTER_FAST_MODEL,
     max_tokens: 400,
-    temperature: 0,
+    thinking: FAST_LANE_THINKING,
     system: CORRECT_SYSTEM,
     messages: [{ role: "user", content: text }],
   });

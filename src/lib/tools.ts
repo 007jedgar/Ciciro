@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { getAnthropic, DRAFTER_MODEL, DRAFTER_FAST_MODEL } from "@/lib/anthropic";
+import { getAnthropic, DRAFTER_MODEL, DRAFTER_FAST_MODEL, stoppedShort } from "@/lib/anthropic";
 import { prisma } from "@/lib/db";
 import {
   listBible,
@@ -2054,13 +2054,18 @@ export async function executeEditorTool(
           .map((b) => b.text)
           .join("")
           .trim();
+        const refused = res.stop_reason === "refusal";
         if (!prose) {
-          return { status: backstageLine("dispatch_draft"), content: "(drafter returned nothing)" };
+          return {
+            status: backstageLine("dispatch_draft"),
+            content: refused ? "(the drafter declined this brief and returned nothing)" : "(drafter returned nothing)",
+          };
         }
-        const cutOff =
-          res.stop_reason === "max_tokens"
-            ? "\n\n(The drafter hit its length limit, so this draft stops mid-passage. Finish or trim it in your edit.)"
-            : "";
+        const cutOff = !stoppedShort(res)
+          ? ""
+          : refused
+            ? "\n\n(The drafter declined to continue, so this draft is incomplete and stops mid-passage. Do not insert it as finished: finish or rewrite it in your edit.)"
+            : "\n\n(The drafter hit its length limit, so this draft stops mid-passage. Finish or trim it in your edit.)";
         // Craft defaults are opt-in ("Experimental writing prompt"). The fast
         // drafter is for rough bulk text; it gets the free mechanical checks only.
         const craftCheck = craft

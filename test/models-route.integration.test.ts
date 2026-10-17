@@ -46,7 +46,7 @@ describe("GET /api/models", () => {
     expect(body.slots).toEqual([
       { key: "editor", role: "Editor", id: "claude-opus-5-5", name: "Claude Opus 5.5" },
       { key: "drafter", role: "Drafter", id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
-      { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+      { key: "quickDrafts", role: "Quick drafts", id: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
     ]);
     expect(JSON.stringify(body)).not.toMatch(/sk-ant|api[_-]?key/i);
   });

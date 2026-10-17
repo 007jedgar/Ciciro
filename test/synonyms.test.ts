@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/anthropic", () => ({
-  DRAFTER_FAST_MODEL: "claude-haiku-4-5",
+  DRAFTER_FAST_MODEL: "claude-haiku-5-5",
+  FAST_LANE_THINKING: { type: "disabled" },
   hasAnthropicKey: () => mocks.hasKey,
   getAnthropic: () => ({ messages: { create: mocks.create } }),
 }));
@@ -97,7 +98,10 @@ describe("synonymsFor", () => {
     await expect(synonymsFor(user, body)).resolves.toEqual({ synonyms: ["homeland", "nation"] });
     expect(mocks.create).toHaveBeenCalledTimes(1);
     const request = mocks.create.mock.calls[0][0];
-    expect(request.model).toBe("claude-haiku-4-5");
+    expect(request.model).toBe("claude-haiku-5-5");
+    // Haiku 5.5 rejects temperature 0 and thinks by default, which would eat the small token cap.
+    expect(request).not.toHaveProperty("temperature");
+    expect(request.thinking).toEqual({ type: "disabled" });
     expect(request.messages[0].content).toBe(
       "Before: She did not care about the \nWord: country\nAfter: ."
     );

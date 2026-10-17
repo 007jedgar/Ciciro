@@ -54,4 +54,15 @@ describe("chapter beat summaries", () => {
     const saved = await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } });
     expect(saved.summary).toBe("Old summary.");
   });
+
+  it("does not save a summary cut off by a refusal", async () => {
+    const { user, chapter } = await seed();
+    await prisma.chapter.update({ where: { id: chapter.id }, data: { summary: "Old summary." } });
+    mocks.create.mockResolvedValue(reply("Mara reaches the har", "refusal"));
+
+    await summarizeChapter(chapter.id, user);
+
+    const saved = await prisma.chapter.findUniqueOrThrow({ where: { id: chapter.id } });
+    expect(saved.summary).toBe("Old summary.");
+  });
 });
